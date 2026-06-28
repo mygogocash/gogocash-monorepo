@@ -362,6 +362,7 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: "row",
+    fontWeight: typography.bodyWeight,
     gap: mobileShellLayout.searchPopoverResultRowGap,
     minHeight: 84,
     padding: spacing.sm,
@@ -456,7 +457,7 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     color: colors.white,
     fontFamily: typography.family,
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: typography.bodyWeight,
   },
   searchResultActionTextCompact: {
     fontSize: 11,

@@ -70,7 +70,7 @@ Guarded by `src/__tests__/web-style-deprecation-parity.test.ts` and `src/__tests
 
 - **Desktop breakpoint = 1024** (`mobileShellLayout.desktopBreakpoint`): `width >= 1024` is desktop (rail), below is mobile (bottom nav).
 - **`AccountPageShell` is the single source of the desktop rail:** `showDesktopRail = isDesktop && (showProfileRail || isProfileSectionPath(pathname))`. New profile-section pages should render through it so they appear as subpages with the rail/submenu.
-- **Auth: demo stub on screen, real plumbing built.** The login screen still verifies a fixed demo code and writes a demo session (`useAuthGuardSession` flips `isAuthed` reactively via `notifyMobileSessionChange`). Real Firebase phone-auth modules exist and are unit-tested (`src/auth/firebaseClient.ts`, `firebasePhoneAuth.ts`, `firebaseLogin.ts` — project `gogocash-staging`, phone provider enabled); wiring them into `CustomerAuthScreen` is the open task ([docs/api-integration.md](./docs/api-integration.md) §5).
+- **Auth:** `CustomerAuthScreen` uses Firebase phone OTP → backend session when `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE` is `backend` (or fixtures with API URL). **Fixtures-only** (no API URL) keeps the demo code path. Social providers are stubbed ("Coming soon") under backend mode via `resolveAuthSocialProviders` ([docs/api-integration.md](./docs/api-integration.md) §5).
 - Commit/push only when asked; keep changes scoped to your task (a parallel desktop-parity effort may have other files uncommitted — do not stage files you did not change).
 
 When in doubt, search `apps/app/src` for an existing pattern before introducing a new abstraction.
@@ -85,18 +85,22 @@ When in doubt, search `apps/app/src` for an existing pattern before introducing 
 - Keep Expo web preview console clean on main routes — no RN Web deprecation warnings, no broken fixture logo CDN 404s.
 - Verify admin **Brands Management** against the customer app on **real API** (shared host) — admin mock mode does not persist to the customer app.
 - Do not wire **Crossmint**, **Customer.io**, or **Web3/ethers** flows under mobile `backend` mode — Firebase phone OTP + bank/PromptPay only.
+- Wire real **Firebase phone OTP** on `/login` (not demo code only); misconfig often surfaces as generic “Could not complete your request” until `EXPO_PUBLIC_FIREBASE_*`, reCAPTCHA, and authorized domains are set.
+- When user reports customer **sign-in** failures on `/login`, investigate Firebase OTP (reCAPTCHA, authorized domains, `EXPO_PUBLIC_FIREBASE_*`) and the `/register` path — not admin staging credentials.
+- **Brand directory** store cards (`BrandDirectoryStoreCard`) show logo, name, and cashback only — **no category line** (shop directory cards still show category · shop type).
+- **Promotion by Brands** carousel (`ShopDirectoryPromo`) should feel premium — reuse home patterns (`CarouselDots`, snap paging, `getCarouselPageMotionStyle`, `expo-image`), not a one-off free-scroll carousel.
 
 ## Learned Workspace Facts
 
-- Monorepo sibling apps for local dev: `apps/api` NestJS **:8080**, `apps/admin` Next.js **:3000**, `apps/app` Expo web **:8081**.
+- Monorepo sibling apps for local dev: `apps/api` NestJS **:8080**, `apps/admin` Next.js **:3000**, `apps/app` Expo web **:8081**. **Local UI + staging data:** set `EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co`, `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=backend`, `EXPO_PUBLIC_FRONTEND_URL=http://localhost:8081` — no local API/Mongo required. **Hosted staging:** `https://api-staging.gogocash.co`, admin `https://admin-staging.gogocash.co`.
 - npm workspaces hoist inconsistently — run `npm ci` at the monorepo root; if `-w` workspace dev commands fail module resolution, start from `apps/app` or `apps/admin`, or run the API with `NODE_PATH=./node_modules node dist/main`.
 - Theme preference persists under `gogocash.theme.preference` (web `localStorage`, native `expo-secure-store`); default is `system`.
-- New themed UI: `useThemedStyles(createStyles)` + `useTheme()` for live colors; use `colors.field` / `colors.fieldMuted` / `colors.link` for nested controls on cards (not `colors.white` as a surface). Parity-pinned light hex: `pickThemed(colors, light, dark)` from `colorPalettes.ts`. Gate web-only light `backgroundImage` gradients with `colors.isDark`.
-- Render suite: `vitest.render.setup.ts` wraps all mounts in `<ThemeProvider>`.
+- New themed UI: `useThemedStyles(createStyles)` + `useTheme()` for live colors; use `colors.field` / `colors.fieldMuted` / `colors.link` for nested controls on cards (not `colors.white` as a surface). Parity-pinned light hex: `pickThemed(colors, light, dark)` from `colorPalettes.ts`. Gate web-only light `backgroundImage` gradients with `colors.isDark`. Frosted white pills (`rgba(255,255,255,…)`) paired with `colors.ink` are invisible in dark mode — use `pickThemed(…, colors.card)`.
+- **`/shops`** is the cashback **All Shops** directory (`CustomerDiscoveryScreen`, `routeId="shops"`); commerce catalog MVP stays at **`/catalog`** — do not wire `/shops` to `CustomerCatalogHomeScreen`.
 - Shared **`BrandCard`** (`src/components/BrandCard.tsx`): `size="S"` compact (Trending Brands rails, category grids), `size="L"` Top Brands (coupon chip + heart).
 - Scaled compact grid cards: **`getScaledCompactBrandCardMetrics()`** in `webDesignParity.ts` — logo area scales with column width; card height must reserve fixed **`compactBrandMetaHeight`** (typography stays 14px/16px).
 - Shop/brand directory desktop grid: **`getShopDirectoryGridMetrics`** caps at **5 columns** for ≥1024px (`/shops` and `/brand` share the helper).
 - Desktop home brand rails (Top Brands, Trending, Travel, Makeup): **2 rows** via **`getDesktopBrandColumnsPerRow()`**; carousel page width = **`brandSectionFrameWidth`** (not the old fixed 8-column strip). Mobile/tablet keep 3-column × 2-row sliding groups.
 - Cashback card label copy is **`Cashback upto`** (no space) — `webDesignParity.cashbackLabel` + i18n; do not revert to "Cashback up to".
 - Home desktop spacing tokens: `desktopHomeTopGap` (64), `desktopHomeStackGap` (40), `desktopFooterTopMargin` (40), `desktopFooterTopPadding` (56) — do not also gap the scroll container before the footer (that stacks empty space).
-- Admin ↔ customer E2E: admin `NEXT_PUBLIC_API_URL` must match customer `EXPO_PUBLIC_API_URL` (otherwise admin mock `/api/mock`, ids like `o1`); public `GET /offer/top-brands` omits **disabled** offers until enabled in Brands Management.
+- Admin ↔ customer E2E: admin `NEXT_PUBLIC_API_URL` must match customer `EXPO_PUBLIC_API_URL` (otherwise admin mock `/api/mock`, ids like `o1`); public `GET /offer/top-brands` omits **disabled** offers until enabled in Brands Management. **Home banner schedule:** `homeBannerResource.ts` treats admin date-only start/end as local calendar days (same-day start shows immediately).

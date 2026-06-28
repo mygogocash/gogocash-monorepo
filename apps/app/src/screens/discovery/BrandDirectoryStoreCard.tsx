@@ -67,9 +67,6 @@ export const BrandDirectoryStoreCard = memo(function BrandDirectoryStoreCard({
               {store.cashback}
             </Text>
           </View>
-          <Text numberOfLines={1} style={styles.shopDirectoryStoreCategory}>
-            {tc(store.category)}
-          </Text>
         </View>
       </MotionPressable>
     </Link>

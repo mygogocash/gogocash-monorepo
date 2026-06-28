@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import {
   ChevronUp as ChevronUpIcon,
   Search as SearchIcon,
 } from "@mobile/theme/icons";
-import { Animated, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { Animated, ScrollView, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
@@ -151,7 +151,12 @@ export function CustomerHomeScreen() {
       <HomeScreenThemeProvider value={homeTheme}>
         <View style={styles.viewport}>
           <View style={styles.desktopShellFrame}>
-            <CustomerDesktopHeader viewportWidth={width} />
+            <CustomerDesktopHeader
+              onSearchFocus={openSearchPopover}
+              onSearchQueryChange={setSearchQuery}
+              searchQuery={searchQuery}
+              viewportWidth={width}
+            />
             <ScrollView
               contentContainerStyle={[
                 styles.desktopScrollContent,
@@ -189,6 +194,7 @@ export function CustomerHomeScreen() {
               horizontalPadding={homeLayout.contentHorizontalPadding}
               onClose={closeSearchPopover}
               onExited={handleSearchPopoverExited}
+              onSelectRecent={(term) => setSearchQuery(term)}
               query={searchQuery}
               top={searchPopoverTop}
               visible={searchPopoverOpen}

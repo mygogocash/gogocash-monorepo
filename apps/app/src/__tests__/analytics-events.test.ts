@@ -10,6 +10,8 @@ import {
   trackPageView,
   trackPromotionSelect,
   trackQuestStarted,
+  trackSearchOpen,
+  trackSearchSubmit,
   type MobileAnalyticsClient,
 } from "@mobile/analytics/events";
 
@@ -35,6 +37,8 @@ describe("analytics event names mirror the web taxonomy", () => {
       questStarted: "quest_started",
       cashbackWithdrawSuccess: "cashback_withdraw_success",
       completeRegistration: "complete_registration",
+      searchOpen: "search_open",
+      searchSubmit: "search_submit",
     });
   });
 });
@@ -102,6 +106,23 @@ describe("analytics event helpers", () => {
       auth_provider: "phone",
       source_section: "otp",
       login_state: "authenticated",
+    });
+  });
+
+  it("trackSearchOpen > captures search_open with source_section", () => {
+    const { client, capture } = makeClient();
+    trackSearchOpen(client, { source: "desktop_header" });
+    expect(capture).toHaveBeenCalledWith("search_open", {
+      source_section: "desktop_header",
+    });
+  });
+
+  it("trackSearchSubmit > captures search_submit with search_term + source_section", () => {
+    const { client, capture } = makeClient();
+    trackSearchSubmit(client, { query: "shopee", source: "desktop_header" });
+    expect(capture).toHaveBeenCalledWith("search_submit", {
+      search_term: "shopee",
+      source_section: "desktop_header",
     });
   });
 

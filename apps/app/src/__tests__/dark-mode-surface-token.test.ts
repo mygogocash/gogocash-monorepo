@@ -39,7 +39,10 @@ function readPhaseThreeSource(relativePath: string) {
   return readMobileFile(relativePath);
 }
 
-const phaseFourComponentFiles = ["src/components/ShopRedirectOverlay.tsx"];
+const phaseFourComponentFiles = [
+  "src/components/ShopRedirectOverlay.tsx",
+  "src/components/DesktopHeaderSearch.tsx",
+];
 
 const unthemedLightSurfacePatterns = [
   /backgroundColor:\s*"#F7FDFB"/,

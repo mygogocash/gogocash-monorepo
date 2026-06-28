@@ -104,7 +104,7 @@ const WRAPPER_CLIP_FIELD_STYLES = [
   { file: "src/screens/CustomerGoLinkScreen.tsx", styleName: "inputShell" },
   { file: "src/screens/CustomerMoneyActionScreen.tsx", styleName: "inputBox" },
   // App-wide sweep (search boxes + the withdraw select bar) — same rounded-wrapper structure.
-  { file: "src/components/CustomerDesktopHeader.tsx", styleName: "desktopHeaderSearch" },
+  { file: "src/components/DesktopHeaderSearch.tsx", styleName: "shell" },
   { file: "src/screens/home/customerHomeStyles.ts", styleName: "searchPill" },
   { file: "src/screens/home/customerHomeStyles.ts", styleName: "desktopGoLinkInputShell" },
   { file: "src/screens/discovery/customerDiscoveryStyles.ts", styleName: "shopDirectorySearchBox" },

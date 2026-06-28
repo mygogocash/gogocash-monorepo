@@ -228,6 +228,15 @@ describe("GoGoLink feature parity", () => {
 
     expect(screenFile).toContain("GoLinkGuidelineFlowIllustration");
     expect(screenFile).toContain("GoLinkGuidelineStepIllustration");
+
+    const illustrationsFile = fs.readFileSync(
+      path.join(mobileRoot, "src/components/golink/GoLinkGuidelineIllustrations.tsx"),
+      "utf8",
+    );
+    expect(illustrationsFile).toContain("logoMarkImage");
+    expect(illustrationsFile).toContain('accessibilityLabel="GoGoCash logo"');
+    expect(illustrationsFile).toContain("styles.pasteLogo");
+    expect(illustrationsFile).not.toContain("styles.goMark");
     expect(screenFile).not.toContain("golink-guideline-copy-paste-flow.png");
     expect(screenFile).not.toContain("golink-guideline-step-preview-1.png");
     expect(screenFile).toContain("guidelineOpen");

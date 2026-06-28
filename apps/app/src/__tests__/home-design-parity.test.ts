@@ -28,6 +28,10 @@ function readHomeFile() {
   return readHomeSources(mobileRoot);
 }
 
+function readMobileFile(relativePath: string) {
+  return fs.readFileSync(path.join(mobileRoot, relativePath), "utf8");
+}
+
 describe("Expo home design parity", () => {
   it("home design parity > given migrated Expo home > then includes staging mobile landmarks", () => {
     const homeFile = readHomeFile();
@@ -93,7 +97,8 @@ describe("Expo home design parity", () => {
     // Desktop home renders a full-bleed header inside the `homeLayout.isDesktop`
     // branch so the header bar spans the full viewport (content stays capped at 1440).
     expect(homeFile).toContain("if (homeLayout.isDesktop) {");
-    expect(homeFile).toContain("<CustomerDesktopHeader viewportWidth={width} />");
+    expect(homeFile).toContain("<CustomerDesktopHeader");
+    expect(homeFile).toContain("viewportWidth={width}");
     expect(homeFile).toContain('webHomeSectionOrder.includes("browseShortcuts")');
     expect(homeFile).toContain("<BrowseShortcuts />");
     const cookieBannerFile = fs.readFileSync(
@@ -107,7 +112,6 @@ describe("Expo home design parity", () => {
   });
 
   it("desktop navbar icons > given the Phosphor icon contract > then home and auth headers do not use legacy PNG category icons", () => {
-    const homeFile = readHomeFile();
     const desktopHeaderFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/CustomerDesktopHeader.tsx"),
       "utf8"
@@ -142,7 +146,6 @@ describe("Expo home design parity", () => {
   });
 
   it("desktop locale flow > given Next language region popover > then Expo header renders the same chooser contract", () => {
-    const homeFile = readHomeFile();
     const desktopHeaderFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/CustomerDesktopHeader.tsx"),
       "utf8"
@@ -533,6 +536,21 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("mobileShellLayout.searchPopoverActionMinWidth");
     expect(homeFile).toContain("mobileShellLayout.searchPopoverResultRowGap");
     expect(homeFile).not.toContain("minWidth: 122");
+  });
+
+  it("home search popover typography > given secondary copy and actions > then uses normal weight", () => {
+    const styles = readMobileFile("src/screens/home/customerHomeStyles.ts");
+    const subtitleBlock =
+      styles.match(/searchPopoverSubtitle:\s*\{[\s\S]*?\n\s*\}/)?.[0] ?? "";
+    const captionBlock =
+      styles.match(/searchResultCaption:\s*\{[\s\S]*?\n\s*\}/)?.[0] ?? "";
+    const actionBlock =
+      styles.match(/searchResultActionText:\s*\{[\s\S]*?\n\s*\}/)?.[0] ?? "";
+
+    expect(subtitleBlock).toContain("fontWeight: typography.bodyWeight");
+    expect(captionBlock).toContain("fontWeight: typography.bodyWeight");
+    expect(actionBlock).toContain("fontWeight: typography.bodyWeight");
+    expect(actionBlock).not.toContain('fontWeight: "700"');
   });
 
   it("home design parity > given selected staging search focus state > then Expo suppresses the browser focus outline", () => {

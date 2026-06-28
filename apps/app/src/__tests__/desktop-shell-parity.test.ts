@@ -195,9 +195,75 @@ describe("desktop route shell parity", () => {
   });
 
   it("desktop header search > given the shared navbar search field > then it has a stable web id for accessibility tooling", () => {
-    const header = readMobileFile("src/components/CustomerDesktopHeader.tsx");
+    const search = readMobileFile("src/components/DesktopHeaderSearch.tsx");
 
-    expect(header).toContain('nativeID="desktop-header-search-input"');
+    expect(search).toContain('nativeID="desktop-header-search-input"');
+  });
+
+  it("desktop header search > given premium search plan > then it navigates to /search with field styling", () => {
+    const search = readMobileFile("src/components/DesktopHeaderSearch.tsx");
+
+    expect(search).toContain('pathname: "/search"');
+    expect(search).toContain("normalizeSearchQuery");
+    expect(search).toContain("returnKeyType=\"search\"");
+    expect(search).toContain("shadows.cardCss");
+    expect(search).toContain("colors.field");
+    expect(search).toContain("shellFocused");
+  });
+
+  it("desktop header search > given web focus expand > then default maxWidth 560 expands to 640 on web", () => {
+    const search = readMobileFile("src/components/DesktopHeaderSearch.tsx");
+
+    expect(search).toContain("maxWidth: 560");
+    expect(search).toContain("shellExpanded");
+    expect(search).toContain("maxWidth: 640");
+    expect(search).toContain('Platform.OS === "web"');
+    expect(search).toContain("max-width");
+  });
+
+  it("desktop header search > given premium keyboard shortcut > then Meta/Ctrl+K focuses input and tracks search_open", () => {
+    const search = readMobileFile("src/components/DesktopHeaderSearch.tsx");
+
+    expect(search).toContain('Platform.OS !== "web"');
+    expect(search).toContain("keydown");
+    expect(search).toContain("metaKey");
+    expect(search).toContain("ctrlKey");
+    expect(search).toContain('event.key.toLowerCase() === "k"');
+    expect(search).toContain("preventDefault");
+    expect(search).toContain("trackSearchOpen");
+    expect(search).toContain('"keyboard_shortcut"');
+    expect(search).toContain("trackSearchSubmit");
+    expect(search).toContain('"desktop_header"');
+    expect(search).toContain("recordSearchQuery");
+    expect(search).toContain("useAnalytics");
+  });
+
+  it("desktop header search > given shellFocused dark mode > then focus shadow uses pickThemed", () => {
+    const search = readMobileFile("src/components/DesktopHeaderSearch.tsx");
+
+    expect(search).toMatch(
+      /shellFocused:[\s\S]*?backgroundColor:\s*pickThemed\([\s\S]*?boxShadow:\s*pickThemed\(/,
+    );
+    expect(search).toContain("rgba(0, 0, 0, 0.35)");
+  });
+
+  it("home search popover > given empty query > then it shows recent searches via SearchRecentChips", () => {
+    const popover = readMobileFile("src/screens/home/HomeSearchPopularPopover.tsx");
+    const home = readMobileFile("src/screens/CustomerHomeScreen.tsx");
+
+    expect(popover).toContain("SearchRecentChips");
+    expect(popover).toContain("readSearchHistory");
+    expect(popover).toContain("onSelectRecent");
+    expect(popover).toContain("clearSearchHistory");
+    expect(popover).toContain("removeSearchHistoryItem");
+    expect(home).toContain("onSelectRecent={(term) => setSearchQuery(term)}");
+  });
+
+  it("desktop home header search > given the home desktop shell > then it opens the popular search popover", () => {
+    const home = readMobileFile("src/screens/CustomerHomeScreen.tsx");
+
+    expect(home).toContain("onSearchFocus={openSearchPopover}");
+    expect(home).toContain("searchQuery={searchQuery}");
   });
 
   it("desktop brand logo > given navbar and footer brand links > then both use the shared navbar logo treatment", () => {
