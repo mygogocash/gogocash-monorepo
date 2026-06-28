@@ -110,7 +110,7 @@ jobs:
             --memory 512Mi \
             --cpu 1 \
             --set-env-vars "NODE_ENV=production,WEB_APP_URL=https://app.gogocash.co,API_BASE_URL=https://api.gogocash.co,POSTHOG_HOST=https://us.i.posthog.com,POSTHOG_ENABLED=true,GCS_CATALOG_BUCKET=gogocash-catalog-production" \
-            --set-secrets "MONGO_URI=gogocash-production-mongo-uri:latest,JWT_SECRET=gogocash-production-jwt-secret:latest,JWT_ADMIN_SECRET=gogocash-production-jwt-admin-secret:latest,FIREBASE_PROJECT_ID=gogocash-production-firebase-project-id:latest,INVOLVE_SECRET=gogocash-production-involve-secret:latest,POSTHOG_KEY=gogocash-production-posthog-key:latest,TELEGRAM_BOT_TOKEN=gogocash-production-telegram-bot-token:latest,CROSSMINT_AUTH_BASE=gogocash-production-crossmint-auth-base:latest,CROSSMINT_PROJECT_ID=gogocash-production-crossmint-project-id:latest,CROSSMINT_SECRET=gogocash-production-crossmint-secret:latest" \
+            --set-secrets "MONGO_URI=gogocash-production-mongo-uri:latest,JWT_SECRET=gogocash-production-jwt-secret:latest,JWT_ADMIN_SECRET=gogocash-production-jwt-admin-secret:latest,FIREBASE_PROJECT_ID=gogocash-production-firebase-project-id:latest,INVOLVE_SECRET=gogocash-production-involve-secret:latest,INVOLVE_POSTBACK_SECRET=gogocash-production-involve-postback-secret:latest,POSTHOG_KEY=gogocash-production-posthog-key:latest,TELEGRAM_BOT_TOKEN=gogocash-production-telegram-bot-token:latest,CROSSMINT_AUTH_BASE=gogocash-production-crossmint-auth-base:latest,CROSSMINT_PROJECT_ID=gogocash-production-crossmint-project-id:latest,CROSSMINT_SECRET=gogocash-production-crossmint-secret:latest" \
             --project ${{ vars.GCP_PROJECT_ID_PRODUCTION }}
 
       - name: Print service URL

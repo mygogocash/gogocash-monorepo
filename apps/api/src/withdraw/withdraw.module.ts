@@ -4,8 +4,8 @@ import { WithdrawController } from './withdraw.controller';
 import { JwtService } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
-import { InvolveService } from 'src/involve/involve.service';
-import { CacheModule } from '@nestjs/cache-manager';
+import { InvolveModule } from 'src/involve/involve.module';
+import { JwtService } from '@nestjs/jwt';
 import { Offer, OfferSchema } from 'src/offer/schemas/offer.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import { Withdraw, WithdrawSchema } from './schemas/withdraw.schema';
@@ -37,6 +37,7 @@ import { PointModule } from 'src/point/point.module';
   imports: [
     CacheModule.register(),
     PointModule,
+    InvolveModule,
     MongooseModule.forFeature([
       { name: Offer.name, schema: OfferSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
@@ -57,7 +58,6 @@ import { PointModule } from 'src/point/point.module';
   providers: [
     WithdrawService,
     JwtService,
-    InvolveService,
     TasksService,
     JobService,
     GoogleDriveService,
