@@ -1,9 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import {
-  MongooseModule,
-  getModelToken,
-} from '@nestjs/mongoose';
+import { MongooseModule, getModelToken } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { WithdrawService } from '../src/withdraw/withdraw.service';
 import { User, UserSchema } from '../src/user/schemas/user.schema';
@@ -299,7 +296,7 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
 
       const fulfilled = results.filter((r) => r.status === 'fulfilled');
       const rejected = results.filter((r) => r.status === 'rejected');
-expect(fulfilled).toHaveLength(1);
+      expect(fulfilled).toHaveLength(1);
       expect(rejected).toHaveLength(1);
 
       const count = await withdrawModel.countDocuments({

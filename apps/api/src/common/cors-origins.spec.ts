@@ -85,15 +85,12 @@ describe('cors-origins', () => {
 
     it('rejects non-exact matches — no wildcard/suffix/substring bypass', () => {
       expect(
-        isCorsOriginAllowed(
-          allowSet,
-          'https://app.gogocash.co.attacker.com',
-        ),
+        isCorsOriginAllowed(allowSet, 'https://app.gogocash.co.attacker.com'),
       ).toBe(false);
       expect(isCorsOriginAllowed(allowSet, 'app.gogocash.co')).toBe(false);
-      expect(
-        isCorsOriginAllowed(allowSet, 'https://app.gogocash.co/'),
-      ).toBe(false);
+      expect(isCorsOriginAllowed(allowSet, 'https://app.gogocash.co/')).toBe(
+        false,
+      );
     });
   });
 });

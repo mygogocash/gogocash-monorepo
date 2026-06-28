@@ -73,10 +73,7 @@ export class RateLimitGuard implements CanActivate {
     const cfIp = headerIp('cf-connecting-ip');
     const fwd = headerIp('x-forwarded-for');
     const ip =
-      cfIp?.trim() ||
-      fwd?.split(',')[0]?.trim() ||
-      req.ip ||
-      'unknown';
+      cfIp?.trim() || fwd?.split(',')[0]?.trim() || req.ip || 'unknown';
     const routeKey = req.route?.path || context.getHandler().name;
     const key = `${routeKey}::${ip}`;
 

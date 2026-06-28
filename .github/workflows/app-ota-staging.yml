@@ -59,4 +59,5 @@ jobs:
         if: steps.expo_token.outputs.skip != 'true'
         env:
           COMMIT_SHA: ${{ github.sha }}
-        run: eas update --non-interactive --channel staging --message "ci-staging: $COMMIT_SHA"
+        run: |
+          eas update --non-interactive --channel staging --message "ci-staging: $COMMIT_SHA"
