@@ -33,7 +33,6 @@ import {
 } from '../src/user/schemas/user-my-cashback.schema';
 import { InvolveService } from '../src/involve/involve.service';
 import { PointService } from '../src/point/point.service';
-import { CustomerIoService } from '../src/customer-io/customer-io.service';
 
 /**
  * Integration test for the withdraw balance aggregation (checkWithdraw) against
@@ -77,10 +76,6 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
         WithdrawService,
         { provide: InvolveService, useValue: {} },
         { provide: PointService, useValue: {} },
-        {
-          provide: CustomerIoService,
-          useValue: { track: async () => undefined },
-        },
       ],
     }).compile();
 

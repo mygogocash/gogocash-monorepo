@@ -14,7 +14,6 @@ import { WithdrawMethod } from './schemas/withdrawMethod.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { InvolveService } from 'src/involve/involve.service';
 import { PointService } from 'src/point/point.service';
-import { CustomerIoService } from 'src/customer-io/customer-io.service';
 import { thaiBanks } from 'src/utils/helper';
 
 /**
@@ -52,7 +51,6 @@ interface Mocks {
   userMyCashbackModel: ModelMock;
   involveService: { getConversionAll: jest.Mock };
   pointService: { getQuestRankListOfPoint: jest.Mock };
-  customerIo: { track: jest.Mock };
 }
 
 async function buildService(): Promise<Mocks> {
@@ -67,7 +65,6 @@ async function buildService(): Promise<Mocks> {
   const userMyCashbackModel = makeModelMock();
   const involveService = { getConversionAll: jest.fn() };
   const pointService = { getQuestRankListOfPoint: jest.fn() };
-  const customerIo = { track: jest.fn().mockResolvedValue(undefined) };
   // Fake mongoose connection: withTransaction just runs the callback (the real
   // concurrency/serialization is proven in the replica-set integration test).
   const connection = {
@@ -99,7 +96,6 @@ async function buildService(): Promise<Mocks> {
       },
       { provide: InvolveService, useValue: involveService },
       { provide: PointService, useValue: pointService },
-      { provide: CustomerIoService, useValue: customerIo },
       { provide: getConnectionToken(), useValue: connection },
     ],
   }).compile();
@@ -117,7 +113,6 @@ async function buildService(): Promise<Mocks> {
     userMyCashbackModel,
     involveService,
     pointService,
-    customerIo,
   };
 }
 
@@ -579,7 +574,6 @@ describe('WithdrawService', () => {
 
       expect(result).toEqual({ success: true, data: existing });
       expect(mocks.withdrawModel.findByIdAndUpdate).not.toHaveBeenCalled();
-      expect(mocks.customerIo.track).not.toHaveBeenCalled();
     });
 
     it('markWithdrawPaid > given a rejected (non-pending terminal) record > then rejects with HTTP 409 and does not write', async () => {
@@ -624,8 +618,6 @@ describe('WithdrawService', () => {
         paid_by: 'admin-99',
       });
       expect(update.$set.paid_at).toBeInstanceOf(Date);
-      expect(mocks.customerIo.track).toHaveBeenCalledTimes(1);
-      expect(mocks.customerIo.track.mock.calls[0][0]).toBe(userId.toString());
     });
 
     it('markWithdrawPaid > given a duplicate tx_hash (Mongo 11000) on update > then rejects with HTTP 409', async () => {

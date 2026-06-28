@@ -57,7 +57,6 @@
     "apps/api/src/**/dto/**": ["exports", "types"],
     "apps/api/scripts/**": ["unlisted"],
     "apps/app/app.config.ts": ["unlisted"],
-    "apps/api/src/customer-io/**": ["exports", "types"],
     "apps/admin/src/lib/policyPayload.ts": ["types"]
   },
   "workspaces": {

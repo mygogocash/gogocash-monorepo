@@ -9,9 +9,9 @@ import {
 import { webAuthPage } from "@mobile/design/webDesignParity";
 
 describe("backendIntegrationScope", () => {
-  it("lists Crossmint, Web3, and Customer.io as out of scope for mobile backend", () => {
+  it("lists Crossmint and Web3 as out of scope for mobile backend", () => {
     expect(MOBILE_BACKEND_EXCLUDED_INTEGRATIONS).toEqual(
-      expect.arrayContaining(["crossmint-auth", "customer-io", "web3-on-chain-withdraw"]),
+      expect.arrayContaining(["crossmint-auth", "web3-on-chain-withdraw"]),
     );
     expect(MOBILE_BACKEND_EXCLUDED_API_PREFIXES).toEqual(
       expect.arrayContaining(["/auth/minipay-siwe", "/auth/siwe-nonce"]),

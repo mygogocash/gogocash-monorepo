@@ -6,8 +6,8 @@ import { resendClientProvider, ResendLike } from './resend.provider';
 /**
  * The Resend client factory must be null-safe: a missing RESEND_API_KEY (local
  * dev, or any env where email isn't configured) must NOT crash the API at
- * bootstrap. It should degrade to a no-op client — mirroring the Customer.io
- * service — while still constructing a real Resend client when a key is present.
+ * bootstrap. It should degrade to a no-op client while still constructing a
+ * real Resend client when a key is present.
  */
 describe('resendClientProvider (null-safe factory)', () => {
   const factory = (resendClientProvider as FactoryProvider).useFactory as (

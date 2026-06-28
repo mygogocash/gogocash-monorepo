@@ -26,8 +26,7 @@ export interface ResendLike {
  * No-op Resend client used when RESEND_API_KEY is not configured (local dev, or
  * any environment where email is intentionally disabled). Email is a non-critical
  * side channel: a missing key must NOT crash the API at bootstrap (the real
- * Resend SDK throws on an empty key). This mirrors the Customer.io service, which
- * also degrades to a no-op when unconfigured. Each skipped send is logged so a
+ * Resend SDK throws on an empty key). Each skipped send is logged so a
  * missing OTP/invite email is diagnosable rather than silent.
  */
 const createNoopResendClient = (logger: Logger): ResendLike => ({

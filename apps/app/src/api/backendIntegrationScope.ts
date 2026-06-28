@@ -6,7 +6,6 @@ import type { AccountDataSource } from "@mobile/auth/routeGuard";
  */
 export const MOBILE_BACKEND_EXCLUDED_INTEGRATIONS = [
   "crossmint-auth",
-  "customer-io",
   "web3-on-chain-withdraw",
   "minipay-siwe",
   "connect-wallet-auth",

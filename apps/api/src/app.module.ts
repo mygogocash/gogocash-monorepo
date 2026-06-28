@@ -15,7 +15,6 @@ import { PointModule } from './point/point.module';
 import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AnalyticsModule } from './analytics/analytics.module';
-import { CustomerIoModule } from './customer-io/customer-io.module';
 import { PolicyModule } from './policy/policy.module';
 import { GogosenseModule } from './gogosense/gogosense.module';
 import { CustomerBillingModule } from './customer-billing/customer-billing.module';
@@ -29,7 +28,6 @@ import { TasksModule } from './tasks/tasks.module';
     // (hardened behind AuthAdminGuard — see tasks.controller).
     ScheduleModule.forRoot(),
     AnalyticsModule,
-    CustomerIoModule,
     PolicyModule,
     GogosenseModule,
     CustomerBillingModule,

@@ -99,7 +99,6 @@ src/
   google-drive/           # upload/delete/proxy files
   telegram-bot/           # Telegram command/update handlers + auth verification pages
   email/                  # transactional email via Resend (no-op when RESEND_API_KEY unset)
-  customer-io/            # Customer.io messaging integration
   customer-billing/       # Stripe-based billing
   gogosense/              # GogoSense feature module
   policy/                 # policy module
@@ -131,7 +130,7 @@ Core imports:
 - `ScheduleModule.forRoot()`
 - `ConfigModule.forRoot({ load: [envConfig] })`
 - `MongooseModule.forRoot(process.env.MONGO_URI)`
-- Platform modules: `AnalyticsModule`, `CustomerIoModule`, `PolicyModule`, `GogosenseModule`, `CustomerBillingModule`
+- Platform modules: `AnalyticsModule`, `PolicyModule`, `GogosenseModule`, `CustomerBillingModule`
 - Domain modules: `AuthModule`, `AdminModule`, `UserModule`, `OfferModule`, `BrandModule`, `WithdrawModule`, `GoogleDriveModule`, `PointModule`, `InvolveModule`, `TasksModule`
 - `TelegramBotModule` is registered conditionally — only when `TELEGRAM_BOT_TOKEN` is set and not `'PLACEHOLDER'`.
 
@@ -195,7 +194,7 @@ These are referenced in code and should be defined in `.env` for local/prod:
 - `RESEND_API_KEY` (when unset, the email provider degrades to a logged no-op)
 - `MAIL_FROM`
 
-> See `.env.example` for the full, authoritative list (includes Customer.io, Optimise, Stripe billing, and SIWE settings not enumerated here).
+> See `.env.example` for the full, authoritative list (includes Optimise, Stripe billing, and SIWE settings not enumerated here).
 
 ### 5.6 Withdrawal / On-chain
 
