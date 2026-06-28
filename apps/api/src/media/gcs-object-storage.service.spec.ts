@@ -1,4 +1,3 @@
-import { HttpException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { GcsObjectStorageService } from './gcs-object-storage.service';
@@ -30,7 +29,9 @@ describe('GcsObjectStorageService', () => {
     saveMock.mockReset().mockResolvedValue(undefined);
     makePublicMock.mockReset().mockResolvedValue(undefined);
     deleteMock.mockReset().mockResolvedValue(undefined);
-    getMetadataMock.mockReset().mockResolvedValue([{ contentType: 'image/png' }]);
+    getMetadataMock
+      .mockReset()
+      .mockResolvedValue([{ contentType: 'image/png' }]);
     createReadStreamMock.mockReset().mockReturnValue('stream');
     delete process.env.GCS_MEDIA_UPLOAD_DISABLED;
     delete process.env.GCS_BANNER_UPLOAD_DISABLED;

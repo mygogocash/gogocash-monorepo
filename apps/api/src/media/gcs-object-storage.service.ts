@@ -1,16 +1,10 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { Storage } from '@google-cloud/storage';
-import { readFile } from 'fs/promises';
-
+import { readMulterUploadBuffer } from 'src/common/multer-upload-buffer';
 import { normalizeSlugSegment } from 'src/common/mongo-query';
 
-import {
-  resolveMaxUploadBytes,
-} from './media-folders.config';
-import {
-  buildGcsPublicUrl,
-  parseGcsPublicUrl,
-} from './stored-media.util';
+import { resolveMaxUploadBytes } from './media-folders.config';
+import { buildGcsPublicUrl, parseGcsPublicUrl } from './stored-media.util';
 
 export type GcsUploadAccess = 'public' | 'private';
 
@@ -62,16 +56,20 @@ export class GcsObjectStorageService {
   }
 
   private async readUploadBuffer(file: Express.Multer.File): Promise<Buffer> {
-    if (file.buffer?.length) {
-      return file.buffer;
-    }
-    if (file.path) {
-      const fromDisk = await readFile(file.path);
-      if (fromDisk.length > 0) {
-        return fromDisk;
+    try {
+      return await readMulterUploadBuffer(file);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === 'Invalid upload file path'
+      ) {
+        throw new HttpException(
+          'Invalid upload file path',
+          HttpStatus.BAD_REQUEST,
+        );
       }
+      throw new HttpException('Upload file is empty', HttpStatus.BAD_REQUEST);
     }
-    throw new HttpException('Upload file is empty', HttpStatus.BAD_REQUEST);
   }
 
   buildObjectKey(folder: string, originalName: string): string {
@@ -95,7 +93,10 @@ export class GcsObjectStorageService {
     this.assertUploadConfigured();
 
     const bucketName = this.getBucketName();
-    const objectKey = this.buildObjectKey(folder, file.originalname || 'upload');
+    const objectKey = this.buildObjectKey(
+      folder,
+      file.originalname || 'upload',
+    );
     const buffer = await this.readUploadBuffer(file);
     const maxBytes = resolveMaxUploadBytes();
     if (buffer.length > maxBytes) {
@@ -168,7 +169,10 @@ export class GcsObjectStorageService {
   async getFileStream(storedUrl: string) {
     const location = parseGcsPublicUrl(storedUrl);
     if (!location) {
-      throw new HttpException('Invalid GCS media reference', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Invalid GCS media reference',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     const [metadata] = await this.getStorageClient()
       .bucket(location.bucket)
