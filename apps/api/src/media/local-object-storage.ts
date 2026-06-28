@@ -2,10 +2,7 @@ import { createReadStream } from 'fs';
 import { mkdir, unlink, writeFile } from 'fs/promises';
 import path from 'path';
 
-import {
-  buildLocalMediaRef,
-  parseLocalMediaRef,
-} from './stored-media.util';
+import { buildLocalMediaRef, parseLocalMediaRef } from './stored-media.util';
 
 export function getLocalMediaRootDir(): string {
   const configured = process.env.GCS_LOCAL_STORAGE_DIR?.trim();

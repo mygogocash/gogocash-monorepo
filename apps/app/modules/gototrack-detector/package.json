@@ -1,0 +1,7 @@
+{
+  "name": "gototrack-detector",
+  "version": "0.1.0",
+  "description": "GoGoTrack Android UsageStats foreground-app detector (local Expo module)",
+  "main": "index.ts",
+  "private": true
+}

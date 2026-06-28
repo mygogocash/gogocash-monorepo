@@ -22,8 +22,8 @@ describe("Expo protected route guard", () => {
       "/billing",
       "/privacy-center",
       "/quest/history",
-      "/gogosense",
-      "/gogosense/merchant/grocery-galaxy",
+      "/gototrack",
+      "/gototrack/merchant/grocery-galaxy",
     ]) {
       expect(isProtectedNativePath(pathname), pathname).toBe(true);
       expect(buildProtectedLoginRedirect(pathname), pathname).toBe(
@@ -41,7 +41,7 @@ describe("Expo protected route guard", () => {
 
   it("callback guard > given redirect-after-login targets > then only internal GoGoCash routes are allowed", () => {
     expect(isAllowedInternalCallbackPath("/wallet")).toBe(true);
-    expect(isAllowedInternalCallbackPath("/gogosense/merchant/grocery-galaxy")).toBe(true);
+    expect(isAllowedInternalCallbackPath("/gototrack/merchant/grocery-galaxy")).toBe(true);
     expect(sanitizeCallbackPath("/wallet")).toBe("/wallet");
 
     for (const unsafeValue of [
@@ -66,8 +66,8 @@ describe("Expo protected route guard", () => {
     expect(findRouteForPathname("/shop/brand-grocery-galaxy-1001?utm=ignored")).toMatchObject({
       id: "shopDetail",
     });
-    expect(findRouteForPathname("/gogosense/merchant/grocery-galaxy")).toMatchObject({
-      id: "gogosenseMerchant",
+    expect(findRouteForPathname("/gototrack/merchant/grocery-galaxy")).toMatchObject({
+      id: "gototrackMerchant",
     });
   });
 

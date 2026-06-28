@@ -41,13 +41,13 @@ const PROTECTED_SCREEN_NAMES = [
   "language",
   "privacy-center",
   "quest/history",
-  "gogosense/index",
-  "gogosense/onboarding",
-  "gogosense/permissions",
-  "gogosense/timeline",
-  "gogosense/settings",
-  "gogosense/recovery",
-  "gogosense/merchant/[id]",
+  "gototrack/index",
+  "gototrack/onboarding",
+  "gototrack/permissions",
+  "gototrack/timeline",
+  "gototrack/settings",
+  "gototrack/recovery",
+  "gototrack/merchant/[id]",
 ] as const;
 
 export default function RootLayout() {

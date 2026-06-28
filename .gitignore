@@ -13,16 +13,20 @@ apps/app/.bundle-measure/
 
 # turborepo
 .turbo/
+.e2e/
 
 # env / secrets
 .env
 .env.*
 !.env.example
+!.env.e2e.example
 !.env.railway.production.example
 
 # misc
 .DS_Store
 *.log
 coverage/
+test-results/
+**/test-results/
 .idea/
 .vscode/

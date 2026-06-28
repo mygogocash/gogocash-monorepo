@@ -1,0 +1,8 @@
+# Device-only: GoGoTrack activation nudge (requires dev client + Usage Access).
+appId: co.gogocash.app
+---
+- launchApp
+- openLink: gogocash://gototrack
+- tapOn:
+    id: "gototrack-activate-cashback-button"
+    optional: true

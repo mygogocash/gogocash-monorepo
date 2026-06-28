@@ -215,7 +215,7 @@ function transform(content) {
 
 function collectFiles() {
   if (explicit.length > 0) return explicit.map((p) => path.resolve(ROOT, p));
-  const dirs = ["src/screens", "src/components", "src/security", "src/gogosense"];
+  const dirs = ["src/screens", "src/components", "src/security", "src/gototrack"];
   const files = [];
   for (const dir of dirs) {
     const abs = path.join(ROOT, dir);

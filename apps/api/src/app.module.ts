@@ -16,7 +16,7 @@ import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { PolicyModule } from './policy/policy.module';
-import { GogosenseModule } from './gogosense/gogosense.module';
+import { GototrackModule } from './gototrack/gototrack.module';
 import { CustomerBillingModule } from './customer-billing/customer-billing.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { InvolveModule } from './involve/involve.module';
@@ -29,7 +29,7 @@ import { TasksModule } from './tasks/tasks.module';
     ScheduleModule.forRoot(),
     AnalyticsModule,
     PolicyModule,
-    GogosenseModule,
+    GototrackModule,
     CustomerBillingModule,
     CatalogModule,
     ConfigModule.forRoot({

@@ -140,7 +140,7 @@ gogocash-monorepo/
 | Storage | expo-secure-store (native), localStorage (web) |
 | i18n | react-intl 10 + web ICU catalogs |
 | Observability | Sentry RN 8.14, PostHog RN 4.47 |
-| Native | **GoGoSense** detector module (Android, EAS dev client) |
+| Native | **GoGoTrack** detector module (Android, EAS dev client) |
 | Testing | Vitest 4.1.8 (logic + render), Playwright (Expo web) |
 | Builds | **EAS** (`eas.json`: dev/preview → staging API; production → `disabled` data source) |
 
@@ -230,7 +230,7 @@ Admin uses `NEXTAUTH_SECRET` + public `NEXT_PUBLIC_API_URL`. Customer uses `EXPO
 | Money | withdrawals, methods, conversions, fee rates | `withdraw/` |
 | Engagement | points, quests, referrals | `point/` |
 | Ops | missing orders, wallet adjustments, search config | `admin/*` |
-| GoGoSense | merchant detection config | `gogosense/` |
+| GoGoTrack | merchant detection config | `gototrack/` |
 
 ---
 
@@ -256,7 +256,7 @@ apps/api/src/
 ├── google-drive/        # legacy Drive integration (migration path)
 ├── email/               # Resend
 ├── customer-billing/    # Stripe
-├── gogosense/           # detection merchants API
+├── gototrack/           # detection merchants API
 ├── policy/              # policy terms
 ├── tasks/               # admin break-glass job triggers
 └── telegram-bot/        # optional Telegraf module
@@ -370,7 +370,7 @@ src/
 ├── navigation/          # route catalog, auth requirements
 ├── design/              # web parity constants
 ├── theme/               # light/dark tokens
-└── gogosense/           # detection UI + hooks
+└── gototrack/           # detection UI + hooks
 ```
 
 ### 8.2 Data flow (backend mode)

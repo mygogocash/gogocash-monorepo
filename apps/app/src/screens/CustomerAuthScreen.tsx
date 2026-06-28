@@ -378,7 +378,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   };
 
   return (
-    <View style={styles.viewport}>
+    <View style={styles.viewport} testID={mode === "login" ? "login-screen" : "register-screen"}>
       <View
         style={[
           styles.shell,

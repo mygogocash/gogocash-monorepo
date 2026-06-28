@@ -76,7 +76,7 @@ in one place.
 | Workflow | Trigger | Does |
 |----------|---------|------|
 | **`build-staging.yml`** | push to `staging` + manual (`workflow_dispatch`) | reuses `ci.yml` as the gate, then builds + pushes a `:staging-candidate` image for each **changed** app (path-filtered). **No deploy.** |
-| **`release-staging.yml`** | manual `workflow_dispatch` (pick app + tag) | deploys the chosen candidate image to Cloud Run, then **health-smokes** the new revision. API releases smoke `/gogosense/merchants` so stale deployments without the GoGoSense module fail before device acceptance. The dispatch **is** the approval. |
+| **`release-staging.yml`** | manual `workflow_dispatch` (pick app + tag) | deploys the chosen candidate image to Cloud Run, then **health-smokes** the new revision. API releases smoke `/gototrack/merchants` so stale deployments without the GoGoTrack module fail before device acceptance. The dispatch **is** the approval. |
 | `_build-push.yml` | `workflow_call` | reusable: WIF auth → optional prebuild → docker build → push `:sha` + `:staging-candidate`. |
 | `_deploy-cloudrun.yml` | `workflow_call` | reusable: WIF auth → `gcloud run deploy` a given tag → post-deploy `curl` health check. |
 

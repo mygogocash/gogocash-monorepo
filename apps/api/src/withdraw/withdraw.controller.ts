@@ -168,13 +168,13 @@ export class WithdrawController {
   }
 
   @UseGuards(FirebaseAuthGuard)
-  @ApiBody({ type: CreateWithdrawMethod })
+  @ApiBody({ type: CreateWithdrawDto })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('bank-transfer')
   createBankTransfer(
     @Req() req: Request,
-    @Body() createWithdrawDto: CreateWithdrawMethod,
+    @Body() createWithdrawDto: CreateWithdrawDto,
   ) {
     const user = req['user'] as any;
     const id = user?.sub;

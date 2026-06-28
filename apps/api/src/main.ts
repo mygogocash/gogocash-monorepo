@@ -68,7 +68,14 @@ async function bootstrap() {
   // allow-list and fall through to reflect the origin for non-credentialed
   // requests (useful for public GETs, curl, Swagger UI, etc.).
   const CORS_ALLOWLIST = [
-    // Staging
+    // Dev (nested env)
+    'https://app.dev.gogocash.co',
+    'https://admin.dev.gogocash.co',
+    'https://dev.gogocash.co',
+    // Staging (nested env)
+    'https://app.staging.gogocash.co',
+    'https://admin.staging.gogocash.co',
+    // Staging (legacy hyphenated hostnames — keep until fully migrated)
     'https://app-staging.gogocash.co',
     'https://admin-staging.gogocash.co',
     'https://staging.gogocash.co',

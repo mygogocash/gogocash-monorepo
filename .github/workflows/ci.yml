@@ -311,3 +311,52 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx knip --no-progress
+
+  # ── optional local E2E (manual dispatch until suite stabilizes) ───────────
+  e2e-local:
+    name: e2e local (optional)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Init Mongo replica set
+        run: |
+          mongosh --quiet mongodb://localhost:27017/admin --eval \
+            'try { rs.status() } catch(e) { rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "localhost:27017" }] }) }'
+          for i in $(seq 1 30); do
+            state=$(mongosh --quiet mongodb://localhost:27017/admin --eval 'try { rs.status().members[0].stateStr } catch(e) { "UNKNOWN" }')
+            [ "$state" = "PRIMARY" ] && break
+            sleep 2
+          done
+      - name: Seed E2E fixtures
+        env:
+          MONGO_URI: mongodb://localhost:27017/gogocash-e2e?replicaSet=rs0
+          JWT_SECRET: ci-e2e-jwt
+          JWT_ADMIN_SECRET: ci-e2e-admin-jwt
+          E2E_SEED_OUT: .e2e/seed.json
+        run: npm run seed:e2e -w gogocash-api
+      - name: API integration (e2e)
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          MONGO_URI: mongodb://localhost:27017/gogocash-e2e?replicaSet=rs0
+          MONGO_REPLICA_SET: "1"
+          JWT_SECRET: ci-e2e-jwt
+          JWT_ADMIN_SECRET: ci-e2e-admin-jwt
+          FIREBASE_PROJECT_ID: demo-e2e
+          RESEND_API_KEY: re_ci_e2e_dummy
+        run: npm run test:e2e -w gogocash-api

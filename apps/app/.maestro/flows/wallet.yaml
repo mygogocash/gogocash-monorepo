@@ -1,0 +1,8 @@
+# Wallet flow requires authenticated session — run against staging with a test account
+# or local stack after manual login. Document-only until JWT injection is scripted.
+appId: co.gogocash.app
+---
+- launchApp
+- openLink: gogocash://wallet
+- assertVisible:
+    text: "Wallet"

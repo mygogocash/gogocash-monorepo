@@ -24,7 +24,7 @@ const mongoQueryHelperSources = [
   'src/catalog/catalog.service.ts',
   'src/catalog/commerce.service.ts',
   'src/catalog/media.service.ts',
-  'src/gogosense/gogosense.service.ts',
+  'src/gototrack/gototrack.service.ts',
   'src/offer/offer.service.ts',
   'src/point/point.service.ts',
   'src/telegram-bot/telegram-auth.controller.ts',

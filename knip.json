@@ -1,12 +1,12 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "ignore": [".agents/**", ".cursor/**", "skills-lock.json"],
+  "ignore": [".agents/**", ".cursor/**", "skills-lock.json", "e2e/**"],
   "ignoreExportsUsedInFile": {
     "interface": true,
     "type": true
   },
-  "ignoreBinaries": ["eas", "knip"],
-  "ignoreUnresolved": ["dotenv/config", "expo-updates", "expo-system-ui"],
+  "ignoreBinaries": ["eas", "knip", "maestro"],
+  "ignoreUnresolved": ["dotenv/config", "expo-system-ui"],
   "ignoreDependencies": [
     "@nestjs/common",
     "@nestjs/core",
@@ -57,7 +57,8 @@
     "apps/api/src/**/dto/**": ["exports", "types"],
     "apps/api/scripts/**": ["unlisted"],
     "apps/app/app.config.ts": ["unlisted"],
-    "apps/admin/src/lib/policyPayload.ts": ["types"]
+    "apps/admin/src/lib/policyPayload.ts": ["types"],
+    "apps/api/src/media/local-object-storage.ts": ["exports"]
   },
   "workspaces": {
     "apps/api": {

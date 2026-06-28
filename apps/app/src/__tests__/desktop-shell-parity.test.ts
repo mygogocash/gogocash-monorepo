@@ -40,7 +40,7 @@ const rootChromeFooterSlotOwners = [
   "src/components/CustomerRouteState.tsx",
   "src/screens/CustomerCategoryDetailScreen.tsx",
   "src/screens/CustomerDiscoveryScreen.tsx",
-  "src/screens/CustomerGoGoSenseScreen.tsx",
+  "src/screens/CustomerGoGoTrackScreen.tsx",
   "src/screens/CustomerGoLinkScreen.tsx",
   "src/screens/CustomerMoneyActionScreen.tsx",
   "src/screens/CustomerShopDetailScreen.tsx",

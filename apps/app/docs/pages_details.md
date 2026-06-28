@@ -9,7 +9,7 @@ This document maps all web routes of the GoGoCash customer app to native mobile 
 All routes are mapped inside [apps/app/src/navigation/routes.ts](../src/navigation/routes.ts).
 
 - **Public Screens**: Discover, Home, Categories, Shops, Brand, Privacy Policy, Login, Register, Auth Callback, Link MyCashback.
-- **Auth-Protected Screens**: Profile, Wallet, Withdraw, Payment Methods, Create Method, Favorites, Referral, Membership, Credit Score, Missing Orders, Privacy Center, Quest History, GoGoSense surfaces.
+- **Auth-Protected Screens**: Profile, Wallet, Withdraw, Payment Methods, Create Method, Favorites, Referral, Membership, Credit Score, Missing Orders, Privacy Center, Quest History, GoGoTrack surfaces.
 
 ---
 

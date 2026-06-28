@@ -1,11 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import {
-  MongooseModule,
-  getModelToken,
-  getConnectionToken,
-} from '@nestjs/mongoose';
-import { Connection, Model, Types } from 'mongoose';
+import { MongooseModule, getModelToken } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import { WithdrawService } from '../src/withdraw/withdraw.service';
 import { User, UserSchema } from '../src/user/schemas/user.schema';
 import {
@@ -50,7 +46,6 @@ const suite = MONGO_URI ? describe : describe.skip;
 suite('checkWithdraw — real Mongo aggregation (#36)', () => {
   let app: INestApplication;
   let service: WithdrawService;
-  let conn: Connection;
   let userModel: Model<User>;
   let conversionModel: Model<Conversion>;
   let feeRateModel: Model<FeeRate>;
@@ -83,7 +78,6 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
     await app.init();
 
     service = moduleRef.get(WithdrawService);
-    conn = moduleRef.get(getConnectionToken());
     userModel = moduleRef.get(getModelToken(User.name));
     conversionModel = moduleRef.get(getModelToken(Conversion.name));
     feeRateModel = moduleRef.get(getModelToken(FeeRate.name));
@@ -106,27 +100,51 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
       }));
   });
 
+  const testUserFilter = { id_firebase: { $regex: '^int-fb-' } };
+
+  async function cleanupWithdrawTestData(): Promise<void> {
+    const testUsers = await userModel.find(testUserFilter).select('_id').lean();
+    const testUserIds = testUsers.map((user) => user._id);
+    if (testUserIds.length === 0) {
+      return;
+    }
+    const affSubFilters = testUserIds.map(
+      (userId) => `user_id:${userId.toString()}`,
+    );
+    await Promise.all([
+      userModel.deleteMany({ _id: { $in: testUserIds } }),
+      conversionModel.deleteMany({
+        $or: [
+          { user_id: { $in: testUserIds } },
+          { aff_sub1: { $in: affSubFilters } },
+        ],
+      }),
+      withdrawModel.deleteMany({ user_id: { $in: testUserIds } }),
+    ]);
+  }
+
   afterAll(async () => {
-    if (conn) await conn.dropDatabase();
+    await cleanupWithdrawTestData();
     if (app) await app.close();
   });
 
   beforeEach(async () => {
-    await Promise.all([
-      userModel.deleteMany({}),
-      conversionModel.deleteMany({}),
-      feeRateModel.deleteMany({}),
-      withdrawModel.deleteMany({}),
-    ]);
-    await feeRateModel.create({
-      system: 5, // 5% system fee
-      store: 5,
-      max_cap: 100_000,
-      fee_withdraw_thb: 0,
-      fee_withdraw_usd: 0,
-      minimum_withdraw_thb: 1,
-      minimum_withdraw_usd: 1,
-    });
+    await cleanupWithdrawTestData();
+    await feeRateModel.findOneAndUpdate(
+      {},
+      {
+        $set: {
+          system: 5,
+          store: 5,
+          max_cap: 100_000,
+          fee_withdraw_thb: 0,
+          fee_withdraw_usd: 0,
+          minimum_withdraw_thb: 1,
+          minimum_withdraw_usd: 1,
+        },
+      },
+      { upsert: true },
+    );
   });
 
   const seedApprovedThb = async (
@@ -269,6 +287,7 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
         currency: 'THB',
         chain: 137,
         conversion_ids: [1],
+        method: 'metamask',
       };
       const results = await Promise.allSettled([
         service.create(dto as never, userId),

@@ -27,7 +27,7 @@ Concise guidance for AI coding agents and contributors working in `apps/app/`. *
 | Shared UI                     | `src/components/BrandCard.tsx` (compact `size="S"` / Top Brands `size="L"`), `CustomerDesktopFooter.tsx`, `CustomerDesktopHeader.tsx`, `MotionPressable.tsx`, `KeyboardAwareScreen.tsx`, `Toast.tsx`, `Skeleton.tsx` |
 | Desktop shell / footer        | Header: full viewport width. Footer: same full-bleed band (`marginLeft: -horizontalPadding`, `width: viewportWidth`); **inside page `ScrollView`** in `desktopFooterCap`, not a flex sibling below scroll. Pass `horizontalPadding={getDesktopShellOffset(width)}` when the cap is centered at 1440px. |
 | Dark mode / theming           | `src/theme/ThemeProvider.tsx`, `useThemedStyles.ts`, `AppearanceSection.tsx`, `CustomerAccountSettingsScreen` — System / Light / Dark preference in Account Settings. Customer app only; admin has its own theme. |
-| GoGoSense (Android detection) | `src/gogosense/*` (detector → session → hooks), `src/screens/CustomerGoGoSenseScreen.tsx`, native `modules/gogosense-detector/`. **Inject the live `gogosenseDetector` from the route, never import `detectorInstance` in the screen** — it pulls `expo-modules-core`, which crashes the happy-dom render harness. Data hooks resolve `null` off-device → static fallback. See [README.md#gogosense--android-cashback-detection](README.md). |
+| GoGoTrack (Android detection) | `src/gototrack/*` (detector → session → hooks), `src/screens/CustomerGoGoTrackScreen.tsx`, native `modules/gototrack-detector/`. **Inject the live `gototrackDetector` from the route, never import `detectorInstance` in the screen** — it pulls `expo-modules-core`, which crashes the happy-dom render harness. Data hooks resolve `null` off-device → static fallback. See [README.md#gototrack--android-cashback-detection](README.md). |
 
 ## Commands — the three gates (verify before claiming done)
 
@@ -79,7 +79,7 @@ When in doubt, search `apps/app/src` for an existing pattern before introducing 
 
 - Dark mode scope is **customer app only** (`apps/app`); do not add tri-state theme work to admin as part of mobile tasks.
 - Ship **System / Light / Dark** in Account Settings from day one — not a system-only v1 with toggle deferred.
-- Core customer-app dark mode (screens + shared chrome + GoGoSense) is **shipped**; optional follow-up is semantic status/metric pastels on a few content screens (Discovery, Quest, etc. — wallet is the template).
+- Core customer-app dark mode (screens + shared chrome + GoGoTrack) is **shipped**; optional follow-up is semantic status/metric pastels on a few content screens (Discovery, Quest, etc. — wallet is the template).
 - No Next.js customer-web dark tokens exist — draft palette in-repo (`colorPalettes.ts`, `docs/dark-mode.md`).
 - Category/store grids should reuse home compact **`BrandCard` (`size="S"`)**, not bespoke per-screen card layouts.
 - Keep Expo web preview console clean on main routes — no RN Web deprecation warnings, no broken fixture logo CDN 404s.

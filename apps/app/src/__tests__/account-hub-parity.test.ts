@@ -679,7 +679,7 @@ describe("Account hub route parity", () => {
     expect(privacyCenterFile).toContain('href="/profile"');
     expect(privacyCenterFile).toContain("setOptionalConsent");
     expect(privacyCenterFile).not.toContain("Update preferences");
-    expect(privacyCenterFile).not.toContain("GoGoSense history");
+    expect(privacyCenterFile).not.toContain("GoGoTrack history");
     // Mint/green palette (matches the Total Cashback card), not the old blue theme.
     expect(privacyCenterFile).toContain('"#F3FCF9"');
     expect(privacyCenterFile).not.toContain('"#DCEEFF"');
