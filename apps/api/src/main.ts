@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as path from 'path';
 import { SanitisedExceptionFilter } from './common/sanitised-exception.filter';
+import { buildCorsAllowSet, isCorsOriginAllowed } from './common/cors-origins';
 
 async function bootstrap() {
   // rawBody preserves the unparsed buffer on request.rawBody for routes that
@@ -86,13 +87,17 @@ async function bootstrap() {
     'http://localhost:8081',
     'http://localhost:19006',
   ];
+  // Extra origins supplied at deploy time via CORS_EXTRA_ORIGINS (comma-separated,
+  // exact-match only — no wildcards): the Railway preview hosts during migration
+  // testing and the production custom domains, without a per-environment code
+  // change. Empty env reproduces the prior behavior exactly. See common/cors-origins.
+  const corsAllowSet = buildCorsAllowSet(
+    CORS_ALLOWLIST,
+    process.env.CORS_EXTRA_ORIGINS,
+  );
   app.enableCors({
-    origin: (origin, callback) => {
-      // No origin (server-to-server, curl) — allow.
-      if (!origin) return callback(null, true);
-      if (CORS_ALLOWLIST.includes(origin)) return callback(null, true);
-      return callback(null, false);
-    },
+    origin: (origin, callback) =>
+      callback(null, isCorsOriginAllowed(corsAllowSet, origin)),
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     allowedHeaders: [
