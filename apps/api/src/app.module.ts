@@ -37,7 +37,11 @@ import { TasksModule } from './tasks/tasks.module';
     ConfigModule.forRoot({
       load: [envConfig],
     }),
-    MongooseModule.forRoot(process.env.MONGO_URI!),
+    MongooseModule.forRoot(process.env.MONGO_URI!, {
+      // Cloud Run must bind PORT before the startup probe times out; do not block
+      // bootstrap on the first Mongo handshake (connect continues in background).
+      lazyConnection: true,
+    }),
     AuthModule,
     AdminModule,
     UserModule,
