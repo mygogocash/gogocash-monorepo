@@ -78,7 +78,7 @@ See [railway-mongo-replica-set.md](railway-mongo-replica-set.md). Summary: backu
 ## 5. Acceptance test table
 | ID | Criterion | Verify | Expected |
 |---|---|---|---|
-| A1 | DB route returns data | `curl -sS $API/gogosense/merchants` | 200 + JSON array (`[]`+200 still proves DB up) |
+| A1 | DB route returns data | `curl -sS $API/gototrack/merchants` | 200 + JSON array (`[]`+200 still proves DB up) |
 | A2 | Admin login mints token | `curl -i -X POST $API/admin/login -d '{"email","password"}'` | 200 + non-empty `token`; needs admin doc in Mongo |
 | A3 | Admin bundle calls prod API | grep built chunks for the API URL | only `gogocash-api-production.up.railway.app` |
 | B1 | `rs.status()` PRIMARY | `rs.status().set` / `members[].stateStr` / `rs.conf().members[0].host` | `rs0` / `PRIMARY` / `mongodb.railway.internal:27017` |

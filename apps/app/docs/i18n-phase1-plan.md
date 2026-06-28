@@ -2,7 +2,7 @@
 
 > **Status: Phases 1–2 COMPLETE. Phase 3 ~COMPLETE (2026-06-02b): ALL routed customer screens keyed with
 > `useCopy`/`tc()` — chrome, auth, home, discovery, + 25 screens incl. the full account hub, profile
-> cluster, wallet/withdraw/money, quest, membership/subscription, gogosense, golink, category detail,
+> cluster, wallet/withdraw/money, quest, membership/subscription, gototrack, golink, category detail,
 > privacy, age-gate, auth-callback. Waves 1–2 used parallel subagents (one screen each) + central overlay
 > merge + a source-of-truth tc()-literal coverage test. Utility + NativeParity dropped (dead/unrouted).
 > + secondary home/discovery copy. Suites green: source 309, render 27, tsc 0. Overlay holds ~304
@@ -153,10 +153,10 @@ Decide in Phase 1; Phase 2 depends on it.
   with `grep -rln <Screen> app/` before keying any further — skip unrouted screens.
 - **Waves 1–2 (parallel subagents, 2026-06-02b) — DONE:** Profile, ProfileOffers, ProfilePhone,
   AccountSettings, PrivacyCenter, PrivacyPolicy (wave 1) + ProfileDetail, AccountSetup, Quest, MoneyAction,
-  GoGoSense, GoLink, CategoryDetail (wave 2). Each agent wrapped one screen + reported mobile-only strings;
+  GoGoTrack, GoLink, CategoryDetail (wave 2). Each agent wrapped one screen + reported mobile-only strings;
   ~213 wave-2 overlay pairs merged centrally via a dedup / skip-web-collision script. Verified by
   `i18n-wave2-tc-coverage.test.ts` (extracts `tc("...")` literals from each screen source → asserts Thai) +
-  an overlay-integrity test (every overlay entry reverse-resolves, not shadowed by web). Profile + GoGoSense
+  an overlay-integrity test (every overlay entry reverse-resolves, not shadowed by web). Profile + GoGoTrack
   visually spot-checked in th.
 - **Parallel approach / gotchas (for any future bulk i18n):** agents own ONE screen file each (no write
   conflict) and do NOT touch shared files (overlay, coverage test, webDesignParity); central reconcile

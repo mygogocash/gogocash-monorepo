@@ -1,0 +1,20 @@
+// Local Expo module — Android UsageStats foreground detector.
+// Structure mirrors the SDK-56 expo-module-gradle-plugin convention (see
+// node_modules/expo-secure-store/android/build.gradle). The plugin wires
+// compileSdk / Kotlin / the expo-modules-core dependency automatically.
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'co.gogocash.gototrack'
+version = '0.1.0'
+
+android {
+  namespace "co.gogocash.gototrack"
+  defaultConfig {
+    minSdkVersion 24
+    versionCode 1
+    versionName "0.1.0"
+  }
+}

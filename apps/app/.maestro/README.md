@@ -5,7 +5,7 @@ Install: https://maestro.mobile.dev/docs/getting-started/installation
 ## Prerequisites
 
 - Android emulator or device
-- **Dev client** APK (GoGoSense) or Expo Go for limited UI-only flows
+- **Dev client** APK (GoGoTrack) or Expo Go for limited UI-only flows
 - App pointed at staging or local API (`EXPO_PUBLIC_API_URL`)
 
 ## Run

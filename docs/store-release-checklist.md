@@ -14,7 +14,7 @@ Configure store credentials on EAS (`eas credentials`) before submit. See `eas.j
 
 ## Privacy & disclosures
 
-### GoGoSense (Android)
+### GoGoTrack (Android)
 
 - Permission: `PACKAGE_USAGE_STATS` (Usage Access)
 - Disclose in Play Data safety form: app usage data for cashback activation

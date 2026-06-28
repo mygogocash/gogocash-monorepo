@@ -32,7 +32,7 @@ describe("getMobilePageType (mirrors web getPageTypeFromPathname)", () => {
   });
 
   it("falls back to the first segment for unmapped routes (web parity)", () => {
-    expect(getMobilePageType("/gogosense")).toBe("gogosense");
+    expect(getMobilePageType("/gototrack")).toBe("gototrack");
     expect(getMobilePageType("/credit-score")).toBe("credit-score");
   });
 

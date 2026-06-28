@@ -38,20 +38,20 @@ export type MobileRouteId =
   | "language"
   | "privacyCenter"
   | "questHistory"
-  | "gogosense"
-  | "gogosenseOnboarding"
-  | "gogosensePermissions"
-  | "gogosenseTimeline"
-  | "gogosenseSettings"
-  | "gogosenseRecovery"
-  | "gogosenseMerchant";
+  | "gototrack"
+  | "gototrackOnboarding"
+  | "gototrackPermissions"
+  | "gototrackTimeline"
+  | "gototrackSettings"
+  | "gototrackRecovery"
+  | "gototrackMerchant";
 
 export type MobileFeatureGroup =
   | "auth"
   | "cashback"
   | "discovery"
   | "golink"
-  | "gogosense"
+  | "gototrack"
   | "legal"
   | "profile"
   | "quest"
@@ -381,59 +381,59 @@ export const mobileParityRoutes: MobileRoute[] = [
     requiresAuth: true,
   },
   {
-    id: "gogosense",
-    webPath: "/gogosense",
-    nativePath: "/gogosense",
-    title: "GoGoSense",
-    featureGroup: "gogosense",
+    id: "gototrack",
+    webPath: "/gototrack",
+    nativePath: "/gototrack",
+    title: "GoGoTrack",
+    featureGroup: "gototrack",
     requiresAuth: true,
   },
   {
-    id: "gogosenseOnboarding",
-    webPath: "/gogosense/onboarding",
-    nativePath: "/gogosense/onboarding",
-    title: "GoGoSense onboarding",
-    featureGroup: "gogosense",
+    id: "gototrackOnboarding",
+    webPath: "/gototrack/onboarding",
+    nativePath: "/gototrack/onboarding",
+    title: "GoGoTrack onboarding",
+    featureGroup: "gototrack",
     requiresAuth: true,
   },
   {
-    id: "gogosensePermissions",
-    webPath: "/gogosense/permissions",
-    nativePath: "/gogosense/permissions",
-    title: "GoGoSense permissions",
-    featureGroup: "gogosense",
+    id: "gototrackPermissions",
+    webPath: "/gototrack/permissions",
+    nativePath: "/gototrack/permissions",
+    title: "GoGoTrack permissions",
+    featureGroup: "gototrack",
     requiresAuth: true,
   },
   {
-    id: "gogosenseTimeline",
-    webPath: "/gogosense/timeline",
-    nativePath: "/gogosense/timeline",
-    title: "GoGoSense timeline",
-    featureGroup: "gogosense",
+    id: "gototrackTimeline",
+    webPath: "/gototrack/timeline",
+    nativePath: "/gototrack/timeline",
+    title: "GoGoTrack timeline",
+    featureGroup: "gototrack",
     requiresAuth: true,
   },
   {
-    id: "gogosenseSettings",
-    webPath: "/gogosense/settings",
-    nativePath: "/gogosense/settings",
-    title: "GoGoSense settings",
-    featureGroup: "gogosense",
+    id: "gototrackSettings",
+    webPath: "/gototrack/settings",
+    nativePath: "/gototrack/settings",
+    title: "GoGoTrack settings",
+    featureGroup: "gototrack",
     requiresAuth: true,
   },
   {
-    id: "gogosenseRecovery",
-    webPath: "/gogosense/recovery",
-    nativePath: "/gogosense/recovery",
-    title: "GoGoSense recovery",
-    featureGroup: "gogosense",
+    id: "gototrackRecovery",
+    webPath: "/gototrack/recovery",
+    nativePath: "/gototrack/recovery",
+    title: "GoGoTrack recovery",
+    featureGroup: "gototrack",
     requiresAuth: true,
   },
   {
-    id: "gogosenseMerchant",
-    webPath: "/gogosense/merchant/[id]",
-    nativePath: "/gogosense/merchant/[id]",
-    title: "GoGoSense merchant",
-    featureGroup: "gogosense",
+    id: "gototrackMerchant",
+    webPath: "/gototrack/merchant/[id]",
+    nativePath: "/gototrack/merchant/[id]",
+    title: "GoGoTrack merchant",
+    featureGroup: "gototrack",
     requiresAuth: true,
   },
 ];

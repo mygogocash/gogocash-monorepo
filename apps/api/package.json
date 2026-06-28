@@ -31,7 +31,7 @@
     "backfill:conversion-userid:dry": "ts-node -r tsconfig-paths/register scripts/backfill-conversion-userid.ts --dry-run",
     "backfill:quest-tasks": "ts-node -r tsconfig-paths/register scripts/backfill-quest-tasks.ts",
     "backfill:quest-tasks:dry": "ts-node -r tsconfig-paths/register scripts/backfill-quest-tasks.ts --dry-run",
-    "gogosense:seed-merchants": "ts-node -r tsconfig-paths/register scripts/seed-gogosense-merchants.ts",
+    "gototrack:seed-merchants": "ts-node -r tsconfig-paths/register scripts/seed-gototrack-merchants.ts",
     "seed:local-admin": "ts-node -r tsconfig-paths/register scripts/seed-local-admin.ts",
     "seed:local-customer": "ts-node -r tsconfig-paths/register scripts/seed-local-customer.ts",
     "seed:e2e-fixtures": "ts-node -r tsconfig-paths/register scripts/seed-e2e-fixtures.ts",

@@ -117,7 +117,7 @@ RBAC, edge cases, dark mode, desktop layout, security boundaries.
 - Stripe billing (disabled locally: `STRIPE_BILLING_ENABLED=false`)
 - Involve Asia live postbacks (need secrets)
 - GCS media uploads (need `GOOGLE_APPLICATION_CREDENTIALS`)
-- Native Android GoGoSense (device + EAS dev client)
+- Native Android GoGoTrack (device + EAS dev client)
 - Production/staging-only Firebase parity
 
 ---
@@ -359,7 +359,7 @@ Workflow job `e2e-local` in `.github/workflows/ci.yml` — Mongo 7 service + rep
 | GCS image upload | Text-only admin saves; `local-media:` refs |
 | Involve live sync | Seeded manual brands |
 | Stripe billing | Skipped unless `STRIPE_BILLING_ENABLED=true` |
-| GoGoSense native Android | `gogosense-preflight.mjs` |
+| GoGoTrack native Android | `gototrack-preflight.mjs` |
 
 ---
 

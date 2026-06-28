@@ -134,8 +134,8 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
         resizeMode: "contain",
       },
     ],
-    // GoGoSense: declares PACKAGE_USAGE_STATS for the Android UsageStats detector.
-    "./plugins/withGogosenseUsageAccess",
+    // GoGoTrack: declares PACKAGE_USAGE_STATS for the Android UsageStats detector.
+    "./plugins/withGototrackUsageAccess",
   ],
   extra: {
     accountDataSource: process.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE ?? envDefaults.accountDataSource,

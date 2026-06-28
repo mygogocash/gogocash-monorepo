@@ -15,7 +15,7 @@ Phased breakdown for subagent execution. Each task has a stable **ID**, **scope*
 | Local full-stack E2E | `npm run e2e`, `docker-compose.e2e.yml`, `e2e/cross-system/*` | API 17+ integration, cross-system 7/7, admin/customer Playwright backend suites green |
 | Railway **web** deploy | `apps/app/Dockerfile.web.railway`, `apps/app/railway.json` | `expo export --platform web` on Railway `app-web` |
 | EAS profiles scaffold | `apps/app/eas.json` | `development`, `preview`, `production` profiles exist |
-| Dev client + GoGoSense | `gogosense:dev-client`, `modules/gogosense-detector/` | Dev APK + ADB preflight scripts |
+| Dev client + GoGoTrack | `gototrack:dev-client`, `modules/gototrack-detector/` | Dev APK + ADB preflight scripts |
 | Vitest gates | `test`, `test:render`, `typecheck` in CI | `ci.yml` app job green |
 
 ---
@@ -83,7 +83,7 @@ flowchart TB
 | **Files** | `apps/app/README.md` |
 
 **AC:**
-- [ ] Documents: `web` (default), `gogosense:dev-client`, three vitest gates, staging-only API URL pattern
+- [ ] Documents: `web` (default), `gototrack:dev-client`, three vitest gates, staging-only API URL pattern
 - [ ] Table: Railway web vs EAS native (2 rows, links to this plan)
 - [ ] No duplicate of full E2E runbook (link to `docs/E2E_QA_PLAN.md`)
 
@@ -242,7 +242,7 @@ flowchart TB
 | **Files** | `apps/app/package.json`, `apps/app/README.md` |
 
 **AC:**
-- [ ] `start:dev-client` runs `expo start --dev-client` (not only GoGoSense script)
+- [ ] `start:dev-client` runs `expo start --dev-client` (not only GoGoTrack script)
 - [ ] README states: native features → dev client; UI parity → `web`
 
 ### P3-T02 · Dev client build CI artifact (Android)
@@ -254,7 +254,7 @@ flowchart TB
 
 **AC:**
 - [ ] `build` + `profile=development` + `platform=android` uploads APK to GH artifact (existing scaffold behavior verified)
-- [ ] `gogosense:artifact` script still resolves artifact URL
+- [ ] `gototrack:artifact` script still resolves artifact URL
 
 ### P3-T03 · iOS dev client doc (TestFlight internal)
 
@@ -269,7 +269,7 @@ flowchart TB
 
 ---
 
-## Phase 4 — Maestro device E2E (non-GoGoSense)
+## Phase 4 — Maestro device E2E (non-GoGoTrack)
 
 **Goal:** Automated smoke on simulator/device for core journeys.
 
@@ -335,40 +335,40 @@ flowchart TB
 
 ---
 
-## Phase 5 — GoGoSense device QA
+## Phase 5 — GoGoTrack device QA
 
-**Goal:** Repeatable GoGoSense acceptance without full manual runbook.
+**Goal:** Repeatable GoGoTrack acceptance without full manual runbook.
 
 **Depends on:** Phase 3
 
-### P5-T01 · Harden `gogosense-preflight.mjs` exit codes
+### P5-T01 · Harden `gototrack-preflight.mjs` exit codes
 
 | Field | Value |
 |-------|-------|
 | **Subagent** | `generalPurpose` |
-| **Files** | `apps/app/scripts/gogosense-preflight.mjs`, tests |
+| **Files** | `apps/app/scripts/gototrack-preflight.mjs`, tests |
 
 **AC:**
 - [ ] Non-zero exit on: no device, no usage permission, merchant not foreground
-- [ ] Existing `gogosense-preflight-script.test.ts` extended GREEN
+- [ ] Existing `gototrack-preflight-script.test.ts` extended GREEN
 
-### P5-T02 · Maestro: GoGoSense nudge tap (optional)
+### P5-T02 · Maestro: GoGoTrack nudge tap (optional)
 
 | Field | Value |
 |-------|-------|
 | **Subagent** | `e2e-runner` |
-| **Files** | `apps/app/.maestro/flows/gogosense-nudge.yaml` |
+| **Files** | `apps/app/.maestro/flows/gototrack-nudge.yaml` |
 
 **AC:**
-- [ ] Taps `testID="gogosense-activate-cashback-button"` if present in app
+- [ ] Taps `testID="gototrack-activate-cashback-button"` if present in app
 - [ ] Documented as device-only; skipped in CI without hardware
 
-### P5-T03 · GoGoSense module README ↔ delegation plan link
+### P5-T03 · GoGoTrack module README ↔ delegation plan link
 
 | Field | Value |
 |-------|-------|
 | **Subagent** | `doc-updater` |
-| **Files** | `apps/app/modules/gogosense-detector/README.md` |
+| **Files** | `apps/app/modules/gototrack-detector/README.md` |
 
 **AC:**
 - [ ] Links to this plan Phase 5 and EAS dev profile name
@@ -477,7 +477,7 @@ flowchart TB
 | **Files** | `docs/store-release-checklist.md` |
 
 **AC:**
-- [ ] GoGoSense `PACKAGE_USAGE_STATS` disclosure
+- [ ] GoGoTrack `PACKAGE_USAGE_STATS` disclosure
 - [ ] Data safety form pointers (Firebase phone, PostHog, Sentry)
 - [ ] Links to `apps/app/docs/security-pentest-checklist.md`
 
@@ -570,7 +570,7 @@ flowchart TD
   P2[Phase 2 CI]
   P3[Phase 3 Dev workflow]
   P4[Phase 4 Maestro]
-  P5[Phase 5 GoGoSense]
+  P5[Phase 5 GoGoTrack]
   P6[Phase 6 Railway]
   P7[Phase 7 Store]
   P8[Phase 8 Observability]

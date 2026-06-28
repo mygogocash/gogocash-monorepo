@@ -165,7 +165,7 @@ These 334 strings are **mobile-only** copy with no web-catalog equivalent. Their
 | ☐ | `mobileW2_127` | Manage consent, data access, and GoGoCash privacy preferences. | จัดการการยินยอม การเข้าถึงข้อมูล และการตั้งค่าความเป็นส่วนตัวของ GoGoCash |
 | ☐ | `mobileW2_128` | Consent status | สถานะการยินยอม |
 | ☐ | `mobileW2_129` | Data requests | คำขอข้อมูล |
-| ☐ | `mobileW2_130` | GoGoSense history | ประวัติ GoGoSense |
+| ☐ | `mobileW2_130` | GoGoTrack history | ประวัติ GoGoTrack |
 | ☐ | `mobileW2_131` | Privacy Center | ศูนย์ความเป็นส่วนตัว |
 | ☐ | `mobileW2_132` | View details | ดูรายละเอียด |
 | ☐ | `mobileW2_133` | Check account progress and reward eligibility signals. | ตรวจสอบความคืบหน้าของบัญชีและสิทธิ์การรับรางวัล |
@@ -238,17 +238,17 @@ These 334 strings are **mobile-only** copy with no web-catalog equivalent. Their
 | ☐ | `mobileW2_200` | Protected tracking | การติดตามที่ปลอดภัย |
 | ☐ | `mobileW2_201` | Cashback tracking assistant that watches supported shopping sessions and keeps activation evidence in one secure flow. | ผู้ช่วยติดตามแคชแบ็กที่คอยเฝ้าดูเซสชันการช้อปที่รองรับ และเก็บหลักฐานการเปิดใช้งานไว้ในระบบที่ปลอดภัยเพียงที่เดียว |
 | ☐ | `mobileW2_202` | Native setup | การตั้งค่าแบบเนทีฟ |
-| ☐ | `mobileW2_203` | Set up GoGoSense | ตั้งค่า GoGoSense |
-| ☐ | `mobileW2_204` | Complete these steps before GoGoSense starts detecting supported stores, checkout sessions, and missing cashback evidence. | ทำตามขั้นตอนเหล่านี้ให้เสร็จก่อนที่ GoGoSense จะเริ่มตรวจจับร้านค้าที่รองรับ เซสชันการชำระเงิน และหลักฐานแคชแบ็กที่หายไป |
+| ☐ | `mobileW2_203` | Set up GoGoTrack | ตั้งค่า GoGoTrack |
+| ☐ | `mobileW2_204` | Complete these steps before GoGoTrack starts detecting supported stores, checkout sessions, and missing cashback evidence. | ทำตามขั้นตอนเหล่านี้ให้เสร็จก่อนที่ GoGoTrack จะเริ่มตรวจจับร้านค้าที่รองรับ เซสชันการชำระเงิน และหลักฐานแคชแบ็กที่หายไป |
 | ☐ | `mobileW2_205` | Consent first | ขอความยินยอมก่อน |
 | ☐ | `mobileW2_206` | Permission checklist | รายการตรวจสอบสิทธิ์ |
-| ☐ | `mobileW2_207` | GoGoSense never enables sensitive signals silently. Review why each permission is needed before opening device settings. | GoGoSense จะไม่เปิดใช้งานสัญญาณที่ละเอียดอ่อนโดยไม่แจ้งให้ทราบ ตรวจสอบเหตุผลของแต่ละสิทธิ์ก่อนเปิดการตั้งค่าอุปกรณ์ |
+| ☐ | `mobileW2_207` | GoGoTrack never enables sensitive signals silently. Review why each permission is needed before opening device settings. | GoGoTrack จะไม่เปิดใช้งานสัญญาณที่ละเอียดอ่อนโดยไม่แจ้งให้ทราบ ตรวจสอบเหตุผลของแต่ละสิทธิ์ก่อนเปิดการตั้งค่าอุปกรณ์ |
 | ☐ | `mobileW2_208` | Tracking history | ประวัติการติดตาม |
 | ☐ | `mobileW2_209` | Tracking timeline | ไทม์ไลน์การติดตาม |
 | ☐ | `mobileW2_210` | Review detected shopping sessions, activation status, and recovery tasks without exposing raw notification or screenshot content. | ตรวจสอบเซสชันการช้อปที่ตรวจพบ สถานะการเปิดใช้งาน และงานการกู้คืน โดยไม่เปิดเผยเนื้อหาการแจ้งเตือนหรือภาพหน้าจอดิบ |
 | ☐ | `mobileW2_211` | Privacy controls | การควบคุมความเป็นส่วนตัว |
 | ☐ | `mobileW2_212` | Tracking controls | การควบคุมการติดตาม |
-| ☐ | `mobileW2_213` | Tune GoGoSense detection sources and data minimization before the native detector is enabled. | ปรับแหล่งการตรวจจับของ GoGoSense และการลดข้อมูลให้น้อยที่สุดก่อนเปิดใช้งานตัวตรวจจับแบบเนทีฟ |
+| ☐ | `mobileW2_213` | Tune GoGoTrack detection sources and data minimization before the native detector is enabled. | ปรับแหล่งการตรวจจับของ GoGoTrack และการลดข้อมูลให้น้อยที่สุดก่อนเปิดใช้งานตัวตรวจจับแบบเนทีฟ |
 | ☐ | `mobileW2_214` | Manual proof | หลักฐานด้วยตนเอง |
 | ☐ | `mobileW2_215` | Screenshot recovery | การกู้คืนด้วยภาพหน้าจอ |
 | ☐ | `mobileW2_216` | Use recovery when a shopping session was not detected or a merchant asks for proof before validating cashback. | ใช้การกู้คืนเมื่อไม่พบเซสชันการช้อป หรือเมื่อร้านค้าขอหลักฐานก่อนตรวจสอบแคชแบ็ก |
@@ -284,7 +284,7 @@ These 334 strings are **mobile-only** copy with no web-catalog equivalent. Their
 | ☐ | `mobileW2_246` | Timeline | ไทม์ไลน์ |
 | ☐ | `mobileW2_247` | Settings | การตั้งค่า |
 | ☐ | `mobileW2_248` | Recovery | การกู้คืน |
-| ☐ | `mobileW2_249` | Every step is explicit so GoGoSense never looks like a hidden tracker. | ทุกขั้นตอนชัดเจน เพื่อให้ GoGoSense ไม่ดูเหมือนตัวติดตามที่ซ่อนอยู่ |
+| ☐ | `mobileW2_249` | Every step is explicit so GoGoTrack never looks like a hidden tracker. | ทุกขั้นตอนชัดเจน เพื่อให้ GoGoTrack ไม่ดูเหมือนตัวติดตามที่ซ่อนอยู่ |
 | ☐ | `mobileW2_250` | Continue to permissions | ดำเนินการต่อไปยังสิทธิ์การเข้าถึง |
 | ☐ | `mobileW2_251` | These controls map to native OS permission prompts and privacy-policy wording. | การควบคุมเหล่านี้สอดคล้องกับคำขอสิทธิ์ของระบบปฏิบัติการและถ้อยคำในนโยบายความเป็นส่วนตัว |
 | ☐ | `mobileW2_252` | Open settings | เปิดการตั้งค่า |

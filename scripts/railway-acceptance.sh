@@ -158,11 +158,11 @@ else
        "url=$STAGING_API_URL status=$staging_health"
 fi
 
-merchants="$(http_body "$API_URL/gogosense/merchants" | head -c 500)"
+merchants="$(http_body "$API_URL/gototrack/merchants" | head -c 500)"
 if [ -n "$merchants" ] && [ "$merchants" != "[]" ]; then
-  pass "gogosense/merchants has data (external Mongo seeded)"
+  pass "gototrack/merchants has data (external Mongo seeded)"
 else
-  warn "gogosense/merchants empty — point MONGO_URI at Atlas staging for real data"
+  warn "gototrack/merchants empty — point MONGO_URI at Atlas staging for real data"
 fi
 
 APP_WEB_URL="${APP_WEB_URL:-${STAGING_APP_URL:-https://app-staging.gogocash.co}}"

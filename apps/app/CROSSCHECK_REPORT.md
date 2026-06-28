@@ -30,7 +30,7 @@ golink icons, and the page-level depth for credit-score, referral, favorite, lin
 
 - **Route coverage is complete** — every customer Next.js route has an Expo screen (confirmed in earlier inventory:
   41054d7 has 0 customer routes missing on Expo; only `/demo-top-brands-square` + `/sentry-example-page` are Next-only
-  dev pages, and `/gogosense/*` is Expo-only by design).
+  dev pages, and `/gototrack/*` is Expo-only by design).
 - **Depth is the gap, not breadth.** Every verified page group is **fixture-backed**, not wired to the live API.
 - **No user flow is fully completable on a real device today.** All 9 traced flows are `partial` except home-search
   (`mostly-works`). The blockers are consistent: mocked auth, no live data, native-incompatible web APIs

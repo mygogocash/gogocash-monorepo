@@ -31,7 +31,7 @@ const ERROR_UI_FILES = [
   "src/design/webDesignParity.ts",
   "src/screens/CustomerAuthScreen.tsx",
   "src/screens/CustomerMoneyActionScreen.tsx",
-  "src/gogosense/GoGoSenseDetectionBanner.tsx",
+  "src/gototrack/GoGoTrackDetectionBanner.tsx",
   "src/components/CustomerRouteState.tsx",
   "src/screens/CustomerCatalogScreens.tsx",
 ] as const;

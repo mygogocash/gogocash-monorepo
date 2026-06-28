@@ -271,9 +271,9 @@ const p0Routes = [
     ],
   },
   {
-    path: "/gogosense",
+    path: "/gototrack",
     requiredText: [
-      "GoGoSense",
+      "GoGoTrack",
       "Cashback tracking assistant",
       "Permission checklist",
       "Tracking timeline",
@@ -281,16 +281,16 @@ const p0Routes = [
     ],
   },
   {
-    path: "/gogosense/onboarding",
+    path: "/gototrack/onboarding",
     requiredText: [
-      "Set up GoGoSense",
+      "Set up GoGoTrack",
       "Install native detector",
       "Connect browser and app signals",
       "Continue to permissions",
     ],
   },
   {
-    path: "/gogosense/permissions",
+    path: "/gototrack/permissions",
     requiredText: [
       "Permission checklist",
       "Usage access",
@@ -300,7 +300,7 @@ const p0Routes = [
     ],
   },
   {
-    path: "/gogosense/timeline",
+    path: "/gototrack/timeline",
     requiredText: [
       "Tracking timeline",
       "Detected shopping session",
@@ -309,7 +309,7 @@ const p0Routes = [
     ],
   },
   {
-    path: "/gogosense/settings",
+    path: "/gototrack/settings",
     requiredText: [
       "Tracking controls",
       "PII minimization",
@@ -318,7 +318,7 @@ const p0Routes = [
     ],
   },
   {
-    path: "/gogosense/recovery",
+    path: "/gototrack/recovery",
     requiredText: [
       "Screenshot recovery",
       "Manual merchant review",
@@ -326,7 +326,7 @@ const p0Routes = [
     ],
   },
   {
-    path: "/gogosense/merchant/grocery-galaxy",
+    path: "/gototrack/merchant/grocery-galaxy",
     requiredText: [
       "Merchant tracking detail",
       "grocery-galaxy",

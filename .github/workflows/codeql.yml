@@ -1,6 +1,6 @@
 # CodeQL advanced setup — replaces GitHub Default setup so language selection is
 # version-controlled. The repo is JS/TS (admin, api, mobile web) plus one Expo
-# local Android module (gogosense-detector) that has no root Gradle project and
+# local Android module (gototrack-detector) that has no root Gradle project and
 # is built only via EAS; scanning java-kotlin with autobuild fails with
 # "No build command found". Languages match the prior Default setup config.
 name: CodeQL

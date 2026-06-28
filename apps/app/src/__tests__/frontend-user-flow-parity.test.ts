@@ -403,85 +403,85 @@ const frontendFlowContracts: FrontendFlowContract[] = [
     userFlow: "Customer opens quest history directly into leaderboard/history state.",
   },
   {
-    appFile: "app/gogosense/index.tsx",
+    appFile: "app/gototrack/index.tsx",
     expectedLinks: [
-      "/gogosense/onboarding",
-      "/gogosense/permissions",
-      "/gogosense/timeline",
-      "/gogosense/settings",
-      "/gogosense/recovery",
+      "/gototrack/onboarding",
+      "/gototrack/permissions",
+      "/gototrack/timeline",
+      "/gototrack/settings",
+      "/gototrack/recovery",
     ],
     landmarks: ["gogoSenseFlowCopy", "Permission checklist", "Tracking timeline"],
-    routeId: "gogosense",
-    routeMarkers: ["CustomerGoGoSenseScreen", 'mode="hub"'],
-    screenFiles: ["src/screens/CustomerGoGoSenseScreen.tsx"],
+    routeId: "gototrack",
+    routeMarkers: ["CustomerGoGoTrackScreen", 'mode="hub"'],
+    screenFiles: ["src/screens/CustomerGoGoTrackScreen.tsx"],
     userFlow:
-      "Customer opens the GoGoSense protected hub and chooses setup, permissions, timeline, settings, or recovery.",
+      "Customer opens the GoGoTrack protected hub and chooses setup, permissions, timeline, settings, or recovery.",
   },
   {
-    appFile: "app/gogosense/onboarding.tsx",
-    expectedLinks: ["/gogosense/permissions"],
-    landmarks: ["Set up GoGoSense", "Install native detector", "Continue to permissions"],
-    routeId: "gogosenseOnboarding",
-    routeMarkers: ["CustomerGoGoSenseScreen", 'mode="onboarding"'],
-    screenFiles: ["src/screens/CustomerGoGoSenseScreen.tsx"],
+    appFile: "app/gototrack/onboarding.tsx",
+    expectedLinks: ["/gototrack/permissions"],
+    landmarks: ["Set up GoGoTrack", "Install native detector", "Continue to permissions"],
+    routeId: "gototrackOnboarding",
+    routeMarkers: ["CustomerGoGoTrackScreen", 'mode="onboarding"'],
+    screenFiles: ["src/screens/CustomerGoGoTrackScreen.tsx"],
     userFlow:
-      "Customer enters GoGoSense onboarding, reviews setup steps, and continues to permission setup.",
+      "Customer enters GoGoTrack onboarding, reviews setup steps, and continues to permission setup.",
   },
   {
-    appFile: "app/gogosense/permissions.tsx",
-    expectedLinks: ["/gogosense/settings", "/gogosense/timeline"],
+    appFile: "app/gototrack/permissions.tsx",
+    expectedLinks: ["/gototrack/settings", "/gototrack/timeline"],
     landmarks: ["Permission checklist", "Usage access", "Usage access disclosure"],
-    routeId: "gogosensePermissions",
-    routeMarkers: ["CustomerGoGoSenseScreen", 'mode="permissions"'],
-    screenFiles: ["src/screens/CustomerGoGoSenseScreen.tsx"],
+    routeId: "gototrackPermissions",
+    routeMarkers: ["CustomerGoGoTrackScreen", 'mode="permissions"'],
+    screenFiles: ["src/screens/CustomerGoGoTrackScreen.tsx"],
     userFlow:
-      "Customer opens GoGoSense permissions, reviews OS permission rationale, and moves to settings or timeline.",
+      "Customer opens GoGoTrack permissions, reviews OS permission rationale, and moves to settings or timeline.",
   },
   {
-    appFile: "app/gogosense/timeline.tsx",
-    expectedLinks: ["/gogosense/recovery", "/gogosense/settings"],
+    appFile: "app/gototrack/timeline.tsx",
+    expectedLinks: ["/gototrack/recovery", "/gototrack/settings"],
     landmarks: ["Tracking timeline", "Detected shopping session", "Cashback pending"],
-    routeId: "gogosenseTimeline",
-    routeMarkers: ["CustomerGoGoSenseScreen", 'mode="timeline"'],
-    screenFiles: ["src/screens/CustomerGoGoSenseScreen.tsx"],
+    routeId: "gototrackTimeline",
+    routeMarkers: ["CustomerGoGoTrackScreen", 'mode="timeline"'],
+    screenFiles: ["src/screens/CustomerGoGoTrackScreen.tsx"],
     userFlow:
-      "Customer opens GoGoSense timeline, reviews detection history, and starts recovery when tracking is missing.",
+      "Customer opens GoGoTrack timeline, reviews detection history, and starts recovery when tracking is missing.",
   },
   {
-    appFile: "app/gogosense/settings.tsx",
-    expectedLinks: ["/gogosense/permissions"],
+    appFile: "app/gototrack/settings.tsx",
+    expectedLinks: ["/gototrack/permissions"],
     landmarks: ["Tracking controls", "PII minimization", "Permission checklist"],
-    routeId: "gogosenseSettings",
-    routeMarkers: ["CustomerGoGoSenseScreen", 'mode="settings"'],
-    screenFiles: ["src/screens/CustomerGoGoSenseScreen.tsx"],
+    routeId: "gototrackSettings",
+    routeMarkers: ["CustomerGoGoTrackScreen", 'mode="settings"'],
+    screenFiles: ["src/screens/CustomerGoGoTrackScreen.tsx"],
     userFlow:
-      "Customer opens GoGoSense settings, reviews privacy toggles, and can return to permissions.",
+      "Customer opens GoGoTrack settings, reviews privacy toggles, and can return to permissions.",
   },
   {
-    appFile: "app/gogosense/recovery.tsx",
-    expectedLinks: ["/gogosense/timeline"],
+    appFile: "app/gototrack/recovery.tsx",
+    expectedLinks: ["/gototrack/timeline"],
     landmarks: ["Screenshot recovery", "Manual merchant review", "Back to timeline"],
-    routeId: "gogosenseRecovery",
-    routeMarkers: ["CustomerGoGoSenseScreen", 'mode="recovery"'],
-    screenFiles: ["src/screens/CustomerGoGoSenseScreen.tsx"],
+    routeId: "gototrackRecovery",
+    routeMarkers: ["CustomerGoGoTrackScreen", 'mode="recovery"'],
+    screenFiles: ["src/screens/CustomerGoGoTrackScreen.tsx"],
     userFlow:
-      "Customer opens GoGoSense recovery, submits missing tracking evidence, and returns to timeline.",
+      "Customer opens GoGoTrack recovery, submits missing tracking evidence, and returns to timeline.",
   },
   {
-    appFile: "app/gogosense/merchant/[id].tsx",
-    expectedLinks: ["/gogosense/timeline", "/gogosense/recovery"],
+    appFile: "app/gototrack/merchant/[id].tsx",
+    expectedLinks: ["/gototrack/timeline", "/gototrack/recovery"],
     landmarks: ["Merchant tracking detail", "Catalog status", "Android package detection"],
-    routeId: "gogosenseMerchant",
+    routeId: "gototrackMerchant",
     routeMarkers: [
       "useLocalSearchParams",
-      "CustomerGoGoSenseScreen",
+      "CustomerGoGoTrackScreen",
       'mode="merchant"',
       "merchantId",
     ],
-    screenFiles: ["src/screens/CustomerGoGoSenseScreen.tsx"],
+    screenFiles: ["src/screens/CustomerGoGoTrackScreen.tsx"],
     userFlow:
-      "Customer opens a GoGoSense merchant detail screen, reviews detection methods, and starts recovery if tracking is missing.",
+      "Customer opens a GoGoTrack merchant detail screen, reviews detection methods, and starts recovery if tracking is missing.",
   },
 ];
 
@@ -614,24 +614,24 @@ describe("Expo frontend user-flow parity", () => {
     expect(rootPackage.scripts.test).toBe("turbo run test");
   });
 
-  it("GoGoSense frontend parity > given native detector scope > then dedicated onboarding permissions timeline settings recovery and merchant flows replace placeholders", () => {
-    const gogosenseContracts = frontendFlowContracts.filter((contract) =>
-      contract.routeId.startsWith("gogosense")
+  it("GoGoTrack frontend parity > given native detector scope > then dedicated onboarding permissions timeline settings recovery and merchant flows replace placeholders", () => {
+    const gototrackContracts = frontendFlowContracts.filter((contract) =>
+      contract.routeId.startsWith("gototrack")
     );
 
-    expect(gogosenseContracts).toHaveLength(7);
-    for (const contract of gogosenseContracts) {
+    expect(gototrackContracts).toHaveLength(7);
+    for (const contract of gototrackContracts) {
       const routeFile = readMobileFile(contract.appFile);
       const screenText = readScreenContractSources(contract.screenFiles);
 
-      expect(routeFile, `${contract.routeId} route`).toContain("CustomerGoGoSenseScreen");
+      expect(routeFile, `${contract.routeId} route`).toContain("CustomerGoGoTrackScreen");
       expect(routeFile, `${contract.routeId} route`).not.toContain("NativeParityScreen");
       expect(screenText, `${contract.routeId} screen`).toContain("gogoSenseFlowCopy");
       expect(screenText, `${contract.routeId} screen`).not.toContain("Related web screens");
     }
   });
 
-  it("frontend browser flow QA > given customer flow coverage > then rendered smoke tests include every GoGoSense native route and critical Next-derived flows", () => {
+  it("frontend browser flow QA > given customer flow coverage > then rendered smoke tests include every GoGoTrack native route and critical Next-derived flows", () => {
     const designQa = readMobileFile("e2e/design-parity.spec.ts");
     const playwrightConfig = readMobileFile("playwright.config.ts");
     const requiredSmokeRoutes = [
@@ -642,13 +642,13 @@ describe("Expo frontend user-flow parity", () => {
       "/link-mycashback/my-cashback-sign-in",
       "/wallet",
       "/quest",
-      "/gogosense",
-      "/gogosense/onboarding",
-      "/gogosense/permissions",
-      "/gogosense/timeline",
-      "/gogosense/settings",
-      "/gogosense/recovery",
-      "/gogosense/merchant/grocery-galaxy",
+      "/gototrack",
+      "/gototrack/onboarding",
+      "/gototrack/permissions",
+      "/gototrack/timeline",
+      "/gototrack/settings",
+      "/gototrack/recovery",
+      "/gototrack/merchant/grocery-galaxy",
     ];
 
     for (const route of requiredSmokeRoutes) {

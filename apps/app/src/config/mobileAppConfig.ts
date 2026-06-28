@@ -13,8 +13,8 @@ export const deepLinkRoutes = {
   profile: "gogocash://profile",
   wallet: "gogocash://wallet",
   withdraw: "gogocash://withdraw",
-  gogosense: "gogocash://gogosense",
-  gogosenseActivation: "gogocash://gogosense/activate",
+  gototrack: "gogocash://gototrack",
+  gototrackActivation: "gogocash://gototrack/activate",
 } as const;
 
 export const envDefaults = {

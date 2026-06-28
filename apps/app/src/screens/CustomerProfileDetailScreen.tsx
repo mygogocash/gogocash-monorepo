@@ -72,7 +72,7 @@ const models: Record<
   privacy: {
     action: "Update preferences",
     body: "Manage consent, data access, and GoGoCash privacy preferences.",
-    rows: ["Consent status", "Data requests", "GoGoSense history"],
+    rows: ["Consent status", "Data requests", "GoGoTrack history"],
     title: "Privacy Center",
   },
   rating: {

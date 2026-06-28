@@ -1,6 +1,6 @@
 # iOS dev client (internal distribution)
 
-Build and distribute a **development client** for native features (GoGoSense module, custom config plugins).
+Build and distribute a **development client** for native features (GoGoTrack module, custom config plugins).
 
 ## Build
 
@@ -44,4 +44,4 @@ Verify Apple Developer → Identifiers → Associated Domains matches entitlemen
 ## Related
 
 - [mobile-expo-delegation-plan.md](./mobile-expo-delegation-plan.md) Phase 3
-- [modules/gogosense-detector/README.md](../apps/app/modules/gogosense-detector/README.md)
+- [modules/gototrack-detector/README.md](../apps/app/modules/gototrack-detector/README.md)

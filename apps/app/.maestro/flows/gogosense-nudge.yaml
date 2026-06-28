@@ -1,8 +1,0 @@
-# Device-only: GoGoSense activation nudge (requires dev client + Usage Access).
-appId: co.gogocash.app
----
-- launchApp
-- openLink: gogocash://gogosense
-- tapOn:
-    id: "gogosense-activate-cashback-button"
-    optional: true
