@@ -1,0 +1,17 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "apps/app/Dockerfile.web.railway",
+    "watchPatterns": [
+      "apps/app/**",
+      "package.json",
+      "package-lock.json",
+      "apps/app/railway.json"
+    ]
+  },
+  "deploy": {
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}
