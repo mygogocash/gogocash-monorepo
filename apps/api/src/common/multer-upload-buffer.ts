@@ -44,22 +44,58 @@ function isRelativePathWithinRoot(relativePath: string): boolean {
   return !relativePath.split(sep).includes('..');
 }
 
+/** Join only vetted path segments under a resolved upload root (no raw user resolve). */
+function joinUnderRoot(rootReal: string, userRelative: string): string | null {
+  const segments = userRelative.split(/[/\\]/).filter(Boolean);
+  if (segments.some((segment) => segment === '..')) {
+    return null;
+  }
+
+  let current = rootReal;
+  for (const segment of segments) {
+    if (segment === '.') {
+      continue;
+    }
+    current = resolve(current, segment);
+    if (!isPathWithinRoot(current, rootReal)) {
+      return null;
+    }
+  }
+
+  return current;
+}
+
 export async function resolveSafeMulterDiskPath(
   filePath: string,
 ): Promise<string> {
   const trimmed = filePath.trim();
-  if (!trimmed) {
+  if (!trimmed || trimmed.includes('\0')) {
     throw new Error('Invalid upload file path');
   }
 
   const allowedRoots = await getAllowedUploadRoots();
   for (const root of allowedRoots) {
-    const rel = relative(root, resolve(trimmed));
-    if (!isRelativePathWithinRoot(rel)) {
+    const rootBase = resolve(root);
+    let rootReal: string;
+    try {
+      rootReal = await realpath(rootBase);
+    } catch {
       continue;
     }
 
-    const candidate = resolve(root, rel);
+    const relativePath = isAbsolute(trimmed)
+      ? relative(rootBase, trimmed)
+      : trimmed;
+
+    if (!isRelativePathWithinRoot(relativePath)) {
+      continue;
+    }
+
+    const candidate = joinUnderRoot(rootBase, relativePath);
+    if (!candidate) {
+      continue;
+    }
+
     let resolvedPath: string;
     try {
       resolvedPath = await realpath(candidate);
@@ -67,11 +103,7 @@ export async function resolveSafeMulterDiskPath(
       continue;
     }
 
-    if (
-      allowedRoots.some((allowedRoot) =>
-        isPathWithinRoot(resolvedPath, allowedRoot),
-      )
-    ) {
+    if (isPathWithinRoot(resolvedPath, rootReal)) {
       return resolvedPath;
     }
   }

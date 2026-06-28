@@ -1,6 +1,7 @@
 import {
   mapPostbackQueryToConversion,
   normalizeConversionStatus,
+  sanitizePostbackQuery,
 } from './involve-postback.mapper';
 
 describe('normalizeConversionStatus', () => {
@@ -106,5 +107,34 @@ describe('mapPostbackQueryToConversion', () => {
     );
 
     expect(mapped?.adv_sub1).toBe('order-abc');
+  });
+
+  it('sanitizePostbackQuery > given array query values > then keeps first string only', () => {
+    const sanitized = sanitizePostbackQuery({
+      conversion_id: ['123', '456'],
+      offer_id: '99',
+      datetime_conversion: ['2026-06-01 12:00:00', 'ignored'],
+    });
+
+    expect(sanitized).toEqual({
+      conversion_id: '123',
+      offer_id: '99',
+      datetime_conversion: '2026-06-01 12:00:00',
+    });
+  });
+
+  it('given malformed datetime > then falls back without throwing', () => {
+    const mapped = mapPostbackQueryToConversion(
+      {
+        conversion_id: '1',
+        offer_id: '2',
+        offer_name: 'Offer',
+        datetime_conversion: 'not-a-date',
+        status: 'pending',
+      },
+      5,
+    );
+
+    expect(mapped?.datetime_conversion).toBeInstanceOf(Date);
   });
 });
