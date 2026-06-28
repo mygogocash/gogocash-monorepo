@@ -49,5 +49,6 @@ import { AnalyticsService } from 'src/analytics/analytics.service';
     JwtService,
     AnalyticsService,
   ],
+  exports: [PointService],
 })
 export class PointModule {}

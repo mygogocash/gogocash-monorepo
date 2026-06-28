@@ -145,7 +145,7 @@ import { InvolveService } from 'src/involve/involve.service';
 import { UserService } from 'src/user/user.service';
 import { MediaModule } from 'src/media/media.module';
 import { JobService } from 'src/withdraw/cronjob/job.service';
-import { PointService } from 'src/point/point.service';
+import { PointModule } from 'src/point/point.module';
 import { WithdrawService } from 'src/withdraw/withdraw.service';
 import { AnalyticsModule } from 'src/analytics/analytics.module';
 
@@ -155,6 +155,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     AnalyticsModule,
     EmailModule,
     MediaModule,
+    PointModule,
     MongooseModule.forFeature([
       { name: UserAdmin.name, schema: UserAdminSchema },
       { name: AdminToken.name, schema: AdminTokenSchema },
@@ -233,7 +234,6 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     InvolveService,
     UserService,
     JobService,
-    PointService,
     WithdrawService,
     RateLimitGuard,
     RolesGuard,

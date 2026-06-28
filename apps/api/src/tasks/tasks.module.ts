@@ -15,7 +15,6 @@ import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import { Offer } from 'src/offer/entities/offer.entity';
 import { OfferSchema } from 'src/offer/schemas/offer.schema';
-import { PointService } from 'src/point/point.service';
 import { Quest, QuestSchema } from 'src/point/schemas/quest.schema';
 import {
   SocialReward,
@@ -39,13 +38,12 @@ import {
   RewardList,
   RewardListSchema,
 } from 'src/withdraw/schemas/rewardList.schema';
-import { MediaModule } from 'src/media/media.module';
-import { AnalyticsService } from 'src/analytics/analytics.service';
+import { PointModule } from 'src/point/point.module';
 
 @Module({
   imports: [
     CacheModule.register(),
-    MediaModule,
+    PointModule,
     // TasksController is guarded by AuthAdminGuard, which injects JwtService.
     // Without this registration Nest cannot resolve the guard's dependency and
     // the whole app fails to boot (UnknownDependenciesException). Mirrors the
@@ -71,11 +69,9 @@ import { AnalyticsService } from 'src/analytics/analytics.service';
   providers: [
     TasksService,
     InvolveService,
-    PointService,
     GoogleDriveService,
     JobService,
     WithdrawService,
-    AnalyticsService,
   ],
 })
 export class TasksModule {}
