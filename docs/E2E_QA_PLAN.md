@@ -12,7 +12,7 @@ Prepared for the Turborepo monorepo: NestJS API (`apps/api`), Next.js admin (`ap
 
 | Component | URL / connection | Config file |
 |-----------|------------------|-------------|
-| MongoDB | `mongodb://localhost:27017/gogocash` | Docker: `gogocash-mongo` |
+| MongoDB | `mongodb://localhost:27017/gogocash-e2e?replicaSet=rs0` | `npm run e2e:up` (`docker-compose.e2e.yml`) |
 | API (NestJS) | http://localhost:8080 | `apps/api/.env` |
 | Admin (Next.js) | http://localhost:3000 | `apps/admin/.env.local` |
 | Customer app (Expo web) | http://localhost:8081 | `apps/app/.env` |
@@ -31,14 +31,39 @@ EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=backend
 EXPO_PUBLIC_FRONTEND_URL=http://localhost:8081
 ```
 
+### 1.1.1 Port 27017 conflict (E2E vs local dev)
+
+Only one MongoDB listener can bind **localhost:27017**. The E2E harness and legacy local dev use different containers:
+
+| Container | Start | Replica set | Use when |
+|-----------|-------|-------------|----------|
+| `gogocash-mongo-e2e` | `npm run e2e:up` | Yes (`rs0`) | Full E2E, withdraw tests (E2E-07), `npm run e2e` |
+| `gogocash-mongo` | `docker start gogocash-mongo` | No | Quick local API dev without replica-set features |
+
+**Symptoms:** `e2e:up` fails with port already allocated, or API/Jest e2e errors about transactions / replica set while something else owns `:27017`.
+
+**Resolution:**
+
+```bash
+docker ps --filter publish=27017   # see which container owns the port
+docker stop gogocash-mongo         # before E2E (then npm run e2e:up)
+# — or —
+docker stop gogocash-mongo-e2e     # before legacy dev (then docker start gogocash-mongo)
+```
+
+Do not run both containers at once; they compete for the same host port.
+
 ### 1.2 Start commands
 
 ```bash
-docker start gogocash-mongo                    # if stopped
-cd apps/api && npm run seed:local-admin        # admin user (idempotent)
-cd apps/api && npm run start:dev               # :8080
-cd apps/admin && npm run dev                   # :3000
+npm run e2e:up                              # Mongo 7 replica set (preferred)
+docker start gogocash-mongo                 # legacy standalone (no E2E-07)
+cd apps/api && npm run seed:local-admin     # superadmin only
+npm run e2e:seed                              # full E2E seed (admins + customer JWT + fixtures)
+cd apps/api && npm run start:dev              # :8080
+cd apps/admin && npm run dev                  # :3000
 cd apps/app && npx expo start --web --port 8081
+# or: npm run e2e:stack
 ```
 
 ### 1.3 Health checks (run before any manual QA)
@@ -92,7 +117,7 @@ RBAC, edge cases, dark mode, desktop layout, security boundaries.
 - Stripe billing (disabled locally: `STRIPE_BILLING_ENABLED=false`)
 - Involve Asia live postbacks (need secrets)
 - GCS media uploads (need `GOOGLE_APPLICATION_CREDENTIALS`)
-- Native Android GoGoSense (device + EAS dev client)
+- Native Android GoGoTrack (device + EAS dev client)
 - Production/staging-only Firebase parity
 
 ---
@@ -245,25 +270,76 @@ Reference: `apps/app/docs/pages_details.md`, `apps/app/docs/customer_journeys.md
 
 ## 7. Automation mapping
 
-Run these **before** manual E2E to catch regressions early.
+Run **`npm run e2e`** at the repo root for the full local pipeline (Mongo replica set → seed → stack → API integration → Playwright). Env template: `.env.e2e.example`.
+
+### 7.0 Full-stack harness (recommended)
+
+```bash
+# One-shot (brings up Mongo RS, seeds, starts API/admin/app, runs all suites)
+npm run e2e
+
+# Step-by-step
+npm run e2e:up          # docker-compose.e2e.yml — Mongo 7 rs0 on :27017
+npm run e2e:seed        # admins + customer JWT + fixtures → .e2e/seed.json
+npm run e2e:stack       # API :8080, admin :3000, app :8081 (background)
+npm run e2e:stack:stop  # stop background services
+```
+
+**Mongo URI for E2E:** `mongodb://localhost:27017/gogocash-e2e?replicaSet=rs0` (replica set required for E2E-07 withdraw transactions).
+
+**Seeded accounts:**
+
+| Role | Email | Password | Notes |
+|------|-------|----------|-------|
+| Super admin | `admin@gogocash.co` | `1234` | RBAC superadmin |
+| Viewer | `viewer@gogocash.co` | `1234` | ADM-09 |
+| Editor | `editor@gogocash.co` | `1234` | ADM-10 |
+| Customer | `e2e.customer@gogocash.co` | JWT seed | No Firebase OTP — `seed:e2e` issues backend JWT |
 
 ### 7.1 API integration (Mongo required)
 
 ```bash
-cd apps/api
-MONGO_URI=mongodb://localhost:27017/gogocash npm run test:e2e
+MONGO_URI=mongodb://localhost:27017/gogocash-e2e?replicaSet=rs0 \
+MONGO_REPLICA_SET=1 \
+npm run test:e2e -w gogocash-api
 ```
 
-Covers boot smoke + withdraw balance integration against real Mongo.
+Covers: boot smoke (`app.e2e-spec.ts`), withdraw balance + transaction serialization (`withdraw-balance.e2e-spec.ts`), HTTP module suites (`modules.e2e-spec.ts`, `withdraw.e2e-spec.ts`).
 
-### 7.2 Admin unit tests
+### 7.2 Admin Playwright (real API)
+
+```bash
+ADMIN_PLAYWRIGHT_NO_SERVER=1 npm run test:e2e -w gogocash-admin
+# or let Playwright start Next.js:
+npm run test:e2e -w gogocash-admin
+```
+
+Specs: `apps/admin/e2e/` — dashboard, brands, domain routes, RBAC (`rbac.spec.ts`).
+
+### 7.3 Customer Playwright (backend JWT)
+
+```bash
+MOBILE_PLAYWRIGHT_NO_SERVER=1 E2E_SEED_OUT=.e2e/seed.json npm run test:e2e -w @gogocash/mobile
+```
+
+Specs: `apps/app/e2e/public-routes.spec.ts`, `auth-routes.spec.ts` (JWT), `nonfunctional.spec.ts`, legacy `design-parity.spec.ts` (fixtures session smoke).
+
+### 7.4 Cross-system P0 (E2E-01–07)
+
+```bash
+npx playwright test --config e2e/playwright.config.ts
+```
+
+Specs: `e2e/cross-system/e2e-*.spec.ts` — admin action → API poll → customer assertion. Shared helpers: `e2e/helpers/`, console collector: `e2e/attachPageErrorCollector.ts`.
+
+### 7.5 Admin unit tests
 
 ```bash
 cd apps/admin && npm run test
 # Includes offerDeeplink commission parsing (E2E-01 regression)
 ```
 
-### 7.3 Customer app gates
+### 7.6 Customer app Vitest gates
 
 ```bash
 npm --prefix apps/app run typecheck
@@ -271,34 +347,19 @@ npm --prefix apps/app run test
 npm --prefix apps/app run test:render
 ```
 
-Covers route contracts, user-flow parity, API integration scope.
+### 7.7 CI (optional)
 
-### 7.4 Customer Playwright (fixtures session — UI smoke)
+Workflow job `e2e-local` in `.github/workflows/ci.yml` — Mongo 7 service + replica set init, `e2e:seed`, API `test:e2e`, smoke cross-system on PR (manual `workflow_dispatch` until stable).
 
-With Expo already running on :8081:
+### 7.8 Out of scope in default `npm run e2e`
 
-```bash
-MOBILE_PLAYWRIGHT_NO_SERVER=1 npx --prefix apps/app playwright test
-```
-
-Or let Playwright start the server:
-
-```bash
-npx --prefix apps/app playwright test
-```
-
-**Covers:** P0 route content, desktop shell, GoGoLink, referral copy/share, category search/sort, legal links, no placeholder copy.
-
-**Does not cover:** Admin ↔ API ↔ customer propagation (manual E2E-02–05).
-
-### 7.5 Suggested automation gaps (future)
-
-| Gap | Priority | Suggestion |
-|-----|----------|------------|
-| Admin login + brand save | P0 | Playwright for admin against local API |
-| Admin change → customer assertion | P0 | Shared test brand ID + API poll |
-| Firebase OTP login | P0 | Test phone + Firebase emulator |
-| Withdraw approve flow | P0 | API seed user with balance + admin Playwright |
+| Feature | Alternative |
+|---------|-------------|
+| Firebase phone OTP UI | JWT seed (`seed:e2e`) |
+| GCS image upload | Text-only admin saves; `local-media:` refs |
+| Involve live sync | Seeded manual brands |
+| Stripe billing | Skipped unless `STRIPE_BILLING_ENABLED=true` |
+| GoGoTrack native Android | `gototrack-preflight.mjs` |
 
 ---
 
@@ -357,7 +418,7 @@ Severity: P0 | P1 | P2
 
 | Blocker | Affects | Workaround |
 |---------|---------|------------|
-| No Firebase config | CUS-06+, E2E-06, E2E-07 | `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=fixtures` for UI-only |
+| No Firebase config | CUS-06+, E2E-06, E2E-07 | `npm run e2e:seed` — backend JWT for customer Playwright |
 | Empty Mongo | E2E-02–05 | Seed offers via admin Create brand, or restore partial `mongorestore` |
 | GCS credentials missing | Category/banner image upload | Test text-only fields; skip upload |
 | Involve secrets empty | Live affiliate sync | Test manually created brands only |

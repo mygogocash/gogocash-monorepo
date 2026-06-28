@@ -102,7 +102,7 @@ Run this checklist per route.
 Run after any styling change touching shared chrome or account settings:
 
 1. Expo web at `http://localhost:8081` — set Appearance to **Dark**, then **System** with OS dark enabled.
-2. Spot-check P0 routes: home, wallet, profile, account settings, GoGoSense hub, auth login shell.
+2. Spot-check P0 routes: home, wallet, profile, account settings, GoGoTrack hub, auth login shell.
 3. Confirm header logo text, profile chip, globe/locale control, tab bar, and scene background are not light-gray leaks.
 4. Toggle back to **Light** — web-parity light baseline should still match existing screenshot baselines.
 5. `npm --prefix apps/app run test` — parity tests pin light literals where required; `web-design-parity.test.ts` intentionally asserts static `tokens.colors`.

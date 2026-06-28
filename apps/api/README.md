@@ -100,7 +100,7 @@ src/
   telegram-bot/           # Telegram command/update handlers + auth verification pages
   email/                  # transactional email via Resend (no-op when RESEND_API_KEY unset)
   customer-billing/       # Stripe-based billing
-  gogosense/              # GogoSense feature module
+  gototrack/              # GogoSense feature module
   policy/                 # policy module
   tasks/                  # admin break-glass HTTP triggers for scheduled jobs
   common/                 # shared utilities
@@ -130,7 +130,7 @@ Core imports:
 - `ScheduleModule.forRoot()`
 - `ConfigModule.forRoot({ load: [envConfig] })`
 - `MongooseModule.forRoot(process.env.MONGO_URI)`
-- Platform modules: `AnalyticsModule`, `PolicyModule`, `GogosenseModule`, `CustomerBillingModule`
+- Platform modules: `AnalyticsModule`, `PolicyModule`, `GototrackModule`, `CustomerBillingModule`
 - Domain modules: `AuthModule`, `AdminModule`, `UserModule`, `OfferModule`, `BrandModule`, `WithdrawModule`, `GoogleDriveModule`, `PointModule`, `InvolveModule`, `TasksModule`
 - `TelegramBotModule` is registered conditionally — only when `TELEGRAM_BOT_TOKEN` is set and not `'PLACEHOLDER'`.
 

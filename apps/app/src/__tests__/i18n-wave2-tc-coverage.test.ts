@@ -20,7 +20,7 @@ const WAVE2_SCREENS = [
   "CustomerAccountSetupScreen.tsx",
   "CustomerQuestScreen.tsx",
   "CustomerMoneyActionScreen.tsx",
-  "CustomerGoGoSenseScreen.tsx",
+  "CustomerGoGoTrackScreen.tsx",
   "CustomerGoLinkScreen.tsx",
   "CustomerCategoryDetailScreen.tsx",
   // secondary-copy pass
@@ -63,7 +63,7 @@ describe("i18n wave-2 tc() literal coverage (source-of-truth)", () => {
           ? readHomeSources(mobileRoot)
           : readFileSync(resolve(screensDir, file), "utf8");
       const literals = extractTcLiterals(source);
-      // Note: prop/constant-wrapped screens (e.g. AccountSetup, GoGoSense) expose few/no inline tc("...")
+      // Note: prop/constant-wrapped screens (e.g. AccountSetup, GoGoTrack) expose few/no inline tc("...")
       // literals — their copy is bare string props rendered via tc(prop). Those are covered by the
       // overlay-integrity test below + visual spot-checks; here we only assert the inline literals resolve.
       const untranslated = literals.filter(

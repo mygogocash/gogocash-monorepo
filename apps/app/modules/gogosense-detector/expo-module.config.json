@@ -1,6 +1,0 @@
-{
-  "platforms": ["android"],
-  "android": {
-    "modules": ["co.gogocash.gogosense.GogosenseDetectorModule"]
-  }
-}

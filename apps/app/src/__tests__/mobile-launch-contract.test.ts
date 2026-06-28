@@ -58,13 +58,13 @@ const expectedRouteIds = [
   "language",
   "privacyCenter",
   "questHistory",
-  "gogosense",
-  "gogosenseOnboarding",
-  "gogosensePermissions",
-  "gogosenseTimeline",
-  "gogosenseSettings",
-  "gogosenseRecovery",
-  "gogosenseMerchant",
+  "gototrack",
+  "gototrackOnboarding",
+  "gototrackPermissions",
+  "gototrackTimeline",
+  "gototrackSettings",
+  "gototrackRecovery",
+  "gototrackMerchant",
 ] as const;
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
@@ -104,13 +104,13 @@ describe("GoGoCash mobile launch contract", () => {
       "language",
       "privacyCenter",
       "questHistory",
-      "gogosense",
-      "gogosenseOnboarding",
-      "gogosensePermissions",
-      "gogosenseTimeline",
-      "gogosenseSettings",
-      "gogosenseRecovery",
-      "gogosenseMerchant",
+      "gototrack",
+      "gototrackOnboarding",
+      "gototrackPermissions",
+      "gototrackTimeline",
+      "gototrackSettings",
+      "gototrackRecovery",
+      "gototrackMerchant",
     ]);
   });
 
@@ -129,8 +129,8 @@ describe("GoGoCash mobile launch contract", () => {
       profile: "gogocash://profile",
       wallet: "gogocash://wallet",
       withdraw: "gogocash://withdraw",
-      gogosense: "gogocash://gogosense",
-      gogosenseActivation: "gogocash://gogosense/activate",
+      gototrack: "gogocash://gototrack",
+      gototrackActivation: "gogocash://gototrack/activate",
     });
   });
 
@@ -230,26 +230,26 @@ describe("GoGoCash mobile launch contract", () => {
     ]);
   });
 
-  it("gogosense config > given Android UsageStats MVP > then declares only Usage Access", () => {
+  it("gototrack config > given Android UsageStats MVP > then declares only Usage Access", () => {
     const appConfigSource = fs.readFileSync(path.join(mobileRoot, "app.config.ts"), "utf8");
     const pluginSource = fs.readFileSync(
-      path.join(mobileRoot, "plugins/withGogosenseUsageAccess.js"),
+      path.join(mobileRoot, "plugins/withGototrackUsageAccess.js"),
       "utf8",
     );
     const {
-      applyGogosenseUsageAccessManifest,
+      applyGototrackUsageAccessManifest,
       GOGOSENSE_USAGE_STATS_PERMISSION,
-    } = requireFromTest("../../plugins/withGogosenseUsageAccess.js") as {
-      applyGogosenseUsageAccessManifest: (manifest: Record<string, any>) => Record<string, any>;
+    } = requireFromTest("../../plugins/withGototrackUsageAccess.js") as {
+      applyGototrackUsageAccessManifest: (manifest: Record<string, any>) => Record<string, any>;
       GOGOSENSE_USAGE_STATS_PERMISSION: string;
     };
-    const manifest = applyGogosenseUsageAccessManifest({ manifest: { $: {} } }.manifest);
-    const duplicateSafeManifest = applyGogosenseUsageAccessManifest(manifest);
+    const manifest = applyGototrackUsageAccessManifest({ manifest: { $: {} } }.manifest);
+    const duplicateSafeManifest = applyGototrackUsageAccessManifest(manifest);
     const usagePermissions = duplicateSafeManifest["uses-permission"] as Array<{
       $?: Record<string, string>;
     }>;
 
-    expect(appConfigSource).toContain("./plugins/withGogosenseUsageAccess");
+    expect(appConfigSource).toContain("./plugins/withGototrackUsageAccess");
     expect(pluginSource).toContain("android.permission.PACKAGE_USAGE_STATS");
     expect(pluginSource).not.toContain("android.permission.QUERY_ALL_PACKAGES");
     expect(pluginSource).not.toContain("BIND_NOTIFICATION_LISTENER_SERVICE");

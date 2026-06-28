@@ -70,7 +70,7 @@ See [railway-mongo-replica-set.md](railway-mongo-replica-set.md). Summary: backu
 - **4.1** `[CLAUDE-CAN-DO]` `railway domain --service <svc> <host>` for admin/app-web/api → each returns a CNAME target.
 - **4.2** `[USER-ONLY: DNS]` CNAME each host to its Railway target (record the old Cloud Run target = rollback). Railway auto-issues TLS.
 - **4.3** Cutover order **admin → app-web → api** (API last; its hostname is unchanged so the Involve postback URL is unaffected). Per host: flip DNS → wait TLS → run E1.
-- **4.4** `[CLAUDE-CAN-DO]` after `api.gogocash.co` live: rebuild front-ends (`NEXT_PUBLIC_API_URL` / `EXPO_PUBLIC_API_URL=https://api.gogocash.co` + redeploy).
+- **4.4** `[CLAUDE-CAN-DO]` after `api.gogocash.co` live: rebuild front-ends (`NEXT_PUBLIC_API_URL` / `EXPO_PUBLIC_API_URL=https://api.gogocash.co` + redeploy). Helper: `scripts/railway-rebuild-frontends.sh`.
 - **4.5** `[CLAUDE-CAN-DO]` after E1 api: `CORS_EXTRA_ORIGINS=https://admin.gogocash.co,https://app.gogocash.co`.
 - **4.6** decommission Cloud Run: `[USER-ONLY: GCP]` scale to zero after each host validates (≥7-day window); `[CLAUDE-CAN-DO]` disable (not delete) the GCP deploy workflows; keep `ci.yml`/`codeql.yml`.
 - **4.7** `[CLAUDE-CAN-DO]` scratch cleanup in project `attractive-enjoyment` (`ed82ec6c`): delete the `api`/`admin`/`app-web` services + `staging` env I created, NOT `urban-radio` or its production env. Safety-check (no custom domains, nothing in prod references them), confirm each name at the prompt.
@@ -78,7 +78,7 @@ See [railway-mongo-replica-set.md](railway-mongo-replica-set.md). Summary: backu
 ## 5. Acceptance test table
 | ID | Criterion | Verify | Expected |
 |---|---|---|---|
-| A1 | DB route returns data | `curl -sS $API/gogosense/merchants` | 200 + JSON array (`[]`+200 still proves DB up) |
+| A1 | DB route returns data | `curl -sS $API/gototrack/merchants` | 200 + JSON array (`[]`+200 still proves DB up) |
 | A2 | Admin login mints token | `curl -i -X POST $API/admin/login -d '{"email","password"}'` | 200 + non-empty `token`; needs admin doc in Mongo |
 | A3 | Admin bundle calls prod API | grep built chunks for the API URL | only `gogocash-api-production.up.railway.app` |
 | B1 | `rs.status()` PRIMARY | `rs.status().set` / `members[].stateStr` / `rs.conf().members[0].host` | `rs0` / `PRIMARY` / `mongodb.railway.internal:27017` |

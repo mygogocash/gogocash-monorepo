@@ -136,7 +136,7 @@ each `railway.json`). Validate in this order:
 
 1. **`api` build** completes from the monorepo-root context (the #1 unknown — verify first).
 2. `GET /health` → `200 {"status":"ok"}`.
-3. A DB-backed route (`/gogosense/merchants`) returns data from the **Railway** Mongo.
+3. A DB-backed route (`/gototrack/merchants`) returns data from the **Railway** Mongo.
 4. **A withdrawal flow that uses the transaction** succeeds (proves the replica set).
 5. **A media upload round-trips to GCS** (proves the SA file mount). *Mandatory gate.*
 6. `admin`: the shipped bundle calls the correct `NEXT_PUBLIC_API_URL`; NextAuth login works.

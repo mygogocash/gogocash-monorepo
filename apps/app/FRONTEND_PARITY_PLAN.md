@@ -29,9 +29,9 @@ Recently completed:
 - The selected desktop language/region flow now matches the Next.js header popover contract on Expo: globe trigger, `Choose language and region` dialog semantics, English/Thai language rows, Thailand-first region list, selected states, and popover layering above the category nav.
 - The desktop language/region control now also matches the Next.js motion contract: the globe scales on open, the popover fades/slides in over the shared base duration, and close runs a reverse animation before unmounting without browser warnings.
 - The selected desktop `Sign in` header pill now uses the same 160x48 vector graphic contract as Next.js instead of live Expo text, removing the font/weight drift on the unauthenticated desktop header.
-- Desktop route chrome now guarantees the shared navbar/category nav for root-covered desktop routes, and shared footer coverage is wired into self-owned public pages plus the discovery, shop/category detail, account, money, subscription, GoGoSense, GoGoLink, and route-state shells.
+- Desktop route chrome now guarantees the shared navbar/category nav for root-covered desktop routes, and shared footer coverage is wired into self-owned public pages plus the discovery, shop/category detail, account, money, subscription, GoGoTrack, GoGoLink, and route-state shells.
 - Mobile parity now covers home carousels, Top/Trending/Travel/Makeup rails, search popover, GoGoLink sheet/dialog/result states, wallet, quest, profile, referral, missing orders, privacy center, privacy policy, favorite brands, shop detail, category detail, product discovery, brand directory, shops directory, and typography.
-- GoGoSense now has dedicated Expo frontend flows for hub, onboarding, permissions, timeline, settings, recovery, and merchant detail instead of generic placeholder routes.
+- GoGoTrack now has dedicated Expo frontend flows for hub, onboarding, permissions, timeline, settings, recovery, and merchant detail instead of generic placeholder routes.
 - RN Web account image warnings from wallet/quest are removed by passing `resizeMode` as an `Image` prop.
 
 Verification run for this update:
@@ -49,7 +49,7 @@ Verification run for this update:
 - 2026-05-27 locale-motion gates: RED desktop locale motion coverage now passes, `npm run test:full` passed 34 files / 231 tests with 7 todo, typecheck, and Expo web export; Playwright live smoke on `http://127.0.0.1:19006/login` confirmed opening opacity/transform, final settled state, reverse close-before-unmount behavior, and zero captured console issues. Screenshot evidence: `/tmp/gogocash-locale-motion-login-open.png`.
 - 2026-05-27 sign-in header graphic gates: RED desktop sign-in vector parity coverage now passes, `npm run test:full` passed 34 files / 231 tests with 7 todo, typecheck, and Expo web export; Playwright live smoke on `http://127.0.0.1:19006/` confirmed one SVG inside the 160x48 Sign in link, no rendered text node, and zero captured console issues. Screenshot evidence: `/tmp/gogocash-signin-nav-graphic-expo.png`.
 - 2026-05-27 desktop route chrome gates: RED desktop shell coverage now passes, `npm run test:full` passed 35 files / 232 tests with 7 todo, typecheck, and Expo web export; Browser smoke on `http://localhost:19006/brand`, `/login`, and `/privacy-policy` confirmed one desktop navbar/footer contract per page with no captured console issues. Screenshot evidence: `/tmp/gogocash-desktop-chrome-brand-top.png`, `/tmp/gogocash-desktop-chrome-brand-footer.png`, `/tmp/gogocash-desktop-chrome-login-footer.png`, `/tmp/gogocash-desktop-chrome-privacy-adjusted.png`.
-- Live browser smoke passed for `/gogosense` -> `Start setup` -> `/gogosense/onboarding`, and a fresh `/profile` check confirmed the Invite Friends row renders without current actionable console errors.
+- Live browser smoke passed for `/gototrack` -> `Start setup` -> `/gototrack/onboarding`, and a fresh `/profile` check confirmed the Invite Friends row renders without current actionable console errors.
 - Follow-up 39-route matrix against `http://localhost:3000/en` and `http://localhost:19006` passed on the Expo side: 39 / 39 routes returned content without overlays or actionable console issues. Screenshot evidence for the changed follow-up routes was saved under `/tmp/gogocash-followup-evidence`.
 - The same matrix found a reference-server issue on every Next route: `/_next/static/chunks/src_features_10.enuq._.js` returns 404 on `localhost:3000`; protected Next routes also redirect to `/en/login?callbackUrl=...` when unauthenticated.
 - Protected-route visual parity still needs an authenticated clean Next reference session; unauthenticated Next `/profile`, `/wallet`, `/referral`, and `/link-mycashback` captures may show the login surface while Expo can render seeded customer screens.
@@ -145,10 +145,10 @@ Tasks:
 - [x] Brands, shops, shop detail, categories, and category detail.
 - [x] Login, register, auth callback, and account setup.
 - [x] MyCashback link and MyCashback sign-in.
-- [x] GoGoSense hub, onboarding, permissions, timeline, settings, recovery, and merchant detail.
+- [x] GoGoTrack hub, onboarding, permissions, timeline, settings, recovery, and merchant detail.
 - [x] Quest, GoLink, wallet, withdraw, and payment methods.
 - [x] Favorites, referral, billing/subscription/pricing/membership, credit score, missing orders, language, privacy center, privacy policy, and history.
-- [x] Dynamic route parameters for shop, category, and GoGoSense merchant routes are normalized before reaching screens.
+- [x] Dynamic route parameters for shop, category, and GoGoTrack merchant routes are normalized before reaching screens.
 - [x] Shared app-level loading, error, offline, unauthenticated, and callback state surface for route guards and startup.
 - [x] Route-specific loading, empty, error, offline, and disabled states for the six priority fixture-backed account flows: profile, wallet, referral, profile offers, shop detail, and billing/subscription.
 - [ ] Live backend success-payload mapping for account/profile data models where production should render real API data instead of local fixture-shaped view models.

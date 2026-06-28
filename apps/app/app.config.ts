@@ -44,12 +44,26 @@ const anuphanFonts = {
   bold: fontPath("@expo-google-fonts/anuphan/700Bold/Anuphan_700Bold.ttf"),
 } as const;
 
+const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+
 const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: appIdentity.displayName,
   slug: "gogocash-mobile",
   scheme: appIdentity.scheme,
   version: "0.1.0",
+  // OTA: native builds with the same app version receive eas update bundles.
+  // Bump `version` when native code or config plugins change.
+  runtimeVersion: {
+    policy: "appVersion",
+  },
+  ...(easProjectId
+    ? {
+        updates: {
+          url: `https://u.expo.dev/${easProjectId}`,
+        },
+      }
+    : {}),
   orientation: "portrait",
   userInterfaceStyle: "automatic",
   icon: "./assets/icon.png",
@@ -73,6 +87,10 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
     shortName: appIdentity.displayName,
   },
   plugins: [
+    // Native OTA: wires updates.url + runtimeVersion into Android/iOS manifests at prebuild.
+    // Also applied automatically by EAS prebuild (versionedExpoSDKPackages); explicit entry
+    // keeps OTA intent visible and ensures config survives custom prebuild flows.
+    "expo-updates",
     "expo-router",
     "@react-native-community/datetimepicker",
     [
@@ -116,8 +134,8 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
         resizeMode: "contain",
       },
     ],
-    // GoGoSense: declares PACKAGE_USAGE_STATS for the Android UsageStats detector.
-    "./plugins/withGogosenseUsageAccess",
+    // GoGoTrack: declares PACKAGE_USAGE_STATS for the Android UsageStats detector.
+    "./plugins/withGototrackUsageAccess",
   ],
   extra: {
     accountDataSource: process.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE ?? envDefaults.accountDataSource,

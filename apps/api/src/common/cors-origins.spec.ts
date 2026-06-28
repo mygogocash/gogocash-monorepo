@@ -54,11 +54,25 @@ describe('cors-origins', () => {
       );
     });
 
-    it('allows an exact extra origin from env', () => {
+    it('allows staging app custom domain', () => {
+      const set = buildCorsAllowSet(
+        ['https://app.gogocash.co', 'https://app-staging.gogocash.co'],
+        'https://gogocash-admin-production.up.railway.app',
+      );
+      expect(isCorsOriginAllowed(set, 'https://app-staging.gogocash.co')).toBe(
+        true,
+      );
+    });
+
+    it('allows Railway app-web preview host when listed in CORS_EXTRA_ORIGINS', () => {
+      const set = buildCorsAllowSet(
+        ['https://app.gogocash.co'],
+        'https://gogocash-mobile-production.up.railway.app',
+      );
       expect(
         isCorsOriginAllowed(
-          allowSet,
-          'https://gogocash-admin-production.up.railway.app',
+          set,
+          'https://gogocash-mobile-production.up.railway.app',
         ),
       ).toBe(true);
     });
@@ -71,15 +85,12 @@ describe('cors-origins', () => {
 
     it('rejects non-exact matches — no wildcard/suffix/substring bypass', () => {
       expect(
-        isCorsOriginAllowed(
-          allowSet,
-          'https://app.gogocash.co.attacker.com',
-        ),
+        isCorsOriginAllowed(allowSet, 'https://app.gogocash.co.attacker.com'),
       ).toBe(false);
       expect(isCorsOriginAllowed(allowSet, 'app.gogocash.co')).toBe(false);
-      expect(
-        isCorsOriginAllowed(allowSet, 'https://app.gogocash.co/'),
-      ).toBe(false);
+      expect(isCorsOriginAllowed(allowSet, 'https://app.gogocash.co/')).toBe(
+        false,
+      );
     });
   });
 });

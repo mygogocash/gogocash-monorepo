@@ -28,14 +28,14 @@
 name: CI
 
 on:
-  # Validate PRs into integration / promotion branches (dev → staging → production).
+  # Validate PRs into promotion branches (main → dev → staging → production).
   pull_request:
-    branches: [dev, staging, production]
+    branches: [main, dev, staging, production]
   # Pushes to staging are handled by build-staging.yml (which calls this
   # workflow as its gate via workflow_call), so staging is intentionally NOT in
   # the push list here — otherwise a merge would run CI twice.
   push:
-    branches: [dev]
+    branches: [main, dev]
   # Reusable: build-staging.yml calls this as its deploy gate AND reuses the
   # per-app change outputs to decide which images to build (no duplicated tests
   # or path-filter).
@@ -211,7 +211,8 @@ jobs:
   # a real boot of the compiled artifact against an ephemeral Mongo, probing /.
   # Catches DI / bootstrap crashes that tsc and the unit specs both miss.
   #
-  # Branch protection (Settings → Branches, rules for dev, staging, production):
+  # Branch protection (Settings → Branches): production is locked; require CI on
+  # main / dev / staging when you add rules there.
   #   Require status checks:  "api build + boot smoke (required)", "api lint",
   #   and "api unit tests" — all three are now gates.
   api-build-smoke:
@@ -311,3 +312,52 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx knip --no-progress
+
+  # ── optional local E2E (manual dispatch until suite stabilizes) ───────────
+  e2e-local:
+    name: e2e local (optional)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Init Mongo replica set
+        run: |
+          mongosh --quiet mongodb://localhost:27017/admin --eval \
+            'try { rs.status() } catch(e) { rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "localhost:27017" }] }) }'
+          for i in $(seq 1 30); do
+            state=$(mongosh --quiet mongodb://localhost:27017/admin --eval 'try { rs.status().members[0].stateStr } catch(e) { "UNKNOWN" }')
+            [ "$state" = "PRIMARY" ] && break
+            sleep 2
+          done
+      - name: Seed E2E fixtures
+        env:
+          MONGO_URI: mongodb://localhost:27017/gogocash-e2e?replicaSet=rs0
+          JWT_SECRET: ci-e2e-jwt
+          JWT_ADMIN_SECRET: ci-e2e-admin-jwt
+          E2E_SEED_OUT: .e2e/seed.json
+        run: npm run seed:e2e -w gogocash-api
+      - name: API integration (e2e)
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          MONGO_URI: mongodb://localhost:27017/gogocash-e2e?replicaSet=rs0
+          MONGO_REPLICA_SET: "1"
+          JWT_SECRET: ci-e2e-jwt
+          JWT_ADMIN_SECRET: ci-e2e-admin-jwt
+          FIREBASE_PROJECT_ID: demo-e2e
+          RESEND_API_KEY: re_ci_e2e_dummy
+        run: npm run test:e2e -w gogocash-api

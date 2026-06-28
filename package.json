@@ -16,12 +16,18 @@
     "postinstall": "npm run postinstall -w apps/admin",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "knip": "knip --no-progress"
+    "knip": "knip --no-progress",
+    "e2e:up": "docker compose -f docker-compose.e2e.yml up -d && bash scripts/e2e-init-mongo-rs.sh",
+    "e2e:seed": "mkdir -p .e2e && MONGO_URI=mongodb://localhost:27017/gogocash-e2e?replicaSet=rs0 JWT_SECRET=e2e-local-jwt-secret-change-me JWT_ADMIN_SECRET=e2e-local-admin-jwt-secret-change-me E2E_SEED_OUT=$PWD/.e2e/seed.json npm run seed:e2e -w gogocash-api",
+    "e2e:stack": "bash scripts/e2e-stack.sh",
+    "e2e:stack:stop": "bash scripts/e2e-stack.sh stop",
+    "e2e": "npm run e2e:up && npm run e2e:seed && npm run e2e:stack && bash scripts/e2e-wait-api.sh && bash scripts/e2e-run-tests.sh"
   },
   "devDependencies": {
     "@nestjs/common": "11.1.27",
     "@nestjs/core": "11.1.27",
     "@nestjs/platform-express": "11.1.27",
+    "@playwright/test": "^1.55.0",
     "expo": "^56.0.12",
     "mongoose": "9.7.1",
     "react": "19.2.3",

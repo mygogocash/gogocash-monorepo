@@ -1,0 +1,11 @@
+# EAS Workflow: preview Android build (manual)
+name: Build Preview Android
+on:
+  workflow_dispatch:
+jobs:
+  build_android:
+    name: Build Android preview
+    type: build
+    params:
+      platform: android
+      profile: preview

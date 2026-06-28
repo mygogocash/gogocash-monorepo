@@ -100,7 +100,9 @@ describe('GcsObjectStorageService', () => {
 
   it('uploadFile > given GCS failure in non-production > then falls back to local media', async () => {
     process.env.NODE_ENV = 'development';
-    const tempDir = await mkdtemp(path.join(os.tmpdir(), 'gogocash-local-media-'));
+    const tempDir = await mkdtemp(
+      path.join(os.tmpdir(), 'gogocash-local-media-'),
+    );
     process.env.GCS_LOCAL_STORAGE_DIR = tempDir;
     saveMock.mockRejectedValueOnce(new Error('invalid_grant'));
 

@@ -1,0 +1,27 @@
+# Maestro smoke — manual dispatch only (requires APK on runner or attached device).
+name: Maestro Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      apk_path:
+        description: "Path to dev-client APK (optional if device already has app)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  maestro:
+    name: Maestro flows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Maestro not installed on default runner
+        run: |
+          echo "This workflow is a scaffold. Run Maestro locally:"
+          echo "  cd apps/app && maestro test .maestro/flows/"
+          echo "Or use a self-hosted runner with Maestro + Android emulator."
+          echo "Optional APK: ${{ inputs.apk_path }}"

@@ -116,7 +116,9 @@ export function parseLocalMediaRef(value: string): string | null {
   if (!trimmed.startsWith(LOCAL_MEDIA_PREFIX)) {
     return null;
   }
-  const objectKey = trimmed.slice(LOCAL_MEDIA_PREFIX.length).replace(/^\/+/, '');
+  const objectKey = trimmed
+    .slice(LOCAL_MEDIA_PREFIX.length)
+    .replace(/^\/+/, '');
   return objectKey || null;
 }
 

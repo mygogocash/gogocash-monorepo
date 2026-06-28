@@ -17,9 +17,9 @@ capture (keyboard avoidance, perceived-performance, haptics, reduce-motion, refr
   - B2 profile/account: keyboard + save/verify haptics + copy toast + hitSlop (AccountSettings unchanged — display-only toggles).
   - B3 wallet/money: Wallet skeleton + pull-to-refresh + withdraw haptics; **shared `CustomerRouteState`/`CustomerAccountResourceState` gained an opt-in `loadingSkeleton` prop** so any resource-backed screen can show a content-shaped placeholder.
   - B4 discovery/home: Thai-truncation (`numberOfLines`) everywhere + selection haptics; ShopDetail (async) got skeleton + refresh; Home/Discovery/Category are **synchronous parity data** so skeleton/real-refresh were honestly skipped.
-  - B5 engagement: GoLink reduce-motion on sheet/popover enter+exit; Subscription + Referral (async) got skeleton + refresh; Quest/GoGoSense/Membership/CreditScore got haptics + truncation.
+  - B5 engagement: GoLink reduce-motion on sheet/popover enter+exit; Subscription + Referral (async) got skeleton + refresh; Quest/GoGoTrack/Membership/CreditScore got haptics + truncation.
   - **Architecture finding:** skeleton + pull-to-refresh apply only to async resource-backed screens (Wallet, ShopDetail, Subscription, Referral). Directory/landing/quest/credit screens render synchronous in-memory `webDesignParity` data — no refetch — so those treatments were skipped there rather than faked.
-- **Wave C (dark mode): ✅ COMPLETE (2026-06-22)** — System / Light / Dark in Account Settings; `ThemeProvider`, `colorPalettes.ts`, themed shared chrome + core screens + GoGoSense. See `docs/dark-mode.md`. Gates: typecheck 0 · source 613 · render 303.
+- **Wave C (dark mode): ✅ COMPLETE (2026-06-22)** — System / Light / Dark in Account Settings; `ThemeProvider`, `colorPalettes.ts`, themed shared chrome + core screens + GoGoTrack. See `docs/dark-mode.md`. Gates: typecheck 0 · source 613 · render 303.
 
 ## Working rules (every task)
 - **TDD** (house rule): write the failing test first, see it fail for the right reason, implement, then
@@ -118,7 +118,7 @@ it does NOT modify them.
 - **B2 — Profile & account hub:** `CustomerProfileScreen`, `CustomerProfileDetailScreen`, `CustomerProfilePhoneScreen`, `CustomerProfileOffersScreen`, `CustomerAccountSettingsScreen`, `CustomerMissingOrdersScreen` → KeyboardAwareScreen on forms; toast on copy/save; hitSlop on chevrons.
 - **B3 — Wallet & money:** `CustomerWalletScreen`, `CustomerMoneyActionScreen`, `CustomerWithdrawMethodScreen` → skeleton loading; pull-to-refresh; KeyboardAwareScreen on amount/method forms; haptics on withdraw confirm; back-button hitSlop (44).
 - **B4 — Discovery & home:** `CustomerHomeScreen`, `CustomerDiscoveryScreen`, `CustomerCategoryDetailScreen` → skeleton loading + pull-to-refresh on directories; Thai-truncation pass on pills/cards; toast on copy.
-- **B5 — Quest / membership / gogosense / golink / referral / credit-score:** skeletons + refresh where data-backed; reduce-motion on GoLink sheets/popovers; haptics on key CTAs.
+- **B5 — Quest / membership / gototrack / golink / referral / credit-score:** skeletons + refresh where data-backed; reduce-motion on GoLink sheets/popovers; haptics on key CTAs.
 
 **Per-cluster acceptance criteria (template):**
 - [ ] Form screens: source assertion the screen uses `KeyboardAwareScreen` (or `KeyboardAvoidingView`); render test still mounts.

@@ -1,11 +1,11 @@
 # Dependabot — keeps dependencies patched continuously, CI-gated, with low PR
-# noise via grouping. Targets `dev` (default integration branch).
+# noise via grouping. Targets `main` (first step in main → dev → staging → production).
 version: 2
 updates:
   # ── npm (single root lockfile covers all workspaces) ──────────────────────
   - package-ecosystem: npm
     directory: "/"
-    target-branch: dev
+    target-branch: main
     schedule:
       interval: weekly
       day: monday
@@ -35,7 +35,7 @@ updates:
   # ── GitHub Actions (also addresses #50) ───────────────────────────────────
   - package-ecosystem: github-actions
     directory: "/"
-    target-branch: dev
+    target-branch: main
     schedule:
       interval: weekly
       day: monday

@@ -91,6 +91,7 @@ railway variables --set 'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=<SET_ME>' --service ap
 railway variables --set 'EXPO_PUBLIC_FIREBASE_PROJECT_ID=<SET_ME>' --service app-web
 railway variables --set 'EXPO_PUBLIC_FIREBASE_APP_ID=<SET_ME>' --service app-web
 # optional: EXPO_PUBLIC_POSTHOG_KEY/HOST, EXPO_PUBLIC_SENTRY_DSN, EXPO_PUBLIC_EAS_PROJECT_ID
+railway variables --set 'EXPO_PUBLIC_EAS_PROJECT_ID=0039c25f-f88e-491d-8da9-85b8d6e66558' --service app-web
 ```
 The nginx runtime reads no env except `$PORT`; all `EXPO_PUBLIC_*` must be present when the build runs the export.
 

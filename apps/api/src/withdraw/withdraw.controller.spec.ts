@@ -232,19 +232,14 @@ describe('WithdrawController', () => {
   });
 
   describe('createBankTransfer', () => {
-    it('createBankTransfer > given a method body > then service is called with (body, callerSub)', async () => {
-      const body = {
-        account_no: 123,
-        account_name: 'Alice',
-        bank_name: 'KBANK',
-        bank_code: '004',
-        is_default: true,
-      } as unknown as CreateWithdrawMethod;
+    it('createBankTransfer > given a withdraw body > then service is called with (body, callerSub)', async () => {
+      const body: CreateWithdrawDto = {
+        amount_net: 50,
+        amount_total: 50,
+        currency: 'THB',
+      };
 
-      await controller.createBankTransfer(
-        reqWithUser('owner-1'),
-        body as never,
-      );
+      await controller.createBankTransfer(reqWithUser('owner-1'), body);
 
       expect(service.createBankTransfer).toHaveBeenCalledWith(body, 'owner-1');
     });
