@@ -79,7 +79,6 @@ type MissingOrderImage = { id: string; name: string; uri: string };
 // On web it uses a real hidden file input; on native (where this mock is not exercised) it
 // registers a single placeholder so the required-attachment flow still works.
 function pickMissingOrderImages(onPicked: (images: MissingOrderImage[]) => void): void {
-  const styles = useThemedStyles(createMissingOrdersScreenStyles);
   if (Platform.OS !== "web" || typeof document === "undefined") {
     onPicked([{ id: `mock-${Date.now()}`, name: "receipt.png", uri: "" }]);
     return;

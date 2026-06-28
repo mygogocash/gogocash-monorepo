@@ -84,10 +84,6 @@ function roundLayoutValue(value: number) {
   return Number(value.toFixed(2));
 }
 
-function floorLayoutValue(value: number) {
-  return Math.floor(value * 100) / 100;
-}
-
 function clampLayoutValue(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -114,63 +110,6 @@ export function getCarouselActiveIndex({
   }
 
   return Math.max(0, Math.min(pageCount - 1, Math.round(contentOffsetX / pageWidth)));
-}
-
-function getTopBrandGrid(viewportWidth: number) {
-  // Any desktop-class viewport (>=1024) uses the full 6-up grid. Previously this
-  // only kicked in at >=1280, so the 1024-1279 band fell through to the 3-column
-  // tablet rule and Top Brand cards ballooned (~305px wide) on common laptops.
-  if (getDeviceClass(viewportWidth) === "desktop") {
-    return {
-      columns: mobileShellLayout.topBrandDesktopColumns,
-      gap: mobileShellLayout.topBrandDesktopGridGap,
-    };
-  }
-
-  // Tablet portrait/split (768-1023): use one more column than the large-phone
-  // tier so cards don't balloon (the old 3-across rule spanned 480-1279, making
-  // each Top Brand card ~288px wide on a wide tablet).
-  if (getDeviceClass(viewportWidth) === "tablet") {
-    return {
-      columns: mobileShellLayout.topBrandTabletPortraitColumns,
-      gap: mobileShellLayout.topBrandTabletGridGap,
-    };
-  }
-
-  if (viewportWidth >= 480) {
-    return {
-      columns: mobileShellLayout.topBrandTabletColumns,
-      gap: mobileShellLayout.topBrandTabletGridGap,
-    };
-  }
-
-  return {
-    columns: mobileShellLayout.topBrandMobileColumns,
-    gap: mobileShellLayout.topBrandMobileGridGap,
-  };
-}
-
-function getCompactBrandGrid(viewportWidth: number) {
-  if (viewportWidth >= 1280) {
-    return { columns: mobileShellLayout.compactBrandDesktopColumns, gap: 16 };
-  }
-
-  if (viewportWidth >= 1024) {
-    return { columns: 6, gap: 16 };
-  }
-
-  if (viewportWidth >= 768) {
-    return { columns: 5, gap: 14 };
-  }
-
-  if (viewportWidth >= 480) {
-    return { columns: 4, gap: 12 };
-  }
-
-  return {
-    columns: mobileShellLayout.compactBrandMobileColumns,
-    gap: mobileShellLayout.compactBrandGridGap,
-  };
 }
 
 export function getDesktopFooterGrid(viewportWidth: number) {
@@ -2029,9 +1968,27 @@ export const webShopDirectory = {
   },
   promo: {
     aspectRatio: 800 / 450,
-    imageAsset: "shop-promo-gogoquest",
-    slideCount: 3,
     title: "Promotion by Brands",
+    slides: [
+      {
+        accessibilityLabel: "GoGoQuest — earn bonus points",
+        href: "/quest",
+        id: "gogoquest",
+        imageAsset: "shop-promo-gogoquest",
+      },
+      {
+        accessibilityLabel: "Health and Beauty cashback deals",
+        href: "/category/Health%20%26%20Beauty",
+        id: "health-beauty",
+        imageAsset: "popular-beauty",
+      },
+      {
+        accessibilityLabel: "Travel cashback deals",
+        href: "/category/Travel",
+        id: "travel",
+        imageAsset: "home-banner",
+      },
+    ],
   },
   resultsUnit: "shops",
   searchLabel: "Search partners",

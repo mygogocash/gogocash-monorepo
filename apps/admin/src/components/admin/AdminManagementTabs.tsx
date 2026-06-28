@@ -5,7 +5,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import type { Permission } from "@/lib/rbac";
 
 /** Mirrors `AppSidebarContent` → Admin Management submenu (order and paths). */
-export const ADMIN_MANAGEMENT_NAV: {
+const ADMIN_MANAGEMENT_NAV: {
   label: string;
   href: string;
   permission?: Permission;

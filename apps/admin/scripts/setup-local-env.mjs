@@ -3,7 +3,7 @@
  * Creates .env.local from .env.example for local development (mock API).
  * Safe to re-run: skips if .env.local already exists.
  */
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";

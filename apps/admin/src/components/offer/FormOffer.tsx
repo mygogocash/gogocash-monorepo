@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useMemo, useState } from "react";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import NoData from "@/components/common/NoData";
 import CopyButton from "@/components/ui/CopyButton";

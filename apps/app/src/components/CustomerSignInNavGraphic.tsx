@@ -2,7 +2,6 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { useCopy } from "@mobile/i18n/useCopy";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
-import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { typography } from "@mobile/theme/tokens";
 

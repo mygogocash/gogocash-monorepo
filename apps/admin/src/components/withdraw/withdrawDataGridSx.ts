@@ -1,1 +1,1 @@
-export { getOfferCouponDataGridSx, getWithdrawDetailDataGridSx } from "@/lib/muiAdminDataGridSx";
+export { getWithdrawDetailDataGridSx } from "@/lib/muiAdminDataGridSx";

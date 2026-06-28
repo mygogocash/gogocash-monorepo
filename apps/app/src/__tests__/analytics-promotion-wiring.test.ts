@@ -1,16 +1,11 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import fs from "node:fs";
 
 import { readHomeSources } from "../test-support/homeSource";
 import { describe, expect, it } from "vitest";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
-
-function readMobileFile(relativePath: string) {
-  return fs.readFileSync(path.join(mobileRoot, relativePath), "utf8");
-}
 
 // Slice 3 — wire select_promotion onto the home banner tap. HeroBannerLink wraps
 // BOTH main and side banners in one <Link>, so wiring there covers every banner.

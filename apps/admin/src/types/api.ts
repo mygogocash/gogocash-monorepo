@@ -744,13 +744,6 @@ export interface DataWithdrawsList {
   paid_at?: string | Date;
 }
 
-export interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
 export interface ResponseConversion {
   status: string;
   message: string;

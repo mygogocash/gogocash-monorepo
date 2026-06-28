@@ -48,7 +48,6 @@
     "apps/admin/src/types/**": ["exports", "enumMembers", "types"],
     "apps/admin/src/data/executive/**": ["exports"],
     "apps/admin/src/icons/index.tsx": ["exports"],
-    "apps/admin/src/components/**": ["exports"],
     "apps/admin/src/layout/**": ["exports"],
     "apps/admin/src/lib/**": ["exports"],
     "apps/admin/src/config/**": ["exports"],
@@ -82,32 +81,7 @@
     },
     "apps/admin": {
       "entry": ["src/app/**/*.{ts,tsx}"],
-      "project": ["src/**/*.{ts,tsx}"],
-      "ignore": [
-        "src/components/auth/Can.tsx",
-        "src/components/banner/AppOpenPopupModal.tsx",
-        "src/components/ecommerce/CountryMap.tsx",
-        "src/components/ecommerce/DashboardUserStats.tsx",
-        "src/components/ecommerce/DemographicCard.tsx",
-        "src/components/ecommerce/EcommerceMetrics.tsx",
-        "src/components/ecommerce/MonthlySalesChart.tsx",
-        "src/components/ecommerce/MonthlyTarget.tsx",
-        "src/components/ecommerce/RecentOrders.tsx",
-        "src/components/ecommerce/TopProducts.tsx",
-        "src/components/example/ApiExample.tsx",
-        "src/components/form/Form.tsx",
-        "src/components/form/input/RadioSm.tsx",
-        "src/components/quest/FormQuest.tsx",
-        "src/components/StagingBanner.tsx",
-        "src/components/tables/Pagination.tsx",
-        "src/components/ui/avatar/AvatarText.tsx",
-        "src/components/videos/FourIsToThree.tsx",
-        "src/components/videos/OneIsToOne.tsx",
-        "src/components/videos/SixteenIsToNine.tsx",
-        "src/components/videos/TwentyOneIsToNine.tsx",
-        "src/hooks/useGoBack.ts",
-        "src/layout/SidebarWidget.tsx"
-      ]
+      "project": ["src/**/*.{ts,tsx}"]
     }
   }
 }

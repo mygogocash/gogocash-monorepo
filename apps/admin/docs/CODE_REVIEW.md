@@ -34,10 +34,13 @@ Use this for PRs and periodic audits. Check boxes when done; note exceptions in 
 - [ ] `npm run lint`
 - [ ] `npm run build`
 - [ ] No new `eslint-disable` without justification
+- [ ] Root `npx knip --no-progress` passes (dead-code gate in CI — see repo [`docs/CODE_QUALITY.md`](../../../docs/CODE_QUALITY.md))
+- [ ] `@typescript-eslint/no-unused-vars` — no new unused imports/locals (admin ESLint error; prefix with `_` if intentionally unused)
 
 ## Follow-up backlog (non-blocking)
 
-- Remove duplicate or unused files (e.g. stray `* 2.tsx` copies).
+- **Per-brand Cashback Tracking Period config** — admin should set Commission / Validation / Payment-within timing per brand; customer shop detail currently uses hardcoded fixtures. See `docs/PROJECT_STATUS.md` §6 backlog entry (2026-06-24).
+- Remove duplicate or unused files (e.g. stray `* 2.tsx` copies). **Done (2026-06-28):** removed unused admin template components previously listed in `knip.json` ignore (ecommerce demos, `Can`, `FormQuest`, video aspect helpers, etc.).
 - Add smoke tests (Playwright) or unit tests for critical paths (`mockApiCore`, auth policy).
 - Align README framework version with `package.json`.
 - Gate the cashback approval / wallet-adjust **UI** (no `<Can>` today) and tighten its write permission: `admin/wallets/*` writes are gated only by the broad `users:manage` (`requiredWritePermission` in `mockApiCore.ts`), while `src/lib/rbac/permissions.ts` already defines the narrower `withdraw:approve`.
@@ -54,4 +57,4 @@ Use this for PRs and periodic audits. Check boxes when done; note exceptions in 
 
 **Risks to watch:** `useApi` falls back to a mock JWT when `session` is null — convenient for local mock data but inappropriate if a route were ever exposed without auth; keep the admin layout's `AuthGuard` + `RoutePermissionGuard` (and server-side `requiredWritePermission`) as the real gate. Mock PATCH handlers mutate shared in-memory objects — fine for demos, not for concurrent tests without isolation.
 
-**Done recently:** Centralized `callbackUrl` sanitization (`safeAppPathFromCallback`) so static-export sign-in cannot redirect to arbitrary URLs; NextAuth `authorize` logs a single message line instead of duplicate/full error dumps.
+**Done recently:** Centralized `callbackUrl` sanitization (`safeAppPathFromCallback`) so static-export sign-in cannot redirect to arbitrary URLs; NextAuth `authorize` logs a single message line instead of duplicate/full error dumps. Code-quality pass: removed TailAdmin template dead files, knip admin ignore list cleared, knip CI gate enabled, `@typescript-eslint/no-unused-vars` enforced in admin ESLint (see root `docs/CODE_QUALITY.md`).

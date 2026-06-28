@@ -3,7 +3,6 @@ import { ActivityIndicator, Animated, StyleSheet, Text, View } from "react-nativ
 
 import { motion } from "@mobile/theme/motion";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
-import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { typography } from "@mobile/theme/tokens";
 

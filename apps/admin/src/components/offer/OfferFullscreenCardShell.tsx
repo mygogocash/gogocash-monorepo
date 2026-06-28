@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, type ReactNode } from "react";
 
 /** Scrolls the page to a `#sectionId` element (section scroll-margin-top clears the sticky header). */
-export const OfferFormScrollToSectionContext = createContext<
+const OfferFormScrollToSectionContext = createContext<
   ((sectionId: string) => void) | null
 >(null);
 

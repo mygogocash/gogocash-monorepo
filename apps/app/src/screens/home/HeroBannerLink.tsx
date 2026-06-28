@@ -1,4 +1,4 @@
-import React, { type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Link } from "expo-router";
 import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { type HomeHeroBanner } from "@mobile/account/homeBannerResource";

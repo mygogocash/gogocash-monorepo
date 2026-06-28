@@ -212,7 +212,7 @@ export class AuthController {
   async checkAccountTelegram(@Req() req: Request) {
     const id = req.params.id;
     const user = await this.auth.getProfileByTelegramId(id?.toString());
-    return user ? true : false;
+    return Boolean(user);
   }
 
   @Post("firebase")

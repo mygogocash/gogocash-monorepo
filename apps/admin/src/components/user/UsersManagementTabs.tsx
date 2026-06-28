@@ -4,7 +4,7 @@ import SectionTabs from "@/components/common/SectionTabs";
 
 /** Mirrors `AppSidebarContent` → Users Management submenu (order and paths).
  *  Admin-panel accounts/roles live under Admin Management (AdminManagementTabs). */
-export const USERS_MANAGEMENT_NAV = [
+const USERS_MANAGEMENT_NAV = [
   { label: "GoGoCash Users", href: "/users" },
   { label: "MyCashBack Users", href: "/users/mycashback" },
   { label: "Membership", href: "/membership" },

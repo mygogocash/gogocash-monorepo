@@ -6,5 +6,4 @@ export { ExecutiveFunnel } from "./ExecutiveFunnel";
 export { ExecutiveKpiCard } from "./ExecutiveKpiCard";
 export { ExecutiveLeaderboard } from "./ExecutiveLeaderboard";
 export { ExecutiveLineChart } from "./ExecutiveLineChart";
-export { ExecutiveRoadmap } from "./ExecutiveRoadmap";
 export { ExecutiveWaterfallTable } from "./ExecutiveWaterfallTable";

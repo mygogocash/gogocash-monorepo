@@ -7,7 +7,6 @@ import { webCookieConsentBanner } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { motion } from "@mobile/theme/motion";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
-import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, typography } from "@mobile/theme/tokens";
 
