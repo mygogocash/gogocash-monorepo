@@ -1,4 +1,5 @@
 const GCS_PUBLIC_HOST = 'storage.googleapis.com';
+const LOCAL_MEDIA_PREFIX = 'local-media:';
 
 export type GcsObjectLocation = {
   bucket: string;
@@ -49,7 +50,25 @@ export function buildGcsPublicUrl(publicBaseUrl: string, objectKey: string) {
   return `${base}/${key}`;
 }
 
-export type StoredMediaKind = 'empty' | 'gcs' | 'drive_id' | 'other';
+export function buildLocalMediaRef(objectKey: string): string {
+  const key = objectKey.replace(/^\/+/, '');
+  return `${LOCAL_MEDIA_PREFIX}${key}`;
+}
+
+export function parseLocalMediaRef(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith(LOCAL_MEDIA_PREFIX)) {
+    return null;
+  }
+  const objectKey = trimmed.slice(LOCAL_MEDIA_PREFIX.length).replace(/^\/+/, '');
+  return objectKey || null;
+}
+
+export function isLocalMediaRef(value: string): boolean {
+  return parseLocalMediaRef(value) != null;
+}
+
+export type StoredMediaKind = 'empty' | 'gcs' | 'local' | 'drive_id' | 'other';
 
 export function classifyStoredMediaValue(value: unknown): StoredMediaKind {
   if (value == null) {
@@ -61,6 +80,9 @@ export function classifyStoredMediaValue(value: unknown): StoredMediaKind {
   }
   if (parseGcsPublicUrl(trimmed)) {
     return 'gcs';
+  }
+  if (parseLocalMediaRef(trimmed)) {
+    return 'local';
   }
   if (isLegacyGoogleDriveFileId(trimmed)) {
     return 'drive_id';

@@ -37,7 +37,10 @@ import {
   AFFILIATE_NETWORKS,
   affiliateNetworkIdForOfferId,
 } from "@/data/affiliateNetworks";
-import { buildSuggestedAppDeeplink } from "@/lib/offerDeeplink";
+import {
+  buildSuggestedAppDeeplink,
+  formatPartnerRatesMinMax,
+} from "@/lib/offerDeeplink";
 import { defaultLookupFromBrandAndCountry } from "@/lib/createBrandLookupSlug";
 import {
   applyThirtyPercentFee,
@@ -65,28 +68,6 @@ function formatPartnerMaxCap(offer: Offer | null): string {
   const cur = offer?.currency?.trim();
   const formatted = Number.isFinite(raw) ? raw.toLocaleString() : String(raw);
   return cur ? `${formatted} ${cur}` : formatted;
-}
-
-/** Parse a percentage from partner rate lines like "5%" or "3% CPA". */
-function parsePercentFromPartnerRateString(s: string): number | null {
-  const m = s.trim().match(/([\d.]+)\s*%/);
-  if (m) return parseFloat(m[1]);
-  return null;
-}
-
-/** Min / max % across partner rate strings (read-only summary). */
-function formatPartnerRatesMinMax(offer: Offer | null): string {
-  const list = offer?.commissions ?? [];
-  const percents: number[] = [];
-  for (const c of list) {
-    const p = parsePercentFromPartnerRateString(c);
-    if (p != null && !Number.isNaN(p)) percents.push(p);
-  }
-  if (percents.length === 0) return "—";
-  const min = Math.min(...percents);
-  const max = Math.max(...percents);
-  if (min === max) return `${min}%`;
-  return `Min ${min}% · Max ${max}%`;
 }
 
 /** Whether an offer form already carries any upsize-event data (drives the

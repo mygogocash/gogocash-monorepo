@@ -11,7 +11,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { pathImage } from "@/utils/helper";
 import { useObjectUrl } from "@/hooks/useObjectUrl";
 import { BannerRequestForm } from "@/types/banner";
-import { devError } from "@/lib/devConsole";
+import { devApiError } from "@/lib/devConsole";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { isDirty } from "@/lib/isDirty";
 import { multipartPostConfig } from "@/lib/multipartFormHeaders";
@@ -154,7 +154,7 @@ const FormUpdate = ({
       setOpenModal(false);
       toast.success("Banner saved successfully");
     } catch (err: unknown) {
-      devError("Banner update failed:", err);
+      devApiError("Banner update failed:", err, "Update failed");
       toast.error(getApiErrorMessage(err, "Update failed"));
     } finally {
       setIsLoading(false);

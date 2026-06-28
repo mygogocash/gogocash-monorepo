@@ -46,6 +46,13 @@ export const pathImage = (
     return trimmed;
   }
 
+  if (trimmed.startsWith("local-media:")) {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "");
+    if (apiBase) {
+      return `${apiBase}/admin/stored-media/stream?ref=${encodeURIComponent(trimmed)}`;
+    }
+  }
+
   if (/^[A-Za-z0-9_-]{10,}$/.test(trimmed)) {
     return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(trimmed)}`;
   }

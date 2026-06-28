@@ -84,7 +84,7 @@ When in doubt, search `apps/app/src` for an existing pattern before introducing 
 - Category/store grids should reuse home compact **`BrandCard` (`size="S"`)**, not bespoke per-screen card layouts.
 - Keep Expo web preview console clean on main routes — no RN Web deprecation warnings, no broken fixture logo CDN 404s.
 - Verify admin **Brands Management** against the customer app on **real API** (shared host) — admin mock mode does not persist to the customer app.
-- Do not wire **Crossmint** or **Web3/ethers** flows under mobile `backend` mode — Firebase phone OTP + bank/PromptPay only.
+- Do not wire **Crossmint**, **Customer.io**, or **Web3/ethers** flows under mobile `backend` mode — Firebase phone OTP + bank/PromptPay only.
 - Wire real **Firebase phone OTP** on `/login` (not demo code only); misconfig often surfaces as generic “Could not complete your request” until `EXPO_PUBLIC_FIREBASE_*`, reCAPTCHA, and authorized domains are set.
 - When user reports customer **sign-in** failures on `/login`, investigate Firebase OTP (reCAPTCHA, authorized domains, `EXPO_PUBLIC_FIREBASE_*`) and the `/register` path — not admin staging credentials.
 - **Brand directory** store cards (`BrandDirectoryStoreCard`) show logo, name, and cashback only — **no category line** (shop directory cards still show category · shop type).

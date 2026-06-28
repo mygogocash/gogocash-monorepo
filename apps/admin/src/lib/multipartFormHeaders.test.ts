@@ -65,4 +65,44 @@ describe("stripDefaultJsonContentTypeForFormData", () => {
 
     expect(headers).toEqual({ "Content-Type": "application/json" });
   });
+
+  it("given FormData and AxiosHeaders-like object > then removes Content-Type via delete()", () => {
+    const store = new Map<string, string>([
+      ["Content-Type", "application/json"],
+      ["Authorization", "Bearer token"],
+    ]);
+    const headers = {
+      delete: (name: string) => store.delete(name),
+      get: (name: string) => store.get(name),
+    };
+    const formData = new FormData();
+    formData.append("link_1", "https://example.com");
+
+    stripDefaultJsonContentTypeForFormData(
+      headers as unknown as Record<string, unknown>,
+      formData,
+    );
+
+    expect(store.has("Content-Type")).toBe(false);
+    expect(store.get("Authorization")).toBe("Bearer token");
+  });
+
+  it("given FormData and AxiosHeaders with setContentType > then disables Content-Type", () => {
+    let contentType: false | string | null | undefined = "application/json";
+    const headers = {
+      setContentType: (value: false | string | null | undefined) => {
+        contentType = value;
+      },
+      getContentType: () => contentType,
+    };
+    const formData = new FormData();
+    formData.append("image_1", new File(["x"], "banner.png", { type: "image/png" }));
+
+    stripDefaultJsonContentTypeForFormData(
+      headers as unknown as Record<string, unknown>,
+      formData,
+    );
+
+    expect(contentType).toBe(false);
+  });
 });

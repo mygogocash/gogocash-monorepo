@@ -3,6 +3,10 @@ import { Storage } from '@google-cloud/storage';
 import { readMulterUploadBuffer } from 'src/common/multer-upload-buffer';
 import { normalizeSlugSegment } from 'src/common/mongo-query';
 
+import {
+  shouldUseLocalMediaFallback,
+  writeLocalMediaFile,
+} from './local-object-storage';
 import { resolveMaxUploadBytes } from './media-folders.config';
 import { buildGcsPublicUrl, parseGcsPublicUrl } from './stored-media.util';
 
@@ -135,6 +139,18 @@ export class GcsObjectStorageService {
       this.logger.error(
         `GCS upload failed folder=${folder} ms=${Date.now() - startedAt}: ${message}`,
       );
+      if (shouldUseLocalMediaFallback()) {
+        this.logger.warn(
+          `Using local media fallback for folder=${folder} (set GOOGLE_APPLICATION_CREDENTIALS for GCS).`,
+        );
+        const localRef = await writeLocalMediaFile(objectKey, buffer);
+        return {
+          publicUrl: localRef,
+          objectKey,
+          bucket: 'local',
+          access,
+        };
+      }
       throw new HttpException(
         `Media upload failed (${message}). Configure GCS_CATALOG_BUCKET and GOOGLE_APPLICATION_CREDENTIALS (or Cloud Run service account).`,
         HttpStatus.SERVICE_UNAVAILABLE,

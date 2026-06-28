@@ -46,4 +46,13 @@ describe("pathImage", () => {
     );
     delete process.env.NEXT_PUBLIC_API_URL;
   });
+
+  it("given a local-media ref > then proxies through admin API stream", () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080";
+    expect(pathImage("local-media:banner-home/123-hero.png")).toBe(
+      "http://localhost:8080/admin/stored-media/stream?ref=" +
+        encodeURIComponent("local-media:banner-home/123-hero.png"),
+    );
+    delete process.env.NEXT_PUBLIC_API_URL;
+  });
 });

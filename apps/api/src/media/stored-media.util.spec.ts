@@ -1,8 +1,10 @@
 import {
   buildGcsPublicUrl,
+  buildLocalMediaRef,
   classifyStoredMediaValue,
   isLegacyGoogleDriveFileId,
   parseGcsPublicUrl,
+  parseLocalMediaRef,
 } from './stored-media.util';
 
 describe('stored-media.util', () => {
@@ -52,14 +54,31 @@ describe('stored-media.util', () => {
     });
   });
 
+  describe('local media refs', () => {
+    it('buildLocalMediaRef > given object key > then prefixes local-media', () => {
+      expect(buildLocalMediaRef('banner-home/1.png')).toBe(
+        'local-media:banner-home/1.png',
+      );
+    });
+
+    it('parseLocalMediaRef > given local ref > then returns object key', () => {
+      expect(parseLocalMediaRef('local-media:banner-home/1.png')).toBe(
+        'banner-home/1.png',
+      );
+    });
+  });
+
   describe('classifyStoredMediaValue', () => {
-    it('classifyStoredMediaValue > given values > then buckets empty/gcs/drive/other', () => {
+    it('classifyStoredMediaValue > given values > then buckets empty/gcs/local/drive/other', () => {
       expect(classifyStoredMediaValue(null)).toBe('empty');
       expect(
         classifyStoredMediaValue(
           'https://storage.googleapis.com/gogocash-catalog-staging/banner-home/x.png',
         ),
       ).toBe('gcs');
+      expect(classifyStoredMediaValue('local-media:banner-home/x.png')).toBe(
+        'local',
+      );
       expect(
         classifyStoredMediaValue('1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh'),
       ).toBe('drive_id');
