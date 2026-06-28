@@ -33,6 +33,9 @@
     "backfill:quest-tasks:dry": "ts-node -r tsconfig-paths/register scripts/backfill-quest-tasks.ts --dry-run",
     "gogosense:seed-merchants": "ts-node -r tsconfig-paths/register scripts/seed-gogosense-merchants.ts",
     "seed:local-admin": "ts-node -r tsconfig-paths/register scripts/seed-local-admin.ts",
+    "seed:local-customer": "ts-node -r tsconfig-paths/register scripts/seed-local-customer.ts",
+    "seed:e2e-fixtures": "ts-node -r tsconfig-paths/register scripts/seed-e2e-fixtures.ts",
+    "seed:e2e": "ts-node -r tsconfig-paths/register scripts/seed-e2e.ts",
     "media:inventory": "ts-node -r tsconfig-paths/register scripts/inventory-stored-media.ts",
     "media:migrate-to-gcs": "ts-node -r tsconfig-paths/register scripts/migrate-stored-media-to-gcs.ts",
     "media:migrate-to-gcs:dry": "ts-node -r tsconfig-paths/register scripts/migrate-stored-media-to-gcs.ts --dry-run"

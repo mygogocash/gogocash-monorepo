@@ -8,7 +8,9 @@ standalone `mongod`, which throws on every withdrawal. This converts it to a sin
 **R-tier: R0/R1** — every step that changes the start command or runs `rs.initiate()` restarts Mongo and
 touches a money-path DB. Take a `mongodump`/volume backup first. Roll back by reverting the start command.
 
-Target: Railway project **GoGoCash** / env **production** / service **MongoDB** (official `mongo` image, volume, Online).
+Target: Railway project **GoGoCash** / env **production** or **staging** / Mongo service (official `mongo` image, volume).
+
+> **Railway kernel 6.19+:** the managed MongoDB template auto-deploys `mongo:8.3.x`, which **refuses to start** on Linux kernel ≥6.19 ([SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912)). **Workaround:** create a **custom Docker service** (not the DB template) pinned to `mongo:8.0.4`, attach a volume at `/data/db`, set `MONGO_INITDB_ROOT_*`, and point `gogocash-api` `MONGO_URI` at `<service>.railway.internal`. Staging uses service **`mongo-staging`** (`mongo:8.0.4`).
 
 ---
 

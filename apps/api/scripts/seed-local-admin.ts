@@ -143,6 +143,54 @@ function getUserAdminModel(): Model<UserAdminSeedDocument> {
     mongoose.model(modelName, userAdminSchema)) as Model<UserAdminSeedDocument>;
 }
 
+export type SeedAdminAccount = {
+  email: string;
+  username: string;
+  password: string;
+  role: string;
+};
+
+export const DEFAULT_RBAC_ADMINS: SeedAdminAccount[] = [
+  {
+    email: 'admin@gogocash.co',
+    username: 'admin',
+    password: '1234',
+    role: 'superadmin',
+  },
+  {
+    email: 'viewer@gogocash.co',
+    username: 'viewer',
+    password: '1234',
+    role: 'viewer',
+  },
+  {
+    email: 'editor@gogocash.co',
+    username: 'editor',
+    password: '1234',
+    role: 'editor',
+  },
+];
+
+export async function upsertAdminAccount(
+  model: Model<UserAdminSeedDocument>,
+  account: SeedAdminAccount,
+): Promise<'created' | 'updated'> {
+  const hashedPassword = await bcrypt.hash(account.password, BCRYPT_ROUNDS);
+  const result = await model.updateOne(
+    { email: account.email },
+    {
+      $set: {
+        email: account.email,
+        username: account.username,
+        password: hashedPassword,
+        role: account.role,
+      },
+    },
+    { upsert: true },
+  );
+  return (result.upsertedCount ?? 0) > 0 ? 'created' : 'updated';
+}
+
 export async function seedLocalAdmin(options: SeedLocalAdminOptions): Promise<void> {
   const mongoUri = process.env.MONGO_URI;
   if (!mongoUri) {
@@ -151,31 +199,39 @@ export async function seedLocalAdmin(options: SeedLocalAdminOptions): Promise<vo
 
   assertLocalMongoUri(mongoUri, options.force);
 
-  const hashedPassword = await bcrypt.hash(options.password, BCRYPT_ROUNDS);
-
   await mongoose.connect(mongoUri);
   const UserAdminModel = getUserAdminModel();
 
   try {
-    const result = await UserAdminModel.updateOne(
-      { email: options.email },
-      {
-        $set: {
-          email: options.email,
-          username: options.username,
-          password: hashedPassword,
-          role: 'superadmin',
-        },
-      },
-      { upsert: true },
-    );
-
-    const action =
-      (result.upsertedCount ?? 0) > 0 ? 'created' : 'updated';
+    const action = await upsertAdminAccount(UserAdminModel, {
+      email: options.email,
+      username: options.username,
+      password: options.password,
+      role: 'superadmin',
+    });
 
     console.log(
       `[seed-local-admin] ${action} superadmin ${options.email} (username=${options.username}). Sign in with that email and the password you passed.`,
     );
+  } finally {
+    await mongoose.disconnect();
+  }
+}
+
+export async function seedRbacAdmins(
+  mongoUri: string,
+  force = false,
+): Promise<void> {
+  assertLocalMongoUri(mongoUri, force);
+  await mongoose.connect(mongoUri);
+  const UserAdminModel = getUserAdminModel();
+  try {
+    for (const account of DEFAULT_RBAC_ADMINS) {
+      const action = await upsertAdminAccount(UserAdminModel, account);
+      console.log(
+        `[seed-local-admin] ${action} ${account.role} ${account.email}`,
+      );
+    }
   } finally {
     await mongoose.disconnect();
   }

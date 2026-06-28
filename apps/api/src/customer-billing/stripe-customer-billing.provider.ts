@@ -9,7 +9,7 @@ import type {
 
 @Injectable()
 export class StripeCustomerBillingProvider implements CustomerBillingProvider {
-  private stripe: Stripe.Stripe | null = null;
+  private stripe: Stripe | null = null;
 
   async createCheckoutSession(input: CreateCheckoutSessionInput) {
     const session = await this.getStripe().checkout.sessions.create({
@@ -97,7 +97,7 @@ export class StripeCustomerBillingProvider implements CustomerBillingProvider {
     );
   }
 
-  private getStripe(): Stripe.Stripe {
+  private getStripe(): Stripe {
     if (this.stripe) return this.stripe;
 
     const secretKey = process.env.STRIPE_SECRET_KEY?.trim();

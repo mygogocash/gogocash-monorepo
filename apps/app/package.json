@@ -26,6 +26,7 @@
     "test:watch": "vitest --config vitest.config.ts",
     "measure:bundle": "node scripts/measure-web-bundle.mjs",
     "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
     "build:preview": "eas build --profile preview",
     "build:production": "eas build --profile production"
   },
@@ -64,6 +65,7 @@
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/react-native": "14.0.0",
     "@types/node": "^26",

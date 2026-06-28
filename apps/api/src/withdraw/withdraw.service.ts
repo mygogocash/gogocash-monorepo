@@ -1660,7 +1660,7 @@ export class WithdrawService {
             percent_fee: createWithdrawDto.percent_fee || 0,
             amount_total: createWithdrawDto.amount_net || 0,
             amount_net: createWithdrawDto.amount_net || 0,
-            method: createWithdrawDto.method || '',
+            method: createWithdrawDto.method || 'on_chain',
             currency: createWithdrawDto.currency || '',
             conversion_id: createWithdrawDto.conversion_ids || [],
             rate: createWithdrawDto?.rate || 0,

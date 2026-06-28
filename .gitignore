@@ -13,6 +13,7 @@ apps/app/.bundle-measure/
 
 # turborepo
 .turbo/
+.e2e/
 
 # env / secrets
 .env

@@ -42,6 +42,10 @@ export class RateLimitGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    if (process.env.E2E_DISABLE_RATE_LIMIT === '1') {
+      return true;
+    }
+
     const req = context.switchToHttp().getRequest<{
       ip?: string;
       route?: { path?: string };
