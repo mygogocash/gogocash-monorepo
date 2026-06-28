@@ -617,6 +617,7 @@ export default function QuestTable() {
   const beginCreate = () => {
     setCreatingNew(true);
     setSelectedQuestId(null);
+    setDraftSourceQuestId(null);
     setCampaignDraft(makeCampaignDraft(null));
     setTaskDrafts([]);
     setRewardDrafts([]);
