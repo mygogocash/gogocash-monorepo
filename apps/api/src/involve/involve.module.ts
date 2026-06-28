@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { InvolveService } from './involve.service';
 import { InvolveController } from './involve.controller';
+import { ConversionIngestService } from './conversion-ingest.service';
 import { CacheModule } from '@nestjs/cache-manager';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Offer, OfferSchema } from '../offer/schemas/offer.schema';
@@ -30,7 +31,7 @@ import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
   // AnalyticsService resolves via the @Global AnalyticsModule (app.module);
   // a local provider would spawn a second PostHog client. exports required —
   // admin/gogosense/offer/point/withdraw inject InvolveService.
-  providers: [InvolveService, JwtService],
-  exports: [InvolveService],
+  providers: [InvolveService, ConversionIngestService, JwtService],
+  exports: [InvolveService, ConversionIngestService],
 })
 export class InvolveModule {}

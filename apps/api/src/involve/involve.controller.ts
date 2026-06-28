@@ -10,6 +10,9 @@ import {
   Req,
 } from '@nestjs/common';
 import { InvolveService } from './involve.service';
+import { ConversionIngestService } from './conversion-ingest.service';
+import { InvolvePostbackTokenGuard } from './involve-postback-token.guard';
+import { InvolvePostbackQuery } from './involve-postback.mapper';
 import {
   // ConversionData,
   CreateAffiliateAiDto,
@@ -37,6 +40,7 @@ export class InvolveController {
   constructor(
     private readonly involveService: InvolveService,
     private readonly analytics: AnalyticsService,
+    private readonly conversionIngestService: ConversionIngestService,
   ) {}
 
   @UseGuards(AuthAdminGuard)
@@ -54,6 +58,18 @@ export class InvolveController {
   @Get('checkOfferDuplicate')
   checkOfferDuplicate() {
     return this.involveService.checkOfferDuplicate();
+  }
+
+  // Involve Asia server-to-server GET postback (real-time conversion notifications).
+  // Guarded by INVOLVE_POSTBACK_SECRET query token; always returns 200 OK for valid
+  // auth so Involve does not disable the URL after repeated 4xx/5xx responses.
+  @UseGuards(InvolvePostbackTokenGuard)
+  @Get('postback')
+  async handlePostback(@Req() req: Request): Promise<string> {
+    await this.conversionIngestService.upsertFromPostback(
+      req.query as InvolvePostbackQuery,
+    );
+    return 'OK';
   }
 
   @UseGuards(AuthAdminGuard)

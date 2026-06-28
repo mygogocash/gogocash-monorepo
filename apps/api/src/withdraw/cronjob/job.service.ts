@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Conversion } from '../schemas/conversion.schema';
 import { InvolveService } from 'src/involve/involve.service';
+import { ConversionIngestService } from 'src/involve/conversion-ingest.service';
 import { Model } from 'mongoose';
 import { delay } from 'rxjs';
 import { AnalyticsService } from 'src/analytics/analytics.service';
-import { enrichConversionWithUserId } from '../conversion-user-id.util';
 
 @Injectable()
 export class JobService {
@@ -18,6 +18,7 @@ export class JobService {
 
   constructor(
     private readonly involveService: InvolveService,
+    private readonly conversionIngestService: ConversionIngestService,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
     private readonly analytics: AnalyticsService,
   ) {
@@ -72,55 +73,7 @@ export class JobService {
       //   })
       //   .lean();
 
-      await this.conversionModel.findOneAndUpdate(
-        {
-          conversion_id: conversion.conversion_id,
-        },
-        enrichConversionWithUserId(conversion),
-        { upsert: true, new: true },
-      );
-
-      // const userId = conversion.aff_sub1?.startsWith('user_id:')
-      //   ? conversion.aff_sub1.split('user_id:')[1]
-      //   : undefined;
-      // const analyticsContext = {
-      //   userId,
-      //   distinctId: userId || `conversion:${conversion.conversion_id}`,
-      //   platform: 'api' as const,
-      // };
-
-      // await this.analytics.capture('conversion_synced', analyticsContext, {
-      //   conversion_id: conversion.conversion_id,
-      //   merchant_id: conversion.merchant_id,
-      //   offer_id: conversion.offer_id,
-      //   status: conversion.conversion_status,
-      //   payout: conversion.payout,
-      //   currency: conversion.currency,
-      //   source_flow: 'involve_sync',
-      //   is_new_conversion: !existingConversion,
-      // });
-
-      // if (
-      //   existingConversion &&
-      //   existingConversion.conversion_status !== conversion.conversion_status
-      // ) {
-      //   await this.analytics.capture(
-      //     'conversion_status_changed',
-      //     analyticsContext,
-      //     {
-      //       conversion_id: conversion.conversion_id,
-      //       merchant_id: conversion.merchant_id,
-      //       offer_id: conversion.offer_id,
-      //       previous_status: existingConversion.conversion_status,
-      //       next_status: conversion.conversion_status,
-      //       payout: conversion.payout,
-      //       currency: conversion.currency,
-      //       source_flow: 'involve_sync',
-      //     },
-      //   );
-      // }
-
-      // await delay(1000);
+      await this.conversionIngestService.upsertConversion(conversion);
     }
     await this.conversionModel.updateMany(
       { conversion_status: 'paid' },
@@ -168,55 +121,7 @@ export class JobService {
       //   })
       //   .lean();
 
-      await this.conversionModel.findOneAndUpdate(
-        {
-          conversion_id: conversion.conversion_id,
-        },
-        enrichConversionWithUserId(conversion),
-        { upsert: true, new: true },
-      );
-
-      // const userId = conversion.aff_sub1?.startsWith('user_id:')
-      //   ? conversion.aff_sub1.split('user_id:')[1]
-      //   : undefined;
-      // const analyticsContext = {
-      //   userId,
-      //   distinctId: userId || `conversion:${conversion.conversion_id}`,
-      //   platform: 'api' as const,
-      // };
-
-      // await this.analytics.capture('conversion_synced', analyticsContext, {
-      //   conversion_id: conversion.conversion_id,
-      //   merchant_id: conversion.merchant_id,
-      //   offer_id: conversion.offer_id,
-      //   status: conversion.conversion_status,
-      //   payout: conversion.payout,
-      //   currency: conversion.currency,
-      //   source_flow: 'involve_sync',
-      //   is_new_conversion: !existingConversion,
-      // });
-
-      // if (
-      //   existingConversion &&
-      //   existingConversion.conversion_status !== conversion.conversion_status
-      // ) {
-      //   await this.analytics.capture(
-      //     'conversion_status_changed',
-      //     analyticsContext,
-      //     {
-      //       conversion_id: conversion.conversion_id,
-      //       merchant_id: conversion.merchant_id,
-      //       offer_id: conversion.offer_id,
-      //       previous_status: existingConversion.conversion_status,
-      //       next_status: conversion.conversion_status,
-      //       payout: conversion.payout,
-      //       currency: conversion.currency,
-      //       source_flow: 'involve_sync',
-      //     },
-      //   );
-      // }
-
-      // await delay(1000);
+      await this.conversionIngestService.upsertConversion(conversion);
     }
     console.log('done', allConversions?.length);
   }
@@ -254,13 +159,7 @@ export class JobService {
     console.log('allConversions Old', allConversions?.length);
 
     for (const conversion of allConversions) {
-      await this.conversionModel.findOneAndUpdate(
-        {
-          conversion_id: conversion.conversion_id,
-        },
-        enrichConversionWithUserId(conversion),
-        { upsert: true, new: true },
-      );
+      await this.conversionIngestService.upsertConversion(conversion);
       delay(1000);
     }
   }

@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
 import { InvolveController } from './involve.controller';
 import { InvolveService } from './involve.service';
+import { ConversionIngestService } from './conversion-ingest.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import {
   CreateAffiliateDto,
@@ -13,6 +14,7 @@ import { UpdateInvolveDto } from './dto/update-involve.dto';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { ApiKeyGuard } from 'src/common/api-key.guard';
+import { InvolvePostbackTokenGuard } from './involve-postback-token.guard';
 
 /**
  * InvolveController is a thin HTTP boundary in front of InvolveService. The
@@ -39,6 +41,7 @@ describe('InvolveController', () => {
     getConversion: jest.Mock;
     getConversationAllPage: jest.Mock;
   };
+  let conversionIngestService: { upsertFromPostback: jest.Mock };
   let analytics: { capture: jest.Mock };
 
   const makeRequest = (
@@ -61,6 +64,9 @@ describe('InvolveController', () => {
       getConversationAllPage: jest.fn().mockResolvedValue({ total: 0 }),
     };
     analytics = { capture: jest.fn().mockResolvedValue(undefined) };
+    conversionIngestService = {
+      upsertFromPostback: jest.fn().mockResolvedValue('upserted'),
+    };
 
     // The route guards (AuthAdminGuard / FirebaseAuthGuard) inject JwtService and
     // are not the subject under test — we call the controller methods directly,
@@ -70,6 +76,10 @@ describe('InvolveController', () => {
       providers: [
         { provide: InvolveService, useValue: involveService },
         { provide: AnalyticsService, useValue: analytics },
+        {
+          provide: ConversionIngestService,
+          useValue: conversionIngestService,
+        },
       ],
     })
       .overrideGuard(AuthAdminGuard)
@@ -115,6 +125,10 @@ describe('InvolveController', () => {
 
     it('createAffiliateAi > is protected by ApiKeyGuard (external/AI caller, fail-closed)', () => {
       expect(guardsOf('createAffiliateAi')).toContain(ApiKeyGuard);
+    });
+
+    it('handlePostback > is protected by InvolvePostbackTokenGuard (fail-closed query token)', () => {
+      expect(guardsOf('handlePostback')).toContain(InvolvePostbackTokenGuard);
     });
   });
 
@@ -286,6 +300,25 @@ describe('InvolveController', () => {
         body,
         undefined,
       );
+    });
+  });
+
+  describe('handlePostback', () => {
+    it('handlePostback > given query params > then upserts from postback and returns OK', async () => {
+      const req = makeRequest({
+        query: {
+          token: 'secret',
+          conversion_id: '123',
+          offer_id: '45',
+        },
+      } as never);
+
+      const result = await controller.handlePostback(req);
+
+      expect(conversionIngestService.upsertFromPostback).toHaveBeenCalledWith(
+        req.query,
+      );
+      expect(result).toBe('OK');
     });
   });
 
