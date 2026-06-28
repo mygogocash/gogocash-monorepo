@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
-import { InvolveService } from 'src/involve/involve.service';
+import { InvolveModule } from 'src/involve/involve.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { MongooseModule } from '@nestjs/mongoose';
 import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
@@ -44,6 +44,7 @@ import { PointModule } from 'src/point/point.module';
   imports: [
     CacheModule.register(),
     PointModule,
+    InvolveModule,
     // TasksController is guarded by AuthAdminGuard, which injects JwtService.
     // Without this registration Nest cannot resolve the guard's dependency and
     // the whole app fails to boot (UnknownDependenciesException). Mirrors the
@@ -66,12 +67,6 @@ import { PointModule } from 'src/point/point.module';
     ]),
   ],
   controllers: [TasksController],
-  providers: [
-    TasksService,
-    InvolveService,
-    GoogleDriveService,
-    JobService,
-    WithdrawService,
-  ],
+  providers: [TasksService, GoogleDriveService, JobService, WithdrawService],
 })
 export class TasksModule {}
