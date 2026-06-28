@@ -36,12 +36,16 @@ export function AdminPaginationBar({
   const lastPage = Math.max(1, totalPages);
   const rangeStart = (page - 1) * limit + 1;
   const rangeEnd = Math.min(page * limit, total);
-  // Editable "jump to page" input, kept in sync with the active page.
+  // Editable "jump to page" input, kept in sync with the active page unless
+  // the admin is mid-edit (focus guard avoids clobbering typed digits).
+  const [pageInputFocused, setPageInputFocused] = useState(false);
   const [pageInput, setPageInput] = useState(String(page));
   const [prevPage, setPrevPage] = useState(page);
   if (page !== prevPage) {
     setPrevPage(page);
-    setPageInput(String(page));
+    if (!pageInputFocused) {
+      setPageInput(String(page));
+    }
   }
 
   // Commit a typed page number: clamp to a valid page and navigate if it changed.
@@ -98,13 +102,19 @@ export function AdminPaginationBar({
             pattern="[0-9]*"
             value={pageInput}
             onChange={(e) => setPageInput(e.target.value.replace(/\D/g, ""))}
+            onFocus={() => {
+              setPageInputFocused(true);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
                 commitPageInput();
               }
             }}
-            onBlur={commitPageInput}
+            onBlur={() => {
+              setPageInputFocused(false);
+              commitPageInput();
+            }}
             aria-label="Jump to page"
             className="w-14 rounded border border-gray-300 px-2 py-1 text-center text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300"
           />

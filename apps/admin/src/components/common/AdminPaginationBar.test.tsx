@@ -44,6 +44,54 @@ describe("AdminPaginationBar", () => {
     );
   });
 
+  it("given jump input not focused > when page prop changes > then syncs pageInput", () => {
+    const { rerender } = render(
+      <AdminPaginationBar
+        page={1}
+        totalPages={5}
+        total={50}
+        limit={10}
+        onPageChange={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText("Jump to page")).toHaveValue("1");
+    rerender(
+      <AdminPaginationBar
+        page={3}
+        totalPages={5}
+        total={50}
+        limit={10}
+        onPageChange={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText("Jump to page")).toHaveValue("3");
+  });
+
+  it("given jump input focused > when page prop changes > then keeps typed value", () => {
+    const { rerender } = render(
+      <AdminPaginationBar
+        page={1}
+        totalPages={5}
+        total={50}
+        limit={10}
+        onPageChange={() => {}}
+      />,
+    );
+    const input = screen.getByLabelText("Jump to page");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "4" } });
+    rerender(
+      <AdminPaginationBar
+        page={2}
+        totalPages={5}
+        total={50}
+        limit={10}
+        onPageChange={() => {}}
+      />,
+    );
+    expect(input).toHaveValue("4");
+  });
+
   it("given the page size is changed > then calls onPageSizeChange with the new number", () => {
     const onPageSizeChange = vi.fn();
     render(

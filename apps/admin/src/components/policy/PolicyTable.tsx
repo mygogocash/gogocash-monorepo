@@ -535,6 +535,7 @@ export default function PolicyTable() {
 
   const closeModal = useCallback(() => {
     setSelectedCategory(null);
+    setSaveBaseline(null);
     setTranslations({});
     setAdditionalTermsByLocale({});
     setContentSource("custom");
