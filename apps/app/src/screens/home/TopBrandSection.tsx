@@ -56,7 +56,7 @@ export function TopBrandSection({
   }, [topBrands]);
 
   return (
-    <View style={styles.section}>
+    <View style={styles.section} testID="home-top-brands">
       <View style={styles.sectionHeader}>
         <View style={styles.titleRow}>
           <Text ellipsizeMode="tail" numberOfLines={1} style={styles.sectionTitle}>

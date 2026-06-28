@@ -161,3 +161,7 @@ npm run gogosense:artifact -w @gogocash/mobile -- --run-id <github-actions-run-i
   --merchant-packages com.shopee.th \
   --evidence-dir /tmp/gogosense-acceptance
 ```
+
+## Delegation plan
+
+EAS profile: **`development`** (dev client). Device QA tasks: [docs/mobile-expo-delegation-plan.md](../../../docs/mobile-expo-delegation-plan.md) Phase 5.

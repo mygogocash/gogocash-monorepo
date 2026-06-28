@@ -28,10 +28,12 @@ export default async function globalSetup(): Promise<void> {
   const adminUrl = process.env.E2E_ADMIN_URL ?? "http://localhost:3000";
 
   try {
-    execSync(
-      `E2E_SEED_OUT="${outPath}" MONGO_URI="${mongoUri}" npm run seed:e2e -w gogocash-api`,
-      { stdio: "inherit", cwd: process.cwd() },
-    );
+    if (!fs.existsSync(outPath) || process.env.E2E_FORCE_SEED === "1") {
+      execSync(
+        `E2E_SEED_OUT="${outPath}" MONGO_URI="${mongoUri}" npm run seed:e2e -w gogocash-api`,
+        { stdio: "inherit", cwd: process.cwd() },
+      );
+    }
   } catch {
     await fs.promises.access(outPath);
   }

@@ -1,0 +1,62 @@
+# Publish OTA update to staging channel when mobile app changes merge to staging.
+# Requires repository secret EXPO_TOKEN (expo.dev access token).
+
+name: App OTA Staging
+
+on:
+  push:
+    branches: [staging]
+    paths:
+      - "apps/app/**"
+      - "package-lock.json"
+
+permissions:
+  contents: read
+
+jobs:
+  ota:
+    name: EAS Update staging
+    runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_EAS_PROJECT_ID: 0039c25f-f88e-491d-8da9-85b8d6e66558
+      NODE_PATH: ${{ github.workspace }}/node_modules:${{ github.workspace }}/apps/app/node_modules
+    defaults:
+      run:
+        working-directory: apps/app
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Check EXPO_TOKEN
+        id: expo_token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN secret not set — skipping OTA (configure in repo Settings → Secrets)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up EAS / Expo
+        if: steps.expo_token.outputs.skip != 'true'
+        uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # v9
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install (root, workspace-aware)
+        if: steps.expo_token.outputs.skip != 'true'
+        working-directory: .
+        run: npm ci
+
+      - name: Publish staging OTA
+        if: steps.expo_token.outputs.skip != 'true'
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: eas update --non-interactive --channel staging --message "ci-staging: $COMMIT_SHA"

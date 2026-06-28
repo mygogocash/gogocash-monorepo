@@ -6,7 +6,7 @@
     "type": true
   },
   "ignoreBinaries": ["eas", "knip"],
-  "ignoreUnresolved": ["dotenv/config", "expo-updates", "expo-system-ui"],
+  "ignoreUnresolved": ["dotenv/config", "expo-system-ui"],
   "ignoreDependencies": [
     "@nestjs/common",
     "@nestjs/core",

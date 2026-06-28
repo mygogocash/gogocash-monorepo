@@ -1,0 +1,5 @@
+appId: co.gogocash.app
+---
+- launchApp
+- assertVisible:
+    id: "home-top-brands"

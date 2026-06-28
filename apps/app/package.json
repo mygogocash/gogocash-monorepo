@@ -8,6 +8,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
+    "start:dev-client": "expo start --dev-client",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
@@ -27,6 +28,7 @@
     "measure:bundle": "node scripts/measure-web-bundle.mjs",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
+    "test:maestro": "maestro test .maestro/flows/",
     "build:preview": "eas build --profile preview",
     "build:production": "eas build --profile production"
   },
@@ -52,6 +54,7 @@
     "expo-secure-store": "~56.0.4",
     "expo-splash-screen": "~56.0.9",
     "expo-status-bar": "~56.0.4",
+    "expo-updates": "~56.0.19",
     "firebase": "^12.14.0",
     "phosphor-react-native": "^3.0.6",
     "posthog-react-native": "4.47.0",

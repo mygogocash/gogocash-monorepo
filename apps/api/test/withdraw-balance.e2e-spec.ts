@@ -3,9 +3,8 @@ import { Test } from '@nestjs/testing';
 import {
   MongooseModule,
   getModelToken,
-  getConnectionToken,
 } from '@nestjs/mongoose';
-import { Connection, Model, Types } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { WithdrawService } from '../src/withdraw/withdraw.service';
 import { User, UserSchema } from '../src/user/schemas/user.schema';
 import {
@@ -50,7 +49,6 @@ const suite = MONGO_URI ? describe : describe.skip;
 suite('checkWithdraw — real Mongo aggregation (#36)', () => {
   let app: INestApplication;
   let service: WithdrawService;
-  let conn: Connection;
   let userModel: Model<User>;
   let conversionModel: Model<Conversion>;
   let feeRateModel: Model<FeeRate>;
@@ -83,7 +81,6 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
     await app.init();
 
     service = moduleRef.get(WithdrawService);
-    conn = moduleRef.get(getConnectionToken());
     userModel = moduleRef.get(getModelToken(User.name));
     conversionModel = moduleRef.get(getModelToken(Conversion.name));
     feeRateModel = moduleRef.get(getModelToken(FeeRate.name));

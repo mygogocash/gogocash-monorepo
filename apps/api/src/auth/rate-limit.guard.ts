@@ -42,7 +42,11 @@ export class RateLimitGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    if (process.env.E2E_DISABLE_RATE_LIMIT === '1') {
+    // Local E2E only — never honor this bypass in production even if mis-set.
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.E2E_DISABLE_RATE_LIMIT === '1'
+    ) {
       return true;
     }
 
@@ -68,12 +72,11 @@ export class RateLimitGuard implements CanActivate {
     };
     const cfIp = headerIp('cf-connecting-ip');
     const fwd = headerIp('x-forwarded-for');
-    const ip = (
+    const ip =
       cfIp?.trim() ||
       fwd?.split(',')[0]?.trim() ||
       req.ip ||
-      'unknown'
-    ).toString();
+      'unknown';
     const routeKey = req.route?.path || context.getHandler().name;
     const key = `${routeKey}::${ip}`;
 
@@ -96,7 +99,10 @@ export class RateLimitGuard implements CanActivate {
     if (this.hits.size > 10_000) {
       const pruneCutoff = now - MAX_TRACKED_WINDOW_MS;
       for (const [k, arr] of this.hits.entries()) {
-        if (arr[arr.length - 1] < pruneCutoff) this.hits.delete(k);
+        const lastHit = arr[arr.length - 1];
+        if (lastHit !== undefined && lastHit < pruneCutoff) {
+          this.hits.delete(k);
+        }
       }
     }
 

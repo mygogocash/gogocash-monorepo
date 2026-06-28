@@ -84,6 +84,15 @@ jobs:
           node-version: "22"
           cache: npm
 
+      - name: Verify EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN secret is required for EAS actions. Add it in repo Settings → Secrets."
+            exit 1
+          fi
+
       - name: Set up EAS / Expo
         uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # v9
         with:
@@ -203,7 +212,7 @@ jobs:
           EAS_CHANNEL: ${{ inputs.channel }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
-          eas update --non-interactive --branch "$EAS_CHANNEL" --message "ci: $COMMIT_SHA"
+          eas update --non-interactive --channel "$EAS_CHANNEL" --message "ci: $COMMIT_SHA"
 
       # ── submit: upload a finished build to the stores ───────────────────────
       #   GATED: requires store credentials configured on EAS first (see header).

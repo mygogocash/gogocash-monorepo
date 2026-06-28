@@ -12,10 +12,7 @@ import {
   CatalogProduct,
   CatalogProductSchema,
 } from '../src/catalog/schemas/catalog-product.schema';
-import {
-  FeeRate,
-  FeeRateSchema,
-} from '../src/withdraw/schemas/feeRate.schema';
+import { FeeRate, FeeRateSchema } from '../src/withdraw/schemas/feeRate.schema';
 import {
   WithdrawMethod,
   WithdrawMethodSchema,
@@ -43,12 +40,6 @@ function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function yesterdayIsoDate(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
-}
-
 export async function seedE2eFixtures(
   mongoUri: string,
   userId: string,
@@ -60,7 +51,10 @@ export async function seedE2eFixtures(
   const OfferModel = (mongoose.models[Offer.name] ||
     mongoose.model(Offer.name, OfferSchema)) as Model<Offer>;
   const TopBrandModel = (mongoose.models[TopBrandConfig.name] ||
-    mongoose.model(TopBrandConfig.name, TopBrandConfigSchema)) as Model<TopBrandConfig>;
+    mongoose.model(
+      TopBrandConfig.name,
+      TopBrandConfigSchema,
+    )) as Model<TopBrandConfig>;
   const BannerModel = (mongoose.models[Banner.name] ||
     mongoose.model(Banner.name, BannerSchema)) as Model<Banner>;
   const CouponModel = (mongoose.models[Coupon.name] ||
@@ -68,11 +62,17 @@ export async function seedE2eFixtures(
   const QuestModel = (mongoose.models[Quest.name] ||
     mongoose.model(Quest.name, QuestSchema)) as Model<Quest>;
   const CatalogModel = (mongoose.models[CatalogProduct.name] ||
-    mongoose.model(CatalogProduct.name, CatalogProductSchema)) as Model<CatalogProduct>;
+    mongoose.model(
+      CatalogProduct.name,
+      CatalogProductSchema,
+    )) as Model<CatalogProduct>;
   const FeeRateModel = (mongoose.models[FeeRate.name] ||
     mongoose.model(FeeRate.name, FeeRateSchema)) as Model<FeeRate>;
   const MethodModel = (mongoose.models[WithdrawMethod.name] ||
-    mongoose.model(WithdrawMethod.name, WithdrawMethodSchema)) as Model<WithdrawMethod>;
+    mongoose.model(
+      WithdrawMethod.name,
+      WithdrawMethodSchema,
+    )) as Model<WithdrawMethod>;
   const ConversionModel = (mongoose.models[Conversion.name] ||
     mongoose.model(Conversion.name, ConversionSchema)) as Model<Conversion>;
 
@@ -288,4 +288,4 @@ export async function seedE2eFixtures(
   }
 }
 
-export { yesterdayIsoDate, todayIsoDate };
+export { todayIsoDate };

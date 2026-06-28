@@ -188,7 +188,7 @@ export async function upsertAdminAccount(
     },
     { upsert: true },
   );
-  return (result.upsertedCount ?? 0) > 0 ? 'created' : 'updated';
+  return result.upsertedId != null ? 'created' : 'updated';
 }
 
 export async function seedLocalAdmin(options: SeedLocalAdminOptions): Promise<void> {

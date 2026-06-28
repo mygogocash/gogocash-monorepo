@@ -79,7 +79,3 @@ export async function loginAdminViaUi(
   await page.getByRole("button", { name: /sign in|log in/i }).click();
   await page.waitForURL(/\/(dashboard|brands)/, { timeout: 45_000 });
 }
-
-export async function adminApiHeaders(token: string): Promise<Record<string, string>> {
-  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-}

@@ -165,6 +165,21 @@ else
   warn "gogosense/merchants empty — point MONGO_URI at Atlas staging for real data"
 fi
 
+APP_WEB_URL="${APP_WEB_URL:-${STAGING_APP_URL:-https://app-staging.gogocash.co}}"
+app_status="$(http_status "$APP_WEB_URL/")"
+if [ "$app_status" = "200" ]; then
+  app_snippet="$(http_body "$APP_WEB_URL/" | head -c 4000)"
+  api_host="$(printf '%s' "$API_URL" | sed -E 's#^https?://##; s#/.*##')"
+  if printf '%s' "$app_snippet" | grep -q "$api_host"; then
+    pass "app-web bundle references API host" "url=$APP_WEB_URL host=$api_host"
+  else
+    warn "app-web did not reference expected API host in first 4KB" \
+         "url=$APP_WEB_URL expected_host=$api_host"
+  fi
+else
+  warn "app-web not reachable (DNS cutover pending?)" "url=$APP_WEB_URL status=$app_status"
+fi
+
 echo "----------------------------------------------------------------"
 printf 'RESULT: %s passed, %s failed, %s warnings\n' \
   "$(c_green "$PASS_COUNT")" \

@@ -31,6 +31,28 @@ EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=backend
 EXPO_PUBLIC_FRONTEND_URL=http://localhost:8081
 ```
 
+### 1.1.1 Port 27017 conflict (E2E vs local dev)
+
+Only one MongoDB listener can bind **localhost:27017**. The E2E harness and legacy local dev use different containers:
+
+| Container | Start | Replica set | Use when |
+|-----------|-------|-------------|----------|
+| `gogocash-mongo-e2e` | `npm run e2e:up` | Yes (`rs0`) | Full E2E, withdraw tests (E2E-07), `npm run e2e` |
+| `gogocash-mongo` | `docker start gogocash-mongo` | No | Quick local API dev without replica-set features |
+
+**Symptoms:** `e2e:up` fails with port already allocated, or API/Jest e2e errors about transactions / replica set while something else owns `:27017`.
+
+**Resolution:**
+
+```bash
+docker ps --filter publish=27017   # see which container owns the port
+docker stop gogocash-mongo         # before E2E (then npm run e2e:up)
+# — or —
+docker stop gogocash-mongo-e2e     # before legacy dev (then docker start gogocash-mongo)
+```
+
+Do not run both containers at once; they compete for the same host port.
+
 ### 1.2 Start commands
 
 ```bash

@@ -1,0 +1,6 @@
+appId: co.gogocash.app
+---
+- launchApp
+- openLink: gogocash://wallet
+- assertVisible:
+    id: "login-screen"

@@ -656,7 +656,7 @@ describe("Expo frontend user-flow parity", () => {
     }
     expect(designQa).toContain("placeholderText");
     expect(designQa).toContain("attachPageErrorCollector");
-    expect(playwrightConfig).toContain("mobile-web-iphone");
-    expect(playwrightConfig).toContain("mobile-web-wide");
+    expect(playwrightConfig).toContain("backend-mobile");
+    expect(playwrightConfig).toContain("backend-desktop");
   });
 });

@@ -281,6 +281,60 @@ describe("gogosense preflight activation options", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("runPreflight > fails android device connected when adb devices is empty", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "gogosense-no-device-"));
+    const adbPath = join(tempDir, "adb");
+    const originalFetch = globalThis.fetch;
+
+    await writeFile(
+      adbPath,
+      `#!/bin/sh
+if [ "$1" = "version" ]; then
+  echo "Android Debug Bridge version 1.0.41"
+  exit 0
+fi
+if [ "$1" = "devices" ]; then
+  printf 'List of devices attached\\n'
+  exit 0
+fi
+exit 0
+`
+    );
+    await chmod(adbPath, 0o755);
+
+    globalThis.fetch = async (url) => {
+      if (String(url).endsWith("/gogosense/merchants")) {
+        return new Response(JSON.stringify([{ android_packages: ["com.shopee.th"] }]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+
+      return new Response("{}", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+
+    try {
+      const report = await preflight.runPreflight({
+        ...preflight.parseArgs([], { ...process.env }),
+        adb: adbPath,
+        apiUrl: "https://api.example.test",
+        expectedPackages: ["com.shopee.th"],
+      });
+
+      expect(report.results).toContainEqual({
+        detail: "no adb devices listed; connect an Android device or start an emulator",
+        name: "android device connected",
+        status: "fail",
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
 });
 
 describe("GoGoSense Android preflight command redaction", () => {

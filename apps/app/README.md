@@ -6,9 +6,27 @@ Expo / react-native-web customer app (package `@gogocash/mobile`) — a desktop-
 
 ```bash
 npm install                        # installs all workspaces from the repo root
-npm --prefix apps/app run start    # native dev client (expo start)
-npm --prefix apps/app run web      # Expo web (the live-verify surface, default :8081)
+npm --prefix apps/app run web      # Expo web — default UI parity surface (:8081)
+npm --prefix apps/app run start:dev-client   # Metro for EAS dev client (native modules)
+npm --prefix apps/app run gogosense:dev-client  # dev client + adb reverse for GoGoSense
 ```
+
+| Goal | Command |
+| --- | --- |
+| UI / API parity (default) | `npm run web` |
+| Native modules (GoGoSense) | `start:dev-client` + EAS **development** APK |
+| Staging data, no local API | `EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co` in `.env` |
+| Full cross-app E2E | `npm run e2e` at repo root — see [docs/E2E_QA_PLAN.md](../../docs/E2E_QA_PLAN.md) |
+
+### Railway web vs EAS native
+
+| Surface | Build | Host |
+| --- | --- | --- |
+| Customer **web** | `expo export --platform web` | Railway `@gogocash/mobile` (`app-web`) |
+| Customer **iOS/Android** | `eas build` | EAS → stores / internal APK |
+| JS OTA (native) | `eas update` | Expo channels — see [docs/ota-rollout.md](../../docs/ota-rollout.md) |
+
+Full phased plan: [docs/mobile-expo-delegation-plan.md](../../docs/mobile-expo-delegation-plan.md).
 
 **Monorepo local stack** (when exercising live API or admin alongside the customer app):
 
@@ -64,12 +82,17 @@ GoGoSense detects when the user opens a partner merchant app (e.g. Shopee) and n
 - **Detector injection:** the screen takes a `detector` prop defaulting to the unsupported no-op — the **Android routes inject the live `gogosenseDetector`**, because importing it pulls `expo-modules-core` which crashes the happy-dom render harness. Never import `detectorInstance` from the screen.
 - **Verify on a device:** the native half is built + verified only by an EAS dev-client build — see the [module README](modules/gogosense-detector/README.md) for the runbook (owner `EXPO_TOKEN` + ≥1 enabled merchant + Play Usage-Access disclosure).
 
-## Store builds
+## Store builds & EAS
 
 ```bash
 npm --prefix apps/app run build:preview
 npm --prefix apps/app run build:production
+npm --prefix apps/app run start:dev-client   # Metro against dev-client install
 ```
+
+**EAS Workflows** (manual): `apps/app/.eas/workflows/build-preview-android.yml` — trigger from Expo dashboard or `eas workflow:run`.
+
+**OTA:** `eas update --channel staging` after `expo-updates` is configured — see [docs/ota-smoke.md](../../docs/ota-smoke.md).
 
 Set Sentry, PostHog, Firebase, and EAS values through EAS secrets or local env files. Do not commit secrets.
 

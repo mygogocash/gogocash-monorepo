@@ -35,26 +35,3 @@ export function buildCustomerSession(
     provider: "e2e_seed",
   };
 }
-
-export async function loadCustomerSessionFromSeedFile(): Promise<CustomerSessionSeed | null> {
-  const fs = await import("node:fs");
-  const path = await import("node:path");
-  const candidates = process.env.E2E_SEED_OUT
-    ? [path.resolve(process.env.E2E_SEED_OUT)]
-    : [
-        path.resolve(process.cwd(), ".e2e/seed.json"),
-        path.resolve(process.cwd(), "../../.e2e/seed.json"),
-        path.resolve(__dirname, "../../.e2e/seed.json"),
-      ];
-  try {
-    const seedPath = candidates.find((candidate) => fs.existsSync(candidate));
-    if (!seedPath) {
-      return null;
-    }
-    const raw = await fs.promises.readFile(seedPath, "utf8");
-    const data = JSON.parse(raw) as { userId: string; customerToken: string };
-    return buildCustomerSession(data.userId, data.customerToken);
-  } catch {
-    return null;
-  }
-}

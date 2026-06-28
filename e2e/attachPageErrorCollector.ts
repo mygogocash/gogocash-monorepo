@@ -42,19 +42,23 @@ export function attachPageErrorCollector(
   };
 
   const onPageError = (error: Error) => {
-    if (pageErrors && !isAllowlisted(error.message, extraAllowlist)) {
+    if (!isAllowlisted(error.message, extraAllowlist)) {
       messages.push(`[pageerror] ${error.message}`);
     }
   };
 
   page.on("console", onConsole);
-  page.on("pageerror", onPageError);
+  if (pageErrors) {
+    page.on("pageerror", onPageError);
+  }
 
   return {
     messages,
     detach: () => {
       page.off("console", onConsole);
-      page.off("pageerror", onPageError);
+      if (pageErrors) {
+        page.off("pageerror", onPageError);
+      }
     },
   };
 }

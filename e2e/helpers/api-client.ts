@@ -2,22 +2,6 @@ import type { APIRequestContext } from "@playwright/test";
 
 const DEFAULT_API_URL = process.env.E2E_API_URL ?? "http://localhost:8080";
 
-export async function waitForApiHealthy(
-  request: APIRequestContext,
-  apiUrl = DEFAULT_API_URL,
-  attempts = 45,
-): Promise<void> {
-  for (let i = 0; i < attempts; i += 1) {
-    const health = await request.get(`${apiUrl}/health`);
-    const root = await request.get(`${apiUrl}/`);
-    if (health.ok() && root.ok()) {
-      return;
-    }
-    await new Promise((r) => setTimeout(r, 2000));
-  }
-  throw new Error(`API not healthy at ${apiUrl}`);
-}
-
 export async function getTopBrands(
   request: APIRequestContext,
   apiUrl = DEFAULT_API_URL,
@@ -55,7 +39,7 @@ export async function pollTopBrandsIncludes(
     if (hit) {
       return hit;
     }
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 750));
   }
   throw new Error("Timed out waiting for top-brands predicate");
 }
