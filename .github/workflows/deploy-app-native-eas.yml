@@ -70,6 +70,7 @@ jobs:
   eas:
     name: EAS ${{ inputs.action }}
     runs-on: ubuntu-latest
+    environment: staging
     env:
       EXPO_PUBLIC_EAS_PROJECT_ID: 0039c25f-f88e-491d-8da9-85b8d6e66558
       NODE_PATH: ${{ github.workspace }}/node_modules:${{ github.workspace }}/apps/app/node_modules
@@ -113,6 +114,11 @@ jobs:
       - name: EAS Build
         id: eas-build
         if: ${{ inputs.action == 'build' }}
+        env:
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
         run: |
           eas build \
             --non-interactive \
