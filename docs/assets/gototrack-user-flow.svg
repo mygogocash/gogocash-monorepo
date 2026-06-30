@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" role="img" aria-labelledby="title desc">
+  <title id="title">GoGoTracking — Customer Journey</title>
+  <desc id="desc">Formal GoGoCash pitch-style flow: automatic merchant detection and cashback activation.</desc>
+
+  <defs>
+    <linearGradient id="headerBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00CC99"/>
+      <stop offset="100%" stop-color="#00AA80"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-4%" y="-4%" width="108%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="8" flood-color="#1A2B4A" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00AA80"/>
+    </marker>
+  </defs>
+
+  <!-- Slide canvas -->
+  <rect width="1920" height="1080" fill="#FFFFFF"/>
+
+  <!-- Top accent bar -->
+  <rect width="1920" height="6" fill="url(#headerBar)"/>
+
+  <!-- Header block (pitch deck style) -->
+  <text x="80" y="72" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" letter-spacing="3" fill="#7F7F7F">GOGOCASH · PROTOCOL CAMP</text>
+  <text x="80" y="118" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="42" font-weight="700" fill="#3B3B3B">GoGoTracking</text>
+  <text x="80" y="158" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="22" font-weight="400" fill="#005D46">Agentic AI ??????????????????????? — ????????????????????????????????????????</text>
+  <text x="80" y="188" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" fill="#7F7F7F">Automatic merchant detection · One-tap cashback activation · Earn Cashback on Every Spend</text>
+
+  <!-- Problem callout -->
+  <g transform="translate(80, 220)">
+    <rect width="1760" height="72" rx="8" fill="#FFF7E6" stroke="#E4E4E4" stroke-width="1"/>
+    <rect x="0" y="0" width="6" height="72" rx="3" fill="#FFB020"/>
+    <text x="24" y="30" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#3B3B3B">Market insight</text>
+    <text x="24" y="52" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#5C5C5C">???????????????? GoGoCash ???????? — ???????????????? ????????????????????????? · GoGoTracking ??????????????????????????????????</text>
+  </g>
+
+  <!-- Main flow title -->
+  <text x="80" y="330" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="2" fill="#7F7F7F">CUSTOMER JOURNEY</text>
+
+  <!-- Step 1 -->
+  <g transform="translate(80, 350)" filter="url(#cardShadow)">
+    <rect width="320" height="280" rx="12" fill="#FFFFFF" stroke="#E4E4E4" stroke-width="1"/>
+    <rect x="0" y="0" width="320" height="48" rx="12" fill="#F6F6F6"/>
+    <rect x="0" y="36" width="320" height="12" fill="#F6F6F6"/>
+    <text x="24" y="32" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#00AA80">STEP 01</text>
+    <text x="24" y="88" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#3B3B3B">Enable GoGoTrack</text>
+    <text x="24" y="118" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#7F7F7F">????????????????????</text>
+    <line x1="24" y1="140" x2="296" y2="140" stroke="#E4E4E4" stroke-width="1"/>
+    <text x="24" y="168" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#3B3B3B">• ??????? GoGoCash</text>
+    <text x="24" y="194" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#3B3B3B">• ?????????????? GoGoTrack</text>
+    <text x="24" y="220" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#3B3B3B">• ??????????????????????????</text>
+    <text x="24" y="252" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" fill="#7F7F7F">One-time configuration</text>
+  </g>
+
+  <line x1="410" y1="490" x2="450" y2="490" stroke="#00AA80" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Step 2 -->
+  <g transform="translate(460, 350)" filter="url(#cardShadow)">
+    <rect width="320" height="280" rx="12" fill="#FFFFFF" stroke="#00CC99" stroke-width="2"/>
+    <rect x="0" y="0" width="320" height="48" rx="12" fill="#D8F8EF"/>
+    <rect x="0" y="36" width="320" height="12" fill="#D8F8EF"/>
+    <text x="24" y="32" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#005D46">STEP 02</text>
+    <text x="24" y="88" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#3B3B3B">Auto Detection</text>
+    <text x="24" y="118" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#005D46">GoGoTracking · Agentic AI</text>
+    <line x1="24" y1="140" x2="296" y2="140" stroke="#D8F8EF" stroke-width="1"/>
+    <text x="24" y="168" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#3B3B3B">• ???????????????????? (???? Shopee)</text>
+    <text x="24" y="194" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#3B3B3B">• ????????????????????????</text>
+    <text x="24" y="220" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#3B3B3B">• ?????????????????????</text>
+    <text x="24" y="252" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" fill="#7F7F7F">UsageStatsManager (Google-approved)</text>
+  </g>
+
+  <line x1="790" y1="490" x2="830" y2="490" stroke="#00AA80" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Step 3 -->
+  <g transform="translate(840, 350)" filter="url(#cardShadow)">
+    <rect width="320" height="280" rx="12" fill="#FFFFFF" stroke="#E4E4E4" stroke-width="1"/>
+    <rect x="0" y="0" width="320" height="48" rx="12" fill="#F6F6F6"/>
+    <rect x="0" y="36" width="320" height="12" fill="#F6F6F6"/>
+    <text x="24" y="32" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#00AA80">STEP 03</text>
+    <text x="24" y="88" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#3B3B3B">Confirm &amp; Activate</text>
+    <text x="24" y="118" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#7F7F7F">???????????????????</text>
+    <line x1="24" y1="140" x2="296" y2="140" stroke="#E4E4E4" stroke-width="1"/>
+    <!-- Notification mock -->
+    <rect x="24" y="156" width="272" height="88" rx="10" fill="#3B3B3B"/>
+    <text x="40" y="182" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#FFFFFF">Cashback available</text>
+    <text x="40" y="204" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" fill="#D8F8EF">Tap Accept to activate tracking</text>
+    <rect x="40" y="216" width="72" height="24" rx="6" fill="#00CC99"/>
+    <text x="76" y="232" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">Accept</text>
+  </g>
+
+  <line x1="1170" y1="490" x2="1210" y2="490" stroke="#00AA80" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Step 4 -->
+  <g transform="translate(1220, 350)" filter="url(#cardShadow)">
+    <rect width="320" height="280" rx="12" fill="#FFFFFF" stroke="#E4E4E4" stroke-width="1"/>
+    <rect x="0" y="0" width="320" height="48" rx="12" fill="#F6F6F6"/>
+    <rect x="0" y="36" width="320" height="12" fill="#F6F6F6"/>
+    <text x="24" y="32" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#00AA80">STEP 04</text>
+    <text x="24" y="88" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#3B3B3B">Shop &amp; Pay</text>
+    <text x="24" y="118" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#7F7F7F">?????????????????</text>
+    <line x1="24" y1="140" x2="296" y2="140" stroke="#E4E4E4" stroke-width="1"/>
+    <text x="24" y="168" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#3B3B3B">• ???????? deep link ?????????</text>
+    <text x="24" y="194" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#3B3B3B">• ????????????????????????????</text>
+    <text x="24" y="220" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#3B3B3B">• ???????????????????????????</text>
+    <text x="24" y="252" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" fill="#7F7F7F">Tracked affiliate journey</text>
+  </g>
+
+  <line x1="1550" y1="490" x2="1590" y2="490" stroke="#00AA80" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Step 5 - outcome -->
+  <g transform="translate(1600, 350)" filter="url(#cardShadow)">
+    <rect width="240" height="280" rx="12" fill="#00CC99" stroke="#00AA80" stroke-width="1"/>
+    <text x="24" y="48" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#E8FBF5">OUTCOME</text>
+    <text x="24" y="100" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#FFFFFF">??????????</text>
+    <text x="24" y="130" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#E8FBF5">Earn Cashback</text>
+    <line x1="24" y1="152" x2="216" y2="152" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="1"/>
+    <text x="24" y="180" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#FFFFFF">• ????????????????????</text>
+    <text x="24" y="206" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#FFFFFF">• ?????????????????? GoGoCash</text>
+    <text x="24" y="248" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" fill="#E8FBF5">Withdraw within 72 hours</text>
+  </g>
+
+  <!-- Comparison row (from pitch slide 6) -->
+  <text x="80" y="680" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="2" fill="#7F7F7F">COMPETITIVE ADVANTAGE</text>
+  <g transform="translate(80, 700)">
+    <rect width="1760" height="120" rx="12" fill="#F6F6F6" stroke="#E4E4E4" stroke-width="1"/>
+    <text x="32" y="40" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#3B3B3B">Auto Tracking — ?????????????????????????</text>
+    <text x="32" y="68" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#5C5C5C">ShopBack · MyCashback: manual link · GoGoCash GoGoTracking: automatic merchant detection + one-tap activation</text>
+    <rect x="32" y="84" width="180" height="28" rx="6" fill="#D8F8EF" stroke="#00CC99" stroke-width="1"/>
+    <text x="122" y="103" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#005D46">GoGoCash only</text>
+  </g>
+
+  <!-- Trust & compliance -->
+  <text x="80" y="870" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="2" fill="#7F7F7F">TRUST &amp; COMPLIANCE</text>
+  <g transform="translate(80, 890)">
+    <rect width="860" height="130" rx="12" fill="#FFFFFF" stroke="#E4E4E4" stroke-width="1" filter="url(#cardShadow)"/>
+    <text x="28" y="36" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#3B3B3B">Privacy by design</text>
+    <text x="28" y="62" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" fill="#5C5C5C">?????????????? ???????? ????????????????????? · ????????????????????????????????? — ???????????????????????</text>
+    <text x="28" y="88" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" fill="#5C5C5C">Does not read messages, credentials, or payment data · Merchant-app context only, with consent</text>
+    <text x="28" y="114" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" fill="#7F7F7F">PDPA-aligned product posture · User may disable GoGoTrack at any time</text>
+  </g>
+  <g transform="translate(980, 890)">
+    <rect width="860" height="130" rx="12" fill="#FFFFFF" stroke="#E4E4E4" stroke-width="1" filter="url(#cardShadow)"/>
+    <text x="28" y="36" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#3B3B3B">Platform compliance</text>
+    <text x="28" y="62" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" fill="#5C5C5C">??? UsageStatsManager ?????????? Google ?????? · ?????? Accessibility Service ??? Play Store ?????</text>
+    <text x="28" y="88" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13" fill="#5C5C5C">Google-approved UsageStatsManager · Not Accessibility Service (Play policy compliant)</text>
+    <text x="28" y="114" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" fill="#7F7F7F">300+ integrated merchants · Earn Cashback on Every Spend</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="80" y="1060" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" fill="#989898">GoGoCash Co., Ltd. · GoGoTracking Customer Journey · Confidential — Pitch materials</text>
+  <text x="1840" y="1060" text-anchor="end" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="12" fill="#989898">gogocash.co</text>
+</svg>
