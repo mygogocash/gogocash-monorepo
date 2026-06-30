@@ -48,7 +48,10 @@ describe("GoGoTrack Android preflight script helpers", () => {
   });
 
   it("parseArgs > given --require-nudge > then enables dev-client launch and default load wait", () => {
-    const options = preflight.parseArgs(["--require-nudge", "--auth-token", "test-jwt"], {});
+    const options = preflight.parseArgs(
+      ["--require-nudge", "--auth-token", "test-jwt"],
+      { NODE_ENV: "test" },
+    );
     expect(options.launchDevClient).toBe(true);
     expect(options.injectAuthToken).toBe(true);
     expect(options.devClientLoadWaitMs).toBeGreaterThan(0);

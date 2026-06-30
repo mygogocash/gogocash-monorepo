@@ -1506,6 +1506,8 @@ async function runPreflight(options) {
       { timeoutMs: 15000 }
     );
     results.push(authTokenInjectResult(authUrl, options.appPackage, authRun));
+    const shortSettleMs = options.checkpointDelayMs > 0 ? 0 : 1;
+    const relaunchSettleMs = options.checkpointDelayMs > 0 ? 8000 : shortSettleMs;
     await wait(relaunchSettleMs);
   }
 

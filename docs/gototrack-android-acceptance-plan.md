@@ -16,7 +16,7 @@
 
 ---
 
-## Status snapshot (2026-06-29)
+## Status snapshot (2026-06-30)
 
 | Phase | Status |
 | --- | --- |
@@ -24,9 +24,10 @@
 | 1 — `test:gototrack` CI gates | **Done** |
 | 2 — Preflight exit codes | **Done** (`preflightExitCode`, fail scenarios) |
 | 3 — Regression audit (27 vitest + API specs) | **Done** |
-| 4 — `GOGOTRACK_AUTH_TOKEN` rename | **Done** (`GOTOTRACK_AUTH_TOKEN` / `GOGOSENSE_AUTH_TOKEN` fallback) |
-| 5 — Device acceptance | **In progress** — dev-client loads on physical Android; admin login works; mongo kernel fix applied; **full preflight evidence run pending** |
+| 4 — `GOGOTRACK_*` env rename | **Done** (`GOGOTRACK_AUTH_TOKEN` primary; `GOTOTRACK_AUTH_TOKEN` / `GOGOSENSE_AUTH_TOKEN` fallback) |
+| 5 — Device acceptance | **Done** — Seeker `SM02G4061912033` vs `api.dev.gogocash.co`; full preflight **22/22 pass** with `--require-nudge --tap-nudge --open-deeplink` (evidence: `/tmp/gototrack-acceptance-evidence/`, 2026-06-30) |
 | 5D — Maestro nudge | **Optional / pending** |
+| 6 — Merge gates (`test:gototrack` + API + `typecheck`) | **Green** (2026-06-30) |
 
 ---
 
@@ -130,26 +131,23 @@ See module README and existing `gototrack-*.test.ts` / `*.render.test.tsx` / `go
 
 ## Phase 4 — Env cleanup ✅
 
-- [x] `GOGOTRACK_AUTH_TOKEN` primary; `GOTOTRACK_AUTH_TOKEN` / `GOGOSENSE_AUTH_TOKEN` fallback
+- [x] `GOGOTRACK_AUTH_TOKEN` primary; `GOTOTRACK_AUTH_TOKEN` / `GOGOSENSE_AUTH_TOKEN` fallback (preflight `resolveAuthToken`)
 - [x] Preflight `--require-auth` fails without token
 - [x] Default API URL: `https://api.dev.gogocash.co` (`eas.json` **development**, `.env.example`, preflight, artifact helper)
 
 ---
 
-## Phase 5 — Device acceptance (core complete; activation path blocked on dev secrets)
+## Phase 5 — Device acceptance ✅
 
-**Verified 2026-06-29** on Seeker `SM02G4061912033` against `https://api.dev.gogocash.co`.
+**Verified 2026-06-30** on Seeker `SM02G4061912033` against `https://api.dev.gogocash.co`.
 
-**Core preflight (exit 0):** merchants seeded (`gogosense_merchants`, Shopee enabled), customer JWT in `/tmp/gototrack-auth.env`, EAS dev APK run `28343743389` (SHA-256 `fc92704d…`), evidence at `/tmp/gototrack-acceptance-evidence/`.
+**Full preflight (exit 0, 22/22 pass):** `--require-auth --require-nudge --tap-nudge --open-deeplink --capture-device-evidence` with customer JWT from `/tmp/gototrack-auth.env` (`GOGOTRACK_AUTH_TOKEN`), merchants seeded (`gogosense_merchants`, Shopee enabled), EAS dev APK SHA-256 `fc92704d645441aa36de6862842a46c17fb2942296cd2fef931f88255fbe3912`, evidence at `/tmp/gototrack-acceptance-evidence/` (`preflight-report.json`, `acceptance-checklist.md`, activation nudge + deeplink captures).
 
-**Full preflight (`--require-nudge --open-deeplink`) still blocked:**
+**Key results:** activation nudge visible/tapped, `POST /gototrack/activate` returned `https://invl.me/clnlbvp`, deeplink opened with `com.shopee.th` foreground, Usage Access granted, Metro `adb reverse` on `:8081`.
 
-| Blocker | Fix |
-| --- | --- |
-| `POST /gototrack/activate` → 500 | Set **`INVOLVE_SECRET`** on Railway dev `gogocash-api` (Involve sign-in 401 today). Use `scripts/railway-apply-secrets.sh` with `.env.railway.production` or copy from GCP prod API env. |
-| Activation nudge not in `gototrack-hub-ui.xml` | Needs native UsageStats detection poll while GoGoTrack session is running (API-only detect does not populate in-app `lastMatch`). Unlock device before hub capture; allow ≥8s Metro load (`--checkpoint-delay-ms 8000`). |
+**Re-run prerequisites:** Metro on `:8081` (`npm run gototrack:dev-client`), device unlocked, and longer waits (`--checkpoint-delay-ms 15000 --dev-client-load-wait-ms 25000`) if the hub lands on home instead of GoGoTrack.
 
-**Depends on:** owner secrets, Railway dev Mongo up, seeded merchants, physical Android.
+**Depends on:** owner `GOGOTRACK_AUTH_TOKEN`, Railway dev Mongo up, seeded merchants, physical Android with Usage Access.
 
 ### 5A — Ops prerequisites (Railway dev)
 
@@ -159,9 +157,9 @@ See module README and existing `gototrack-*.test.ts` / `*.render.test.tsx` / `go
 | **API `/gototrack/*` live** | `curl -sS https://api.dev.gogocash.co/gototrack/merchants` → 200 JSON array (may be `[]` before seed) |
 | **Admin (optional brand CRUD)** | `https://admin.dev.gogocash.co` — needs `NEXTAUTH_SECRET` + `NEXTAUTH_URL=https://admin.dev.gogocash.co` on `gogocash-admin`. Seed admin in **Railway → `gogocash-api` → dev → Shell**: `npm run seed:local-admin -w gogocash-api -- --force --email admin@gogocash.co --password 1234 --username admin` |
 | **≥1 enabled GoGoTrack merchant** | Seed into **`gogosense_merchants`** (not `gototrack_merchants`): TCP proxy or Railway Shell — `npm run gototrack:seed-merchants -w gogocash-api -- --enable-first`. Verify: `curl -sS https://api.dev.gogocash.co/gototrack/merchants` → ≥1 row. |
-| **`INVOLVE_SECRET`** | Required for `POST /gototrack/activate` / affiliate deeplinks on dev. **Not set** on Railway dev as of 2026-06-29. |
+| **`INVOLVE_SECRET`** | Required for `POST /gototrack/activate` / affiliate deeplinks on dev. **Set** on Railway dev as of 2026-06-30 (activation probe passes in preflight). |
 | **`EXPO_TOKEN`** | GitHub secret for `deploy-app-native-eas.yml` |
-| **`GOGOTRACK_AUTH_TOKEN`** | Customer JWT for preflight `--require-auth` API probes. Obtain from dev API after seeding a customer, or export from E2E seed flow. **Not** the admin token. |
+| **`GOGOTRACK_AUTH_TOKEN`** | Customer JWT for preflight `--require-auth` API probes (primary env var). Fallback: `GOTOTRACK_AUTH_TOKEN`, `GOGOSENSE_AUTH_TOKEN`. Obtain from dev API after seeding a customer, or export from E2E seed flow. **Not** the admin token. |
 | **Firebase `EXPO_PUBLIC_FIREBASE_*`** | From GitHub **`staging`** environment secrets (no separate `dev` GH env). Inlined at EAS build; Metro `.env` overrides at dev-client runtime. |
 
 ### 5B — Mobile `.env` (Metro / USB dev-client)
@@ -231,16 +229,16 @@ npm run gototrack:preflight -w @gogocash/mobile -- \
 
 **Pass checklist (core — done):**
 
-- [x] `preflight-report.json` — no `status: "fail"` (core run without `--require-nudge` / `--open-deeplink`)
+- [x] `preflight-report.json` — no `status: "fail"` (22/22 pass, 2026-06-30)
 - [x] Usage Access granted for GoGoCash package
 - [x] `merchant-foreground-*` checkpoints
 - [x] `device-evidence.txt` + screenshot/window/logcat bundle
 
-**Pass checklist (full activation — pending `INVOLVE_SECRET` + native nudge):**
+**Pass checklist (full activation — done 2026-06-30):**
 
-- [ ] `acceptance-checklist.md` — activation nudge + deeplink steps `pass`
-- [ ] `gototrack-hub-ui.xml` contains activation nudge
-- [ ] `--tap-nudge` → activate → `activation-deeplink-*` evidence
+- [x] `acceptance-checklist.md` — activation nudge + deeplink steps `pass`
+- [x] `gototrack-hub-ui.xml` contains activation nudge
+- [x] `--tap-nudge` → activate → `activation-deeplink-*` evidence
 
 ### 5E — Maestro (optional)
 
@@ -250,19 +248,25 @@ npm run gototrack:preflight -w @gogocash/mobile -- \
 
 ## Phase 6 — Definition of done
 
-**Before merging GoGoTrack Android on `dev`:**
+**Merge gates on `dev` (green 2026-06-30):**
 
 ```bash
-npm run test:gototrack -w @gogocash/mobile
-npm run test:gototrack:api
+npm run test:gototrack -w @gogocash/mobile   # 18 node + 9 render files, 134 tests
+npm run test:gototrack:api                  # 27 API tests (from apps/app or -w @gogocash/mobile)
 npm run typecheck -w @gogocash/mobile
 ```
 
+| Gate | Result (2026-06-30) |
+| --- | --- |
+| `test:gototrack` | **Pass** — 99 node + 35 render tests |
+| `test:gototrack:api` | **Pass** — 27 Jest tests |
+| `typecheck` | **Pass** |
+
 **Before `dev` → `staging` promotion:**
 
-- [ ] Device acceptance evidence attached (preflight `evidence-dir` or PR comment)
-- [ ] Dev merchants seeded and at least one enabled
-- [ ] EAS **development** APK rebuilt after any `EXPO_PUBLIC_*` change
+- [x] Device acceptance evidence captured (`/tmp/gototrack-acceptance-evidence/`, attach to PR)
+- [x] Dev merchants seeded and at least one enabled (Shopee)
+- [ ] EAS **development** APK rebuilt after any `EXPO_PUBLIC_*` change (rebuild if env changes post-acceptance)
 - [ ] Railway `gogocash-api` + `gogocash-admin` use matching public API URL for target env
 
 ---
