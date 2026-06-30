@@ -87,7 +87,7 @@
     "eslint-config-next": "16.2.9",
     "firebase-tools": "^15.22.3",
     "happy-dom": "^20.10.6",
-    "postcss": "^8",
+    "postcss": "^8.5.16",
     "prettier": "^3.9.1",
     "tailwindcss": "^4.0.0",
     "typescript": "~6.0.3",
