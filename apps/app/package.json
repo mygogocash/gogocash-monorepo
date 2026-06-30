@@ -23,6 +23,8 @@
     "test:full": "npm run test && npm run test:render && npm run typecheck && npm run export:web -- --output-dir /tmp/gogocash-expo-full-test-export",
     "test:flows": "vitest run --config vitest.config.ts src/__tests__/frontend-user-flow-parity.test.ts",
     "test:security": "vitest run --config vitest.config.ts src/__tests__/security-pentest.test.ts",
+    "test:gototrack": "vitest run --config vitest.config.ts src/__tests__/gototrack-*.test.ts && vitest run --config vitest.render.config.ts src/__tests__/customer-gototrack.render.test.tsx src/__tests__/gototrack-*.render.test.tsx",
+    "test:gototrack:api": "npm run test -w gogocash-api -- --testPathPatterns=gototrack --runInBand",
     "test:render": "vitest run --config vitest.render.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "measure:bundle": "node scripts/measure-web-bundle.mjs",

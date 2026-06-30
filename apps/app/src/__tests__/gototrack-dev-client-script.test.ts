@@ -37,6 +37,15 @@ describe("GoGoTrack Android dev-client script", () => {
     expect(env.NODE_OPTIONS).toContain("--dns-result-order=ipv4first");
   });
 
+  it("resolveAppDir > prefers apps/app when npm -w runs from monorepo root", () => {
+    expect(devClient.resolveAppDir("/Users/me/gogocash-monorepo-migrate-monorepo")).toMatch(
+      /apps\/app$/
+    );
+    expect(devClient.resolveAppDir("/Users/me/gogocash-monorepo-migrate-monorepo/apps/app")).toBe(
+      "/Users/me/gogocash-monorepo-migrate-monorepo/apps/app"
+    );
+  });
+
   it("builds the adb reverse command for localhost Metro on Android", () => {
     expect(devClient.adbReverseArgs()).toEqual(["reverse", "tcp:8081", "tcp:8081"]);
     expect(devClient.adbReverseDeviceArgs("emulator-5554")).toEqual([

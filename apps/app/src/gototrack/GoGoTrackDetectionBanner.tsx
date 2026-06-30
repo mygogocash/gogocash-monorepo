@@ -14,9 +14,6 @@ import type { GoGoTrackDetector } from "./detector";
 import { useGoGoTrack, type GoGoTrackHookApi } from "./useGoGoTrack";
 import { useGoGoTrackApi } from "./useGoGoTrackApi";
 
-// Off-device / logged-out fallback: detection is inert (never matches).
-const inertApi: GoGoTrackHookApi = { detect: async () => ({ matched: false }) };
-
 type GoGoTrackDetectionBannerProps = {
   detector: GoGoTrackDetector;
   // Test/override seam; production resolves the authed api via useGoGoTrackApi.
@@ -35,10 +32,33 @@ export function GoGoTrackDetectionBanner({
   api: apiOverride,
   openUrl,
 }: GoGoTrackDetectionBannerProps) {
+  const liveApi = useGoGoTrackApi();
+  const api = apiOverride ?? liveApi;
+
+  if (!api) {
+    return null;
+  }
+
+  return (
+    <GoGoTrackDetectionBannerLoaded
+      api={api}
+      detector={detector}
+      openUrl={openUrl}
+    />
+  );
+}
+
+function GoGoTrackDetectionBannerLoaded({
+  detector,
+  api,
+  openUrl,
+}: {
+  detector: GoGoTrackDetector;
+  api: GoGoTrackHookApi;
+  openUrl?: (url: string) => void;
+}) {
   const styles = useThemedStyles(createGoGoTrackDetectionBannerStyles);
   const tc = useCopy();
-  const liveApi = useGoGoTrackApi();
-  const api = apiOverride ?? liveApi ?? inertApi;
   const { state, start, poll, activate } = useGoGoTrack({ detector, api });
   const [activationError, setActivationError] = useState(false);
   const [isActivating, setIsActivating] = useState(false);

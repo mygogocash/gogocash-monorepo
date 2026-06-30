@@ -14,10 +14,10 @@
 #       set up via `eas credentials` or the eas.json `submit` profile. The
 #       submit job below is gated OFF by default (run it only once creds exist).
 #
-#   • eas.json profiles (apps/app/eas.json) currently define `development`,
-#       `preview`, and `production` build profiles + an empty `submit.production`.
-#       The owner should confirm the staging channel name used for OTA updates
-#       (this scaffold uses `staging`) and finalize the submit profile.
+#   • eas.json profiles (apps/app/eas.json): `development` targets api.dev.gogocash.co
+#       (Android dev-client + GoGoTrack device QA). `preview` stays on staging API.
+#       Firebase client secrets for EAS build are read from the GitHub `staging`
+#       environment (same gogocash-staging Firebase project) until a `dev` env exists.
 #
 # Monorepo note: EAS auto-detects the workspace; the working-directory is
 # apps/app and `eas build` resolves the root lockfile. No app-source changes here.
@@ -50,7 +50,7 @@ on:
       profile:
         description: "EAS build profile (from apps/app/eas.json)"
         required: true
-        default: "preview"
+        default: "development"
         type: choice
         options:
           - development
@@ -59,7 +59,7 @@ on:
       channel:
         description: "EAS Update channel (for the update action)"
         required: true
-        default: "staging"
+        default: "development"
         type: string
 
 permissions:

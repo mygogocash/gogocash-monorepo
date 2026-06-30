@@ -6,11 +6,319 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
-const defaultApiUrl = "https://api-staging.gogocash.co";
+const defaultApiUrl = "https://api.dev.gogocash.co";
 const defaultAppPackage = "co.gogocash.app";
 const defaultMetroPort = 8081;
+const defaultDevClientLoadWaitMs = 20000;
+const defaultWaitForUnlockMs = 120000;
+const defaultGototrackHubPath = "/gototrack";
+const defaultAuthCallbackPath = "/";
 const defaultGototrackUrl = "gogocash://gototrack";
+const devClientExpoScheme = "exp+gogocash-mobile";
 const merchantCatalogPath = "/gototrack/merchants";
+const activationNudgeMarkers = [
+  "Activate cashback",
+  "gototrack-activate-cashback-button",
+  "Activate cashback for",
+  "Cashback available",
+  "เปิดใช้งานเงินคืน",
+  "Activate GoGoTrack cashback",
+];
+const gototrackHubMarkers = ["GoGoTrack", "Protected tracking", "PROTECTED TRACKING"];
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
+}
+
+function amStartViewShellArgs(targetUrl, appPackage) {
+  return ["shell", `am start -a android.intent.action.VIEW -d ${shellQuote(targetUrl)} ${appPackage}`];
+}
+
+function buildAuthCallbackUrl(authToken, callbackPath = defaultGototrackHubPath) {
+  const params = new URLSearchParams({
+    token: authToken,
+    callbackUrl: callbackPath,
+  });
+  return `gogocash://auth/callback?${params.toString()}`;
+}
+
+function authCallbackLaunchArgs(appPackage, authToken, callbackPath = defaultGototrackHubPath) {
+  return amStartViewShellArgs(buildAuthCallbackUrl(authToken, callbackPath), appPackage);
+}
+
+function deviceScreenBlockedMessage(uiXml = "", windowStdout = "") {
+  if (
+    uiXml.includes("keyguard_pin_view") ||
+    uiXml.includes("Unlock with PIN") ||
+    uiXml.includes("keyguard_security_container")
+  ) {
+    return "device keyguard is showing — unlock the phone (PIN/fingerprint) before --require-nudge preflight";
+  }
+
+  const focusLine =
+    windowStdout.split(/\r?\n/).find((line) => line.includes("mCurrentFocus=")) ?? "";
+  if (focusLine.includes("NotificationShade") || focusLine.includes("Keyguard")) {
+    return "notification shade or keyguard is focused — unlock the phone and collapse notifications";
+  }
+
+  if (windowStdout.includes("isKeyguardShowing=true")) {
+    return "device keyguard is showing — unlock the phone (PIN/fingerprint) before --require-nudge preflight";
+  }
+
+  return "";
+}
+
+function uiXmlContainsGoGoTrackHub(uiXml = "") {
+  return gototrackHubMarkers.some((marker) => uiXml.includes(marker));
+}
+
+function dismissCookieBannerFromXml(adb, deviceOptions, uiXml = "") {
+  if (!uiXml.includes("Accept all cookies")) {
+    return false;
+  }
+
+  for (const nodeMatch of uiXml.matchAll(/<node\b[^>]*>/g)) {
+    const node = nodeMatch[0];
+    if (!node.includes('text="Accept all cookies"')) continue;
+    const bounds = node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+    if (!bounds) continue;
+
+    const [, left, top, right, bottom] = bounds.map(Number);
+    const x = Math.round((left + right) / 2);
+    const y = Math.round((top + bottom) / 2);
+    run(adb, adbArgs(deviceOptions, ["shell", "input", "tap", String(x), String(y)]), {
+      timeoutMs: 5000,
+    });
+    return true;
+  }
+
+  return false;
+}
+
+function dismissCookieBannerIfPresent(adb, deviceOptions) {
+  const uiDump = run(adb, adbArgs(deviceOptions, ["exec-out", "uiautomator", "dump", "/dev/tty"]), {
+    timeoutMs: 15000,
+  });
+  const uiXml = uiDump.status === 0 ? uiDump.stdout : "";
+  return dismissCookieBannerFromXml(adb, deviceOptions, uiXml);
+}
+
+function buildDevClientLaunchUrl(metroPort = defaultMetroPort, host = "127.0.0.1") {
+  const metroUrl = `http://${host}:${metroPort}`;
+  return `${devClientExpoScheme}://expo-development-client/?url=${encodeURIComponent(metroUrl)}`;
+}
+
+function prepareDeviceScreenCommands() {
+  return [
+    ["shell", "input", "keyevent", "224"],
+    ["shell", "wm", "dismiss-keyguard"],
+    ["shell", "cmd", "statusbar", "collapse"],
+  ];
+}
+
+function configureDeviceStayAwakeCommands() {
+  return [
+    ["shell", "svc", "power", "stayon", "usb"],
+    ["shell", "settings", "put", "system", "screen_off_timeout", "600000"],
+    ["shell", "settings", "put", "global", "stay_on_while_plugged_in", "3"],
+  ];
+}
+
+function runConfigureDeviceStayAwake(adb, deviceOptions) {
+  for (const command of configureDeviceStayAwakeCommands()) {
+    run(adb, adbArgs(deviceOptions, command), { timeoutMs: 5000 });
+  }
+}
+
+function parseDeviceLocked(trustStdout = "") {
+  const match = trustStdout.match(/deviceLocked=(\d)/);
+  return match ? match[1] === "1" : false;
+}
+
+function parseCurrentFocusPackage(windowStdout = "") {
+  const match = windowStdout.match(/mCurrentFocus=Window\{[^ ]+ u0 ([^/}\s]+)/);
+  return match?.[1] ?? "";
+}
+
+function collapseNotificationShade(adb, deviceOptions) {
+  run(adb, adbArgs(deviceOptions, ["shell", "cmd", "statusbar", "collapse"]), { timeoutMs: 5000 });
+  run(adb, adbArgs(deviceOptions, ["shell", "input", "swipe", "540", "2400", "540", "1200", "300"]), {
+    timeoutMs: 5000,
+  });
+}
+
+async function waitForDeviceUnlock(adb, deviceOptions, options) {
+  const timeoutMs = options.waitForUnlockMs ?? 0;
+  if (timeoutMs <= 0) {
+    return { unlocked: true, waitedMs: 0 };
+  }
+
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    runPrepareDeviceScreen(adb, deviceOptions);
+    const trust = run(adb, adbArgs(deviceOptions, ["shell", "dumpsys", "trust"]), { timeoutMs: 10000 });
+    if (!parseDeviceLocked(trust.stdout)) {
+      collapseNotificationShade(adb, deviceOptions);
+      return { unlocked: true, waitedMs: Date.now() - started };
+    }
+    await wait(2000);
+  }
+
+  return { unlocked: false, waitedMs: Date.now() - started };
+}
+
+async function ensureAppForegroundForCapture(adb, deviceOptions, options, { launchUrl = defaultGototrackUrl } = {}) {
+  if (options.waitForUnlockMs > 0) {
+    await waitForDeviceUnlock(adb, deviceOptions, options);
+  } else {
+    runPrepareDeviceScreen(adb, deviceOptions);
+  }
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    collapseNotificationShade(adb, deviceOptions);
+    run(
+      adb,
+      adbArgs(deviceOptions, amStartViewShellArgs(launchUrl, options.appPackage)),
+      { timeoutMs: 15000 }
+    );
+    await wait(1500);
+    const window = run(adb, adbArgs(deviceOptions, ["shell", "dumpsys", "window"]), { timeoutMs: 15000 });
+    const focusPackage = parseCurrentFocusPackage(window.stdout);
+    if (focusPackage.includes(options.appPackage) || focusPackage.endsWith(".MainActivity")) {
+      return { ok: true, focusPackage, attempt };
+    }
+  }
+
+  const window = run(adb, adbArgs(deviceOptions, ["shell", "dumpsys", "window"]), { timeoutMs: 15000 });
+  return { ok: false, focusPackage: parseCurrentFocusPackage(window.stdout), attempt: 5 };
+}
+
+async function prepareGoGoTrackHubCapture(adb, deviceOptions, options) {
+  const shortSettleMs = options.checkpointDelayMs > 0 ? 0 : 1;
+  const hubPollSettleMs = options.checkpointDelayMs > 0 ? 5000 : shortSettleMs;
+  const authSettleMs = options.checkpointDelayMs > 0 ? 12000 : shortSettleMs;
+  const relaunchSettleMs = options.checkpointDelayMs > 0 ? 8000 : shortSettleMs;
+  if (options.waitForUnlockMs > 0) {
+    await waitForDeviceUnlock(adb, deviceOptions, options);
+  } else {
+    runPrepareDeviceScreen(adb, deviceOptions);
+  }
+  collapseNotificationShade(adb, deviceOptions);
+
+  let window = run(adb, adbArgs(deviceOptions, ["shell", "dumpsys", "window"]), { timeoutMs: 15000 });
+  let focusPackage = parseCurrentFocusPackage(window.stdout);
+
+  if (!focusPackage.includes(options.appPackage)) {
+    if (options.authToken) {
+      run(
+        adb,
+        adbArgs(
+          deviceOptions,
+          authCallbackLaunchArgs(options.appPackage, options.authToken, defaultGototrackHubPath)
+        ),
+        { timeoutMs: 15000 }
+      );
+      await wait(authSettleMs);
+    }
+    const verifyUiDump = run(adb, adbArgs(deviceOptions, ["exec-out", "uiautomator", "dump", "/dev/tty"]), {
+      timeoutMs: 15000,
+    });
+    const verifyUiXml = verifyUiDump.status === 0 ? verifyUiDump.stdout : "";
+    if (uiXmlContainsGoGoTrackHub(verifyUiXml)) {
+      window = run(adb, adbArgs(deviceOptions, ["shell", "dumpsys", "window"]), { timeoutMs: 15000 });
+      focusPackage = parseCurrentFocusPackage(window.stdout);
+      return {
+        ok: focusPackage.includes(options.appPackage),
+        focusPackage,
+        attempt: 0,
+      };
+    }
+    return ensureAppForegroundForCapture(adb, deviceOptions, options, {
+      launchUrl: defaultGototrackUrl,
+    });
+  }
+
+  const quickUiDump = run(adb, adbArgs(deviceOptions, ["exec-out", "uiautomator", "dump", "/dev/tty"]), {
+    timeoutMs: 15000,
+  });
+  const quickUiXml = quickUiDump.status === 0 ? quickUiDump.stdout : "";
+  if (uiXmlContainsGoGoTrackHub(quickUiXml)) {
+    await wait(hubPollSettleMs);
+    window = run(adb, adbArgs(deviceOptions, ["shell", "dumpsys", "window"]), { timeoutMs: 15000 });
+    focusPackage = parseCurrentFocusPackage(window.stdout);
+    return {
+      ok: focusPackage.includes(options.appPackage),
+      focusPackage,
+      attempt: 0,
+    };
+  }
+
+  if (dismissCookieBannerFromXml(adb, deviceOptions, quickUiXml)) {
+    await wait(1000);
+  }
+
+  if (options.authToken) {
+    run(
+      adb,
+      adbArgs(
+        deviceOptions,
+        authCallbackLaunchArgs(options.appPackage, options.authToken, defaultGototrackHubPath)
+      ),
+      { timeoutMs: 15000 }
+    );
+    await wait(authSettleMs);
+  } else {
+    run(
+      adb,
+      adbArgs(deviceOptions, amStartViewShellArgs(defaultGototrackUrl, options.appPackage)),
+      { timeoutMs: 15000 }
+    );
+    await wait(relaunchSettleMs);
+  }
+
+  const verifyUiDump = run(adb, adbArgs(deviceOptions, ["exec-out", "uiautomator", "dump", "/dev/tty"]), {
+    timeoutMs: 15000,
+  });
+  const verifyUiXml = verifyUiDump.status === 0 ? verifyUiDump.stdout : "";
+  if (!uiXmlContainsGoGoTrackHub(verifyUiXml)) {
+    run(
+      adb,
+      adbArgs(deviceOptions, amStartViewShellArgs(defaultGototrackUrl, options.appPackage)),
+      { timeoutMs: 15000 }
+    );
+    await wait(relaunchSettleMs);
+  }
+
+  window = run(adb, adbArgs(deviceOptions, ["shell", "dumpsys", "window"]), { timeoutMs: 15000 });
+  focusPackage = parseCurrentFocusPackage(window.stdout);
+  return {
+    ok: focusPackage.includes(options.appPackage),
+    focusPackage,
+    attempt: 0,
+  };
+}
+
+function uiXmlContainsActivationNudge(uiXml = "") {
+  return activationNudgeMarkers.some((marker) => uiXml.includes(marker));
+}
+
+function runPrepareDeviceScreen(adb, deviceOptions) {
+  for (const command of prepareDeviceScreenCommands()) {
+    run(adb, adbArgs(deviceOptions, command), { timeoutMs: 5000 });
+  }
+}
+
+function devClientLaunchArgs(appPackage, metroPort = defaultMetroPort) {
+  return amStartViewShellArgs(buildDevClientLaunchUrl(metroPort), appPackage);
+}
+
+function resolveAuthToken(env) {
+  return env.GOGOTRACK_AUTH_TOKEN || env.GOTOTRACK_AUTH_TOKEN || env.GOGOSENSE_AUTH_TOKEN || "";
+}
+
+function preflightExitCode(report) {
+  return report.results.some((item) => item.status === "fail") ? 1 : 0;
+}
 
 function splitList(value) {
   return value
@@ -42,10 +350,15 @@ function findDefaultAdb() {
 function parseArgs(argv = process.argv.slice(2), env = process.env) {
   const options = {
     adb: env.ADB_PATH || findDefaultAdb(),
-    apiUrl: env.GOGOSENSE_API_URL || env.EXPO_PUBLIC_API_URL || defaultApiUrl,
+    apiUrl:
+      env.GOGOTRACK_API_URL ||
+      env.GOTOTRACK_API_URL ||
+      env.GOGOSENSE_API_URL ||
+      env.EXPO_PUBLIC_API_URL ||
+      defaultApiUrl,
     appPackage: env.GOGOCASH_ANDROID_PACKAGE || defaultAppPackage,
     activate: env.GOGOSENSE_ACTIVATE === "1",
-    authToken: env.GOGOSENSE_AUTH_TOKEN || "",
+    authToken: resolveAuthToken(env),
     captureDeviceEvidence: env.GOGOSENSE_CAPTURE_DEVICE_EVIDENCE === "1",
     checkpointDelayMs: nonNegativeInt(env.GOGOSENSE_CHECKPOINT_DELAY_MS, 0),
     device: env.ANDROID_SERIAL || "",
@@ -55,6 +368,9 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     installApkSha256: env.GOGOSENSE_DEV_CLIENT_APK_SHA256 || "",
     merchantApks: splitList(env.GOGOSENSE_MERCHANT_APKS || ""),
     configureMetroReverse: env.GOGOSENSE_CONFIGURE_METRO_REVERSE === "1",
+    devClientLoadWaitMs: nonNegativeInt(env.GOGOSENSE_DEV_CLIENT_LOAD_WAIT_MS, 0),
+    injectAuthToken: env.GOGOSENSE_INJECT_AUTH_TOKEN === "1",
+    launchDevClient: env.GOGOSENSE_LAUNCH_DEV_CLIENT === "1",
     metroPort: nonNegativeInt(env.GOGOSENSE_METRO_PORT, defaultMetroPort),
     openMerchant: env.GOGOSENSE_OPEN_MERCHANT === "1",
     returnToGototrack: env.GOGOSENSE_RETURN_TO_GOGOSENSE === "1",
@@ -67,6 +383,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     requireForeground: false,
     requireNudge: false,
     tapNudge: false,
+    waitForUnlockMs: nonNegativeInt(env.GOGOSENSE_WAIT_FOR_UNLOCK_MS, 0),
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -90,6 +407,9 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--install-apk-sha256") options.installApkSha256 = next();
     else if (arg === "--merchant-apks") options.merchantApks = splitList(next());
     else if (arg === "--configure-metro-reverse") options.configureMetroReverse = true;
+    else if (arg === "--dev-client-load-wait-ms") options.devClientLoadWaitMs = nonNegativeInt(next(), 0);
+    else if (arg === "--inject-auth-token") options.injectAuthToken = true;
+    else if (arg === "--launch-dev-client") options.launchDevClient = true;
     else if (arg === "--metro-port") options.metroPort = nonNegativeInt(next(), defaultMetroPort);
     else if (arg === "--merchant-packages") options.expectedPackages = splitList(next());
     else if (arg === "--json") options.json = true;
@@ -104,8 +424,22 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--require-foreground") options.requireForeground = true;
     else if (arg === "--require-nudge") options.requireNudge = true;
     else if (arg === "--tap-nudge") options.tapNudge = true;
+    else if (arg === "--wait-for-unlock-ms") options.waitForUnlockMs = nonNegativeInt(next(), 0);
     else if (arg === "--help" || arg === "-h") options.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
+  }
+
+  if (options.requireNudge) {
+    options.launchDevClient = true;
+    if (options.authToken) {
+      options.injectAuthToken = true;
+    }
+    if (options.waitForUnlockMs === 0) {
+      options.waitForUnlockMs = defaultWaitForUnlockMs;
+    }
+  }
+  if (options.launchDevClient && options.devClientLoadWaitMs === 0) {
+    options.devClientLoadWaitMs = defaultDevClientLoadWaitMs;
   }
 
   options.apiUrl = options.apiUrl.replace(/\/+$/, "");
@@ -133,6 +467,7 @@ function run(command, args, options = {}) {
 
 function runBinary(command, args, options = {}) {
   const result = spawnSync(command, args, {
+    maxBuffer: options.maxBuffer ?? 16 * 1024 * 1024,
     timeout: options.timeoutMs || 30000,
   });
 
@@ -169,7 +504,7 @@ function merchantCatalogFetchError(status, text = "") {
   if (status === 404) {
     return [
       `${base}; GoGoTrack API route is missing at this base URL.`,
-      "Verify GOGOSENSE_API_URL/EXPO_PUBLIC_API_URL, deploy the current API to staging,",
+      "Verify GOGOTRACK_API_URL/GOTOTRACK_API_URL/GOGOSENSE_API_URL/EXPO_PUBLIC_API_URL, deploy the current API to staging,",
       "then seed merchants with npm run gototrack:seed-merchants -w apps/api.",
     ].join(" ");
   }
@@ -472,7 +807,7 @@ function acceptanceChecklist(report) {
   return `${lines.join("\n")}\n`;
 }
 
-function shellQuote(value) {
+function shellQuoteForEvidence(value) {
   return `'${String(value).replaceAll("'", "'\\''")}'`;
 }
 
@@ -491,7 +826,7 @@ function redactedPreflightInvocation(argv = process.argv.slice(2)) {
     }
   }
 
-  return ["node", "scripts/gototrack-preflight.mjs", ...redactedArgs].map(shellQuote).join(" ");
+  return ["node", "scripts/gototrack-preflight.mjs", ...redactedArgs].map(shellQuoteForEvidence).join(" ");
 }
 
 function writeEvidenceBundle(report, evidenceDir, command = redactedPreflightInvocation()) {
@@ -569,6 +904,14 @@ function writeDeviceEvidenceBundle(report, options) {
       })
     );
   }
+
+  const manifest = [
+    `device=${report.context.device}`,
+    `capturedAt=${new Date().toISOString()}`,
+    "artifacts=device-adb-reverse.txt,device-window.txt,device-logcat.txt,device-screenshot.png,device-screenshot.txt",
+    "",
+  ].join("\n");
+  writeFileSync(`${options.evidenceDir}/device-evidence.txt`, manifest);
 }
 
 function deviceEvidenceBundleResult(options) {
@@ -708,6 +1051,30 @@ function merchantLaunchResult(packageName, launchRun) {
   );
 }
 
+function devClientLaunchResult(launchUrl, appPackage, launchRun) {
+  if (launchRun.ok) {
+    return result("pass", "GoGoCash dev-client launch", `${launchUrl} opened in ${appPackage}`);
+  }
+
+  return result(
+    "fail",
+    "GoGoCash dev-client launch",
+    launchRun.stderr || launchRun.stdout || `adb am start failed for ${launchUrl}`
+  );
+}
+
+function authTokenInjectResult(authUrl, appPackage, launchRun) {
+  if (launchRun.ok) {
+    return result("pass", "GoGoCash auth token inject", `${authUrl} opened in ${appPackage}`);
+  }
+
+  return result(
+    "fail",
+    "GoGoCash auth token inject",
+    launchRun.stderr || launchRun.stdout || `adb am start failed for ${authUrl}`
+  );
+}
+
 function gototrackHubReturnResult(url, appPackage, launchRun) {
   if (launchRun.ok) {
     return result("pass", "GoGoTrack hub return", `${url} opened in ${appPackage}`);
@@ -739,10 +1106,26 @@ function activationNudgeEvidenceResult(options, checkpoint = "gototrack-hub") {
   }
 
   const uiXml = readFileSync(uiPath, "utf8");
-  const nudgeVisible =
-    uiXml.includes("Activate cashback") ||
-    uiXml.includes("gototrack-activate-cashback-button") ||
-    uiXml.includes("Activate cashback for");
+  const windowPath = `${options.evidenceDir}/${checkpoint}-window.txt`;
+  const windowStdout = existsSync(windowPath) ? readFileSync(windowPath, "utf8") : "";
+  const blockedMessage = deviceScreenBlockedMessage(uiXml, windowStdout);
+  if (blockedMessage) {
+    return result(
+      options.requireNudge ? "fail" : "warn",
+      "GoGoTrack activation nudge visible",
+      blockedMessage
+    );
+  }
+
+  if (!uiXmlContainsGoGoTrackHub(uiXml)) {
+    return result(
+      options.requireNudge ? "fail" : "warn",
+      "GoGoTrack activation nudge visible",
+      `${uiPath} does not contain GoGoTrack hub markers (${gototrackHubMarkers.join(", ")}); gogocash://gototrack may have landed on home`
+    );
+  }
+
+  const nudgeVisible = uiXmlContainsActivationNudge(uiXml);
 
   if (nudgeVisible) {
     return result("pass", "GoGoTrack activation nudge visible", `${uiPath} contains activation nudge evidence`);
@@ -751,22 +1134,30 @@ function activationNudgeEvidenceResult(options, checkpoint = "gototrack-hub") {
   return result(
     options.requireNudge ? "fail" : "warn",
     "GoGoTrack activation nudge visible",
-    `${uiPath} does not contain Activate cashback or gototrack-activate-cashback-button`
+    `${uiPath} does not contain activation nudge markers (${activationNudgeMarkers.slice(0, 3).join(", ")}, …)`
   );
 }
 
 function activationNudgeTapTarget(uiXml) {
   for (const nodeMatch of uiXml.matchAll(/<node\b[^>]*>/g)) {
     const node = nodeMatch[0];
-    const hasNudgeMarker =
-      node.includes("Activate cashback") ||
-      node.includes("gototrack-activate-cashback-button") ||
-      node.includes("Activate cashback for");
+    const hasNudgeMarker = activationNudgeMarkers.some((marker) => node.includes(marker));
     const bounds = node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
 
     if (!hasNudgeMarker || !bounds) continue;
 
     const [, left, top, right, bottom] = bounds.map(Number);
+    return {
+      x: Math.round((left + right) / 2),
+      y: Math.round((top + bottom) / 2),
+    };
+  }
+
+  const buttonNode = uiXml.match(
+    /<node\b[^>]*resource-id="[^"]*gototrack-activate-cashback-button[^"]*"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/
+  );
+  if (buttonNode) {
+    const [, left, top, right, bottom] = buttonNode.slice(1).map(Number);
     return {
       x: Math.round((left + right) / 2),
       y: Math.round((top + bottom) / 2),
@@ -813,8 +1204,39 @@ function activationNudgeTapResult(options, device, checkpoint = "gototrack-hub")
   );
 }
 
-function writeDeviceCheckpointEvidence(report, options, checkpoint) {
+async function writeDeviceCheckpointEvidence(report, options, checkpoint) {
   if (!options.captureDeviceEvidence || !options.evidenceDir || !report.context.device) return;
+
+  if (checkpoint === "gototrack-hub") {
+    if (options.requireNudge || options.tapNudge) {
+      runConfigureDeviceStayAwake(options.adb, { ...options, device: report.context.device });
+      const deviceOptions = { ...options, device: report.context.device };
+      const foreground = await prepareGoGoTrackHubCapture(options.adb, deviceOptions, options);
+      if (!foreground.ok && options.requireNudge) {
+        writeFileSync(
+          `${options.evidenceDir}/${checkpoint}-foreground.txt`,
+          `focusPackage=${foreground.focusPackage}\nattempts=${foreground.attempt}\n`
+        );
+      }
+    } else {
+      runPrepareDeviceScreen(options.adb, { ...options, device: report.context.device });
+    }
+  } else if (checkpoint === "activation-nudge-tap") {
+    if (options.requireNudge || options.tapNudge) {
+      const deviceOptions = { ...options, device: report.context.device };
+      const foreground = await prepareGoGoTrackHubCapture(options.adb, deviceOptions, options);
+      if (!foreground.ok && options.requireNudge) {
+        writeFileSync(
+          `${options.evidenceDir}/${checkpoint}-foreground.txt`,
+          `focusPackage=${foreground.focusPackage}\nattempts=${foreground.attempt}\n`
+        );
+      }
+    } else {
+      runPrepareDeviceScreen(options.adb, { ...options, device: report.context.device });
+    }
+  } else if (checkpoint === "merchant-foreground") {
+    runPrepareDeviceScreen(options.adb, { ...options, device: report.context.device });
+  }
 
   const slug = checkpoint
     .toLowerCase()
@@ -832,6 +1254,7 @@ function writeDeviceCheckpointEvidence(report, options, checkpoint) {
 
   const screenshotRun = spawnSync(options.adb, adbArgs(["exec-out", "screencap", "-p"]), {
     encoding: "buffer",
+    maxBuffer: 16 * 1024 * 1024,
     timeout: 30000,
   });
   const screenshot = {
@@ -907,7 +1330,7 @@ async function runPreflight(options) {
       result(
         options.requireAuth ? "fail" : "warn",
         "authenticated GoGoTrack API",
-        "no token provided; set GOGOSENSE_AUTH_TOKEN or pass --auth-token"
+        "no token provided; set GOGOTRACK_AUTH_TOKEN (or GOTOTRACK_AUTH_TOKEN / GOGOSENSE_AUTH_TOKEN) or pass --auth-token"
       )
     );
   } else {
@@ -1008,6 +1431,9 @@ async function runPreflight(options) {
   results.push(result("pass", "android device connected", context.device));
 
   const deviceOptions = { ...options, device: context.device };
+  if (options.requireNudge || options.launchDevClient) {
+    runConfigureDeviceStayAwake(options.adb, deviceOptions);
+  }
   let appInstalled = run(options.adb, adbArgs(deviceOptions, ["shell", "pm", "path", options.appPackage]));
   let appInstalledOk = Boolean(appInstalled.ok && appInstalled.stdout);
 
@@ -1058,6 +1484,29 @@ async function runPreflight(options) {
     results.push(usageAccessResult(true, appops, options.appPackage));
   } else {
     results.push(usageAccessResult(false, { ok: false, stdout: "", stderr: "" }, options.appPackage));
+  }
+
+  if (options.launchDevClient && appInstalledOk) {
+    runPrepareDeviceScreen(options.adb, deviceOptions);
+    const launchUrl = buildDevClientLaunchUrl(options.metroPort);
+    const launchRun = run(options.adb, adbArgs(deviceOptions, devClientLaunchArgs(options.appPackage, options.metroPort)), {
+      timeoutMs: 15000,
+    });
+    results.push(devClientLaunchResult(launchUrl, options.appPackage, launchRun));
+    if (options.devClientLoadWaitMs > 0) {
+      await wait(options.devClientLoadWaitMs);
+    }
+  }
+
+  if (options.injectAuthToken && appInstalledOk && options.authToken) {
+    const authUrl = buildAuthCallbackUrl(options.authToken, defaultAuthCallbackPath);
+    const authRun = run(
+      options.adb,
+      adbArgs(deviceOptions, authCallbackLaunchArgs(options.appPackage, options.authToken, defaultAuthCallbackPath)),
+      { timeoutMs: 15000 }
+    );
+    results.push(authTokenInjectResult(authUrl, options.appPackage, authRun));
+    await wait(relaunchSettleMs);
   }
 
   if (options.merchantApks.length > 0) {
@@ -1139,35 +1588,25 @@ async function runPreflight(options) {
   }
 
   await waitForCheckpoint(options);
-  writeDeviceCheckpointEvidence({ context, results }, options, "merchant-foreground");
+  await writeDeviceCheckpointEvidence({ context, results }, options, "merchant-foreground");
 
   if (options.returnToGototrack) {
+    runPrepareDeviceScreen(options.adb, deviceOptions);
     const returnRun = run(
       options.adb,
-      [
-        "-s",
-        context.device,
-        "shell",
-        "am",
-        "start",
-        "-a",
-        "android.intent.action.VIEW",
-        "-d",
-        defaultGototrackUrl,
-        options.appPackage,
-      ],
+      adbArgs(deviceOptions, amStartViewShellArgs(defaultGototrackUrl, options.appPackage)),
       { timeout: 15000 }
     );
     results.push(gototrackHubReturnResult(defaultGototrackUrl, options.appPackage, returnRun));
     await waitForCheckpoint(options);
-    writeDeviceCheckpointEvidence({ context, results }, options, "gototrack-hub");
+    await writeDeviceCheckpointEvidence({ context, results }, options, "gototrack-hub");
     if (options.requireNudge || options.captureDeviceEvidence) {
       results.push(activationNudgeEvidenceResult(options));
     }
     if (options.tapNudge) {
       results.push(activationNudgeTapResult(options, context.device));
       await waitForCheckpoint(options);
-      writeDeviceCheckpointEvidence({ context, results }, options, "activation-nudge-tap");
+      await writeDeviceCheckpointEvidence({ context, results }, options, "activation-nudge-tap");
     }
   } else if (options.requireNudge || options.tapNudge) {
     if (options.tapNudge) {
@@ -1235,7 +1674,7 @@ async function runPreflight(options) {
           )
         );
       }
-      writeDeviceCheckpointEvidence({ context, results }, options, "activation-deeplink");
+      await writeDeviceCheckpointEvidence({ context, results }, options, "activation-deeplink");
     }
   }
 
@@ -1275,6 +1714,10 @@ Options:
   --install-apk <path>         Install a GoGoCash Android dev-client APK before device checks if missing
   --install-apk-sha256 <hash>  Verify the dev-client APK SHA-256 before installing it
   --configure-metro-reverse    Run adb reverse tcp:<metro-port> tcp:<metro-port> for the dev-client
+  --launch-dev-client          Open exp+gogocash-mobile dev-client URL (auto with --require-nudge)
+  --inject-auth-token          Open gogocash://auth/callback?token=<jwt> on device (auto with --require-nudge + --auth-token)
+  --dev-client-load-wait-ms <ms> Wait after dev-client launch before merchant checks (default: ${defaultDevClientLoadWaitMs} with --launch-dev-client)
+  --wait-for-unlock-ms <ms>    Poll until the device keyguard clears before hub/nudge capture (default: ${defaultWaitForUnlockMs} with --require-nudge)
   --metro-port <port>          Metro port for --configure-metro-reverse (default: ${defaultMetroPort})
   --grant-usage-access         Run adb appops set <package> GET_USAGE_STATS allow before permission check
   --app-package <package>      GoGoCash Android package (default: ${defaultAppPackage})
@@ -1305,9 +1748,7 @@ async function main() {
   if (options.json) console.log(JSON.stringify(report, null, 2));
   else printText(report);
 
-  if (report.results.some((item) => item.status === "fail")) {
-    process.exitCode = 1;
-  }
+  process.exitCode = preflightExitCode(report);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -1318,21 +1759,38 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 }
 
 export {
+  activationNudgeMarkers,
+  gototrackHubMarkers,
   activationPayloadErrors,
   acceptanceChecklist,
+  amStartViewShellArgs,
+  authCallbackLaunchArgs,
   buildActivationRequest,
+  buildAuthCallbackUrl,
+  buildDevClientLaunchUrl,
   buildDetectionRequest,
   catalogResult,
   deviceEvidenceBundleResult,
+  deviceScreenBlockedMessage,
+  parseCurrentFocusPackage,
+  parseDeviceLocked,
   resolvedInstallApkSha256,
   deviceConnectionDetail,
   devClientApkSha256Result,
+  devClientLaunchArgs,
+  devClientLaunchResult,
   devClientInstallResult,
+  authTokenInjectResult,
   findDefaultAdb,
+  prepareDeviceScreenCommands,
+  uiXmlContainsActivationNudge,
+  uiXmlContainsGoGoTrackHub,
   merchantPackages,
   merchantCatalogFetchError,
   parseArgs,
   parseDevices,
+  preflightExitCode,
+  resolveAuthToken,
   parseForegroundPackage,
   parseInstalledPackages,
   parseUsageAccess,

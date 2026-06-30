@@ -6,6 +6,12 @@ vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
 }));
 
+const useGoGoTrackApiMock = vi.fn<() => GoGoTrackHookApi | null>(() => null);
+
+vi.mock("@mobile/gototrack/useGoGoTrackApi", () => ({
+  useGoGoTrackApi: () => useGoGoTrackApiMock(),
+}));
+
 import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 import type { GoGoTrackDetector } from "@mobile/gototrack/detector";
 import { GoGoTrackDetectionBanner } from "@mobile/gototrack/GoGoTrackDetectionBanner";
@@ -25,6 +31,43 @@ function detector(pkg: string | null): GoGoTrackDetector {
 }
 
 describe("GoGoTrackDetectionBanner (render)", () => {
+  it("authed api > given useGoGoTrackApi resolves after mount > then polls with the live api", async () => {
+    const detect = vi.fn(async () => ({
+      matched: true,
+      merchantId: "shopee",
+      merchantName: "Shopee",
+      offerId: 101,
+      networkMerchantId: 201,
+      recommendedAction: "activate" as const,
+    }));
+    useGoGoTrackApiMock.mockReturnValueOnce(null).mockReturnValue({
+      detect,
+      activate: vi.fn(async () => ({
+        activationEventId: "e1",
+        deeplink: "https://track.gogocash.co/shopee",
+      })),
+    });
+
+    const { rerender } = render(
+      createElement(GoGoTrackDetectionBanner, {
+        detector: detector("com.shopee.th"),
+        openUrl: vi.fn(),
+      }),
+    );
+
+    expect(screen.queryByText("Activate cashback")).toBeNull();
+
+    rerender(
+      createElement(GoGoTrackDetectionBanner, {
+        detector: detector("com.shopee.th"),
+        openUrl: vi.fn(),
+      }),
+    );
+
+    expect(await screen.findByText("Activate cashback")).toBeTruthy();
+    expect(detect).toHaveBeenCalled();
+  });
+
   it("matched detection > shows the activate nudge and opens the deeplink", async () => {
     const api: GoGoTrackHookApi = {
       detect: vi.fn(async () => ({

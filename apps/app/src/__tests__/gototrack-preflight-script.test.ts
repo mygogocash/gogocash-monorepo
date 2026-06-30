@@ -37,6 +37,67 @@ describe("GoGoTrack Android preflight script helpers", () => {
     });
   });
 
+  it("builds the Expo dev-client launch URL for adb reverse + Metro", () => {
+    expect(preflight.buildDevClientLaunchUrl(8081)).toBe(
+      "exp+gogocash-mobile://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081"
+    );
+    expect(preflight.devClientLaunchArgs("co.gogocash.app", 19000)).toEqual([
+      "shell",
+      "am start -a android.intent.action.VIEW -d 'exp+gogocash-mobile://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A19000' co.gogocash.app",
+    ]);
+  });
+
+  it("parseArgs > given --require-nudge > then enables dev-client launch and default load wait", () => {
+    const options = preflight.parseArgs(["--require-nudge", "--auth-token", "test-jwt"], {});
+    expect(options.launchDevClient).toBe(true);
+    expect(options.injectAuthToken).toBe(true);
+    expect(options.devClientLoadWaitMs).toBeGreaterThan(0);
+    expect(options.waitForUnlockMs).toBeGreaterThan(0);
+  });
+
+  it("detects keyguard and notification shade blocking device UI capture", () => {
+    expect(
+      preflight.deviceScreenBlockedMessage(
+        '<node resource-id="com.android.systemui:id/keyguard_pin_view" />',
+        ""
+      )
+    ).toContain("keyguard");
+    expect(
+      preflight.deviceScreenBlockedMessage("", "mCurrentFocus=Window{a19f22b u0 NotificationShade}")
+    ).toContain("notification shade");
+    expect(
+      preflight.deviceScreenBlockedMessage(
+        "",
+        "mExpandedPanel=Window{a19f22b u0 NotificationShade}\n  mCurrentFocus=Window{4a26631 u0 co.gogocash.app/co.gogocash.app.MainActivity}\n    isKeyguardShowing=false"
+      )
+    ).toBe("");
+  });
+
+  it("requires GoGoTrack hub markers before activation nudge evidence passes", () => {
+    expect(preflight.uiXmlContainsGoGoTrackHub('<node text="GoGoTrack" />')).toBe(true);
+    expect(preflight.uiXmlContainsGoGoTrackHub('<node text="Earn cashback with GoGoLink" />')).toBe(
+      false
+    );
+  });
+
+  it("builds auth callback deeplink args for in-app JWT injection", () => {
+    expect(preflight.buildAuthCallbackUrl("abc.def")).toBe(
+      "gogocash://auth/callback?token=abc.def&callbackUrl=%2Fgototrack"
+    );
+    expect(preflight.buildAuthCallbackUrl("abc.def", "/")).toBe(
+      "gogocash://auth/callback?token=abc.def&callbackUrl=%2F"
+    );
+    expect(preflight.authCallbackLaunchArgs("co.gogocash.app", "abc.def", "/")).toEqual([
+      "shell",
+      "am start -a android.intent.action.VIEW -d 'gogocash://auth/callback?token=abc.def&callbackUrl=%2F' co.gogocash.app",
+    ]);
+    expect(preflight.uiXmlContainsActivationNudge('<node text="เปิดใช้งานเงินคืน" />')).toBe(true);
+    expect(preflight.parseDeviceLocked("deviceLocked=1")).toBe(true);
+    expect(preflight.parseCurrentFocusPackage("mCurrentFocus=Window{abc u0 co.gogocash.app/.MainActivity}")).toBe(
+      "co.gogocash.app"
+    );
+  });
+
   it("parses adb device, appops, package, and foreground output", () => {
     expect(
       preflight.parseDevices("List of devices attached\nemulator-5554\tdevice\nabc123\toffline\n")
@@ -123,6 +184,40 @@ describe("GoGoTrack Android preflight script helpers", () => {
       requireAuth: true,
       requireForeground: true,
     });
+  });
+
+  it("defaults the API base URL to dev when EXPO_PUBLIC_API_URL is unset", () => {
+    expect(preflight.parseArgs([], { NODE_ENV: "test" }).apiUrl).toBe(
+      "https://api.dev.gogocash.co"
+    );
+  });
+
+  it("reads GOGOTRACK_AUTH_TOKEN from the environment with typo and legacy fallbacks", () => {
+    expect(preflight.resolveAuthToken({ GOGOTRACK_AUTH_TOKEN: "track-token" })).toBe("track-token");
+    expect(preflight.resolveAuthToken({ GOTOTRACK_AUTH_TOKEN: "typo-token" })).toBe("typo-token");
+    expect(preflight.resolveAuthToken({ GOGOSENSE_AUTH_TOKEN: "legacy-token" })).toBe("legacy-token");
+    expect(preflight.resolveAuthToken({})).toBe("");
+    expect(
+      preflight.parseArgs([], {
+        GOGOTRACK_AUTH_TOKEN: "from-env",
+        GOTOTRACK_AUTH_TOKEN: "typo",
+        GOGOSENSE_AUTH_TOKEN: "legacy",
+        NODE_ENV: "test",
+      })
+    ).toMatchObject({ authToken: "from-env" });
+    expect(
+      preflight.parseArgs([], {
+        GOTOTRACK_AUTH_TOKEN: "typo-only",
+        GOGOSENSE_AUTH_TOKEN: "legacy-only",
+        NODE_ENV: "test",
+      })
+    ).toMatchObject({ authToken: "typo-only" });
+    expect(
+      preflight.parseArgs([], {
+        GOGOSENSE_AUTH_TOKEN: "legacy-only",
+        NODE_ENV: "test",
+      })
+    ).toMatchObject({ authToken: "legacy-only" });
   });
 
   it("builds the protected detection probe request expected by the API", () => {
@@ -500,6 +595,9 @@ echo "ok"
       await expect(readFile(join(tempDir, "device-screenshot.txt"), "utf8")).resolves.toContain(
         "ok=true"
       );
+      await expect(readFile(join(tempDir, "device-evidence.txt"), "utf8")).resolves.toContain(
+        "device=emulator-5554"
+      );
     } finally {
       await rm(tempDir, { force: true, recursive: true });
     }
@@ -588,10 +686,10 @@ echo "ok"
         commands.indexOf("shell dumpsys window")
       );
       expect(commands).toContain(
-        "shell am start -a android.intent.action.VIEW -d gogocash://gototrack co.gogocash.app"
+        "shell am start -a android.intent.action.VIEW -d 'gogocash://gototrack' co.gogocash.app"
       );
       expect(commands.indexOf("shell dumpsys window")).toBeLessThan(
-        commands.indexOf("shell am start -a android.intent.action.VIEW -d gogocash://gototrack co.gogocash.app")
+        commands.indexOf("shell am start -a android.intent.action.VIEW -d 'gogocash://gototrack' co.gogocash.app")
       );
       expect(
         report.results.some((item) => item.name === "supported merchant launch" && item.status === "pass")
@@ -863,6 +961,232 @@ exit 0
     } finally {
       globalThis.fetch = originalFetch;
       await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+});
+
+describe("preflightExitCode", () => {
+  it("preflightExitCode > given any fail result > returns 1", () => {
+    expect(
+      preflight.preflightExitCode({
+        results: [
+          { status: "pass", name: "ok" },
+          { status: "fail", name: "android device connected" },
+        ],
+      })
+    ).toBe(1);
+  });
+
+  it("preflightExitCode > given pass or warn only > returns 0", () => {
+    expect(
+      preflight.preflightExitCode({
+        results: [
+          { status: "pass", name: "ok" },
+          { status: "warn", name: "catalog" },
+        ],
+      })
+    ).toBe(0);
+    expect(preflight.preflightExitCode({ results: [{ status: "pass", name: "ok" }] })).toBe(0);
+  });
+});
+
+describe("runPreflight failure scenarios", () => {
+  async function runWithFakeAdb(adbScript: string, runOptions: Record<string, unknown> = {}) {
+    const tempDir = await mkdtemp(join(tmpdir(), "gototrack-preflight-fail-"));
+    const adbPath = join(tempDir, "adb");
+    const originalFetch = globalThis.fetch;
+
+    await writeFile(adbPath, adbScript);
+    await chmod(adbPath, 0o755);
+
+    globalThis.fetch = async (url) => {
+      if (String(url).endsWith("/gototrack/merchants")) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+
+      return new Response("{}", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+
+    try {
+      const report = await preflight.runPreflight({
+        ...preflight.parseArgs([], { ...process.env }),
+        adb: adbPath,
+        apiUrl: "https://api.example.test",
+        appPackage: "co.gogocash.app",
+        ...runOptions,
+      });
+
+      return { report, exitCode: preflight.preflightExitCode(report), tempDir };
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  }
+
+  it("runPreflight > given no adb devices > then report contains fail for android device connected", async () => {
+    const { report, exitCode, tempDir } = await runWithFakeAdb(
+      `#!/bin/sh
+if [ "$1" = "version" ]; then
+  echo "Android Debug Bridge version 1.0.41"
+  exit 0
+fi
+if [ "$1" = "devices" ]; then
+  printf 'List of devices attached\\n'
+  exit 0
+fi
+exit 0
+`
+    );
+
+    try {
+      expect(report.results).toContainEqual(
+        expect.objectContaining({
+          name: "android device connected",
+          status: "fail",
+        })
+      );
+      expect(exitCode).toBe(1);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("runPreflight > given usage access denied > then report contains fail for Usage Access grant", async () => {
+    const { report, exitCode, tempDir } = await runWithFakeAdb(
+      `#!/bin/sh
+if [ "$1" = "version" ]; then
+  echo "Android Debug Bridge version 1.0.41"
+  exit 0
+fi
+if [ "$1" = "devices" ]; then
+  printf 'List of devices attached\\nemulator-5554\\tdevice\\n'
+  exit 0
+fi
+if [ "$1" = "-s" ]; then
+  shift 2
+fi
+if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "path" ]; then
+  echo "package:/data/app/co.gogocash.app/base.apk"
+  exit 0
+fi
+if [ "$1" = "shell" ] && [ "$2" = "appops" ] && [ "$3" = "get" ]; then
+  echo "GET_USAGE_STATS: ignore"
+  exit 0
+fi
+if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ]; then
+  echo "package:co.gogocash.app"
+  exit 0
+fi
+exit 0
+`
+    );
+
+    try {
+      expect(report.results).toContainEqual(
+        expect.objectContaining({
+          name: "Usage Access grant",
+          status: "fail",
+        })
+      );
+      expect(exitCode).toBe(1);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("runPreflight > given requireForeground and wrong foreground package > then report contains fail for merchant foreground", async () => {
+    const { report, exitCode, tempDir } = await runWithFakeAdb(
+      `#!/bin/sh
+if [ "$1" = "version" ]; then
+  echo "Android Debug Bridge version 1.0.41"
+  exit 0
+fi
+if [ "$1" = "devices" ]; then
+  printf 'List of devices attached\\nemulator-5554\\tdevice\\n'
+  exit 0
+fi
+if [ "$1" = "-s" ]; then
+  shift 2
+fi
+if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "path" ]; then
+  echo "package:/data/app/co.gogocash.app/base.apk"
+  exit 0
+fi
+if [ "$1" = "shell" ] && [ "$2" = "appops" ] && [ "$3" = "get" ]; then
+  echo "GET_USAGE_STATS: allow"
+  exit 0
+fi
+if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ]; then
+  echo "package:co.gogocash.app"
+  echo "package:com.shopee.th"
+  exit 0
+fi
+if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "window" ]; then
+  echo "mCurrentFocus=Window{abc u0 com.other.app/com.other.MainActivity}"
+  exit 0
+fi
+exit 0
+`,
+      { expectedPackages: ["com.shopee.th"], requireForeground: true }
+    );
+
+    try {
+      expect(report.results).toContainEqual(
+        expect.objectContaining({
+          name: "foreground merchant app",
+          status: "fail",
+        })
+      );
+      expect(exitCode).toBe(1);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("runPreflight > given require-auth and no token env > then report contains fail for authenticated API", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      if (String(url).endsWith("/gototrack/merchants")) {
+        return new Response(JSON.stringify([{ android_packages: ["com.shopee.th"] }]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+
+      return new Response("{}", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+
+    try {
+      const report = await preflight.runPreflight({
+        ...preflight.parseArgs(["--require-auth"], {
+          GOGOTRACK_AUTH_TOKEN: "",
+          GOTOTRACK_AUTH_TOKEN: "",
+          GOGOSENSE_AUTH_TOKEN: "",
+          NODE_ENV: "test",
+        }),
+        adb: "adb",
+        apiUrl: "https://api.example.test",
+        appPackage: "co.gogocash.app",
+        authToken: "",
+      });
+
+      expect(report.results).toContainEqual(
+        expect.objectContaining({
+          name: "authenticated GoGoTrack API",
+          status: "fail",
+        })
+      );
+      expect(preflight.preflightExitCode(report)).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
     }
   });
 });
