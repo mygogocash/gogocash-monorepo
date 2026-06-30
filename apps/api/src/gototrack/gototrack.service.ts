@@ -517,6 +517,9 @@ export class GototrackService {
     if (settings.screenshotRecoveryEnabled !== undefined) {
       update.screenshot_recovery_enabled = settings.screenshotRecoveryEnabled;
     }
+    if (settings.backgroundPromptsEnabled !== undefined) {
+      update.background_prompts_enabled = settings.backgroundPromptsEnabled;
+    }
 
     return this.userSettingsModel
       .findOneAndUpdate(

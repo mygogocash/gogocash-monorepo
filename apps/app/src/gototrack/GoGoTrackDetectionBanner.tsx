@@ -11,6 +11,7 @@ import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing } from "@mobile/theme/tokens";
 
 import type { GoGoTrackDetector } from "./detector";
+import { getGoGoTrackPromptCoordinator } from "./promptCoordinatorInstance";
 import { useGoGoTrack, type GoGoTrackHookApi } from "./useGoGoTrack";
 import { useGoGoTrackApi } from "./useGoGoTrackApi";
 
@@ -83,7 +84,13 @@ function GoGoTrackDetectionBannerLoaded({
   const matchKey = matchIsActionable
     ? `${match.packageName}:${match.response.detectionEventId ?? match.response.merchantId ?? ""}`
     : null;
-  const showNudge = matchIsActionable && matchKey !== activatedMatchKey;
+  const nativePromptActive =
+    getGoGoTrackPromptCoordinator()?.getState().nativePromptActive ?? false;
+  const showNudge =
+    matchIsActionable &&
+    matchKey !== activatedMatchKey &&
+    !nativePromptActive &&
+    !(getGoGoTrackPromptCoordinator()?.shouldSuppressBanner(matchKey) ?? false);
 
   const onActivate = useCallback(() => {
     if (activationInFlightRef.current) return;

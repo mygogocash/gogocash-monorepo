@@ -84,6 +84,8 @@ describe("CustomerGoGoTrackScreen (render)", () => {
 describe("CustomerGoGoTrackScreen permission-backed settings", () => {
   it("gates OS permission settings before saving the server preference", () => {
     expect(gogoSenseSource).toContain('field === "usageStatsEnabled"');
+    expect(gogoSenseSource).toContain('field === "backgroundPromptsEnabled"');
+    expect(gogoSenseSource).toContain("useGoGoTrackBackgroundPrompts");
     expect(gogoSenseSource).toContain("detector.hasUsageAccessPermission()");
     expect(gogoSenseSource).toContain("detector.openUsageAccessSettings()");
     expect(gogoSenseSource).toContain(
@@ -161,5 +163,11 @@ describe("CustomerGoGoTrackScreen — Wave B (B5) foundations adopted (source si
     expect(gogoSenseSource).toMatch(
       /notification matching|NotificationListenerService|merchant tracking notifications|merchant confirmation notices|notificationListenerEnabled/i,
     );
+  });
+
+  it("onboarding > discloses optional background prompt opt-in per platform", () => {
+    expect(gogoSenseSource).toContain("backgroundPromptCopy");
+    expect(gogoSenseSource).toContain("enable background cashback notifications");
+    expect(gogoSenseSource).toContain("enable Live Activity prompts");
   });
 });

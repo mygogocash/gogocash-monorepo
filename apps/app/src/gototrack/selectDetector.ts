@@ -3,10 +3,15 @@ import {
   createNativeAndroidDetector,
   type GototrackNativeModule,
 } from "./nativeDetector";
+import { createIosAppStateFallbackDetector } from "./iosAppStateFallbackDetector";
 
 export interface SelectDetectorOptions {
   isAndroid: boolean;
+  isIos?: boolean;
   loadNativeModule: () => GototrackNativeModule | null;
+  subscribeAppState?: (
+    listener: (state: "active" | "background" | "inactive") => void,
+  ) => () => void;
 }
 
 /**
@@ -19,6 +24,10 @@ export interface SelectDetectorOptions {
 export function selectGoGoTrackDetector(
   options: SelectDetectorOptions,
 ): GoGoTrackDetector {
+  if (options.isIos && options.subscribeAppState) {
+    return createIosAppStateFallbackDetector(options.subscribeAppState);
+  }
+
   if (!options.isAndroid) {
     return createUnsupportedGoGoTrackDetector();
   }

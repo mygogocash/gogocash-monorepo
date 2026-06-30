@@ -24,6 +24,13 @@ const activationNudgeMarkers = [
   "เปิดใช้งานเงินคืน",
   "Activate GoGoTrack cashback",
 ];
+const backgroundPromptMarkers = [
+  "GoGoTrack is watching for cashback",
+  "gototrack_monitor_title",
+  "Cashback available",
+  "gototrack_prompt_accept",
+  "Accept",
+];
 const gototrackHubMarkers = ["GoGoTrack", "Protected tracking", "PROTECTED TRACKING"];
 
 function shellQuote(value) {
@@ -66,6 +73,10 @@ function deviceScreenBlockedMessage(uiXml = "", windowStdout = "") {
   }
 
   return "";
+}
+
+function uiXmlContainsBackgroundPromptMarkers(text = "") {
+  return backgroundPromptMarkers.some((marker) => text.includes(marker));
 }
 
 function uiXmlContainsGoGoTrackHub(uiXml = "") {
@@ -382,6 +393,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     requireAuth: false,
     requireForeground: false,
     requireNudge: false,
+    requireBackgroundPrompt: false,
     tapNudge: false,
     waitForUnlockMs: nonNegativeInt(env.GOGOSENSE_WAIT_FOR_UNLOCK_MS, 0),
   };
@@ -423,6 +435,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg === "--require-auth") options.requireAuth = true;
     else if (arg === "--require-foreground") options.requireForeground = true;
     else if (arg === "--require-nudge") options.requireNudge = true;
+    else if (arg === "--require-background-prompt") options.requireBackgroundPrompt = true;
     else if (arg === "--tap-nudge") options.tapNudge = true;
     else if (arg === "--wait-for-unlock-ms") options.waitForUnlockMs = nonNegativeInt(next(), 0);
     else if (arg === "--help" || arg === "-h") options.help = true;
@@ -1138,6 +1151,42 @@ function activationNudgeEvidenceResult(options, checkpoint = "gototrack-hub") {
   );
 }
 
+function backgroundPromptDumpResult(dumpText) {
+  if (uiXmlContainsBackgroundPromptMarkers(dumpText)) {
+    return result(
+      "pass",
+      "GoGoTrack background prompt notification",
+      `notification dump contains markers (${backgroundPromptMarkers.slice(0, 2).join(", ")}, …)`,
+    );
+  }
+
+  return result(
+    "fail",
+    "GoGoTrack background prompt notification",
+    `notification dump missing background prompt markers (${backgroundPromptMarkers.slice(0, 3).join(", ")}, …)`,
+  );
+}
+
+function backgroundPromptNotificationResult(options, adb, deviceOptions) {
+  if (!options.requireBackgroundPrompt) {
+    return null;
+  }
+
+  const dumpRun = run(adb, adbArgs(deviceOptions, ["shell", "dumpsys", "notification"]), {
+    timeout: 15000,
+  });
+  const dumpText = `${dumpRun.stdout}\n${dumpRun.stderr}`;
+  if (!dumpRun.ok) {
+    return result(
+      "fail",
+      "GoGoTrack background prompt notification",
+      dumpRun.stderr || dumpRun.stdout || "dumpsys notification failed",
+    );
+  }
+
+  return backgroundPromptDumpResult(dumpText);
+}
+
 function activationNudgeTapTarget(uiXml) {
   for (const nodeMatch of uiXml.matchAll(/<node\b[^>]*>/g)) {
     const node = nodeMatch[0];
@@ -1610,6 +1659,14 @@ async function runPreflight(options) {
       await waitForCheckpoint(options);
       await writeDeviceCheckpointEvidence({ context, results }, options, "activation-nudge-tap");
     }
+    const backgroundPromptResult = backgroundPromptNotificationResult(
+      options,
+      options.adb,
+      deviceOptions,
+    );
+    if (backgroundPromptResult) {
+      results.push(backgroundPromptResult);
+    }
   } else if (options.requireNudge || options.tapNudge) {
     if (options.tapNudge) {
       results.push(
@@ -1730,6 +1787,7 @@ Options:
   --require-auth               Fail when no auth token is provided
   --require-foreground         Fail unless a supported merchant package is foreground
   --require-nudge             Fail unless --return-to-gototrack captures visible activation nudge evidence
+  --require-background-prompt Fail unless dumpsys notification contains GoGoTrack monitor/prompt markers
   --tap-nudge                 Tap the activation nudge from gototrack-hub-ui.xml via adb input tap
   --json                       Print machine-readable JSON
 `);
@@ -1762,6 +1820,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
 export {
   activationNudgeMarkers,
+  backgroundPromptDumpResult,
+  backgroundPromptMarkers,
+  backgroundPromptNotificationResult,
   gototrackHubMarkers,
   activationPayloadErrors,
   acceptanceChecklist,
@@ -1786,6 +1847,7 @@ export {
   findDefaultAdb,
   prepareDeviceScreenCommands,
   uiXmlContainsActivationNudge,
+  uiXmlContainsBackgroundPromptMarkers,
   uiXmlContainsGoGoTrackHub,
   merchantPackages,
   merchantCatalogFetchError,

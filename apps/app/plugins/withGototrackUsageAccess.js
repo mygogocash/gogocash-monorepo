@@ -1,15 +1,31 @@
-// Config plugin: declare the PACKAGE_USAGE_STATS permission GoGoTrack needs to
-// read Android foreground-app usage via UsageStatsManager.
+// Config plugin: declare GoGoTrack UsageStats + background monitor permissions.
 //
-// Scope guard: the MVP is foreground UsageStats only. Do not add
-// NotificationListenerService, screenshot capture, foreground service, or
-// QUERY_ALL_PACKAGES. A `<queries>` merchant allowlist is intentionally omitted
-// because UsageStatsManager reports package names without package visibility.
+// Scope: UsageStats foreground detection and optional FGS monitor with actionable
+// notifications for background cashback prompts (user opt-in).
 
 const { withAndroidManifest } = require("@expo/config-plugins");
 
-const PERMISSION = "android.permission.PACKAGE_USAGE_STATS";
+const USAGE_STATS_PERMISSION = "android.permission.PACKAGE_USAGE_STATS";
+const FOREGROUND_SERVICE = "android.permission.FOREGROUND_SERVICE";
+const FOREGROUND_SERVICE_SPECIAL_USE =
+  "android.permission.FOREGROUND_SERVICE_SPECIAL_USE";
+const POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS";
 const TOOLS_NS = "http://schemas.android.com/tools";
+
+function ensurePermission(manifest, name, extra = {}) {
+  manifest["uses-permission"] = manifest["uses-permission"] ?? [];
+  const alreadyDeclared = manifest["uses-permission"].some(
+    (entry) => entry?.$?.["android:name"] === name,
+  );
+  if (!alreadyDeclared) {
+    manifest["uses-permission"].push({
+      $: {
+        "android:name": name,
+        ...extra,
+      },
+    });
+  }
+}
 
 function applyGototrackUsageAccessManifest(manifest) {
   if (!manifest.$) {
@@ -19,19 +35,12 @@ function applyGototrackUsageAccessManifest(manifest) {
     manifest.$["xmlns:tools"] = TOOLS_NS;
   }
 
-  manifest["uses-permission"] = manifest["uses-permission"] ?? [];
-  const alreadyDeclared = manifest["uses-permission"].some(
-    (entry) => entry?.$?.["android:name"] === PERMISSION,
-  );
-
-  if (!alreadyDeclared) {
-    manifest["uses-permission"].push({
-      $: {
-        "android:name": PERMISSION,
-        "tools:ignore": "ProtectedPermissions",
-      },
-    });
-  }
+  ensurePermission(manifest, USAGE_STATS_PERMISSION, {
+    "tools:ignore": "ProtectedPermissions",
+  });
+  ensurePermission(manifest, FOREGROUND_SERVICE);
+  ensurePermission(manifest, FOREGROUND_SERVICE_SPECIAL_USE);
+  ensurePermission(manifest, POST_NOTIFICATIONS);
 
   return manifest;
 }
@@ -45,4 +54,4 @@ function withGototrackUsageAccess(config) {
 
 module.exports = withGototrackUsageAccess;
 module.exports.applyGototrackUsageAccessManifest = applyGototrackUsageAccessManifest;
-module.exports.GOGOSENSE_USAGE_STATS_PERMISSION = PERMISSION;
+module.exports.GOGOSENSE_USAGE_STATS_PERMISSION = USAGE_STATS_PERMISSION;

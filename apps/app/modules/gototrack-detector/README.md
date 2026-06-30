@@ -4,9 +4,9 @@ Android-only native module that backs GoGoTrack's foreground-app detection via
 `UsageStatsManager`. It implements the `GoGoTrackDetector` contract consumed by
 `src/gototrack/*` (adapter → selector → session → hook → screen).
 
-**Scope (MVP, locked):** UsageStats only — `start/stopDetection` are no-ops and the
-JS layer drives the foreground-only loop. No NotificationListenerService, no
-screenshot capture, no always-on foreground service (all deferred).
+**Scope:** UsageStats foreground detection plus an **opt-in** background monitor
+(`GototrackMonitorService`) that shows actionable notifications while the customer
+shops in a supported merchant app. No NotificationListenerService or screenshot capture.
 
 ## Why it isn't built/verified by CI or the JS suite
 

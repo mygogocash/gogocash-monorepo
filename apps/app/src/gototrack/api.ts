@@ -36,7 +36,12 @@ export type GoGoTrackActivationRequest = {
   merchantId: string;
   offerId: number;
   networkMerchantId: number;
-  source: "gototrack" | "golink" | "shop_detail" | "line";
+  source:
+    | "gototrack"
+    | "gototrack_background_prompt"
+    | "golink"
+    | "shop_detail"
+    | "line";
 };
 
 export type GoGoTrackActivationResponse = {
@@ -50,6 +55,7 @@ export type GoGoTrackSettingsUpdate = {
   usageStatsEnabled?: boolean;
   notificationListenerEnabled?: boolean;
   screenshotRecoveryEnabled?: boolean;
+  backgroundPromptsEnabled?: boolean;
 };
 
 export type GoGoTrackBaseClient = {

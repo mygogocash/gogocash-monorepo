@@ -8,33 +8,27 @@ import android.content.Intent
 import android.os.Build
 import android.os.Process
 import android.provider.Settings
+import androidx.core.content.ContextCompat
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 /**
- * GoGoTrack Android foreground-app detector (UsageStats-only MVP).
- *
- * Scope (locked): detect-on-return via UsageStatsManager. NO persistent
- * foreground service, NO NotificationListenerService, NO screenshot capture.
- * `startDetection`/`stopDetection` are intentionally light — the detection
- * loop is driven from JS (detectionRunner) while a session is active; the
- * always-on background service is a deferred phase 2.
- *
- * VERIFICATION: this native code is compiled + exercised only in an EAS
- * dev-client build on a real Android device (see the plan's Phase 4). It is
- * not built by the JS/vitest suite.
+ * GoGoTrack Android foreground-app detector (UsageStats) plus optional background
+ * monitor service for system activation prompts.
  */
 class GototrackDetectorModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("GototrackDetector")
+
+    Events("onMerchantMatch")
 
     Function("isAndroidSupported") {
       Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
     }
 
     AsyncFunction("hasUsageAccessPermission") {
-      hasUsageAccess()
+      GototrackUsageAccess.hasUsageAccess(requireContext())
     }
 
     AsyncFunction("openUsageAccessSettings") {
@@ -48,49 +42,53 @@ class GototrackDetectorModule : Module() {
       currentForegroundPackage()
     }
 
-    // Foreground-only MVP: no service to start/stop. Kept so the JS detector
-    // interface is fully satisfied and phase-2 can fill these in.
-    AsyncFunction("startDetection") {}
-    AsyncFunction("stopDetection") {}
+    AsyncFunction("startDetection") {
+      startMonitorService()
+    }
+
+    AsyncFunction("stopDetection") {
+      stopMonitorService()
+    }
+
+    AsyncFunction("syncBackgroundPromptConfig") { config: Map<String, Any?> ->
+      val prefs = GototrackPromptPreferences(requireContext())
+      val enabled = config["enabled"] as? Boolean ?: false
+      prefs.setBackgroundPromptsEnabled(enabled)
+      prefs.setAuthToken(config["authToken"] as? String)
+      prefs.setApiBaseUrl(config["apiBaseUrl"] as? String)
+
+      if (enabled) {
+        startMonitorService()
+      } else {
+        stopMonitorService()
+      }
+    }
   }
 
   private fun requireContext(): Context =
     appContext.reactContext ?: throw ReactContextUnavailableException()
 
-  private fun hasUsageAccess(): Boolean {
+  private fun startMonitorService() {
     val context = requireContext()
-    val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-    val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      appOps.unsafeCheckOpNoThrow(
-        AppOpsManager.OPSTR_GET_USAGE_STATS,
-        Process.myUid(),
-        context.packageName,
-      )
-    } else {
-      @Suppress("DEPRECATION")
-      appOps.checkOpNoThrow(
-        AppOpsManager.OPSTR_GET_USAGE_STATS,
-        Process.myUid(),
-        context.packageName,
-      )
+    val prefs = GototrackPromptPreferences(context)
+    if (!prefs.isBackgroundPromptsEnabled()) {
+      return
     }
-    return mode == AppOpsManager.MODE_ALLOWED
+    val intent = Intent(context, GototrackMonitorService::class.java)
+    ContextCompat.startForegroundService(context, intent)
   }
 
-  /**
-   * Most-recent foreground app package over a two-minute trailing window, excluding
-   * GoGoCash itself. Returns null when Usage Access is not granted or no
-   * other-app foreground event occurred. MOVE_TO_FOREGROUND (== ACTIVITY_RESUMED
-   * on API 29+, same constant value) works across supported API levels.
-   */
-  private fun isForegroundEvent(eventType: Int): Boolean {
-    return eventType == UsageEvents.Event.MOVE_TO_FOREGROUND ||
-      (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-        eventType == UsageEvents.Event.ACTIVITY_RESUMED)
+  private fun stopMonitorService() {
+    val context = requireContext()
+    val stopIntent =
+      Intent(context, GototrackMonitorService::class.java).apply {
+        action = GototrackMonitorService.ACTION_STOP
+      }
+    context.startService(stopIntent)
   }
 
   private fun currentForegroundPackage(): String? {
-    if (!hasUsageAccess()) return null
+    if (!GototrackUsageAccess.hasUsageAccess(requireContext())) return null
     val context = requireContext()
     val usageStats =
       context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
@@ -101,7 +99,7 @@ class GototrackDetectorModule : Module() {
     var latestPackage: String? = null
     while (events.hasNextEvent()) {
       events.getNextEvent(event)
-      if (isForegroundEvent(event.eventType) &&
+      if (GototrackUsageAccess.isForegroundEvent(event.eventType) &&
         event.packageName != context.packageName
       ) {
         latestPackage = event.packageName

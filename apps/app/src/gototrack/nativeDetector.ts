@@ -12,6 +12,15 @@ export interface GototrackNativeModule {
   getCurrentForegroundPackage(): Promise<string | null>;
   startDetection(): Promise<void>;
   stopDetection(): Promise<void>;
+  syncBackgroundPromptConfig?(config: {
+    enabled: boolean;
+    authToken?: string | null;
+    apiBaseUrl?: string | null;
+  }): Promise<void>;
+  addListener?(
+    eventName: "onMerchantMatch",
+    listener: (event: Record<string, unknown>) => void,
+  ): { remove(): void };
 }
 
 /**
@@ -31,6 +40,8 @@ export function createNativeAndroidDetector(
     getCurrentForegroundPackage: () => native.getCurrentForegroundPackage(),
     startDetection: () => native.startDetection(),
     stopDetection: () => native.stopDetection(),
+    syncBackgroundPromptConfig: (config) =>
+      native.syncBackgroundPromptConfig?.(config) ?? Promise.resolve(),
     // Deferred signals (UsageStats-only MVP): safe no-ops, never reached by the runner.
     hasNotificationListenerPermission: async () => false,
     openNotificationListenerSettings: async () => undefined,

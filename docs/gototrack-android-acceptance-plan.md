@@ -12,7 +12,33 @@
 | Customer native | EAS **`development`** profile → `EXPO_PUBLIC_API_URL=https://api.dev.gogocash.co` |
 | Customer Expo web on Railway | `@gogocash/mobile` at **0 replicas** (use local Metro + dev-client for Android QA) |
 
-**Out of scope:** iOS detector, deferred MVP (NotificationListener, screenshots, always-on FG service), production Play Store submission.
+**Out of scope:** iOS DeviceActivity in-merchant detection (entitlement pending), deferred MVP (NotificationListener, screenshots), production Play Store submission.
+
+---
+
+## Phase 7 — Background system prompts (Android notification path)
+
+**Status:** implemented on `dev` (2026-06-30); **device QA blocked** until a new EAS `development` dev-client build ships native monitor service + notification actions. Agent cannot pass Phase 7 on an older APK without `GototrackMonitorService`.
+
+| Step | Action | Pass criteria |
+| --- | --- | --- |
+| 7.1 | Enable **Show cashback prompt while shopping** in GoGoTrack Settings + Usage Access granted | `GototrackMonitorService` foreground notification visible (“GoGoTrack is watching for cashback”) |
+| 7.2 | Open seeded merchant (e.g. Shopee) while GoGoCash is backgrounded | Actionable notification: **Cashback available** with Accept / Dismiss |
+| 7.3 | Tap **Accept** | App opens `gogocash://gototrack/activate?…` → **POST `/gototrack/activate`** (`source: gototrack_background_prompt`) → affiliate deeplink |
+| 7.4 | Tap **Dismiss** | Prompt notification clears; no activation |
+| 7.5 | Toggle background prompts off | Monitor service stops; ongoing notification disappears |
+
+**Preflight flags (optional):**
+
+```bash
+npm run gototrack:preflight -- \
+  --require-background-prompt \
+  --evidence-dir /tmp/gototrack-acceptance-evidence/
+```
+
+Looks for monitor/prompt copy: `GoGoTrack is watching for cashback`, `Cashback available`, `Accept`.
+
+**Play Console:** declare **special-use** foreground service subtype for merchant cashback detection; keep user opt-in disclosure in onboarding/settings.
 
 ---
 
@@ -27,6 +53,7 @@
 | 4 — `GOGOTRACK_*` env rename | **Done** (`GOGOTRACK_AUTH_TOKEN` primary; `GOTOTRACK_AUTH_TOKEN` / `GOGOSENSE_AUTH_TOKEN` fallback) |
 | 5 — Device acceptance | **Done** — Seeker `SM02G4061912033` vs `api.dev.gogocash.co`; full preflight **22/22 pass** with `--require-nudge --tap-nudge --open-deeplink` (evidence: `/tmp/gototrack-acceptance-evidence/`, 2026-06-30) |
 | 5D — Maestro nudge | **Optional / pending** |
+| 7 — Background system prompts | **Code done** — Phase 7 device checklist + `--require-background-prompt` preflight; **device pass pending EAS rebuild** (owner) |
 | 6 — Merge gates (`test:gototrack` + API + `typecheck`) | **Green** (2026-06-30) |
 
 ---
