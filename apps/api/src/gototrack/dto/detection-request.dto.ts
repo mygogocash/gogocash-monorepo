@@ -51,4 +51,12 @@ export class DetectionRequestDto {
   @IsOptional()
   @IsString()
   appVersion?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Natural-language merchant name for manual / agent-driven matching (e.g. "Shopee")',
+  })
+  @IsOptional()
+  @IsString()
+  merchantHint?: string;
 }

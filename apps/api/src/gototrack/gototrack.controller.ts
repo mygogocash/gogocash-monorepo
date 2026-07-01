@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UnauthorizedException,
   UseGuards,
@@ -37,6 +38,11 @@ export class GototrackController {
   @Get('merchants')
   getMerchants() {
     return this.gototrackService.listMerchants();
+  }
+
+  @Get('merchants/search')
+  searchMerchants(@Query('q') query?: string) {
+    return this.gototrackService.searchMerchants(query);
   }
 
   @UseGuards(FirebaseAuthGuard)

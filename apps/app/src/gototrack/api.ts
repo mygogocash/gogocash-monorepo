@@ -12,6 +12,7 @@ export type GoGoTrackDetectionRequest = {
   packageName?: string;
   url?: string;
   notificationText?: string;
+  merchantHint?: string;
   screenshotJobId?: string;
   observedAt: string;
   platform: GoGoTrackPlatform;
@@ -39,6 +40,7 @@ export type GoGoTrackActivationRequest = {
   source:
     | "gototrack"
     | "gototrack_background_prompt"
+    | "gototrack_agent"
     | "golink"
     | "shop_detail"
     | "line";
@@ -107,6 +109,13 @@ export function createGoGoTrackApi(client: GoGoTrackBaseClient) {
   return {
     getMerchants() {
       return client.get("/gototrack/merchants");
+    },
+    searchMerchants(query?: string) {
+      const params =
+        query && query.trim().length > 0
+          ? `?q=${encodeURIComponent(query.trim())}`
+          : "";
+      return client.get(`/gototrack/merchants/search${params}`);
     },
     detect(request: GoGoTrackDetectionRequest) {
       return client.post<GoGoTrackDetectionResponse>(

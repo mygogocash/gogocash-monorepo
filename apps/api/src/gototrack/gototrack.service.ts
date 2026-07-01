@@ -115,6 +115,7 @@ const sanitizeDetectionRequest = (request: DetectionRequestDto) => ({
   ...request,
   url: sanitizeDetectionUrl(request.url),
   notificationText: sanitizeDetectionText(request.notificationText),
+  merchantHint: sanitizeDetectionText(request.merchantHint),
 });
 
 const domainMatches = (candidateDomain: string, merchantDomain: string) => {
@@ -142,6 +143,15 @@ type AffiliateNetworkError = {
 };
 
 const GOGOSENSE_DEEPLINK_UNAVAILABLE = 'GOGOSENSE_DEEPLINK_UNAVAILABLE';
+
+const GOTOTRACK_DETECTION_REQUIRED_SOURCES = new Set([
+  'gototrack',
+  'gototrack_background_prompt',
+  'gototrack_agent',
+]);
+
+const normalizeMerchantHint = (hint?: string) =>
+  hint?.trim().toLowerCase() || undefined;
 
 function getAffiliateNetworkStatusCode(error: unknown): number | undefined {
   if (!error || typeof error !== 'object') {
@@ -173,6 +183,28 @@ export class GototrackService {
     return this.merchantModel.find({ enabled: true }).lean();
   }
 
+  async searchMerchants(query?: string) {
+    const merchants = (await this.listMerchants()) as LeanMerchant[];
+    const normalizedQuery = normalizeMerchantHint(query);
+    if (!normalizedQuery) {
+      return merchants;
+    }
+
+    return merchants.filter((merchant) =>
+      [
+        merchant.merchant_name,
+        merchant.brand_slug,
+        merchant.merchant_id,
+        ...(merchant.domains || []),
+        ...(merchant.android_packages || []),
+      ]
+        .filter(Boolean)
+        .some((candidate) =>
+          String(candidate).toLowerCase().includes(normalizedQuery),
+        ),
+    );
+  }
+
   async matchMerchant(
     request: DetectionRequestDto,
   ): Promise<DetectionResponse> {
@@ -180,6 +212,7 @@ export class GototrackService {
     const packageName = normalizePackageName(request.packageName);
     const domain = normalizeDomain(request.url);
     const text = request.notificationText?.trim().toLowerCase();
+    const merchantHint = normalizeMerchantHint(request.merchantHint);
 
     for (const merchant of merchants) {
       const packageMatch =
@@ -201,9 +234,25 @@ export class GototrackService {
         ]
           .filter(Boolean)
           .some((candidate) => text.includes(String(candidate).toLowerCase()));
+      const hintMatch =
+        merchantHint &&
+        [
+          merchant.merchant_name,
+          merchant.brand_slug,
+          merchant.merchant_id,
+          ...(merchant.domains || []),
+        ]
+          .filter(Boolean)
+          .some((candidate) => {
+            const normalized = String(candidate).toLowerCase();
+            return (
+              normalized.includes(merchantHint) ||
+              merchantHint.includes(normalized)
+            );
+          });
 
       const confidenceScore =
-        packageMatch || domainMatch ? 1 : textMatch ? 0.8 : 0;
+        packageMatch || domainMatch ? 1 : hintMatch ? 0.9 : textMatch ? 0.8 : 0;
       const threshold = merchant.confidence_threshold ?? 0.75;
 
       if (confidenceScore >= threshold) {
@@ -318,7 +367,7 @@ export class GototrackService {
     request: ActivationRequestDto,
   ): Promise<ActivationResponse> {
     const validatedUserId = this.validatedUserId(userId);
-    if (request.source === 'gototrack') {
+    if (GOTOTRACK_DETECTION_REQUIRED_SOURCES.has(request.source)) {
       const settings = await this.getSettings(validatedUserId);
       if (settings?.enabled === false) {
         throw new BadRequestException('GoGoTrack tracking is disabled');
@@ -410,7 +459,7 @@ export class GototrackService {
     request: ActivationRequestDto,
   ) {
     if (!request.detectionEventId) {
-      if (request.source === 'gototrack') {
+      if (GOTOTRACK_DETECTION_REQUIRED_SOURCES.has(request.source)) {
         throw new BadRequestException(
           'GoGoTrack activation requires a detection event',
         );

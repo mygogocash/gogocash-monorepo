@@ -1,8 +1,12 @@
 import { Module } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AnalyticsModule } from 'src/analytics/analytics.module';
+import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 import { InvolveModule } from 'src/involve/involve.module';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
+import { GototrackAgentController } from './gototrack-agent.controller';
+import { GototrackAgentService } from './gototrack-agent.service';
 import { GototrackController } from './gototrack.controller';
 import { GototrackService } from './gototrack.service';
 import {
@@ -28,6 +32,7 @@ import {
 
 @Module({
   imports: [
+    AnalyticsModule,
     InvolveModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
@@ -47,8 +52,13 @@ import {
       { name: GototrackUserSettings.name, schema: GototrackUserSettingsSchema },
     ]),
   ],
-  controllers: [GototrackController],
-  providers: [GototrackService, JwtService],
-  exports: [GototrackService],
+  controllers: [GototrackController, GototrackAgentController],
+  providers: [
+    GototrackService,
+    GototrackAgentService,
+    JwtService,
+    RateLimitGuard,
+  ],
+  exports: [GototrackService, GototrackAgentService],
 })
 export class GototrackModule {}
