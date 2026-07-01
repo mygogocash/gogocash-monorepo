@@ -45,7 +45,7 @@ describe("directory grid virtualization (Wave 1 perf)", () => {
     expect(discoverySource).toMatch(/const ProductDiscoveryCard = memo\(/);
   });
 
-  it("package > given Expo SDK 56 app > then @shopify/flash-list is declared", () => {
+  it("package > given Expo SDK 57 app > then @shopify/flash-list is declared", () => {
     const packageJson = JSON.parse(
       readMobileFile("package.json")
     ) as { dependencies?: Record<string, string> };

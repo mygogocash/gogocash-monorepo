@@ -4,18 +4,10 @@ import { HydratedDocument } from 'mongoose';
 export type CatalogBannerDocument = HydratedDocument<CatalogBanner>;
 export type CatalogBannerStatus = 'draft' | 'published' | 'archived';
 export type CatalogBannerPlacement =
-  | 'home_hero'
-  | 'home_grid'
-  | 'shop_list'
-  | 'product_detail'
-  | 'modal';
+  'home_hero' | 'home_grid' | 'shop_list' | 'product_detail' | 'modal';
 export type CatalogBannerDevice = 'all' | 'mobile' | 'tablet' | 'desktop';
 export type CatalogBannerCtaType =
-  | 'none'
-  | 'shop'
-  | 'product'
-  | 'offer'
-  | 'url';
+  'none' | 'shop' | 'product' | 'offer' | 'url';
 
 @Schema({ collection: 'catalog_banners', timestamps: true })
 export class CatalogBanner {

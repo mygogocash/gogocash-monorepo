@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   buildSeedOperations,
   parseSeedOptions,
@@ -46,8 +48,8 @@ describe('GoGoTrack merchant seed script helpers', () => {
   });
 
   it('writes to gogosense_merchants so the API Mongoose schema can read seeded rows', () => {
-    const seedSource = require('node:fs').readFileSync(
-      require('node:path').join(__dirname, '../../scripts/seed-gototrack-merchants.ts'),
+    const seedSource = readFileSync(
+      join(__dirname, '../../scripts/seed-gototrack-merchants.ts'),
       'utf8',
     );
     expect(seedSource).toContain("collection: 'gogosense_merchants'");

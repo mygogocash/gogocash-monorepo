@@ -1,5 +1,5 @@
 // Local Expo module — Android UsageStats foreground detector.
-// Structure mirrors the SDK-56 expo-module-gradle-plugin convention (see
+// Structure mirrors the expo-module-gradle-plugin convention (see
 // node_modules/expo-secure-store/android/build.gradle). The plugin wires
 // compileSdk / Kotlin / the expo-modules-core dependency automatically.
 plugins {
