@@ -75,8 +75,8 @@ This diagram is the **same journey** as the mobile GoGoTrack flow in [`gototrack
 
 | Diagram step | API / product (existing on `dev`) |
 | --- | --- |
-| Check brand / offer | `GET /gototrack/merchants`, `POST /gototrack/detect` |
-| Activate tracking | `POST /gototrack/activate` → Involve affiliate deeplink |
+| Browse / check brand | `GET /gototrack/merchants`, `GET /gototrack/merchants/search?q=`, `POST /gototrack/detect` (`method: manual`, `merchantHint`) |
+| Activate tracking | `POST /gototrack/activate` → Involve affiliate deeplink (`source`: `gototrack`, `gototrack_background_prompt`, `gototrack_agent`) |
 | History | `GET /gototrack/timeline` |
 | Cashback in wallet | Involve postback → existing point/wallet pipeline |
 
