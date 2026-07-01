@@ -76,11 +76,14 @@ This diagram is the **same journey** as the mobile GoGoTrack flow in [`gototrack
 | Diagram step | API / product (existing on `dev`) |
 | --- | --- |
 | Browse / check brand | `GET /gototrack/merchants`, `GET /gototrack/merchants/search?q=`, `POST /gototrack/detect` (`method: manual`, `merchantHint`) |
-| Activate tracking | `POST /gototrack/activate` → Involve affiliate deeplink (`source`: `gototrack`, `gototrack_background_prompt`, `gototrack_agent`) |
-| History | `GET /gototrack/timeline` |
+| Agent browse / match | `GET /agent/v1/gototrack/merchants/search?q=`, `POST /agent/v1/gototrack/match-merchant` → structured cards |
+| Activate tracking | `POST /gototrack/activate` or `POST /agent/v1/gototrack/activate-cashback` → Involve affiliate deeplink + `gogocash://` app link |
+| History | `GET /gototrack/timeline` or `GET /agent/v1/gototrack/timeline` |
 | Cashback in wallet | Involve postback → existing point/wallet pipeline |
 
 Maps to existing background prompt flow: `GototrackMonitorService` → **Cashback available** notification → `POST /gototrack/activate` (`source: gototrack_background_prompt`).
+
+**MCP server:** [`packages/gototrack-mcp/README.md`](../packages/gototrack-mcp/README.md) — stdio tools `search_merchants`, `match_merchant`, `activate_cashback`, `get_timeline` against `/agent/v1/gototrack/*`.
 
 ---
 
