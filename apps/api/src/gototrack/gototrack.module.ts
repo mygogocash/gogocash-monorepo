@@ -53,7 +53,12 @@ import {
     ]),
   ],
   controllers: [GototrackController, GototrackAgentController],
-  providers: [GototrackService, GototrackAgentService, JwtService, RateLimitGuard],
+  providers: [
+    GototrackService,
+    GototrackAgentService,
+    JwtService,
+    RateLimitGuard,
+  ],
   exports: [GototrackService, GototrackAgentService],
 })
 export class GototrackModule {}
