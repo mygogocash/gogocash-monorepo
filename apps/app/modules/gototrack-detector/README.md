@@ -4,9 +4,9 @@ Android-only native module that backs GoGoTrack's foreground-app detection via
 `UsageStatsManager`. It implements the `GoGoTrackDetector` contract consumed by
 `src/gototrack/*` (adapter → selector → session → hook → screen).
 
-**Scope (MVP, locked):** UsageStats only — `start/stopDetection` are no-ops and the
-JS layer drives the foreground-only loop. No NotificationListenerService, no
-screenshot capture, no always-on foreground service (all deferred).
+**Scope:** UsageStats foreground detection plus an **opt-in** background monitor
+(`GototrackMonitorService`) that shows actionable notifications while the customer
+shops in a supported merchant app. No NotificationListenerService or screenshot capture.
 
 ## Why it isn't built/verified by CI or the JS suite
 
@@ -25,16 +25,17 @@ Prerequisites (owner-provided — not in the repo):
 1. **`EXPO_TOKEN`** repo secret (expo.dev → Account → Access Tokens). Without it
    `eas build` cannot authenticate. (Confirmed not set as of this PR.)
 2. **`EXPO_PUBLIC_EAS_PROJECT_ID`** wired for the build (see `app.config.ts` → `extra.eas`).
-3. **≥1 GoGoTrack merchant enabled** in staging Mongo with a real Involve
+3. **≥1 GoGoTrack merchant enabled** in **dev** Mongo with a real Involve
    `offer_id`/`network_merchant_id` — all 30 seeds ship **disabled**, so `/gototrack/detect`
    matches nothing until then.
    To upsert the default catalog and enable the first seed for a device pass:
    ```bash
-   MONGO_URI="$STAGING_MONGO_URI" npm run gototrack:seed-merchants -w apps/api -- --enable-first
+   MONGO_URI="$DEV_MONGO_URI" npm run gototrack:seed-merchants -w gogocash-api -- --enable-first
    ```
-   If preflight reports `GET /gototrack/merchants returned 404`, the public API
-   base URL is serving a deployment without the GoGoTrack module. Redeploy the
-   current API to staging before seeding or running final device acceptance.
+   Point `MONGO_URI` at the Railway **dev** Mongo (`mongo-staging` service in the dev
+   environment). Preflight and the dev-client APK default to `https://api.dev.gogocash.co`.
+   If preflight reports `GET /gototrack/merchants returned 404`, the dev API deployment
+   is missing the GoGoTrack module — redeploy `gogocash-api` on Railway dev before seeding.
 
 Build the dev client (CI or local):
 
@@ -106,14 +107,33 @@ node apps/app/scripts/gototrack-preflight.mjs \
 disclosure + a privacy-policy entry describing the Usage-Access usage. No
 `QUERY_ALL_PACKAGES`.
 
+## Test matrix (CI gates)
+
+EAS profile for device acceptance: **`development`** (dev client). Full plan:
+[`docs/gototrack-android-acceptance-plan.md`](../../../docs/gototrack-android-acceptance-plan.md).
+Device QA tasks: [docs/mobile-expo-delegation-plan.md](../../../docs/mobile-expo-delegation-plan.md) Phase 5.
+
+| When to run | Command | What it proves |
+|-------------|---------|----------------|
+| Before every GoGoTrack PR | `npm run test:gototrack -w @gogocash/mobile` | All 27 GoGoTrack vitest files (node + render subset) |
+| Before API `/gototrack/*` changes | `npm run test:gototrack:api` | Jest specs in `apps/api/src/gototrack/` |
+| Before device / EAS acceptance pass | `npm run test:render -w @gogocash/mobile -- src/__tests__/*gototrack*.render.test.tsx` | GoGoTrack UI render suite (happy-dom) |
+
 ## Local pre-device checks
 
 Run these before the EAS/dev-client device pass:
 
 ```bash
+npm run test:gototrack -w @gogocash/mobile
+npm run test:gototrack:api
+npm run typecheck -w @gogocash/mobile
+```
+
+Legacy focused paths (same gates, narrower scope):
+
+```bash
 npm run test -w apps/app -- src/__tests__/mobile-launch-contract.test.ts src/__tests__/gototrack-api.test.ts src/__tests__/gototrack-detection-runner.test.ts src/__tests__/gototrack-session.test.ts --reporter=dot
 npm run test:render -w apps/app -- src/__tests__/customer-gototrack.render.test.tsx src/__tests__/gototrack-hook.render.test.tsx src/__tests__/gototrack-permissions.render.test.tsx src/__tests__/gototrack-timeline.render.test.tsx --reporter=dot
-npm run typecheck -w apps/app
 ```
 
 ## Native Build Artifact Helper
@@ -130,7 +150,8 @@ to `/tmp/gogocash-eas-artifacts-<run-id>`, finds the extracted APK, reads the
 published `.sha256` file when present, and prints a `gototrack:preflight`
 command with the install hash, Metro reverse, usage-access, nudge, tap,
 deeplink, and device-evidence gates already included. The generated command
-also includes `--require-auth`, so missing `GOGOSENSE_AUTH_TOKEN` fails the
+also includes `--require-auth`, so missing `GOGOTRACK_AUTH_TOKEN` (or typo `GOTOTRACK_AUTH_TOKEN` / legacy
+`GOGOSENSE_AUTH_TOKEN`) fails the
 API probes instead of being accepted as a warning. If `--evidence-dir` is not
 supplied, the printed command writes device evidence to
 `/tmp/gogocash-eas-artifacts-<run-id>/gototrack-acceptance-evidence`. It does
@@ -164,4 +185,6 @@ npm run gototrack:artifact -w @gogocash/mobile -- --run-id <github-actions-run-i
 
 ## Delegation plan
 
-EAS profile: **`development`** (dev client). Device QA tasks: [docs/mobile-expo-delegation-plan.md](../../../docs/mobile-expo-delegation-plan.md) Phase 5.
+EAS profile: **`development`** (dev client). Full acceptance plan:
+[`docs/gototrack-android-acceptance-plan.md`](../../../docs/gototrack-android-acceptance-plan.md).
+Delegation tasks: [docs/mobile-expo-delegation-plan.md](../../../docs/mobile-expo-delegation-plan.md) Phase 5.

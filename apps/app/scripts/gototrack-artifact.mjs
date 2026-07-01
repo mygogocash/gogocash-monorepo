@@ -16,8 +16,9 @@ import { fileURLToPath } from "node:url";
 
 const defaultProfile = "development";
 const defaultPlatform = "android";
-const defaultAuthTokenEnv = "GOGOSENSE_AUTH_TOKEN";
+const defaultAuthTokenEnv = "GOGOTRACK_AUTH_TOKEN";
 const defaultSource = "github";
+const defaultApiUrl = "https://api.dev.gogocash.co";
 
 function nextValue(argv, index, flag) {
   const value = argv[index + 1];
@@ -234,6 +235,7 @@ export function buildPreflightCommand({
 
   command.push("--configure-metro-reverse");
   appendOptionalFlag(command, "--metro-port", metroPort, { quote: false });
+  command.push("--launch-dev-client");
 
   command.push("--grant-usage-access");
   appendOptionalFlag(command, "--detect-package", detectPackage);
@@ -277,7 +279,7 @@ function printUsage() {
 Options:
   --artifact-name <name>   GitHub artifact name (default: gogocash-development-android)
   --api-url <url>          Pass through to gototrack:preflight
-  --auth-token-env <name>  Env var used in the printed preflight command (default: GOGOSENSE_AUTH_TOKEN)
+  --auth-token-env <name>  Env var used in the printed preflight command (default: GOGOTRACK_AUTH_TOKEN; GOTOTRACK_AUTH_TOKEN / GOGOSENSE_AUTH_TOKEN still read by preflight)
   --checkpoint-delay-ms <n> Pass through to gototrack:preflight checkpoint capture delay
   --command-file <path>    Write replayable preflight shell command here (default: <output-dir>/gototrack-preflight-command.sh)
   --detect-package <pkg>   Pass through to gototrack:preflight detection probe package
@@ -346,7 +348,7 @@ export function main(argv = process.argv.slice(2), env = process.env, logger = c
 
   const artifact = resolveDownloadedArtifact(options);
   const preflightCommand = buildPreflightCommand({
-    apiUrl: options.apiUrl,
+    apiUrl: options.apiUrl ?? defaultApiUrl,
     apkPath: artifact.apkPath,
     authTokenEnv: options.authTokenEnv,
     checkpointDelayMs: options.checkpointDelayMs,

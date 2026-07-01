@@ -7,6 +7,11 @@ export type GoGoTrackDetector = {
   getCurrentForegroundPackage(): Promise<string | null>;
   startDetection(): Promise<void>;
   stopDetection(): Promise<void>;
+  syncBackgroundPromptConfig?(config: {
+    enabled: boolean;
+    authToken?: string | null;
+    apiBaseUrl?: string | null;
+  }): Promise<void>;
 };
 
 export function createUnsupportedGoGoTrackDetector(): GoGoTrackDetector {

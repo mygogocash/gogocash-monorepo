@@ -11,7 +11,7 @@ describe("GoGoTrack preflight diagnostics", () => {
 
     expect(message).toContain("GET /gototrack/merchants returned 404");
     expect(message).toContain("GoGoTrack API route is missing at this base URL");
-    expect(message).toContain("Verify GOGOSENSE_API_URL/EXPO_PUBLIC_API_URL");
+    expect(message).toContain("Verify GOGOTRACK_API_URL/GOTOTRACK_API_URL/GOGOSENSE_API_URL/EXPO_PUBLIC_API_URL");
     expect(message).toContain("deploy the current API to staging");
     expect(message).toContain("npm run gototrack:seed-merchants -w apps/api");
   });

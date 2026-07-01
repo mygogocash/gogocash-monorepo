@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { GoGoTrackSettingsUpdate } from "./api";
+import { writeBackgroundPromptsEnabled } from "./promptSettingsStorage";
 import { useGoGoTrackApi } from "./useGoGoTrackApi";
 
 export type GoGoTrackSettingsState = {
@@ -8,6 +9,7 @@ export type GoGoTrackSettingsState = {
   usageStatsEnabled: boolean;
   notificationListenerEnabled: boolean;
   screenshotRecoveryEnabled: boolean;
+  backgroundPromptsEnabled: boolean;
 };
 
 export type GoGoTrackSettingsField = keyof GoGoTrackSettingsState;
@@ -22,6 +24,7 @@ const DEFAULTS: GoGoTrackSettingsState = {
   usageStatsEnabled: false,
   notificationListenerEnabled: false,
   screenshotRecoveryEnabled: true,
+  backgroundPromptsEnabled: false,
 };
 
 // Backend persists snake_case; the update DTO is camelCase (mapped server-side).
@@ -35,6 +38,7 @@ function normalize(data: unknown): GoGoTrackSettingsState {
       d.screenshot_recovery_enabled == null
         ? true
         : Boolean(d.screenshot_recovery_enabled),
+    backgroundPromptsEnabled: Boolean(d.background_prompts_enabled),
   };
 }
 
@@ -73,8 +77,14 @@ export function useGoGoTrackSettings(apiOverride?: SettingsApi | null) {
     (field: GoGoTrackSettingsField, value: boolean) => {
       const previous = settings;
       setSettings((prev) => ({ ...prev, [field]: value }));
+      if (field === "backgroundPromptsEnabled") {
+        void writeBackgroundPromptsEnabled(value);
+      }
       void api?.updateSettings({ [field]: value }).catch(() => {
         setSettings(previous);
+        if (field === "backgroundPromptsEnabled") {
+          void writeBackgroundPromptsEnabled(previous.backgroundPromptsEnabled);
+        }
       });
     },
     [api, settings],

@@ -15,7 +15,8 @@ npm --prefix apps/app run gototrack:dev-client  # dev client + adb reverse for G
 | --- | --- |
 | UI / API parity (default) | `npm run web` |
 | Native modules (GoGoTrack) | `start:dev-client` + EAS **development** APK |
-| Staging data, no local API | `EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co` in `.env` |
+| **Dev API** (Railway, recommended for Android QA) | `EXPO_PUBLIC_API_URL=https://api.dev.gogocash.co` in `.env` |
+| Staging data (when staging is up) | `EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co` in `.env` |
 | Full cross-app E2E | `npm run e2e` at repo root — see [docs/E2E_QA_PLAN.md](../../docs/E2E_QA_PLAN.md) |
 
 ### Railway web vs EAS native
@@ -58,11 +59,11 @@ UI changes additionally require live verification on Expo web. Many tests are **
 The app runs on web-parity fixtures by default. A built-in seam (`src/account/customerAccountResource.ts`) switches per-environment:
 
 ```bash
-# apps/app/.env
-EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=fixtures   # default; "backend" = live API, "disabled" = off
-EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co
-EXPO_PUBLIC_APP_ENV=staging
-EXPO_PUBLIC_FRONTEND_URL=https://app-staging.gogocash.co
+# apps/app/.env — dev API (Android dev-client + GoGoTrack device QA)
+EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=backend
+EXPO_PUBLIC_API_URL=https://api.dev.gogocash.co
+EXPO_PUBLIC_APP_ENV=dev
+EXPO_PUBLIC_FRONTEND_URL=http://localhost:8081
 ```
 
 `EXPO_PUBLIC_*` values are inlined at bundle time — **restart the dev server after editing `.env`**. Production forbids `fixtures` at runtime. The live catalog (public `GET /offer`) is already wired through this seam on the Favorite Brands screen; see **[docs/api-integration.md](docs/api-integration.md)** for the full integration state, the mapper pattern, live-probe results, and next steps.

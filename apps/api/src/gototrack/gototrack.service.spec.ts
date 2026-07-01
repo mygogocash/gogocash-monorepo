@@ -172,6 +172,42 @@ describe('GototrackService merchant mapping', () => {
       recommendedAction: 'ignore',
     });
   });
+
+  it('merchant mapping > given manual merchantHint Shopee > then returns Shopee', async () => {
+    const { service } = makeService();
+
+    await expect(
+      service.matchMerchant({
+        ...baseDetectionRequest,
+        method: 'manual',
+        merchantHint: 'Shopee',
+      } as DetectionRequestDto),
+    ).resolves.toMatchObject({
+      matched: true,
+      merchantId: 'merchant-shopee',
+      merchantName: 'Shopee',
+      recommendedAction: 'activate',
+    });
+  });
+});
+
+describe('GototrackService searchMerchants', () => {
+  it('searchMerchants > given shopee query > then returns matching enabled merchants', async () => {
+    const { service } = makeService();
+
+    await expect(service.searchMerchants('shopee')).resolves.toEqual([
+      expect.objectContaining({
+        merchant_id: 'merchant-shopee',
+        merchant_name: 'Shopee',
+      }),
+    ]);
+  });
+
+  it('searchMerchants > given empty query > then returns all enabled merchants', async () => {
+    const { service } = makeService();
+
+    await expect(service.searchMerchants('')).resolves.toHaveLength(2);
+  });
 });
 
 describe('GototrackService detection and activation', () => {
@@ -491,6 +527,46 @@ describe('GototrackService detection and activation', () => {
     ).rejects.toThrow('GoGoTrack activation requires a detection event');
 
     expect(detectionEventModel.findOne).not.toHaveBeenCalled();
+    expect(involveService.createAffiliate).not.toHaveBeenCalled();
+    expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
+
+  it('activation > given gototrack_background_prompt source > then creates activation', async () => {
+    const { activationEventModel, involveService, service } = makeService();
+
+    await expect(
+      service.activate('507f1f77bcf86cd799439011', {
+        detectionEventId: '507f1f77bcf86cd799439012',
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gototrack_background_prompt',
+      }),
+    ).resolves.toMatchObject({
+      activationEventId: 'activation-1',
+      deeplink: 'https://track.gogocash.co/shopee',
+    });
+
+    expect(activationEventModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'gototrack_background_prompt',
+      }),
+    );
+    expect(involveService.createAffiliate).toHaveBeenCalled();
+  });
+
+  it('activation > given gototrack_agent source without detection event > rejects before deeplink creation', async () => {
+    const { activationEventModel, involveService, service } = makeService();
+
+    await expect(
+      service.activate('507f1f77bcf86cd799439011', {
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gototrack_agent',
+      }),
+    ).rejects.toThrow('GoGoTrack activation requires a detection event');
+
     expect(involveService.createAffiliate).not.toHaveBeenCalled();
     expect(activationEventModel.create).not.toHaveBeenCalled();
   });

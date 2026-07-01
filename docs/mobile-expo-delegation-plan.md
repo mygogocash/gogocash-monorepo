@@ -341,6 +341,10 @@ flowchart TB
 
 **Depends on:** Phase 3
 
+**Environment:** Railway **dev** (`api.dev.gogocash.co`, `mongo-staging`). Full plan: [`docs/gototrack-android-acceptance-plan.md`](gototrack-android-acceptance-plan.md).
+
+**Status (2026-06-29):** Phases 0–4 complete; **Phase 5 core preflight green** on Seeker (`SM02G4061912033`) — merchants seeded, JWT auth, APK SHA verified, evidence bundle at `/tmp/gototrack-acceptance-evidence/`. Full activation path (`--require-nudge --open-deeplink`) blocked until **`INVOLVE_SECRET`** is on Railway dev `gogocash-api`.
+
 ### P5-T01 · Harden `gototrack-preflight.mjs` exit codes
 
 | Field | Value |
@@ -349,8 +353,8 @@ flowchart TB
 | **Files** | `apps/app/scripts/gototrack-preflight.mjs`, tests |
 
 **AC:**
-- [ ] Non-zero exit on: no device, no usage permission, merchant not foreground
-- [ ] Existing `gototrack-preflight-script.test.ts` extended GREEN
+- [x] Non-zero exit on: no device, no usage permission, merchant not foreground
+- [x] Existing `gototrack-preflight-script.test.ts` extended GREEN
 
 ### P5-T02 · Maestro: GoGoTrack nudge tap (optional)
 
@@ -371,7 +375,7 @@ flowchart TB
 | **Files** | `apps/app/modules/gototrack-detector/README.md` |
 
 **AC:**
-- [ ] Links to this plan Phase 5 and EAS dev profile name
+- [x] Links to [`docs/gototrack-android-acceptance-plan.md`](gototrack-android-acceptance-plan.md) and EAS profile `development`
 
 ---
 

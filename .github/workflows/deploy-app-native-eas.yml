@@ -14,10 +14,10 @@
 #       set up via `eas credentials` or the eas.json `submit` profile. The
 #       submit job below is gated OFF by default (run it only once creds exist).
 #
-#   • eas.json profiles (apps/app/eas.json) currently define `development`,
-#       `preview`, and `production` build profiles + an empty `submit.production`.
-#       The owner should confirm the staging channel name used for OTA updates
-#       (this scaffold uses `staging`) and finalize the submit profile.
+#   • eas.json profiles (apps/app/eas.json): `development` targets api.dev.gogocash.co
+#       (Android dev-client + GoGoTrack device QA). `preview` stays on staging API.
+#       Firebase client secrets for EAS build are read from the GitHub `staging`
+#       environment (same gogocash-staging Firebase project) until a `dev` env exists.
 #
 # Monorepo note: EAS auto-detects the workspace; the working-directory is
 # apps/app and `eas build` resolves the root lockfile. No app-source changes here.
@@ -50,7 +50,7 @@ on:
       profile:
         description: "EAS build profile (from apps/app/eas.json)"
         required: true
-        default: "preview"
+        default: "development"
         type: choice
         options:
           - development
@@ -59,7 +59,7 @@ on:
       channel:
         description: "EAS Update channel (for the update action)"
         required: true
-        default: "staging"
+        default: "development"
         type: string
 
 permissions:
@@ -70,6 +70,7 @@ jobs:
   eas:
     name: EAS ${{ inputs.action }}
     runs-on: ubuntu-latest
+    environment: staging
     env:
       EXPO_PUBLIC_EAS_PROJECT_ID: 0039c25f-f88e-491d-8da9-85b8d6e66558
       NODE_PATH: ${{ github.workspace }}/node_modules:${{ github.workspace }}/apps/app/node_modules
@@ -113,6 +114,11 @@ jobs:
       - name: EAS Build
         id: eas-build
         if: ${{ inputs.action == 'build' }}
+        env:
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
         run: |
           eas build \
             --non-interactive \

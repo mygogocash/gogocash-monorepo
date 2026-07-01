@@ -1,12 +1,21 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from "node:child_process";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findDefaultAdb, parseDevices } from "./gototrack-preflight.mjs";
 
 const defaultHost = "localhost";
 const defaultMetroPort = "8081";
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+
+export function resolveAppDir(cwd = process.cwd()) {
+  const fromScript = resolve(scriptDir, "..");
+  if (cwd.endsWith(`${resolve.sep}apps${resolve.sep}app`) || cwd.endsWith("/apps/app")) {
+    return cwd;
+  }
+  return fromScript;
+}
 
 export function buildExpoArgs({ host = defaultHost, port = defaultMetroPort } = {}) {
   return ["start", "--dev-client", "--host", host, "--port", String(port), "--clear"];
@@ -86,10 +95,11 @@ export function startExpo({ host = defaultHost, port = defaultMetroPort, env = p
 function main() {
   const port = process.env.GOGOSENSE_METRO_PORT || defaultMetroPort;
   const host = process.env.GOGOSENSE_METRO_HOST || defaultHost;
+  const appDir = resolveAppDir();
 
   configureAdbReverse({ port });
 
-  const child = startExpo({ host, port });
+  const child = startExpo({ host, port, cwd: appDir });
   child.on("exit", (code, signal) => {
     if (signal) {
       process.kill(process.pid, signal);

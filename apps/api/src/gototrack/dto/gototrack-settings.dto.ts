@@ -21,4 +21,9 @@ export class GototrackSettingsDto {
   @IsOptional()
   @IsBoolean()
   screenshotRecoveryEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  backgroundPromptsEnabled?: boolean;
 }

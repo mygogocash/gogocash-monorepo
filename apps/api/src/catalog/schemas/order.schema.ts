@@ -10,11 +10,7 @@ export type CommerceOrderStatus =
   | 'cancelled'
   | 'refunded';
 export type CommercePaymentStatus =
-  | 'unpaid'
-  | 'pending'
-  | 'paid'
-  | 'failed'
-  | 'refunded';
+  'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded';
 
 @Schema({ _id: false })
 export class CommerceOrderItem {

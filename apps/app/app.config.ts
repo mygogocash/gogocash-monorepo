@@ -92,7 +92,11 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
     // keeps OTA intent visible and ensures config survives custom prebuild flows.
     "expo-updates",
     "expo-router",
+    "@sentry/react-native",
     "@react-native-community/datetimepicker",
+    "expo-image",
+    "expo-localization",
+    "expo-secure-store",
     [
       "expo-font",
       {

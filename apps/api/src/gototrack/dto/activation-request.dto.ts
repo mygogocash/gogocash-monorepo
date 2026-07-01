@@ -4,6 +4,8 @@ import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export const activationSources = [
   'gototrack',
+  'gototrack_background_prompt',
+  'gototrack_agent',
   'golink',
   'shop_detail',
   'line',

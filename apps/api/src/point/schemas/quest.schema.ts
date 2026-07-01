@@ -58,9 +58,7 @@ export class QuestReward {
 export const QuestRewardSchema = SchemaFactory.createForClass(QuestReward);
 
 export type QuestRewardDistributionMode =
-  | 'manual'
-  | 'campaign_end'
-  | 'after_days';
+  'manual' | 'campaign_end' | 'after_days';
 
 @Schema({ timestamps: true })
 export class Quest {

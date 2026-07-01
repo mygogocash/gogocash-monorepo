@@ -20,6 +20,9 @@ export class GototrackUserSettings {
 
   @Prop({ default: true })
   screenshot_recovery_enabled: boolean;
+
+  @Prop({ default: false })
+  background_prompts_enabled: boolean;
 }
 
 export const GototrackUserSettingsSchema = SchemaFactory.createForClass(

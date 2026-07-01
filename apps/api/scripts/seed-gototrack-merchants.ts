@@ -4,6 +4,7 @@ import { defaultGototrackMerchants } from '../src/gototrack/seeds/default-gototr
 
 type GototrackMerchantSeedDocument = {
   merchant_id: string;
+  brand_id: string;
   brand_slug: string;
   merchant_name: string;
   domains: string[];
@@ -138,6 +139,7 @@ function getMerchantModel(): Model<GototrackMerchantSeedDocument> {
   const merchantSchema = new Schema<GototrackMerchantSeedDocument>(
     {
       merchant_id: { type: String, required: true, unique: true },
+      brand_id: { type: String, required: true },
       brand_slug: { type: String, required: true },
       merchant_name: { type: String, required: true },
       domains: { type: [String], default: [] },
@@ -150,7 +152,7 @@ function getMerchantModel(): Model<GototrackMerchantSeedDocument> {
       confidence_threshold: { type: Number, default: 0.75 },
       enabled: { type: Boolean, default: false },
     },
-    { collection: 'gototrack_merchants', timestamps: true },
+    { collection: 'gogosense_merchants', timestamps: true },
   );
 
   merchantSchema.index({ enabled: 1 });
@@ -213,6 +215,7 @@ async function seedGototrackMerchants(options: SeedOptions) {
         {
           $set: {
             merchant_id: merchant.merchant_id,
+            brand_id: merchant.brand_id,
             brand_slug: merchant.brand_slug,
             merchant_name: merchant.merchant_name,
             domains: merchant.domains,

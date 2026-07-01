@@ -12,7 +12,7 @@ import {
   Store as StoreIcon,
 } from "@mobile/theme/icons";
 import { useEffect, type ComponentType } from "react";
-import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
@@ -37,6 +37,7 @@ import {
 } from "@mobile/gototrack/useGoGoTrackMerchants";
 import { useGoGoTrackRecovery } from "@mobile/gototrack/useGoGoTrackRecovery";
 import { useGoGoTrackSettings } from "@mobile/gototrack/useGoGoTrackSettings";
+import { useGoGoTrackBackgroundPrompts } from "@mobile/gototrack/useGoGoTrackBackgroundPrompts";
 import { useGoGoTrackTimeline } from "@mobile/gototrack/useGoGoTrackTimeline";
 
 export type GoGoTrackFlowMode =
@@ -146,6 +147,14 @@ const setupRows = [
 
 const settingRows = [
   {
+    title: "Show cashback prompt while shopping",
+    body:
+      Platform.OS === "ios"
+        ? "Shows a Dynamic Island / Live Activity prompt when cashback is available (requires iOS 17+)."
+        : "Shows a status notification with Accept while a supported store is open.",
+    field: "backgroundPromptsEnabled",
+  },
+  {
     title: "Usage access detection",
     body: "Use foreground app transitions for supported Android merchant sessions.",
     field: "usageStatsEnabled",
@@ -247,6 +256,7 @@ export function CustomerGoGoTrackScreen({
 
 function HubContent({ detector }: { detector: GoGoTrackDetector }) {
   const styles = useThemedStyles(createGoGoTrackScreenStyles);
+  useGoGoTrackBackgroundPrompts(detector);
   return (
     <>
       <GoGoTrackDetectionBanner detector={detector} />
@@ -298,6 +308,10 @@ function HubContent({ detector }: { detector: GoGoTrackDetector }) {
 function OnboardingContent() {
   const styles = useThemedStyles(createGoGoTrackScreenStyles);
   const tc = useCopy();
+  const backgroundPromptCopy =
+    Platform.OS === "ios"
+      ? "Optional: enable Live Activity prompts in Settings after setup. GoGoCash only shows them when you opt in."
+      : "Optional: enable background cashback notifications in Settings. GoGoCash shows a low-priority status notification while tracking.";
   return (
     <>
       <View style={styles.card}>
@@ -312,6 +326,7 @@ function OnboardingContent() {
             <Text style={styles.stepText}>{tc(step)}</Text>
           </View>
         ))}
+        <Text style={styles.rowBody}>{tc(backgroundPromptCopy)}</Text>
       </View>
       <PrimaryLink
         href="/gototrack/permissions"
@@ -451,11 +466,22 @@ function SettingsContent({ detector }: { detector: GoGoTrackDetector }) {
   const { colors } = useTheme();
   const tc = useCopy();
   const { settings, setField } = useGoGoTrackSettings();
+  useGoGoTrackBackgroundPrompts(detector);
 
   async function handleSettingChange(
     field: (typeof settingRows)[number]["field"],
     value: boolean,
   ) {
+    if (value && field === "backgroundPromptsEnabled") {
+      if (Platform.OS === "android") {
+        const granted = await detector.hasUsageAccessPermission();
+        if (!granted) {
+          await detector.openUsageAccessSettings();
+          return;
+        }
+      }
+    }
+
     if (value && field === "usageStatsEnabled") {
       const granted = await detector.hasUsageAccessPermission();
       if (!granted) {

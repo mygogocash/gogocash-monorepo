@@ -27,8 +27,8 @@ const latestExpoRuntimeDependencies = [
 ] as const;
 
 describe("mobile Expo SDK target", () => {
-  it("expo sdk target > given latest stable Expo release > then mobile package targets SDK 56", () => {
-    expect(packageJson.dependencies.expo).toMatch(/^\^?~?56\./);
+  it("expo sdk target > given latest stable Expo release > then mobile package targets SDK 57", () => {
+    expect(packageJson.dependencies.expo).toMatch(/^\^?~?57\./);
     expect(packageJson.dependencies.react).toMatch(/^19\.2\./);
     expect(packageJson.dependencies["react-dom"]).toMatch(/^19\.2\./);
     expect(packageJson.dependencies["react-native"]).toMatch(/^0\.86\./);

@@ -143,7 +143,7 @@ describe("GoGoCash mobile launch contract", () => {
     });
   });
 
-  it("expo config > given SDK 56 native config plugins > then includes the status bar plugin", () => {
+  it("expo config > given SDK 57 native config plugins > then includes the status bar plugin", () => {
     const config = mobileExpoConfig({ config: {} } as Parameters<typeof mobileExpoConfig>[0]);
 
     expect(config.plugins).toContain("expo-status-bar");
@@ -163,19 +163,30 @@ describe("GoGoCash mobile launch contract", () => {
     expect(JSON.stringify(easConfig.build.production.env)).not.toContain("staging");
   });
 
-  it("staging launch contract > given EAS development and preview profiles > then they use backend account data against staging API", () => {
+  it("dev launch contract > given EAS development profile > then it targets dev API for Android device QA", () => {
     const easConfig = JSON.parse(fs.readFileSync(path.join(mobileRoot, "eas.json"), "utf8")) as {
       build: Record<string, { env?: Record<string, string> }>;
     };
 
-    for (const profile of ["development", "preview"] as const) {
-      expect(easConfig.build[profile].env).toMatchObject({
-        EXPO_PUBLIC_ACCOUNT_DATA_SOURCE: "backend",
-        EXPO_PUBLIC_API_URL: "https://api-staging.gogocash.co",
-        EXPO_PUBLIC_APP_ENV: "staging",
-        EXPO_PUBLIC_FRONTEND_URL: "https://app-staging.gogocash.co",
-      });
-    }
+    expect(easConfig.build.development.env).toMatchObject({
+      EXPO_PUBLIC_ACCOUNT_DATA_SOURCE: "backend",
+      EXPO_PUBLIC_API_URL: "https://api.dev.gogocash.co",
+      EXPO_PUBLIC_APP_ENV: "dev",
+      EXPO_PUBLIC_FRONTEND_URL: "http://localhost:8081",
+    });
+  });
+
+  it("staging launch contract > given EAS preview profile > then it uses backend account data against staging API", () => {
+    const easConfig = JSON.parse(fs.readFileSync(path.join(mobileRoot, "eas.json"), "utf8")) as {
+      build: Record<string, { env?: Record<string, string> }>;
+    };
+
+    expect(easConfig.build.preview.env).toMatchObject({
+      EXPO_PUBLIC_ACCOUNT_DATA_SOURCE: "backend",
+      EXPO_PUBLIC_API_URL: "https://api-staging.gogocash.co",
+      EXPO_PUBLIC_APP_ENV: "staging",
+      EXPO_PUBLIC_FRONTEND_URL: "https://app-staging.gogocash.co",
+    });
   });
 
   it("production env guard > given cleartext production URLs > then startup rejects the config", () => {
@@ -230,7 +241,7 @@ describe("GoGoCash mobile launch contract", () => {
     ]);
   });
 
-  it("gototrack config > given Android UsageStats MVP > then declares only Usage Access", () => {
+  it("gototrack config > given Android UsageStats MVP > then declares Usage Access and FGS monitor permissions", () => {
     const appConfigSource = fs.readFileSync(path.join(mobileRoot, "app.config.ts"), "utf8");
     const pluginSource = fs.readFileSync(
       path.join(mobileRoot, "plugins/withGototrackUsageAccess.js"),
@@ -255,11 +266,17 @@ describe("GoGoCash mobile launch contract", () => {
     expect(pluginSource).not.toContain("BIND_NOTIFICATION_LISTENER_SERVICE");
     expect(pluginSource).not.toContain("<service");
     expect(duplicateSafeManifest.$["xmlns:tools"]).toBe("http://schemas.android.com/tools");
-    expect(usagePermissions).toHaveLength(1);
-    expect(usagePermissions[0]?.$).toMatchObject({
+    expect(usagePermissions).toHaveLength(4);
+    const usageStatsPermission = usagePermissions.find(
+      (entry) => entry?.$?.["android:name"] === GOGOSENSE_USAGE_STATS_PERMISSION,
+    );
+    expect(usageStatsPermission?.$).toMatchObject({
       "android:name": GOGOSENSE_USAGE_STATS_PERMISSION,
       "tools:ignore": "ProtectedPermissions",
     });
+    expect(
+      usagePermissions.filter((entry) => entry?.$?.["android:name"] === GOGOSENSE_USAGE_STATS_PERMISSION),
+    ).toHaveLength(1);
   });
 
   it("mobile route lookup > given a native path > then returns the matching route contract", () => {

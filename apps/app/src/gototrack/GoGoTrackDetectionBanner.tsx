@@ -11,11 +11,9 @@ import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing } from "@mobile/theme/tokens";
 
 import type { GoGoTrackDetector } from "./detector";
+import { getGoGoTrackPromptCoordinator } from "./promptCoordinatorInstance";
 import { useGoGoTrack, type GoGoTrackHookApi } from "./useGoGoTrack";
 import { useGoGoTrackApi } from "./useGoGoTrackApi";
-
-// Off-device / logged-out fallback: detection is inert (never matches).
-const inertApi: GoGoTrackHookApi = { detect: async () => ({ matched: false }) };
 
 type GoGoTrackDetectionBannerProps = {
   detector: GoGoTrackDetector;
@@ -35,10 +33,33 @@ export function GoGoTrackDetectionBanner({
   api: apiOverride,
   openUrl,
 }: GoGoTrackDetectionBannerProps) {
+  const liveApi = useGoGoTrackApi();
+  const api = apiOverride ?? liveApi;
+
+  if (!api) {
+    return null;
+  }
+
+  return (
+    <GoGoTrackDetectionBannerLoaded
+      api={api}
+      detector={detector}
+      openUrl={openUrl}
+    />
+  );
+}
+
+function GoGoTrackDetectionBannerLoaded({
+  detector,
+  api,
+  openUrl,
+}: {
+  detector: GoGoTrackDetector;
+  api: GoGoTrackHookApi;
+  openUrl?: (url: string) => void;
+}) {
   const styles = useThemedStyles(createGoGoTrackDetectionBannerStyles);
   const tc = useCopy();
-  const liveApi = useGoGoTrackApi();
-  const api = apiOverride ?? liveApi ?? inertApi;
   const { state, start, poll, activate } = useGoGoTrack({ detector, api });
   const [activationError, setActivationError] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
@@ -63,7 +84,13 @@ export function GoGoTrackDetectionBanner({
   const matchKey = matchIsActionable
     ? `${match.packageName}:${match.response.detectionEventId ?? match.response.merchantId ?? ""}`
     : null;
-  const showNudge = matchIsActionable && matchKey !== activatedMatchKey;
+  const nativePromptActive =
+    getGoGoTrackPromptCoordinator()?.getState().nativePromptActive ?? false;
+  const showNudge =
+    matchIsActionable &&
+    matchKey !== activatedMatchKey &&
+    !nativePromptActive &&
+    !(getGoGoTrackPromptCoordinator()?.shouldSuppressBanner(matchKey) ?? false);
 
   const onActivate = useCallback(() => {
     if (activationInFlightRef.current) return;

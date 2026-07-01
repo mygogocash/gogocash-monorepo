@@ -1,0 +1,94 @@
+=== SLIDE TITLE ===
+GoGoTrack
+Shop normally. Get cashback automatically.
+
+=== SUBTITLE ===
+You shop → GoGoCash turns on tracking → Cashback goes to your wallet
+
+=== SWIMLANE HEADERS (4 columns) ===
+YOU          AI NOTIFICATION          GOGOCASH          BRAND
+
+=== COLUMN BOXES ===
+
+[YOU]
+Tell us where you shop
+(e.g. Shopee, Lazada)
+
+[AI NOTIFICATION]
+Cashback available alert
+Tap Accept or Continue
+
+[GOGOCASH]
+Find the deal
+Turn on tracking
+Send cashback to wallet
+
+[BRAND]
+You browse & pay
+as usual
+
+=== ARROW LABELS (numbered flow) ===
+
+1. YOU → AI NOTIFICATION
+   1. Shop Shopee
+
+2. AI NOTIFICATION → GOGOCASH
+   2. Find cashback
+
+3. GOGOCASH → BRAND
+   3. Check offer
+
+4. BRAND → GOGOCASH
+   4. Up to X% back
+
+5. GOGOCASH → AI NOTIFICATION
+   5. Continue?
+
+6. YOU → AI NOTIFICATION
+   6. Yes
+
+7. AI NOTIFICATION → GOGOCASH
+   7. Turn on tracking
+
+8. YOU → BRAND
+   8. Shop on brand
+
+9. GOGOCASH → YOU
+   9. Cashback to wallet
+
+=== BOTTOM STRIP — 3 STEPS (numbered) ===
+
+① BROWSE — Which brand?
+② ACTIVATE — Turn on tracking
+③ EARN — Cashback in wallet
+
+=== COMPARE — 2 COLUMNS ===
+
+OLD WAY                    |  GOGOTRACK WAY
+Open GoGoCash first        |  Reminded while you shop
+Copy affiliate links       |  One tap: Accept / Continue
+Easy to forget             |  Hard to miss
+
+=== FIGMA LAYER NAMES ===
+
+Frame / Hero
+Frame / Swimlanes
+  Column / User
+  Column / AI Notification
+  Column / GoGoCash
+  Column / Brand
+Frame / Steps
+Frame / Compare
+
+=== COLORS (GoGoCash deck) ===
+
+Primary green: #00AA80
+Light green:   #D8F8EF
+Accent:        #00CC99
+Text dark:     #3B3B3B
+Text muted:    #7F7F7F
+Border:        #E4E4E4
+User column:   #E8F4FF
+AI column:     #F3EEFF
+GoGoCash:      #D8F8EF
+Brand column:  #FFF4E8

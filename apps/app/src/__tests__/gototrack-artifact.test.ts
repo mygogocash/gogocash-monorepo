@@ -22,7 +22,7 @@ describe("GoGoTrack artifact helper", () => {
   it("parses the native build run with GoGoTrack artifact defaults", () => {
     expect(artifact.parseArgs(["--run-id", "28014696785"])).toMatchObject({
       artifactName: "gogocash-development-android",
-      authTokenEnv: "GOGOSENSE_AUTH_TOKEN",
+      authTokenEnv: "GOGOTRACK_AUTH_TOKEN",
       commandFile: "/tmp/gogocash-eas-artifacts-28014696785/gototrack-preflight-command.sh",
       evidenceDir:
         "/tmp/gogocash-eas-artifacts-28014696785/gototrack-acceptance-evidence",
@@ -175,9 +175,9 @@ ${preflightCommand}
 
   it("prints the acceptance preflight command with install, nudge, and deeplink gates", () => {
     const command = artifact.buildPreflightCommand({
-      apiUrl: "https://api-staging.gogocash.co",
+      apiUrl: "https://api.dev.gogocash.co",
       apkPath: "/tmp/gogocash-eas-artifacts-28014696785/gogocash-development-android/gogocash-development-android.apk",
-      authTokenEnv: "GOGOSENSE_AUTH_TOKEN",
+      authTokenEnv: "GOGOTRACK_AUTH_TOKEN",
       checkpointDelayMs: "1500",
       detectPackage: "com.shopee.th",
       device: "emulator-5554",
@@ -189,9 +189,9 @@ ${preflightCommand}
     });
 
     expect(command).toContain("run gototrack:preflight -w @gogocash/mobile --");
-    expect(command).toContain("--auth-token \"$GOGOSENSE_AUTH_TOKEN\"");
+    expect(command).toContain("--auth-token \"$GOGOTRACK_AUTH_TOKEN\"");
     expect(command).toContain("--require-auth");
-    expect(command).toContain("--api-url 'https://api-staging.gogocash.co'");
+    expect(command).toContain("--api-url 'https://api.dev.gogocash.co'");
     expect(command).toContain("--device 'emulator-5554'");
     expect(command).toContain("--install-apk '/tmp/gogocash-eas-artifacts-28014696785/");
     expect(command).toContain(
@@ -200,6 +200,7 @@ ${preflightCommand}
     expect(command).toContain("--merchant-apks '/tmp/com.shopee.th.apk,/tmp/config.arm64_v8a.apk'");
     expect(command).toContain("--merchant-packages 'com.shopee.th,com.lazada.android'");
     expect(command).toContain("--configure-metro-reverse");
+    expect(command).toContain("--launch-dev-client");
     expect(command).toContain("--metro-port 8081");
     expect(command).toContain("--detect-package 'com.shopee.th'");
     expect(command).toContain("--require-nudge");

@@ -97,25 +97,39 @@ if [ "$1" = "shell" ] && [ "$2" = "monkey" ]; then
   echo "Events injected: 1"
   exit 0
 fi
-if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "window" ]; then
-  if [ -f "${foregroundFile}" ]; then
-    cat "${foregroundFile}"
-  else
-    echo "mCurrentFocus=Window{abc u0 com.shopee.th/com.shopee.MainActivity}"
-  fi
+if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "trust" ]; then
+  echo "deviceLocked=0"
   exit 0
 fi
-if [ "$1" = "shell" ] && [ "$2" = "am" ]; then
-  case " $* " in
-    *"track.gogocash.co"*)
-      echo "mCurrentFocus=Window{abc u0 com.android.chrome/com.google.android.apps.chrome.Main}" > "${foregroundFile}"
+if [ "$1" = "shell" ]; then
+  case "$2" in
+    am*)
+      case " $* " in
+        *"track.gogocash.co"*)
+          echo "mCurrentFocus=Window{abc u0 com.android.chrome/com.google.android.apps.chrome.Main}" > "${foregroundFile}"
+          ;;
+        *)
+          echo "mCurrentFocus=Window{abc u0 co.gogocash.app/.MainActivity}" > "${foregroundFile}"
+          ;;
+      esac
+      echo "Starting: Intent"
+      exit 0
       ;;
-    *)
-      echo "mCurrentFocus=Window{abc u0 co.gogocash.app/.MainActivity}" > "${foregroundFile}"
+    dumpsys)
+      if [ "$3" = "window" ]; then
+        if [ -f "${foregroundFile}" ]; then
+          cat "${foregroundFile}"
+        else
+          echo "mCurrentFocus=Window{abc u0 com.shopee.th/com.shopee.MainActivity}"
+        fi
+        exit 0
+      fi
+      ;;
+    input|cmd|wm|svc|settings)
+      echo ok
+      exit 0
       ;;
   esac
-  echo "Starting: Intent"
-  exit 0
 fi
 if [ "$1" = "exec-out" ] && [ "$2" = "screencap" ]; then
   printf 'PNGDATA'
@@ -182,6 +196,10 @@ exit 1
       requireForeground: true,
       requireNudge: true,
       returnToGototrack: true,
+      checkpointDelayMs: 0,
+      waitForUnlockMs: 0,
+      launchDevClient: false,
+      injectAuthToken: false,
     });
 
     const resultSummary = report.results.map((item) => `${item.name}:${item.status}`);
@@ -230,36 +248,53 @@ if [ "$1" = "shell" ] && [ "$2" = "monkey" ]; then
   echo "Events injected: 1"
   exit 0
 fi
-if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "window" ]; then
-  if [ -f "${foregroundFile}" ]; then
-    cat "${foregroundFile}"
-  else
-    echo "mCurrentFocus=Window{abc u0 com.shopee.th/com.shopee.MainActivity}"
-  fi
+if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "trust" ]; then
+  echo "deviceLocked=0"
   exit 0
 fi
-if [ "$1" = "shell" ] && [ "$2" = "am" ]; then
-  case " $* " in
-    *"track.gogocash.co"*)
-      echo "mCurrentFocus=Window{abc u0 com.android.chrome/com.google.android.apps.chrome.Main}" > "${foregroundFile}"
+if [ "$1" = "shell" ]; then
+  case "$2" in
+    am*)
+      case " $* " in
+        *"track.gogocash.co"*)
+          echo "mCurrentFocus=Window{abc u0 com.android.chrome/com.google.android.apps.chrome.Main}" > "${foregroundFile}"
+          ;;
+        *)
+          echo "mCurrentFocus=Window{abc u0 co.gogocash.app/.MainActivity}" > "${foregroundFile}"
+          ;;
+      esac
+      echo "Starting: Intent"
+      exit 0
       ;;
-    *)
-      echo "mCurrentFocus=Window{abc u0 co.gogocash.app/.MainActivity}" > "${foregroundFile}"
+    dumpsys)
+      if [ "$3" = "window" ]; then
+        if [ -f "${foregroundFile}" ]; then
+          cat "${foregroundFile}"
+        else
+          echo "mCurrentFocus=Window{abc u0 com.shopee.th/com.shopee.MainActivity}"
+        fi
+        exit 0
+      fi
+      ;;
+    input)
+      if [ "$3" = "tap" ] && [ -n "${tapFile}" ]; then
+        echo "$4,$5" > "${tapFile}"
+      fi
+      echo ok
+      exit 0
+      ;;
+    cmd|wm|svc|settings)
+      echo ok
+      exit 0
       ;;
   esac
-  echo "Starting: Intent"
-  exit 0
-fi
-if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "tap" ]; then
-  echo "$4,$5" > "${tapFile}"
-  exit 0
 fi
 if [ "$1" = "exec-out" ] && [ "$2" = "screencap" ]; then
   printf 'PNGDATA'
   exit 0
 fi
 if [ "$1" = "exec-out" ] && [ "$2" = "uiautomator" ]; then
-  printf '<hierarchy><node text="Activate cashback" content-desc="Activate cashback for Shopee" bounds="[10,20][110,220]" /></hierarchy>'
+  printf '<hierarchy><node text="GoGoTrack" /><node text="Activate cashback" content-desc="Activate cashback for Shopee" bounds="[10,20][110,220]" /></hierarchy>'
   exit 0
 fi
 echo "unexpected adb args: $*" >&2
@@ -323,6 +358,10 @@ exit 1
       requireNudge: true,
       returnToGototrack: true,
       tapNudge: true,
+      checkpointDelayMs: 0,
+      waitForUnlockMs: 0,
+      launchDevClient: false,
+      injectAuthToken: false,
     });
     const tapResult = report.results.find((item) => item.name === "GoGoTrack activation nudge tap");
     const resultSummary = report.results.map((item) => `${item.name}:${item.status}`);
