@@ -1,0 +1,102 @@
+# T-002 · DNS + infra audit (Railway vs Cloud Run)
+# Date: 2026-07-01
+# Agent: Wave 0 sub-agent (read-only curl/dig)
+
+## Runbook reference (docs/railway-execution-runbook.md)
+
+| Host | Expected Railway CNAME |
+|------|------------------------|
+| api-staging.gogocash.co | i313nfy0.up.railway.app |
+| admin-staging.gogocash.co | hs31ua3b.up.railway.app |
+| app-staging.gogocash.co | cs1bxvuq.up.railway.app |
+
+Runbook note: "Staging hostnames are registered on Railway but may still CNAME to ghs.googlehosted.com (GCP/Firebase). Until DNS flips, use *.up.railway.app URLs for acceptance."
+
+## dig +short api-staging.gogocash.co
+
+104.21.36.139
+172.67.194.216
+
+(No CNAME returned — Cloudflare proxy flattening to A records.)
+
+## dig +short admin-staging.gogocash.co
+
+104.21.36.139
+172.67.194.216
+
+## dig +short CNAME api-staging.gogocash.co
+
+(empty — proxied through Cloudflare)
+
+## dig +short api.gogocash.co (production comparison)
+
+ghs.googlehosted.com.
+74.125.24.121
+
+Production API still resolves to Google Hosted (GCP Cloud Run), not Railway.
+
+## dig +short i313nfy0.up.railway.app (runbook Railway API target)
+
+69.46.46.127
+69.46.46.93
+
+## curl -sI https://api-staging.gogocash.co/health
+
+HTTP/2 404
+date: Wed, 01 Jul 2026 14:03:06 GMT
+content-type: application/json
+content-length: 101
+cache-control: public, max-age=5
+server: cloudflare
+x-railway-fallback: true
+x-railway-request-id: KvRP-RXwQaaqiX1c0ubPiw
+x-hikari-trace: hkg1.aebn
+x-railway-edge: hkg1
+cf-cache-status: DYNAMIC
+
+Body (curl -sS):
+{"status":"error","code":404,"message":"Application not found","request_id":"XKxITkkSSmqASdR0acI7Nw"}
+
+## curl -sI https://api-staging.gogocash.co/ (root)
+
+HTTP/2 525
+server: cloudflare
+(intermittent SSL handshake failure between Cloudflare and origin)
+
+## curl -sI https://admin-staging.gogocash.co/
+
+HTTP/2 404
+server: cloudflare
+x-railway-fallback: true
+x-railway-request-id: 2pk0_JERRqiHa1MyipRofQ
+x-railway-edge: hkg1
+
+## curl -sI https://i313nfy0.up.railway.app/health (direct Railway hostname)
+
+HTTP/2 404
+server: railway-hikari
+x-railway-fallback: true
+x-railway-edge: sin1
+
+## curl -sI https://api.gogocash.co/health (production)
+
+HTTP/2 404
+x-powered-by: Express
+server: Google Frontend
+
+(Prod returns JSON 404 on /health at time of audit — separate from staging launch path.)
+
+---
+
+## Finding: Railway vs Cloud Run drift
+
+| Check | Result |
+|-------|--------|
+| api-staging points at GCP (ghs.googlehosted.com)? | **NO** — unlike api.gogocash.co (prod), staging uses Cloudflare → Railway edge headers |
+| api-staging serves healthy Nest API (/health 200)? | **NO** — HTTP 404 `Application not found` (Railway fallback; service or custom domain not attached) |
+| admin-staging reachable? | **NO** — HTTP 404 Railway fallback |
+| Matches runbook Railway CNAME intent? | **PARTIAL** — traffic reaches Railway (`x-railway-edge`) but no live application behind custom domains or i313nfy0.up.railway.app |
+
+**Verdict:** Staging custom domains are **not** on Cloud Run (desired). They are **not production-ready** — Railway accepts the hostname but returns fallback 404. **Escalate:** redeploy/link `gogocash-api` + `gogocash-admin` on Railway staging env and verify custom domains before T-007.
+
+**Blocks:** T-005, T-007, T-008 until /health returns 200.

@@ -1,0 +1,7 @@
+command=adb reverse --list
+ok=true
+status=0
+--- stdout ---
+
+--- stderr ---
+

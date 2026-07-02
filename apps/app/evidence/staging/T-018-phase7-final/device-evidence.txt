@@ -1,0 +1,1 @@
+skipped: no adb device in state=device

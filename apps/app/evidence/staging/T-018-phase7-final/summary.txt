@@ -1,0 +1,9 @@
+api=https://api-staging.gogocash.co
+adb=/Users/kunanonjarat/Library/Android/sdk/platform-tools/adb
+device=none
+foreground=none
+activationDeeplinkForeground=none
+activationDeeplink=https://invl.me/clnlmow
+pass=6
+warn=0
+fail=2
