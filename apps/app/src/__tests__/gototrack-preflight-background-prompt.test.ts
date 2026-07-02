@@ -58,4 +58,24 @@ describe("GoGoTrack preflight background prompt markers", () => {
       ),
     ).toBeNull();
   });
+
+  it("backgroundPromptDumpResult > given monitor service running > then passes", () => {
+    const result = preflight.backgroundPromptDumpResult(
+      "ServiceRecord{ u0 co.gogocash.app/co.gogocash.gototrack.GototrackMonitorService",
+    );
+
+    expect(result).toMatchObject({
+      status: "pass",
+      name: "GoGoTrack background prompt notification",
+    });
+  });
+
+  it("grantPostNotificationsResult > given pm grant ok > then passes", () => {
+    expect(
+      preflight.grantPostNotificationsResult("co.gogocash.app", { ok: true, stdout: "" }),
+    ).toMatchObject({
+      status: "pass",
+      name: "GoGoCash POST_NOTIFICATIONS grant",
+    });
+  });
 });
