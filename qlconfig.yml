@@ -1,0 +1,6 @@
+# Resolve mygogocash/gogocash-mongo-sanitizers from the repo before GHCR.
+# See .github/codeql/gogocash-mongo-sanitizers/ and codeql-config.yml.
+registries:
+  - source: local
+    path: .github/codeql
+  - source: github

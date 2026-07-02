@@ -38,6 +38,7 @@ npx knip --no-progress
 1. **API fixes:** multer path validation, duplicate pagination removal, boolean coercion in offer/auth services.
 2. **Admin cleanup:** Removed knip-ignored dead template files; tightened knip + ESLint.
 3. **CI:** Knip job blocks merges (no `continue-on-error`).
+4. **Local mongo sanitizer pack:** Custom library pack at `.github/codeql/gogocash-mongo-sanitizers/` is resolved via repo-root [`qlconfig.yml`](../qlconfig.yml) (local registry → `.github/codeql`) so CI does not fetch `mygogocash/gogocash-mongo-sanitizers` from GHCR.
 
 ## Related docs
 

@@ -1,4 +1,5 @@
 name: gogocash-codeql
+# Library pack lives in-repo; qlconfig.yml (repo root) registers .github/codeql as a local registry.
 packs:
   - mygogocash/gogocash-mongo-sanitizers
 paths-ignore:
