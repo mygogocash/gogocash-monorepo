@@ -187,6 +187,7 @@ describe("GoGoCash mobile launch contract", () => {
       EXPO_PUBLIC_APP_ENV: "staging",
       EXPO_PUBLIC_FRONTEND_URL: "https://app-staging.gogocash.co",
     });
+    expect(easConfig.build.preview.env?.SENTRY_DISABLE_AUTO_UPLOAD).toBe("true");
   });
 
   it("production env guard > given cleartext production URLs > then startup rejects the config", () => {

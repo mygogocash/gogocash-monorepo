@@ -27,6 +27,8 @@ const activationNudgeMarkers = [
 const backgroundPromptMarkers = [
   "GoGoTrack is watching for cashback",
   "gototrack_monitor_title",
+  "gototrack_monitor",
+  "GototrackMonitorService",
   "Cashback available",
   "gototrack_prompt_accept",
   "Accept",
@@ -1002,6 +1004,24 @@ function grantUsageAccessResult(appPackage, grantRun) {
   );
 }
 
+function grantPostNotificationsResult(appPackage, grantRun) {
+  if (grantRun.ok) {
+    return result(
+      "pass",
+      "GoGoCash POST_NOTIFICATIONS grant",
+      grantRun.stdout || `${appPackage} android.permission.POST_NOTIFICATIONS granted`
+    );
+  }
+
+  return result(
+    "fail",
+    "GoGoCash POST_NOTIFICATIONS grant",
+    grantRun.stderr ||
+      grantRun.stdout ||
+      `adb shell pm grant ${appPackage} android.permission.POST_NOTIFICATIONS failed`
+  );
+}
+
 function supportedMerchantInstallResult(installedMerchantPackages, merchantPackages) {
   if (installedMerchantPackages.length > 0) {
     return result("pass", "supported merchant app installed", installedMerchantPackages.join(", "));
@@ -1172,15 +1192,20 @@ function backgroundPromptNotificationResult(options, adb, deviceOptions) {
     return null;
   }
 
-  const dumpRun = run(adb, adbArgs(deviceOptions, ["shell", "dumpsys", "notification"]), {
+  const dumpRun = run(adb, adbArgs(deviceOptions, ["shell", "dumpsys", "notification", "--noredact"]), {
     timeout: 15000,
   });
-  const dumpText = `${dumpRun.stdout}\n${dumpRun.stderr}`;
-  if (!dumpRun.ok) {
+  const servicesRun = run(
+    adb,
+    adbArgs(deviceOptions, ["shell", "dumpsys", "activity", "services", options.appPackage]),
+    { timeout: 15000 },
+  );
+  const dumpText = `${dumpRun.stdout}\n${dumpRun.stderr}\n${servicesRun.stdout}\n${servicesRun.stderr}`;
+  if (!dumpRun.ok && !servicesRun.ok) {
     return result(
       "fail",
       "GoGoTrack background prompt notification",
-      dumpRun.stderr || dumpRun.stdout || "dumpsys notification failed",
+      dumpRun.stderr || dumpRun.stdout || servicesRun.stderr || "dumpsys notification/services failed",
     );
   }
 
@@ -1529,6 +1554,23 @@ async function runPreflight(options) {
       );
       results.push(grantUsageAccessResult(options.appPackage, grantRun));
     }
+    if (options.grantUsageAccess || options.requireBackgroundPrompt) {
+      const notificationGrantRun = run(
+        options.adb,
+        adbArgs(deviceOptions, [
+          "shell",
+          "pm",
+          "grant",
+          options.appPackage,
+          "android.permission.POST_NOTIFICATIONS",
+        ])
+      );
+      results.push(grantPostNotificationsResult(options.appPackage, notificationGrantRun));
+      run(
+        options.adb,
+        adbArgs(deviceOptions, ["shell", "appops", "set", options.appPackage, "POST_NOTIFICATION", "allow"])
+      );
+    }
     const appops = run(options.adb, adbArgs(deviceOptions, ["shell", "appops", "get", options.appPackage, "GET_USAGE_STATS"]));
     results.push(usageAccessResult(true, appops, options.appPackage));
   } else {
@@ -1658,6 +1700,24 @@ async function runPreflight(options) {
       results.push(activationNudgeTapResult(options, context.device));
       await waitForCheckpoint(options);
       await writeDeviceCheckpointEvidence({ context, results }, options, "activation-nudge-tap");
+    }
+    if (options.requireBackgroundPrompt) {
+      await wait(Math.max(options.checkpointDelayMs, 8000));
+      if (options.authToken) {
+        run(
+          options.adb,
+          adbArgs(deviceOptions, authCallbackLaunchArgs(options.appPackage, options.authToken, defaultAuthCallbackPath)),
+          { timeoutMs: 15000 },
+        );
+        await wait(3000);
+      }
+      runPrepareDeviceScreen(options.adb, deviceOptions);
+      run(
+        options.adb,
+        adbArgs(deviceOptions, amStartViewShellArgs(defaultGototrackUrl, options.appPackage)),
+        { timeout: 15000 }
+      );
+      await wait(Math.max(options.checkpointDelayMs, 8000));
     }
     const backgroundPromptResult = backgroundPromptNotificationResult(
       options,
@@ -1845,6 +1905,7 @@ export {
   devClientInstallResult,
   authTokenInjectResult,
   findDefaultAdb,
+  grantPostNotificationsResult,
   prepareDeviceScreenCommands,
   uiXmlContainsActivationNudge,
   uiXmlContainsBackgroundPromptMarkers,
