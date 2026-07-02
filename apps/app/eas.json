@@ -53,6 +53,12 @@
     }
   },
   "submit": {
+    "preview": {
+      "ios": {},
+      "android": {
+        "track": "internal"
+      }
+    },
     "production": {
       "ios": {
         "ascAppId": "SET_VIA_EAS_CREDENTIALS_OR_eas.json_AFTER_APP_STORE_CONNECT_SETUP"

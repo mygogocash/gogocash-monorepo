@@ -1,0 +1,22 @@
+T-017 Submit Android preview to Play internal — preflight
+Checked: 2026-07-02T13:48Z
+
+## Prerequisite T-015: PASS
+GH run: https://github.com/mygogocash/gogocash-monorepo/actions/runs/28559422060 (success)
+Artifact: gogocash-preview-android (APK/AAB on GH Actions)
+EAS build: 5c57e3ef (versionCode 18 per tracker)
+
+## Submit blockers (agent did NOT run submit — unsafe without owner creds)
+1. apps/app/eas.json submit profile only defines "production", not "preview"
+   → workflow uses --profile preview for submit; may need eas.json submit.preview block
+2. Google Play service account JSON must be on expo.dev (Credentials → Android → Google Service Account)
+3. T-011 Play Console disclosures (FGS special-use, Data safety) must be complete
+
+## Owner command (after creds + eas.json submit.preview)
+gh workflow run deploy-app-native-eas.yml \
+  -f action=submit -f platform=android -f profile=preview
+
+Or: cd apps/app && eas submit --profile preview --platform android --latest
+
+## Status
+blocked — build ready; submit creds + eas.json submit profile + Play Console prep required

@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-07-02T13:46:09Z",
+  "endpoint": "GET https://api-staging.gogocash.co/gototrack/merchants",
+  "http": 200,
+  "merchantCount": 1,
+  "shopeePresent": true,
+  "shopee": {
+    "merchant_id": "merchant-shopee",
+    "brand_id": "brand-shopee",
+    "enabled": true,
+    "android_packages": ["com.shopee.th"]
+  },
+  "agentSearch": {
+    "endpoint": "GET /agent/v1/gototrack/merchants/search?q=shopee",
+    "http": 200,
+    "type": "gototrack_merchant_options",
+    "match": "Shopee"
+  }
+}

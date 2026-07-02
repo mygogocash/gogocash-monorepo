@@ -1,0 +1,18 @@
+T-010 Firebase authorized domains (staging) — owner checklist
+Agent cannot access Firebase console. Owner applies in Firebase project used by GH staging env (EXPO_PUBLIC_FIREBASE_*).
+
+## Firebase Console → Authentication → Settings → Authorized domains
+Add:
+  - app-staging.gogocash.co
+  - admin-staging.gogocash.co
+  - api-staging.gogocash.co (if web OTP callbacks reference API host)
+  - localhost (for local Expo web against staging API)
+
+## Verify
+1. Open https://app-staging.gogocash.co or Expo web with staging channel
+2. /login → Firebase phone OTP completes (no auth/unauthorized-domain error)
+3. If OTP blocked, document workaround: backend JWT for device QA (GOGOTRACK_AUTH_TOKEN) per AGENTS.md
+
+Ref: docs/ios-dev-client.md, apps/app/eas.json preview EXPO_PUBLIC_FIREBASE_* from GH staging environment
+
+Status: owner — checklist only
