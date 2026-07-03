@@ -19,6 +19,8 @@ describe("profile section nav", () => {
       "/profile/verify-phone",
       "/referral",
       "/wallet",
+      "/gototrack",
+      "/gototrack/settings",
       "/withdraw",
       "/withdraw/my-cashback",
       "/method",

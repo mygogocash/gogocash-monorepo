@@ -6,6 +6,8 @@ import {
   subscribeMobileSessionChange,
   type MobileSession,
 } from "@mobile/auth/session";
+import { hasUsableMobileSessionToken } from "@mobile/auth/sessionValidity";
+import { getMobileEnv } from "@mobile/config/env";
 
 type AuthGuardSession = {
   isAuthed: boolean;
@@ -26,10 +28,14 @@ type AuthGuardSession = {
 export function useAuthGuardSession(): AuthGuardSession {
   const [state, setState] = useState<AuthGuardSession>(() => {
     const session = readWebSessionSync();
+    const env = getMobileEnv();
 
     // Web: localStorage is synchronous, so the initial read is authoritative.
     if (typeof window !== "undefined") {
-      return { isAuthed: hasAccessToken(session), ready: true };
+      return {
+        isAuthed: hasUsableMobileSessionToken(session, env.accountDataSource),
+        ready: true,
+      };
     }
 
     // Native: no synchronous source — defer to the async read below.
@@ -50,7 +56,19 @@ export function useAuthGuardSession(): AuthGuardSession {
       }
 
       if (!cancelled) {
-        setState({ isAuthed: hasAccessToken(session ?? null), ready: true });
+        const env = getMobileEnv();
+        const usable = hasUsableMobileSessionToken(session ?? null, env.accountDataSource);
+
+        if (
+          !usable &&
+          env.accountDataSource === "backend" &&
+          typeof session?.access_token === "string" &&
+          session.access_token.length > 0
+        ) {
+          await sessionStore?.clearSession();
+        }
+
+        setState({ isAuthed: usable, ready: true });
       }
     }
 
@@ -66,10 +84,6 @@ export function useAuthGuardSession(): AuthGuardSession {
   }, []);
 
   return state;
-}
-
-function hasAccessToken(session: MobileSession | null): boolean {
-  return Boolean(session?.access_token);
 }
 
 /**

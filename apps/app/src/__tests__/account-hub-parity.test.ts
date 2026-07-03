@@ -229,7 +229,7 @@ describe("Account hub route parity", () => {
     expect(profileFile).toContain("Copy Link");
     expect(profileFile).toContain("useRouter");
     expect(profileFile).toContain("router.push(href as never)");
-    expect(profileFile).toContain('backgroundColor: "#DCEBFF"');
+    expect(profileFile).toContain("pickThemed(colors, \"#DCEBFF\", colors.primarySoft)");
     expect(profileFile).toContain("minHeight: 52");
     expect(profileFile).toContain("borderRadius: 18");
     expect(profileFile).toContain("minWidth: 102");
@@ -315,7 +315,7 @@ describe("Account hub route parity", () => {
     expect(profileFile).toContain("paddingHorizontal: 16");
     expect(profileFile).toMatch(/<InviteIcon[\s\S]{0,120}size=\{24\}/);
     expect(profileFile).toMatch(
-      /inviteRow:[\s\S]*backgroundColor: "#DCEBFF"[\s\S]*maxHeight: 52,[\s\S]*minHeight: 52/
+      /inviteRow:[\s\S]*backgroundColor: pickThemed\(colors, "#DCEBFF", colors\.primarySoft\)[\s\S]*maxHeight: 52,[\s\S]*minHeight: 52/
     );
     expect(profileFile).toMatch(/copyButton:[\s\S]*height: 24,[\s\S]*minWidth: 102/);
     expect(profileFile).toContain("height: 14");
@@ -680,8 +680,9 @@ describe("Account hub route parity", () => {
     expect(privacyCenterFile).toContain("setOptionalConsent");
     expect(privacyCenterFile).not.toContain("Update preferences");
     expect(privacyCenterFile).not.toContain("GoGoTrack history");
-    // Mint/green palette (matches the Total Cashback card), not the old blue theme.
-    expect(privacyCenterFile).toContain('"#F3FCF9"');
+    // Light-mode nested cards keep mint soft fills; shell follows themed card surface.
+    expect(privacyCenterFile).toMatch(/surface:[\s\S]*backgroundColor: colors\.card/);
+    expect(privacyCenterFile).toContain("colors.primarySoft");
     expect(privacyCenterFile).not.toContain('"#DCEEFF"');
     expect(privacyCenterFile).not.toContain('"#10253F"');
     expect(privacyCenterFile).not.toContain('"#B6D3EC"');

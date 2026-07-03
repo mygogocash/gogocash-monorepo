@@ -4,6 +4,7 @@ import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vitest";
 
 import { toastErrorMessages } from "@mobile/i18n/toastMessages";
+import { ApiError } from "@mobile/api/client";
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import type { CustomerAccountResourceResult } from "@mobile/account/customerAccountResource";
@@ -143,5 +144,18 @@ describe("CustomerAccountResourceState i18n (render, th)", () => {
     expect(
       screen.queryByText("Backend account data is disabled for this environment."),
     ).toBeNull();
+  });
+
+  it("surfaces the API error message on the error state body", () => {
+    renderTh(
+      createElement(CustomerAccountResourceState, {
+        resource: {
+          ...resourceOf("error"),
+          error: new ApiError("Fee rate not found", 400),
+        },
+        resourceLabel: "wallet",
+      }),
+    );
+    expect(screen.getByText("Fee rate not found")).toBeTruthy();
   });
 });

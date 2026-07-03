@@ -31,6 +31,7 @@ import {
   webProfileWalletSummary,
 } from "@mobile/design/webDesignParity";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { pickThemed } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing, typography } from "@mobile/theme/tokens";
@@ -370,7 +371,7 @@ function createProfileScreenStyles(colors: ThemeColors) {
   },
   inviteRow: {
     alignItems: "center",
-    backgroundColor: "#DCEBFF",
+    backgroundColor: pickThemed(colors, "#DCEBFF", colors.primarySoft),
     borderRadius: 18,
     flexDirection: "row",
     gap: spacing.md,

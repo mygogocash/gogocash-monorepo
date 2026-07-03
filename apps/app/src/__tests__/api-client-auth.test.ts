@@ -63,4 +63,38 @@ describe("createMobileApiClient auth token selection", () => {
     const init = fetchImpl.mock.calls[0]?.[1] as RequestInit;
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer stored-jwt");
   });
+
+  it("given Firebase token returns 401 > then retries once with the backend JWT", async () => {
+    const fetchImpl = vi.fn(
+      async (_url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+        const auth = (init?.headers as Record<string, string> | undefined)?.Authorization;
+
+        if (auth === "Bearer firebase-id-token") {
+          return {
+            ok: false,
+            status: 401,
+            text: async () => JSON.stringify({ message: "Invalid Firebase token" }),
+          } as Response;
+        }
+
+        return {
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({ ok: true }),
+        } as Response;
+      },
+    );
+    const sessionStore = makeStore("backend-jwt");
+
+    const client = createMobileApiClient({
+      baseUrl: "https://api.dev.gogocash.co",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      getPreferredAuthToken: async () => "firebase-id-token",
+      sessionStore,
+    });
+
+    await expect(client.post("/withdraw/check")).resolves.toEqual({ ok: true });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(sessionStore.clearSession).not.toHaveBeenCalled();
+  });
 });

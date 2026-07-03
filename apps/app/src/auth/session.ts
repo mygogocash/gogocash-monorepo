@@ -1,4 +1,5 @@
 import type { MobileSessionField } from "@mobile/config/mobileAppConfig";
+import { DEMO_MOBILE_SESSION_TOKEN } from "@mobile/auth/sessionValidity";
 
 export type MobileSession = Partial<Record<MobileSessionField, string | boolean | null>>;
 
@@ -178,7 +179,7 @@ export async function createAvailableSessionStore(): Promise<MobileSessionStore 
  */
 export function buildDemoMobileSession(overrides: MobileSession = {}): MobileSession {
   return {
-    access_token: "demo-session",
+    access_token: DEMO_MOBILE_SESSION_TOKEN,
     auth_flow: "phone",
     is_new_user: false,
     provider: "firebase",

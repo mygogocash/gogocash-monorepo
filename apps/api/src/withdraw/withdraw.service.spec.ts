@@ -884,6 +884,13 @@ describe('WithdrawService', () => {
   });
 
   describe('checkWithdraw user lookup', () => {
+    it('checkWithdraw > given an invalid user id > then throws UnauthorizedException', async () => {
+      await expect(mocks.service.checkWithdraw(undefined as never)).rejects.toMatchObject({
+        response: { message: 'User not found' },
+      });
+      expect(mocks.userModel.findOne).not.toHaveBeenCalled();
+    });
+
     it('checkWithdraw > given a loaded user > then passes the user doc into checkWithdrawMyCashback', async () => {
       const userDoc = {
         _id: new Types.ObjectId(VALID_USER_ID),

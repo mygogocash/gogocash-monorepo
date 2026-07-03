@@ -153,7 +153,7 @@ function createProfileHeroCardStyles(colors: ThemeColors) {
     gap: spacing.sm,
   },
   name: {
-    color: colors.ink,
+    color: pickThemed(colors, colors.ink, colors.white),
     fontFamily: typography.family,
     fontSize: 24,
     fontWeight: "600",
@@ -166,13 +166,13 @@ function createProfileHeroCardStyles(colors: ThemeColors) {
     gap: spacing.sm,
   },
   userIdText: {
-    color: colors.muted,
+    color: pickThemed(colors, colors.muted, "rgba(255,255,255,0.72)"),
     fontFamily: typography.family,
     fontSize: 16,
     lineHeight: 22,
   },
   userIdValue: {
-    color: colors.ink,
+    color: pickThemed(colors, colors.ink, colors.white),
     fontFamily: typography.family,
     fontVariant: ["tabular-nums"],
     fontWeight: "600",

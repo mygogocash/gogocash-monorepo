@@ -27,6 +27,7 @@ const PROFILE_SECTION_PREFIXES = [
   "/profile",
   "/referral",
   "/wallet",
+  "/gototrack",
   "/withdraw",
   "/method",
   "/membership",

@@ -93,7 +93,8 @@ describe("Customer profile hero parity (web CardProfile)", () => {
     // Dark banner uses themed mint surface + border instead of the bright radial sheen.
     expect(heroFile).toContain("colors.primarySoft");
     expect(heroFile).toContain("colors.borderStrong");
-    expect(heroFile).toContain("pickThemed(");
+    expect(heroFile).toContain("pickThemed(colors, colors.ink, colors.white)");
+    expect(heroFile).toContain('pickThemed(colors, colors.muted, "rgba(255,255,255,0.72)")');
   });
 
   it("shared panel > given the rich profile panel > then it composes the hero above the cashback + personal sections", () => {

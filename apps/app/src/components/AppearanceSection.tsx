@@ -20,7 +20,7 @@ export function AppearanceSection() {
       <View
         accessibilityRole="radiogroup"
         accessibilityLabel={tc(webAccountSettingsPage.appearance.title)}
-        style={styles.segmentRow}
+        style={styles.segmentTrack}
       >
         {webAccountSettingsPage.appearance.options.map((option) => (
           <AppearanceOption
@@ -54,7 +54,10 @@ function AppearanceOption({
       onPress={onSelect}
       style={[styles.segment, selected ? styles.segmentSelected : null]}
     >
-      <Text style={[styles.segmentLabel, selected ? styles.segmentLabelSelected : null]}>
+      <Text
+        numberOfLines={2}
+        style={[styles.segmentLabel, selected ? styles.segmentLabelSelected : null]}
+      >
         {label}
       </Text>
     </Pressable>
@@ -79,32 +82,38 @@ function createStyles(colors: ThemeColors) {
       fontSize: 14,
       lineHeight: 20,
     },
-    segmentRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-    },
-    segment: {
-      alignItems: "center",
+    segmentTrack: {
+      backgroundColor: colors.fieldMuted,
       borderColor: colors.border,
       borderRadius: radii.md,
       borderWidth: 1,
-      flexGrow: 1,
+      flexDirection: "row",
+      gap: 4,
+      padding: 4,
+      width: "100%",
+    },
+    segment: {
+      alignItems: "center",
+      borderColor: "transparent",
+      borderRadius: radii.sm,
+      borderWidth: 1,
+      flex: 1,
+      flexBasis: 0,
       justifyContent: "center",
       minHeight: 44,
-      minWidth: 100,
-      paddingHorizontal: spacing.md,
-      paddingVertical: 10,
+      paddingHorizontal: 6,
+      paddingVertical: 8,
     },
     segmentSelected: {
-      backgroundColor: colors.primarySoft,
-      borderColor: colors.primary,
+      backgroundColor: colors.card,
+      borderColor: colors.borderStrong,
     },
     segmentLabel: {
       color: colors.muted,
       fontFamily: typography.family,
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: "500",
+      lineHeight: 18,
       textAlign: "center",
     },
     segmentLabelSelected: {

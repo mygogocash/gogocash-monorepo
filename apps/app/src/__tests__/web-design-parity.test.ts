@@ -669,6 +669,7 @@ describe("GoGoCash web design parity", () => {
       { label: "Profile", href: "/profile", activePrefix: "/profile" },
       { label: "Invite your Friends", href: "/referral", activePrefix: "/referral" },
       { label: "My Wallet", href: "/wallet", activePrefix: "/wallet" },
+      { label: "GoGoTrack", href: "/gototrack", activePrefix: "/gototrack" },
       { label: "GoGoPass", href: "/membership", activePrefix: "/membership" },
       { label: "Missing Orders", href: "/missing-orders", activePrefix: "/missing-orders" },
       { label: "Favorite Brands", href: "/favorite", activePrefix: "/favorite" },

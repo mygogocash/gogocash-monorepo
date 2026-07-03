@@ -1,6 +1,7 @@
 import { useContext, type ReactNode } from "react";
 import { IntlContext, type MessageDescriptor } from "react-intl";
 
+import { ApiError } from "@mobile/api/client";
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import type { CustomerAccountResourceResult } from "@mobile/account/customerAccountResource";
 
@@ -122,10 +123,12 @@ export function CustomerAccountResourceState({
               defaultMessage: "Backend account data is disabled for this environment.",
               id: "mobileResourceDisabledBody",
             })
-          : format({
-              defaultMessage: "GoGoCash could not load your {label}.",
-              id: "mobileResourceErrorBody",
-            })
+          : resource.status === "error" && resource.error instanceof ApiError && resource.error.message
+            ? resource.error.message
+            : format({
+                defaultMessage: "GoGoCash could not load your {label}.",
+                id: "mobileResourceErrorBody",
+              })
       }
       title={
         resource.status === "disabled"

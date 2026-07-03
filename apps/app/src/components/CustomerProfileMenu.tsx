@@ -493,7 +493,7 @@ function createProfileMenuStyles(colors: ThemeColors) {
     fontWeight: "400",
   },
   divider: {
-    backgroundColor: "#E4E4E4",
+    backgroundColor: colors.border,
     height: 1,
     marginVertical: 4,
     width: "100%",

@@ -5,6 +5,7 @@ import {
   prefetchAuthedAccountResources,
   prefetchPublicHomeResources,
 } from "@mobile/account/accountResourcePrefetch";
+import { hasUsableMobileSessionToken } from "@mobile/auth/sessionValidity";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { getMobileEnv } from "@mobile/config/env";
 
@@ -27,7 +28,7 @@ export function AccountResourceWarmup() {
   }, [env.accountDataSource, env.apiUrl, queryClient]);
 
   useEffect(() => {
-    if (!env.apiUrl || !session?.access_token) {
+    if (!env.apiUrl || !hasUsableMobileSessionToken(session, env.accountDataSource)) {
       return;
     }
 

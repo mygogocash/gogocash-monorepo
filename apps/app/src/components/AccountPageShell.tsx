@@ -466,7 +466,7 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     marginTop: 64,
   },
   profileSurface: {
-    borderColor: webAccountPageSurface.surfaceBorderColor,
+    borderColor: colors.border,
     borderRadius: webAccountPageSurface.cardRadius,
     borderWidth: 1,
     flexDirection: "row",

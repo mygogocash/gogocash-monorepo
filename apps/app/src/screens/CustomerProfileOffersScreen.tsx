@@ -14,6 +14,7 @@ import { useCopy } from "@mobile/i18n/useCopy";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import { haptics } from "@mobile/lib/haptics";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { pickThemed } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -249,7 +250,7 @@ function createProfileOffersScreenStyles(colors: ThemeColors) {
   },
   deeplinkRow: {
     alignItems: "center",
-    backgroundColor: "#F3FBF8",
+    backgroundColor: pickThemed(colors, "#F3FBF8", colors.fieldMuted),
     borderRadius: radii.sm,
     flexDirection: "row",
     gap: spacing.sm,
