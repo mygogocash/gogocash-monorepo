@@ -20,5 +20,6 @@ import { MediaModule } from 'src/media/media.module';
   ],
   controllers: [UserController],
   providers: [UserService, JwtService],
+  exports: [UserService],
 })
 export class UserModule {}
