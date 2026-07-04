@@ -12,6 +12,10 @@ Native builds use `posthog-react-native` with keys from `EXPO_PUBLIC_POSTHOG_KEY
 
 Expo web uses the same env vars — see `apps/app/src/__tests__/analytics-events.test.ts` for wired events.
 
+## Consent (PDPA-05)
+
+Optional analytics gating on cookie/Privacy Center consent is **not yet wired** — PostHog may identify before explicit analytics opt-in. Track under `apps/app/docs/security-pentest-checklist.md` PDPA-05 until Phase 2 consent API + init gating land.
+
 ## Related
 
 - [firebase-native-eas.md](./firebase-native-eas.md)

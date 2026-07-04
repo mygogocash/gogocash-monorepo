@@ -301,6 +301,9 @@ with a contract test. Ship domain-by-domain (pipeline, not big bang):
   query/toggle/sort/paginate.
 - **3f PDPA/credit/missing-orders (L):** consent endpoints, `scoreCalculator.ts`
   (pure, ports as-is), real missing-orders form (picker/date/image via Phase 0).
+  **Client done (2026-07, `cf56e655`):** cookie banner dismiss persistence
+  (`src/pdpa/cookieConsentStorage.ts` — web `localStorage`, native SecureStore).
+  **Still open:** NestJS `/pdpa/consent`, Privacy Center API sync, analytics gating.
 - **Gate:** contract test per domain; backend loading/empty/error/offline states
   already scaffolded — verify each renders with live API.
 
