@@ -25,15 +25,15 @@ describe("desktop profile rail parity", () => {
   it("rail > given the menu > then it renders the full web menu, the Profile accordion, and Log Out", () => {
     const shell = readMobileFile("src/components/AccountPageShell.tsx");
 
-    // Full menu (no 9-item cap) + accordion sub-nav + active-by-route helpers.
+    // Full menu (no 9-item cap) + Profile accordion sub-nav + active-by-route helpers.
     expect(shell).toContain("profileHubMenuItems.map");
     expect(shell).not.toContain("profileHubMenuItems.slice(0, 9)");
     expect(shell).toContain("profileHubSubNavItems.map");
-    expect(shell).toContain("profileHubGoGoTrackSubNavItems.map");
+    expect(shell).not.toContain("profileHubGoGoTrackSubNavItems");
     expect(shell).toContain("shouldAutoExpandProfileSubNav");
-    expect(shell).toContain("shouldAutoExpandGoGoTrackSubNav");
+    expect(shell).not.toContain("shouldAutoExpandGoGoTrackSubNav");
     expect(shell).toContain("isProfileSubNavItemActive");
-    expect(shell).toContain("isGoGoTrackSubNavItemActive");
+    expect(shell).not.toContain("isGoGoTrackSubNavItemActive");
     expect(shell).toContain("isProfileMenuItemActive");
     // Log Out reuses the shared hook + confirm card.
     expect(shell).toContain("useMobileLogout");

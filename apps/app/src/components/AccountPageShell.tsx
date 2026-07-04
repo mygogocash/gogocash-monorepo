@@ -28,26 +28,21 @@ import { useCopy } from "@mobile/i18n/useCopy";
 import { useMobileLogout } from "@mobile/auth/useMobileLogout";
 import { normalizePathname } from "@mobile/auth/routeGuard";
 import {
-  isGoGoTrackSubNavItemActive,
   isProfileMenuItemActive,
   isProfileSectionPath,
   isProfileSubNavItemActive,
-  shouldAutoExpandGoGoTrackSubNav,
   shouldAutoExpandProfileSubNav,
 } from "@mobile/navigation/profileSectionNav";
 import profileAvatarImage from "../../assets/profile-avatar.png";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
-import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import {
-  getAccountShellFooterHorizontalPadding,
   getAccountShellFrameMetrics,
   getDesktopShellOffset,
   mobileShellLayout,
   profileHubMenuItems,
-  profileHubGoGoTrackSubNavItems,
   profileHubSubNavItems,
   webAccountPageSurface,
   webProfileWalletHeroSurface,
@@ -97,6 +92,7 @@ export function AccountPageShell({
   // not just the hub screens that explicitly opt in via showProfileRail.
   const showDesktopRail = isDesktop && (showProfileRail || isProfileSectionPath(pathname));
   const useDesktopHomepageFooter = isDesktop && !showDesktopRail;
+  const useDesktopFullBleedChrome = isDesktop && (useDesktopHomepageFooter || showDesktopRail);
   // The rounded surface card wraps content whenever the rail shows, plus the
   // mobile hub screens (profile/wallet) that opt in via showProfileRail.
   const useProfileSurface = showDesktopRail || (!isDesktop && showProfileRail);
@@ -108,54 +104,69 @@ export function AccountPageShell({
     alignToNavbarShell: showDesktopRail,
     tabletFluid: tabletContentMode === "fluid",
   });
-  // Rail pages keep the footer inside the padded account frame, so they need an
-  // offset back past the frame's centering gap + content padding. Quest/non-rail
-  // desktop pages use the same full-width footer placement as the homepage.
-  const footerHorizontalPadding = getAccountShellFooterHorizontalPadding(width, {
-    alignToNavbarShell: showDesktopRail,
-  });
+  // Rail and quest desktop pages use full-bleed scroll so the footer can break out to
+  // the viewport edge; only mobile/tablet non-rail layouts keep the legacy padded frame.
   const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
+
+  const profileSurfaceBlock = (
+    <View
+      style={[
+        styles.profileSurface,
+        isDesktop ? styles.profileSurfaceDesktop : styles.profileSurfaceMobile,
+      ]}
+    >
+      {showDesktopRail ? <DesktopProfileRail /> : null}
+      <View
+        style={[
+          styles.profileContent,
+          isDesktop
+            ? styles.profileContentDesktop
+            : [styles.profileContentMobile, styles.profileContentMobileInner],
+        ]}
+      >
+        {showTitle ? (
+          <Text style={[styles.mobileTitle, isDesktop ? styles.desktopSrTitle : null]}>
+            {title}
+          </Text>
+        ) : null}
+        {children}
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.frame, useDesktopHomepageFooter ? null : { maxWidth: frameMetrics.maxWidth }]}>
+      <View style={[styles.frame, useDesktopFullBleedChrome ? null : { maxWidth: frameMetrics.maxWidth }]}>
         <ScrollView
           contentContainerStyle={[
             styles.page,
+            useDesktopFullBleedChrome ? styles.pageDesktopFullBleed : null,
             {
               paddingBottom: showBottomNav
                 ? mobileShellLayout.bottomNavClearance + 18
                 : mobileShellLayout.desktopBottomClearance,
-              paddingHorizontal: useDesktopHomepageFooter ? 0 : frameMetrics.paddingHorizontal,
+              paddingHorizontal: useDesktopFullBleedChrome ? 0 : frameMetrics.paddingHorizontal,
               paddingTop: Math.max(spacing.md, insets.top + spacing.md),
             },
           ]}
           showsVerticalScrollIndicator={false}
         >
           {useProfileSurface ? (
-            <View
-              style={[
-                styles.profileSurface,
-                isDesktop ? styles.profileSurfaceDesktop : styles.profileSurfaceMobile,
-              ]}
-            >
-              {showDesktopRail ? <DesktopProfileRail /> : null}
+            showDesktopRail && isDesktop ? (
               <View
                 style={[
-                  styles.profileContent,
-                  isDesktop
-                    ? styles.profileContentDesktop
-                    : [styles.profileContentMobile, styles.profileContentMobileInner],
+                  styles.desktopContentCap,
+                  {
+                    maxWidth: frameMetrics.maxWidth,
+                    paddingHorizontal: frameMetrics.paddingHorizontal,
+                  },
                 ]}
               >
-                {showTitle ? (
-                  <Text style={[styles.mobileTitle, isDesktop ? styles.desktopSrTitle : null]}>
-                    {title}
-                  </Text>
-                ) : null}
-                {children}
+                {profileSurfaceBlock}
               </View>
-            </View>
+            ) : (
+              profileSurfaceBlock
+            )
           ) : (
             <View
               style={[
@@ -174,7 +185,7 @@ export function AccountPageShell({
               {children}
             </View>
           )}
-          {useDesktopHomepageFooter ? (
+          {isDesktop ? (
             <View
               style={[
                 styles.desktopHomepageFooterCap,
@@ -186,12 +197,7 @@ export function AccountPageShell({
                 viewportWidth={width}
               />
             </View>
-          ) : (
-            <CustomerDesktopFooterSlot
-              horizontalPadding={footerHorizontalPadding}
-              style={styles.desktopFooter}
-            />
-          )}
+          ) : null}
         </ScrollView>
         {showBottomNav ? (
           <CustomerMobileBottomNav activeRouteId={activeRouteId} bottomInset={insets.bottom} />
@@ -212,9 +218,6 @@ function DesktopProfileRail() {
   const tc = useCopy();
   const pathname = normalizePathname(usePathname() ?? "/");
   const [profileSubOpen, setProfileSubOpen] = useState(() => shouldAutoExpandProfileSubNav(pathname));
-  const [goGoTrackSubOpen, setGoGoTrackSubOpen] = useState(() =>
-    shouldAutoExpandGoGoTrackSubNav(pathname),
-  );
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const { logout, pending: logoutPending } = useMobileLogout();
 
@@ -250,51 +253,6 @@ function DesktopProfileRail() {
                 <View style={styles.railSubNav}>
                   {profileHubSubNavItems.map((sub) => {
                     const subActive = isProfileSubNavItemActive(pathname, sub.href);
-                    return (
-                      <Link asChild href={sub.href as never} key={sub.href}>
-                        <MotionPressable
-                          pressScale={0.98}
-                          style={StyleSheet.flatten([
-                            styles.railSubRow,
-                            subActive ? styles.railSubRowActive : null,
-                          ])}
-                        >
-                          <Text style={[styles.railSubLabel, subActive ? styles.railSubLabelActive : null]}>
-                            {tc(sub.label)}
-                          </Text>
-                        </MotionPressable>
-                      </Link>
-                    );
-                  })}
-                </View>
-              ) : null}
-            </View>
-          );
-        }
-
-        // GoGoTrack is an accordion that reveals setup / timeline / settings sub-nav.
-        if (item.href === "/gototrack") {
-          return (
-            <View key={item.label} style={styles.railAccordion}>
-              <MotionPressable
-                accessibilityRole="button"
-                accessibilityState={{ expanded: goGoTrackSubOpen }}
-                onPress={() => setGoGoTrackSubOpen((open) => !open)}
-                pressScale={0.98}
-                style={StyleSheet.flatten([styles.railRow, active ? styles.railRowActive : null])}
-              >
-                <Icon color={iconColor} size={22} strokeWidth={typography.iconStrokeWidth} />
-                <Text style={[styles.railLabel, active ? styles.railLabelActive : null]}>{label}</Text>
-                {goGoTrackSubOpen ? (
-                  <ChevronUpIcon color={iconColor} size={20} strokeWidth={typography.iconStrokeWidth} />
-                ) : (
-                  <ChevronDownIcon color={iconColor} size={20} strokeWidth={typography.iconStrokeWidth} />
-                )}
-              </MotionPressable>
-              {goGoTrackSubOpen ? (
-                <View style={styles.railSubNav}>
-                  {profileHubGoGoTrackSubNavItems.map((sub) => {
-                    const subActive = isGoGoTrackSubNavItemActive(pathname, sub.href);
                     return (
                       <Link asChild href={sub.href as never} key={sub.href}>
                         <MotionPressable
@@ -514,8 +472,13 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
   page: {
     minHeight: "100%",
   },
-  desktopFooter: {
-    marginTop: 64,
+  pageDesktopFullBleed: {
+    paddingHorizontal: 0,
+  },
+  desktopContentCap: {
+    alignSelf: "center",
+    flexGrow: 0,
+    width: "100%",
   },
   profileSurface: {
     borderColor: colors.border,

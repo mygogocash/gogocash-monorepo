@@ -5,10 +5,8 @@ import { describe, expect, it } from "vitest";
 
 import { profileHubMenuItems } from "@mobile/design/webDesignParity";
 import {
-  isGoGoTrackSubNavItemActive,
   isProfileMenuItemActive,
   isProfileSectionPath,
-  shouldAutoExpandGoGoTrackSubNav,
 } from "@mobile/navigation/profileSectionNav";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
@@ -25,14 +23,14 @@ describe("profile GoGoTrack menu entry", () => {
     });
   });
 
-  it("profile menu icon > given GoGoTrack row > then maps to the activity icon", () => {
+  it("profile menu icon > given GoGoTrack row > then maps to the shield check icon", () => {
     const iconsFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/profileMenuIcons.ts"),
       "utf8",
     );
 
-    expect(iconsFile).toContain('GoGoTrack: GoGoTrackIcon');
-    expect(iconsFile).toContain("Activity as GoGoTrackIcon");
+    expect(iconsFile).toContain("GoGoTrack: ShieldCheckIcon");
+    expect(iconsFile).toContain("ShieldCheck as ShieldCheckIcon");
   });
 
   it("profile section nav > given GoGoTrack routes > then highlights the menu item and keeps the profile shell", () => {
@@ -45,11 +43,14 @@ describe("profile GoGoTrack menu entry", () => {
     expect(isProfileMenuItemActive(item!, "/wallet")).toBe(false);
   });
 
-  it("profile rail accordion > given GoGoTrack sub routes > then expands and highlights the matching sub item", () => {
-    expect(shouldAutoExpandGoGoTrackSubNav("/gototrack/timeline")).toBe(true);
-    expect(shouldAutoExpandGoGoTrackSubNav("/wallet")).toBe(false);
-    expect(isGoGoTrackSubNavItemActive("/gototrack", "/gototrack")).toBe(true);
-    expect(isGoGoTrackSubNavItemActive("/gototrack/settings", "/gototrack")).toBe(false);
-    expect(isGoGoTrackSubNavItemActive("/gototrack/settings", "/gototrack/settings")).toBe(true);
+  it("profile rail > given GoGoTrack > then renders a simple link without sidebar accordion sub-nav", () => {
+    const shell = fs.readFileSync(
+      path.join(mobileRoot, "src/components/AccountPageShell.tsx"),
+      "utf8",
+    );
+
+    expect(shell).not.toContain("profileHubGoGoTrackSubNavItems");
+    expect(shell).not.toContain("goGoTrackSubOpen");
+    expect(shell).not.toContain('item.href === "/gototrack"');
   });
 });

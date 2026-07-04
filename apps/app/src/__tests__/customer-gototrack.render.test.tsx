@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createElement } from "react";
+import { createElement, type ComponentProps } from "react";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -19,6 +19,11 @@ import {
   CustomerGoGoTrackScreen,
   type GoGoTrackFlowMode,
 } from "@mobile/screens/CustomerGoGoTrackScreen";
+import { ToastProvider } from "@mobile/components/Toast";
+
+function renderGoGoTrackScreen(props: ComponentProps<typeof CustomerGoGoTrackScreen>) {
+  return render(createElement(ToastProvider, {}, createElement(CustomerGoGoTrackScreen, props)));
+}
 
 // Wave B (B5) per-screen UX adoption for the GoGoTrack feature screen. RENDER suite: it MOUNTS
 // every flow `mode` (react-native -> react-native-web, happy-dom) to prove the screen still
@@ -50,33 +55,43 @@ const gogoSenseSource = readFileSync(
   "utf8",
 );
 
+const grantSectionSource = readFileSync(
+  resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../gototrack/GoGoTrackPermissionGrantSection.tsx",
+  ),
+  "utf8",
+);
+
+const webDesignParitySource = readFileSync(
+  resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../design/webDesignParity.ts",
+  ),
+  "utf8",
+);
+
 const MODES: GoGoTrackFlowMode[] = [
   "hub",
   "merchant",
   "onboarding",
   "permissions",
-  "recovery",
   "settings",
-  "timeline",
 ];
 
 describe("CustomerGoGoTrackScreen (render)", () => {
   for (const mode of MODES) {
     it(`mounts the ${mode} flow without throwing`, () => {
-      expect(() =>
-        render(createElement(CustomerGoGoTrackScreen, { mode })),
-      ).not.toThrow();
+      expect(() => renderGoGoTrackScreen({ mode })).not.toThrow();
     });
   }
 
   it("mounts the merchant flow with a merchantId without throwing", () => {
     expect(() =>
-      render(
-        createElement(CustomerGoGoTrackScreen, {
-          mode: "merchant",
-          merchantId: "grocery-galaxy",
-        }),
-      ),
+      renderGoGoTrackScreen({
+        mode: "merchant",
+        merchantId: "grocery-galaxy",
+      }),
     ).not.toThrow();
   });
 });
@@ -88,15 +103,16 @@ describe("CustomerGoGoTrackScreen permission-backed settings", () => {
     expect(gogoSenseSource).toContain("useGoGoTrackBackgroundPrompts");
     expect(gogoSenseSource).toContain("detector.hasUsageAccessPermission()");
     expect(gogoSenseSource).toContain("detector.openUsageAccessSettings()");
-    expect(gogoSenseSource).toContain(
+    expect(gogoSenseSource).not.toContain(
       'field === "notificationListenerEnabled"',
     );
-    expect(gogoSenseSource).toContain(
+    expect(gogoSenseSource).not.toContain(
       "detector.hasNotificationListenerPermission()",
     );
-    expect(gogoSenseSource).toContain(
+    expect(gogoSenseSource).not.toContain(
       "detector.openNotificationListenerSettings()",
     );
+    expect(gogoSenseSource).not.toContain("Notification listener matching");
     expect(gogoSenseSource).not.toContain(
       "onValueChange={(value) => setField(row.field, value)}",
     );
@@ -109,15 +125,24 @@ describe("CustomerGoGoTrackScreen route wiring", () => {
       "app/gototrack/index.tsx",
       "app/gototrack/onboarding.tsx",
       "app/gototrack/permissions.tsx",
-      "app/gototrack/timeline.tsx",
       "app/gototrack/settings.tsx",
-      "app/gototrack/recovery.tsx",
       "app/gototrack/merchant/[id].tsx",
     ].forEach((routeFile) => {
       const routeSource = readFileSync(routeFile, "utf8");
 
       expect(routeSource).toContain("gototrackDetector");
       expect(routeSource).toContain("detector={gototrackDetector}");
+    });
+  });
+
+  it("legacy timeline and recovery deep links redirect to the GoGoTrack hub", () => {
+    [
+      "app/gototrack/timeline.tsx",
+      "app/gototrack/recovery.tsx",
+    ].forEach((routeFile) => {
+      const routeSource = readFileSync(routeFile, "utf8");
+
+      expect(routeSource).toContain('Redirect href="/gototrack"');
     });
   });
 });
@@ -128,6 +153,12 @@ describe("CustomerGoGoTrackScreen — Wave B (B5) foundations adopted (source si
     expect(gogoSenseSource).toContain("showProfileRail");
     expect(gogoSenseSource).not.toContain("styles.phoneFrame");
     expect(gogoSenseSource).not.toContain("CustomerDesktopFooterSlot");
+  });
+
+  it("renders in-content GoGoTrack sub-nav from profileHubGoGoTrackSubNavItems", () => {
+    expect(gogoSenseSource).toContain("GoGoTrackSectionNav");
+    expect(gogoSenseSource).toContain("profileHubGoGoTrackSubNavItems");
+    expect(gogoSenseSource).toContain("isGoGoTrackSubNavItemActive");
   });
 
   it("fires haptics.impact() on the navigation CTAs", () => {
@@ -153,9 +184,6 @@ describe("CustomerGoGoTrackScreen — Wave B (B5) foundations adopted (source si
       /numberOfLines=\{1\}\s+style=\{styles\.rowTitle\}/,
     );
     expect(gogoSenseSource).toMatch(
-      /numberOfLines=\{1\}\s+style=\{styles\.timelineStatus\}/,
-    );
-    expect(gogoSenseSource).toMatch(
       /numberOfLines=\{1\}\s+style=\{styles\.primaryButtonText\}/,
     );
     expect(gogoSenseSource).toMatch(
@@ -166,15 +194,30 @@ describe("CustomerGoGoTrackScreen — Wave B (B5) foundations adopted (source si
   it("keeps merchant-detail copy aligned to the Android UsageStats MVP boundary", () => {
     expect(gogoSenseSource).toContain("Android package detection");
     expect(gogoSenseSource).toContain("Checking live merchant catalog.");
-    expect(gogoSenseSource).toContain("Android Usage Access");
-    expect(gogoSenseSource).toMatch(
-      /notification matching|NotificationListenerService|merchant tracking notifications|merchant confirmation notices|notificationListenerEnabled/i,
-    );
+    expect(webDesignParitySource).toContain("Android Usage Access");
+    expect(gogoSenseSource).not.toContain("Notification listener matching");
+    expect(gogoSenseSource).not.toContain("notificationListenerEnabled");
+    expect(gogoSenseSource).not.toContain("NotificationListenerService");
   });
 
   it("onboarding > discloses optional background prompt opt-in per platform", () => {
     expect(gogoSenseSource).toContain("backgroundPromptCopy");
     expect(gogoSenseSource).toContain("enable background cashback notifications");
     expect(gogoSenseSource).toContain("enable Live Activity prompts");
+  });
+});
+
+describe("CustomerGoGoTrackScreen grant-access UI (web parity source signals)", () => {
+  it("hub + permissions modes wire GoGoTrackPermissionGrantSection from shared parity copy", () => {
+    expect(gogoSenseSource).toContain("GoGoTrackPermissionGrantSection");
+    expect(gogoSenseSource).toContain("GoGoTrackPermissionDisclosure");
+    expect(grantSectionSource).toContain("webGoGoTrackPermissionsPage");
+    expect(grantSectionSource).toContain("useGoGoTrack");
+    expect(grantSectionSource).toContain("useGoGoTrackSettings");
+    expect(grantSectionSource).toContain("onPersistError");
+    expect(grantSectionSource).toContain("saveGoGoTrackSettingsFailed");
+    expect(grantSectionSource).toContain("hero.hintWeb");
+    expect(grantSectionSource).toContain('Platform.OS === "web"');
+    expect(grantSectionSource).toContain("AppState");
   });
 });

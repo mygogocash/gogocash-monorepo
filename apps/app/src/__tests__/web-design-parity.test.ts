@@ -670,9 +670,7 @@ describe("GoGoCash web design parity", () => {
       { label: "Overview", href: "/gototrack" },
       { label: "Start setup", href: "/gototrack/onboarding" },
       { label: "Permissions", href: "/gototrack/permissions" },
-      { label: "Timeline", href: "/gototrack/timeline" },
       { label: "Settings", href: "/gototrack/settings" },
-      { label: "Recovery", href: "/gototrack/recovery" },
     ]);
     expect(profileHubMenuItems).toEqual([
       { label: "Profile", href: "/profile", activePrefix: "/profile" },

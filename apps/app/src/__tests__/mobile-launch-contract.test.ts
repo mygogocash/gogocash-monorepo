@@ -61,9 +61,7 @@ const expectedRouteIds = [
   "gototrack",
   "gototrackOnboarding",
   "gototrackPermissions",
-  "gototrackTimeline",
   "gototrackSettings",
-  "gototrackRecovery",
   "gototrackMerchant",
 ] as const;
 
@@ -74,7 +72,7 @@ const requireFromTest = createRequire(import.meta.url);
 describe("GoGoCash mobile launch contract", () => {
   it("mobile route catalog > given web customer routes > then maps every route to a native screen", () => {
     expect(mobileParityRoutes.map((route) => route.id)).toEqual(expectedRouteIds);
-    expect(mobileParityRoutes).toHaveLength(46);
+    expect(mobileParityRoutes).toHaveLength(44);
     expect(mobileParityRoutes.every((route) => route.nativePath.length > 0)).toBe(true);
     expect(mobileParityRoutes.every((route) => route.title.length > 0)).toBe(true);
   });
@@ -107,9 +105,7 @@ describe("GoGoCash mobile launch contract", () => {
       "gototrack",
       "gototrackOnboarding",
       "gototrackPermissions",
-      "gototrackTimeline",
       "gototrackSettings",
-      "gototrackRecovery",
       "gototrackMerchant",
     ]);
   });

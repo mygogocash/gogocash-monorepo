@@ -36,7 +36,6 @@ const selfChromeScreens = [
 // CustomerMembershipScreen now renders inside AccountPageShell, so it inherits the
 // footer from the shell and is intentionally not listed here.
 const rootChromeFooterSlotOwners = [
-  "src/components/AccountPageShell.tsx",
   "src/components/CustomerRouteState.tsx",
   "src/screens/CustomerCategoryDetailScreen.tsx",
   "src/screens/CustomerDiscoveryScreen.tsx",
@@ -47,6 +46,7 @@ const rootChromeFooterSlotOwners = [
 ];
 
 const cappedDesktopFooterScreens = [
+  "src/components/AccountPageShell.tsx",
   "src/screens/CustomerHomeScreen.tsx",
   "src/screens/CustomerCategoryDetailScreen.tsx",
 ];
@@ -96,29 +96,29 @@ describe("desktop route shell parity", () => {
     }
   });
 
-  it("account shell footer offset > given the capped + padded shell frame > then it passes a computed offset to the footer slot", () => {
+  it("account shell footer offset > given desktop profile/quest pages > then it uses the homepage full-bleed footer path", () => {
     const shell = readMobileFile("src/components/AccountPageShell.tsx");
 
-    expect(shell, "shell should put non-rail desktop pages on the homepage footer path").toContain(
+    expect(shell, "shell should distinguish rail vs quest desktop layouts").toContain(
       "const useDesktopHomepageFooter = isDesktop && !showDesktopRail"
     );
-    expect(shell, "shell should compute the footer offset from frame metrics").toContain(
-      "getAccountShellFooterHorizontalPadding"
+    expect(shell, "shell should full-bleed desktop chrome for rail and quest pages").toContain(
+      "const useDesktopFullBleedChrome = isDesktop && (useDesktopHomepageFooter || showDesktopRail)"
     );
-    expect(shell, "shell should pass rail alignment to the footer offset helper").toContain(
-      "alignToNavbarShell: showDesktopRail"
+    expect(shell, "shell should cap rail content inside a centered column").toContain(
+      "styles.desktopContentCap"
     );
     expect(shell, "shell should use the same desktop footer offset as the homepage").toContain(
       "getDesktopShellOffset(width)"
     );
-    expect(shell, "shell should render the homepage footer element for desktop non-rail pages").toContain(
+    expect(shell, "shell should render CustomerDesktopFooter on desktop").toContain(
       "<CustomerDesktopFooter"
     );
-    expect(shell, "shell should pass the computed offset to the footer slot").toContain(
-      "horizontalPadding={footerHorizontalPadding}"
+    expect(shell, "shell should pass the homepage shell offset to the footer").toContain(
+      "horizontalPadding={desktopFooterHorizontalOffset}"
     );
-    expect(shell, "shell should not leave the footer slot at the default zero offset").not.toMatch(
-      /<CustomerDesktopFooterSlot\s+style=\{styles\.desktopFooter\}\s*\/>/
+    expect(shell, "shell should not use the legacy padded footer slot on desktop").not.toContain(
+      "CustomerDesktopFooterSlot"
     );
   });
 

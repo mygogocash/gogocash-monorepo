@@ -15,6 +15,7 @@ export const toastErrorMessages = {
   saveWithdrawalMethodFailed: "Could not save your withdrawal method. Please try again.",
   uploadPhotoFailed: "Could not upload photo. Please try again.",
   saveChoiceFailed: "Could not save your choice. Please try again.",
+  saveGoGoTrackSettingsFailed: "Could not save GoGoTrack settings. Please try again.",
   loadCatalogFailed: "Could not load catalog. Please try again.",
 } as const;
 

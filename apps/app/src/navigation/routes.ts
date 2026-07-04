@@ -41,9 +41,7 @@ export type MobileRouteId =
   | "gototrack"
   | "gototrackOnboarding"
   | "gototrackPermissions"
-  | "gototrackTimeline"
   | "gototrackSettings"
-  | "gototrackRecovery"
   | "gototrackMerchant";
 
 export type MobileFeatureGroup =
@@ -405,26 +403,10 @@ export const mobileParityRoutes: MobileRoute[] = [
     requiresAuth: true,
   },
   {
-    id: "gototrackTimeline",
-    webPath: "/gototrack/timeline",
-    nativePath: "/gototrack/timeline",
-    title: "GoGoTrack timeline",
-    featureGroup: "gototrack",
-    requiresAuth: true,
-  },
-  {
     id: "gototrackSettings",
     webPath: "/gototrack/settings",
     nativePath: "/gototrack/settings",
     title: "GoGoTrack settings",
-    featureGroup: "gototrack",
-    requiresAuth: true,
-  },
-  {
-    id: "gototrackRecovery",
-    webPath: "/gototrack/recovery",
-    nativePath: "/gototrack/recovery",
-    title: "GoGoTrack recovery",
     featureGroup: "gototrack",
     requiresAuth: true,
   },

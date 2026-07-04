@@ -135,7 +135,7 @@ describe("profile section nav", () => {
 
     it("activates nested routes by prefix", () => {
       expect(isGoGoTrackSubNavItemActive("/gototrack/settings", "/gototrack/settings")).toBe(true);
-      expect(isGoGoTrackSubNavItemActive("/gototrack/timeline", "/gototrack/timeline")).toBe(true);
+      expect(isGoGoTrackSubNavItemActive("/gototrack/permissions", "/gototrack/permissions")).toBe(true);
     });
   });
 

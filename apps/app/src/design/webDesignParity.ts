@@ -3039,9 +3039,7 @@ export const profileHubGoGoTrackSubNavItems = [
   { label: "Overview", href: "/gototrack" },
   { label: "Start setup", href: "/gototrack/onboarding" },
   { label: "Permissions", href: "/gototrack/permissions" },
-  { label: "Timeline", href: "/gototrack/timeline" },
   { label: "Settings", href: "/gototrack/settings" },
-  { label: "Recovery", href: "/gototrack/recovery" },
 ] as const;
 
 export const profileHubMenuItems = [
@@ -3336,6 +3334,61 @@ export const webPrivacyCenterPage = {
     badge: "Always on",
     description:
       "We track eligible purchases and cashback while your account is active so we can credit rewards and meet merchant agreements. This is not optional while you use the service.",
+  },
+} as const;
+
+export const webGoGoTrackPermissionsPage = {
+  sectionTitle: "Permission checklist",
+  microNotice:
+    "GoGoTrack never enables sensitive signals silently. Review why each permission is needed before granting access.",
+  hero: {
+    title: "Enable GoGoTrack to protect your cashback",
+    body: "Grant usage access and optional notifications so GoGoTrack can detect supported stores, prompt activation, and recover missing cashback evidence.",
+    actionLabel: "Enable all GoGoTrack permissions",
+    allEnabledLabel: "All GoGoTrack permissions are already enabled.",
+    hint: "One tap opens Android Usage Access when needed, then enables cashback notifications and screenshot recovery. You can adjust each permission below.",
+    hintWeb:
+      "Turn permissions on or off below. Preferences save to your account; native cashback alerts need the Android app with Usage Access granted.",
+  },
+  permissionsTitle: "Tracking permissions",
+  onLabel: "On",
+  offLabel: "Off",
+  items: [
+    {
+      id: "usageAccess",
+      title: "Usage access",
+      description: "Detect supported shopping apps and browser transitions.",
+      kind: "os_grant" as const,
+    },
+    {
+      id: "backgroundPrompts",
+      title: "Cashback notifications",
+      description:
+        "Optional heads-up while supported stores are open. Save your preference here; native notifications need Android and Usage Access.",
+      kind: "toggle" as const,
+      field: "backgroundPromptsEnabled" as const,
+      requiresUsageAccess: true,
+    },
+    {
+      id: "screenshotRecovery",
+      title: "Screenshot recovery",
+      description: "Allow user-submitted screenshots only when automatic tracking fails.",
+      kind: "toggle" as const,
+      field: "screenshotRecoveryEnabled" as const,
+    },
+  ],
+  usageAccessGrantedLabel: "Usage access granted",
+  usageAccessNotGrantedLabel: "Usage access not granted yet",
+  usageAccessAndroidOnlyLabel: "Usage access is only available on Android",
+  grantUsageAccessLabel: "Grant usage access",
+  grantedLabel: "Granted",
+  requiresUsageAccessHint:
+    "Native cashback notifications require Android and Usage Access. Your preference is saved here and applies when tracking is active.",
+  backgroundPromptsPendingUsageAccessHint:
+    "Grant Usage Access on Android before cashback notifications can fire.",
+  disclosure: {
+    title: "Usage access disclosure",
+    body: "These controls map to native OS permission prompts and privacy-policy wording. GoGoTrack uses Android Usage Access to detect supported shopping apps. Nothing is read until you grant access.",
   },
 } as const;
 

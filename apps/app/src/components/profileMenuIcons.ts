@@ -1,7 +1,6 @@
 import { type ComponentType } from "react";
 
 import {
-  Activity as GoGoTrackIcon,
   BadgeCheck as BadgeCheckIcon,
   CircleHelp as HelpIcon,
   FileQuestion as MissingOrdersIcon,
@@ -28,7 +27,7 @@ const PROFILE_MENU_ICONS: Record<string, ProfileMenuIcon> = {
   "Consent Preferences": ShieldCheckIcon,
   "Favorite Brands": HeartIcon,
   "GoGoQuest History": QuestIcon,
-  GoGoTrack: GoGoTrackIcon,
+  GoGoTrack: ShieldCheckIcon,
   "Help Center": HelpIcon,
   GoGoPass: GoGoPassIcon,
   "Invite your Friends": InviteIcon,

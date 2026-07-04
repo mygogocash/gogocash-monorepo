@@ -48,10 +48,14 @@ function normalize(data: unknown): GoGoTrackSettingsState {
  * null, so the screen shows defaults and toggles are no-ops. `apiOverride` is the
  * test seam.
  */
-export function useGoGoTrackSettings(apiOverride?: SettingsApi | null) {
+export function useGoGoTrackSettings(
+  apiOverride?: SettingsApi | null,
+  options?: { onPersistError?: (field: GoGoTrackSettingsField) => void },
+) {
   const liveApi = useGoGoTrackApi();
   const api = apiOverride ?? liveApi;
   const [settings, setSettings] = useState<GoGoTrackSettingsState>(DEFAULTS);
+  const onPersistError = options?.onPersistError;
 
   useEffect(() => {
     if (!api) {
@@ -85,9 +89,10 @@ export function useGoGoTrackSettings(apiOverride?: SettingsApi | null) {
         if (field === "backgroundPromptsEnabled") {
           void writeBackgroundPromptsEnabled(previous.backgroundPromptsEnabled);
         }
+        onPersistError?.(field);
       });
     },
-    [api, settings],
+    [api, onPersistError, settings],
   );
 
   return { settings, setField };

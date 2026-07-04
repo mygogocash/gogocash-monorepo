@@ -63,8 +63,7 @@ describe("Remaining customer route parity", () => {
     const callbackScreen = readMobileFile("src/screens/CustomerAuthCallbackScreen.tsx");
 
     expect(callbackScreen).toContain("useLocalSearchParams");
-    expect(callbackScreen).toContain("createExpoSecureSessionStore");
-    expect(callbackScreen).toContain("createWebSessionStore");
+    expect(callbackScreen).toContain("persistMobileSession");
     expect(callbackScreen).toContain("sanitizeCallbackPath");
     expect(callbackScreen).toContain("exchangeMobileAuthCode");
     expect(callbackScreen).toContain("createDevRawTokenSession");

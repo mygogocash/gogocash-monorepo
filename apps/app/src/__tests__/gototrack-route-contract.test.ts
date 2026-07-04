@@ -7,9 +7,7 @@ const gototrackRouteIds = [
   "gototrack",
   "gototrackOnboarding",
   "gototrackPermissions",
-  "gototrackTimeline",
   "gototrackSettings",
-  "gototrackRecovery",
   "gototrackMerchant",
 ] as const;
 

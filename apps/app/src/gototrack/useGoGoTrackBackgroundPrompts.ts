@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { subscribeMobileSessionChange } from "@mobile/auth/session";
 
@@ -22,7 +22,9 @@ export function useGoGoTrackBackgroundPrompts(
   const { settings } = useGoGoTrackSettings();
 
   useEffect(() => {
-    bindDefaultLiveActivityLoader();
+    if (Platform.OS === "ios") {
+      bindDefaultLiveActivityLoader();
+    }
     if (!api?.activate) {
       return;
     }

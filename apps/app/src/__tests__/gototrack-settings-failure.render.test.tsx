@@ -5,6 +5,7 @@ import { useGoGoTrackSettings } from "@mobile/gototrack/useGoGoTrackSettings";
 
 describe("useGoGoTrackSettings failure handling", () => {
   it("reverts an optimistic toggle when persistence rejects", async () => {
+    const onPersistError = vi.fn();
     const api = {
       getSettings: vi.fn(async () => ({
         notification_listener_enabled: false,
@@ -16,7 +17,7 @@ describe("useGoGoTrackSettings failure handling", () => {
       }),
     };
 
-    const { result } = renderHook(() => useGoGoTrackSettings(api));
+    const { result } = renderHook(() => useGoGoTrackSettings(api, { onPersistError }));
 
     await waitFor(() => expect(api.getSettings).toHaveBeenCalled());
 
@@ -26,5 +27,6 @@ describe("useGoGoTrackSettings failure handling", () => {
 
     await waitFor(() => expect(result.current.settings.usageStatsEnabled).toBe(false));
     expect(api.updateSettings).toHaveBeenCalledWith({ usageStatsEnabled: true });
+    expect(onPersistError).toHaveBeenCalledWith("usageStatsEnabled");
   });
 });
