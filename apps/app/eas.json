@@ -26,6 +26,7 @@
       "channel": "staging",
       "distribution": "internal",
       "env": {
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "0039c25f-f88e-491d-8da9-85b8d6e66558",
         "EXPO_PUBLIC_API_URL": "https://api-staging.gogocash.co",
         "EXPO_PUBLIC_APP_ENV": "staging",
         "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "backend",

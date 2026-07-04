@@ -61,6 +61,8 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
     ? {
         updates: {
           url: `https://u.expo.dev/${easProjectId}`,
+          checkAutomatically: "ON_LOAD",
+          fallbackToCacheTimeout: 0,
         },
       }
     : {}),
