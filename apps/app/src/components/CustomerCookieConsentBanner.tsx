@@ -1,25 +1,25 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { Cookie as CookieIcon } from "@mobile/theme/icons";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 
 import { webCookieConsentBanner } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import {
+  readCookieConsentDismissed,
+  readCookieConsentDismissedSync,
+  writeCookieConsentDismissed,
+} from "@mobile/pdpa/cookieConsentStorage";
 import { motion } from "@mobile/theme/motion";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, typography } from "@mobile/theme/tokens";
 
-function shouldShowCookieBanner() {
-  try {
-    if (typeof localStorage === "undefined") {
-      return true;
-    }
-
-    return !localStorage.getItem(webCookieConsentBanner.dismissedStorageKey);
-  } catch {
-    return true;
+function resolveInitialVisible(): boolean {
+  if (Platform.OS === "web") {
+    return !readCookieConsentDismissedSync();
   }
+  return false;
 }
 
 function dispatchCookieDismissedEvent() {
@@ -37,14 +37,30 @@ function dispatchCookieDismissedEvent() {
 export function CustomerCookieConsentBanner({ isDesktop }: { isDesktop: boolean }) {
   const styles = useThemedStyles(createCookieConsentBannerStyles);
   const router = useRouter();
-  const [visible, setVisible] = useState(shouldShowCookieBanner);
+  const [visible, setVisible] = useState(resolveInitialVisible);
+  const [hydrated, setHydrated] = useState(Platform.OS === "web");
+
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      return;
+    }
+
+    let active = true;
+    void (async () => {
+      const dismissed = await readCookieConsentDismissed();
+      if (active) {
+        setVisible(!dismissed);
+        setHydrated(true);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const dismissCookieBanner = useCallback(() => {
-    try {
-      localStorage.setItem(webCookieConsentBanner.dismissedStorageKey, "1");
-    } catch {
-      // Ignore unavailable storage in native previews.
-    }
+    void writeCookieConsentDismissed();
     setVisible(false);
     dispatchCookieDismissedEvent();
   }, []);
@@ -86,7 +102,7 @@ export function CustomerCookieConsentBanner({ isDesktop }: { isDesktop: boolean 
     router.push("/privacy-policy");
   }, [router]);
 
-  if (!visible) {
+  if (!hydrated || !visible) {
     return null;
   }
 

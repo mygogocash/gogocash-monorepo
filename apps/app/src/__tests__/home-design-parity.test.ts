@@ -105,8 +105,12 @@ describe("Expo home design parity", () => {
       path.join(mobileRoot, "src/components/CustomerCookieConsentBanner.tsx"),
       "utf8"
     );
+    const cookieConsentStorageFile = fs.readFileSync(
+      path.join(mobileRoot, "src/pdpa/cookieConsentStorage.ts"),
+      "utf8"
+    );
 
-    expect(cookieBannerFile).toContain("webCookieConsentBanner.dismissedStorageKey");
+    expect(cookieConsentStorageFile).toContain("webCookieConsentBanner.dismissedStorageKey");
     expect(cookieBannerFile).toContain("webCookieConsentBanner.dismissedEventName");
     expect(cookieBannerFile).toContain("webCookieConsentBanner.privacyPolicyLabel");
   });

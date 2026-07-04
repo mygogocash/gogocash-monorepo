@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { CustomerCookieConsentBanner } from "@mobile/components/CustomerCookieConsentBanner";
+import { webCookieConsentBanner } from "@mobile/design/webDesignParity";
 import { ThemeProvider } from "@mobile/theme/ThemeProvider";
 
 function renderCookieBanner() {
@@ -25,6 +26,17 @@ describe("CustomerCookieConsentBanner", () => {
       value: originalCustomEvent,
       writable: true,
     });
+  });
+
+  it("web accept > given banner visible > then persists dismissal to localStorage", () => {
+    renderCookieBanner();
+
+    fireEvent.click(screen.getByRole("button", { name: "Accept all cookies" }));
+
+    expect(
+      window.localStorage.getItem(webCookieConsentBanner.dismissedStorageKey),
+    ).toBe("1");
+    expect(screen.queryByText("We use cookies in the delivery of our services.")).toBeNull();
   });
 
   it("native runtime > given CustomEvent is unavailable > accepts cookies without crashing", () => {
