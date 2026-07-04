@@ -1,8 +1,7 @@
 # CodeQL advanced setup — replaces GitHub Default setup so language selection is
-# version-controlled. The repo is JS/TS (admin, api, mobile web) plus one Expo
-# local Android module (gototrack-detector) that has no root Gradle project and
-# is built only via EAS; scanning java-kotlin with autobuild fails with
-# "No build command found". Languages match the prior Default setup config.
+# version-controlled. JS/TS (admin, api, mobile web) plus GitHub Actions.
+# Expo local Android (Kotlin) and iOS (Swift) modules use build-mode: none — there
+# is no repo-root Gradle/Xcode project (EAS prebuild only).
 name: CodeQL
 
 on:
@@ -30,7 +29,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [javascript-typescript, actions]
+        include:
+          - language: javascript-typescript
+            build-mode: none
+            config-file: ./.github/codeql/codeql-config.yml
+          - language: actions
+            build-mode: none
+            config-file: ./.github/codeql/codeql-config.yml
+          - language: java-kotlin
+            build-mode: none
+            config-file: ./.github/codeql/codeql-native-config.yml
+          - language: swift
+            build-mode: none
+            config-file: ./.github/codeql/codeql-native-config.yml
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -39,7 +50,8 @@ jobs:
         uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
         with:
           languages: ${{ matrix.language }}
-          config-file: ./.github/codeql/codeql-config.yml
+          build-mode: ${{ matrix.build-mode }}
+          config-file: ${{ matrix.config-file }}
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4

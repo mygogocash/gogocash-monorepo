@@ -1,12 +1,11 @@
 name: gogocash-codeql
-# Library pack lives in-repo; qlconfig.yml (repo root) registers .github/codeql as a local registry.
+# Library pack lives in-repo; resolved via repo-root codeql-workspace.yml (provide).
 packs:
   - mygogocash/gogocash-mongo-sanitizers
 paths-ignore:
   - '**/node_modules/**'
   - '**/*.test.ts'
   - '**/*.spec.ts'
-  # Expo local module Kotlin — no repo-root Gradle project; built only in EAS Android
-  # dev-client builds. Excluded from JS/TS CodeQL paths; java-kotlin is not in the
-  # workflow matrix (see .github/workflows/codeql.yml).
+  # Native Expo modules scanned separately (java-kotlin / swift matrix jobs).
   - 'apps/app/modules/**/android/**'
+  - 'apps/app/modules/**/ios/**'
