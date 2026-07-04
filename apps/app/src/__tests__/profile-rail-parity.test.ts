@@ -48,4 +48,12 @@ describe("desktop profile rail parity", () => {
     expect(membership).toContain("AccountPageShell");
     expect(membership).not.toContain("styles.phoneFrame");
   });
+
+  it("gototrack > given any GoGoTrack flow > then it renders inside AccountPageShell so it gets the rail", () => {
+    const gototrack = readMobileFile("src/screens/CustomerGoGoTrackScreen.tsx");
+
+    expect(gototrack).toContain("AccountPageShell");
+    expect(gototrack).not.toContain("styles.phoneFrame");
+    expect(gototrack).not.toContain("CustomerDesktopFooterSlot");
+  });
 });

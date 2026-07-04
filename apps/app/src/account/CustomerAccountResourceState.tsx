@@ -30,12 +30,14 @@ function fillLabel(template: string, label: string): string {
 }
 
 export function CustomerAccountResourceState({
+  embedded = false,
   emptyBody,
   emptyTitle,
   loadingSkeleton,
   resource,
   resourceLabel,
 }: {
+  embedded?: boolean;
   emptyBody?: string;
   emptyTitle?: string;
   loadingSkeleton?: ReactNode;
@@ -68,6 +70,7 @@ export function CustomerAccountResourceState({
           defaultMessage: "Fetching the latest {label} from GoGoCash.",
           id: "mobileResourceLoadingBody",
         })}
+        embedded={embedded}
         loadingSkeleton={loadingSkeleton}
         title={format({ defaultMessage: "Loading {label}", id: "mobileResourceLoadingTitle" })}
         variant="loading"
@@ -82,6 +85,7 @@ export function CustomerAccountResourceState({
           emptyBody ??
           format({ defaultMessage: "There is no {label} to show yet.", id: "mobileResourceEmptyBody" })
         }
+        embedded={embedded}
         title={
           emptyTitle ?? format({ defaultMessage: "No {label} yet", id: "mobileResourceEmptyTitle" })
         }
@@ -101,6 +105,7 @@ export function CustomerAccountResourceState({
           defaultMessage: "Reconnect to the internet, then reload your {label}.",
           id: "mobileResourceOfflineBody",
         })}
+        embedded={embedded}
         title={format({ defaultMessage: "You are offline", id: "mobileStateOfflineTitle" })}
         variant="offline"
       />
@@ -130,6 +135,7 @@ export function CustomerAccountResourceState({
                 id: "mobileResourceErrorBody",
               })
       }
+      embedded={embedded}
       title={
         resource.status === "disabled"
           ? format({ defaultMessage: "Account data unavailable", id: "mobileResourceDisabledTitle" })

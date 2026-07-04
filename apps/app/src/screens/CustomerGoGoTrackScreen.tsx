@@ -4,6 +4,7 @@ import {
   Bell as BellIcon,
   Camera as CameraIcon,
   CheckCircle2 as CheckIcon,
+  ChevronLeft as ChevronLeftIcon,
   Eye as EyeIcon,
   FileSearch as FileSearchIcon,
   LockKeyhole as LockIcon,
@@ -12,10 +13,9 @@ import {
   Store as StoreIcon,
 } from "@mobile/theme/icons";
 import { useEffect, type ComponentType, type ReactNode } from "react";
-import { AppState, Platform, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppState, Platform, StyleSheet, Switch, Text, useWindowDimensions, View } from "react-native";
 
-import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
+import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -183,7 +183,8 @@ export function CustomerGoGoTrackScreen({
   const styles = useThemedStyles(createGoGoTrackScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
-  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const copy = gogoSenseFlowCopy[mode];
   const merchantRouteId = mode === "merchant" ? merchantId : undefined;
   const { loading: merchantLoading, merchant } = useGoGoTrackMerchants(
@@ -192,69 +193,68 @@ export function CustomerGoGoTrackScreen({
     mode === "merchant",
   );
   const merchantLabel = merchant?.name ?? merchantRouteId;
-  const topPadding = Math.max(spacing.md, insets.top + spacing.md);
-  const bottomPadding = Math.max(
-    mobileShellLayout.bottomNavClearance,
-    insets.bottom + spacing.xl,
-  );
 
   return (
-    <View style={styles.viewport}>
-      <View style={styles.phoneFrame}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.page,
-            {
-              paddingBottom: bottomPadding,
-              paddingTop: topPadding,
-            },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.hero}>
-            <View style={styles.heroIcon}>
-              <ShieldIcon
-                color={colors.white}
-                size={28}
+    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(copy.title)}>
+      <View style={styles.page}>
+        {isDesktop ? null : (
+          <Link asChild href="/profile">
+            <MotionPressable
+              accessibilityRole="link"
+              hitSlop={{ bottom: 8, left: 8, right: 8, top: 8 }}
+              pressScale={0.98}
+              style={styles.backLink}
+            >
+              <ChevronLeftIcon
+                color={colors.accent}
+                size={26}
                 strokeWidth={typography.iconStrokeWidth}
               />
-            </View>
-            <Text numberOfLines={1} style={styles.eyebrow}>
-              {tc(copy.eyebrow)}
-            </Text>
-            <Text numberOfLines={1} style={styles.title}>
-              {tc(copy.title)}
-            </Text>
-            <Text style={styles.body}>{tc(copy.body)}</Text>
-            {merchantId ? (
-              <View style={styles.merchantIdPill}>
-                <Text style={styles.merchantIdLabel}>
-                  {merchant ? "merchant" : "merchantId"}
-                </Text>
-                <Text style={styles.merchantIdValue}>{merchantLabel}</Text>
-              </View>
-            ) : null}
-          </View>
+              <Text style={styles.backLinkText}>{tc("GoGoTrack")}</Text>
+            </MotionPressable>
+          </Link>
+        )}
 
-          {mode === "hub" ? <HubContent detector={detector} /> : null}
-          {mode === "onboarding" ? <OnboardingContent /> : null}
-          {mode === "permissions" ? (
-            <PermissionsContent detector={detector} />
-          ) : null}
-          {mode === "timeline" ? <TimelineContent /> : null}
-          {mode === "settings" ? <SettingsContent detector={detector} /> : null}
-          {mode === "recovery" ? <RecoveryContent /> : null}
-          {mode === "merchant" ? (
-            <MerchantContent
-              loading={merchantLoading}
-              merchant={merchant}
-              merchantId={merchantId}
+        <View style={styles.hero}>
+          <View style={styles.heroIcon}>
+            <ShieldIcon
+              color={colors.white}
+              size={28}
+              strokeWidth={typography.iconStrokeWidth}
             />
+          </View>
+          <Text numberOfLines={1} style={styles.eyebrow}>
+            {tc(copy.eyebrow)}
+          </Text>
+          <Text numberOfLines={1} style={styles.title}>
+            {tc(copy.title)}
+          </Text>
+          <Text style={styles.body}>{tc(copy.body)}</Text>
+          {merchantId ? (
+            <View style={styles.merchantIdPill}>
+              <Text style={styles.merchantIdLabel}>
+                {merchant ? "merchant" : "merchantId"}
+              </Text>
+              <Text style={styles.merchantIdValue}>{merchantLabel}</Text>
+            </View>
           ) : null}
-          <CustomerDesktopFooterSlot innerPadding={spacing.md} style={styles.desktopFooter} />
-        </ScrollView>
+        </View>
+
+        {mode === "hub" ? <HubContent detector={detector} /> : null}
+        {mode === "onboarding" ? <OnboardingContent /> : null}
+        {mode === "permissions" ? <PermissionsContent detector={detector} /> : null}
+        {mode === "timeline" ? <TimelineContent /> : null}
+        {mode === "settings" ? <SettingsContent detector={detector} /> : null}
+        {mode === "recovery" ? <RecoveryContent /> : null}
+        {mode === "merchant" ? (
+          <MerchantContent
+            loading={merchantLoading}
+            merchant={merchant}
+            merchantId={merchantId}
+          />
+        ) : null}
       </View>
-    </View>
+    </AccountPageShell>
   );
 }
 
@@ -911,23 +911,21 @@ function SecondaryLink({ href, label }: { href: string; label: string }) {
 
 function createGoGoTrackScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
-    viewport: {
-      alignItems: "center",
-      backgroundColor: colors.background,
-      flex: 1,
-    },
-    phoneFrame: {
-      backgroundColor: colors.background,
-      flex: 1,
-      maxWidth: mobileShellLayout.contentMaxWidth,
-      width: "100%",
-    },
     page: {
       gap: spacing.md,
-      paddingHorizontal: spacing.md,
+      width: "100%",
     },
-    desktopFooter: {
-      marginTop: 64,
+    backLink: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: spacing.xs,
+      minHeight: 44,
+    },
+    backLinkText: {
+      color: colors.accent,
+      fontFamily: typography.family,
+      fontSize: 18,
+      fontWeight: "700",
     },
     hero: {
       backgroundColor: colors.card,

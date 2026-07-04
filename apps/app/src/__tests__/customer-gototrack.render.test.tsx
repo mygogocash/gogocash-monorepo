@@ -123,6 +123,12 @@ describe("CustomerGoGoTrackScreen route wiring", () => {
 });
 
 describe("CustomerGoGoTrackScreen — Wave B (B5) foundations adopted (source signals)", () => {
+  it("renders inside AccountPageShell so desktop profile routes get the sidebar rail", () => {
+    expect(gogoSenseSource).toContain("AccountPageShell");
+    expect(gogoSenseSource).not.toContain("styles.phoneFrame");
+    expect(gogoSenseSource).not.toContain("CustomerDesktopFooterSlot");
+  });
+
   it("fires haptics.impact() on the navigation CTAs", () => {
     // Wired onto the EXISTING Link-button press (selection cue), not a new navigation path.
     expect(gogoSenseSource).toContain('from "@mobile/lib/haptics"');

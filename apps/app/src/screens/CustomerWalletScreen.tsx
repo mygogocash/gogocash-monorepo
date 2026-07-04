@@ -64,17 +64,26 @@ export function CustomerWalletScreen() {
   // and stays byte-identical.
   const liveMetrics = isCheckWithdrawResponse(walletResource.data)
     ? mapCheckWithdrawToWalletMetrics(walletResource.data, webWalletCashbackSummary.metrics)
-    : null;
+    : walletResource.status === "empty"
+      ? mapCheckWithdrawToWalletMetrics(
+          { netAmount: 0, netAmountTHB: 0, totalPayoutTHB: 0, totalPayoutUSD: 0 },
+          webWalletCashbackSummary.metrics,
+        )
+      : null;
 
   const walletShellWhileLoading = walletResource.status === "loading";
 
   if (isWalletResourceBlocking(walletResource.status)) {
     return (
-      <CustomerAccountResourceState
-        loadingSkeleton={<WalletSkeleton />}
-        resource={walletResource}
-        resourceLabel="wallet"
-      />
+      <AccountPageShell activeRouteId="wallet" showProfileRail showTitle={false} title={tc("My Wallet")}>
+        {isDesktop ? null : <WalletHeader />}
+        <CustomerAccountResourceState
+          embedded
+          loadingSkeleton={<WalletSkeleton />}
+          resource={walletResource}
+          resourceLabel="wallet"
+        />
+      </AccountPageShell>
     );
   }
 

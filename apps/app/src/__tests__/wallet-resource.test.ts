@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { isCustomerAccountResourcePayloadEmpty } from "../account/customerAccountResource";
-import { isCheckWithdrawResponse, isWalletResourceBlocking } from "../api/walletTypes";
+import { isCheckWithdrawResponse, isWalletResourceBlocking, normalizeCheckWithdrawResponse } from "../api/walletTypes";
 
 describe("isCheckWithdrawResponse", () => {
   it("isCheckWithdrawResponse > given withdraw/check totals with empty data array > then narrows successfully", () => {
@@ -12,6 +12,23 @@ describe("isCheckWithdrawResponse", () => {
     };
 
     expect(isCheckWithdrawResponse(payload)).toBe(true);
+  });
+
+  it("normalizeCheckWithdrawResponse > given string totals from API > then coerces to numbers", () => {
+    const payload = {
+      data: [],
+      netAmount: "12.50",
+      netAmountTHB: "0.00",
+      totalPayoutTHB: "0.00",
+      totalPayoutUSD: "0.00",
+    };
+
+    expect(normalizeCheckWithdrawResponse(payload)).toEqual({
+      netAmount: 12.5,
+      netAmountTHB: 0,
+      totalPayoutTHB: 0,
+      totalPayoutUSD: 0,
+    });
   });
 });
 
