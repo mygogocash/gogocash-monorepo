@@ -8,6 +8,8 @@ import { Model, Types } from 'mongoose';
 import { UserMyCashback } from './schemas/user-my-cashback.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
 import { toIso2Server } from 'src/utils/country';
+import { StoredMediaService } from 'src/media/stored-media.service';
+import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 
 /**
  * Coerce any `country` field on an arbitrary DTO to canonical ISO-2 in place
@@ -40,6 +42,7 @@ const SELF_EDITABLE_PROFILE_FIELDS = [
   'city',
   'zip',
   'email_mcb',
+  // avatar_url is server-set only via POST /user/profile/avatar (upload).
   'consent',
 ] as const;
 
@@ -60,6 +63,7 @@ export class UserService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(UserMyCashback.name)
     private userMyCashbacksModel: Model<UserMyCashback>,
+    private readonly storedMediaService: StoredMediaService,
   ) {}
 
   async createFromCrossmint(createUserDto: CreateUserDto) {
@@ -155,6 +159,34 @@ export class UserService {
     return this.userModel.findByIdAndUpdate(id, withCanonicalCountry(safe), {
       new: true,
     });
+  }
+
+  async uploadProfileAvatar(id: Types.ObjectId, file: Express.Multer.File) {
+    const user = await this.userModel.findById(id);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const avatar_url = await this.storedMediaService.replace(
+      file,
+      MEDIA_FOLDER.PROFILE_AVATARS,
+      user.avatar_url,
+    );
+
+    return this.userModel.findByIdAndUpdate(
+      id,
+      { avatar_url },
+      { new: true },
+    );
+  }
+
+  async streamProfileAvatar(id: Types.ObjectId, ref: string) {
+    const user = await this.userModel.findById(id);
+    if (!user?.avatar_url || user.avatar_url !== ref.trim()) {
+      throw new UnauthorizedException('Avatar not found');
+    }
+
+    return this.storedMediaService.getReadableStream(ref);
   }
 
   updateCountry(updateCountryDto: UpdateCountryDto, id: string) {

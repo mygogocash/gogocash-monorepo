@@ -69,10 +69,10 @@ describe("Expo ProfileBar pixel parity", () => {
     expect(profileBar).toContain("ringWidth={2}");
   });
 
-  it("profile bar > given no session avatar > then shows the profile photo, not a glyph", () => {
-    // Web hardcodes <Image src="/profile.png" .../>; Expo mirrors with the bundled
-    // profile-avatar asset as the fallback (session avatar_url takes precedence).
-    expect(profileBar).toContain("profileAvatarImage");
+  it("profile bar > given no session avatar > then shows ProfileAvatarImage, not a glyph", () => {
+    // Web hardcodes <Image src="/profile.png" .../>; Expo mirrors with ProfileAvatarImage
+    // (session avatar_url takes precedence; bundled asset is the fallback).
+    expect(profileBar).toContain("ProfileAvatarImage");
     expect(profileBar).not.toContain("avatarFallback");
   });
 

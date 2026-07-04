@@ -11,6 +11,8 @@ export type UserProfileResponse = {
   credit_tier?: string;
   membership_tier?: string;
   username?: string;
+  /** Stored media ref or absolute URL for the profile photo. */
+  avatar_url?: string;
   /** Wallet balance as the backend stores it (string or number). */
   wallet?: string | number;
 };

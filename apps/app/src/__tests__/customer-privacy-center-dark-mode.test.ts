@@ -22,14 +22,15 @@ describe("customer privacy center dark mode surfaces", () => {
     expect(source).not.toMatch(/privacyTintShell:[\s\S]*pickThemed\(colors, "#F3FCF9"/);
   });
 
-  it("consent preferences cards > given dark theme > then use recessed field surfaces", () => {
+  it("consent preferences cards > given dark theme > then use premium elevated panel surfaces", () => {
     const source = readMobileFile(privacyCenterFile);
 
     expect(source).not.toContain('backgroundColor: "rgba(243, 252, 249, 0.92)"');
     expect(source).not.toContain('backgroundColor: "rgba(243, 252, 249, 0.72)"');
-    expect(source).toMatch(/heroCard:[\s\S]*backgroundColor: pickThemed\(colors, colors\.primarySoft, colors\.fieldMuted\)/);
-    expect(source).toMatch(/optionalCard:[\s\S]*backgroundColor: pickThemed\(colors, colors\.primarySoft, colors\.fieldMuted\)/);
-    expect(source).toMatch(/requiredCard:[\s\S]*backgroundColor: pickThemed\(colors, colors\.primarySoft, colors\.fieldMuted\)/);
+    expect(source).toContain("premiumPanelCardStyle");
+    expect(source).toMatch(/heroCard: premiumPanelCardStyle\(colors/);
+    expect(source).toMatch(/optionalCard: premiumPanelCardStyle\(colors/);
+    expect(source).toMatch(/requiredCard: premiumPanelCardStyle\(colors/);
   });
 
   it("consent preferences toggles > given dark theme > then use themed track and badge colors", () => {

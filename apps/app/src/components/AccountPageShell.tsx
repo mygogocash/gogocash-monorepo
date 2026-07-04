@@ -11,7 +11,6 @@ import {
 } from "@mobile/theme/icons";
 import { useState, type ReactNode } from "react";
 import {
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,6 +21,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { MaskedUserIdRow } from "@mobile/components/MaskedUserIdRow";
 import { getProfileMenuIcon } from "@mobile/components/profileMenuIcons";
 import { LogoutConfirmCard } from "@mobile/components/LogoutConfirmCard";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -33,8 +33,8 @@ import {
   isProfileSubNavItemActive,
   shouldAutoExpandProfileSubNav,
 } from "@mobile/navigation/profileSectionNav";
-import profileAvatarImage from "../../assets/profile-avatar.png";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
+import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
@@ -46,6 +46,7 @@ import {
   profileHubSubNavItems,
   webAccountPageSurface,
   webProfileWalletHeroSurface,
+  webProfileWalletSummary,
   webWalletSummaryMetrics,
 } from "@mobile/design/webDesignParity";
 import { useMemo } from "react";
@@ -332,53 +333,118 @@ function DesktopProfileRail() {
   );
 }
 
+const COMPACT_WALLET_HERO_MAX_WIDTH = 560;
+const COMPACT_WALLET_AVATAR_SIZE = 56;
+const DESKTOP_WALLET_AVATAR_SIZE = 72;
+
 export function AccountWalletHeroCard({
   amount = "0.00",
+  avatarUrl,
   currency = "USD",
   lastUpdated = "Last Updated: -",
   maskedId = "****",
   tier,
   title = "USER",
+  userId = webProfileWalletSummary.userId,
 }: {
   amount?: string;
+  avatarUrl?: string | null;
   currency?: string;
   lastUpdated?: string;
   maskedId?: string;
   tier?: string;
   title?: string;
+  userId?: string;
 }) {
   const styles = useAccountPageShellStyles();
   const { colors } = useTheme();
   const tc = useCopy();
+  const { width } = useWindowDimensions();
+  const isCompact = width < COMPACT_WALLET_HERO_MAX_WIDTH;
+  const avatarSize = isCompact ? COMPACT_WALLET_AVATAR_SIZE : DESKTOP_WALLET_AVATAR_SIZE;
+
   return (
     <View style={styles.walletHeroCard}>
-      <View style={styles.walletHeroTopBand}>
-        <View style={styles.walletHeroHeader}>
-          <GoGoPassAvatar size={72} tier={tier}>
-            <Image
-              alt={tc("Profile avatar")}
-              source={profileAvatarImage}
-              style={[styles.walletAvatar, styles.walletAvatarLarge]}
+      <View style={[styles.walletHeroTopBand, isCompact ? styles.walletHeroTopBandCompact : null]}>
+        <View style={[styles.walletHeroHeader, isCompact ? styles.walletHeroHeaderCompact : null]}>
+          <GoGoPassAvatar size={avatarSize} tier={tier}>
+            <ProfileAvatarImage
+              accessibilityLabel={tc("Profile avatar")}
+              avatarUrl={avatarUrl}
+              size={avatarSize}
+              style={[
+                styles.walletAvatar,
+                { borderRadius: radii.chip, height: avatarSize, width: avatarSize },
+              ]}
             />
           </GoGoPassAvatar>
-          <View style={styles.walletHeroUser}>
-            <View style={styles.walletHeroNameRow}>
-              <GoGoPassBadge tier={tier} />
-              <Text style={styles.walletHeroName}>{title}</Text>
-            </View>
-            <Text style={styles.walletHeroId}>{maskedId}</Text>
+          <View style={[styles.walletHeroUser, isCompact ? styles.walletHeroUserCompact : null]}>
+            {isCompact ? (
+              <View style={styles.walletHeroIdentityCompact}>
+                <Text numberOfLines={2} style={[styles.walletHeroName, styles.walletHeroNameCompact]}>
+                  {title}
+                </Text>
+                <GoGoPassBadge tier={tier} />
+              </View>
+            ) : (
+              <>
+                <View style={styles.walletHeroNameRow}>
+                  <GoGoPassBadge tier={tier} />
+                  <Text style={styles.walletHeroName}>{title}</Text>
+                </View>
+                <MaskedUserIdRow
+                  iconColor="rgba(255,255,255,0.82)"
+                  maskedId={maskedId}
+                  rowStyle={styles.walletHeroIdRow}
+                  textStyle={styles.walletHeroId}
+                  userId={userId}
+                />
+              </>
+            )}
           </View>
         </View>
-        <View style={[styles.walletHeroGlassPanel, walletHeroGlassGradientStyle]}>
+        {isCompact ? (
+          <MaskedUserIdRow
+            iconColor="rgba(255,255,255,0.82)"
+            maskedId={maskedId}
+            rowStyle={styles.walletHeroIdRowCompact}
+            textStyle={styles.walletHeroId}
+            userId={userId}
+          />
+        ) : null}
+        <View
+          style={[
+            styles.walletHeroGlassPanel,
+            isCompact ? styles.walletHeroGlassPanelCompact : null,
+            walletHeroGlassGradientStyle,
+          ]}
+        >
           <Text style={styles.walletKicker}>{tc("Total Cashback Available")}</Text>
           <View style={styles.walletAmountRow}>
-            <Text style={styles.walletAmount}>{amount}</Text>
-            <Text style={styles.walletCurrency}>{currency}</Text>
+            <Text style={[styles.walletAmount, isCompact ? styles.walletAmountCompact : null]}>
+              {amount}
+            </Text>
+            <Text style={[styles.walletCurrency, isCompact ? styles.walletCurrencyCompact : null]}>
+              {currency}
+            </Text>
           </View>
           <Text style={styles.walletUpdated}>{lastUpdated}</Text>
           <Link asChild href="/withdraw">
-            <MotionPressable pressScale={0.98} style={styles.walletWithdrawButton}>
-              <Text style={styles.walletWithdrawText}>{tc("Withdraw")}</Text>
+            <MotionPressable
+              pressScale={0.98}
+              style={StyleSheet.flatten([
+                styles.walletWithdrawButton,
+                isCompact ? styles.walletWithdrawButtonCompact : null,
+              ])}
+            >
+              <Text
+                style={[
+                  styles.walletWithdrawText,
+                  isCompact ? styles.walletWithdrawTextCompact : null,
+                ]}
+              >
+                {tc("Withdraw")}
+              </Text>
               <ExternalLinkIcon
                 color={colors.white}
                 size={16}
@@ -613,6 +679,10 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     paddingHorizontal: 18,
     paddingTop: 18,
   },
+  walletHeroTopBandCompact: {
+    paddingHorizontal: 14,
+    paddingTop: 14,
+  },
   walletHeroHeader: {
     alignItems: "flex-start",
     flexDirection: "row",
@@ -620,17 +690,27 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     minHeight: 86,
     paddingBottom: spacing.sm,
   },
+  walletHeroHeaderCompact: {
+    minHeight: undefined,
+    paddingBottom: spacing.xs,
+  },
   walletAvatar: {
     backgroundColor: "#FFDDE7",
     borderRadius: radii.chip,
   },
-  walletAvatarLarge: {
-    height: 72,
-    width: 72,
-  },
   walletHeroUser: {
     alignItems: "flex-end",
     flex: 1,
+    minWidth: 0,
+  },
+  walletHeroUserCompact: {
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  walletHeroIdentityCompact: {
+    gap: 6,
+    minWidth: 0,
+    width: "100%",
   },
   walletHeroNameRow: {
     alignItems: "center",
@@ -643,11 +723,25 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     fontSize: 20,
     fontWeight: "600",
   },
+  walletHeroNameCompact: {
+    fontSize: 18,
+    lineHeight: 24,
+  },
   walletHeroId: {
     color: "rgba(255,255,255,0.58)",
     fontFamily: typography.family,
     fontSize: 15,
+    fontVariant: ["tabular-nums"],
+  },
+  walletHeroIdRow: {
     marginTop: spacing.sm,
+    maxWidth: "100%",
+  },
+  walletHeroIdRowCompact: {
+    alignSelf: "stretch",
+    marginBottom: spacing.xs,
+    marginTop: spacing.xs,
+    width: "100%",
   },
   walletHeroGlassPanel: {
     alignItems: "center",
@@ -666,6 +760,14 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     paddingHorizontal: 28,
     paddingBottom: 40,
     paddingTop: 24,
+  },
+  walletHeroGlassPanelCompact: {
+    marginHorizontal: -14,
+    marginTop: -6,
+    minHeight: undefined,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingTop: 18,
   },
   walletKicker: {
     color: walletGlassInk,
@@ -686,12 +788,20 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     fontWeight: "600",
     lineHeight: 56,
   },
+  walletAmountCompact: {
+    fontSize: 36,
+    lineHeight: 42,
+  },
   walletCurrency: {
     color: walletGlassInk,
     fontFamily: typography.family,
     fontSize: 20,
     fontWeight: "600",
     paddingBottom: 7,
+  },
+  walletCurrencyCompact: {
+    fontSize: 16,
+    paddingBottom: 4,
   },
   walletUpdated: {
     color: walletGlassInk,
@@ -710,11 +820,19 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     paddingHorizontal: 28,
     width: "100%",
   },
+  walletWithdrawButtonCompact: {
+    marginTop: 12,
+    minHeight: 48,
+    paddingHorizontal: 20,
+  },
   walletWithdrawText: {
     color: colors.white,
     fontFamily: typography.family,
     fontSize: 20,
     fontWeight: "600",
+  },
+  walletWithdrawTextCompact: {
+    fontSize: 17,
   },
   cashbackSummaryCard: {
     backgroundColor: colors.card,

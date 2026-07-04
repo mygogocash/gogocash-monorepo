@@ -71,13 +71,18 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number) {
 const isWebRuntime =
   typeof (globalThis as typeof globalThis & { document?: unknown }).document !== "undefined";
 
+/**
+ * High-refresh motion contract (60 / 90 / 120 Hz displays):
+ * - Prefer transform + opacity only (compositor layer, no layout/paint per frame).
+ * - Avoid animating box-shadow, background-color, border-color, width, or height.
+ * - Use `motion.useNativeDriver` on native; web Animated still composits transform/opacity.
+ * - Respect `useReducedMotion` — snap to end state with duration 0.
+ */
 export const motion = {
   useNativeDriver: !isWebRuntime,
-  /** Height/width/layout animations cannot use the native driver. */
-  useLayoutNativeDriver: false,
   cssTransition: {
     duration: "220ms",
-    property: "transform, box-shadow, opacity, background-color, border-color, color",
+    property: "transform, opacity",
     timingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
   },
   duration: {
@@ -97,6 +102,7 @@ export const motion = {
     standard: cubicBezier(0.4, 0, 0.2, 1),
   },
   scale: {
+    hover: 1.01,
     hoverLiftY: -2,
     imageHover: 1.03,
     press: 0.97,
@@ -110,6 +116,7 @@ type InteractionTransformOptions = {
   hovered?: boolean;
   pressed?: boolean;
   pressScale?: number;
+  hoverScale?: number;
 };
 
 export function getInteractionTransformStyle({
@@ -117,6 +124,7 @@ export function getInteractionTransformStyle({
   hovered = false,
   pressed = false,
   pressScale = motion.scale.press,
+  hoverScale = motion.scale.hover,
 }: InteractionTransformOptions) {
   const transform = [];
 
@@ -124,7 +132,8 @@ export function getInteractionTransformStyle({
     transform.push({ translateY: hovered ? motion.scale.hoverLiftY : 0 });
   }
 
-  transform.push({ scale: pressed ? pressScale : 1 });
+  const restingScale = hovered && !pressed ? hoverScale : 1;
+  transform.push({ scale: pressed ? pressScale : restingScale });
 
   return { transform };
 }

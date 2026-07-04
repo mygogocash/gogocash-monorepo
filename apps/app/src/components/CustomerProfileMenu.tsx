@@ -1,6 +1,5 @@
 import { Link } from "expo-router";
 import {
-  Image,
   Linking,
   Platform,
   ScrollView,
@@ -19,6 +18,7 @@ import Svg, { Path } from "react-native-svg";
 // `AccountWalletHeroCard` cannot reproduce (different avatar size, radius, type scale).
 export { AccountWalletHeroCard } from "@mobile/components/AccountPageShell";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
+import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/profileMenuIcons";
@@ -31,8 +31,6 @@ import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { typography } from "@mobile/theme/tokens";
-
-import profileAvatarImage from "../../assets/profile-avatar.png";
 
 function deriveSummary(session: MobileSession) {
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -116,10 +114,10 @@ function PopoverWalletHeroCard({
       <View style={styles.heroHeader}>
         <GoGoPassAvatar ringWidth={3} size={52} tier={tier}>
           <View style={styles.heroAvatarFrame}>
-            <Image
+            <ProfileAvatarImage
               accessibilityLabel={tc("Profile avatar")}
-              resizeMode="cover"
-              source={avatarUrl ? { uri: avatarUrl } : profileAvatarImage}
+              avatarUrl={avatarUrl}
+              size={52}
               style={styles.heroAvatarImage}
             />
           </View>

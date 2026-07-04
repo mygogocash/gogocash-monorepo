@@ -139,6 +139,20 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     expect(walletSource).toContain("hitSlop=");
   });
 
+  it("disables default hoverLift on the back chevron and uses a subtle rounded hover tint", () => {
+    // Default MotionPressable hoverLift draws an awkward rectangular light-blue
+    // background on the 34x40px icon-only back control — disable it and apply a
+    // rounded accent tint via backButtonHovered instead.
+    const walletHeaderBlock = walletSource.slice(
+      walletSource.indexOf("function WalletHeader"),
+      walletSource.indexOf("function WalletSupportBanner"),
+    );
+    expect(walletHeaderBlock).toContain("hoverLift={false}");
+    expect(walletHeaderBlock).toContain("backButtonHovered");
+    expect(walletHeaderBlock).toContain("({ hovered })");
+    expect(walletSource).toContain("backButtonHovered:");
+  });
+
   it("renders an in-shell wallet skeleton while the backend resource is loading", () => {
     expect(walletSource).toContain("walletShellWhileLoading");
     expect(walletSource).toContain('walletResource.status === "loading"');

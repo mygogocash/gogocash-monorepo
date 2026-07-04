@@ -29,7 +29,7 @@ import {
   getFavoriteBrandCardHeight,
   getFavoriteBrandGridMetrics,
 } from "@mobile/screens/favoriteBrandGrid";
-import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -437,7 +437,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   },
   topBar: {
     alignItems: "center",
-    borderBottomColor: "rgba(16, 53, 34, 0.12)",
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
     gap: spacing.md,
@@ -459,7 +459,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     paddingTop: 24,
   },
   pageTitle: {
-    color: "#3A4B61",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 32,
     fontWeight: "700",
@@ -467,8 +467,8 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   },
   heroCard: {
     alignItems: "center",
-    backgroundColor: "#F2FBF8",
-    borderColor: "#D8F0E8",
+    backgroundColor: pickThemed(colors, "#F2FBF8", colors.fieldMuted),
+    borderColor: pickThemed(colors, "#D8F0E8", colors.border),
     borderRadius: 24,
     borderWidth: 1,
     boxShadow: "0 4px 16px rgba(16, 53, 34, 0.10)",
@@ -507,7 +507,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     textAlign: "center",
   },
   heroDescription: {
-    color: "#3A4B61",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 15,
     lineHeight: 24,
@@ -550,7 +550,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     gap: 16,
   },
   sectionTitle: {
-    color: "#3A4B61",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 26,
     fontWeight: "700",
@@ -682,7 +682,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   },
   searchPill: {
     alignItems: "center",
-    backgroundColor: colors.card,
+    backgroundColor: colors.field,
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
@@ -717,7 +717,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   },
   favoritesEmpty: {
     alignItems: "center",
-    backgroundColor: colors.card,
+    backgroundColor: colors.fieldMuted,
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
@@ -734,7 +734,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     width: 56,
   },
   favoritesEmptyTitle: {
-    color: "#3A4B61",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: "700",

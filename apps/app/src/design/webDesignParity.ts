@@ -918,12 +918,13 @@ export const webProfileSectionOrder = [
 
 export const webProfileWalletSummary = {
   username: "Mock User",
+  userId: "mock-user-0001",
   maskedId: "***0001",
   amount: "3,180.24",
   currency: "THB",
   lastUpdated: "Last Updated: 28 Mar 2026 07:00",
-  // Demo default: the mock profile is a GoGoPass member (matches the web mock session).
-  membershipTier: "gogopass",
+  // Non-subscriber default — badge/avatar ring only render for live `membership_tier`.
+  membershipTier: "starter",
 } as const;
 
 export const webProfileWalletHeroSurface = {
@@ -1089,6 +1090,8 @@ export const webProfileHeroCard = {
   userIdLabel: "User ID",
   // Mock 9-digit display id (mirrors the web `nineDigitUserIdDisplay` output shape).
   userId: "204815963",
+  userIdRevealAria: "Show User ID",
+  userIdHideAria: "Hide User ID",
   userIdCopyAria: "Copy User ID",
   userIdCopiedToast: "User ID copied",
   inviteLinkLabel: "invite link",
@@ -3343,6 +3346,7 @@ export const webGoGoTrackPermissionsPage = {
     "GoGoTrack never enables sensitive signals silently. Review why each permission is needed before granting access.",
   hero: {
     title: "Enable GoGoTrack to protect your cashback",
+    eyebrow: "Grant access",
     body: "Grant usage access and optional notifications so GoGoTrack can detect supported stores, prompt activation, and recover missing cashback evidence.",
     actionLabel: "Enable all GoGoTrack permissions",
     allEnabledLabel: "All GoGoTrack permissions are already enabled.",

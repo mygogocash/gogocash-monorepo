@@ -57,6 +57,13 @@ type SocialLink = (typeof webReferralPage.earn.socialLinks)[number];
 type SocialLinkId = SocialLink["id"];
 type FaqItem = (typeof webReferralPage.faq.items)[number];
 
+function resolveReferralSocialIconColor(link: SocialLink, colors: ThemeColors): string {
+  if (link.id === "x") {
+    return pickThemed(colors, link.color, colors.white);
+  }
+  return link.color;
+}
+
 export function CustomerReferralScreen() {
   const styles = useThemedStyles(createReferralScreenStyles);
   const tc = useCopy();
@@ -322,6 +329,8 @@ function SocialIconButton({
   onCopyLink: () => void;
 }) {
   const styles = useThemedStyles(createReferralScreenStyles);
+  const { colors } = useTheme();
+  const iconColor = resolveReferralSocialIconColor(link, colors);
   return (
     <MotionPressable
       accessibilityLabel={link.label}
@@ -331,10 +340,10 @@ function SocialIconButton({
       pressScale={0.92}
       style={styles.socialButton}
     >
-      {link.id === "facebook" ? <FacebookBrandIcon color={link.color} size={24} /> : null}
-      {link.id === "linkedin" ? <LinkedInBrandIcon color={link.color} size={24} /> : null}
-      {link.id === "instagram" ? <InstagramBrandIcon color={link.color} size={24} /> : null}
-      {link.id === "x" ? <XBrandIcon color={link.color} size={24} /> : null}
+      {link.id === "facebook" ? <FacebookBrandIcon color={iconColor} size={24} /> : null}
+      {link.id === "linkedin" ? <LinkedInBrandIcon color={iconColor} size={24} /> : null}
+      {link.id === "instagram" ? <InstagramBrandIcon color={iconColor} size={24} /> : null}
+      {link.id === "x" ? <XBrandIcon color={iconColor} size={24} /> : null}
     </MotionPressable>
   );
 }
@@ -500,6 +509,7 @@ function ReferralFaqItem({
   onPress: () => void;
 }) {
   const styles = useThemedStyles(createReferralScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.faqCard}>
@@ -509,7 +519,7 @@ function ReferralFaqItem({
           <Text style={styles.faqQuestion}>{tc(item.question)}</Text>
         </View>
         <ChevronDownIcon
-          color="#3B3B3B"
+          color={colors.ink}
           size={20}
           strokeWidth={typography.iconStrokeWidth}
           style={expanded ? styles.faqChevronExpanded : null}
@@ -623,7 +633,7 @@ function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: Explor
           style={styles.exploreFavoriteButton}
         >
           <HeartIcon
-            color={isFavorite ? colors.primary : "#686868"}
+            color={isFavorite ? colors.primary : colors.muted}
             fill={isFavorite ? colors.primary : undefined}
             size={22}
             strokeWidth={isFavorite ? 0 : typography.iconStrokeWidth}
@@ -656,7 +666,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   },
   topBar: {
     alignItems: "center",
-    borderBottomColor: "rgba(16, 53, 34, 0.12)",
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
     gap: spacing.md,
@@ -725,7 +735,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     lineHeight: 40,
   },
   earnSubtitle: {
-    color: "#007D5E",
+    color: colors.accentSoft,
     fontFamily: typography.family,
     fontSize: 21,
     fontWeight: "600",
@@ -777,7 +787,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     marginTop: 14,
   },
   codeLabel: {
-    color: "#6F7E91",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "400",
@@ -785,7 +795,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   codeChip: {
     alignItems: "center",
     backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
-    borderColor: "rgba(0, 170, 128, 0.28)",
+    borderColor: pickThemed(colors, "rgba(0, 170, 128, 0.28)", colors.border),
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: "row",
@@ -839,7 +849,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     gap: 22,
   },
   invitationTitle: {
-    color: "#3A4B61",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 32,
     fontWeight: "700",
@@ -868,7 +878,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   },
   tabButtonActive: {
     backgroundColor: colors.card,
-    borderBottomColor: "#00CC99",
+    borderBottomColor: colors.primary,
   },
   tabButtonInactive: {
     backgroundColor: colors.fieldMuted,
@@ -881,7 +891,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     textAlign: "center",
   },
   tabTextActive: {
-    color: "#00B89D",
+    color: colors.primary,
   },
   tabTextInactive: {
     color: colors.muted,
@@ -894,13 +904,13 @@ function createReferralScreenStyles(colors: ThemeColors) {
     overflow: "hidden",
   },
   tableHeader: {
-    backgroundColor: "rgba(246,246,246,0.42)",
+    backgroundColor: colors.fieldMuted,
     flexDirection: "row",
     paddingHorizontal: 22,
     paddingVertical: 24,
   },
   tableHeaderText: {
-    color: "#2F4055",
+    color: colors.muted,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 18,
@@ -908,14 +918,14 @@ function createReferralScreenStyles(colors: ThemeColors) {
     lineHeight: 24,
   },
   tableRow: {
-    borderTopColor: "rgba(184, 212, 239, 0.55)",
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: "row",
     paddingHorizontal: 22,
     paddingVertical: 28,
   },
   tableCell: {
-    color: "#3A4B61",
+    color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 18,
@@ -953,7 +963,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     paddingVertical: 4,
   },
   invitationStatusPillText: {
-    color: "#00B14F",
+    color: pickThemed(colors, "#00B14F", colors.primary),
     fontFamily: typography.family,
     fontSize: typography.label,
     fontWeight: typography.labelWeight,
@@ -974,7 +984,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     fontSize: 15,
   },
   rewardPillText: {
-    color: "#00875A",
+    color: pickThemed(colors, "#00875A", colors.accentSoft),
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "400",
@@ -990,7 +1000,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     letterSpacing: 0.3,
   },
   stepsTitle: {
-    color: "#3A4B61",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 22,
     fontWeight: "700",
@@ -1020,13 +1030,13 @@ function createReferralScreenStyles(colors: ThemeColors) {
     width: 36,
   },
   stepNumberText: {
-    color: "#00875A",
+    color: pickThemed(colors, "#00875A", colors.accentSoft),
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: "800",
   },
   stepCardText: {
-    color: "#3A4B61",
+    color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 15,
@@ -1047,7 +1057,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   },
   faqCard: {
     backgroundColor: colors.card,
-    borderColor: "#B7E7DB",
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
@@ -1211,7 +1221,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     lineHeight: 18,
   },
   exploreCashbackValue: {
-    color: "#00CC99",
+    color: colors.primary,
     flexShrink: 0,
     fontFamily: typography.family,
     fontSize: 18,

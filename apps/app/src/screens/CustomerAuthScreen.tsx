@@ -49,24 +49,26 @@ import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, typography } from "@mobile/theme/tokens";
 
-// Premium polish for the consent checkbox checked state (web-only smoothing + brand-green glow).
+// Premium polish for the consent checkbox checked state (web-only transform smoothing).
 const webConsentCheckboxMotionStyle = {
   transitionDuration: motion.cssTransition.duration,
-  transitionProperty: "background-color, border-color, box-shadow",
+  transitionProperty: "transform, opacity",
   transitionTimingFunction: motion.cssTransition.timingFunction,
 } as unknown as ViewStyle;
 
+// Static elevation when checked — not CSS-transitioned (compositor-safe).
 const webConsentCheckboxGlowStyle = {
   boxShadow: "0 4px 12px rgba(0, 204, 153, 0.45)",
 } as unknown as ViewStyle;
 
-// Premium OTP cell motion + focus ring (web-only smoothing; native shows the states instantly).
+// Premium OTP cell motion (web-only transform smoothing; native shows states instantly).
 const webOtpBoxMotionStyle = {
   transitionDuration: motion.cssTransition.duration,
-  transitionProperty: "transform, border-color, box-shadow, background-color",
+  transitionProperty: "transform, opacity",
   transitionTimingFunction: motion.cssTransition.timingFunction,
 } as unknown as ViewStyle;
 
+// Static focus ring when active — not CSS-transitioned (compositor-safe).
 const webOtpBoxActiveGlowStyle = {
   boxShadow: "0 0 0 4px rgba(86, 212, 170, 0.18), 0 6px 16px rgba(0, 204, 153, 0.18)",
 } as unknown as ViewStyle;

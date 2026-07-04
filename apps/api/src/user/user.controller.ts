@@ -8,6 +8,11 @@ import {
   Query,
   Put,
   Req,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+  Res,
+  BadRequestException,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UpdateCountryDto } from './dto/create-user.dto';
@@ -15,8 +20,9 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { Types } from 'mongoose';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -67,6 +73,48 @@ export class UserController {
     // Self-service update: allowlisted fields only (no mass-assignment of
     // server-controlled trust/financial fields).
     return this.userService.updateProfile(userData._id, updateUserDto);
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Post('profile/avatar')
+  @UseInterceptors(FileInterceptor('avatar'))
+  async uploadProfileAvatar(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file?.mimetype?.startsWith('image/')) {
+      throw new BadRequestException('Avatar must be an image file');
+    }
+
+    const user = req['user'] as { sub?: string };
+    const id = new Types.ObjectId(user?.sub);
+    const updated = await this.userService.uploadProfileAvatar(id, file);
+    return { avatar_url: updated?.avatar_url ?? '' };
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('profile/avatar/stream')
+  async streamProfileAvatar(
+    @Req() req: Request,
+    @Query('ref') ref: string,
+    @Res() res: Response,
+  ) {
+    if (!ref?.trim()) {
+      throw new BadRequestException('Avatar ref is required');
+    }
+
+    const user = req['user'] as { sub?: string };
+    const id = new Types.ObjectId(user?.sub);
+    const { stream, contentType } = await this.userService.streamProfileAvatar(
+      id,
+      ref,
+    );
+    res.setHeader('Content-Type', contentType);
+    stream.pipe(res);
   }
 
   @UseGuards(AuthAdminGuard)

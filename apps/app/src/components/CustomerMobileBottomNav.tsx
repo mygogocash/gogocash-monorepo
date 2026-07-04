@@ -1,6 +1,6 @@
 import { Link } from "expo-router";
 import { type ComponentType } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   CircleUserRound as ProfileIcon,
   Home as HomeIcon,
@@ -9,8 +9,9 @@ import {
   WalletCards as WalletIcon,
 } from "@mobile/theme/icons";
 
-import profileAvatarImage from "../../assets/profile-avatar.png";
+import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
 import { mobileShellLayout, webMobileBottomNavItems } from "@mobile/design/webDesignParity";
+import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { useCopy } from "@mobile/i18n/useCopy";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { getThemeSurfaces } from "@mobile/theme/themeSurfaces";
@@ -41,6 +42,7 @@ export function CustomerMobileBottomNav({
   bottomInset: number;
 }) {
   const tc = useCopy();
+  const session = useMobileSessionSnapshot();
   const { colors, resolved } = useTheme();
   const surfaces = getThemeSurfaces(colors, resolved);
   const styles = useThemedStyles(createBottomNavStyles);
@@ -79,7 +81,16 @@ export function CustomerMobileBottomNav({
                 <View
                   style={[styles.bottomNavIcon, emphasized ? styles.bottomNavIconEmphasized : null]}
                 >
-                  <BottomNavIcon active={active} emphasized={emphasized} name={item.icon} />
+                  <BottomNavIcon
+                    active={active}
+                    avatarUrl={
+                      typeof session?.avatar_url === "string" && session.avatar_url.trim()
+                        ? session.avatar_url.trim()
+                        : null
+                    }
+                    emphasized={emphasized}
+                    name={item.icon}
+                  />
                 </View>
                 <Text
                   numberOfLines={1}
@@ -102,10 +113,12 @@ export function CustomerMobileBottomNav({
 
 function BottomNavIcon({
   active,
+  avatarUrl,
   emphasized,
   name,
 }: {
   active: boolean;
+  avatarUrl?: string | null;
   emphasized: boolean;
   name: string;
 }) {
@@ -116,9 +129,10 @@ function BottomNavIcon({
 
   if (name === "profile" && active) {
     return (
-      <Image
-        alt="Profile avatar"
-        source={profileAvatarImage}
+      <ProfileAvatarImage
+        accessibilityLabel="Profile avatar"
+        avatarUrl={avatarUrl}
+        size={28}
         style={styles.bottomNavProfileAvatar}
       />
     );

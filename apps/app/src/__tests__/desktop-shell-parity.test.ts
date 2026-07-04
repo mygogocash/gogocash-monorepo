@@ -220,7 +220,6 @@ describe("desktop route shell parity", () => {
     expect(search).toContain("shellExpanded");
     expect(search).toContain("maxWidth: 640");
     expect(search).toContain('Platform.OS === "web"');
-    expect(search).toContain("max-width");
   });
 
   it("desktop header search > given premium keyboard shortcut > then Meta/Ctrl+K focuses input and tracks search_open", () => {

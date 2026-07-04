@@ -46,6 +46,7 @@ describe("Customer profile hero parity (web CardProfile)", () => {
     // User ID label + value rendered from the constant.
     expect(heroFile).toContain("webProfileHeroCard.userIdLabel");
     expect(heroFile).toContain("webProfileHeroCard.userId");
+    expect(heroFile).toContain("userIdValueRow");
     // A copy button with the a11y label, calling the cross-platform clipboard helper.
     expect(heroFile).toContain("webProfileHeroCard.userIdCopyAria");
     expect(heroFile).toContain("webProfileHeroCard.userIdCopiedToast");
@@ -62,6 +63,10 @@ describe("Customer profile hero parity (web CardProfile)", () => {
     expect(heroFile).toContain("webProfileHeroCard.inviteLink");
     expect(heroFile).toContain("webProfileHeroCard.inviteLinkCopyAria");
     expect(heroFile).toContain("webProfileHeroCard.inviteLinkCopiedToast");
+    expect(heroFile).toContain("inviteLinkRow");
+    expect(heroFile).toContain("inviteCopyIcon");
+    expect(heroFile).toContain('ellipsizeMode="middle"');
+    expect(heroFile).toMatch(/inviteLabel:[\s\S]*textTransform: "uppercase"/);
     // Copy feedback goes through the toast hook (success/failure message).
     expect(heroFile).toContain('from "@mobile/hooks/useToast"');
     expect(heroFile).toContain("useToast(");
@@ -70,17 +75,37 @@ describe("Customer profile hero parity (web CardProfile)", () => {
     expect(heroFile).toContain("webProfileHeroCard.copyFailedToast");
   });
 
-  it("hero card > given the identity block > then it renders the GoGoPass badge and the display-only avatar", () => {
+  it("hero card > given the identity block > then renders upload wiring and ProfileAvatarImage", () => {
     const heroFile = readMobileFile("src/components/ProfileHeroCard.tsx");
+    const badgeFile = readMobileFile("src/components/GoGoPassBadge.tsx");
 
-    // GOGOPASS badge (web CardProfile parity) — imported and rendered.
+    // GOGOPASS badge (web CardProfile parity) — imported and gated on live tier.
     expect(heroFile).toContain('from "@mobile/components/GoGoPassBadge"');
     expect(heroFile).toContain("<GoGoPassBadge");
-    // Avatar is display-only (no upload, per the plan): the GoGoPass ring avatar wraps
-    // the static profile image asset.
+    expect(heroFile).toContain('from "@mobile/lib/membershipTier"');
+    expect(heroFile).toContain("readMembershipTier(session.membership_tier)");
+    expect(heroFile).not.toContain("webProfileWalletSummary.membershipTier");
+    expect(badgeFile).toContain("isGoGoPassSubscriber");
+    // Pill must hug its label inside column flex parents (desktop profile hero).
+    expect(badgeFile).toContain('alignSelf: "flex-start"');
+    // Desktop/web: avatar uses ProfileAvatarImage + upload hook; GoGoPass ring wraps it.
+    expect(heroFile).toContain('from "@mobile/components/ProfileAvatarImage"');
+    expect(heroFile).toContain("<ProfileAvatarImage");
+    expect(heroFile).toContain('from "@mobile/hooks/useProfileAvatarUpload"');
+    expect(heroFile).toContain("useProfileAvatarUpload");
     expect(heroFile).toContain('from "@mobile/components/GoGoPassAvatar"');
     expect(heroFile).toContain("<GoGoPassAvatar");
-    expect(heroFile).toContain("profileAvatarImage");
+    expect(heroFile).toContain("pickAndUpload");
+    expect(heroFile).toContain("Change photo");
+  });
+
+  it("hero card > given narrow viewports > then stacks meta rows full-width for easier mobile scanning", () => {
+    const heroFile = readMobileFile("src/components/ProfileHeroCard.tsx");
+
+    expect(heroFile).toContain("useWindowDimensions");
+    expect(heroFile).toContain("metaStack");
+    expect(heroFile).toContain("userIdChip");
+    expect(heroFile).toContain("bannerCompact");
   });
 
   it("hero card > given dark mode > then banner skips light-only gradient and adapts surface tokens", () => {
@@ -94,7 +119,6 @@ describe("Customer profile hero parity (web CardProfile)", () => {
     expect(heroFile).toContain("colors.primarySoft");
     expect(heroFile).toContain("colors.borderStrong");
     expect(heroFile).toContain("pickThemed(colors, colors.ink, colors.white)");
-    expect(heroFile).toContain('pickThemed(colors, colors.muted, "rgba(255,255,255,0.72)")');
   });
 
   it("shared panel > given the rich profile panel > then it composes the hero above the cashback + personal sections", () => {

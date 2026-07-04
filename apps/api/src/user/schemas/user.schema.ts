@@ -130,6 +130,10 @@ export class User {
   @Prop({ default: '' })
   email_mcb: string;
 
+  /** Public URL or `local-media:` ref for the member profile photo. */
+  @Prop({ default: '' })
+  avatar_url: string;
+
   @Prop()
   consent?: ConsentData;
 }

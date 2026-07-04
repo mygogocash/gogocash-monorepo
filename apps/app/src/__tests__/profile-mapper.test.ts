@@ -7,7 +7,8 @@ const fallback = {
   currency: "THB",
   lastUpdated: "Last Updated: 28 Mar 2026 07:00",
   maskedId: "***0001",
-  tier: "gogopass",
+  tier: "",
+  userId: "mock-user-0001",
   username: "Mock User",
 };
 
@@ -52,18 +53,29 @@ describe("mapUserProfileToWalletSummary", () => {
 
     expect(summary.username).toBe("fronk");
     expect(summary.maskedId).toBe("***52aa");
+    expect(summary.userId).toBe("684a31c4ddc06da72b9852aa");
     expect(summary.amount).toBe("120.50");
     expect(summary.tier).toBe("starter");
     expect(summary.currency).toBe("THB");
   });
 
-  it("given a fresh user missing optional fields > then falls back per field, keeping the real masked id", () => {
+  it("given profile without tier but session fallback has gogopass > then uses session tier", () => {
+    const summary = mapUserProfileToWalletSummary(freshLiveUser, {
+      ...fallback,
+      tier: "gogopass",
+    });
+
+    expect(summary.tier).toBe("gogopass");
+  });
+
+  it("given a fresh user missing optional fields > then falls back per field except tier (no assumed subscription)", () => {
     const summary = mapUserProfileToWalletSummary(freshLiveUser, fallback);
 
     expect(summary.username).toBe("Mock User");
     expect(summary.amount).toBe("3,180.24");
-    expect(summary.tier).toBe("gogopass");
+    expect(summary.tier).toBe("");
     // The id is real even for fresh users — never fall back on it.
     expect(summary.maskedId).toBe("***52aa");
+    expect(summary.userId).toBe("684a31c4ddc06da72b9852aa");
   });
 });

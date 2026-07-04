@@ -20,6 +20,15 @@ describe("AppearanceSection layout", () => {
     expect(appearanceSource).not.toContain("minWidth: 100");
   });
 
+  it("uses premium segmented styling with icons and elevated selected pill", () => {
+    expect(appearanceSource).toContain("APPEARANCE_OPTION_ICONS");
+    expect(appearanceSource).toContain("MotionPressable");
+    expect(appearanceSource).toMatch(/segmentSelected:[\s\S]*boxShadow/);
+    expect(appearanceSource).toContain("DeviceMobile");
+    expect(appearanceSource).toContain("Sun");
+    expect(appearanceSource).toContain("Moon");
+  });
+
   it("allows long labels to wrap inside each segment instead of breaking the row", () => {
     expect(appearanceSource).toContain("numberOfLines={2}");
   });

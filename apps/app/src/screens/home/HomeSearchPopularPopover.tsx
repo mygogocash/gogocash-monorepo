@@ -9,6 +9,7 @@ import {
   removeSearchHistoryItem,
 } from "@mobile/search/searchHistory";
 import { SearchRecentChips } from "@mobile/screens/search/SearchRecentChips";
+import { runFadeSlideTiming } from "@mobile/theme/animatedMotion";
 import { motion } from "@mobile/theme/motion";
 import { HomeSearchIntro } from "./HomeSearchIntro";
 import { HomeSearchResultRow } from "./HomeSearchResultRow";
@@ -72,20 +73,14 @@ export function HomeSearchPopularPopover({
     popoverTranslateY.stopAnimation();
 
     if (visible) {
-      Animated.parallel([
-        Animated.timing(popoverOpacity, {
-          duration: motion.duration.base,
-          easing: motion.easing.out,
-          toValue: 1,
-          useNativeDriver: motion.useNativeDriver,
-        }),
-        Animated.timing(popoverTranslateY, {
-          duration: motion.duration.base,
-          easing: motion.easing.out,
-          toValue: 0,
-          useNativeDriver: motion.useNativeDriver,
-        }),
-      ]).start();
+      popoverTranslateY.setValue(-8);
+      runFadeSlideTiming({
+        durationIn: motion.duration.base,
+        opacity: popoverOpacity,
+        slideOffset: -8,
+        translateY: popoverTranslateY,
+        visible: true,
+      }).start();
 
       return () => {
         popoverOpacity.stopAnimation();
@@ -93,20 +88,12 @@ export function HomeSearchPopularPopover({
       };
     }
 
-    Animated.parallel([
-      Animated.timing(popoverOpacity, {
-        duration: motion.duration.fast,
-        easing: motion.easing.in,
-        toValue: 0,
-        useNativeDriver: motion.useNativeDriver,
-      }),
-      Animated.timing(popoverTranslateY, {
-        duration: motion.duration.fast,
-        easing: motion.easing.in,
-        toValue: -8,
-        useNativeDriver: motion.useNativeDriver,
-      }),
-    ]).start(({ finished }) => {
+    runFadeSlideTiming({
+      opacity: popoverOpacity,
+      slideOffset: -8,
+      translateY: popoverTranslateY,
+      visible: false,
+    }).start(({ finished }) => {
       if (finished) {
         onExited();
       }

@@ -21,6 +21,7 @@ import { useCopy } from "@mobile/i18n/useCopy";
 import { useMobileLogout } from "@mobile/auth/useMobileLogout";
 import { mapUserProfileToWalletSummary } from "@mobile/api/profileMapper";
 import { isUserProfileResponse } from "@mobile/api/profileTypes";
+import { readMembershipTier } from "@mobile/lib/membershipTier";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import {
@@ -37,6 +38,7 @@ import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing, typography } from "@mobile/theme/tokens";
 import { LogoutConfirmCard } from "@mobile/components/LogoutConfirmCard";
 import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/profileMenuIcons";
+import { useSyncProfileSessionFields } from "@mobile/hooks/useSyncProfileSessionFields";
 
 export function CustomerProfileScreen() {
   const styles = useThemedStyles(createProfileScreenStyles);
@@ -59,6 +61,16 @@ export function CustomerProfileScreen() {
   const walletSummary = isUserProfileResponse(profileResource.data)
     ? mapUserProfileToWalletSummary(profileResource.data, sessionWalletSummary)
     : sessionWalletSummary;
+  useSyncProfileSessionFields(profileResource.data);
+
+  const avatarUrl =
+    typeof session?.avatar_url === "string" && session.avatar_url.trim()
+      ? session.avatar_url.trim()
+      : isUserProfileResponse(profileResource.data) &&
+          typeof profileResource.data.avatar_url === "string" &&
+          profileResource.data.avatar_url.trim()
+        ? profileResource.data.avatar_url.trim()
+        : null;
 
   const profileShellWhileLoading =
     profileResource.status === "loading" && Boolean(session?.access_token);
@@ -82,11 +94,13 @@ export function CustomerProfileScreen() {
       <View style={styles.profileHubStack}>
         <AccountWalletHeroCard
           amount={walletSummary.amount}
+          avatarUrl={avatarUrl}
           currency={walletSummary.currency}
           lastUpdated={walletSummary.lastUpdated}
           maskedId={walletSummary.maskedId}
           tier={walletSummary.tier}
           title={walletSummary.username}
+          userId={walletSummary.userId}
         />
         <View style={styles.profilePanelShell}>
           <ProfilePanelHeader
@@ -187,6 +201,7 @@ function InviteFriendsRow({ href }: { href: string }) {
   const tc = useCopy();
   const router = useRouter();
   const toast = useToast();
+  const [rowHovered, setRowHovered] = useState(false);
 
   const handleCopyLink = () => {
     copyInviteLink();
@@ -196,10 +211,13 @@ function InviteFriendsRow({ href }: { href: string }) {
   };
 
   return (
-    <View style={styles.inviteRow}>
+    <View style={[styles.inviteRow, rowHovered ? styles.inviteRowHovered : null]}>
       <MotionPressable
         accessibilityLabel={tc("Open referral page")}
         accessibilityRole="button"
+        hoverLift={false}
+        onHoverIn={() => setRowHovered(true)}
+        onHoverOut={() => setRowHovered(false)}
         onPress={() => router.push(href as never)}
         pressScale={0.98}
         style={styles.inviteCardLinkArea}
@@ -217,6 +235,9 @@ function InviteFriendsRow({ href }: { href: string }) {
         // The pill is only 24px tall (styles.copyButton); hitSlop expands the
         // tap target to a comfortable ~44px without changing the visual layout.
         hitSlop={{ bottom: 10, left: 10, right: 10, top: 10 }}
+        hoverLift={false}
+        onHoverIn={() => setRowHovered(true)}
+        onHoverOut={() => setRowHovered(false)}
         onPress={handleCopyLink}
         pressScale={0.98}
         style={styles.copyButton}
@@ -271,18 +292,18 @@ function ProfileNavRow({
 }
 
 function getSessionWalletSummary(session: ReturnType<typeof useMobileSessionSnapshot>) {
+  const sessionId = typeof session?._id === "string" && session._id ? session._id : null;
+
   return {
     ...webProfileWalletSummary,
     amount: typeof session?.wallet === "string" && session.wallet ? session.wallet : webProfileWalletSummary.amount,
-    maskedId: maskSessionId(session?._id) ?? webProfileWalletSummary.maskedId,
+    maskedId: sessionId ? maskSessionId(sessionId) ?? webProfileWalletSummary.maskedId : webProfileWalletSummary.maskedId,
+    userId: sessionId ?? webProfileWalletSummary.userId,
     username:
       typeof session?.username === "string" && session.username
         ? session.username
         : webProfileWalletSummary.username,
-    tier:
-      typeof session?.membership_tier === "string" && session.membership_tier
-        ? session.membership_tier
-        : webProfileWalletSummary.membershipTier,
+    tier: readMembershipTier(session?.membership_tier) ?? "",
   };
 }
 
@@ -377,11 +398,16 @@ function createProfileScreenStyles(colors: ThemeColors) {
     gap: spacing.md,
     maxHeight: 52,
     minHeight: 52,
+    overflow: "hidden",
     paddingHorizontal: 16,
     width: "100%",
   },
+  inviteRowHovered: {
+    backgroundColor: pickThemed(colors, "#C8DFFB", "#0A3329"),
+  },
   inviteCardLinkArea: {
     alignItems: "center",
+    backgroundColor: "transparent",
     flex: 1,
     flexDirection: "row",
     gap: 16,

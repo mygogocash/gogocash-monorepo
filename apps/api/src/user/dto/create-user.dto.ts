@@ -21,6 +21,7 @@ export class CreateUserDto {
   city?: string;
   zip?: string;
   email_mcb?: string;
+  avatar_url?: string;
 }
 
 export class UpdateCountryDto {

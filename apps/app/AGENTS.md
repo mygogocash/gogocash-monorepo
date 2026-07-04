@@ -6,7 +6,7 @@ Concise guidance for AI coding agents and contributors working in `apps/app/`. *
 
 ## Project
 
-- **Stack:** Expo SDK 57 + React Native 0.86.0 + **react-native-web 0.21.2**, React 19.2.7, TypeScript (strict). No `react-native-reanimated` — use the `Animated` API + `src/theme/motion.ts`.
+- **Stack:** Expo SDK 57 + React Native 0.86.0 + **react-native-web 0.21.2**, React 19.2.7, TypeScript (strict). No `react-native-reanimated` — use the `Animated` API + `src/theme/motion.ts` + `src/theme/animatedMotion.ts`. **120 Hz motion:** animate `transform` and `opacity` only; avoid CSS transitions on `box-shadow`, `background-color`, or layout properties (`MotionPressable`, `motion.cssTransition`).
 - **Routing:** **expo-router** ~57.0.2 (file-based, `app/`). Auth gating via `Stack.Protected` in `app/_layout.tsx`, driven by `useAuthGuardSession` (synchronous-on-first-render so the guard is correct on first paint).
 - **i18n:** `tc()` from `src/i18n/useCopy.ts` — a **text-based reverse-lookup** into the reused web ICU catalogs, falling back to the English in `src/design/webDesignParity.ts`. Render copy inline as `tc("English string")`; do not invent new keys.
 - **Design tokens:** `src/theme/colorPalettes.ts` (`lightColors` / `darkColors`) via `ThemeProvider` + `useTheme()` / `useThemeColors()` / `useThemedStyles()`; `src/theme/tokens.ts` holds `radii`, `spacing`, `typography` and a **legacy** static `colors` (= `lightColors`); icons `src/theme/icons.tsx` (phosphor adapters), motion `src/theme/motion.ts`. See [docs/dark-mode.md](./docs/dark-mode.md).

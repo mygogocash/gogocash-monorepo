@@ -18,7 +18,7 @@ import { webSearchInputFocusReset } from "@mobile/screens/home/homeAssets";
 
 const webSearchShellMotionStyle = {
   transitionDuration: motion.cssTransition.duration,
-  transitionProperty: "border-color, background-color, box-shadow, width, max-width",
+  transitionProperty: motion.cssTransition.property,
   transitionTimingFunction: motion.cssTransition.timingFunction,
 } as unknown as ViewStyle;
 

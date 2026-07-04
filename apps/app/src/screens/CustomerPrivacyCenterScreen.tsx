@@ -9,6 +9,14 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webPrivacyCenterPage } from "@mobile/design/webDesignParity";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import {
+  premiumOutlineButtonDisabledStyle,
+  premiumOutlineButtonStyle,
+  premiumOutlineButtonTextDisabledStyle,
+  premiumOutlineButtonTextStyle,
+  premiumPanelCardStyle,
+} from "@mobile/theme/premiumPanelCard";
+import { motion } from "@mobile/theme/motion";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -121,11 +129,17 @@ function ConsentHeroCard({
       <MotionPressable
         accessibilityRole="button"
         disabled={allOptionalEnabled}
+        hoverLift={false}
         onPress={onAcceptAll}
-        pressScale={0.98}
+        pressScale={motion.scale.subtlePress}
         style={[styles.acceptButton, allOptionalEnabled ? styles.acceptButtonDisabled : null]}
       >
-        <Text style={styles.acceptButtonText}>
+        <Text
+          style={[
+            styles.acceptButtonText,
+            allOptionalEnabled ? styles.acceptButtonTextDisabled : null,
+          ]}
+        >
           {allOptionalEnabled
             ? tc(webPrivacyCenterPage.hero.allEnabledLabel)
             : tc(webPrivacyCenterPage.hero.actionLabel)}
@@ -249,51 +263,30 @@ function createPrivacyCenterScreenStyles(colors: ThemeColors) {
     fontSize: 17,
     lineHeight: 27,
   },
-  heroCard: {
-    backgroundColor: pickThemed(colors, colors.primarySoft, colors.fieldMuted),
-    borderColor: pickThemed(colors, "#D1FAE5", colors.border),
-    borderRadius: 18,
-    borderWidth: 1,
-    boxShadow: pickThemed(colors, "0 2px 8px rgba(16, 53, 34, 0.12)", shadows.cardCss),
-    gap: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 20,
-  },
+  heroCard: premiumPanelCardStyle(colors, {
+    gap: spacing.sm,
+    padding: spacing.lg,
+  }),
   heroCopy: {
-    gap: 4,
+    gap: spacing.xs,
   },
   heroTitle: {
-    color: colors.accent,
+    color: colors.ink,
     fontFamily: typography.family,
-    fontSize: 20,
-    fontWeight: "800",
-    lineHeight: 26,
+    fontSize: typography.title,
+    fontWeight: "700",
+    lineHeight: typography.titleLineHeight,
   },
   heroBody: {
     color: colors.muted,
     fontFamily: typography.family,
-    fontSize: 17,
-    lineHeight: 27,
+    fontSize: typography.body,
+    lineHeight: typography.bodyLineHeight,
   },
-  acceptButton: {
-    alignItems: "center",
-    backgroundColor: colors.primaryDark,
-    borderRadius: radii.chip,
-    justifyContent: "center",
-    minHeight: 58,
-    paddingHorizontal: spacing.lg,
-  },
-  acceptButtonDisabled: {
-    backgroundColor: pickThemed(colors, "#79D8C0", colors.borderStrong),
-  },
-  acceptButtonText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: 19,
-    fontWeight: "700",
-    lineHeight: 24,
-    textAlign: "center",
-  },
+  acceptButton: premiumOutlineButtonStyle(colors),
+  acceptButtonDisabled: premiumOutlineButtonDisabledStyle(colors),
+  acceptButtonText: premiumOutlineButtonTextStyle(colors),
+  acceptButtonTextDisabled: premiumOutlineButtonTextDisabledStyle(colors),
   heroHint: {
     color: colors.muted,
     fontFamily: typography.family,
@@ -313,23 +306,18 @@ function createPrivacyCenterScreenStyles(colors: ThemeColors) {
   optionalStack: {
     gap: 14,
   },
-  optionalCard: {
-    backgroundColor: pickThemed(colors, colors.primarySoft, colors.fieldMuted),
-    borderColor: pickThemed(colors, "#D1FAE5", colors.border),
-    borderRadius: 18,
-    borderWidth: 1,
+  optionalCard: premiumPanelCardStyle(colors, {
     gap: spacing.lg,
     minHeight: 150,
-    paddingHorizontal: 18,
-    paddingVertical: 20,
-  },
+    padding: spacing.lg,
+  }),
   optionalCopy: {
     gap: spacing.sm,
   },
   optionalCardTitle: {
-    color: colors.accent,
+    color: colors.ink,
     fontFamily: typography.family,
-    fontSize: 17,
+    fontSize: typography.body,
     fontWeight: "600",
     lineHeight: 23,
   },
@@ -373,14 +361,10 @@ function createPrivacyCenterScreenStyles(colors: ThemeColors) {
   toggleThumbOn: {
     marginLeft: 20,
   },
-  requiredCard: {
-    backgroundColor: pickThemed(colors, colors.primarySoft, colors.fieldMuted),
-    borderColor: pickThemed(colors, "#D1FAE5", colors.border),
-    borderRadius: 18,
-    borderWidth: 1,
+  requiredCard: premiumPanelCardStyle(colors, {
     gap: spacing.sm,
-    padding: spacing.md,
-  },
+    padding: spacing.lg,
+  }),
   requiredHeader: {
     alignItems: "center",
     flexDirection: "row",
@@ -388,12 +372,12 @@ function createPrivacyCenterScreenStyles(colors: ThemeColors) {
     gap: spacing.sm,
   },
   requiredTitle: {
-    color: colors.accent,
+    color: colors.ink,
     flexShrink: 1,
     fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 22,
+    fontSize: typography.body,
+    fontWeight: "600",
+    lineHeight: 23,
   },
   requiredBadge: {
     backgroundColor: pickThemed(colors, "#CFF5EA", colors.primarySoft),

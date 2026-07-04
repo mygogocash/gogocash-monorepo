@@ -5,10 +5,40 @@ import {
   type OtaUpdateDeps,
 } from "@mobile/updates/applyOtaUpdateIfAvailable";
 
+const updateNotAvailable = {
+  isAvailable: false,
+  isRollBackToEmbedded: false,
+  manifest: undefined,
+  reason: "noUpdateAvailableOnServer",
+};
+
+const updateAvailable = {
+  isAvailable: true,
+  isRollBackToEmbedded: false,
+  manifest: {
+    id: "test-update",
+    commitTime: 1_735_689_600_000,
+    assets: [],
+  },
+  reason: undefined,
+};
+
+const fetchSuccess = {
+  isNew: true,
+  isRollBackToEmbedded: false,
+  manifest: {
+    id: "test-update",
+    commitTime: 1_735_689_600_000,
+    assets: [],
+  },
+};
+
 function createDeps(overrides: Partial<OtaUpdateDeps> = {}): OtaUpdateDeps {
   return {
-    checkForUpdateAsync: vi.fn(async () => ({ isAvailable: false })),
-    fetchUpdateAsync: vi.fn(async () => ({})),
+    checkForUpdateAsync: vi.fn(
+      async () => updateNotAvailable,
+    ) as OtaUpdateDeps["checkForUpdateAsync"],
+    fetchUpdateAsync: vi.fn(async () => fetchSuccess) as OtaUpdateDeps["fetchUpdateAsync"],
     reloadAsync: vi.fn(async () => undefined),
     isEnabled: true,
     platformOs: "android",
@@ -41,7 +71,9 @@ describe("applyOtaUpdateIfAvailable", () => {
 
   it("applyOtaUpdateIfAvailable > given pending update > then fetches and reloads", async () => {
     const deps = createDeps({
-      checkForUpdateAsync: vi.fn(async () => ({ isAvailable: true })),
+      checkForUpdateAsync: vi.fn(
+        async () => updateAvailable,
+      ) as OtaUpdateDeps["checkForUpdateAsync"],
     });
 
     await expect(applyOtaUpdateIfAvailable(deps)).resolves.toBe("reloaded");
@@ -53,7 +85,7 @@ describe("applyOtaUpdateIfAvailable", () => {
     const deps = createDeps({
       checkForUpdateAsync: vi.fn(async () => {
         throw new Error("offline");
-      }),
+      }) as OtaUpdateDeps["checkForUpdateAsync"],
     });
 
     await expect(applyOtaUpdateIfAvailable(deps)).resolves.toBe("skipped");

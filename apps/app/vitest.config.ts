@@ -8,8 +8,10 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
   },
   resolve: {
-    alias: {
-      "@mobile": path.resolve(__dirname, "./src"),
-    },
+    alias: [
+      // react-native is Flow-typed; node tests alias to react-native-web (compiled JS).
+      { find: "react-native", replacement: "react-native-web" },
+      { find: "@mobile", replacement: path.resolve(__dirname, "./src") },
+    ],
   },
 });

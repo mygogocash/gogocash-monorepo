@@ -14,7 +14,8 @@ import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import { mobileShellLayout, webMembershipLanding } from "@mobile/design/webDesignParity";
-import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { premiumPanelCardStyle } from "@mobile/theme/premiumPanelCard";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -286,33 +287,30 @@ function createMembershipScreenStyles(colors: ThemeColors) {
     fontSize: 24,
     fontWeight: "800",
   },
-  hero: {
-    backgroundColor: colors.primarySoft,
-    borderColor: "rgba(0, 170, 128, 0.22)",
-    borderRadius: radii.lg,
-    borderWidth: 1,
+  hero: premiumPanelCardStyle(colors, {
     gap: spacing.md,
     padding: spacing.lg,
-  },
+  }),
   kicker: {
     color: colors.primaryDark,
     fontFamily: typography.family,
     fontSize: typography.caption,
     fontWeight: "700",
+    letterSpacing: 0.4,
     textTransform: "uppercase",
   },
   title: {
-    color: colors.accent,
+    color: colors.ink,
     fontFamily: typography.family,
-    fontSize: 30,
+    fontSize: typography.sectionTitle,
     fontWeight: "700",
-    lineHeight: 36,
+    lineHeight: 34,
   },
   body: {
-    color: colors.accentSoft,
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: typography.body,
-    lineHeight: 24,
+    lineHeight: typography.bodyLineHeight,
   },
   benefitList: {
     gap: spacing.sm,
@@ -353,7 +351,7 @@ function createMembershipScreenStyles(colors: ThemeColors) {
     gap: spacing.md,
   },
   billingChoice: {
-    backgroundColor: "#F7FAF8",
+    backgroundColor: pickThemed(colors, "#F7FAF8", colors.fieldMuted),
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -361,7 +359,7 @@ function createMembershipScreenStyles(colors: ThemeColors) {
     padding: spacing.md,
   },
   billingChoiceActive: {
-    backgroundColor: "#EAFBF6",
+    backgroundColor: pickThemed(colors, "#EAFBF6", colors.primarySoft),
     borderColor: colors.primary,
   },
   bestValue: {
@@ -394,7 +392,7 @@ function createMembershipScreenStyles(colors: ThemeColors) {
   },
   disabledNotice: {
     alignItems: "center",
-    backgroundColor: "#F3FBF8",
+    backgroundColor: pickThemed(colors, "#F3FBF8", colors.fieldMuted),
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -403,7 +401,7 @@ function createMembershipScreenStyles(colors: ThemeColors) {
     padding: spacing.md,
   },
   disabledText: {
-    color: colors.accent,
+    color: pickThemed(colors, colors.accent, colors.ink),
     flex: 1,
     fontFamily: typography.family,
     fontSize: typography.caption,

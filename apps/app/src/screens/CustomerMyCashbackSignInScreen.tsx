@@ -69,7 +69,7 @@ const linkCopy = {
 // Web-only smoothing + green focus ring for the OTP cells (instant on native).
 const webOtpCellMotionStyle = {
   transitionDuration: motion.cssTransition.duration,
-  transitionProperty: "transform, border-color, box-shadow, background-color",
+  transitionProperty: "transform, opacity",
   transitionTimingFunction: motion.cssTransition.timingFunction,
 } as unknown as ViewStyle;
 

@@ -1,33 +1,84 @@
 import { createElement } from "react";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("expo-localization", () => ({
+  getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
+}));
 
 import { AccountWalletHeroCard } from "@mobile/components/AccountPageShell";
+import { ToastProvider } from "@mobile/components/Toast";
+import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
+import { ThemeProvider } from "@mobile/theme/ThemeProvider";
 
-// Render coverage for the GoGoPass member treatment on the wallet hero card.
-// The /profile route is auth-guarded, so this verifies the tier-driven badge + ring
-// wiring directly (badge shows for gogopass, hidden for free, card mounts without throwing).
+const renderHero = (props: Parameters<typeof AccountWalletHeroCard>[0] = {}) =>
+  render(
+    createElement(
+      ThemeProvider,
+      {},
+      createElement(
+        LocaleProvider,
+        {},
+        createElement(
+          ToastProvider,
+          {},
+          createElement(AccountWalletHeroCard, {
+            maskedId: "***user",
+            tier: "gogopass",
+            title: "Demo User",
+            userId: "demo-user-id",
+            ...props,
+          }),
+        ),
+      ),
+    ),
+  );
+
+describe("AccountWalletHeroCard masked user id (render)", () => {
+  it("shows the masked id by default with reveal and copy controls", () => {
+    renderHero();
+    expect(screen.getByText("***user")).toBeTruthy();
+    expect(screen.getByLabelText("Show User ID")).toBeTruthy();
+    expect(screen.getByLabelText("Copy User ID")).toBeTruthy();
+    expect(screen.queryByText("demo-user-id")).toBeNull();
+  });
+
+  it("reveals the full user id when the eye control is pressed", () => {
+    renderHero();
+    fireEvent.click(screen.getByLabelText("Show User ID"));
+    expect(screen.getByText("demo-user-id")).toBeTruthy();
+    expect(screen.getByLabelText("Hide User ID")).toBeTruthy();
+    expect(screen.queryByText("***user")).toBeNull();
+  });
+});
+
 describe("AccountWalletHeroCard GoGoPass treatment (render)", () => {
   it("shows the GOGOPASS badge for a gogopass member", () => {
-    render(
-      createElement(AccountWalletHeroCard, {
-        maskedId: "***0001",
-        tier: "gogopass",
-        title: "Mock User",
-      })
-    );
+    renderHero();
     expect(screen.getByText("GOGOPASS")).toBeTruthy();
-    expect(screen.getByText("Mock User")).toBeTruthy();
+    expect(screen.getByText("Demo User")).toBeTruthy();
   });
 
   it("hides the badge for a free / undefined tier", () => {
-    render(createElement(AccountWalletHeroCard, { title: "Mock User" }));
+    render(
+      createElement(
+        ThemeProvider,
+        {},
+        createElement(
+          LocaleProvider,
+          {},
+          createElement(
+            ToastProvider,
+            {},
+            createElement(AccountWalletHeroCard, { title: "Mock User" }),
+          ),
+        ),
+      ),
+    );
     expect(screen.queryByText("GOGOPASS")).toBeNull();
   });
 
   it("mounts the gold ring + badge without throwing", () => {
-    expect(() =>
-      render(createElement(AccountWalletHeroCard, { tier: "gogopass", title: "Mock User" }))
-    ).not.toThrow();
+    expect(() => renderHero()).not.toThrow();
   });
 });

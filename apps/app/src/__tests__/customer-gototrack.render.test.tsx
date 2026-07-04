@@ -208,6 +208,15 @@ describe("CustomerGoGoTrackScreen — Wave B (B5) foundations adopted (source si
 });
 
 describe("CustomerGoGoTrackScreen grant-access UI (web parity source signals)", () => {
+  it("grant hero CTA > given mobile > then uses a refined outline button instead of a heavy fill pill", () => {
+    expect(grantSectionSource).toContain("hoverLift={false}");
+    expect(grantSectionSource).toContain("premiumOutlineButtonStyle");
+    expect(grantSectionSource).toMatch(/permissionCard: premiumPanelCardStyle\(colors/);
+    expect(grantSectionSource).toMatch(
+      /permissionCardTitle:[\s\S]*color: colors\.ink[\s\S]*fontWeight: "600"/,
+    );
+  });
+
   it("hub + permissions modes wire GoGoTrackPermissionGrantSection from shared parity copy", () => {
     expect(gogoSenseSource).toContain("GoGoTrackPermissionGrantSection");
     expect(gogoSenseSource).toContain("GoGoTrackPermissionDisclosure");

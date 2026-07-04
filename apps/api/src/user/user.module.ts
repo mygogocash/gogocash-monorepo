@@ -8,6 +8,7 @@ import {
   UserMyCashback,
   UserMyCashbackSchema,
 } from './schemas/user-my-cashback.schema';
+import { MediaModule } from 'src/media/media.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import {
       { name: User.name, schema: UserSchema },
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
     ]),
+    MediaModule,
   ],
   controllers: [UserController],
   providers: [UserService, JwtService],

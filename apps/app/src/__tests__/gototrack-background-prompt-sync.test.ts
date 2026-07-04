@@ -31,7 +31,7 @@ describe("syncBackgroundPromptMonitorConfig", () => {
 
   it("syncBackgroundPromptMonitorConfig > calls detector sync with resolved config", async () => {
     const syncBackgroundPromptConfig = vi.fn(async () => undefined);
-    const detector = { syncBackgroundPromptConfig } as GoGoTrackDetector;
+    const detector = { syncBackgroundPromptConfig } as unknown as GoGoTrackDetector;
 
     await syncBackgroundPromptMonitorConfig(detector, true);
 

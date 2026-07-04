@@ -360,5 +360,10 @@
   "mobileHomeGoLinkSubcopy": "รับเงินคืนด้วย GoGoLink",
   "mobileHomeGoLinkLead": "รับเงินคืนง่ายๆ แค่",
   "mobileSearchLoading": "กำลังค้นหาแบรนด์และร้านค้า…",
-  "mobileSearchUnavailable": "การค้นหาไม่พร้อมใช้งานชั่วคราว โปรดลองอีกครั้งในอีกสักครู่"
+  "mobileSearchUnavailable": "การค้นหาไม่พร้อมใช้งานชั่วคราว โปรดลองอีกครั้งในอีกสักครู่",
+  "mobileProfileAvatarUploadHint": "อัปโหลดรูปโปรไฟล์",
+  "mobileProfileAvatarAltShort": "รูปโปรไฟล์",
+  "mobileProfileAvatarUploading": "กำลังอัปโหลด…",
+  "mobileProfileAvatarChangePhoto": "เปลี่ยนรูป",
+  "mobileProfileAvatarWebOnly": "อัปโหลดรูปโปรไฟล์ใช้ได้บนเว็บในขณะนี้"
 }

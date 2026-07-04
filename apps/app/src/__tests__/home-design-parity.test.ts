@@ -906,14 +906,16 @@ describe("Expo home design parity", () => {
     expect(homeSource).toContain('pickThemed(colors, "#303846", "rgba(255, 255, 255, 0.92)")');
   });
 
-  it("mobile/tablet GoLink banner collapse > given covered before layout > then height stays zero", () => {
+  it("mobile/tablet GoLink banner collapse > given covered state > then banner unmounts after compositor animation", () => {
     const collapseSource = fs.readFileSync(
       path.resolve(mobileRoot, "src/screens/home/MobileTabletGoLinkBannerCollapse.tsx"),
       "utf8"
     );
 
     expect(collapseSource).toContain("isCovered");
-    expect(collapseSource).toMatch(/isCovered[\s\S]*\?\s*0/);
+    expect(collapseSource).toContain("bannerMounted");
+    expect(collapseSource).toContain("scaleY");
+    expect(collapseSource).toContain("runTransformTiming");
   });
 
   it("mobile search screen > given suggestion cards > then it renders the shared compact BrandCard", () => {

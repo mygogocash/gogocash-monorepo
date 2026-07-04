@@ -11,7 +11,7 @@ import {
   resolveCustomerAccountResourceQueryKey,
   resolveCustomerAccountResourceSessionScope,
 } from "@mobile/account/customerAccountResourceQueryKey";
-import { isCheckWithdrawResponse, normalizeCheckWithdrawResponse } from "@mobile/api/walletTypes";
+import { normalizeCheckWithdrawResponse } from "@mobile/api/walletTypes";
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { getMobileEnv } from "@mobile/config/env";
@@ -311,7 +311,7 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
     const walletPayload = normalizeCheckWithdrawResponse(query.data);
     if (walletPayload) {
       return {
-        data: walletPayload,
+        data: walletPayload as TFixture | TBackend,
         endpoint,
         error: null,
         retry,

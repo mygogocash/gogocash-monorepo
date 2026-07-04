@@ -219,6 +219,24 @@ describe("Account hub route parity", () => {
     expect(profileFile).not.toContain("profileHubMenuItems.slice(0, 10)");
   });
 
+  it("profile invite row > given web hover > then row hover is container-level without nested hoverLift", () => {
+    const profileFile = readMobileFile("src/screens/CustomerProfileScreen.tsx");
+    const inviteFriendsRow =
+      profileFile.match(/function InviteFriendsRow[\s\S]*?\n\}\n\nfunction copyInviteLink/)?.[0] ??
+      "";
+
+    expect(inviteFriendsRow.match(/hoverLift=\{false\}/g)?.length).toBe(2);
+    expect(inviteFriendsRow).toContain("onHoverIn");
+    expect(inviteFriendsRow).toContain("onHoverOut");
+    expect(inviteFriendsRow).toContain("inviteRowHovered");
+    expect(profileFile).toMatch(
+      /inviteCardLinkArea:[\s\S]*backgroundColor: "transparent"/,
+    );
+    expect(profileFile).toMatch(
+      /inviteRowHovered:[\s\S]*backgroundColor: pickThemed\(colors, "#C8DFFB"/,
+    );
+  });
+
   it("profile referral nav > given selected Next referral row > then Expo renders the same highlighted card and copy affordance", () => {
     const profileFile = readMobileFile("src/screens/CustomerProfileScreen.tsx");
 
@@ -280,7 +298,10 @@ describe("Account hub route parity", () => {
     expect(shellFile).toContain("walletHeroGlassPanel");
     expect(shellFile).toContain("walletHeroGlassGradientStyle");
     expect(shellFile).toContain("webProfileWalletHeroSurface.glassBackgroundImage");
-    expect(shellFile).toContain("walletAvatarLarge");
+    expect(shellFile).toContain("COMPACT_WALLET_HERO_MAX_WIDTH");
+    expect(shellFile).toContain("DESKTOP_WALLET_AVATAR_SIZE");
+    expect(shellFile).toContain("walletHeroGlassPanelCompact");
+    expect(shellFile).toContain("walletHeroIdRowCompact");
     expect(shellFile).toContain("profileContentMobile");
     expect(shellFile).toContain("profileContentDesktop");
     expect(shellFile).toContain("webProfileWalletHeroSurface.headerColor");
@@ -294,7 +315,7 @@ describe("Account hub route parity", () => {
     expect(shellFile).not.toContain('backgroundColor: "rgba(112, 157, 255, 0.28)"');
     expect(shellFile).toContain("marginTop: -10");
     expect(shellFile).toContain("minHeight: 260");
-    expect(shellFile).toContain("height: 72");
+    expect(shellFile).toContain("DESKTOP_WALLET_AVATAR_SIZE = 72");
     expect(shellFile).toContain("fontSize: 48");
     expect(shellFile).toContain("lineHeight: 56");
     expect(shellFile).toContain("minHeight: 60");
@@ -319,7 +340,7 @@ describe("Account hub route parity", () => {
     );
     expect(profileFile).toMatch(/copyButton:[\s\S]*height: 24,[\s\S]*minWidth: 102/);
     expect(profileFile).toContain("height: 14");
-    expect(bottomNavFile).toContain("profileAvatarImage");
+    expect(bottomNavFile).toContain("ProfileAvatarImage");
     expect(bottomNavFile).toContain("bottomNavProfileAvatar");
     expect(bottomNavFile).toContain('name === "profile" && active');
   });
@@ -356,6 +377,8 @@ describe("Account hub route parity", () => {
     // Shared panel: now owns the cashback-summary + personal-information sections and
     // their parity strings (moved here from the detail screen).
     expect(panelFile).toContain("ProfileCashbackSummaryCard");
+    expect(panelFile).toContain("profileCashbackHeaderCompact");
+    expect(panelFile).toContain("profileCashbackWithdrawButtonCompact");
     expect(panelFile).toContain("ProfilePersonalInformationPanel");
     expect(panelFile).toContain("webProfileInfoCashbackCard");
     expect(panelFile).toContain("Personal Information");
@@ -672,7 +695,7 @@ describe("Account hub route parity", () => {
     expect(privacyCenterFile).toContain("RequiredConsentCard");
     expect(privacyCenterFile).not.toContain("CheckCircle2");
     expect(privacyCenterFile).not.toContain("CheckIcon");
-    expect(privacyCenterFile).toMatch(/heroTitle:[\s\S]*fontSize: 20,[\s\S]*lineHeight: 26/);
+    expect(privacyCenterFile).toMatch(/heroTitle:[\s\S]*color: colors\.ink/);
     expect(privacyCenterFile).toContain("privacyCenterSurfaceBleed");
     expect(privacyCenterFile).toContain("privacyTintShell");
     expect(privacyCenterFile).toContain('activeRouteId="profile"');
@@ -682,7 +705,7 @@ describe("Account hub route parity", () => {
     expect(privacyCenterFile).not.toContain("GoGoTrack history");
     // Light-mode nested cards keep mint soft fills; shell follows themed card surface.
     expect(privacyCenterFile).toMatch(/surface:[\s\S]*backgroundColor: colors\.card/);
-    expect(privacyCenterFile).toContain("colors.primarySoft");
+    expect(privacyCenterFile).toContain("premiumPanelCardStyle");
     expect(privacyCenterFile).not.toContain('"#DCEEFF"');
     expect(privacyCenterFile).not.toContain('"#10253F"');
     expect(privacyCenterFile).not.toContain('"#B6D3EC"');

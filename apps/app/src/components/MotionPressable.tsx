@@ -19,7 +19,6 @@ type MotionPressableProps = PressableProps & {
 };
 
 type WebMotionStyle = ViewStyle & {
-  boxShadow?: string;
   cursor?: string;
   transitionDuration?: string;
   transitionProperty?: string;
@@ -35,14 +34,6 @@ const webInteractiveStyle: WebMotionStyle = {
   willChange: "transform",
 };
 
-const restingHoverStyle: WebMotionStyle = {
-  boxShadow: "0 0 0 rgba(0, 0, 0, 0)",
-};
-
-const hoverLiftStyle: WebMotionStyle = {
-  boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
-};
-
 export function MotionPressable({
   disabled,
   hoverLift = true,
@@ -55,9 +46,6 @@ export function MotionPressable({
   const [hovered, setHovered] = useState(false);
   const reducedMotion = useReducedMotion();
   const interactive = !disabled;
-  // Reduce-motion (A1): collapse the press-scale to the identity (1) so the press
-  // applies its final state instantly with no scale animation, and drop the
-  // hover-lift translate/shadow. Public props are unchanged — this is internal.
   const effectivePressScale = reducedMotion ? 1 : pressScale;
   const effectiveHoverLift = reducedMotion ? false : hoverLift;
 
@@ -82,9 +70,7 @@ export function MotionPressable({
       style={(state) =>
         StyleSheet.flatten([
           webInteractiveStyle,
-          effectiveHoverLift ? restingHoverStyle : null,
           typeof style === "function" ? style(state) : style,
-          interactive && effectiveHoverLift && hovered ? hoverLiftStyle : null,
           effectiveHoverLift
             ? getInteractionTransformStyle({
                 hovered: interactive && hovered,

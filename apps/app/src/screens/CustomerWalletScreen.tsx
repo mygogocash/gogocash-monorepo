@@ -391,14 +391,22 @@ function WalletHeader() {
   const styles = useThemedStyles(createWalletScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const [backHovered, setBackHovered] = useState(false);
+
   return (
     <View style={styles.walletHeader}>
       <Link asChild href="/profile">
         <MotionPressable
           accessibilityLabel={tc("Back to Profile")}
           hitSlop={{ bottom: 8, left: 8, right: 8, top: 8 }}
+          hoverLift={false}
+          onHoverIn={() => setBackHovered(true)}
+          onHoverOut={() => setBackHovered(false)}
           pressScale={0.98}
-          style={styles.backButton}
+          style={StyleSheet.flatten([
+            styles.backButton,
+            backHovered ? styles.backButtonHovered : null,
+          ])}
         >
           <ChevronLeftIcon
             color={colors.accent}
@@ -540,9 +548,14 @@ function createWalletScreenStyles(colors: ThemeColors) {
   },
   backButton: {
     alignItems: "center",
+    backgroundColor: "transparent",
     height: 40,
     justifyContent: "center",
     width: 34,
+  },
+  backButtonHovered: {
+    backgroundColor: pickThemed(colors, "rgba(0, 100, 214, 0.08)", "rgba(0, 204, 153, 0.12)"),
+    borderRadius: 12,
   },
   walletHeaderTitle: {
     color: colors.accent,

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Animated, View } from "react-native";
 
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
+import { runTransformTiming } from "@mobile/theme/animatedMotion";
 import { motion } from "@mobile/theme/motion";
 
 import { DesktopGoLinkBanner } from "./DesktopGoLinkBanner";
@@ -12,58 +13,79 @@ type MobileTabletGoLinkBannerCollapseProps = {
   readonly onResultHref: (href: string) => void;
 };
 
+const collapsedScaleY = 0.001;
+
 export function MobileTabletGoLinkBannerCollapse({
   isCovered,
   onOpenGuideline,
   onResultHref,
 }: MobileTabletGoLinkBannerCollapseProps) {
   const reducedMotion = useReducedMotion();
+  const [bannerMounted, setBannerMounted] = useState(!isCovered);
   const expandProgress = useMemo(() => new Animated.Value(isCovered ? 0 : 1), []);
-  const [contentHeight, setContentHeight] = useState(0);
 
   useEffect(() => {
     expandProgress.stopAnimation();
-    Animated.timing(expandProgress, {
-      duration: reducedMotion ? 0 : motion.duration.accordionExpand,
-      easing: isCovered ? motion.easing.in : motion.easing.out,
-      toValue: isCovered ? 0 : 1,
-      useNativeDriver: motion.useLayoutNativeDriver,
+
+    if (isCovered) {
+      if (reducedMotion) {
+        expandProgress.setValue(0);
+        setBannerMounted(false);
+        return undefined;
+      }
+
+      runTransformTiming(expandProgress, {
+        duration: motion.duration.accordionExpand,
+        easing: motion.easing.in,
+        toValue: 0,
+      }).start(({ finished }) => {
+        if (finished) {
+          setBannerMounted(false);
+        }
+      });
+
+      return () => expandProgress.stopAnimation();
+    }
+
+    setBannerMounted(true);
+    if (reducedMotion) {
+      expandProgress.setValue(1);
+      return undefined;
+    }
+
+    expandProgress.setValue(0);
+    runTransformTiming(expandProgress, {
+      duration: motion.duration.accordionExpand,
+      easing: motion.easing.out,
+      toValue: 1,
     }).start();
+
+    return () => expandProgress.stopAnimation();
   }, [expandProgress, isCovered, reducedMotion]);
 
-  const animatedHeight =
-    contentHeight > 0
-      ? expandProgress.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, contentHeight],
-        })
-      : isCovered
-        ? 0
-        : undefined;
+  if (!bannerMounted) {
+    return null;
+  }
 
   return (
     <Animated.View
-      style={[
-        {
-          marginBottom: expandProgress.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 12],
-          }),
-          opacity: expandProgress,
-          overflow: "hidden",
-          pointerEvents: isCovered ? "none" : "auto",
-        },
-        animatedHeight != null ? { height: animatedHeight } : null,
-      ]}
+      style={{
+        marginBottom: 12,
+        opacity: expandProgress,
+        overflow: "hidden",
+        pointerEvents: isCovered ? "none" : "auto",
+        transform: [
+          {
+            scaleY: expandProgress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [collapsedScaleY, 1],
+            }),
+          },
+        ],
+        transformOrigin: "top",
+      }}
     >
-      <View
-        onLayout={(event) => {
-          const nextHeight = Math.round(event.nativeEvent.layout.height);
-          if (nextHeight > 0 && nextHeight !== contentHeight) {
-            setContentHeight(nextHeight);
-          }
-        }}
-      >
+      <View>
         <DesktopGoLinkBanner
           onOpenGuideline={onOpenGuideline}
           onResultHref={onResultHref}

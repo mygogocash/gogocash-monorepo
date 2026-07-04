@@ -1,96 +1,116 @@
-import { Image } from "expo-image";
-import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View, type ViewStyle } from "react-native";
 import { Copy as CopyIcon } from "@mobile/theme/icons";
 
 import type { MobileSession } from "@mobile/auth/session";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
-import { webProfileHeroCard, webProfileWalletSummary } from "@mobile/design/webDesignParity";
+import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
+import { mobileShellLayout, webProfileHeroCard, webProfileWalletSummary } from "@mobile/design/webDesignParity";
+import { useProfileAvatarUpload } from "@mobile/hooks/useProfileAvatarUpload";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { copyToClipboard } from "@mobile/lib/clipboard";
+import { readMembershipTier } from "@mobile/lib/membershipTier";
 import { useToast } from "@mobile/hooks/useToast";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing, typography } from "@mobile/theme/tokens";
 
-import profileAvatarImage from "../../assets/profile-avatar.png";
-
-const AVATAR_SIZE = 96;
+const DESKTOP_AVATAR_SIZE = 96;
+const COMPACT_AVATAR_SIZE = 72;
+const COMPACT_LAYOUT_MAX_WIDTH = 560;
 
 /**
  * Profile hero — parity with the Next.js web `CardProfile`
  * (src/features/profile/component/CardProfile.tsx): a mint banner with the
- * GoGoPass ring avatar (display-only — no upload, per the plan), the member name
- * + "GOGOPASS" badge, a "User ID" row with a copy button, and a mint "invite
- * link" chip with a copy button. Avatar/badge/name styling mirrors
- * `CustomerProfileBar`; the User-ID and invite-link values come from the shared
- * `webProfileHeroCard` mock (visual parity with mock data). Copy buttons use the
- * cross-platform `copyToClipboard` and surface a toast on success/failure.
+ * GoGoPass ring avatar, the member name + "GOGOPASS" badge, a "User ID" row with a
+ * copy button, and a mint "invite link" chip with a copy button. Desktop/web
+ * members can tap the avatar to upload a high-resolution profile photo.
  */
 export function ProfileHeroCard({ session }: { session: MobileSession }) {
   const tc = useCopy();
   const toast = useToast();
   const styles = useThemedStyles(createProfileHeroCardStyles);
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const isCompact = width < COMPACT_LAYOUT_MAX_WIDTH;
+  const avatarSize = isCompact ? COMPACT_AVATAR_SIZE : DESKTOP_AVATAR_SIZE;
 
   const username =
     typeof session.username === "string" && session.username
       ? session.username
       : webProfileWalletSummary.username;
-  const tier =
-    typeof session.membership_tier === "string" && session.membership_tier
-      ? session.membership_tier
-      : webProfileWalletSummary.membershipTier;
+  const tier = readMembershipTier(session.membership_tier);
   const avatarUrl =
     typeof session.avatar_url === "string" && session.avatar_url.trim()
       ? session.avatar_url.trim()
       : null;
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  const { avatarUrl: uploadedAvatarUrl, pickAndUpload, uploading } =
+    useProfileAvatarUpload(avatarUrl);
+  const displayAvatarUrl = uploadedAvatarUrl ?? avatarUrl;
 
   const copyValue = async (value: string, successMessage: string) => {
     const copied = await copyToClipboard(value);
     toast.show(tc(copied ? successMessage : webProfileHeroCard.copyFailedToast));
   };
 
-  return (
-    <View style={[styles.banner, colors.isDark ? null : bannerGradient]}>
-      <GoGoPassAvatar ringWidth={4} size={AVATAR_SIZE} tier={tier}>
-        <Image
-          accessibilityLabel={tc("Avatar")}
-          cachePolicy="memory-disk"
-          contentFit="cover"
-          source={avatarUrl ? { uri: avatarUrl } : profileAvatarImage}
-          style={styles.avatarImage}
-        />
-      </GoGoPassAvatar>
+  const iconColor = pickThemed(colors, colors.primaryDark, colors.white);
 
-      <View style={styles.identity}>
-        <View style={styles.nameRow}>
-          <Text numberOfLines={1} style={styles.name}>
+  return (
+    <View style={[styles.banner, isCompact ? styles.bannerCompact : null, colors.isDark ? null : bannerGradient]}>
+      <View style={[styles.headerBand, isCompact ? styles.headerBandCompact : null]}>
+        <Pressable
+          accessibilityHint={isDesktop ? tc("Upload a profile photo") : undefined}
+          accessibilityLabel={tc("Avatar")}
+          accessibilityRole={isDesktop ? "button" : "image"}
+          disabled={!isDesktop || uploading}
+          onPress={isDesktop ? () => void pickAndUpload() : undefined}
+          style={styles.avatarPressable}
+        >
+          <GoGoPassAvatar ringWidth={isCompact ? 3 : 4} size={avatarSize} tier={tier}>
+            <ProfileAvatarImage
+              accessibilityLabel={tc("Avatar")}
+              avatarUrl={displayAvatarUrl}
+              size={avatarSize}
+              style={styles.avatarImage}
+            />
+          </GoGoPassAvatar>
+          {isDesktop ? (
+            <View style={[styles.avatarUploadBadge, { pointerEvents: "none" }]}>
+              <Text style={styles.avatarUploadBadgeText}>
+                {uploading ? tc("Uploading…") : tc("Change photo")}
+              </Text>
+            </View>
+          ) : null}
+        </Pressable>
+
+        <View style={styles.identityHeader}>
+          <Text numberOfLines={2} style={[styles.name, isCompact ? styles.nameCompact : null]}>
             {username}
           </Text>
           <GoGoPassBadge tier={tier} />
         </View>
+      </View>
 
-        <View style={styles.userIdRow}>
-          <Text style={styles.userIdText}>
-            {tc(webProfileHeroCard.userIdLabel)}:{" "}
-            <Text style={styles.userIdValue}>{webProfileHeroCard.userId}</Text>
-          </Text>
-          <Pressable
-            accessibilityLabel={tc(webProfileHeroCard.userIdCopyAria)}
-            accessibilityRole="button"
-            onPress={() =>
-              void copyValue(webProfileHeroCard.userId, webProfileHeroCard.userIdCopiedToast)
-            }
-            style={styles.userIdCopyButton}
-          >
-            <CopyIcon
-              color={pickThemed(colors, colors.ink, colors.accent)}
-              size={18}
-              strokeWidth={typography.iconStrokeWidth}
-            />
-          </Pressable>
+      <View style={styles.metaStack}>
+        <View style={styles.userIdChip}>
+          <Text style={styles.userIdLabel}>{tc(webProfileHeroCard.userIdLabel)}</Text>
+          <View style={styles.userIdValueRow}>
+            <Text numberOfLines={1} style={styles.userIdValue}>
+              {webProfileHeroCard.userId}
+            </Text>
+            <Pressable
+              accessibilityLabel={tc(webProfileHeroCard.userIdCopyAria)}
+              accessibilityRole="button"
+              onPress={() =>
+                void copyValue(webProfileHeroCard.userId, webProfileHeroCard.userIdCopiedToast)
+              }
+              style={styles.iconButton}
+            >
+              <CopyIcon color={iconColor} size={16} strokeWidth={typography.iconStrokeWidth} />
+            </Pressable>
+          </View>
         </View>
 
         <Pressable
@@ -101,11 +121,17 @@ export function ProfileHeroCard({ session }: { session: MobileSession }) {
           }
           style={styles.inviteRow}
         >
-          <Text style={styles.inviteLabel}>{tc(webProfileHeroCard.inviteLinkLabel)} :</Text>
-          <Text numberOfLines={1} style={styles.inviteValue}>
-            {webProfileHeroCard.inviteLink}
+          <Text numberOfLines={1} style={styles.inviteLabel}>
+            {tc(webProfileHeroCard.inviteLinkLabel)}
           </Text>
-          <CopyIcon color={colors.white} size={18} strokeWidth={typography.iconStrokeWidth} />
+          <View style={styles.inviteLinkRow}>
+            <Text ellipsizeMode="middle" numberOfLines={1} style={styles.inviteValue}>
+              {webProfileHeroCard.inviteLink}
+            </Text>
+            <View style={styles.inviteCopyIcon}>
+              <CopyIcon color={iconColor} size={16} strokeWidth={typography.iconStrokeWidth} />
+            </View>
+          </View>
         </Pressable>
       </View>
     </View>
@@ -125,95 +151,158 @@ const bannerGradient = {
 } as unknown as ViewStyle;
 
 function createProfileHeroCardStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-  banner: {
-    alignItems: "center",
-    backgroundColor: pickThemed(colors, colors.primary, colors.primarySoft),
-    borderColor: colors.isDark ? colors.borderStrong : "transparent",
-    borderRadius: radii.lg,
-    borderWidth: colors.isDark ? 1 : 0,
-    flexDirection: "row",
-    gap: spacing.lg,
-    overflow: "hidden",
-    padding: spacing.lg,
-  },
-  avatarImage: {
-    height: "100%",
-    width: "100%",
-  },
-  identity: {
-    flex: 1,
-    gap: spacing.md,
-    minWidth: 0,
-  },
-  nameRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  name: {
-    color: pickThemed(colors, colors.ink, colors.white),
-    fontFamily: typography.family,
-    fontSize: 24,
-    fontWeight: "600",
-    lineHeight: 30,
-  },
-  userIdRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  userIdText: {
-    color: pickThemed(colors, colors.muted, "rgba(255,255,255,0.72)"),
-    fontFamily: typography.family,
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  userIdValue: {
-    color: pickThemed(colors, colors.ink, colors.white),
-    fontFamily: typography.family,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "600",
-  },
-  userIdCopyButton: {
-    alignItems: "center",
-    borderRadius: radii.sm,
-    height: 30,
-    justifyContent: "center",
-    width: 30,
-  },
-  inviteRow: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: pickThemed(colors, colors.primary, colors.accentSoft),
-    borderRadius: 12,
-    boxShadow: pickThemed(
-      colors,
-      "inset 0 0 0 1px rgba(255, 255, 255, 0.22)",
-      "inset 0 0 0 1px rgba(255, 255, 255, 0.12)",
-    ),
-    flexDirection: "row",
-    gap: spacing.sm,
-    maxWidth: "100%",
-    minHeight: 40,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  inviteLabel: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  inviteValue: {
-    color: colors.white,
-    flexShrink: 1,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "400",
-  },
-});
-}
+  const frostedChip = {
+    backgroundColor: pickThemed(colors, "rgba(255, 255, 255, 0.94)", "rgba(255, 255, 255, 0.08)"),
+    borderColor: pickThemed(colors, "rgba(255, 255, 255, 0.65)", colors.borderStrong),
+    borderRadius: radii.md,
+    borderWidth: 1,
+    boxShadow: pickThemed(colors, "0 2px 10px rgba(16, 53, 34, 0.08)", "none"),
+  } as const;
 
+  return StyleSheet.create({
+    banner: {
+      backgroundColor: pickThemed(colors, colors.primary, colors.primarySoft),
+      borderColor: colors.isDark ? colors.borderStrong : "transparent",
+      borderRadius: radii.lg,
+      borderWidth: colors.isDark ? 1 : 0,
+      gap: spacing.md,
+      overflow: "hidden",
+      padding: spacing.lg,
+      width: "100%",
+    },
+    bannerCompact: {
+      padding: spacing.md,
+    },
+    headerBand: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: spacing.lg,
+      width: "100%",
+    },
+    headerBandCompact: {
+      gap: spacing.md,
+    },
+    avatarPressable: {
+      alignItems: "center",
+      position: "relative",
+    },
+    avatarImage: {
+      height: "100%",
+      width: "100%",
+    },
+    avatarUploadBadge: {
+      backgroundColor: "rgba(16, 53, 34, 0.72)",
+      borderRadius: 999,
+      bottom: -4,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+      position: "absolute",
+    },
+    avatarUploadBadgeText: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: 11,
+      fontWeight: "600",
+    },
+    identityHeader: {
+      flex: 1,
+      gap: spacing.sm,
+      justifyContent: "center",
+      minWidth: 0,
+    },
+    name: {
+      color: pickThemed(colors, colors.ink, colors.white),
+      fontFamily: typography.family,
+      fontSize: 24,
+      fontWeight: "600",
+      lineHeight: 30,
+    },
+    nameCompact: {
+      fontSize: 20,
+      lineHeight: 26,
+    },
+    metaStack: {
+      gap: spacing.sm,
+      width: "100%",
+    },
+    userIdChip: {
+      ...frostedChip,
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      width: "100%",
+    },
+    userIdLabel: {
+      color: pickThemed(colors, colors.primaryDark, "rgba(255, 255, 255, 0.72)"),
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "700",
+      letterSpacing: 0.6,
+      textTransform: "uppercase",
+    },
+    userIdValueRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: spacing.xs,
+      minWidth: 0,
+      width: "100%",
+    },
+    userIdValue: {
+      color: pickThemed(colors, colors.ink, colors.white),
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: 15,
+      fontVariant: ["tabular-nums"],
+      fontWeight: "600",
+      minWidth: 0,
+    },
+    iconButton: {
+      alignItems: "center",
+      backgroundColor: pickThemed(colors, colors.primarySoft, "rgba(255, 255, 255, 0.12)"),
+      borderRadius: radii.sm,
+      flexShrink: 0,
+      height: 28,
+      justifyContent: "center",
+      width: 28,
+    },
+    inviteRow: {
+      ...frostedChip,
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      width: "100%",
+    },
+    inviteLabel: {
+      color: pickThemed(colors, colors.primaryDark, "rgba(255, 255, 255, 0.72)"),
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "700",
+      letterSpacing: 0.6,
+      textTransform: "uppercase",
+    },
+    inviteLinkRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: spacing.sm,
+      minWidth: 0,
+      width: "100%",
+    },
+    inviteValue: {
+      color: pickThemed(colors, colors.ink, colors.white),
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "500",
+      minWidth: 0,
+    },
+    inviteCopyIcon: {
+      alignItems: "center",
+      backgroundColor: pickThemed(colors, colors.primarySoft, "rgba(255, 255, 255, 0.12)"),
+      borderRadius: radii.sm,
+      flexShrink: 0,
+      height: 28,
+      justifyContent: "center",
+      width: 28,
+    },
+  });
+}
