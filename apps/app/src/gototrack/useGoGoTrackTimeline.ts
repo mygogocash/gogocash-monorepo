@@ -9,6 +9,12 @@ export type GoGoTrackTimelineEntry = {
   status: string;
 };
 
+export type GoGoTrackTimelineView =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "ready"; entries: GoGoTrackTimelineEntry[] }
+  | { kind: "error" };
+
 type TimelineApi = {
   getTimeline(): Promise<unknown>;
 };
@@ -38,36 +44,43 @@ function mapTimeline(data: unknown): GoGoTrackTimelineEntry[] {
 }
 
 /**
- * Loads the GoGoTrack detection timeline from the authed api. Returns `null`
- * until loaded (and off-device, where the api is null) so the screen can fall
- * back to its static example rows. `apiOverride` is the test seam.
+ * Loads the GoGoTrack detection timeline from the authed api. Distinguishes
+ * loading, empty, and error so screens never treat `[]` as “still loading”.
+ * `apiOverride` is the test seam.
  */
 export function useGoGoTrackTimeline(
   apiOverride?: TimelineApi | null,
-): GoGoTrackTimelineEntry[] | null {
+): GoGoTrackTimelineView {
   const liveApi = useGoGoTrackApi();
   const api = apiOverride ?? liveApi;
-  const [entries, setEntries] = useState<GoGoTrackTimelineEntry[] | null>(null);
+  const [view, setView] = useState<GoGoTrackTimelineView>(() =>
+    api ? { kind: "loading" } : { kind: "idle" },
+  );
 
   useEffect(() => {
     if (!api) {
+      setView({ kind: "idle" });
       return;
     }
+
     let active = true;
+    setView({ kind: "loading" });
     void api
       .getTimeline()
       .then((data) => {
         if (active) {
-          setEntries(mapTimeline(data));
+          setView({ kind: "ready", entries: mapTimeline(data) });
         }
       })
       .catch(() => {
-        // Read-only timeline: on failure keep the static fallback.
+        if (active) {
+          setView({ kind: "error" });
+        }
       });
     return () => {
       active = false;
     };
   }, [api]);
 
-  return entries;
+  return view;
 }

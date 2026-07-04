@@ -42,7 +42,7 @@ export function createNativeAndroidDetector(
     stopDetection: () => native.stopDetection(),
     syncBackgroundPromptConfig: (config) =>
       native.syncBackgroundPromptConfig?.(config) ?? Promise.resolve(),
-    // Deferred signals (UsageStats-only MVP): safe no-ops, never reached by the runner.
+    // Deferred (UsageStats-only MVP): no NotificationListenerService shipped yet.
     hasNotificationListenerPermission: async () => false,
     openNotificationListenerSettings: async () => undefined,
   };

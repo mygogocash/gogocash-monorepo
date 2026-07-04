@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 
 import {
@@ -21,9 +21,10 @@ export default function GoGoTrackActivateRoute() {
     packageName?: string;
     merchantName?: string;
   }>();
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    if (!api?.activate) {
+    if (!api?.activate || startedRef.current) {
       return;
     }
 
@@ -35,6 +36,7 @@ export default function GoGoTrackActivateRoute() {
       return;
     }
 
+    startedRef.current = true;
     const coordinator = ensureGoGoTrackPromptCoordinator({ activate: api.activate });
     const payload = merchantMatchToPromptPayload({
       packageName: params.packageName ?? "unknown",

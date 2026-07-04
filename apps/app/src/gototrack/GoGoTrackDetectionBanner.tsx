@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, Linking, StyleSheet, Text, View } from "react-native";
+import { AppState, StyleSheet, Text, View } from "react-native";
 
+import { ApiError } from "@mobile/api/client";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -11,6 +12,7 @@ import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing } from "@mobile/theme/tokens";
 
 import type { GoGoTrackDetector } from "./detector";
+import { openAffiliateDeeplink } from "./openAffiliateDeeplink";
 import { getGoGoTrackPromptCoordinator } from "./promptCoordinatorInstance";
 import { useGoGoTrack, type GoGoTrackHookApi } from "./useGoGoTrack";
 import { useGoGoTrackApi } from "./useGoGoTrackApi";
@@ -60,21 +62,25 @@ function GoGoTrackDetectionBannerLoaded({
 }) {
   const styles = useThemedStyles(createGoGoTrackDetectionBannerStyles);
   const tc = useCopy();
-  const { state, start, poll, activate } = useGoGoTrack({ detector, api });
-  const [activationError, setActivationError] = useState(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
   const [isActivating, setIsActivating] = useState(false);
   const activationInFlightRef = useRef(false);
   const [activatedMatchKey, setActivatedMatchKey] = useState<string | null>(null);
+  const { state, start, poll, activate, refreshPermission } = useGoGoTrack({
+    detector,
+    api,
+  });
 
   useEffect(() => {
+    void refreshPermission();
     void start().then(() => poll());
     const subscription = AppState.addEventListener("change", (next) => {
       if (next === "active") {
-        void poll();
+        void refreshPermission().then(() => poll());
       }
     });
     return () => subscription.remove();
-  }, [start, poll]);
+  }, [start, poll, refreshPermission]);
 
   const match = state.lastMatch;
   const matchIsActionable =
@@ -97,28 +103,35 @@ function GoGoTrackDetectionBannerLoaded({
 
     activationInFlightRef.current = true;
     setIsActivating(true);
-    setActivationError(false);
+    setActivationError(null);
     void haptics.impact();
     void activate()
       .then((result) => {
         if (!result) {
-          setActivationError(true);
+          setActivationError(tc(toastErrorMessages.cashbackActivationFailed));
           return undefined;
         }
-        return Promise.resolve((openUrl ?? Linking.openURL)(result.deeplink)).then(() => {
+        const open = openUrl ?? openAffiliateDeeplink;
+        return Promise.resolve(open(result.deeplink)).then(() => {
           setActivatedMatchKey(matchKey);
         });
       })
-      .catch(() => setActivationError(true))
+      .catch((error: unknown) => {
+        const message =
+          error instanceof ApiError && error.message
+            ? error.message
+            : tc(toastErrorMessages.cashbackActivationFailed);
+        setActivationError(message);
+      })
       .finally(() => {
         activationInFlightRef.current = false;
         setIsActivating(false);
       });
-  }, [activate, matchKey, openUrl]);
+  }, [activate, matchKey, openUrl, tc]);
 
   useEffect(() => {
     activationInFlightRef.current = false;
-    setActivationError(false);
+    setActivationError(null);
     setIsActivating(false);
   }, [matchKey]);
 
@@ -153,7 +166,7 @@ function GoGoTrackDetectionBannerLoaded({
         </Text>
       </MotionPressable>
       {activationError ? (
-        <Text style={styles.error}>{tc(toastErrorMessages.cashbackActivationFailed)}</Text>
+        <Text style={styles.error}>{activationError}</Text>
       ) : null}
     </View>
   );

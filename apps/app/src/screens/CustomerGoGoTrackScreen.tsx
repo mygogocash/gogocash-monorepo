@@ -11,8 +11,8 @@ import {
   ShieldCheck as ShieldIcon,
   Store as StoreIcon,
 } from "@mobile/theme/icons";
-import { useEffect, type ComponentType } from "react";
-import { Platform, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { useEffect, type ComponentType, type ReactNode } from "react";
+import { AppState, Platform, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
@@ -30,6 +30,7 @@ import {
   type GoGoTrackDetector,
 } from "@mobile/gototrack/detector";
 import { GoGoTrackDetectionBanner } from "@mobile/gototrack/GoGoTrackDetectionBanner";
+import { GoGoTrackUsageAccessBanner } from "@mobile/gototrack/GoGoTrackUsageAccessBanner";
 import { useGoGoTrack } from "@mobile/gototrack/useGoGoTrack";
 import {
   type GoGoTrackMerchant,
@@ -109,8 +110,8 @@ const permissionRows = [
     icon: EyeIcon,
   },
   {
-    title: "Usage access disclosure",
-    body: "Check foreground merchant sessions only after Android Usage Access is granted.",
+    title: "Cashback notifications",
+    body: "Optional heads-up while supported stores are open (enable in Settings after Usage Access).",
     icon: BellIcon,
   },
   {
@@ -163,6 +164,9 @@ const settingRows = [
     title: "Notification listener matching",
     body: "Read merchant confirmation notices only after notification access is granted.",
     field: "notificationListenerEnabled",
+    supported: false,
+    unsupportedBody:
+      "Not available in this preview yet. Shopee detection uses Usage Access and cashback notifications only.",
   },
   {
     title: "PII minimization",
@@ -259,6 +263,7 @@ function HubContent({ detector }: { detector: GoGoTrackDetector }) {
   useGoGoTrackBackgroundPrompts(detector);
   return (
     <>
+      <GoGoTrackUsageAccessBanner detector={detector} />
       <GoGoTrackDetectionBanner detector={detector} />
       <View style={styles.card}>
         <SectionHeader
@@ -278,21 +283,7 @@ function HubContent({ detector }: { detector: GoGoTrackDetector }) {
         </View>
       </View>
 
-      <View style={styles.card}>
-        <SectionHeader
-          icon={ActivityIcon}
-          subtitle="Recent sessions stay visible so missing cashback can be recovered quickly."
-          title="Tracking timeline"
-        />
-        {timelineRows.map((row) => (
-          <TimelineRow
-            body={row.body}
-            key={row.title}
-            status={row.status}
-            title={row.title}
-          />
-        ))}
-      </View>
+      <HubTimelinePreview />
 
       <View style={styles.actionGrid}>
         <PrimaryLink href="/gototrack/onboarding" label="Start setup" />
@@ -302,6 +293,49 @@ function HubContent({ detector }: { detector: GoGoTrackDetector }) {
         <SecondaryLink href="/gototrack/recovery" label="Recovery" />
       </View>
     </>
+  );
+}
+
+function HubTimelinePreview() {
+  const styles = useThemedStyles(createGoGoTrackScreenStyles);
+  const tc = useCopy();
+  const timeline = useGoGoTrackTimeline();
+
+  let body: ReactNode;
+  if (timeline.kind === "idle" || timeline.kind === "error") {
+    body = (
+      <Text style={styles.rowBody}>
+        {tc("Sign in and open a supported store to see live sessions here.")}
+      </Text>
+    );
+  } else if (timeline.kind === "loading") {
+    body = <Text style={styles.rowBody}>{tc("Loading timeline…")}</Text>;
+  } else if (timeline.entries.length === 0) {
+    body = (
+      <Text style={styles.rowBody}>
+        {tc("No shopping sessions yet. Open Shopee or another supported store.")}
+      </Text>
+    );
+  } else {
+    body = timeline.entries.slice(0, 3).map((entry) => (
+      <TimelineRow
+        body={entry.body}
+        key={entry.id}
+        status={entry.status}
+        title={entry.title}
+      />
+    ));
+  }
+
+  return (
+    <View style={styles.card}>
+      <SectionHeader
+        icon={ActivityIcon}
+        subtitle="Recent sessions stay visible so missing cashback can be recovered quickly."
+        title="Tracking timeline"
+      />
+      {body}
+    </View>
   );
 }
 
@@ -338,8 +372,10 @@ function OnboardingContent() {
 
 function PermissionsContent({ detector }: { detector: GoGoTrackDetector }) {
   const styles = useThemedStyles(createGoGoTrackScreenStyles);
+  useGoGoTrackBackgroundPrompts(detector);
   return (
     <>
+      <GoGoTrackUsageAccessBanner detector={detector} />
       <View style={styles.card}>
         <SectionHeader
           icon={LockIcon}
@@ -358,6 +394,7 @@ function PermissionsContent({ detector }: { detector: GoGoTrackDetector }) {
         </View>
       </View>
       <UsageAccessControl detector={detector} />
+      <BackgroundPromptSetup detector={detector} />
       <View style={styles.actionGrid}>
         <PrimaryLink href="/gototrack/settings" label="Open settings" />
         <SecondaryLink href="/gototrack/timeline" label="View timeline" />
@@ -382,6 +419,12 @@ function UsageAccessControl({ detector }: { detector: GoGoTrackDetector }) {
 
   useEffect(() => {
     void refreshPermission();
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active") {
+        void refreshPermission();
+      }
+    });
+    return () => subscription.remove();
   }, [refreshPermission]);
 
   const statusLabel = !state.supported
@@ -422,11 +465,96 @@ function UsageAccessControl({ detector }: { detector: GoGoTrackDetector }) {
   );
 }
 
+function BackgroundPromptSetup({ detector }: { detector: GoGoTrackDetector }) {
+  const styles = useThemedStyles(createGoGoTrackScreenStyles);
+  const tc = useCopy();
+  const { settings, setField } = useGoGoTrackSettings();
+  const { state, refreshPermission } = useGoGoTrack({
+    detector,
+    api: permissionsScopeApi,
+  });
+
+  useEffect(() => {
+    void refreshPermission();
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active") {
+        void refreshPermission();
+      }
+    });
+    return () => subscription.remove();
+  }, [refreshPermission]);
+
+  if (
+    Platform.OS !== "android" ||
+    !state.supported ||
+    !state.permissionGranted ||
+    settings.backgroundPromptsEnabled
+  ) {
+    return null;
+  }
+
+  return (
+    <View style={styles.card}>
+      <SectionHeader
+        icon={BellIcon}
+        subtitle="Get a cashback notification while Shopee or other supported stores are open."
+        title="Shopping notifications"
+      />
+      <MotionPressable
+        accessibilityRole="button"
+        onPress={() => {
+          void haptics.impact();
+          void setField("backgroundPromptsEnabled", true);
+          void setField("usageStatsEnabled", true);
+        }}
+        pressScale={motion.scale.subtlePress}
+        style={styles.primaryButton}
+        testID="gototrack-enable-background-prompts-button"
+      >
+        <Text numberOfLines={1} style={styles.primaryButtonText}>
+          {tc("Enable cashback notifications")}
+        </Text>
+      </MotionPressable>
+    </View>
+  );
+}
+
 function TimelineContent({
   api,
 }: { api?: { getTimeline(): Promise<unknown> } | null } = {}) {
   const styles = useThemedStyles(createGoGoTrackScreenStyles);
-  const liveEntries = useGoGoTrackTimeline(api);
+  const tc = useCopy();
+  const timeline = useGoGoTrackTimeline(api);
+
+  let rows: ReactNode;
+  if (timeline.kind === "idle" || timeline.kind === "error") {
+    rows = timelineRows.map((row) => (
+      <TimelineRow
+        body={row.body}
+        key={row.title}
+        status={row.status}
+        title={row.title}
+      />
+    ));
+  } else if (timeline.kind === "loading") {
+    rows = <Text style={styles.rowBody}>{tc("Loading timeline…")}</Text>;
+  } else if (timeline.entries.length === 0) {
+    rows = (
+      <Text style={styles.rowBody}>
+        {tc("No shopping sessions yet. Open a supported store while signed in.")}
+      </Text>
+    );
+  } else {
+    rows = timeline.entries.map((entry) => (
+      <TimelineRow
+        body={entry.body}
+        key={entry.id}
+        status={entry.status}
+        title={entry.title}
+      />
+    ));
+  }
+
   return (
     <>
       <View style={styles.card}>
@@ -435,23 +563,7 @@ function TimelineContent({
           subtitle="Only the state needed for cashback support is shown here."
           title="Tracking timeline"
         />
-        {liveEntries
-          ? liveEntries.map((entry) => (
-              <TimelineRow
-                body={entry.body}
-                key={entry.id}
-                status={entry.status}
-                title={entry.title}
-              />
-            ))
-          : timelineRows.map((row) => (
-              <TimelineRow
-                body={row.body}
-                key={row.title}
-                status={row.status}
-                title={row.title}
-              />
-            ))}
+        {rows}
       </View>
       <View style={styles.actionGrid}>
         <PrimaryLink href="/gototrack/recovery" label="Start recovery" />
@@ -491,6 +603,10 @@ function SettingsContent({ detector }: { detector: GoGoTrackDetector }) {
     }
 
     if (value && field === "notificationListenerEnabled") {
+      const row = settingRows.find((entry) => entry.field === field);
+      if (row && "supported" in row && row.supported === false) {
+        return;
+      }
       const granted = await detector.hasNotificationListenerPermission();
       if (!granted) {
         await detector.openNotificationListenerSettings();
@@ -509,23 +625,31 @@ function SettingsContent({ detector }: { detector: GoGoTrackDetector }) {
           subtitle="Default settings favor the smallest useful data set."
           title="Tracking controls"
         />
-        {settingRows.map((row) => (
+        {settingRows.map((row) => {
+          const isSupported = !("supported" in row) || row.supported !== false;
+          const bodyCopy =
+            !isSupported && "unsupportedBody" in row && row.unsupportedBody
+              ? row.unsupportedBody
+              : row.body;
+          return (
           <View key={row.title} style={styles.settingRow}>
             <Switch
+              disabled={!isSupported}
               onValueChange={(value) =>
                 void handleSettingChange(row.field, value)
               }
               trackColor={{ false: colors.border, true: colors.primary }}
-              value={settings[row.field]}
+              value={isSupported ? settings[row.field] : false}
             />
             <View style={styles.settingCopy}>
               <Text numberOfLines={1} style={styles.rowTitle}>
                 {tc(row.title)}
               </Text>
-              <Text style={styles.rowBody}>{tc(row.body)}</Text>
+              <Text style={styles.rowBody}>{tc(bodyCopy)}</Text>
             </View>
           </View>
-        ))}
+          );
+        })}
       </View>
       <SecondaryLink
         href="/gototrack/permissions"

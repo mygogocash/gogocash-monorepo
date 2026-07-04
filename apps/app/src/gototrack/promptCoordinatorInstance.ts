@@ -1,7 +1,6 @@
-import { Linking } from "react-native";
-
 import { createGoGoTrackPromptCoordinator } from "./promptCoordinator";
 import type { GoGoTrackPromptCoordinator } from "./promptCoordinator";
+import { openAffiliateDeeplink } from "./openAffiliateDeeplink";
 import { syncBoundLiveActivityWithPromptState } from "./promptLiveActivityBridge";
 
 type PromptCoordinatorApi = Parameters<
@@ -19,7 +18,7 @@ export function configureGoGoTrackPromptCoordinator(
 ): GoGoTrackPromptCoordinator {
   coordinator = createGoGoTrackPromptCoordinator({
     api,
-    openUrl: (url) => Linking.openURL(url),
+    openUrl: (url) => openAffiliateDeeplink(url),
     onChange: () => {
       if (!coordinator) {
         return;
