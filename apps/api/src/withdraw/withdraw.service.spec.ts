@@ -885,7 +885,9 @@ describe('WithdrawService', () => {
 
   describe('checkWithdraw user lookup', () => {
     it('checkWithdraw > given an invalid user id > then throws UnauthorizedException', async () => {
-      await expect(mocks.service.checkWithdraw(undefined as never)).rejects.toMatchObject({
+      await expect(
+        mocks.service.checkWithdraw(undefined as never),
+      ).rejects.toMatchObject({
         response: { message: 'User not found' },
       });
       expect(mocks.userModel.findOne).not.toHaveBeenCalled();

@@ -57,3 +57,24 @@ describe("isWalletResourceBlocking", () => {
     expect(isWalletResourceBlocking("disabled")).toBe(true);
   });
 });
+
+describe("wallet profile vs tab parity", () => {
+  it("normalizeCheckWithdrawResponse > given withdraw/check with empty data but positive netAmountTHB > then accepts payload (profile hero can show balance while conversions list is empty)", () => {
+    const payload = {
+      data: [],
+      netAmount: 3180.24,
+      netAmountTHB: 3180.24,
+      totalPayoutTHB: 3500,
+      totalPayoutUSD: 100,
+    };
+
+    expect(isCustomerAccountResourcePayloadEmpty(payload)).toBe(true);
+    expect(normalizeCheckWithdrawResponse(payload)).toEqual({
+      netAmount: 3180.24,
+      netAmountTHB: 3180.24,
+      totalPayoutTHB: 3500,
+      totalPayoutUSD: 100,
+    });
+    expect(isWalletResourceBlocking("ready")).toBe(false);
+  });
+});

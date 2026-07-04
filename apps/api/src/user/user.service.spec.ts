@@ -144,7 +144,9 @@ describe('UserService', () => {
       const id = new Types.ObjectId();
       const file = { mimetype: 'image/jpeg' } as Express.Multer.File;
       findById.mockResolvedValue({ avatar_url: 'local-media:old.jpg' });
-      findByIdAndUpdate.mockResolvedValue({ avatar_url: 'local-media:avatar.jpg' });
+      findByIdAndUpdate.mockResolvedValue({
+        avatar_url: 'local-media:avatar.jpg',
+      });
 
       await service.uploadProfileAvatar(id, file);
 
@@ -164,7 +166,10 @@ describe('UserService', () => {
       findById.mockResolvedValue(null);
 
       await expect(
-        service.uploadProfileAvatar(new Types.ObjectId(), {} as Express.Multer.File),
+        service.uploadProfileAvatar(
+          new Types.ObjectId(),
+          {} as Express.Multer.File,
+        ),
       ).rejects.toThrow(UnauthorizedException);
     });
   });
@@ -174,7 +179,10 @@ describe('UserService', () => {
       const id = new Types.ObjectId();
       findById.mockResolvedValue({ avatar_url: 'local-media:avatar.jpg' });
 
-      const result = await service.streamProfileAvatar(id, 'local-media:avatar.jpg');
+      const result = await service.streamProfileAvatar(
+        id,
+        'local-media:avatar.jpg',
+      );
 
       expect(storedMediaService.getReadableStream).toHaveBeenCalledWith(
         'local-media:avatar.jpg',

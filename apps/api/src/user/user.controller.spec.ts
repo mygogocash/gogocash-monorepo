@@ -86,7 +86,9 @@ describe('UserController', () => {
 
   describe('POST /user/profile/avatar', () => {
     it('uploadProfileAvatar > given a non-image file > then rejects with BadRequestException', async () => {
-      const req = { user: { sub: new Types.ObjectId().toString() } } as unknown as Request;
+      const req = {
+        user: { sub: new Types.ObjectId().toString() },
+      } as unknown as Request;
 
       await expect(
         controller.uploadProfileAvatar(req, {
@@ -99,7 +101,9 @@ describe('UserController', () => {
     it('uploadProfileAvatar > given an image file > then returns avatar_url from the service', async () => {
       const id = new Types.ObjectId();
       const req = { user: { sub: id.toString() } } as unknown as Request;
-      userService.uploadProfileAvatar.mockResolvedValue({ avatar_url: 'local-media:avatar.jpg' });
+      userService.uploadProfileAvatar.mockResolvedValue({
+        avatar_url: 'local-media:avatar.jpg',
+      });
 
       await expect(
         controller.uploadProfileAvatar(req, {
@@ -116,12 +120,14 @@ describe('UserController', () => {
 
   describe('GET /user/profile/avatar/stream', () => {
     it('streamProfileAvatar > given empty ref > then rejects with BadRequestException', async () => {
-      const req = { user: { sub: new Types.ObjectId().toString() } } as unknown as Request;
+      const req = {
+        user: { sub: new Types.ObjectId().toString() },
+      } as unknown as Request;
       const res = { setHeader: jest.fn() } as unknown as Response;
 
-      await expect(controller.streamProfileAvatar(req, '', res)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        controller.streamProfileAvatar(req, '', res),
+      ).rejects.toThrow(BadRequestException);
       expect(userService.streamProfileAvatar).not.toHaveBeenCalled();
     });
 

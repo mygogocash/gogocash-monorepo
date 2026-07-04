@@ -149,7 +149,8 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     );
     expect(walletHeaderBlock).toContain("hoverLift={false}");
     expect(walletHeaderBlock).toContain("backButtonHovered");
-    expect(walletHeaderBlock).toContain("({ hovered })");
+    expect(walletHeaderBlock).toContain("onHoverIn");
+    expect(walletHeaderBlock).toContain("onHoverOut");
     expect(walletSource).toContain("backButtonHovered:");
   });
 

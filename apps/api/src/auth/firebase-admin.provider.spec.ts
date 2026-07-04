@@ -25,12 +25,16 @@ describe('getAdminAuth', () => {
     delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
     process.env.FIREBASE_PROJECT_ID = 'gogocash-staging';
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.resetModules() needs require
     const adminApp = require('firebase-admin/app');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.resetModules() needs require
     const { getAdminAuth } = require('./firebase-admin.provider');
 
     getAdminAuth();
 
-    expect(adminApp.initializeApp).toHaveBeenCalledWith({ projectId: 'gogocash-staging' });
+    expect(adminApp.initializeApp).toHaveBeenCalledWith({
+      projectId: 'gogocash-staging',
+    });
     expect(adminApp.applicationDefault).not.toHaveBeenCalled();
   });
 
@@ -38,7 +42,9 @@ describe('getAdminAuth', () => {
     process.env.FIREBASE_PROJECT_ID = 'gogocash-staging';
     process.env.GOOGLE_APPLICATION_CREDENTIALS = '/secrets/gcs-sa.json';
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.resetModules() needs require
     const adminApp = require('firebase-admin/app');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.resetModules() needs require
     const { getAdminAuth } = require('./firebase-admin.provider');
 
     getAdminAuth();
@@ -54,7 +60,9 @@ describe('getAdminAuth', () => {
     delete process.env.FIREBASE_PROJECT_ID;
     delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.resetModules() needs require
     const adminApp = require('firebase-admin/app');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.resetModules() needs require
     const { getAdminAuth } = require('./firebase-admin.provider');
 
     expect(() => getAdminAuth()).toThrow(/FIREBASE_PROJECT_ID/);
