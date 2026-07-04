@@ -121,7 +121,7 @@ Staging hostnames are registered on Railway but may still CNAME to `ghs.googleho
 |------|------------------------|
 | `api-staging.gogocash.co` | `i313nfy0.up.railway.app` |
 | `admin-staging.gogocash.co` | `hs31ua3b.up.railway.app` |
-| `app-staging.gogocash.co` | `cs1bxvuq.up.railway.app` |
+| `app-staging.gogocash.co` | `dwxmdvrr.up.railway.app` (Railway custom domain on `@gogocash/mobile`) |
 
 **Point API at external Atlas staging data:**
 

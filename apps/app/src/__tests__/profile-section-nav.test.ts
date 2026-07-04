@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isGoGoTrackSubNavItemActive,
   isProfileMenuItemActive,
   isProfileSectionHubActive,
   isProfileSectionPath,
   isProfileSubNavItemActive,
+  shouldAutoExpandGoGoTrackSubNav,
   shouldAutoExpandProfileSubNav,
 } from "@mobile/navigation/profileSectionNav";
 
@@ -110,6 +112,30 @@ describe("profile section nav", () => {
     it("stays closed outside the hub", () => {
       expect(shouldAutoExpandProfileSubNav("/wallet")).toBe(false);
       expect(shouldAutoExpandProfileSubNav("/membership")).toBe(false);
+    });
+  });
+
+  describe("shouldAutoExpandGoGoTrackSubNav > given a pathname > then the accordion opens only on GoGoTrack routes", () => {
+    it("opens within GoGoTrack", () => {
+      expect(shouldAutoExpandGoGoTrackSubNav("/gototrack/timeline")).toBe(true);
+      expect(shouldAutoExpandGoGoTrackSubNav("/gototrack/settings")).toBe(true);
+    });
+
+    it("stays closed outside GoGoTrack", () => {
+      expect(shouldAutoExpandGoGoTrackSubNav("/wallet")).toBe(false);
+      expect(shouldAutoExpandGoGoTrackSubNav("/profile")).toBe(false);
+    });
+  });
+
+  describe("isGoGoTrackSubNavItemActive > given a pathname and sub-nav href > then only the matching item is active", () => {
+    it("activates Overview only on the hub route", () => {
+      expect(isGoGoTrackSubNavItemActive("/gototrack", "/gototrack")).toBe(true);
+      expect(isGoGoTrackSubNavItemActive("/gototrack/settings", "/gototrack")).toBe(false);
+    });
+
+    it("activates nested routes by prefix", () => {
+      expect(isGoGoTrackSubNavItemActive("/gototrack/settings", "/gototrack/settings")).toBe(true);
+      expect(isGoGoTrackSubNavItemActive("/gototrack/timeline", "/gototrack/timeline")).toBe(true);
     });
   });
 

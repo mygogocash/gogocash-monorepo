@@ -137,7 +137,10 @@ export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode })
           {mode === "pricing" ? <PricingPanel period={period} setPeriod={setPeriod} /> : null}
           {mode === "subscription" ? <SubscriptionStatusPanel /> : null}
           {mode === "billing" ? <BillingPanel /> : null}
-          <CustomerDesktopFooterSlot style={styles.desktopFooter} />
+          <CustomerDesktopFooterSlot
+            innerPadding={mobileShellLayout.contentHorizontalPadding}
+            style={styles.desktopFooter}
+          />
         </ScrollView>
       </View>
     </View>

@@ -18,6 +18,7 @@ import {
   mobileShellLayout,
   webCookieConsentBanner,
   profileHubMenuItems,
+  profileHubGoGoTrackSubNavItems,
   profileHubSections,
   profileHubSubNavItems,
   webBrowseShortcuts,
@@ -664,6 +665,14 @@ describe("GoGoCash web design parity", () => {
       { label: "My Rating Score", href: "/credit-score" },
       { label: "Withdraw Methods", href: "/method" },
       { label: "Account Setting", href: "/language" },
+    ]);
+    expect(profileHubGoGoTrackSubNavItems).toEqual([
+      { label: "Overview", href: "/gototrack" },
+      { label: "Start setup", href: "/gototrack/onboarding" },
+      { label: "Permissions", href: "/gototrack/permissions" },
+      { label: "Timeline", href: "/gototrack/timeline" },
+      { label: "Settings", href: "/gototrack/settings" },
+      { label: "Recovery", href: "/gototrack/recovery" },
     ]);
     expect(profileHubMenuItems).toEqual([
       { label: "Profile", href: "/profile", activePrefix: "/profile" },

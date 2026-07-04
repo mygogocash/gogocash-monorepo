@@ -30,7 +30,7 @@ import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountRes
 import { WalletSkeleton } from "@mobile/components/Skeleton";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { mapCheckWithdrawToWalletMetrics, type WalletMetricView } from "@mobile/api/walletMapper";
-import { isCheckWithdrawResponse } from "@mobile/api/walletTypes";
+import { isCheckWithdrawResponse, isWalletResourceBlocking } from "@mobile/api/walletTypes";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -68,11 +68,9 @@ export function CustomerWalletScreen() {
 
   const walletShellWhileLoading = walletResource.status === "loading";
 
-  if (walletResource.status !== "ready" && !walletShellWhileLoading) {
+  if (isWalletResourceBlocking(walletResource.status)) {
     return (
       <CustomerAccountResourceState
-        emptyBody={tc("Your cashback wallet does not have any backend activity yet.")}
-        emptyTitle={tc("No wallet activity yet")}
         loadingSkeleton={<WalletSkeleton />}
         resource={walletResource}
         resourceLabel="wallet"

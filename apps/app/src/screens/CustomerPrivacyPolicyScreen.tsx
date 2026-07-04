@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { TabletFrame } from "@mobile/components/TabletFrame";
 import { CustomerCookieConsentBanner } from "@mobile/components/CustomerCookieConsentBanner";
-import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
+import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
 import { CustomerLineOfficialFab } from "@mobile/components/CustomerLineOfficialFab";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
@@ -78,9 +78,10 @@ export function CustomerPrivacyPolicyScreen() {
             <PrivacyPolicyArticle isDesktop={isDesktop} />
           </TabletFrame>
           {isDesktop ? (
-            <View style={styles.desktopFooter}>
-              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
-            </View>
+            <CustomerDesktopFooterSlot
+              innerPadding={mobileShellLayout.desktopContentHorizontalPadding}
+              style={styles.desktopFooter}
+            />
           ) : null}
         </ScrollView>
         {isDesktop ? null : (

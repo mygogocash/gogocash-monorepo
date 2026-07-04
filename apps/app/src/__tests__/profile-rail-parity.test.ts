@@ -29,8 +29,11 @@ describe("desktop profile rail parity", () => {
     expect(shell).toContain("profileHubMenuItems.map");
     expect(shell).not.toContain("profileHubMenuItems.slice(0, 9)");
     expect(shell).toContain("profileHubSubNavItems.map");
+    expect(shell).toContain("profileHubGoGoTrackSubNavItems.map");
     expect(shell).toContain("shouldAutoExpandProfileSubNav");
+    expect(shell).toContain("shouldAutoExpandGoGoTrackSubNav");
     expect(shell).toContain("isProfileSubNavItemActive");
+    expect(shell).toContain("isGoGoTrackSubNavItemActive");
     expect(shell).toContain("isProfileMenuItemActive");
     // Log Out reuses the shared hook + confirm card.
     expect(shell).toContain("useMobileLogout");

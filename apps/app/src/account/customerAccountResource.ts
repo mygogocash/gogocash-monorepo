@@ -11,6 +11,7 @@ import {
   resolveCustomerAccountResourceQueryKey,
   resolveCustomerAccountResourceSessionScope,
 } from "@mobile/account/customerAccountResourceQueryKey";
+import { isCheckWithdrawResponse } from "@mobile/api/walletTypes";
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { getMobileEnv } from "@mobile/config/env";
@@ -301,6 +302,19 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
       retry,
       source: env.accountDataSource,
       status: isCustomerAccountResourceOffline(query.error) ? "offline" : "error",
+    };
+  }
+
+  // POST /withdraw/check includes a `data: Conversion[]` field. An empty conversion
+  // list is a valid zero-balance wallet — do not treat it as an empty resource.
+  if (resourceId === "wallet" && isCheckWithdrawResponse(query.data)) {
+    return {
+      data: query.data,
+      endpoint,
+      error: null,
+      retry,
+      source: "backend",
+      status: "ready",
     };
   }
 

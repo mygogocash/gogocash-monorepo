@@ -251,7 +251,7 @@ export function CustomerGoGoTrackScreen({
               merchantId={merchantId}
             />
           ) : null}
-          <CustomerDesktopFooterSlot style={styles.desktopFooter} />
+          <CustomerDesktopFooterSlot innerPadding={spacing.md} style={styles.desktopFooter} />
         </ScrollView>
       </View>
     </View>

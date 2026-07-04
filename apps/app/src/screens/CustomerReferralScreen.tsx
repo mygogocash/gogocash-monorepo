@@ -25,6 +25,11 @@ import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountRes
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { mapReferralPointsToInviteRows, type ReferralInviteRow } from "@mobile/api/referralMapper";
 import { isReferralPointList } from "@mobile/api/referralTypes";
+import {
+  isReferralResourceBlocking,
+  resolveReferralInviteLink,
+} from "@mobile/auth/referralInviteUrl";
+import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import { haptics } from "@mobile/lib/haptics";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
@@ -38,7 +43,8 @@ import {
 import { WalletSkeleton } from "@mobile/components/Skeleton";
 import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { mobileShellLayout, profileInviteUrl, webReferralPage } from "@mobile/design/webDesignParity";
+import { mobileShellLayout, webReferralPage } from "@mobile/design/webDesignParity";
+import { getMobileEnv } from "@mobile/config/env";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -56,22 +62,30 @@ export function CustomerReferralScreen() {
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  const session = useMobileSessionSnapshot();
+  const mobileEnv = getMobileEnv();
+  const inviteLink = resolveReferralInviteLink({
+    frontendUrl: mobileEnv.frontendUrl,
+    userId: typeof session?._id === "string" ? session._id : null,
+    useFixtures: mobileEnv.accountDataSource === "fixtures",
+  });
   const referralResource = useCustomerAccountResource({
     fixtureData: webReferralPage,
     resourceId: "referral",
   });
-  const copyReferralLink = useCopyReferralLink();
+  const copyReferralLink = useCopyReferralLink(inviteLink.inviteUrl);
   // Live referral activity replaces the demo rows when the backend list
   // narrows; fixtures mode keeps the screen-local rows byte-identically.
-  const liveInviteRows = isReferralPointList(referralResource.data)
-    ? mapReferralPointsToInviteRows(referralResource.data)
-    : null;
+  const liveInviteRows: ReferralInviteRow[] | null =
+    referralResource.status === "empty"
+      ? []
+      : referralResource.status === "ready" && isReferralPointList(referralResource.data)
+        ? mapReferralPointsToInviteRows(referralResource.data)
+        : null;
 
-  if (referralResource.status !== "ready") {
+  if (isReferralResourceBlocking(referralResource.status)) {
     return (
       <CustomerAccountResourceState
-        emptyBody={tc("Invite friends to start building referral activity.")}
-        emptyTitle={tc("No referral activity yet")}
         loadingSkeleton={<WalletSkeleton />}
         resource={referralResource}
         resourceLabel="referral activity"
@@ -93,7 +107,13 @@ export function CustomerReferralScreen() {
             />
           }
         >
-          <ReferralEarnCard isDesktop={isDesktop} onCopyLink={copyReferralLink} />
+          <ReferralEarnCard
+            displayLink={inviteLink.displayLink}
+            inviteUrl={inviteLink.inviteUrl}
+            isDesktop={isDesktop}
+            onCopyLink={copyReferralLink}
+            referralCode={inviteLink.referralCode}
+          />
           <ReferralInvitationPanel liveRows={liveInviteRows} />
           <ReferralStepsSection />
           <ReferralFaqsSection />
@@ -109,11 +129,11 @@ export function CustomerReferralScreen() {
 // up to the walletTransactionsCopied catalog key → Thai "คัดลอกแล้ว"), so no new copy
 // is added. Returns a stable callback shared by the copy button and the Instagram
 // social action (which copies the link rather than opening a share sheet).
-function useCopyReferralLink(): () => void {
+function useCopyReferralLink(inviteUrl: string): () => void {
   const tc = useCopy();
   const toast = useToast();
   return () => {
-    void copyToClipboard(profileInviteUrl).then((copied) => {
+    void copyToClipboard(inviteUrl).then((copied) => {
       if (!copied) {
         return;
       }
@@ -148,18 +168,22 @@ function ReferralTopBar() {
 }
 
 function ReferralEarnCard({
+  displayLink,
+  inviteUrl,
   isDesktop,
   onCopyLink,
+  referralCode,
 }: {
+  displayLink: string;
+  inviteUrl: string;
   isDesktop: boolean;
   onCopyLink: () => void;
+  referralCode: string;
 }) {
   const styles = useThemedStyles(createReferralScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
   const [copied, setCopied] = useState(false);
-  // Referral code = the path segment of the (mock) invite URL — not invented.
-  const referralCode = (profileInviteUrl.split("/").pop() ?? "").toUpperCase();
   const handleCopy = () => {
     onCopyLink();
     setCopied(true);
@@ -204,7 +228,7 @@ function ReferralEarnCard({
               <Text numberOfLines={1} style={styles.copyLink}>
                 {copied
                   ? tc("Copied!")
-                  : `${tc(webReferralPage.earn.inviteLinkLabel)} : ${webReferralPage.earn.displayLink}`}
+                  : `${tc(webReferralPage.earn.inviteLinkLabel)} : ${displayLink}`}
               </Text>
               {copied ? (
                 <CheckIcon color={colors.white} size={24} strokeWidth={typography.iconStrokeWidth} />
@@ -244,7 +268,12 @@ function ReferralEarnCard({
           </Text>
           <View accessibilityRole="list" style={styles.socialRow}>
             {webReferralPage.earn.socialLinks.map((link) => (
-              <SocialIconButton key={link.id} link={link} onCopyLink={onCopyLink} />
+              <SocialIconButton
+                key={link.id}
+                inviteUrl={inviteUrl}
+                link={link}
+                onCopyLink={onCopyLink}
+              />
             ))}
           </View>
         </View>
@@ -257,8 +286,8 @@ function shareUrlEncoded(url: string): string {
   return encodeURIComponent(url);
 }
 
-function openReferralShare(kind: Exclude<SocialLinkId, "instagram">) {
-  const encodedUrl = shareUrlEncoded(profileInviteUrl);
+function openReferralShare(kind: Exclude<SocialLinkId, "instagram">, inviteUrl: string) {
+  const encodedUrl = shareUrlEncoded(inviteUrl);
   const urls = {
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
     linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
@@ -274,23 +303,31 @@ function openReferralShare(kind: Exclude<SocialLinkId, "instagram">) {
   void Linking.openURL(url);
 }
 
-function handleSocialPress(id: SocialLinkId, onCopyLink: () => void) {
+function handleSocialPress(id: SocialLinkId, inviteUrl: string, onCopyLink: () => void) {
   if (id === "instagram") {
     onCopyLink();
     return;
   }
 
-  openReferralShare(id);
+  openReferralShare(id, inviteUrl);
 }
 
-function SocialIconButton({ link, onCopyLink }: { link: SocialLink; onCopyLink: () => void }) {
+function SocialIconButton({
+  inviteUrl,
+  link,
+  onCopyLink,
+}: {
+  inviteUrl: string;
+  link: SocialLink;
+  onCopyLink: () => void;
+}) {
   const styles = useThemedStyles(createReferralScreenStyles);
   return (
     <MotionPressable
       accessibilityLabel={link.label}
       accessibilityRole="button"
       hitSlop={8}
-      onPress={() => handleSocialPress(link.id, onCopyLink)}
+      onPress={() => handleSocialPress(link.id, inviteUrl, onCopyLink)}
       pressScale={0.92}
       style={styles.socialButton}
     >
@@ -375,6 +412,7 @@ function ReferralInvitationTable({
   const rows = category
     ? sourceRows.filter((row) => row.category === category)
     : sourceRows;
+  const showEmptyInvites = liveRows !== null && rows.length === 0;
   return (
     <View style={styles.tableCard}>
       <View style={styles.tableHeader}>
@@ -384,18 +422,25 @@ function ReferralInvitationTable({
           </Text>
         ))}
       </View>
-      {rows.map((row) => (
-        <View key={`${row.date}-${row.user}`} style={styles.tableRow}>
-          <Text style={styles.tableCell}>{row.date}</Text>
-          <Text style={styles.tableCell}>{row.user}</Text>
-          <Text style={styles.tableCell}>{row.point}</Text>
-          <View style={styles.tableCell}>
-            <View style={styles.invitationStatusPill}>
-              <Text style={styles.invitationStatusPillText}>{tc(row.status)}</Text>
+      {showEmptyInvites ? (
+        <View style={styles.tableEmptyState}>
+          <Text style={styles.tableEmptyTitle}>{tc("referralEmptyInvitesTitle")}</Text>
+          <Text style={styles.tableEmptySubtitle}>{tc("referralEmptyInvitesSubtitle")}</Text>
+        </View>
+      ) : (
+        rows.map((row) => (
+          <View key={`${row.date}-${row.user}`} style={styles.tableRow}>
+            <Text style={styles.tableCell}>{row.date}</Text>
+            <Text style={styles.tableCell}>{row.user}</Text>
+            <Text style={styles.tableCell}>{row.point}</Text>
+            <View style={styles.tableCell}>
+              <View style={styles.invitationStatusPill}>
+                <Text style={styles.invitationStatusPillText}>{tc(row.status)}</Text>
+              </View>
             </View>
           </View>
-        </View>
-      ))}
+        ))
+      )}
     </View>
   );
 }
@@ -878,6 +923,27 @@ function createReferralScreenStyles(colors: ThemeColors) {
   },
   tableCellRight: {
     textAlign: "right",
+  },
+  tableEmptyState: {
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+  },
+  tableEmptyTitle: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    fontWeight: typography.titleWeight,
+    lineHeight: typography.bodyLineHeight,
+    textAlign: "center",
+  },
+  tableEmptySubtitle: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: typography.label,
+    lineHeight: typography.labelLineHeight,
+    textAlign: "center",
   },
   invitationStatusPill: {
     alignSelf: "flex-start",

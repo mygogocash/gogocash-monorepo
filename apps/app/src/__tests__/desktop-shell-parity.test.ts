@@ -70,6 +70,7 @@ describe("desktop route shell parity", () => {
     expect(routeChrome).toContain("{children}");
     expect(routeChrome).toContain("isDesktopSelfChromePathname(pathname)");
     expect(footerSlot).toContain("CustomerDesktopFooter");
+    expect(footerSlot).toContain("getDesktopFooterHorizontalPadding");
     expect(footerSlot).toContain("mobileShellLayout.desktopBreakpoint");
 
     for (const routePath of selfChromeRoutes) {
@@ -81,7 +82,9 @@ describe("desktop route shell parity", () => {
       const screenFile = readMobileFile(screenPath);
 
       expect(screenFile, `${screenPath} desktop navbar`).toContain("CustomerDesktopHeader");
-      expect(screenFile, `${screenPath} desktop footer`).toContain("CustomerDesktopFooter");
+      expect(screenFile, `${screenPath} desktop footer`).toMatch(
+        /CustomerDesktopFooter|CustomerDesktopFooterSlot/,
+      );
     }
 
     for (const screenPath of rootChromeFooterSlotOwners) {

@@ -361,6 +361,11 @@ export function getDesktopShellOffset(viewportWidth: number) {
   return Math.max(0, (viewportWidth - shellContentWidth) / 2);
 }
 
+/** Full-bleed footer breakout: viewport centering gap plus any inner scroll/frame padding. */
+export function getDesktopFooterHorizontalPadding(viewportWidth: number, innerPadding = 0) {
+  return getDesktopShellOffset(viewportWidth) + innerPadding;
+}
+
 export function getDesktopShellContentWidth(viewportWidth: number) {
   const shellContentWidth = Math.min(viewportWidth, mobileShellLayout.desktopContentMaxWidth);
   const shellPadding = getDesktopShellHorizontalPadding(viewportWidth);
@@ -3027,6 +3032,16 @@ export const profileHubSubNavItems = [
   { label: "My Rating Score", href: "/credit-score" },
   { label: "Withdraw Methods", href: "/method" },
   { label: "Account Setting", href: "/language" },
+] as const;
+
+/** Desktop profile-rail accordion under GoGoTrack — mirrors hub quick links. */
+export const profileHubGoGoTrackSubNavItems = [
+  { label: "Overview", href: "/gototrack" },
+  { label: "Start setup", href: "/gototrack/onboarding" },
+  { label: "Permissions", href: "/gototrack/permissions" },
+  { label: "Timeline", href: "/gototrack/timeline" },
+  { label: "Settings", href: "/gototrack/settings" },
+  { label: "Recovery", href: "/gototrack/recovery" },
 ] as const;
 
 export const profileHubMenuItems = [

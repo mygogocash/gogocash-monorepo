@@ -35,6 +35,7 @@ import { resolveAuthSocialProviders } from "@mobile/api/backendIntegrationScope"
 import { getMobileEnv } from "@mobile/config/env";
 import type { ConfirmationResult } from "firebase/auth";
 import {
+  getDesktopFooterHorizontalPadding,
   getDesktopShellHorizontalPadding,
   getDeviceClass,
   getTabletContentFrame,
@@ -770,7 +771,10 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
             {isDesktopShell ? (
               <View style={styles.desktopFooter}>
                 <CustomerDesktopFooter
-                  horizontalPadding={authDesktopPageHorizontalPadding}
+                  horizontalPadding={getDesktopFooterHorizontalPadding(
+                    width,
+                    authDesktopPageHorizontalPadding,
+                  )}
                   viewportWidth={width}
                 />
               </View>

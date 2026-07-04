@@ -21,3 +21,9 @@ export function isCheckWithdrawResponse(payload: unknown): payload is CheckWithd
     typeof candidate.netAmountTHB === "number" && typeof candidate.totalPayoutTHB === "number"
   );
 }
+
+export function isWalletResourceBlocking(
+  status: "disabled" | "empty" | "error" | "loading" | "offline" | "ready",
+): boolean {
+  return status === "loading" || status === "error" || status === "offline" || status === "disabled";
+}

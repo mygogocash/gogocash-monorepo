@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import linkGoGoCashImage from "../../assets/link-mycashback-gogocash.png";
 import linkMyCashbackImage from "../../assets/link-mycashback-shop.png";
 import logoMarkImage from "../../assets/nav/logo.png";
-import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
+import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
 import { LinkMyCashbackConnectorDots } from "@mobile/components/LinkMyCashbackConnectorDots";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -125,11 +125,7 @@ export function CustomerLinkCashbackScreen({ mode }: { mode: "link" | "signIn" }
             </View>
           </View>
 
-          {isDesktop ? (
-            <View style={styles.desktopFooter}>
-              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
-            </View>
-          ) : null}
+          {isDesktop ? <CustomerDesktopFooterSlot style={styles.desktopFooter} /> : null}
         </ScrollView>
       </View>
     </View>

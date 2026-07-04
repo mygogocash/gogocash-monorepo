@@ -27,9 +27,11 @@ import { LogoutConfirmCard } from "@mobile/components/LogoutConfirmCard";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useMobileLogout } from "@mobile/auth/useMobileLogout";
 import {
+  isGoGoTrackSubNavItemActive,
   isProfileMenuItemActive,
   isProfileSectionPath,
   isProfileSubNavItemActive,
+  shouldAutoExpandGoGoTrackSubNav,
   shouldAutoExpandProfileSubNav,
 } from "@mobile/navigation/profileSectionNav";
 import profileAvatarImage from "../../assets/profile-avatar.png";
@@ -44,6 +46,7 @@ import {
   getDesktopShellOffset,
   mobileShellLayout,
   profileHubMenuItems,
+  profileHubGoGoTrackSubNavItems,
   profileHubSubNavItems,
   webAccountPageSurface,
   webProfileWalletHeroSurface,
@@ -208,6 +211,9 @@ function DesktopProfileRail() {
   const tc = useCopy();
   const pathname = usePathname();
   const [profileSubOpen, setProfileSubOpen] = useState(() => shouldAutoExpandProfileSubNav(pathname));
+  const [goGoTrackSubOpen, setGoGoTrackSubOpen] = useState(() =>
+    shouldAutoExpandGoGoTrackSubNav(pathname),
+  );
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const { logout, pending: logoutPending } = useMobileLogout();
 
@@ -243,6 +249,51 @@ function DesktopProfileRail() {
                 <View style={styles.railSubNav}>
                   {profileHubSubNavItems.map((sub) => {
                     const subActive = isProfileSubNavItemActive(pathname, sub.href);
+                    return (
+                      <Link asChild href={sub.href as never} key={sub.href}>
+                        <MotionPressable
+                          pressScale={0.98}
+                          style={StyleSheet.flatten([
+                            styles.railSubRow,
+                            subActive ? styles.railSubRowActive : null,
+                          ])}
+                        >
+                          <Text style={[styles.railSubLabel, subActive ? styles.railSubLabelActive : null]}>
+                            {tc(sub.label)}
+                          </Text>
+                        </MotionPressable>
+                      </Link>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
+          );
+        }
+
+        // GoGoTrack is an accordion that reveals setup / timeline / settings sub-nav.
+        if (item.href === "/gototrack") {
+          return (
+            <View key={item.label} style={styles.railAccordion}>
+              <MotionPressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: goGoTrackSubOpen }}
+                onPress={() => setGoGoTrackSubOpen((open) => !open)}
+                pressScale={0.98}
+                style={StyleSheet.flatten([styles.railRow, active ? styles.railRowActive : null])}
+              >
+                <Icon color={iconColor} size={22} strokeWidth={typography.iconStrokeWidth} />
+                <Text style={[styles.railLabel, active ? styles.railLabelActive : null]}>{label}</Text>
+                {goGoTrackSubOpen ? (
+                  <ChevronUpIcon color={iconColor} size={20} strokeWidth={typography.iconStrokeWidth} />
+                ) : (
+                  <ChevronDownIcon color={iconColor} size={20} strokeWidth={typography.iconStrokeWidth} />
+                )}
+              </MotionPressable>
+              {goGoTrackSubOpen ? (
+                <View style={styles.railSubNav}>
+                  {profileHubGoGoTrackSubNavItems.map((sub) => {
+                    const subActive = isGoGoTrackSubNavItemActive(pathname, sub.href);
                     return (
                       <Link asChild href={sub.href as never} key={sub.href}>
                         <MotionPressable
