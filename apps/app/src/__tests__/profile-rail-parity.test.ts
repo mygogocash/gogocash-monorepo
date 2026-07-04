@@ -53,6 +53,7 @@ describe("desktop profile rail parity", () => {
     const gototrack = readMobileFile("src/screens/CustomerGoGoTrackScreen.tsx");
 
     expect(gototrack).toContain("AccountPageShell");
+    expect(gototrack).toContain("showProfileRail");
     expect(gototrack).not.toContain("styles.phoneFrame");
     expect(gototrack).not.toContain("CustomerDesktopFooterSlot");
   });

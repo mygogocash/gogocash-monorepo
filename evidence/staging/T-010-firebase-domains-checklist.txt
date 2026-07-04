@@ -9,9 +9,10 @@ Add:
   - localhost (for local Expo web against staging API)
 
 ## Verify
-1. Open https://app-staging.gogocash.co or Expo web with staging channel
-2. /login → Firebase phone OTP completes (no auth/unauthorized-domain error)
-3. If OTP blocked, document workaround: backend JWT for device QA (GOGOTRACK_AUTH_TOKEN) per AGENTS.md
+1. Open **https://staging.gogocash.co/en/login** (Firebase-authorized hostname; preferred for staging OTP)
+2. Or https://app-staging.gogocash.co/en/login after adding that domain in Firebase Console
+3. Test login: phone **+66999999999**, OTP **654321** (Firebase test number, no SMS)
+4. Or use your real Thai mobile — SMS OTP from Firebase `gogocash-staging`
 
 Ref: docs/ios-dev-client.md, apps/app/eas.json preview EXPO_PUBLIC_FIREBASE_* from GH staging environment
 

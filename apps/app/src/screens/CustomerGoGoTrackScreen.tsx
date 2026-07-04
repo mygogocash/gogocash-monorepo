@@ -195,7 +195,7 @@ export function CustomerGoGoTrackScreen({
   const merchantLabel = merchant?.name ?? merchantRouteId;
 
   return (
-    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(copy.title)}>
+    <AccountPageShell activeRouteId="profile" showProfileRail showTitle={false} title={tc(copy.title)}>
       <View style={styles.page}>
         {isDesktop ? null : (
           <Link asChild href="/profile">

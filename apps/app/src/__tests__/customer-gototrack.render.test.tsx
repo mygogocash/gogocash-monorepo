@@ -125,6 +125,7 @@ describe("CustomerGoGoTrackScreen route wiring", () => {
 describe("CustomerGoGoTrackScreen — Wave B (B5) foundations adopted (source signals)", () => {
   it("renders inside AccountPageShell so desktop profile routes get the sidebar rail", () => {
     expect(gogoSenseSource).toContain("AccountPageShell");
+    expect(gogoSenseSource).toContain("showProfileRail");
     expect(gogoSenseSource).not.toContain("styles.phoneFrame");
     expect(gogoSenseSource).not.toContain("CustomerDesktopFooterSlot");
   });

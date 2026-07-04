@@ -26,6 +26,7 @@ import { getProfileMenuIcon } from "@mobile/components/profileMenuIcons";
 import { LogoutConfirmCard } from "@mobile/components/LogoutConfirmCard";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useMobileLogout } from "@mobile/auth/useMobileLogout";
+import { normalizePathname } from "@mobile/auth/routeGuard";
 import {
   isGoGoTrackSubNavItemActive,
   isProfileMenuItemActive,
@@ -91,7 +92,7 @@ export function AccountPageShell({
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const showBottomNav = !isDesktop;
-  const pathname = usePathname();
+  const pathname = normalizePathname(usePathname() ?? "/");
   // Desktop: every profile-section route renders the persistent sidebar (rail),
   // not just the hub screens that explicitly opt in via showProfileRail.
   const showDesktopRail = isDesktop && (showProfileRail || isProfileSectionPath(pathname));
@@ -209,7 +210,7 @@ function DesktopProfileRail() {
   const styles = useAccountPageShellStyles();
   const { colors } = useTheme();
   const tc = useCopy();
-  const pathname = usePathname();
+  const pathname = normalizePathname(usePathname() ?? "/");
   const [profileSubOpen, setProfileSubOpen] = useState(() => shouldAutoExpandProfileSubNav(pathname));
   const [goGoTrackSubOpen, setGoGoTrackSubOpen] = useState(() =>
     shouldAutoExpandGoGoTrackSubNav(pathname),
