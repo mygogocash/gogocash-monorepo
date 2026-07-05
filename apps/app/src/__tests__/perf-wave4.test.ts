@@ -61,12 +61,17 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(brandCard).toMatch(/if \(props\.onPress\) \{[\s\S]*?return card;/);
   });
 
-  it("HomeHeroBanners > given remote hero art > then expo-image caches banner URLs", () => {
+  it("HomeHeroBanners > given remote hero art > then expo-image renders HD-safe hero banners", () => {
     const heroBanners = readMobileFile("src/screens/home/HomeHeroBanners.tsx");
+    const heroBannerImage = readMobileFile("src/screens/home/HeroBannerImage.tsx");
 
-    expect(heroBanners).toContain('from "expo-image"');
-    expect(heroBanners).toContain('cachePolicy="memory-disk"');
+    expect(heroBanners).toContain("HeroBannerImage");
     expect(heroBanners).toContain("prefetchRemoteImages");
+    expect(heroBannerImage).toContain('from "expo-image"');
+    expect(heroBannerImage).toContain('cachePolicy="memory-disk"');
+    expect(heroBannerImage).toContain('contentFit={HOME_HERO_BANNER_CONTENT_FIT}');
+    expect(heroBannerImage).toContain("allowDownscaling={false}");
+    expect(heroBannerImage).toContain('priority="high"');
   });
 
   it("HomeSearchResultRow > given remote brand logos > then expo-image caches search hits", () => {

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, ScrollView, View } from "react-native";
-import { Image } from "expo-image";
 import {
   type BannerHomeDocument,
   type HomeHeroBanner,
@@ -12,8 +11,9 @@ import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import { prefetchRemoteImages } from "@mobile/lib/prefetchRemoteImages";
 import { motion } from "@mobile/theme/motion";
 import { webHomeHeroBanners } from "@mobile/design/webDesignParity";
+import { HeroBannerImage } from "./HeroBannerImage";
 import { HeroBannerLink } from "./HeroBannerLink";
-import { getPagedScrollIndex, heroBannerSource } from "./homeHelpers";
+import { getPagedScrollIndex } from "./homeHelpers";
 import { useHomeScreenColors, useHomeScreenStyles } from "./homeScreenHooks";
 import { type HomeLayoutMetrics } from "./homeTypes";
 
@@ -108,13 +108,7 @@ export function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics 
               key={banner.id}
               style={[styles.heroBannerLink, styles.heroSlide, { width: heroBannerWidth }]}
             >
-              <Image
-                accessibilityLabel={`${banner.id} promotion banner`}
-                cachePolicy="memory-disk"
-                contentFit="cover"
-                source={heroBannerSource(banner)}
-                style={styles.heroImage}
-              />
+              <HeroBannerImage banner={banner} style={styles.heroImage} />
             </HeroBannerLink>
           ))}
         </Animated.ScrollView>
@@ -140,13 +134,7 @@ export function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics 
               homeLayout.isDesktop ? styles.sideHeroFrameDesktop : styles.sideHeroFrameMobile,
             ]}
           >
-            <Image
-              accessibilityLabel={`${banner.id} promotion banner`}
-              cachePolicy="memory-disk"
-              contentFit="cover"
-              source={heroBannerSource(banner)}
-              style={styles.heroImage}
-            />
+            <HeroBannerImage banner={banner} style={styles.heroImage} />
           </HeroBannerLink>
         ))}
       </View>

@@ -11,6 +11,7 @@ vi.mock("expo-router", () => ({
   Link: ({ children }: { children: ReactNode }) => children,
   useRouter: () => ({ push: routerPush, replace: vi.fn(), back: vi.fn(), navigate: vi.fn() }),
   usePathname: () => "/login",
+  useLocalSearchParams: () => ({}),
 }));
 
 const sendPhoneOtp = vi.fn();
