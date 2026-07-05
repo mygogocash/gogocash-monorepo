@@ -1,7 +1,6 @@
 name: gogocash-codeql
-# Library pack lives in-repo; resolved via repo-root codeql-workspace.yml (provide).
-packs:
-  - mygogocash/gogocash-mongo-sanitizers
+# Local mongo sanitizer model pack is wired in codeql.yml via CODEQL_ACTION_EXTRA_OPTIONS
+# (--additional-packs + --extension-packs). packs: here only accepts published GHCR packs.
 paths-ignore:
   - '**/node_modules/**'
   - '**/*.test.ts'
