@@ -54,7 +54,11 @@ export function CustomerMobileBottomNav({
   const styles = useThemedStyles(createBottomNavStyles);
 
   function handleBottomNavPress(href: string) {
-    if (ready && !isAuthed && protectedBottomNavHrefs.has(href)) {
+    if (!ready) {
+      return;
+    }
+
+    if (!isAuthed && protectedBottomNavHrefs.has(href)) {
       router.push((buildProtectedLoginRedirect(href) ?? "/login") as never);
       return;
     }
