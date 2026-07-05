@@ -18,10 +18,10 @@ describe("backendIntegrationScope", () => {
     );
   });
 
-  it("resolveAuthSocialProviders > backend > omits Connect Wallet", () => {
+  it("resolveAuthSocialProviders > backend > omits Connect Wallet and Telegram", () => {
     expect(
       resolveAuthSocialProviders(webAuthPage.socialProviders, "backend").map((p) => p.id),
-    ).toEqual(["facebook", "google", "telegram", "apple", "x", "microsoft"]);
+    ).toEqual(["facebook", "google", "apple", "x", "microsoft"]);
   });
 
   it("resolveAuthSocialProviders > fixtures > keeps Connect Wallet for parity UI", () => {

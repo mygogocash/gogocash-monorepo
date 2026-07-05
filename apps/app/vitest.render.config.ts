@@ -75,6 +75,12 @@ export default defineConfig({
       // grids are source-tested separately. Stub to a passthrough list for mounts.
       { find: "@shopify/flash-list", replacement: stub("flashListStub.tsx") },
       { find: "expo-image", replacement: stub("expoImageStub.tsx") },
+      // Native phone OTP pulls expo-firebase-recaptcha -> expo-firebase-core, which
+      // expects ExpoGlobal.EventEmitter. Render tests run on web — force the web hook.
+      {
+        find: "@mobile/auth/useFirebasePhoneRecaptcha",
+        replacement: path.resolve(__dirname, "./src/auth/useFirebasePhoneRecaptcha.web.ts"),
+      },
       // react-native is Flow-typed; render against react-native-web instead.
       // Use the bare package name so node/vite resolution finds react-native-web
       // wherever it is installed. In this monorepo it is HOISTED to the workspace

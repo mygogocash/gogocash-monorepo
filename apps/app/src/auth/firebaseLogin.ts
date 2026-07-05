@@ -22,13 +22,11 @@ export type BackendLoginResponse = {
     id_telegram?: string;
     avatar_url?: string;
     membership_tier?: string;
+    provider?: string;
   };
 };
 
-// Maps the backend envelope into the persisted mobile session. The session schema is
-// pinned to exactly 15 fields (mobile-launch-contract), so only those keys are emitted,
-// and only when the backend actually sent a value. `country` → `region` mirrors the
-// web's next-auth jwt callback.
+// Maps the backend envelope into the persisted mobile session.
 export function mapLoginResponseToMobileSession(response: BackendLoginResponse): MobileSession {
   const token = response.token?.trim();
   if (!token) {
@@ -36,7 +34,10 @@ export function mapLoginResponseToMobileSession(response: BackendLoginResponse):
   }
 
   const user = response.user ?? {};
-  const session: MobileSession = { access_token: token, provider: "firebase" };
+  const session: MobileSession = {
+    access_token: token,
+    provider: typeof user.provider === "string" && user.provider.trim() ? user.provider : "firebase",
+  };
 
   if (user._id) session._id = user._id;
   if (user.email) session.email = user.email;

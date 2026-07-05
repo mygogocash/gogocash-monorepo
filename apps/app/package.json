@@ -47,6 +47,7 @@
     "expo-clipboard": "~57.0.0",
     "expo-constants": "~57.0.2",
     "expo-dev-client": "~57.0.3",
+    "expo-firebase-recaptcha": "^2.3.1",
     "expo-font": "~57.0.0",
     "expo-haptics": "~57.0.0",
     "expo-image": "~57.0.0",
@@ -68,7 +69,8 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
     "react-native-svg": "15.15.4",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "react-native-webview": "13.16.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
