@@ -318,8 +318,8 @@ class GototrackMonitorService : Service() {
     private const val NOTIFICATION_ID_MONITOR = 7101
     private const val NOTIFICATION_ID_PROMPT = 7102
     private const val LOOKBACK_MS = 120_000L
-    private const val POLL_INTERVAL_MS = 15_000L
-    private const val SAME_PACKAGE_REDETECT_MS = 30_000L
+    private const val POLL_INTERVAL_MS = 3_000L
+    private const val SAME_PACKAGE_REDETECT_MS = 5_000L
     private const val PROMPT_COOLDOWN_MS = 5 * 60 * 1000L
 
     fun buildActivateDeepLink(

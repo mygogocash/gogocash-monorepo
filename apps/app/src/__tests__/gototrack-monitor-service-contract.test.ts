@@ -17,8 +17,8 @@ describe("GoGoTrack monitor service contract", () => {
   it("uses a high-importance prompt channel and faster polling", () => {
     expect(monitorSource).toContain('PROMPT_CHANNEL_ID = "gototrack_prompt"');
     expect(monitorSource).toContain("IMPORTANCE_HIGH");
-    expect(monitorSource).toContain("POLL_INTERVAL_MS = 15_000L");
-    expect(monitorSource).toContain("SAME_PACKAGE_REDETECT_MS");
+    expect(monitorSource).toContain("POLL_INTERVAL_MS = 3_000L");
+    expect(monitorSource).toContain("SAME_PACKAGE_REDETECT_MS = 5_000L");
   });
 
   it("prompt notifications are dismissible heads-up alerts", () => {
