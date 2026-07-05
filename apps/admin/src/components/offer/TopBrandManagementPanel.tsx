@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useState, type DragEvent } from "react";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { Offer, TopBrandConfigEntry } from "@/types/api";
 import {
@@ -22,8 +25,8 @@ import toast from "react-hot-toast";
 import { OFFER_THUMB_SIZES } from "./offerMedia";
 
 const TOP_BRANDS_QUERY_KEY = ["admin", "top-brands"] as const;
-const PICKER_MIN_SEARCH_CHARS = 2;
 const PICKER_RESULTS_LIMIT = 100;
+const BRAND_AUTOCOMPLETE_POPPER_Z = 100002;
 
 const EMPTY_BRANDS: TopBrandConfigEntry[] = [];
 
@@ -155,7 +158,6 @@ export default function TopBrandManagementPanel() {
     string,
     string
   > | null>(null);
-  const [addOfferId, setAddOfferId] = useState("");
   const [pickerSearch, setPickerSearch] = useState("");
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -188,14 +190,16 @@ export default function TopBrandManagementPanel() {
     }),
     [pickerSearch],
   );
-  const pickerSearchActive =
-    pickerSearch.trim().length >= PICKER_MIN_SEARCH_CHARS;
 
-  const { data: offersPick, isFetching: offersPickLoading } = useQuery({
+  const {
+    data: offersPick,
+    isFetching: offersPickLoading,
+    isError: offersPickError,
+    error: offersPickQueryError,
+  } = useQuery({
     queryKey: offersListQueryKey(pickerQuery),
     queryFn: () => fetchOffersList(pickerQuery),
-    enabled: pickerSearchActive,
-    staleTime: 0,
+    staleTime: 30_000,
   });
 
   const offerById = useMemo(() => {
@@ -271,23 +275,24 @@ export default function TopBrandManagementPanel() {
     [serverOrder],
   );
 
-  const addSelected = useCallback(() => {
-    const id = addOfferId.trim();
-    if (!id) return;
-    const offer = offerById.get(id);
-    const derivedCashback = resolveTopBrandCashbackLabel(offer, "");
-    setDraftOrder((d) => {
-      const prev = d ?? serverOrder;
-      return prev.includes(id) ? prev : [...prev, id];
-    });
-    if (derivedCashback) {
-      setDraftCashbackById((draft) => ({
-        ...(draft ?? serverCashbackById),
-        [id]: derivedCashback,
-      }));
-    }
-    setAddOfferId("");
-  }, [addOfferId, offerById, serverCashbackById, serverOrder]);
+  const addOfferFromPicker = useCallback(
+    (offer: Offer) => {
+      const id = offer._id.trim();
+      if (!id) return;
+      const derivedCashback = resolveTopBrandCashbackLabel(offer, "");
+      setDraftOrder((d) => {
+        const prev = d ?? serverOrder;
+        return prev.includes(id) ? prev : [...prev, id];
+      });
+      if (derivedCashback) {
+        setDraftCashbackById((draft) => ({
+          ...(draft ?? serverCashbackById),
+          [id]: derivedCashback,
+        }));
+      }
+    },
+    [serverCashbackById, serverOrder],
+  );
 
   const updateCashback = useCallback(
     (offerId: string, cashback: string) => {
@@ -396,66 +401,81 @@ export default function TopBrandManagementPanel() {
           Add offer
         </h3>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Type at least {PICKER_MIN_SEARCH_CHARS} characters to search by brand
-          name, country, lookup slug, offer id, or Mongo id. Offers already in
-          the list below are hidden.
+          Click to browse recent offers or type to search by brand name, country,
+          lookup slug, offer id, or Mongo id. Offers already in the list below
+          are hidden.
         </p>
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="min-w-0 flex-1">
-            <label htmlFor="top-brand-search" className="sr-only">
-              Search offers
-            </label>
-            <input
-              id="top-brand-search"
-              type="search"
-              value={pickerSearch}
-              onChange={(e) => setPickerSearch(e.target.value)}
-              disabled={!canManageBrands}
-              placeholder="Search offers…"
-              className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            />
-          </div>
-          <div className="min-w-0 flex-[2]">
-            <label htmlFor="top-brand-add" className="sr-only">
-              Select offer to add
-            </label>
-            <select
-              id="top-brand-add"
-              value={addOfferId}
-              onChange={(e) => setAddOfferId(e.target.value)}
-              disabled={!canManageBrands}
-              className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            >
-              <option value="">Select an offer…</option>
-              {pickerOptions.map((o) => (
-                <option key={o._id} value={o._id}>
-                  {offerPickerLabel(o)}
-                  {o.disabled ? " (disabled)" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            onClick={addSelected}
-            disabled={!canManageBrands || !addOfferId}
-          >
-            Add to list
-          </Button>
+        <div className="mt-3">
+          <Autocomplete
+            id="top-brand-add"
+            disabled={!canManageBrands}
+            options={pickerOptions}
+            value={null}
+            inputValue={pickerSearch}
+            loading={offersPickLoading}
+            openOnFocus
+            filterOptions={(items) => items}
+            getOptionLabel={(offer) =>
+              `${offerPickerLabel(offer)}${offer.disabled ? " (disabled)" : ""}`
+            }
+            getOptionKey={(offer) => offer._id}
+            isOptionEqualToValue={(left, right) => left._id === right._id}
+            noOptionsText={
+              offersPickLoading
+                ? "Loading offers…"
+                : offersPickError
+                  ? "Could not load offers"
+                  : "No matching offers found"
+            }
+            slotProps={{
+              popper: {
+                disablePortal: true,
+                sx: { zIndex: BRAND_AUTOCOMPLETE_POPPER_Z },
+              },
+            }}
+            sx={{ width: "100%" }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Search offers to add…"
+                slotProps={{
+                  htmlInput: {
+                    "aria-label": "Search offers to add",
+                  },
+                }}
+              />
+            )}
+            renderOption={(props, offer) => {
+              const { key: _key, ...optionProps } = props;
+              return (
+                <li {...optionProps} key={offer._id}>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate">{offerLabel(offer)}</span>
+                    <span className="truncate text-xs text-gray-500">
+                      {offerPickerLabel(offer)}
+                      {offer.disabled ? " (disabled)" : ""}
+                    </span>
+                  </div>
+                </li>
+              );
+            }}
+            onInputChange={(_event, value, reason) => {
+              if (reason === "input") setPickerSearch(value);
+              if (reason === "clear") setPickerSearch("");
+            }}
+            onChange={(_event, offer) => {
+              if (!offer) return;
+              addOfferFromPicker(offer);
+              setPickerSearch("");
+            }}
+          />
         </div>
-        {!pickerSearchActive ? (
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            Start typing a brand name to load matching offers.
-          </p>
-        ) : offersPickLoading ? (
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            Searching offers…
-          </p>
-        ) : pickerOptions.length === 0 ? (
-          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-            No matching offers found. Check the brand name on the Brands tab, or
-            search by offer id / Mongo id if the display name differs.
+        {offersPickError ? (
+          <p className="mt-2 text-xs text-red-700 dark:text-red-300">
+            {getApiErrorMessage(
+              offersPickQueryError,
+              "Could not search offers. Check your admin session and API connection.",
+            )}
           </p>
         ) : null}
       </div>

@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,6 +29,51 @@ vi.mock("@/lib/query/offersQueries", () => ({
     "list",
     query.search ?? "",
   ],
+}));
+
+vi.mock("@mui/material/Autocomplete", () => ({
+  default: ({
+    disabled,
+    options,
+    onChange,
+    onInputChange,
+  }: {
+    disabled?: boolean;
+    options: Offer[];
+    onChange: (_event: unknown, offer: Offer | null) => void;
+    onInputChange: (
+      _event: unknown,
+      value: string,
+      reason: string,
+    ) => void;
+  }) => (
+    <div>
+      <input
+        aria-label="Search offers to add"
+        disabled={disabled}
+        onChange={(event) =>
+          onInputChange?.(event, event.currentTarget.value, "input")
+        }
+      />
+      <select
+        aria-label="Select offer to add"
+        disabled={disabled}
+        onChange={(event) => {
+          const offer =
+            options.find((row) => row._id === event.currentTarget.value) ??
+            null;
+          onChange?.(event, offer);
+        }}
+      >
+        <option value="">Select an offer…</option>
+        {options.map((offer) => (
+          <option key={offer._id} value={offer._id}>
+            {offer.offer_name_display ?? offer.offer_name} · {offer._id}
+          </option>
+        ))}
+      </select>
+    </div>
+  ),
 }));
 
 vi.mock("@/hooks/usePermissions", () => ({
@@ -82,9 +128,11 @@ function renderPanel() {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <TopBrandManagementPanel />
-    </QueryClientProvider>,
+    <ThemeProvider theme={createTheme()}>
+      <QueryClientProvider client={queryClient}>
+        <TopBrandManagementPanel />
+      </QueryClientProvider>
+    </ThemeProvider>,
   );
 }
 
@@ -142,9 +190,10 @@ describe("TopBrandManagementPanel", () => {
       "Cashback for Banana IT",
     );
 
-    expect(screen.getByRole("searchbox", { name: "Search offers" })).toBeDisabled();
+    expect(
+      screen.getByRole("textbox", { name: "Search offers to add" }),
+    ).toBeDisabled();
     expect(screen.getByLabelText("Select offer to add")).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Add to list" })).toBeDisabled();
     expect(cashbackInput).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save top brands" })).toBeDisabled();
     expect(screen.getByText(/read-only access/i)).toBeInTheDocument();
@@ -181,7 +230,10 @@ describe("TopBrandManagementPanel", () => {
     renderPanel();
 
     await screen.findByRole("heading", { name: "Homepage top brands" });
-    await user.type(screen.getByRole("searchbox", { name: "Search offers" }), "Shopee");
+    await user.type(
+      screen.getByRole("textbox", { name: "Search offers to add" }),
+      "Shopee",
+    );
 
     await waitFor(() => {
       expect(fetchOffersListMock).toHaveBeenCalled();
@@ -193,7 +245,6 @@ describe("TopBrandManagementPanel", () => {
     });
 
     await user.selectOptions(select, "o-shopee");
-    await user.click(screen.getByRole("button", { name: "Add to list" }));
 
     const cashbackInput = await screen.findByLabelText("Cashback for Shopee");
     expect(cashbackInput).toHaveValue("5.6%");
@@ -220,7 +271,10 @@ describe("TopBrandManagementPanel", () => {
     renderPanel();
     await screen.findByLabelText("Cashback for Banana IT");
 
-    await user.type(screen.getByRole("searchbox", { name: "Search offers" }), "Banana");
+    await user.type(
+      screen.getByRole("textbox", { name: "Search offers to add" }),
+      "Banana",
+    );
 
     await waitFor(() => {
       expect(fetchOffersListMock).toHaveBeenCalled();
