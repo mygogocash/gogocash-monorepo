@@ -61,6 +61,20 @@ const offer = {
   offer_id: 1001,
   offer_name: "Banana IT TH - CPS",
   offer_name_display: "Banana IT",
+  commission_store: 7,
+} as Offer;
+
+const shopeeOffer = {
+  _id: "o-shopee",
+  disabled: false,
+  extra_store: true,
+  logo_circle: "",
+  logo_desktop: "",
+  logo_mobile: "",
+  offer_id: 2001,
+  offer_name: "Shopee TH - CPS",
+  offer_name_display: "Shopee",
+  commission_store: 5.6,
 } as Offer;
 
 function renderPanel() {
@@ -134,6 +148,55 @@ describe("TopBrandManagementPanel", () => {
     expect(cashbackInput).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save top brands" })).toBeDisabled();
     expect(screen.getByText(/read-only access/i)).toBeInTheDocument();
+  });
+
+  it("given saved cashback is empty > when offer has commission_store > then shows derived cashback", async () => {
+    apiClientMock.getTopBrands.mockResolvedValue({
+      brands: [{ offerId: "o-shopee", cashback: "" }],
+      items: [shopeeOffer],
+      order: ["o-shopee"],
+    });
+
+    renderPanel();
+
+    const cashbackInput = await screen.findByLabelText("Cashback for Shopee");
+    expect(cashbackInput).toHaveValue("5.6%");
+  });
+
+  it("given a brand added from picker > when offer has commission_store > then prefills cashback", async () => {
+    const user = userEvent.setup();
+    apiClientMock.getTopBrands.mockResolvedValue({
+      brands: [],
+      items: [],
+      order: [],
+    });
+    fetchOffersListMock.mockResolvedValue({
+      data: [shopeeOffer],
+      limit: 100,
+      page: 1,
+      total: 1,
+      totalPages: 1,
+    });
+
+    renderPanel();
+
+    await screen.findByRole("heading", { name: "Homepage top brands" });
+    await user.type(screen.getByRole("searchbox", { name: "Search offers" }), "Shopee");
+
+    await waitFor(() => {
+      expect(fetchOffersListMock).toHaveBeenCalled();
+    });
+
+    const select = screen.getByLabelText("Select offer to add");
+    await waitFor(() => {
+      expect(select).toHaveTextContent("Shopee");
+    });
+
+    await user.selectOptions(select, "o-shopee");
+    await user.click(screen.getByRole("button", { name: "Add to list" }));
+
+    const cashbackInput = await screen.findByLabelText("Cashback for Shopee");
+    expect(cashbackInput).toHaveValue("5.6%");
   });
 
   it("given a same-name variant not yet listed > then still appears in the picker", async () => {

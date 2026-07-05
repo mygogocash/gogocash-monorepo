@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { isAxiosError } from "axios";
+import type { FetchBestResponse } from "@/components/commission/CommissionManagementClient";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import NoData from "@/components/common/NoData";
 import CopyButton from "@/components/ui/CopyButton";
@@ -38,6 +40,10 @@ import {
   AFFILIATE_NETWORKS,
   affiliateNetworkIdForOfferId,
 } from "@/data/affiliateNetworks";
+import {
+  bestPartnerRawFromCommissions,
+  commissionFieldsFromPartnerRaw,
+} from "@/lib/autoCommissionFromPartner";
 import {
   buildSuggestedAppDeeplink,
   formatPartnerRatesMinMax,
@@ -507,6 +513,97 @@ const FormOffer = ({
   // value ("All product types" off) — it's auto-filled from the highest line.
   const commissionLockedToRows = !form.all_product_types;
 
+  const applyPartnerCommissionToForm = useCallback(
+    (rawPercent: number): boolean => {
+      const fields = commissionFieldsFromPartnerRaw(rawPercent);
+      if (!fields) return false;
+      setCommissionRaw(fields.commissionRaw);
+      setForm((prev) => ({
+        ...prev,
+        commission_entry_mode: "auto",
+        commission_store: fields.commission_store,
+      }));
+      return true;
+    },
+    [setForm],
+  );
+
+  const fetchBestCommission = useMutation({
+    mutationFn: async (payload: {
+      offerId: string;
+      affiliateNetworkId: string;
+    }) => {
+      const { data } = await client.post<FetchBestResponse>(
+        "/admin/commission-management/fetch-best",
+        payload,
+      );
+      return data;
+    },
+  });
+
+  const syncAutoCommissionFromPartner = useCallback(async () => {
+    if (!offer || commissionLockedToRows) return;
+
+    const localRaw = bestPartnerRawFromCommissions(offer.commissions ?? []);
+    const affiliateNetworkId =
+      form.affiliate_network_id.trim() ||
+      affiliateNetworkIdForOfferId(offer._id);
+
+    if (!form.id) {
+      if (localRaw > 0) applyPartnerCommissionToForm(localRaw);
+      return;
+    }
+
+    try {
+      const data = await fetchBestCommission.mutateAsync({
+        offerId: form.id,
+        affiliateNetworkId,
+      });
+      if (data.bestRatePercent > 0) {
+        applyPartnerCommissionToForm(data.bestRatePercent);
+        fetchOffers();
+        toast.success(
+          `Loaded partner rate ${data.bestRatePercent}% (user-facing ${applyThirtyPercentFee(data.bestRatePercent)}% after 30% fee)`,
+        );
+        return;
+      }
+      if (localRaw > 0) {
+        applyPartnerCommissionToForm(localRaw);
+        toast.success(
+          `Using partner rate on file ${localRaw}% (user-facing ${applyThirtyPercentFee(localRaw)}%)`,
+        );
+        return;
+      }
+      toast.error(
+        "No partner rate found. Set commission in Commission Management or switch to Manual.",
+      );
+    } catch (err) {
+      if (localRaw > 0) {
+        applyPartnerCommissionToForm(localRaw);
+        toast.success(
+          `Using partner rate on file ${localRaw}% (live sync unavailable)`,
+        );
+        return;
+      }
+      const msg =
+        isAxiosError(err) &&
+        err.response?.data &&
+        typeof err.response.data === "object" &&
+        "message" in err.response.data
+          ? String((err.response.data as { message?: string }).message)
+          : "Could not fetch partner rate. Try again or enter manually.";
+      toast.error(msg);
+    }
+  }, [
+    offer,
+    commissionLockedToRows,
+    form.id,
+    form.affiliate_network_id,
+    fetchBestCommission,
+    applyPartnerCommissionToForm,
+    fetchOffers,
+  ]);
+
   // Product-type "add" frame: a local draft, committed into form.product_types
   // on Add (the committed lines show in a summary table — a later step). Cancel
   // clears the draft.
@@ -920,6 +1017,13 @@ const FormOffer = ({
       product_types: form.product_types,
     });
     setEditingCashback(true);
+    if (
+      form.commission_entry_mode === "auto" &&
+      (form.commission_store == null || form.commission_store === 0) &&
+      !commissionRaw.trim()
+    ) {
+      void syncAutoCommissionFromPartner();
+    }
   };
 
   const cancelEditCashback = () => {
@@ -1859,13 +1963,18 @@ const FormOffer = ({
                     <div className="mb-2 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
                           setForm((prev) => ({
                             ...prev,
                             commission_entry_mode: "auto",
-                          }))
+                          }));
+                          void syncAutoCommissionFromPartner();
+                        }}
+                        disabled={
+                          isLoading ||
+                          commissionLockedToRows ||
+                          fetchBestCommission.isPending
                         }
-                        disabled={isLoading || commissionLockedToRows}
                         aria-pressed={form.commission_entry_mode === "auto"}
                         className={`${
                           form.commission_entry_mode === "auto"
@@ -1873,7 +1982,9 @@ const FormOffer = ({
                             : COMMISSION_MODE_TOGGLE_INACTIVE
                         } touch-manipulation`}
                       >
-                        Auto apply 30% fee
+                        {fetchBestCommission.isPending
+                          ? "Loading partner rate…"
+                          : "Auto apply 30% fee"}
                       </button>
                       <button
                         type="button"

@@ -11,6 +11,7 @@ import {
   getOfferDisplayName,
   resolveAdminOfferLogoPath,
 } from "@/lib/offerDisplay";
+import { resolveTopBrandCashbackLabel } from "@/lib/offerDeeplink";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import { pathImage } from "@/utils/helper";
 import NoData from "@/components/common/NoData";
@@ -109,6 +110,40 @@ function brandEntriesEqual(
   });
 }
 
+function resolveRowCashback(
+  offerId: string,
+  offerById: ReadonlyMap<string, Offer>,
+  serverCashbackById: Record<string, string>,
+  draftCashbackById: Record<string, string> | null,
+): string {
+  if (draftCashbackById !== null && offerId in draftCashbackById) {
+    const explicit = draftCashbackById[offerId];
+    if (String(explicit).trim()) return explicit;
+    return explicit;
+  }
+  const saved = serverCashbackById[offerId];
+  if (String(saved ?? "").trim()) return saved;
+  return resolveTopBrandCashbackLabel(offerById.get(offerId), "");
+}
+
+function buildEffectiveCashbackMap(
+  order: readonly string[],
+  offerById: ReadonlyMap<string, Offer>,
+  serverCashbackById: Record<string, string>,
+  draftCashbackById: Record<string, string> | null,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const offerId of order) {
+    out[offerId] = resolveRowCashback(
+      offerId,
+      offerById,
+      serverCashbackById,
+      draftCashbackById,
+    );
+  }
+  return out;
+}
+
 export default function TopBrandManagementPanel() {
   const queryClient = useQueryClient();
   const { can } = usePermissions();
@@ -143,15 +178,6 @@ export default function TopBrandManagementPanel() {
     [serverBrands],
   );
   const localOrder = draftOrder ?? serverOrder;
-  const localCashbackById = draftCashbackById ?? serverCashbackById;
-  const localBrands = useMemo(
-    () =>
-      localOrder.map((offerId) => ({
-        offerId,
-        cashback: localCashbackById[offerId] ?? "",
-      })),
-    [localCashbackById, localOrder],
-  );
 
   const pickerQuery = useMemo(
     () => ({
@@ -182,6 +208,24 @@ export default function TopBrandManagementPanel() {
     }
     return m;
   }, [data?.items, offersPick?.data]);
+  const effectiveCashbackById = useMemo(
+    () =>
+      buildEffectiveCashbackMap(
+        localOrder,
+        offerById,
+        serverCashbackById,
+        draftCashbackById,
+      ),
+    [draftCashbackById, localOrder, offerById, serverCashbackById],
+  );
+  const localBrands = useMemo(
+    () =>
+      localOrder.map((offerId) => ({
+        offerId,
+        cashback: effectiveCashbackById[offerId] ?? "",
+      })),
+    [effectiveCashbackById, localOrder],
+  );
 
   const pickerOptions = useMemo(() => {
     const inListIds = new Set(localOrder);
@@ -190,7 +234,7 @@ export default function TopBrandManagementPanel() {
 
   const dirty =
     !ordersEqual(localOrder, serverOrder) ||
-    !brandEntriesEqual(localOrder, localCashbackById, serverBrands);
+    !brandEntriesEqual(localOrder, effectiveCashbackById, serverBrands);
 
   const saveMutation = useMutation({
     mutationFn: (brands: TopBrandConfigEntry[]) =>
@@ -230,12 +274,20 @@ export default function TopBrandManagementPanel() {
   const addSelected = useCallback(() => {
     const id = addOfferId.trim();
     if (!id) return;
+    const offer = offerById.get(id);
+    const derivedCashback = resolveTopBrandCashbackLabel(offer, "");
     setDraftOrder((d) => {
       const prev = d ?? serverOrder;
       return prev.includes(id) ? prev : [...prev, id];
     });
+    if (derivedCashback) {
+      setDraftCashbackById((draft) => ({
+        ...(draft ?? serverCashbackById),
+        [id]: derivedCashback,
+      }));
+    }
     setAddOfferId("");
-  }, [addOfferId, serverOrder]);
+  }, [addOfferId, offerById, serverCashbackById, serverOrder]);
 
   const updateCashback = useCallback(
     (offerId: string, cashback: string) => {
@@ -506,7 +558,7 @@ export default function TopBrandManagementPanel() {
                 <input
                   aria-label={`Cashback for ${offer ? offerLabel(offer) : id}`}
                   type="text"
-                  value={localCashbackById[id] ?? ""}
+                  value={effectiveCashbackById[id] ?? ""}
                   onChange={(e) => updateCashback(id, e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                   draggable={false}
