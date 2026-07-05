@@ -97,7 +97,7 @@ describe("GoGoTrackDetectionBanner (render)", () => {
 
     const button = await screen.findByText("Activate cashback");
     const activationButton = screen.getByTestId("gototrack-activate-cashback-button");
-    expect(screen.getByLabelText("Activate GoGoTrack cashback")).toBe(activationButton);
+    expect(screen.getByLabelText("Activate cashback for Shopee")).toBe(activationButton);
     expect(activationButton.getAttribute("role")).toBe("button");
 
     await act(async () => {

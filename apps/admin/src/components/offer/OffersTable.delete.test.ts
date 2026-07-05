@@ -20,4 +20,9 @@ describe("OffersTable delete action", () => {
     expect(offersTableSource).toContain("getApiErrorMessage");
     expect(offersTableSource).toContain('toast.error(getApiErrorMessage(err, "Could not delete offer.")');
   });
+
+  it("warns that delete is permanent and cannot be undone", () => {
+    expect(offersTableSource).toContain("Permanently delete");
+    expect(offersTableSource).toContain("cannot be undone");
+  });
 });

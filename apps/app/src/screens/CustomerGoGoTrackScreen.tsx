@@ -29,6 +29,7 @@ import {
   createUnsupportedGoGoTrackDetector,
   type GoGoTrackDetector,
 } from "@mobile/gototrack/detector";
+import { GoGoTrackDetectionBanner } from "@mobile/gototrack/GoGoTrackDetectionBanner";
 import {
   GoGoTrackPermissionDisclosure,
   GoGoTrackPermissionGrantSection,
@@ -203,7 +204,12 @@ export function CustomerGoGoTrackScreen({
 
 function HubContent({ detector }: { detector: GoGoTrackDetector }) {
   useGoGoTrackBackgroundPrompts(detector);
-  return <GoGoTrackPermissionGrantSection detector={detector} />;
+  return (
+    <View style={{ gap: spacing.lg, width: "100%" }}>
+      <GoGoTrackDetectionBanner detector={detector} />
+      <GoGoTrackPermissionGrantSection detector={detector} />
+    </View>
+  );
 }
 
 function OnboardingContent() {

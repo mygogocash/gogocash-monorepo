@@ -12,6 +12,12 @@ export type GoGoTrackMatch = {
   response: GoGoTrackDetectionResponse;
 };
 
+function isActionableActivateMatch(match: GoGoTrackMatch | null): boolean {
+  return Boolean(
+    match?.response.matched && match.response.recommendedAction === "activate",
+  );
+}
+
 export type GoGoTrackSessionState = {
   supported: boolean;
   permissionGranted: boolean;
@@ -128,6 +134,19 @@ export function createGoGoTrackSession(options: GoGoTrackSessionOptions) {
         }
         return;
       }
+      const pendingActivation = isActionableActivateMatch(lastMatch);
+
+      // UsageStats reports the recent merchant even after the user returns to
+      // GoGoCash; keep the surfaced match when poll hits the per-package cooldown.
+      if (
+        result.suppressed &&
+        pendingActivation &&
+        lastMatch != null &&
+        result.packageName === lastMatch.packageName
+      ) {
+        return;
+      }
+
       const shouldClearMatch =
         !result.detected || (!result.suppressed && !matchedDuringPoll);
       if (shouldClearMatch && lastMatch != null) {

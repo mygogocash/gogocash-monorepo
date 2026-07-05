@@ -1,0 +1,7 @@
+command=gototrack-hub: adb exec-out screencap -p
+ok=true
+status=0
+--- stdout ---
+<304765 bytes>
+--- stderr ---
+

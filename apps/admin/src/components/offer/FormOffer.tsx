@@ -64,6 +64,10 @@ import {
 } from "@/lib/productTypeDraft";
 import { appendCashbackPatchFields } from "@/lib/offerCashbackSave";
 import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
+import {
+  brandSectionSaveBlockedMessage,
+  isBrandSectionDirty,
+} from "@/lib/brandSectionEdit";
 import { isDirty } from "@/lib/isDirty";
 import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
 import { OfferFullscreenCardShell } from "./OfferFullscreenCardShell";
@@ -904,6 +908,8 @@ const FormOffer = ({
   // saves everything else.
   const [editingBrand, setEditingBrand] = useState(false);
   const [savingBrand, setSavingBrand] = useState(false);
+  // Remount brand edit controls so uncontrolled fields re-read form after Cancel.
+  const [brandEditKey, setBrandEditKey] = useState(0);
   const [brandSnapshot, setBrandSnapshot] = useState<{
     offer_name_display: string;
     lookup_value: string;
@@ -925,6 +931,7 @@ const FormOffer = ({
     });
     setBrandSaveError(null);
     setEditingBrand(true);
+    setBrandEditKey((k) => k + 1);
   };
 
   const cancelEditBrand = () => {
@@ -940,11 +947,19 @@ const FormOffer = ({
       setSyncLookupFromBrandCountry(brandSnapshot.syncLookup);
     }
     setBrandSaveError(null);
+    setBrandEditKey((k) => k + 1);
     setEditingBrand(false);
   };
 
   const saveBrandEdit = async () => {
     if (!form.id) return;
+    const validationMessage = brandSectionSaveBlockedMessage(
+      form.offer_name_display,
+    );
+    if (validationMessage) {
+      setBrandSaveError(validationMessage);
+      return;
+    }
     setSavingBrand(true);
     setBrandSaveError(null);
     try {
@@ -973,6 +988,7 @@ const FormOffer = ({
         },
       }));
       setEditingBrand(false);
+      setBrandEditKey((k) => k + 1);
       fetchOffers();
       toast.success("Brand info updated successfully");
     } catch (err) {
@@ -985,19 +1001,17 @@ const FormOffer = ({
 
   // Whether the Brand Info fields changed since Edit was opened (drives the
   // section Save button: disabled + "No changes" until something is edited).
-  const brandDirty =
-    !!brandSnapshot &&
-    isDirty(
-      {
-        offer_name_display: form.offer_name_display,
-        lookup_value: form.lookup_value ?? "",
-        disabled: form.disabled,
-        extra_store: form.extra_store,
-        offer_display_tags: form.offer_display_tags,
-        syncLookup: syncLookupFromBrandCountry,
-      },
-      brandSnapshot,
-    );
+  const brandDirty = isBrandSectionDirty(
+    {
+      offer_name_display: form.offer_name_display,
+      lookup_value: form.lookup_value ?? "",
+      disabled: form.disabled,
+      extra_store: form.extra_store,
+      offer_display_tags: form.offer_display_tags,
+      syncLookup: syncLookupFromBrandCountry,
+    },
+    brandSnapshot,
+  );
 
   // Cashback Management edit toggle — locks/unlocks the fields. Save persists
   // commission/max-cap/product-type lines via a partial PATCH (mirrors Brand Info).
@@ -1463,37 +1477,6 @@ const FormOffer = ({
           id="offer-section-brand"
           className={`relative space-y-8 rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
-          {/* Section actions — pinned top-right, out of normal flow (ignores auto layout) */}
-          <div className="absolute top-4 right-4 z-10 sm:top-5 sm:right-5">
-            {!editingBrand ? (
-              <SecondaryButton onClick={beginEditBrand} disabled={!offer}>
-                Edit
-              </SecondaryButton>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={cancelEditBrand}
-                  disabled={savingBrand}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void saveBrandEdit()}
-                  disabled={savingBrand || !brandDirty}
-                  className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {savingBrand
-                    ? "Saving…"
-                    : brandDirty
-                      ? "Save changes"
-                      : "No changes"}
-                </button>
-              </div>
-            )}
-          </div>
           {brandSaveError && (
             <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
               {brandSaveError}
@@ -1501,12 +1484,47 @@ const FormOffer = ({
           )}
           {/* Brand info fields — grouped for easier selection */}
           <div>
-            <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-              Brand Info
-            </h4>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+                Brand Info
+              </h4>
+              <div className="relative z-20 flex shrink-0 flex-wrap items-center gap-2">
+                {!editingBrand ? (
+                  <SecondaryButton onClick={beginEditBrand} disabled={!offer}>
+                    Edit
+                  </SecondaryButton>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={cancelEditBrand}
+                      disabled={savingBrand}
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void saveBrandEdit()}
+                      disabled={savingBrand || !brandDirty}
+                      className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {savingBrand
+                        ? "Saving…"
+                        : brandDirty
+                          ? "Save changes"
+                          : "No changes"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
             {editingBrand ? (
               <>
-                <div className="mt-2 space-y-[18px]">
+                <div
+                  key={`brand-edit-fields-${brandEditKey}`}
+                  className="mt-2 space-y-[18px]"
+                >
                   <div>
                     <FieldLabel
                       label="Name of offer"
@@ -1515,10 +1533,13 @@ const FormOffer = ({
                     <Input
                       type="text"
                       name="offer_name_display"
+                      value={form.offer_name_display}
                       onChange={(e) =>
-                        setForm({ ...form, offer_name_display: e.target.value })
+                        setForm((prev) => ({
+                          ...prev,
+                          offer_name_display: e.target.value,
+                        }))
                       }
-                      defaultValue={form.offer_name_display}
                     />
                   </div>
                   {/* Brand category dropdown — picks the system-category tag; the
@@ -1664,9 +1685,12 @@ const FormOffer = ({
                 <div className="mt-[18px] flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-start sm:gap-6">
                   <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
                     <Switch
+                      key={`brand-active-${brandEditKey}`}
                       label=""
-                      onChange={(e) => setForm({ ...form, disabled: !e })}
-                      defaultChecked={!form.disabled}
+                      checked={!form.disabled}
+                      onChange={(checked) =>
+                        setForm((prev) => ({ ...prev, disabled: !checked }))
+                      }
                     />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
@@ -1679,9 +1703,12 @@ const FormOffer = ({
                   </div>
                   <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
                     <Switch
+                      key={`brand-top-${brandEditKey}`}
                       label=""
-                      onChange={(e) => setForm({ ...form, extra_store: e })}
-                      defaultChecked={form.extra_store}
+                      checked={form.extra_store}
+                      onChange={(checked) =>
+                        setForm((prev) => ({ ...prev, extra_store: checked }))
+                      }
                     />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-700 dark:text-gray-400">

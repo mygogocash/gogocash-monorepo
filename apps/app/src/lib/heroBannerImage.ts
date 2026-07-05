@@ -7,10 +7,10 @@ export const HOME_HERO_BANNER_DESIGN_WIDTH = 1920;
 export const HOME_HERO_BANNER_DESIGN_HEIGHT = 1080;
 
 /**
- * expo-image content mode for hero promos: downscale HD art to the frame but never
- * upscale low-res CDN uploads (scale-down = min(none, contain)).
+ * expo-image content mode for hero promos: fill the 16:9 frame and center-crop
+ * excess when admin uploads are not exactly 1920×1080.
  */
-export const HOME_HERO_BANNER_CONTENT_FIT = "scale-down" as const;
+export const HOME_HERO_BANNER_CONTENT_FIT = "cover" as const;
 
 export function getHeroBannerLayoutPixelBudget(cssWidth: number): {
   width: number;

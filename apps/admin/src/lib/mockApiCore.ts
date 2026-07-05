@@ -2335,6 +2335,21 @@ async function handleMockPATCH(
 }
 
 function handleMockDELETE(path: string[], joined: string): MockApiResult {
+  if (path[0] === "offer" && path.length === 2) {
+    const id = path[1];
+    const idx = mockOffers.findIndex((o) => o._id === id);
+    if (idx === -1) {
+      return jsonErr(404, { message: "Offer not found" });
+    }
+    mockOffers.splice(idx, 1);
+    for (let i = topBrandHomepageBrands.length - 1; i >= 0; i -= 1) {
+      if (topBrandHomepageBrands[i].offerId === id) {
+        topBrandHomepageBrands.splice(i, 1);
+      }
+    }
+    return ok({ message: "Offer deleted successfully" });
+  }
+
   if (path[0] === "admin" && path.length === 2) {
     const id = path[1];
     const index = mockAdminUsers.findIndex((u) => u._id === id);

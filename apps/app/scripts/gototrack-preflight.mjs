@@ -19,6 +19,7 @@ const merchantCatalogPath = "/gototrack/merchants";
 const activationNudgeMarkers = [
   "Activate cashback",
   "gototrack-activate-cashback-button",
+  "gototrack-activation-nudge",
   "Activate cashback for",
   "Cashback available",
   "เปิดใช้งานเงินคืน",
@@ -313,6 +314,22 @@ async function prepareGoGoTrackHubCapture(adb, deviceOptions, options) {
 
 function uiXmlContainsActivationNudge(uiXml = "") {
   return activationNudgeMarkers.some((marker) => uiXml.includes(marker));
+}
+
+async function waitForActivationNudgeInHub(adb, deviceOptions, options, maxWaitMs = 15000) {
+  const pollMs = 1000;
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    const dump = run(adb, adbArgs(deviceOptions, ["exec-out", "uiautomator", "dump", "/dev/tty"]), {
+      timeoutMs: 15000,
+    });
+    const uiXml = dump.status === 0 ? dump.stdout : "";
+    if (uiXmlContainsGoGoTrackHub(uiXml) && uiXmlContainsActivationNudge(uiXml)) {
+      return true;
+    }
+    await wait(pollMs);
+  }
+  return false;
 }
 
 function runPrepareDeviceScreen(adb, deviceOptions) {
@@ -1298,6 +1315,12 @@ async function writeDeviceCheckpointEvidence(report, options, checkpoint) {
           `focusPackage=${foreground.focusPackage}\nattempts=${foreground.attempt}\n`
         );
       }
+      await waitForActivationNudgeInHub(
+        options.adb,
+        deviceOptions,
+        options,
+        Math.max(options.checkpointDelayMs > 0 ? 15000 : 3000, 3000),
+      );
     } else {
       runPrepareDeviceScreen(options.adb, { ...options, device: report.context.device });
     }

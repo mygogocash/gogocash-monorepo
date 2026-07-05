@@ -142,9 +142,12 @@ function GoGoTrackDetectionBannerLoaded({
   const merchantSuffix = match.response.merchantName
     ? ` · ${match.response.merchantName}`
     : "";
+  const activateAccessibilityLabel = match.response.merchantName
+    ? `Activate cashback for ${match.response.merchantName}`
+    : tc("Activate GoGoTrack cashback");
 
   return (
-    <View style={styles.banner}>
+    <View style={styles.banner} testID="gototrack-activation-nudge">
       <Text numberOfLines={1} style={styles.title}>
         {tc("Cashback available")}
       </Text>
@@ -153,7 +156,7 @@ function GoGoTrackDetectionBannerLoaded({
         {merchantSuffix}
       </Text>
       <MotionPressable
-        accessibilityLabel={tc("Activate GoGoTrack cashback")}
+        accessibilityLabel={activateAccessibilityLabel}
         accessibilityRole="button"
         accessibilityState={{ disabled: isActivating }}
         onPress={onActivate}

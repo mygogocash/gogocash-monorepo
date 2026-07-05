@@ -56,6 +56,7 @@ describe('OfferService', () => {
     offerModel = {
       find: jest.fn().mockReturnValue(makeQuery([])),
       findById: jest.fn(),
+      findByIdAndDelete: jest.fn(),
       findOne: jest.fn(),
       create: jest.fn().mockResolvedValue({ _id: 'created-offer' }),
       countDocuments: jest.fn().mockResolvedValue(0),
@@ -76,11 +77,15 @@ describe('OfferService', () => {
     favoriteOfferModel = {
       findOne: jest.fn(),
       deleteOne: jest.fn().mockResolvedValue({ deletedCount: 1 }),
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 0 }),
       find: jest.fn().mockReturnValue(makeQuery([])),
       countDocuments: jest.fn().mockResolvedValue(0),
     };
     bannerModel = { findOne: jest.fn() };
-    topBrandConfigModel = { findOne: jest.fn() };
+    topBrandConfigModel = {
+      findOne: jest.fn(),
+      updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+    };
     // missionOrderModel is used BOTH as a constructor (`new this.missionOrderModel(...)`)
     // and as a static query holder (`this.missionOrderModel.find(...)`), so the
     // mock must be a callable with static query methods attached.
@@ -99,6 +104,7 @@ describe('OfferService', () => {
       find: jest
         .fn()
         .mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 0 }),
     };
     searchBlacklistModel = {
       find: jest
@@ -378,21 +384,28 @@ describe('OfferService', () => {
   });
 
   describe('removeOffer', () => {
-    it('removeOffer > given a valid id > then soft-disables the offer', async () => {
+    it('removeOffer > given a valid id > then permanently deletes the offer', async () => {
       const id = new Types.ObjectId().toHexString();
-      const offerDoc = {
-        disabled: false,
-        save: jest.fn().mockResolvedValue(undefined),
-      };
+      const offerDoc = { _id: id };
       offerModel.findById.mockResolvedValue(offerDoc);
+      offerModel.findByIdAndDelete.mockResolvedValue(offerDoc);
 
       await expect(service.removeOffer(id)).resolves.toEqual({
         message: 'Offer deleted successfully',
       });
 
       expect(offerModel.findById).toHaveBeenCalledWith(id);
-      expect(offerDoc.disabled).toBe(true);
-      expect(offerDoc.save).toHaveBeenCalledTimes(1);
+      expect(favoriteOfferModel.deleteMany).toHaveBeenCalledWith({
+        offer_id: new Types.ObjectId(id),
+      });
+      expect(topBrandConfigModel.updateOne).toHaveBeenCalledWith(
+        {},
+        { $pull: { brands: { offerId: id } } },
+      );
+      expect(searchBoostModel.deleteMany).toHaveBeenCalledWith({
+        offer_id: id,
+      });
+      expect(offerModel.findByIdAndDelete).toHaveBeenCalledWith(id);
     });
 
     it('removeOffer > given a missing offer > then throws NotFoundException', async () => {
@@ -402,6 +415,9 @@ describe('OfferService', () => {
       await expect(service.removeOffer(id)).rejects.toBeInstanceOf(
         NotFoundException,
       );
+
+      expect(offerModel.findByIdAndDelete).not.toHaveBeenCalled();
+      expect(favoriteOfferModel.deleteMany).not.toHaveBeenCalled();
     });
   });
 

@@ -388,7 +388,7 @@ export class OfferService implements OnApplicationBootstrap {
     return pickPublicOfferDetail(offer as Record<string, any> | null);
   }
 
-  /** Soft-delete: hide the offer from customer surfaces without breaking history. */
+  /** Permanent delete: remove the offer and clean up merchandising references. */
   async removeOffer(id: string): Promise<{ message: string }> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Offer not found');
@@ -397,8 +397,18 @@ export class OfferService implements OnApplicationBootstrap {
     if (!offer) {
       throw new NotFoundException('Offer not found');
     }
-    offer.disabled = true;
-    await offer.save();
+
+    const offerObjectId = new Types.ObjectId(id);
+    await Promise.all([
+      this.favoriteOfferModel.deleteMany({ offer_id: offerObjectId }),
+      this.topBrandConfigModel.updateOne(
+        {},
+        { $pull: { brands: { offerId: id } } },
+      ),
+      this.searchBoostModel.deleteMany({ offer_id: id }),
+    ]);
+    await this.offerModel.findByIdAndDelete(id);
+
     return { message: 'Offer deleted successfully' };
   }
 

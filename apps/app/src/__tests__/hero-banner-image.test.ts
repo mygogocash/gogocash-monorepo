@@ -59,7 +59,7 @@ describe("getHeroBannerLayoutPixelBudget", () => {
 });
 
 describe("HOME_HERO_BANNER_CONTENT_FIT", () => {
-  it("HOME_HERO_BANNER_CONTENT_FIT > is scale-down so low-res art is not upscaled", () => {
-    expect(HOME_HERO_BANNER_CONTENT_FIT).toBe("scale-down");
+  it("HOME_HERO_BANNER_CONTENT_FIT > is cover so hero promos fill the 16:9 frame", () => {
+    expect(HOME_HERO_BANNER_CONTENT_FIT).toBe("cover");
   });
 });

@@ -844,8 +844,8 @@ export default function OffersTable({
       </div>
       <ConfirmDialog
         busy={deleteOfferMutation.isPending}
-        confirmLabel="Delete"
-        description="The offer will be hidden from the customer app. Historical conversions are kept."
+        confirmLabel="Permanently delete"
+        description="This permanently removes the brand from the admin list and customer app. This cannot be undone. Historical conversions are kept."
         isOpen={deleteConfirmOpen}
         onCancel={() => {
           if (!deleteOfferMutation.isPending) {

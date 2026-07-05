@@ -22,6 +22,7 @@ export function HeroBannerImage({
       allowDownscaling={false}
       cachePolicy="memory-disk"
       contentFit={HOME_HERO_BANNER_CONTENT_FIT}
+      contentPosition="center"
       loading={Platform.OS === "web" ? "eager" : undefined}
       placeholderContentFit={HOME_HERO_BANNER_CONTENT_FIT}
       priority="high"

@@ -120,6 +120,13 @@ describe("CustomerGoGoTrackScreen permission-backed settings", () => {
 });
 
 describe("CustomerGoGoTrackScreen route wiring", () => {
+  it("hub mode mounts the activation nudge banner for merchant detections", () => {
+    expect(gogoSenseSource).toContain("GoGoTrackDetectionBanner");
+    expect(gogoSenseSource).toMatch(
+      /function HubContent[\s\S]*GoGoTrackDetectionBanner[\s\S]*GoGoTrackPermissionGrantSection/,
+    );
+  });
+
   it("GoGoTrack routes pass the native detector into the shared screen", () => {
     [
       "app/gototrack/index.tsx",
