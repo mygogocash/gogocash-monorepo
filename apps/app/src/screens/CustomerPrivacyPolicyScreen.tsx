@@ -63,9 +63,10 @@ export function CustomerPrivacyPolicyScreen() {
           contentContainerStyle={[
             styles.publicLegalPage,
             isDesktop ? styles.publicLegalPageDesktop : styles.publicLegalPageMobile,
+            isDesktop ? null : styles.publicLegalPageMinFill,
             {
               paddingBottom: isDesktop
-                ? mobileShellLayout.desktopBottomClearance + 120
+                ? 0
                 : mobileShellLayout.bottomNavClearance + 180,
               paddingTop: isDesktop
                 ? mobileShellLayout.desktopHomeTopGap
@@ -283,6 +284,8 @@ function createPrivacyPolicyScreenStyles(colors: ThemeColors) {
   },
   publicLegalPage: {
     alignItems: "center",
+  },
+  publicLegalPageMinFill: {
     minHeight: "100%",
   },
   publicLegalPageMobile: {

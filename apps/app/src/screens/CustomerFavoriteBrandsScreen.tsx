@@ -5,8 +5,7 @@ import {
   Search as SearchIcon,
   ShoppingCart as ShoppingCartIcon,
 } from "@mobile/theme/icons";
-import type { ReactNode } from "react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
@@ -17,10 +16,8 @@ import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
 import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
-import { toggleFavoriteOffer } from "@mobile/account/offerActionsApi";
-import { fetchFavoriteOfferIds } from "@mobile/account/favoriteResource";
-import { getMobileEnv } from "@mobile/config/env";
 import { mobileShellLayout, webFavoriteBrandsPage } from "@mobile/design/webDesignParity";
 import {
   DirectoryVirtualizedGrid,
@@ -59,35 +56,13 @@ const FAVORITE_BRAND_TINTS: Record<string, string> = {
   "brand-glow-theory-1005": "#7C3AED",
 };
 const FAVORITE_BRAND_FALLBACK_TINT = "#2E7D5B";
-const INITIAL_FAVORITE_IDS: readonly string[] = [
-  "brand-grocery-galaxy-1001",
-  "brand-glow-theory-1005",
-];
 
 export function CustomerFavoriteBrandsScreen() {
   const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
-  const env = getMobileEnv();
-  const [favoriteIds, setFavoriteIds] = useState<readonly string[]>(INITIAL_FAVORITE_IDS);
-  useEffect(() => {
-    if (env.accountDataSource !== "backend" || !env.apiUrl) {
-      return;
-    }
-
-    void fetchFavoriteOfferIds({ apiUrl: env.apiUrl }).then((ids) => {
-      if (ids.length > 0) {
-        setFavoriteIds(ids);
-      }
-    });
-  }, [env.accountDataSource, env.apiUrl]);
-  const toggleFavorite = (id: string) => {
-    setFavoriteIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-    if (env.accountDataSource === "backend") {
-      void toggleFavoriteOffer(env.apiUrl, id).catch(() => undefined);
-    }
-  };
+  const { favoriteIds, toggleFavorite } = useFavoriteBrands();
 
   // Fixtures mode (default) renders the parity rows synchronously; backend mode
   // pulls the live public catalog (GET /offer) and maps it into the same row shape —

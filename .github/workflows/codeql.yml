@@ -7,8 +7,18 @@ name: CodeQL
 on:
   push:
     branches: [main, dev, staging, production]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".cursor/**"
+      - "assets/**"
   pull_request:
     branches: [main, dev, staging, production]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".cursor/**"
+      - "assets/**"
   schedule:
     # Weekly — same cadence as GitHub Default setup.
     - cron: "30 1 * * 0"

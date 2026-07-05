@@ -8,7 +8,7 @@ import {
   Lock as LockIcon,
   WifiOff as OfflineIcon,
 } from "@mobile/theme/icons";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -106,6 +106,8 @@ export function CustomerRouteState({
 }) {
   const styles = useThemedStyles(createRouteStateStyles);
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const formatMessage = useSafeFormatMessage();
   const copy = routeStateCopy[variant];
   const isAlertVariant = variant === "error" || variant === "offline";
@@ -123,8 +125,12 @@ export function CustomerRouteState({
 
     return (
       <View style={styles.viewport} testID={testID}>
-        <View style={styles.phoneFrame}>{loadingSkeleton}</View>
-        <CustomerDesktopFooterSlot style={styles.desktopFooter} />
+        <View style={[styles.phoneFrame, isDesktop ? styles.phoneFrameDesktop : null]}>
+          {loadingSkeleton}
+        </View>
+        <CustomerDesktopFooterSlot
+          style={[styles.desktopFooter, isDesktop ? styles.desktopFooterPinned : null]}
+        />
       </View>
     );
   }
@@ -161,8 +167,10 @@ export function CustomerRouteState({
 
   return (
     <View style={styles.viewport} testID={testID}>
-      <View style={styles.phoneFrame}>{stateCard}</View>
-      <CustomerDesktopFooterSlot style={styles.desktopFooter} />
+      <View style={[styles.phoneFrame, isDesktop ? styles.phoneFrameDesktop : null]}>{stateCard}</View>
+      <CustomerDesktopFooterSlot
+        style={[styles.desktopFooter, isDesktop ? styles.desktopFooterPinned : null]}
+      />
     </View>
   );
 }
@@ -248,8 +256,17 @@ function createRouteStateStyles(colors: ThemeColors) {
     padding: spacing.lg,
     width: "100%",
   },
+  phoneFrameDesktop: {
+    flexGrow: 1,
+    justifyContent: "flex-start",
+    paddingTop: spacing.xl,
+  },
   desktopFooter: {
     width: "100%",
+  },
+  desktopFooterPinned: {
+    flexShrink: 0,
+    marginTop: "auto",
   },
   embeddedRoot: {
     alignSelf: "stretch",

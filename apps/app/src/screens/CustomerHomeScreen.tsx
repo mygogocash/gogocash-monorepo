@@ -32,6 +32,7 @@ import {
   webHomeSectionOrder,
 } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { normalizeSearchQuery } from "@mobile/search/searchHistoryCore";
 import { getThemeSurfaces } from "@mobile/theme/themeSurfaces";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -64,6 +65,7 @@ export function CustomerHomeScreen() {
   const reducedMotion = useReducedMotion();
   const goLinkToggleProgress = useRef(new Animated.Value(0)).current;
   const tc = useCopy();
+  const { region } = useLocale();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -82,11 +84,12 @@ export function CustomerHomeScreen() {
   const promoSections = resolveHomePromoSections(
     brandCatalogResource.source,
     brandCatalogResource.data,
-    webHomePromoSections
+    webHomePromoSections,
+    region,
   );
   const liveCards = useMemo(
-    () => resolveLiveBrandCards(brandCatalogResource.source, brandCatalogResource.data, []),
-    [brandCatalogResource.source, brandCatalogResource.data],
+    () => resolveLiveBrandCards(brandCatalogResource.source, brandCatalogResource.data, [], region),
+    [brandCatalogResource.source, brandCatalogResource.data, region],
   );
   const searchTopPadding = Math.max(8, insets.top + 8);
   const searchPopoverTop = searchTopPadding + 62;

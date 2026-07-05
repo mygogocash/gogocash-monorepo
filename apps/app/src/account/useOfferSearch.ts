@@ -6,6 +6,7 @@ import { buildOfferSearchPath } from "@mobile/account/searchResource";
 import { resolveOfferSearchResult } from "@mobile/account/resolveOfferSearchResult";
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 import { getMobileEnv } from "@mobile/config/env";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 
 export type OfferSearchMatch = {
   readonly brand: string;
@@ -20,6 +21,7 @@ export type OfferSearchMatch = {
 
 export function useOfferSearch(query: string) {
   const env = useMemo(() => getMobileEnv(), []);
+  const { region } = useLocale();
   const trimmed = query.trim();
   const shouldSearch = env.accountDataSource === "backend" && trimmed.length > 0;
 
@@ -30,11 +32,13 @@ export function useOfferSearch(query: string) {
       if (!client) {
         throw new Error("No mobile session store is available.");
       }
-      return client.get<OfferListResponse>(buildOfferSearchPath({ limit: 20, page: 1, query: trimmed }));
+      return client.get<OfferListResponse>(
+        buildOfferSearchPath({ limit: 20, page: 1, query: trimmed, regionCode: region }),
+      );
     },
-    queryKey: ["offer-search", trimmed, env.apiUrl],
+    queryKey: ["offer-search", trimmed, env.apiUrl, region],
     retry: false,
   });
 
-  return resolveOfferSearchResult(query, env.accountDataSource, searchQuery);
+  return resolveOfferSearchResult(query, env.accountDataSource, searchQuery, region);
 }

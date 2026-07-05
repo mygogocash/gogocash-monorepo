@@ -324,7 +324,7 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain(
       'heroBanners.filter((banner) => banner.placement === "main")'
     );
-    expect(homeFile).toContain("mainBanners.map");
+    expect(homeFile).toContain("heroCarouselSlides.map");
     expect(homeFile).toContain("setHeroBannerWidth");
     expect(homeFile).toContain("styles.heroScroll");
     expect(homeFile).toContain("CarouselDots");

@@ -182,6 +182,25 @@ describe("desktop route shell parity", () => {
     }
   });
 
+  it("desktop footer trailing gap > given footer inside page scroll > then must not force minHeight fill or extra bottom clearance", () => {
+    const shell = readMobileFile("src/components/AccountPageShell.tsx");
+    const parity = readMobileFile("src/design/webDesignParity.ts");
+    const privacy = readMobileFile("src/screens/CustomerPrivacyPolicyScreen.tsx");
+
+    expect(shell).toContain("pageMinFill");
+    expect(shell).toContain("isDesktop ? null : styles.pageMinFill");
+    expect(shell).not.toContain("mobileShellLayout.desktopBottomClearance");
+    expect(privacy).toContain("publicLegalPageMinFill");
+    expect(privacy).toContain("isDesktop ? null : styles.publicLegalPageMinFill");
+    expect(privacy).not.toContain("desktopBottomClearance + 120");
+    expect(parity).toMatch(/pageBottomPadding: isDesktop\s*\?\s*0/);
+
+    const routeState = readMobileFile("src/components/CustomerRouteState.tsx");
+    expect(routeState).toContain("desktopFooterPinned");
+    expect(routeState).toContain('marginTop: "auto"');
+    expect(routeState).toContain("phoneFrameDesktop");
+  });
+
   it("desktop subnav underline > given an inactive category tab > then Expo always renders the underline and fades it in on hover, matching web SubHeader", () => {
     const header = readMobileFile("src/components/CustomerDesktopHeader.tsx");
 

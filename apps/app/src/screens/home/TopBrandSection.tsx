@@ -10,6 +10,7 @@ import { BrandCard } from "@mobile/components/BrandCard";
 import { CarouselDots } from "@mobile/components/CarouselDots";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { prefetchRemoteImages } from "@mobile/lib/prefetchRemoteImages";
 import { getCarouselDotCount, webTopBrandCards } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
@@ -31,6 +32,7 @@ export function TopBrandSection({
   const styles = useHomeScreenStyles();
   const colors = useHomeScreenColors();
   const tc = useCopy();
+  const { region } = useLocale();
   const topBrandResource = useCustomerAccountResource<readonly TopBrandCardProps[], TopBrandsPayload>({
     fixtureData: webTopBrandCards,
     resourceId: "topBrand",
@@ -40,6 +42,7 @@ export function TopBrandSection({
     topBrandResource.data,
     webTopBrandCards,
     brandCatalogData,
+    region,
   );
   const topBrandPages = chunkTopBrandCards(topBrands, homeLayout.topBrandCardsPerPage);
   const [activeTopBrandPage, setActiveTopBrandPage] = useState(0);

@@ -1,9 +1,8 @@
-# Deploy Backend API to Cloud Run — api-staging.gogocash.co  (STAGING ONLY).
+# LEGACY GCP one-shot deploy — prefer build-staging.yml + release-staging.yml.
+# Staging primary path is Railway (push to staging branch).
 #
-# Ported from the (now inert) apps/api/.github/workflows/deploy-staging.yml to
-# the repo ROOT with MONOREPO build context: the image is built from the repo
-# root with `-f apps/api/Dockerfile .` so `npm ci` resolves the single root
-# package-lock.json (see apps/api/Dockerfile header).
+# Deploy Backend API to Cloud Run — api-staging.gogocash.co  (STAGING ONLY).
+# Monorepo build context: image built from repo root with `-f apps/api/Dockerfile .`
 #
 # TRIGGER: workflow_dispatch ONLY. There is NO `on: push` — staging deploys are
 # manual until Phase 5 cutover. This deploys a real money platform; keep it

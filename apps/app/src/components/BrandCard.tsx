@@ -1,5 +1,7 @@
 import { Image } from "expo-image";
 import { memo, useState } from "react";
+import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
+import { resolveFavoriteOfferId } from "@mobile/account/resolveFavoriteOfferId";
 import { Link } from "expo-router";
 import {
   Pressable,
@@ -104,12 +106,23 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
   const tc = useCopy();
   const { brand, cashback, href, tint } = props;
   const wide = props.size === "L" && props.cardWidth >= 200;
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { isFavorite: isBrandFavorite, toggleFavorite } = useFavoriteBrands();
+  const favoriteOfferId =
+    props.size === "L"
+      ? resolveFavoriteOfferId({
+          id: props.id,
+          href: href ?? brandHref(brand),
+          brand,
+        })
+      : "";
+  const isFavorite = props.size === "L" ? isBrandFavorite(favoriteOfferId) : false;
   const [logoFailed, setLogoFailed] = useState(false);
   const onToggleFavorite = (event: GestureResponderEvent) => {
     event.stopPropagation?.();
     event.preventDefault?.();
-    setIsFavorite((previous) => !previous);
+    if (props.size === "L") {
+      toggleFavorite(favoriteOfferId);
+    }
   };
   const onLogoError = () => {
     setLogoFailed(true);
@@ -166,8 +179,8 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
               style={styles.heartCircle}
             >
               <HeartIcon
-                color={colors.danger}
-                fill={isFavorite ? colors.danger : undefined}
+                color={isFavorite ? colors.primary : colors.primaryDark}
+                fill={isFavorite ? colors.primary : undefined}
                 size={21}
                 strokeWidth={isFavorite ? 0 : 2}
               />

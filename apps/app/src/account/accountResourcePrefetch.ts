@@ -3,9 +3,9 @@ import type { QueryClient } from "@tanstack/react-query";
 import {
   resolveCustomerAccountResourceEndpoint,
   resolveCustomerAccountResourceRequest,
-  shouldFetchCustomerAccountResourceFromBackend,
-} from "@mobile/account/customerAccountResource";
+} from "@mobile/account/customerAccountResourceEndpoints";
 import type { CustomerAccountResourceId } from "@mobile/account/customerAccountResourceIds";
+import { shouldFetchCustomerAccountResourceFromBackend } from "@mobile/account/customerAccountResourceEndpoints";
 import {
   resolveCustomerAccountResourceQueryKey,
   resolveCustomerAccountResourceSessionScope,
@@ -14,6 +14,7 @@ import { resolveCustomerAccountResourceQueryOptions } from "@mobile/account/cust
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import type { MobileSession } from "@mobile/auth/session";
+import { DEFAULT_REGION } from "@mobile/i18n/regionTypes";
 
 const AUTHED_PREFETCH_RESOURCE_IDS = ["profile", "wallet"] as const satisfies readonly CustomerAccountResourceId[];
 
@@ -50,8 +51,8 @@ async function prefetchResource(
     return;
   }
 
-  const endpoint = resolveCustomerAccountResourceEndpoint({ resourceId });
-  const request = resolveCustomerAccountResourceRequest({ resourceId });
+  const endpoint = resolveCustomerAccountResourceEndpoint({ regionCode: DEFAULT_REGION, resourceId });
+  const request = resolveCustomerAccountResourceRequest({ regionCode: DEFAULT_REGION, resourceId });
   const sessionScope = resolveCustomerAccountResourceSessionScope(resourceId, session);
 
   await queryClient.prefetchQuery({
@@ -62,6 +63,7 @@ async function prefetchResource(
     queryKey: resolveCustomerAccountResourceQueryKey({
       apiUrl,
       endpoint,
+      regionCode: DEFAULT_REGION,
       resourceId,
       sessionScope,
     }),
@@ -106,13 +108,14 @@ export async function refetchPublicCatalogResources(
 
   await Promise.all(
     PUBLIC_CATALOG_REFETCH_RESOURCE_IDS.map(async (resourceId) => {
-      const endpoint = resolveCustomerAccountResourceEndpoint({ resourceId });
+      const endpoint = resolveCustomerAccountResourceEndpoint({ regionCode: DEFAULT_REGION, resourceId });
       const sessionScope = resolveCustomerAccountResourceSessionScope(resourceId, null);
 
       await queryClient.refetchQueries({
         queryKey: resolveCustomerAccountResourceQueryKey({
           apiUrl,
           endpoint,
+          regionCode: DEFAULT_REGION,
           resourceId,
           sessionScope,
         }),

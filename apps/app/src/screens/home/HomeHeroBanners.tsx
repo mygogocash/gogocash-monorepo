@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, ScrollView, View } from "react-native";
+import { Animated, ScrollView, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import {
   type BannerHomeDocument,
   type HomeHeroBanner,
@@ -13,7 +13,13 @@ import { motion } from "@mobile/theme/motion";
 import { webHomeHeroBanners } from "@mobile/design/webDesignParity";
 import { HeroBannerImage } from "./HeroBannerImage";
 import { HeroBannerLink } from "./HeroBannerLink";
-import { getPagedScrollIndex } from "./homeHelpers";
+import {
+  buildLoopedHeroBannerSlides,
+  getLoopedHeroBannerActiveIndex,
+  getLoopedHeroBannerAutoAdvanceTarget,
+  getLoopedHeroBannerDotScrollX,
+  resolveLoopedHeroBannerJumpTarget,
+} from "./homeHelpers";
 import { useHomeScreenColors, useHomeScreenStyles } from "./homeScreenHooks";
 import { type HomeLayoutMetrics } from "./homeTypes";
 
@@ -31,17 +37,41 @@ export function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics 
   );
   const mainBanners = heroBanners.filter((banner) => banner.placement === "main");
   const sideBanners = heroBanners.filter((banner) => banner.placement === "side");
+  const loopedMainBanners = useMemo(
+    () => buildLoopedHeroBannerSlides(mainBanners),
+    [mainBanners],
+  );
+  const heroCarouselSlides = loopedMainBanners.slides;
+  const heroCarouselStartIndex = loopedMainBanners.startIndex;
   const [activeHeroBannerPage, setActiveHeroBannerPage] = useState(0);
   const [heroBannerWidth, setHeroBannerWidth] = useState(homeLayout.contentWidth);
-  const heroMaxPageIndex = Math.max(0, mainBanners.length - 1);
   const heroScrollX = useMemo(() => new Animated.Value(0), []);
+  const heroDotScrollX = useMemo(() => new Animated.Value(0), []);
   const reducedMotion = useReducedMotion();
   const heroScrollRef = useRef<ScrollView>(null);
   const heroInteractingRef = useRef(false);
+  const heroCarouselReadyRef = useRef(false);
 
   useEffect(() => {
     prefetchRemoteImages(heroBanners.map((banner) => banner.imageUri));
   }, [heroBanners]);
+
+  useEffect(() => {
+    heroCarouselReadyRef.current = false;
+    setActiveHeroBannerPage(0);
+  }, [mainBanners.length]);
+
+  useEffect(() => {
+    if (mainBanners.length <= 1 || heroBannerWidth <= 0) {
+      return;
+    }
+
+    const startOffset = heroCarouselStartIndex * heroBannerWidth;
+    heroScrollRef.current?.scrollTo({ animated: false, x: startOffset });
+    heroScrollX.setValue(startOffset);
+    heroDotScrollX.setValue(0);
+    heroCarouselReadyRef.current = true;
+  }, [heroBannerWidth, heroCarouselStartIndex, heroDotScrollX, heroScrollX, mainBanners.length]);
 
   // Premium auto-advance: cycle the main hero banners on a gentle interval, but stay out of the way —
   // pause while the user is actively dragging, and disable entirely under reduce-motion.
@@ -50,17 +80,57 @@ export function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics 
       return;
     }
     const intervalId = setInterval(() => {
-      if (heroInteractingRef.current) {
+      if (heroInteractingRef.current || !heroCarouselReadyRef.current) {
         return;
       }
       setActiveHeroBannerPage((current) => {
-        const next = (current + 1) % mainBanners.length;
-        heroScrollRef.current?.scrollTo({ animated: true, x: next * heroBannerWidth });
-        return next;
+        const { activeIndex, extendedIndex } = getLoopedHeroBannerAutoAdvanceTarget(
+          current,
+          mainBanners.length,
+        );
+        heroScrollRef.current?.scrollTo({
+          animated: true,
+          x: extendedIndex * heroBannerWidth,
+        });
+        return activeIndex;
       });
     }, 5000);
     return () => clearInterval(intervalId);
   }, [heroBannerWidth, mainBanners.length, reducedMotion]);
+
+  const syncHeroBannerScrollState = (contentOffsetX: number) => {
+    if (mainBanners.length <= 1 || heroBannerWidth <= 0) {
+      return;
+    }
+
+    heroDotScrollX.setValue(
+      getLoopedHeroBannerDotScrollX(contentOffsetX, heroBannerWidth, mainBanners.length),
+    );
+  };
+
+  const handleHeroBannerMomentumEnd = (contentOffsetX: number) => {
+    heroInteractingRef.current = false;
+
+    if (mainBanners.length <= 1 || heroBannerWidth <= 0) {
+      return;
+    }
+
+    const extendedIndex = Math.round(contentOffsetX / heroBannerWidth);
+    const jumpTarget = resolveLoopedHeroBannerJumpTarget(extendedIndex, mainBanners.length);
+
+    if (jumpTarget !== null) {
+      const jumpOffset = jumpTarget * heroBannerWidth;
+      heroScrollRef.current?.scrollTo({ animated: false, x: jumpOffset });
+      heroScrollX.setValue(jumpOffset);
+      heroDotScrollX.setValue(
+        getLoopedHeroBannerDotScrollX(jumpOffset, heroBannerWidth, mainBanners.length),
+      );
+      setActiveHeroBannerPage(getLoopedHeroBannerActiveIndex(jumpTarget, mainBanners.length));
+      return;
+    }
+
+    syncHeroBannerScrollState(contentOffsetX);
+  };
 
   return (
     <View style={[styles.heroStack, homeLayout.isDesktop ? styles.heroStackDesktop : null]}>
@@ -85,15 +155,19 @@ export function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics 
           disableIntervalMomentum
           horizontal
           onMomentumScrollEnd={(event) => {
-            heroInteractingRef.current = false;
-            setActiveHeroBannerPage(getPagedScrollIndex(event, heroBannerWidth, heroMaxPageIndex));
+            handleHeroBannerMomentumEnd(event.nativeEvent.contentOffset.x);
           }}
           onScrollBeginDrag={() => {
             heroInteractingRef.current = true;
           }}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { x: heroScrollX } } }],
-            { useNativeDriver: motion.useNativeDriver }
+            {
+              listener: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+                syncHeroBannerScrollState(event.nativeEvent.contentOffset.x);
+              },
+              useNativeDriver: motion.useNativeDriver,
+            },
           )}
           pagingEnabled
           scrollEventThrottle={16}
@@ -102,10 +176,10 @@ export function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics 
           snapToInterval={heroBannerWidth}
           style={styles.heroScroll}
         >
-          {mainBanners.map((banner) => (
+          {heroCarouselSlides.map((banner, index) => (
             <HeroBannerLink
               banner={banner}
-              key={banner.id}
+              key={`${banner.id}-${index}`}
               style={[styles.heroBannerLink, styles.heroSlide, { width: heroBannerWidth }]}
             >
               <HeroBannerImage banner={banner} style={styles.heroImage} />
@@ -118,7 +192,7 @@ export function HomeHeroBanners({ homeLayout }: { homeLayout: HomeLayoutMetrics 
           containerStyle={styles.heroDots}
           count={mainBanners.length}
           pageWidth={heroBannerWidth}
-          scrollX={heroScrollX}
+          scrollX={heroDotScrollX}
           size={8}
         />
       </View>

@@ -29,6 +29,7 @@ import { resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { QuestCoinIcon } from "@mobile/components/QuestCoinIcon";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { haptics } from "@mobile/lib/haptics";
 import type { QuestTaskRow } from "@mobile/quest/questTaskResource";
 import { useQuestTaskRows } from "@mobile/quest/questTaskResource";
@@ -394,6 +395,7 @@ function RankTrophy({ index }: { index: number }) {
 function ExploreOtherShops({ layout }: { layout: HomeLayoutMetrics }) {
   const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
+  const { region } = useLocale();
   const { width: viewportWidth } = useWindowDimensions();
   const fallbackCards = exploreOtherShops?.cards ?? [];
   const brandCatalogResource = useCustomerAccountResource({
@@ -403,7 +405,8 @@ function ExploreOtherShops({ layout }: { layout: HomeLayoutMetrics }) {
   const cards = resolveLiveBrandCards(
     brandCatalogResource.source,
     brandCatalogResource.data,
-    fallbackCards
+    fallbackCards,
+    region,
   );
 
   if (!exploreOtherShops) {

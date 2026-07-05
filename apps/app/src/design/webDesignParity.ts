@@ -319,7 +319,7 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
     isDesktop,
     mainBannerAspectRatio: mobileShellLayout.homeBannerAspectRatio,
     pageBottomPadding: isDesktop
-      ? mobileShellLayout.desktopBottomClearance
+      ? 0
       : mobileShellLayout.bottomNavClearance + 24,
     showBottomNav: !isDesktop,
     topBrandCardHeight,

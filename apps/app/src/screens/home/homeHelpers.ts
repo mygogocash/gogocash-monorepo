@@ -73,3 +73,14 @@ export function getPagedScrollIndex(
     pageWidth,
   });
 }
+
+export {
+  buildLoopedHeroBannerSlides,
+  getLoopedHeroBannerActiveIndex,
+  getLoopedHeroBannerAutoAdvanceTarget,
+  getLoopedHeroBannerDotScrollX,
+  nextBannerIndex,
+  normalizeBannerIndex,
+  prevBannerIndex,
+  resolveLoopedHeroBannerJumpTarget,
+} from "./homeHeroBannerCarousel";

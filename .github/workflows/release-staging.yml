@@ -1,13 +1,6 @@
-# Staging CD — RELEASE half (manual = the approval gate).
+# Staging CD — RELEASE half (GCP Cloud Run rollback / cutover).
 #
-# Deploys an already-built `:staging-candidate` image (from build-staging.yml)
-# to Cloud Run. Triggering this workflow IS the human approval to release.
-# Per-app runtime config (env vars + Secret Manager mappings) lives here.
-#
-# Upgrade path: this references the `staging` GitHub Environment, so once the
-# repo is on a plan that allows Environment protection rules (or is public —
-# see #44), add required-reviewers to `staging` and this pauses for one-click
-# approval instead of relying on a manual dispatch.
+# Day-to-day staging is Railway. Use this only for GCP rollback or migration.
 name: Release (staging)
 
 on:

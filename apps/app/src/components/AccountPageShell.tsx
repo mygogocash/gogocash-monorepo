@@ -143,11 +143,12 @@ export function AccountPageShell({
         <ScrollView
           contentContainerStyle={[
             styles.page,
+            isDesktop ? null : styles.pageMinFill,
             useDesktopFullBleedChrome ? styles.pageDesktopFullBleed : null,
             {
               paddingBottom: showBottomNav
                 ? mobileShellLayout.bottomNavClearance + 18
-                : mobileShellLayout.desktopBottomClearance,
+                : 0,
               paddingHorizontal: useDesktopFullBleedChrome ? 0 : frameMetrics.paddingHorizontal,
               paddingTop: Math.max(spacing.md, insets.top + spacing.md),
             },
@@ -547,7 +548,8 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     position: "relative",
     width: "100%",
   },
-  page: {
+  page: {},
+  pageMinFill: {
     minHeight: "100%",
   },
   pageDesktopFullBleed: {

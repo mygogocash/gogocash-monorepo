@@ -13,7 +13,9 @@ import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter"
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { filterDirectoryStoresByRegion } from "@mobile/account/directoryCatalogResource";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { haptics } from "@mobile/lib/haptics";
 import { motion } from "@mobile/theme/motion";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -49,6 +51,7 @@ export function CustomerProductDiscoveryScreen() {
   const styles = useThemedStyles(createDiscoveryScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const { region } = useLocale();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
@@ -74,13 +77,16 @@ export function CustomerProductDiscoveryScreen() {
   });
   const productResults = useMemo(
     () =>
-      getProductDiscoveryResults({
-        category: selectedCategory,
-        minCashback: selectedCashbackMin,
-        query: searchQuery,
-        sortBy,
-      }),
-    [searchQuery, selectedCashbackMin, selectedCategory, sortBy]
+      filterDirectoryStoresByRegion(
+        getProductDiscoveryResults({
+          category: selectedCategory,
+          minCashback: selectedCashbackMin,
+          query: searchQuery,
+          sortBy,
+        }),
+        region,
+      ),
+    [region, searchQuery, selectedCashbackMin, selectedCategory, sortBy]
   );
   const totalPages = Math.max(1, Math.ceil(productResults.length / pageSize));
   const activePage = Math.min(currentPage, totalPages);

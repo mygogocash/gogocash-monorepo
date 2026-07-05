@@ -1,18 +1,13 @@
-# Staging CD — BUILD half (automatic).
+# Staging CD — BUILD half (GCP rollback / cutover ONLY).
 #
-# On every merge to `staging`: run CI, then build + push a
-# `:staging-candidate` image for each CHANGED app. It does NOT deploy — the
-# release is a deliberate human step (release-staging.yml). This is the
-# "auto build + approval gate" model: builds are automatic, releases are not.
+# Day-to-day staging deploys via **Railway** on push to `staging` (see
+# ci-staging.yml for the CI gate). This workflow builds Artifact Registry
+# images for manual Cloud Run release — operator-initiated only.
 #
-# Gating: the `ci` job reuses ci.yml (same lint/test/build/boot-smoke gates +
-# its path-filter outputs), so a red CI blocks all builds and nothing is
-# duplicated.
-name: Build (staging)
+# Gating: the `ci` job reuses ci.yml when invoked manually.
+name: Build (staging) [GCP rollback]
 
 on:
-  push:
-    branches: [staging]
   workflow_dispatch: {}
 
 concurrency:

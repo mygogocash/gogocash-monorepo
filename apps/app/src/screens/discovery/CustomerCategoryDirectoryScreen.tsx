@@ -178,7 +178,6 @@ export function CustomerCategoryDirectoryScreen() {
             contentContainerStyle={[
               styles.categoryDirectoryPage,
               styles.pageDesktopFullBleed,
-              { paddingBottom: mobileShellLayout.desktopBottomClearance },
             ]}
             showsVerticalScrollIndicator={false}
           >

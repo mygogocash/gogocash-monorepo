@@ -1,0 +1,26 @@
+# Composite: checkout + Node 22 + npm ci (monorepo root lockfile).
+# Optional node-options input sets NODE_OPTIONS for install and later steps in the job.
+name: Setup Node monorepo
+description: Checkout, setup Node 22 with npm cache, npm ci at repo root
+
+inputs:
+  node-options:
+    description: Optional NODE_OPTIONS (e.g. --max-old-space-size=4096)
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+    - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      with:
+        node-version: "22"
+        cache: npm
+
+    - name: Install (root, workspace-aware)
+      shell: bash
+      env:
+        NODE_OPTIONS: ${{ inputs.node-options }}
+      run: npm ci

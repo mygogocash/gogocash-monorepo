@@ -4,6 +4,10 @@ import {
   type CatalogBrand,
 } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
+import { resolveFixtureBrandCountries } from "@mobile/i18n/fixtureRegionCountries";
+import { filterCatalogItemsByRegion, offerMatchesRegion } from "@mobile/i18n/regionCatalogFilter";
+import type { RegionCode } from "@mobile/i18n/regionTypes";
+import { DEFAULT_REGION } from "@mobile/i18n/regionTypes";
 import type { BrandDirectoryStore } from "@mobile/screens/discovery/discoveryTypes";
 import {
   getBrandDirectoryResults,
@@ -112,33 +116,48 @@ export function filterShopDirectoryStores({
   });
 }
 
+export function filterDirectoryStoresByRegion<T extends { brand: string }>(
+  stores: readonly T[],
+  regionCode: RegionCode,
+): T[] {
+  return stores.filter((store) =>
+    offerMatchesRegion(resolveFixtureBrandCountries(store.brand), regionCode),
+  );
+}
+
 export function resolveLiveDirectoryStores(
   source: AccountDataSource,
   data: unknown,
   fallback: readonly BrandDirectoryStore[],
+  regionCode: RegionCode = DEFAULT_REGION,
 ): readonly BrandDirectoryStore[] {
   if (source === "backend" && isOfferListResponse(data)) {
-    return mapCatalogBrandsToDirectoryStores(mapOffersToCatalogBrands(data));
+    const brands = filterCatalogItemsByRegion(mapOffersToCatalogBrands(data), regionCode);
+    return mapCatalogBrandsToDirectoryStores(brands);
   }
 
-  return fallback;
+  return filterDirectoryStoresByRegion(fallback, regionCode);
 }
 
 export function getFixtureBrandDirectoryResults(args: {
   category?: string;
   query?: string;
+  regionCode?: RegionCode;
   sortBy?: WebBrandDirectorySort | string;
 }) {
-  return getBrandDirectoryResults(args);
+  const regionCode = args.regionCode ?? DEFAULT_REGION;
+  return filterDirectoryStoresByRegion(getBrandDirectoryResults(args), regionCode);
 }
 
 export function getFixtureShopDirectoryResults(args: {
   category?: string;
   query?: string;
+  regionCode?: RegionCode;
   shopType?: WebShopType | string;
   sortBy?: WebShopDirectorySort | string;
 }) {
-  return getShopDirectoryResults(args);
+  const regionCode = args.regionCode ?? DEFAULT_REGION;
+  return filterDirectoryStoresByRegion(getShopDirectoryResults(args), regionCode);
 }
 
 export type CategoryListPayload = {
@@ -224,17 +243,21 @@ export function resolveCategoryExploreStores({
   category,
   data,
   query = "",
+  regionCode = DEFAULT_REGION,
   sortBy = "highest_cashback",
   source,
 }: {
   category: string;
   data: unknown;
   query?: string;
+  regionCode?: RegionCode;
   sortBy?: WebBrandDirectorySort | string;
   source: AccountDataSource;
 }): CategoryExploreStore[] {
   if (source === "backend" && isOfferListResponse(data)) {
-    const stores = mapCatalogBrandsToDirectoryStores(mapOffersToCatalogBrands(data));
+    const stores = mapCatalogBrandsToDirectoryStores(
+      filterCatalogItemsByRegion(mapOffersToCatalogBrands(data), regionCode),
+    );
     return mapDirectoryStoresToCategoryExplore(
       filterDirectoryStores({
         category,
@@ -250,5 +273,7 @@ export function resolveCategoryExploreStores({
       ? sortBy
       : "highest_cashback";
 
-  return getCategoryExploreResults({ category, query, sortBy: exploreSort });
+  return getCategoryExploreResults({ category, query, sortBy: exploreSort }).filter((store) =>
+    offerMatchesRegion(resolveFixtureBrandCountries(store.brand), regionCode),
+  );
 }

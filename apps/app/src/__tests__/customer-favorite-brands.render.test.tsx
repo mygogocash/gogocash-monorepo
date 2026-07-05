@@ -2,12 +2,22 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createElement } from "react";
+import { createElement, type PropsWithChildren } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+vi.mock("expo-localization", () => ({
+  getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
+}));
+
+vi.mock("@mobile/observability/client", () => ({
+  resetObservabilityIdentity: vi.fn(),
+}));
+
+import { FavoriteBrandsProvider } from "@mobile/account/FavoriteBrandsProvider";
 import { CustomerFavoriteBrandsScreen } from "@mobile/screens/CustomerFavoriteBrandsScreen";
+import { CustomerHomeScreen } from "@mobile/screens/CustomerHomeScreen";
 
 // Render coverage for the Favorite Brands screen (Wave B4 + live-catalog seam). The brand
 // sections now flow through useCustomerAccountResource (resourceId "catalog"): the default
@@ -18,7 +28,15 @@ import { CustomerFavoriteBrandsScreen } from "@mobile/screens/CustomerFavoriteBr
 function renderScreen() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    createElement(QueryClientProvider, { client: queryClient }, createElement(CustomerFavoriteBrandsScreen))
+    createElement(
+      FavoriteBrandsProvider,
+      {},
+      createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        createElement(CustomerFavoriteBrandsScreen),
+      ),
+    ),
   );
 }
 
@@ -75,6 +93,21 @@ describe("CustomerFavoriteBrandsScreen (render)", () => {
     fireEvent.click(screen.getAllByLabelText("Remove from saved brands: Grocery Galaxy")[0]);
     fireEvent.click(screen.getAllByLabelText("Remove from saved brands: Glow Theory")[0]);
     expect(screen.getByText("No saved brands yet")).toBeTruthy();
+  });
+
+  it("reflects a brand saved from home when the favorites screen mounts under the same provider", () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const SharedProviders = ({ children }: PropsWithChildren) =>
+      createElement(
+        FavoriteBrandsProvider,
+        {},
+        createElement(QueryClientProvider, { client: queryClient }, children),
+      );
+
+    const { rerender } = render(createElement(CustomerHomeScreen), { wrapper: SharedProviders });
+    fireEvent.click(screen.getByLabelText("Save brand: Pocket Pantry"));
+    rerender(createElement(CustomerFavoriteBrandsScreen));
+    expect(screen.getAllByText("Pocket Pantry").length).toBeGreaterThanOrEqual(2);
   });
 });
 

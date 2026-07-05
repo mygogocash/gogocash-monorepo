@@ -1,0 +1,22 @@
+# CI gate for merges to staging — Railway auto-deploys after this passes.
+#
+# Staging CD is Railway-native (gogocash-api, gogocash-admin, @gogocash/mobile).
+# GCP build-staging.yml is manual rollback only — it does NOT run on push.
+name: CI (staging)
+
+on:
+  push:
+    branches: [staging]
+
+concurrency:
+  group: ci-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  ci:
+    name: CI gate
+    uses: ./.github/workflows/ci.yml

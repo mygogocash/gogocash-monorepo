@@ -29,6 +29,11 @@ name: Deploy App Native (EAS) [scaffold]
 on:
   workflow_dispatch:
     inputs:
+      confirm_ci_green:
+        description: "Confirm CI is green on the current branch before EAS publish"
+        required: true
+        type: boolean
+        default: false
       action:
         description: "What to run"
         required: true
@@ -69,6 +74,7 @@ permissions:
 jobs:
   eas:
     name: EAS ${{ inputs.action }}
+    if: ${{ inputs.confirm_ci_green }}
     runs-on: ubuntu-latest
     environment: staging
     env:

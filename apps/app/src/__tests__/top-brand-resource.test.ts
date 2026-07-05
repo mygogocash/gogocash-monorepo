@@ -77,6 +77,17 @@ describe("mapBackendTopBrands", () => {
     ]);
   });
 
+  it("given Taiwan region > then filters backend brands by countries metadata", () => {
+    const payload: TopBrandsPayload = {
+      data: [
+        { _id: "th", offer_id: 1, brand: "Shopee TH", cashback: "10%", countries: "TH" },
+        { _id: "tw", offer_id: 2, brand: "Shopee TW", cashback: "10%", countries: "TW" },
+      ],
+    };
+
+    expect(mapBackendTopBrands(payload, "TW").map((brand) => brand.brand)).toEqual(["Shopee TW"]);
+  });
+
   it("given stale hidden or unapproved backend brands > then drops them from customer cards", () => {
     const payload: TopBrandsPayload = {
       data: [
@@ -140,6 +151,17 @@ describe("mapBackendTopBrands", () => {
 describe("resolveTopBrands", () => {
   it("given fixtures source > then returns the fallback", () => {
     expect(resolveTopBrands("fixtures", null, FIXTURE)).toEqual(FIXTURE);
+  });
+
+  it("given fixtures source and Taiwan region > then filters tagged fixture brands", () => {
+    const cards: TopBrandCard[] = [
+      { ...FIXTURE[0], brand: "Grocery Galaxy" },
+      { ...FIXTURE[0], brand: "PixelPort" },
+    ];
+
+    expect(resolveTopBrands("fixtures", null, cards, undefined, "TW").map((card) => card.brand)).toEqual([
+      "PixelPort",
+    ]);
   });
 
   it("given backend source with brands > then returns the mapped list", () => {

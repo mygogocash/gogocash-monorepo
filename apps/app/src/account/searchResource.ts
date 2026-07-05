@@ -4,6 +4,8 @@ import {
   type CatalogBrand,
 } from "@mobile/api/catalogMapper";
 import type { OfferListResponse } from "@mobile/api/catalogTypes";
+import type { RegionCode } from "@mobile/i18n/regionTypes";
+import { resolveApiCountryParam } from "@mobile/i18n/regionCatalogFilter";
 
 export type SearchPanelItem = {
   brand: string;
@@ -16,13 +18,17 @@ export type SearchPanelItem = {
 };
 
 export function buildOfferSearchPath({
+  country,
   limit = 20,
   page = 1,
   query = "",
+  regionCode,
 }: {
+  country?: string;
   limit?: number;
   page?: number;
   query?: string;
+  regionCode?: RegionCode;
 }): string {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -31,6 +37,10 @@ export function buildOfferSearchPath({
   const trimmed = query.trim();
   if (trimmed) {
     params.set("search", trimmed);
+  }
+  const resolvedCountry = country ?? (regionCode ? resolveApiCountryParam(regionCode) : undefined);
+  if (resolvedCountry) {
+    params.set("country", resolvedCountry);
   }
   return `/offer?${params.toString()}`;
 }

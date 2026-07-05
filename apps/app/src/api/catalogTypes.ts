@@ -24,6 +24,10 @@ export type OfferRecord = {
   disabled?: boolean;
   /** Admin curation state. Public API already filters pending/rejected rows. */
   status?: string;
+  /** Comma-separated ISO or country labels, e.g. "TH" or "TH,VN". */
+  countries?: string;
+  /** When true, offer is visible in every selected region. */
+  is_global?: boolean;
 };
 
 export type OfferListResponse = {

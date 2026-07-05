@@ -243,7 +243,7 @@ describe("GoGoCash web design parity", () => {
       contentHorizontalPadding: 120,
       contentMaxWidth: 1440,
       isDesktop: true,
-      pageBottomPadding: 40,
+      pageBottomPadding: 0,
       showBottomNav: false,
       topBrandCardsPerPage: 12,
       topBrandColumns: 6,

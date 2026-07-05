@@ -26,6 +26,7 @@ import sideWatchImage from "../../assets/home-side-watch.png";
 import questBannerImage from "../../assets/quest-banner-en.png";
 import walletNoDataImage from "../../assets/wallet-no-data.png";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
+import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import {
   resolveShopTerms,
@@ -213,7 +214,6 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
             contentContainerStyle={[
               styles.pageDesktopFullBleed,
               {
-                paddingBottom: mobileShellLayout.desktopBottomClearance,
                 paddingTop: spacing.lg,
               },
             ]}
@@ -342,17 +342,31 @@ function ShopHeroSummaryCard({
 }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
+  const { isFavorite, toggleFavorite } = useFavoriteBrands();
+  const favorited = isFavorite(shop.id);
   return (
     <View style={[styles.summaryCard, isDesktop ? styles.summaryCardDesktop : null]}>
       <Text numberOfLines={1} style={styles.summaryTitle}>
         {shop.brand}
       </Text>
       <MotionPressable
-        accessibilityLabel={`Favorite ${shop.brand}`}
+        accessibilityLabel={
+          favorited
+            ? `Remove from saved brands: ${shop.brand}`
+            : `Save brand: ${shop.brand}`
+        }
+        accessibilityRole="button"
+        accessibilityState={{ selected: favorited }}
+        onPress={() => toggleFavorite(shop.id)}
         pressScale={0.96}
         style={styles.favoriteButton}
       >
-        <HeartIcon color={colors.primaryDark} fill={colors.primaryDark} size={20} strokeWidth={0} />
+        <HeartIcon
+          color={favorited ? colors.primary : colors.primaryDark}
+          fill={favorited ? colors.primary : undefined}
+          size={20}
+          strokeWidth={favorited ? 0 : 2}
+        />
       </MotionPressable>
       <MotionPressable
         accessibilityLabel={`Shop now at ${shop.brand}`}

@@ -52,12 +52,14 @@ describe("createSessionQueryCacheBridge", () => {
     const userAKey = resolveCustomerAccountResourceQueryKey({
       apiUrl: "https://api.test",
       endpoint: "/withdraw/check",
+      regionCode: "TH",
       resourceId: "wallet",
       sessionScope: "user-a",
     });
     const userBKey = resolveCustomerAccountResourceQueryKey({
       apiUrl: "https://api.test",
       endpoint: "/withdraw/check",
+      regionCode: "TH",
       resourceId: "wallet",
       sessionScope: "user-b",
     });

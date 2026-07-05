@@ -13,10 +13,18 @@ import { IntlProvider } from "react-intl";
 import { DEFAULT_LOCALE, isSupportedLocale, type Locale, resolveLocale } from "@mobile/i18n/locales";
 import { readStoredLocale, readStoredLocaleSync, writeStoredLocale } from "@mobile/i18n/localeStorage";
 import { MESSAGES } from "@mobile/i18n/messages";
+import { readStoredRegion, readStoredRegionSync, writeStoredRegion } from "@mobile/i18n/regionStorage";
+import {
+  DEFAULT_REGION,
+  isSupportedRegion,
+  type RegionCode,
+} from "@mobile/i18n/regionTypes";
 
 type LocaleContextValue = {
   readonly locale: Locale;
+  readonly region: RegionCode;
   readonly setLocale: (next: Locale) => void;
+  readonly setRegion: (next: RegionCode) => void;
 };
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
@@ -27,6 +35,11 @@ export function useLocale(): LocaleContextValue {
     throw new Error("useLocale must be used within <LocaleProvider>");
   }
   return ctx;
+}
+
+export function useRegion(): Pick<LocaleContextValue, "region" | "setRegion"> {
+  const { region, setRegion } = useLocale();
+  return { region, setRegion };
 }
 
 function detectDeviceLocale(): Locale {
@@ -50,46 +63,70 @@ function resolveInitialLocale(): Locale | null {
   return null;
 }
 
+function resolveInitialRegion(): RegionCode | null {
+  if (Platform.OS === "web") {
+    const stored = readStoredRegionSync();
+    return isSupportedRegion(stored) ? stored : DEFAULT_REGION;
+  }
+  return null;
+}
+
 export function LocaleProvider({ children }: PropsWithChildren) {
   const [locale, setLocaleState] = useState<Locale | null>(resolveInitialLocale);
+  const [region, setRegionState] = useState<RegionCode | null>(resolveInitialRegion);
 
   // Native: resolve the persisted choice (or device locale) asynchronously, then
   // commit it. Web is already seeded synchronously, so this is a no-op there.
   useEffect(() => {
-    if (locale !== null) {
+    if (locale !== null && region !== null) {
       return;
     }
     let active = true;
     void (async () => {
-      const stored = await readStoredLocale();
-      const next = isSupportedLocale(stored) ? stored : detectDeviceLocale();
-      if (active) {
-        setLocaleState(next);
+      const [storedLocale, storedRegion] = await Promise.all([
+        locale === null ? readStoredLocale() : Promise.resolve(null),
+        region === null ? readStoredRegion() : Promise.resolve(null),
+      ]);
+      if (!active) {
+        return;
+      }
+      if (locale === null) {
+        const nextLocale = isSupportedLocale(storedLocale) ? storedLocale : detectDeviceLocale();
+        setLocaleState(nextLocale);
+      }
+      if (region === null) {
+        const nextRegion = isSupportedRegion(storedRegion) ? storedRegion : DEFAULT_REGION;
+        setRegionState(nextRegion);
       }
     })();
     return () => {
       active = false;
     };
-    // Runs once on mount; `locale` is only read to short-circuit when already seeded.
+    // Runs once on mount; state vars only read to short-circuit when already seeded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value = useMemo<LocaleContextValue | null>(
     () =>
-      locale === null
+      locale === null || region === null
         ? null
         : {
             locale,
+            region,
             setLocale: (next: Locale) => {
               setLocaleState(next);
               void writeStoredLocale(next);
             },
+            setRegion: (next: RegionCode) => {
+              setRegionState(next);
+              void writeStoredRegion(next);
+            },
           },
-    [locale]
+    [locale, region]
   );
 
   // Native first paint before the async read resolves — render nothing rather
-  // than flashing the default locale, then swap. Web never hits this (seeded).
+  // than flashing the default locale/region, then swap. Web never hits this (seeded).
   // Placed after all hooks so hook order stays stable across renders.
   if (value === null) {
     return null;

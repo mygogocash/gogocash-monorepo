@@ -9,6 +9,7 @@ import { useFeaturedSearchTerms } from "@mobile/account/useFeaturedSearch";
 import { useOfferSearch } from "@mobile/account/useOfferSearch";
 import { getResponsiveHomeLayoutMetrics, webHomePromoSections } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import {
   clearSearchHistory,
   normalizeSearchQuery,
@@ -34,6 +35,7 @@ const TRENDING_TERM_LIMIT = 8;
 export function CustomerSearchScreen() {
   const styles = useThemedStyles(createSearchScreenStyles);
   const tc = useCopy();
+  const { region } = useLocale();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ q?: string }>();
@@ -49,8 +51,8 @@ export function CustomerSearchScreen() {
     resourceId: "brandCatalog",
   });
   const liveCards = useMemo(
-    () => resolveLiveBrandCards(brandCatalogResource.source, brandCatalogResource.data, []),
-    [brandCatalogResource.source, brandCatalogResource.data],
+    () => resolveLiveBrandCards(brandCatalogResource.source, brandCatalogResource.data, [], region),
+    [brandCatalogResource.source, brandCatalogResource.data, region],
   );
   const columnCount = homeLayout.contentWidth >= 768 ? 3 : 2;
   const trimmedQuery = normalizeSearchQuery(query);
