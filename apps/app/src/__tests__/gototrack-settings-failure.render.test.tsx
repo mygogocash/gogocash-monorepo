@@ -26,7 +26,10 @@ describe("useGoGoTrackSettings failure handling", () => {
     });
 
     await waitFor(() => expect(result.current.settings.usageStatsEnabled).toBe(false));
-    expect(api.updateSettings).toHaveBeenCalledWith({ usageStatsEnabled: true });
+    expect(api.updateSettings).toHaveBeenCalledWith({
+      usageStatsEnabled: true,
+      enabled: true,
+    });
     expect(onPersistError).toHaveBeenCalledWith("usageStatsEnabled");
   });
 });

@@ -84,7 +84,15 @@ export function useGoGoTrackSettings(
       if (field === "backgroundPromptsEnabled") {
         void writeBackgroundPromptsEnabled(value);
       }
-      void api?.updateSettings({ [field]: value }).catch(() => {
+      const payload: GoGoTrackSettingsUpdate = { [field]: value };
+      if (
+        value &&
+        (field === "backgroundPromptsEnabled" || field === "usageStatsEnabled")
+      ) {
+        payload.enabled = true;
+      }
+
+      void api?.updateSettings(payload).catch(() => {
         setSettings(previous);
         if (field === "backgroundPromptsEnabled") {
           void writeBackgroundPromptsEnabled(previous.backgroundPromptsEnabled);

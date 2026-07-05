@@ -570,6 +570,14 @@ export class GototrackService {
       update.background_prompts_enabled = settings.backgroundPromptsEnabled;
     }
 
+    if (
+      (settings.backgroundPromptsEnabled === true ||
+        settings.usageStatsEnabled === true) &&
+      settings.enabled !== false
+    ) {
+      update.enabled = true;
+    }
+
     return this.userSettingsModel
       .findOneAndUpdate(
         { user_id: userId },
