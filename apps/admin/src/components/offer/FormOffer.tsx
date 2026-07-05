@@ -61,7 +61,7 @@ import {
   productTypeEntryToDraft,
   serializeOfferProductTypes,
 } from "@/lib/productTypeDraft";
-import { reorder } from "@/lib/reorder";
+import { appendCashbackPatchFields } from "@/lib/offerCashbackSave";
 import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
 import { isDirty } from "@/lib/isDirty";
 import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
@@ -998,16 +998,25 @@ const FormOffer = ({
       brandSnapshot,
     );
 
-  // Cashback Management edit toggle — locks/unlocks the fields. No section save:
-  // changes persist via the form-wide "Save changes". Cancel reverts the snapshot.
+  // Cashback Management edit toggle — locks/unlocks the fields. Save persists
+  // commission/max-cap/product-type lines via a partial PATCH (mirrors Brand Info).
   const [editingCashback, setEditingCashback] = useState(false);
+  const [savingCashback, setSavingCashback] = useState(false);
+  const [cashbackSaveError, setCashbackSaveError] = useState<string | null>(null);
   // Bump to remount the locked fieldset so uncontrolled controls (the Switch's
   // defaultChecked, defaultValue inputs) re-read the form after a Cancel revert.
   const [cashbackEditKey, setCashbackEditKey] = useState(0);
-  const [cashbackSnapshot, setCashbackSnapshot] = useState<Pick<
-    OfferRequestForm,
-    "commission_store" | "all_product_types" | "max_cap" | "product_types"
-  > | null>(null);
+  const [cashbackSnapshot, setCashbackSnapshot] = useState<
+    | (Pick<
+        OfferRequestForm,
+        | "commission_store"
+        | "all_product_types"
+        | "max_cap"
+        | "product_types"
+        | "commission_entry_mode"
+      > & { commissionRaw: string })
+    | null
+  >(null);
 
   const beginEditCashback = () => {
     setCashbackSnapshot({
@@ -1015,7 +1024,10 @@ const FormOffer = ({
       all_product_types: form.all_product_types,
       max_cap: form.max_cap,
       product_types: form.product_types,
+      commission_entry_mode: form.commission_entry_mode,
+      commissionRaw,
     });
+    setCashbackSaveError(null);
     setEditingCashback(true);
     if (
       form.commission_entry_mode === "auto" &&
@@ -1027,10 +1039,86 @@ const FormOffer = ({
   };
 
   const cancelEditCashback = () => {
-    if (cashbackSnapshot) setForm((prev) => ({ ...prev, ...cashbackSnapshot }));
+    if (cashbackSnapshot) {
+      setForm((prev) => ({
+        ...prev,
+        commission_store: cashbackSnapshot.commission_store,
+        all_product_types: cashbackSnapshot.all_product_types,
+        max_cap: cashbackSnapshot.max_cap,
+        product_types: cashbackSnapshot.product_types,
+        commission_entry_mode: cashbackSnapshot.commission_entry_mode,
+      }));
+      setCommissionRaw(cashbackSnapshot.commissionRaw);
+    }
+    setCashbackSaveError(null);
     setCashbackEditKey((k) => k + 1);
     setEditingCashback(false);
   };
+
+  const saveCashbackEdit = async () => {
+    if (!form.id) return;
+    setSavingCashback(true);
+    setCashbackSaveError(null);
+    try {
+      const fd = new FormData();
+      appendCashbackPatchFields(fd, {
+        commission_store: form.commission_store,
+        max_cap: form.max_cap,
+        all_product_types: form.all_product_types,
+        product_types: form.product_types,
+      });
+      await client.patch(`/admin/update-offer/${form.id}`, fd, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setFormBaseline((prev) => ({
+        ...prev,
+        snapshot: {
+          ...prev.snapshot,
+          commission_store: form.commission_store,
+          all_product_types: form.all_product_types,
+          max_cap: form.max_cap,
+          product_types: form.product_types,
+          commission_entry_mode: form.commission_entry_mode,
+        },
+      }));
+      setOpenModal((prev) =>
+        prev && typeof prev === "object"
+          ? {
+              ...prev,
+              commission_store: form.commission_store,
+              max_cap: form.max_cap,
+              all_product_types: form.all_product_types,
+              product_types: form.product_types,
+            }
+          : prev,
+      );
+      setEditingCashback(false);
+      fetchOffers();
+      toast.success("Cashback updated successfully");
+    } catch (err) {
+      devError("Failed to update cashback:", err);
+      setCashbackSaveError("Could not update cashback. Please try again.");
+    } finally {
+      setSavingCashback(false);
+    }
+  };
+
+  const cashbackDirty =
+    !!cashbackSnapshot &&
+    isDirty(
+      {
+        commission_store: form.commission_store,
+        all_product_types: form.all_product_types,
+        max_cap: form.max_cap,
+        product_types: form.product_types,
+        commission_entry_mode: form.commission_entry_mode,
+        commissionRaw,
+      },
+      cashbackSnapshot,
+    );
 
   // Upsize event edit toggle — mirrors Cashback (lock/unlock; no section save).
   const [editingUpsize, setEditingUpsize] = useState(false);
@@ -1883,8 +1971,7 @@ const FormOffer = ({
             className={`relative space-y-8 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
           >
             {/* Section actions — pinned top-right; Edit unlocks the fields,
-            Done locks them (changes persist via the form-wide "Save changes"),
-            Cancel reverts. */}
+            Save PATCHes cashback to the API, Cancel reverts. */}
             <div className="absolute top-0 right-0 z-10">
               {!editingCashback ? (
                 <SecondaryButton onClick={beginEditCashback} disabled={!offer}>
@@ -1895,20 +1982,31 @@ const FormOffer = ({
                   <button
                     type="button"
                     onClick={cancelEditCashback}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                    disabled={savingCashback}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditingCashback(false)}
-                    className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white"
+                    onClick={() => void saveCashbackEdit()}
+                    disabled={savingCashback || !cashbackDirty}
+                    className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Save
+                    {savingCashback
+                      ? "Saving…"
+                      : cashbackDirty
+                        ? "Save changes"
+                        : "No changes"}
                   </button>
                 </div>
               )}
             </div>
+            {cashbackSaveError ? (
+              <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                {cashbackSaveError}
+              </p>
+            ) : null}
             <fieldset
               key={cashbackEditKey}
               disabled={!editingCashback || isLoading}
