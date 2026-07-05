@@ -1,0 +1,3418 @@
+[
+  {
+    "nodeId": "31:450",
+    "category": "default-shop-card",
+    "brand": "Geekbuying",
+    "slug": "geekbuying",
+    "name": "Brand=Geekbuying, Cover=False"
+  },
+  {
+    "nodeId": "31:462",
+    "category": "default-shop-card",
+    "brand": "Sasa",
+    "slug": "sasa",
+    "name": "Brand=Sasa, Cover=False"
+  },
+  {
+    "nodeId": "31:444",
+    "category": "default-shop-card",
+    "brand": "Jazeera",
+    "slug": "jazeera",
+    "name": "Brand=Jazeera, Cover=False"
+  },
+  {
+    "nodeId": "31:453",
+    "category": "default-shop-card",
+    "brand": "StackSocial",
+    "slug": "stacksocial",
+    "name": "Brand=StackSocial, Cover=False"
+  },
+  {
+    "nodeId": "31:438",
+    "category": "default-shop-card",
+    "brand": "Stylevana",
+    "slug": "stylevana",
+    "name": "Brand=Stylevana, Cover=False"
+  },
+  {
+    "nodeId": "31:447",
+    "category": "default-shop-card",
+    "brand": "lightpdf",
+    "slug": "lightpdf",
+    "name": "Brand=lightpdf, Cover=False"
+  },
+  {
+    "nodeId": "31:467",
+    "category": "default-shop-card",
+    "brand": "Auras insurance",
+    "slug": "auras_insurance",
+    "name": "Brand=Auras insurance, Cover=False"
+  },
+  {
+    "nodeId": "31:408",
+    "category": "default-shop-card",
+    "brand": "Bangkok airways",
+    "slug": "bangkok_airways",
+    "name": "Brand=Bangkok airways, Cover=False"
+  },
+  {
+    "nodeId": "31:443",
+    "category": "default-shop-card",
+    "brand": "cleartrip",
+    "slug": "cleartrip",
+    "name": "Brand=cleartrip, Cover=False"
+  },
+  {
+    "nodeId": "31:422",
+    "category": "default-shop-card",
+    "brand": "jetpac",
+    "slug": "jetpac",
+    "name": "Brand=jetpac, Cover=False"
+  },
+  {
+    "nodeId": "31:430",
+    "category": "default-shop-card",
+    "brand": "Etihad",
+    "slug": "etihad",
+    "name": "Brand=Etihad, Cover=False"
+  },
+  {
+    "nodeId": "31:468",
+    "category": "default-shop-card",
+    "brand": "pepperstone",
+    "slug": "pepperstone",
+    "name": "Brand=pepperstone, Cover=False"
+  },
+  {
+    "nodeId": "31:466",
+    "category": "default-shop-card",
+    "brand": "agoda",
+    "slug": "agoda",
+    "name": "Brand=agoda, Cover=False"
+  },
+  {
+    "nodeId": "31:463",
+    "category": "default-shop-card",
+    "brand": "Tumi",
+    "slug": "tumi",
+    "name": "Brand=Tumi, Cover=False"
+  },
+  {
+    "nodeId": "31:461",
+    "category": "default-shop-card",
+    "brand": "Puma",
+    "slug": "puma",
+    "name": "Brand=Puma, Cover=False"
+  },
+  {
+    "nodeId": "31:380",
+    "category": "default-shop-card",
+    "brand": "Chow Sang Sang",
+    "slug": "chow_sang_sang",
+    "name": "Brand=Chow Sang Sang, Cover=False"
+  },
+  {
+    "nodeId": "31:454",
+    "category": "default-shop-card",
+    "brand": "iherb",
+    "slug": "iherb",
+    "name": "Brand=iherb, Cover=False"
+  },
+  {
+    "nodeId": "31:452",
+    "category": "default-shop-card",
+    "brand": "qatar airways",
+    "slug": "qatar_airways",
+    "name": "Brand=qatar airways, Cover=False"
+  },
+  {
+    "nodeId": "31:448",
+    "category": "default-shop-card",
+    "brand": "hp",
+    "slug": "hp",
+    "name": "Brand=hp, Cover=False"
+  },
+  {
+    "nodeId": "31:445",
+    "category": "default-shop-card",
+    "brand": "razer",
+    "slug": "razer",
+    "name": "Brand=razer, Cover=False"
+  },
+  {
+    "nodeId": "31:449",
+    "category": "default-shop-card",
+    "brand": "gowabi",
+    "slug": "gowabi",
+    "name": "Brand=gowabi, Cover=False"
+  },
+  {
+    "nodeId": "31:424",
+    "category": "default-shop-card",
+    "brand": "foreo",
+    "slug": "foreo",
+    "name": "Brand=foreo, Cover=False"
+  },
+  {
+    "nodeId": "31:433",
+    "category": "default-shop-card",
+    "brand": "Pai wellness",
+    "slug": "pai_wellness",
+    "name": "Brand=Pai wellness, Cover=False"
+  },
+  {
+    "nodeId": "31:363",
+    "category": "default-shop-card",
+    "brand": "shein",
+    "slug": "shein",
+    "name": "Brand=shein, Cover=False"
+  },
+  {
+    "nodeId": "31:431",
+    "category": "default-shop-card",
+    "brand": "Shein Global - CPS",
+    "slug": "shein_global",
+    "name": "Brand=Shein Global - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:427",
+    "category": "default-shop-card",
+    "brand": "hotels.com",
+    "slug": "hotelscom",
+    "name": "Brand=hotels.com, Cover=False"
+  },
+  {
+    "nodeId": "31:426",
+    "category": "default-shop-card",
+    "brand": "taobao",
+    "slug": "taobao",
+    "name": "Brand=taobao, Cover=False"
+  },
+  {
+    "nodeId": "31:423",
+    "category": "default-shop-card",
+    "brand": "Taobao (Deeplinkable) - CPS",
+    "slug": "taobao_deeplinkable",
+    "name": "Brand=Taobao (Deeplinkable) - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:417",
+    "category": "default-shop-card",
+    "brand": "expedia",
+    "slug": "expedia",
+    "name": "Brand=expedia, Cover=False"
+  },
+  {
+    "nodeId": "31:413",
+    "category": "default-shop-card",
+    "brand": "Rakuten travel",
+    "slug": "rakuten_travel",
+    "name": "Brand=Rakuten travel, Cover=False"
+  },
+  {
+    "nodeId": "31:420",
+    "category": "default-shop-card",
+    "brand": "Swarovski",
+    "slug": "swarovski",
+    "name": "Brand=Swarovski, Cover=False"
+  },
+  {
+    "nodeId": "31:412",
+    "category": "default-shop-card",
+    "brand": "lululemon",
+    "slug": "lululemon",
+    "name": "Brand=lululemon, Cover=False"
+  },
+  {
+    "nodeId": "31:410",
+    "category": "default-shop-card",
+    "brand": "go city",
+    "slug": "go_city",
+    "name": "Brand=go city, Cover=False"
+  },
+  {
+    "nodeId": "31:439",
+    "category": "default-shop-card",
+    "brand": "Nike",
+    "slug": "nike",
+    "name": "Brand=Nike, Cover=False"
+  },
+  {
+    "nodeId": "31:407",
+    "category": "default-shop-card",
+    "brand": "Adidas",
+    "slug": "adidas",
+    "name": "Brand=Adidas, Cover=False"
+  },
+  {
+    "nodeId": "31:405",
+    "category": "default-shop-card",
+    "brand": "Malaysia Airlines",
+    "slug": "malaysia_airlines",
+    "name": "Brand=Malaysia Airlines, Cover=False"
+  },
+  {
+    "nodeId": "31:403",
+    "category": "default-shop-card",
+    "brand": "British Council",
+    "slug": "british_council",
+    "name": "Brand=British Council, Cover=False"
+  },
+  {
+    "nodeId": "31:383",
+    "category": "default-shop-card",
+    "brand": "Lazada",
+    "slug": "lazada",
+    "name": "Brand=Lazada, Cover=False"
+  },
+  {
+    "nodeId": "31:428",
+    "category": "default-shop-card",
+    "brand": "GoDaddy.com",
+    "slug": "godaddycom",
+    "name": "Brand=GoDaddy.com, Cover=False"
+  },
+  {
+    "nodeId": "31:401",
+    "category": "default-shop-card",
+    "brand": "HideMe VPN - CPS",
+    "slug": "hideme_vpn",
+    "name": "Brand=HideMe VPN - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:396",
+    "category": "default-shop-card",
+    "brand": "Express VPN - CPS (NEW)",
+    "slug": "express_vpn_-_cps_new",
+    "name": "Brand=Express VPN - CPS (NEW), Cover=False"
+  },
+  {
+    "nodeId": "31:460",
+    "category": "default-shop-card",
+    "brand": "iMyFone CPS",
+    "slug": "imyfone_cps",
+    "name": "Brand=iMyFone CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:393",
+    "category": "default-shop-card",
+    "brand": "True TH - CPS + CPA",
+    "slug": "true_th_-_cps_cpa",
+    "name": "Brand=True TH - CPS + CPA, Cover=False"
+  },
+  {
+    "nodeId": "31:416",
+    "category": "default-shop-card",
+    "brand": "Papique - CPS",
+    "slug": "papique",
+    "name": "Brand=Papique - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:391",
+    "category": "default-shop-card",
+    "brand": "Fever Global - CPS",
+    "slug": "fever_global",
+    "name": "Brand=Fever Global - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:451",
+    "category": "default-shop-card",
+    "brand": "Involve Asia",
+    "slug": "involve_asia",
+    "name": "Brand=Involve Asia, Cover=False"
+  },
+  {
+    "nodeId": "31:390",
+    "category": "default-shop-card",
+    "brand": "Muang Thai Life - CPS",
+    "slug": "muang_thai_life",
+    "name": "Brand=Muang Thai Life - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:456",
+    "category": "default-shop-card",
+    "brand": "All Online TH - CPS",
+    "slug": "all_online_th",
+    "name": "Brand=All Online TH - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:389",
+    "category": "default-shop-card",
+    "brand": "Homestyler Global - CPS",
+    "slug": "homestyler_global",
+    "name": "Brand=Homestyler Global - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:425",
+    "category": "default-shop-card",
+    "brand": "Mister Aladin (ID) - CPS",
+    "slug": "mister_aladin_id",
+    "name": "Brand=Mister Aladin (ID) - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:411",
+    "category": "default-shop-card",
+    "brand": "Havaianas TH - CPS",
+    "slug": "havaianas_th",
+    "name": "Brand=Havaianas TH - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:446",
+    "category": "default-shop-card",
+    "brand": "International Open Academy - CPS",
+    "slug": "international_open_academy",
+    "name": "Brand=International Open Academy - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:388",
+    "category": "default-shop-card",
+    "brand": "Roamless eSIM - CPS",
+    "slug": "roamless_esim",
+    "name": "Brand=Roamless eSIM - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:419",
+    "category": "default-shop-card",
+    "brand": "Bask Bear Coffee - CPS",
+    "slug": "bask_bear_coffee",
+    "name": "Brand=Bask Bear Coffee - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:418",
+    "category": "default-shop-card",
+    "brand": "SEAGM",
+    "slug": "seagm",
+    "name": "Brand=SEAGM, Cover=False"
+  },
+  {
+    "nodeId": "31:437",
+    "category": "default-shop-card",
+    "brand": "Gameseal Global - CPS",
+    "slug": "gameseal_global",
+    "name": "Brand=Gameseal Global - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:406",
+    "category": "default-shop-card",
+    "brand": "Unipin Global - CPS",
+    "slug": "unipin_global",
+    "name": "Brand=Unipin Global - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:432",
+    "category": "default-shop-card",
+    "brand": "LapakGaming - CPS",
+    "slug": "lapakgaming",
+    "name": "Brand=LapakGaming - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:458",
+    "category": "default-shop-card",
+    "brand": "Pelago - CPS",
+    "slug": "pelago",
+    "name": "Brand=Pelago - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:400",
+    "category": "default-shop-card",
+    "brand": "MyRepublic SG - CPS",
+    "slug": "myrepublic_sg",
+    "name": "Brand=MyRepublic SG - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:387",
+    "category": "default-shop-card",
+    "brand": "HomePro TH - CPS",
+    "slug": "homepro_th",
+    "name": "Brand=HomePro TH - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:404",
+    "category": "default-shop-card",
+    "brand": "Banggood (Global)",
+    "slug": "banggood_global",
+    "name": "Brand=Banggood (Global), Cover=False"
+  },
+  {
+    "nodeId": "31:386",
+    "category": "default-shop-card",
+    "brand": "Zen Hotels - CPS",
+    "slug": "zen_hotels",
+    "name": "Brand=Zen Hotels - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:385",
+    "category": "default-shop-card",
+    "brand": "Thisshop TH - CPS",
+    "slug": "thisshop_th",
+    "name": "Brand=Thisshop TH - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:384",
+    "category": "default-shop-card",
+    "brand": "Omio (GoEuro)",
+    "slug": "omio_goeuro",
+    "name": "Brand=Omio (GoEuro), Cover=False"
+  },
+  {
+    "nodeId": "31:382",
+    "category": "default-shop-card",
+    "brand": "Kiwi Global - CPS",
+    "slug": "kiwi_global",
+    "name": "Brand=Kiwi Global - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:381",
+    "category": "default-shop-card",
+    "brand": "Tripadvisor (CPS)",
+    "slug": "tripadvisor_cps",
+    "name": "Brand=Tripadvisor (CPS), Cover=False"
+  },
+  {
+    "nodeId": "31:378",
+    "category": "default-shop-card",
+    "brand": "Hungry Hub (TH)",
+    "slug": "hungry_hub_th",
+    "name": "Brand=Hungry Hub (TH), Cover=False"
+  },
+  {
+    "nodeId": "31:402",
+    "category": "default-shop-card",
+    "brand": "Beauty Firster TH - CPS",
+    "slug": "beauty_firster_th",
+    "name": "Brand=Beauty Firster TH - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:409",
+    "category": "default-shop-card",
+    "brand": "iMobie - CPS",
+    "slug": "imobie",
+    "name": "Brand=iMobie - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:455",
+    "category": "default-shop-card",
+    "brand": "Studio7 TH - CPS",
+    "slug": "studio7_th",
+    "name": "Brand=Studio7 TH - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:377",
+    "category": "default-shop-card",
+    "brand": "Sephora (TH)",
+    "slug": "sephora_th",
+    "name": "Brand=Sephora (TH), Cover=False"
+  },
+  {
+    "nodeId": "31:399",
+    "category": "default-shop-card",
+    "brand": "DHGate Global (CPS)",
+    "slug": "dhgate_global_cps",
+    "name": "Brand=DHGate Global (CPS), Cover=False"
+  },
+  {
+    "nodeId": "31:376",
+    "category": "default-shop-card",
+    "brand": "Charles & Keith (TH) - CPS",
+    "slug": "charles_keith_th",
+    "name": "Brand=Charles & Keith (TH) - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:459",
+    "category": "default-shop-card",
+    "brand": "HopeGoo - CPS",
+    "slug": "hopegoo",
+    "name": "Brand=HopeGoo - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:375",
+    "category": "default-shop-card",
+    "brand": "Alibaba CPS",
+    "slug": "alibaba_cps",
+    "name": "Brand=Alibaba CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:415",
+    "category": "default-shop-card",
+    "brand": "Petronas Shop - CPS",
+    "slug": "petronas_shop",
+    "name": "Brand=Petronas Shop - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:395",
+    "category": "default-shop-card",
+    "brand": "Xiaomi (TH) - CPS",
+    "slug": "xiaomi_th",
+    "name": "Brand=Xiaomi (TH) - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:442",
+    "category": "default-shop-card",
+    "brand": "AliExpress (Global) - CPS",
+    "slug": "aliexpress_global",
+    "name": "Brand=AliExpress (Global) - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:374",
+    "category": "default-shop-card",
+    "brand": "Photobook (TH)",
+    "slug": "photobook_th",
+    "name": "Brand=Photobook (TH), Cover=False"
+  },
+  {
+    "nodeId": "31:373",
+    "category": "default-shop-card",
+    "brand": "GQ Thailand - CPS",
+    "slug": "gq_thailand",
+    "name": "Brand=GQ Thailand - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:372",
+    "category": "default-shop-card",
+    "brand": "WPS SOFTWARE - CPI + CPS",
+    "slug": "wps_software_-_cpi_cps",
+    "name": "Brand=WPS SOFTWARE - CPI + CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:441",
+    "category": "default-shop-card",
+    "brand": "Megatix TH",
+    "slug": "megatix_th",
+    "name": "Brand=Megatix TH, Cover=False"
+  },
+  {
+    "nodeId": "31:370",
+    "category": "default-shop-card",
+    "brand": "PanelPlace Global - CPA",
+    "slug": "panelplace_global_-_cpa",
+    "name": "Brand=PanelPlace Global - CPA, Cover=False"
+  },
+  {
+    "nodeId": "31:435",
+    "category": "default-shop-card",
+    "brand": "Skechers TH - CPS",
+    "slug": "skechers_th",
+    "name": "Brand=Skechers TH - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:379",
+    "category": "default-shop-card",
+    "brand": "KTC Credit Card (TH)",
+    "slug": "ktc_credit_card_th",
+    "name": "Brand=KTC Credit Card (TH), Cover=False"
+  },
+  {
+    "nodeId": "31:369",
+    "category": "default-shop-card",
+    "brand": "Central (TH) - CPS",
+    "slug": "central_th",
+    "name": "Brand=Central (TH) - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:368",
+    "category": "default-shop-card",
+    "brand": "UGREEN Global - CPS",
+    "slug": "ugreen_global",
+    "name": "Brand=UGREEN Global - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:464",
+    "category": "default-shop-card",
+    "brand": "King Power (TH)",
+    "slug": "king_power_th",
+    "name": "Brand=King Power (TH), Cover=False"
+  },
+  {
+    "nodeId": "31:367",
+    "category": "default-shop-card",
+    "brand": "Juice Store",
+    "slug": "juice_store",
+    "name": "Brand=Juice Store, Cover=False"
+  },
+  {
+    "nodeId": "31:365",
+    "category": "default-shop-card",
+    "brand": "Codashop - CPS",
+    "slug": "codashop",
+    "name": "Brand=Codashop - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:364",
+    "category": "default-shop-card",
+    "brand": "JD Sports (TH) - CPS",
+    "slug": "jd_sports_th",
+    "name": "Brand=JD Sports (TH) - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:397",
+    "category": "default-shop-card",
+    "brand": "LG (TH) - CPS",
+    "slug": "lg_th",
+    "name": "Brand=LG (TH) - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:362",
+    "category": "default-shop-card",
+    "brand": "Trip.com - CPS",
+    "slug": "tripcom",
+    "name": "Brand=Trip.com - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:361",
+    "category": "default-shop-card",
+    "brand": "Traveloka PH - CPS",
+    "slug": "traveloka_ph",
+    "name": "Brand=Traveloka PH - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:360",
+    "category": "default-shop-card",
+    "brand": "Airalo (Global) - CPS",
+    "slug": "airalo_global",
+    "name": "Brand=Airalo (Global) - CPS, Cover=False"
+  },
+  {
+    "nodeId": "100:447",
+    "category": "default-shop-card-cover",
+    "brand": "Airalo (Global) - CPS",
+    "slug": "airalo_global",
+    "name": "Brand=Airalo (Global) - CPS, Cover=True"
+  },
+  {
+    "nodeId": "31:421",
+    "category": "default-shop-card",
+    "brand": "Wegic AI - CPS",
+    "slug": "wegic_ai",
+    "name": "Brand=Wegic AI - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:398",
+    "category": "default-shop-card",
+    "brand": "Airpaz Global - CPS",
+    "slug": "airpaz_global",
+    "name": "Brand=Airpaz Global - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:394",
+    "category": "default-shop-card",
+    "brand": "SimOptions Global - CPS",
+    "slug": "simoptions_global",
+    "name": "Brand=SimOptions Global - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:359",
+    "category": "default-shop-card",
+    "brand": "TrainPal - CPS",
+    "slug": "trainpal",
+    "name": "Brand=TrainPal - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:358",
+    "category": "default-shop-card",
+    "brand": "Sider AI - CPS",
+    "slug": "sider_ai",
+    "name": "Brand=Sider AI - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:414",
+    "category": "default-shop-card",
+    "brand": "Insurverse TH - CPA",
+    "slug": "insurverse_th_-_cpa",
+    "name": "Brand=Insurverse TH - CPA, Cover=False"
+  },
+  {
+    "nodeId": "31:357",
+    "category": "default-shop-card",
+    "brand": "Bro.Game TH - CPS",
+    "slug": "brogame_th",
+    "name": "Brand=Bro.Game TH - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:355",
+    "category": "default-shop-card",
+    "brand": "Kinokuniya (TH)",
+    "slug": "kinokuniya_th",
+    "name": "Brand=Kinokuniya (TH), Cover=False"
+  },
+  {
+    "nodeId": "31:440",
+    "category": "default-shop-card",
+    "brand": "Tiqets CPS",
+    "slug": "tiqets_cps",
+    "name": "Brand=Tiqets CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:354",
+    "category": "default-shop-card",
+    "brand": "Double A Thailand",
+    "slug": "double_a_thailand",
+    "name": "Brand=Double A Thailand, Cover=False"
+  },
+  {
+    "nodeId": "31:353",
+    "category": "default-shop-card",
+    "brand": "Lotus's TH - CPS",
+    "slug": "lotuss_th",
+    "name": "Brand=Lotus's TH - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:351",
+    "category": "default-shop-card",
+    "brand": "Capcut",
+    "slug": "capcut",
+    "name": "Brand=Capcut, Cover=False"
+  },
+  {
+    "nodeId": "31:349",
+    "category": "default-shop-card",
+    "brand": "Shopee TH - CPS",
+    "slug": "shopee_th",
+    "name": "Brand=Shopee TH - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:371",
+    "category": "default-shop-card",
+    "brand": "AirAsia (Travel)",
+    "slug": "airasia_travel",
+    "name": "Brand=AirAsia (Travel), Cover=False"
+  },
+  {
+    "nodeId": "31:348",
+    "category": "default-shop-card",
+    "brand": "KKday Global - CPS",
+    "slug": "kkday_global",
+    "name": "Brand=KKday Global - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:366",
+    "category": "default-shop-card",
+    "brand": "Udemy US - CPS",
+    "slug": "udemy_us",
+    "name": "Brand=Udemy US - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:434",
+    "category": "default-shop-card",
+    "brand": "B2S",
+    "slug": "b2s",
+    "name": "Brand=B2S, Cover=False"
+  },
+  {
+    "nodeId": "31:350",
+    "category": "default-shop-card",
+    "brand": "Olive Young",
+    "slug": "olive_young",
+    "name": "Brand=Olive Young, Cover=False"
+  },
+  {
+    "nodeId": "31:352",
+    "category": "default-shop-card",
+    "brand": "Banana IT (TH)",
+    "slug": "banana_it_th",
+    "name": "Brand=Banana IT (TH), Cover=False"
+  },
+  {
+    "nodeId": "31:392",
+    "category": "default-shop-card",
+    "brand": "Accor South Asia - CPS",
+    "slug": "accor_south_asia",
+    "name": "Brand=Accor South Asia - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:347",
+    "category": "default-shop-card",
+    "brand": "TikTok B2B",
+    "slug": "tiktok_b2b",
+    "name": "Brand=TikTok B2B, Cover=False"
+  },
+  {
+    "nodeId": "31:356",
+    "category": "default-shop-card",
+    "brand": "Domino's Pizza (ID) - CPS",
+    "slug": "dominos_pizza_id",
+    "name": "Brand=Domino's Pizza (ID) - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:429",
+    "category": "default-shop-card",
+    "brand": "Klook Travel - CPS",
+    "slug": "klook_travel",
+    "name": "Brand=Klook Travel - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:465",
+    "category": "default-shop-card",
+    "brand": "Plaud",
+    "slug": "plaud",
+    "name": "Brand=Plaud, Cover=False"
+  },
+  {
+    "nodeId": "32:476",
+    "category": "default-shop-card-cover",
+    "brand": "Plaud",
+    "slug": "plaud",
+    "name": "Brand=Plaud, Cover=True"
+  },
+  {
+    "nodeId": "31:457",
+    "category": "default-shop-card",
+    "brand": "Cotton On",
+    "slug": "cotton_on",
+    "name": "Brand=Cotton On, Cover=False"
+  },
+  {
+    "nodeId": "31:473",
+    "category": "default-shop-card-cover",
+    "brand": "Cotton On",
+    "slug": "cotton_on",
+    "name": "Brand=Cotton On, Cover=True"
+  },
+  {
+    "nodeId": "31:436",
+    "category": "default-shop-card",
+    "brand": "Air India - CPS",
+    "slug": "air_india",
+    "name": "Brand=Air India - CPS, Cover=False"
+  },
+  {
+    "nodeId": "31:470",
+    "category": "default-shop-card-cover",
+    "brand": "Air India - CPS",
+    "slug": "air_india",
+    "name": "Brand=Air India - CPS, Cover=True"
+  },
+  {
+    "nodeId": "33:479",
+    "category": "default-shop-card-cover",
+    "brand": "Geekbuying",
+    "slug": "geekbuying",
+    "name": "Brand=Geekbuying, Cover=True"
+  },
+  {
+    "nodeId": "34:482",
+    "category": "default-shop-card-cover",
+    "brand": "Sasa",
+    "slug": "sasa",
+    "name": "Brand=Sasa, Cover=True"
+  },
+  {
+    "nodeId": "34:485",
+    "category": "default-shop-card-cover",
+    "brand": "Jazeera",
+    "slug": "jazeera",
+    "name": "Brand=Jazeera, Cover=True"
+  },
+  {
+    "nodeId": "34:488",
+    "category": "default-shop-card-cover",
+    "brand": "StackSocial",
+    "slug": "stacksocial",
+    "name": "Brand=StackSocial, Cover=True"
+  },
+  {
+    "nodeId": "34:491",
+    "category": "default-shop-card-cover",
+    "brand": "Stylevana",
+    "slug": "stylevana",
+    "name": "Brand=Stylevana, Cover=True"
+  },
+  {
+    "nodeId": "34:494",
+    "category": "default-shop-card-cover",
+    "brand": "lightpdf",
+    "slug": "lightpdf",
+    "name": "Brand=lightpdf, Cover=True"
+  },
+  {
+    "nodeId": "34:497",
+    "category": "default-shop-card-cover",
+    "brand": "Auras insurance",
+    "slug": "auras_insurance",
+    "name": "Brand=Auras insurance, Cover=True"
+  },
+  {
+    "nodeId": "34:500",
+    "category": "default-shop-card-cover",
+    "brand": "Bangkok airways",
+    "slug": "bangkok_airways",
+    "name": "Brand=Bangkok airways, Cover=True"
+  },
+  {
+    "nodeId": "34:503",
+    "category": "default-shop-card-cover",
+    "brand": "cleartrip",
+    "slug": "cleartrip",
+    "name": "Brand=cleartrip, Cover=True"
+  },
+  {
+    "nodeId": "34:506",
+    "category": "default-shop-card-cover",
+    "brand": "jetpac",
+    "slug": "jetpac",
+    "name": "Brand=jetpac, Cover=True"
+  },
+  {
+    "nodeId": "34:509",
+    "category": "default-shop-card-cover",
+    "brand": "Etihad",
+    "slug": "etihad",
+    "name": "Brand=Etihad, Cover=True"
+  },
+  {
+    "nodeId": "34:512",
+    "category": "default-shop-card-cover",
+    "brand": "pepperstone",
+    "slug": "pepperstone",
+    "name": "Brand=pepperstone, Cover=True"
+  },
+  {
+    "nodeId": "34:515",
+    "category": "default-shop-card-cover",
+    "brand": "agoda",
+    "slug": "agoda",
+    "name": "Brand=agoda, Cover=True"
+  },
+  {
+    "nodeId": "34:518",
+    "category": "default-shop-card-cover",
+    "brand": "Tumi",
+    "slug": "tumi",
+    "name": "Brand=Tumi, Cover=True"
+  },
+  {
+    "nodeId": "34:521",
+    "category": "default-shop-card-cover",
+    "brand": "Puma",
+    "slug": "puma",
+    "name": "Brand=Puma, Cover=True"
+  },
+  {
+    "nodeId": "34:527",
+    "category": "default-shop-card-cover",
+    "brand": "Chow Sang Sang",
+    "slug": "chow_sang_sang",
+    "name": "Brand=Chow Sang Sang, Cover=True"
+  },
+  {
+    "nodeId": "34:530",
+    "category": "default-shop-card-cover",
+    "brand": "iherb",
+    "slug": "iherb",
+    "name": "Brand=iherb, Cover=True"
+  },
+  {
+    "nodeId": "34:533",
+    "category": "default-shop-card-cover",
+    "brand": "qatar airways",
+    "slug": "qatar_airways",
+    "name": "Brand=qatar airways, Cover=True"
+  },
+  {
+    "nodeId": "34:539",
+    "category": "default-shop-card-cover",
+    "brand": "hp",
+    "slug": "hp",
+    "name": "Brand=hp, Cover=True"
+  },
+  {
+    "nodeId": "34:542",
+    "category": "default-shop-card-cover",
+    "brand": "razer",
+    "slug": "razer",
+    "name": "Brand=razer, Cover=True"
+  },
+  {
+    "nodeId": "34:545",
+    "category": "default-shop-card-cover",
+    "brand": "gowabi",
+    "slug": "gowabi",
+    "name": "Brand=gowabi, Cover=True"
+  },
+  {
+    "nodeId": "34:548",
+    "category": "default-shop-card-cover",
+    "brand": "foreo",
+    "slug": "foreo",
+    "name": "Brand=foreo, Cover=True"
+  },
+  {
+    "nodeId": "34:551",
+    "category": "default-shop-card-cover",
+    "brand": "Pai wellness",
+    "slug": "pai_wellness",
+    "name": "Brand=Pai wellness, Cover=True"
+  },
+  {
+    "nodeId": "35:554",
+    "category": "default-shop-card-cover",
+    "brand": "shein",
+    "slug": "shein",
+    "name": "Brand=shein, Cover=True"
+  },
+  {
+    "nodeId": "36:557",
+    "category": "default-shop-card-cover",
+    "brand": "Shein Global - CPS",
+    "slug": "shein_global",
+    "name": "Brand=Shein Global - CPS, Cover=True"
+  },
+  {
+    "nodeId": "36:560",
+    "category": "default-shop-card-cover",
+    "brand": "hotels.com",
+    "slug": "hotelscom",
+    "name": "Brand=hotels.com, Cover=True"
+  },
+  {
+    "nodeId": "36:566",
+    "category": "default-shop-card-cover",
+    "brand": "taobao",
+    "slug": "taobao",
+    "name": "Brand=taobao, Cover=True"
+  },
+  {
+    "nodeId": "37:569",
+    "category": "default-shop-card-cover",
+    "brand": "Taobao (Deeplinkable) - CPS",
+    "slug": "taobao_deeplinkable",
+    "name": "Brand=Taobao (Deeplinkable) - CPS, Cover=True"
+  },
+  {
+    "nodeId": "37:572",
+    "category": "default-shop-card-cover",
+    "brand": "expedia",
+    "slug": "expedia",
+    "name": "Brand=expedia, Cover=True"
+  },
+  {
+    "nodeId": "37:575",
+    "category": "default-shop-card-cover",
+    "brand": "Rakuten travel",
+    "slug": "rakuten_travel",
+    "name": "Brand=Rakuten travel, Cover=True"
+  },
+  {
+    "nodeId": "37:578",
+    "category": "default-shop-card-cover",
+    "brand": "Swarovski",
+    "slug": "swarovski",
+    "name": "Brand=Swarovski, Cover=True"
+  },
+  {
+    "nodeId": "37:581",
+    "category": "default-shop-card-cover",
+    "brand": "lululemon",
+    "slug": "lululemon",
+    "name": "Brand=lululemon, Cover=True"
+  },
+  {
+    "nodeId": "37:584",
+    "category": "default-shop-card-cover",
+    "brand": "go city",
+    "slug": "go_city",
+    "name": "Brand=go city, Cover=True"
+  },
+  {
+    "nodeId": "39:587",
+    "category": "default-shop-card-cover",
+    "brand": "Nike",
+    "slug": "nike",
+    "name": "Brand=Nike, Cover=True"
+  },
+  {
+    "nodeId": "39:590",
+    "category": "default-shop-card-cover",
+    "brand": "Adidas",
+    "slug": "adidas",
+    "name": "Brand=Adidas, Cover=True"
+  },
+  {
+    "nodeId": "39:593",
+    "category": "default-shop-card-cover",
+    "brand": "Malaysia Airlines",
+    "slug": "malaysia_airlines",
+    "name": "Brand=Malaysia Airlines, Cover=True"
+  },
+  {
+    "nodeId": "41:596",
+    "category": "default-shop-card-cover",
+    "brand": "British Council",
+    "slug": "british_council",
+    "name": "Brand=British Council, Cover=True"
+  },
+  {
+    "nodeId": "41:599",
+    "category": "default-shop-card-cover",
+    "brand": "Lazada",
+    "slug": "lazada",
+    "name": "Brand=Lazada, Cover=True"
+  },
+  {
+    "nodeId": "41:602",
+    "category": "default-shop-card-cover",
+    "brand": "GoDaddy.com",
+    "slug": "godaddycom",
+    "name": "Brand=GoDaddy.com, Cover=True"
+  },
+  {
+    "nodeId": "41:605",
+    "category": "default-shop-card-cover",
+    "brand": "HideMe VPN - CPS",
+    "slug": "hideme_vpn",
+    "name": "Brand=HideMe VPN - CPS, Cover=True"
+  },
+  {
+    "nodeId": "41:608",
+    "category": "default-shop-card-cover",
+    "brand": "Express VPN - CPS (NEW)",
+    "slug": "express_vpn_-_cps_new",
+    "name": "Brand=Express VPN - CPS (NEW), Cover=True"
+  },
+  {
+    "nodeId": "41:611",
+    "category": "default-shop-card-cover",
+    "brand": "iMyFone CPS",
+    "slug": "imyfone_cps",
+    "name": "Brand=iMyFone CPS, Cover=True"
+  },
+  {
+    "nodeId": "43:614",
+    "category": "default-shop-card-cover",
+    "brand": "True TH - CPS + CPA",
+    "slug": "true_th_-_cps_cpa",
+    "name": "Brand=True TH - CPS + CPA, Cover=True"
+  },
+  {
+    "nodeId": "43:617",
+    "category": "default-shop-card-cover",
+    "brand": "Papique - CPS",
+    "slug": "papique",
+    "name": "Brand=Papique - CPS, Cover=True"
+  },
+  {
+    "nodeId": "43:620",
+    "category": "default-shop-card-cover",
+    "brand": "Fever Global - CPS",
+    "slug": "fever_global",
+    "name": "Brand=Fever Global - CPS, Cover=True"
+  },
+  {
+    "nodeId": "43:623",
+    "category": "default-shop-card-cover",
+    "brand": "Involve Asia",
+    "slug": "involve_asia",
+    "name": "Brand=Involve Asia, Cover=True"
+  },
+  {
+    "nodeId": "43:626",
+    "category": "default-shop-card-cover",
+    "brand": "Muang Thai Life - CPS",
+    "slug": "muang_thai_life",
+    "name": "Brand=Muang Thai Life - CPS, Cover=True"
+  },
+  {
+    "nodeId": "43:629",
+    "category": "default-shop-card-cover",
+    "brand": "All Online TH - CPS",
+    "slug": "all_online_th",
+    "name": "Brand=All Online TH - CPS, Cover=True"
+  },
+  {
+    "nodeId": "44:632",
+    "category": "default-shop-card-cover",
+    "brand": "Homestyler Global - CPS",
+    "slug": "homestyler_global",
+    "name": "Brand=Homestyler Global - CPS, Cover=True"
+  },
+  {
+    "nodeId": "44:635",
+    "category": "default-shop-card-cover",
+    "brand": "Mister Aladin (ID) - CPS",
+    "slug": "mister_aladin_id",
+    "name": "Brand=Mister Aladin (ID) - CPS, Cover=True"
+  },
+  {
+    "nodeId": "44:638",
+    "category": "default-shop-card-cover",
+    "brand": "Havaianas TH - CPS",
+    "slug": "havaianas_th",
+    "name": "Brand=Havaianas TH - CPS, Cover=True"
+  },
+  {
+    "nodeId": "45:641",
+    "category": "default-shop-card-cover",
+    "brand": "International Open Academy - CPS",
+    "slug": "international_open_academy",
+    "name": "Brand=International Open Academy - CPS, Cover=True"
+  },
+  {
+    "nodeId": "45:644",
+    "category": "default-shop-card-cover",
+    "brand": "Roamless eSIM - CPS",
+    "slug": "roamless_esim",
+    "name": "Brand=Roamless eSIM - CPS, Cover=True"
+  },
+  {
+    "nodeId": "48:647",
+    "category": "default-shop-card-cover",
+    "brand": "Bask Bear Coffee - CPS",
+    "slug": "bask_bear_coffee",
+    "name": "Brand=Bask Bear Coffee - CPS, Cover=True"
+  },
+  {
+    "nodeId": "48:650",
+    "category": "default-shop-card-cover",
+    "brand": "SEAGM",
+    "slug": "seagm",
+    "name": "Brand=SEAGM, Cover=True"
+  },
+  {
+    "nodeId": "49:653",
+    "category": "default-shop-card-cover",
+    "brand": "Gameseal Global - CPS",
+    "slug": "gameseal_global",
+    "name": "Brand=Gameseal Global - CPS, Cover=True"
+  },
+  {
+    "nodeId": "49:656",
+    "category": "default-shop-card-cover",
+    "brand": "Unipin Global - CPS",
+    "slug": "unipin_global",
+    "name": "Brand=Unipin Global - CPS, Cover=True"
+  },
+  {
+    "nodeId": "50:659",
+    "category": "default-shop-card-cover",
+    "brand": "LapakGaming - CPS",
+    "slug": "lapakgaming",
+    "name": "Brand=LapakGaming - CPS, Cover=True"
+  },
+  {
+    "nodeId": "50:662",
+    "category": "default-shop-card-cover",
+    "brand": "Pelago - CPS",
+    "slug": "pelago",
+    "name": "Brand=Pelago - CPS, Cover=True"
+  },
+  {
+    "nodeId": "50:665",
+    "category": "default-shop-card-cover",
+    "brand": "MyRepublic SG - CPS",
+    "slug": "myrepublic_sg",
+    "name": "Brand=MyRepublic SG - CPS, Cover=True"
+  },
+  {
+    "nodeId": "50:668",
+    "category": "default-shop-card-cover",
+    "brand": "HomePro TH - CPS",
+    "slug": "homepro_th",
+    "name": "Brand=HomePro TH - CPS, Cover=True"
+  },
+  {
+    "nodeId": "50:674",
+    "category": "default-shop-card-cover",
+    "brand": "Banggood (Global)",
+    "slug": "banggood_global",
+    "name": "Brand=Banggood (Global), Cover=True"
+  },
+  {
+    "nodeId": "50:677",
+    "category": "default-shop-card-cover",
+    "brand": "Zen Hotels - CPS",
+    "slug": "zen_hotels",
+    "name": "Brand=Zen Hotels - CPS, Cover=True"
+  },
+  {
+    "nodeId": "50:680",
+    "category": "default-shop-card-cover",
+    "brand": "Thisshop TH - CPS",
+    "slug": "thisshop_th",
+    "name": "Brand=Thisshop TH - CPS, Cover=True"
+  },
+  {
+    "nodeId": "50:683",
+    "category": "default-shop-card-cover",
+    "brand": "Omio (GoEuro)",
+    "slug": "omio_goeuro",
+    "name": "Brand=Omio (GoEuro), Cover=True"
+  },
+  {
+    "nodeId": "51:686",
+    "category": "default-shop-card-cover",
+    "brand": "Kiwi Global - CPS",
+    "slug": "kiwi_global",
+    "name": "Brand=Kiwi Global - CPS, Cover=True"
+  },
+  {
+    "nodeId": "51:689",
+    "category": "default-shop-card-cover",
+    "brand": "Tripadvisor (CPS)",
+    "slug": "tripadvisor_cps",
+    "name": "Brand=Tripadvisor (CPS), Cover=True"
+  },
+  {
+    "nodeId": "51:692",
+    "category": "default-shop-card-cover",
+    "brand": "Hungry Hub (TH)",
+    "slug": "hungry_hub_th",
+    "name": "Brand=Hungry Hub (TH), Cover=True"
+  },
+  {
+    "nodeId": "51:695",
+    "category": "default-shop-card-cover",
+    "brand": "Beauty Firster TH - CPS",
+    "slug": "beauty_firster_th",
+    "name": "Brand=Beauty Firster TH - CPS, Cover=True"
+  },
+  {
+    "nodeId": "51:698",
+    "category": "default-shop-card-cover",
+    "brand": "iMobie - CPS",
+    "slug": "imobie",
+    "name": "Brand=iMobie - CPS, Cover=True"
+  },
+  {
+    "nodeId": "51:701",
+    "category": "default-shop-card-cover",
+    "brand": "Studio7 TH - CPS",
+    "slug": "studio7_th",
+    "name": "Brand=Studio7 TH - CPS, Cover=True"
+  },
+  {
+    "nodeId": "51:704",
+    "category": "default-shop-card-cover",
+    "brand": "Sephora (TH)",
+    "slug": "sephora_th",
+    "name": "Brand=Sephora (TH), Cover=True"
+  },
+  {
+    "nodeId": "53:707",
+    "category": "default-shop-card-cover",
+    "brand": "DHGate Global (CPS)",
+    "slug": "dhgate_global_cps",
+    "name": "Brand=DHGate Global (CPS), Cover=True"
+  },
+  {
+    "nodeId": "53:710",
+    "category": "default-shop-card-cover",
+    "brand": "Charles & Keith (TH) - CPS",
+    "slug": "charles_keith_th",
+    "name": "Brand=Charles & Keith (TH) - CPS, Cover=True"
+  },
+  {
+    "nodeId": "53:713",
+    "category": "default-shop-card-cover",
+    "brand": "HopeGoo - CPS",
+    "slug": "hopegoo",
+    "name": "Brand=HopeGoo - CPS, Cover=True"
+  },
+  {
+    "nodeId": "53:716",
+    "category": "default-shop-card-cover",
+    "brand": "Alibaba CPS",
+    "slug": "alibaba_cps",
+    "name": "Brand=Alibaba CPS, Cover=True"
+  },
+  {
+    "nodeId": "53:719",
+    "category": "default-shop-card-cover",
+    "brand": "Petronas Shop - CPS",
+    "slug": "petronas_shop",
+    "name": "Brand=Petronas Shop - CPS, Cover=True"
+  },
+  {
+    "nodeId": "53:722",
+    "category": "default-shop-card-cover",
+    "brand": "Xiaomi (TH) - CPS",
+    "slug": "xiaomi_th",
+    "name": "Brand=Xiaomi (TH) - CPS, Cover=True"
+  },
+  {
+    "nodeId": "53:725",
+    "category": "default-shop-card-cover",
+    "brand": "AliExpress (Global) - CPS",
+    "slug": "aliexpress_global",
+    "name": "Brand=AliExpress (Global) - CPS, Cover=True"
+  },
+  {
+    "nodeId": "98:399",
+    "category": "default-shop-card-cover",
+    "brand": "Photobook (TH)",
+    "slug": "photobook_th",
+    "name": "Brand=Photobook (TH), Cover=True"
+  },
+  {
+    "nodeId": "98:402",
+    "category": "default-shop-card-cover",
+    "brand": "GQ Thailand - CPS",
+    "slug": "gq_thailand",
+    "name": "Brand=GQ Thailand - CPS, Cover=True"
+  },
+  {
+    "nodeId": "99:405",
+    "category": "default-shop-card-cover",
+    "brand": "WPS SOFTWARE - CPI + CPS",
+    "slug": "wps_software_-_cpi_cps",
+    "name": "Brand=WPS SOFTWARE - CPI + CPS, Cover=True"
+  },
+  {
+    "nodeId": "99:408",
+    "category": "default-shop-card-cover",
+    "brand": "Megatix TH",
+    "slug": "megatix_th",
+    "name": "Brand=Megatix TH, Cover=True"
+  },
+  {
+    "nodeId": "99:411",
+    "category": "default-shop-card-cover",
+    "brand": "PanelPlace Global - CPA",
+    "slug": "panelplace_global_-_cpa",
+    "name": "Brand=PanelPlace Global - CPA, Cover=True"
+  },
+  {
+    "nodeId": "99:414",
+    "category": "default-shop-card-cover",
+    "brand": "Skechers TH - CPS",
+    "slug": "skechers_th",
+    "name": "Brand=Skechers TH - CPS, Cover=True"
+  },
+  {
+    "nodeId": "99:417",
+    "category": "default-shop-card-cover",
+    "brand": "KTC Credit Card (TH)",
+    "slug": "ktc_credit_card_th",
+    "name": "Brand=KTC Credit Card (TH), Cover=True"
+  },
+  {
+    "nodeId": "99:420",
+    "category": "default-shop-card-cover",
+    "brand": "Central (TH) - CPS",
+    "slug": "central_th",
+    "name": "Brand=Central (TH) - CPS, Cover=True"
+  },
+  {
+    "nodeId": "100:423",
+    "category": "default-shop-card-cover",
+    "brand": "UGREEN Global - CPS",
+    "slug": "ugreen_global",
+    "name": "Brand=UGREEN Global - CPS, Cover=True"
+  },
+  {
+    "nodeId": "100:426",
+    "category": "default-shop-card-cover",
+    "brand": "King Power (TH)",
+    "slug": "king_power_th",
+    "name": "Brand=King Power (TH), Cover=True"
+  },
+  {
+    "nodeId": "100:429",
+    "category": "default-shop-card-cover",
+    "brand": "Juice Store",
+    "slug": "juice_store",
+    "name": "Brand=Juice Store, Cover=True"
+  },
+  {
+    "nodeId": "100:432",
+    "category": "default-shop-card-cover",
+    "brand": "Codashop - CPS",
+    "slug": "codashop",
+    "name": "Brand=Codashop - CPS, Cover=True"
+  },
+  {
+    "nodeId": "100:435",
+    "category": "default-shop-card-cover",
+    "brand": "JD Sports (TH) - CPS",
+    "slug": "jd_sports_th",
+    "name": "Brand=JD Sports (TH) - CPS, Cover=True"
+  },
+  {
+    "nodeId": "100:438",
+    "category": "default-shop-card-cover",
+    "brand": "LG (TH) - CPS",
+    "slug": "lg_th",
+    "name": "Brand=LG (TH) - CPS, Cover=True"
+  },
+  {
+    "nodeId": "100:441",
+    "category": "default-shop-card-cover",
+    "brand": "Trip.com - CPS",
+    "slug": "tripcom",
+    "name": "Brand=Trip.com - CPS, Cover=True"
+  },
+  {
+    "nodeId": "100:444",
+    "category": "default-shop-card-cover",
+    "brand": "Traveloka PH - CPS",
+    "slug": "traveloka_ph",
+    "name": "Brand=Traveloka PH - CPS, Cover=True"
+  },
+  {
+    "nodeId": "101:450",
+    "category": "default-shop-card-cover",
+    "brand": "Wegic AI - CPS",
+    "slug": "wegic_ai",
+    "name": "Brand=Wegic AI - CPS, Cover=True"
+  },
+  {
+    "nodeId": "101:453",
+    "category": "default-shop-card-cover",
+    "brand": "Airpaz Global - CPS",
+    "slug": "airpaz_global",
+    "name": "Brand=Airpaz Global - CPS, Cover=True"
+  },
+  {
+    "nodeId": "101:456",
+    "category": "default-shop-card-cover",
+    "brand": "SimOptions Global - CPS",
+    "slug": "simoptions_global",
+    "name": "Brand=SimOptions Global - CPS, Cover=True"
+  },
+  {
+    "nodeId": "101:459",
+    "category": "default-shop-card-cover",
+    "brand": "TrainPal - CPS",
+    "slug": "trainpal",
+    "name": "Brand=TrainPal - CPS, Cover=True"
+  },
+  {
+    "nodeId": "101:462",
+    "category": "default-shop-card-cover",
+    "brand": "Sider AI - CPS",
+    "slug": "sider_ai",
+    "name": "Brand=Sider AI - CPS, Cover=True"
+  },
+  {
+    "nodeId": "101:465",
+    "category": "default-shop-card-cover",
+    "brand": "Insurverse TH - CPA",
+    "slug": "insurverse_th_-_cpa",
+    "name": "Brand=Insurverse TH - CPA, Cover=True"
+  },
+  {
+    "nodeId": "104:252",
+    "category": "default-shop-card-cover",
+    "brand": "Bro.Game TH - CPS",
+    "slug": "brogame_th",
+    "name": "Brand=Bro.Game TH - CPS, Cover=True"
+  },
+  {
+    "nodeId": "104:255",
+    "category": "default-shop-card-cover",
+    "brand": "Kinokuniya (TH)",
+    "slug": "kinokuniya_th",
+    "name": "Brand=Kinokuniya (TH), Cover=True"
+  },
+  {
+    "nodeId": "104:258",
+    "category": "default-shop-card-cover",
+    "brand": "Tiqets CPS",
+    "slug": "tiqets_cps",
+    "name": "Brand=Tiqets CPS, Cover=True"
+  },
+  {
+    "nodeId": "104:261",
+    "category": "default-shop-card-cover",
+    "brand": "Double A Thailand",
+    "slug": "double_a_thailand",
+    "name": "Brand=Double A Thailand, Cover=True"
+  },
+  {
+    "nodeId": "105:265",
+    "category": "default-shop-card-cover",
+    "brand": "Lotus's TH - CPS",
+    "slug": "lotuss_th",
+    "name": "Brand=Lotus's TH - CPS, Cover=True"
+  },
+  {
+    "nodeId": "105:268",
+    "category": "default-shop-card-cover",
+    "brand": "Capcut",
+    "slug": "capcut",
+    "name": "Brand=Capcut, Cover=True"
+  },
+  {
+    "nodeId": "105:271",
+    "category": "default-shop-card-cover",
+    "brand": "Shopee TH - CPS",
+    "slug": "shopee_th",
+    "name": "Brand=Shopee TH - CPS, Cover=True"
+  },
+  {
+    "nodeId": "105:274",
+    "category": "default-shop-card-cover",
+    "brand": "AirAsia (Travel)",
+    "slug": "airasia_travel",
+    "name": "Brand=AirAsia (Travel), Cover=True"
+  },
+  {
+    "nodeId": "105:277",
+    "category": "default-shop-card-cover",
+    "brand": "KKday Global - CPS",
+    "slug": "kkday_global",
+    "name": "Brand=KKday Global - CPS, Cover=True"
+  },
+  {
+    "nodeId": "105:280",
+    "category": "default-shop-card-cover",
+    "brand": "Udemy US - CPS",
+    "slug": "udemy_us",
+    "name": "Brand=Udemy US - CPS, Cover=True"
+  },
+  {
+    "nodeId": "105:283",
+    "category": "default-shop-card-cover",
+    "brand": "B2S",
+    "slug": "b2s",
+    "name": "Brand=B2S, Cover=True"
+  },
+  {
+    "nodeId": "105:286",
+    "category": "default-shop-card-cover",
+    "brand": "Olive Young",
+    "slug": "olive_young",
+    "name": "Brand=Olive Young, Cover=True"
+  },
+  {
+    "nodeId": "105:289",
+    "category": "default-shop-card-cover",
+    "brand": "Banana IT (TH)",
+    "slug": "banana_it_th",
+    "name": "Brand=Banana IT (TH), Cover=True"
+  },
+  {
+    "nodeId": "105:292",
+    "category": "default-shop-card-cover",
+    "brand": "Accor South Asia - CPS",
+    "slug": "accor_south_asia",
+    "name": "Brand=Accor South Asia - CPS, Cover=True"
+  },
+  {
+    "nodeId": "105:295",
+    "category": "default-shop-card-cover",
+    "brand": "TikTok B2B",
+    "slug": "tiktok_b2b",
+    "name": "Brand=TikTok B2B, Cover=True"
+  },
+  {
+    "nodeId": "105:298",
+    "category": "default-shop-card-cover",
+    "brand": "Domino's Pizza (ID) - CPS",
+    "slug": "dominos_pizza_id",
+    "name": "Brand=Domino's Pizza (ID) - CPS, Cover=True"
+  },
+  {
+    "nodeId": "105:304",
+    "category": "default-shop-card-cover",
+    "brand": "Klook Travel - CPS",
+    "slug": "klook_travel",
+    "name": "Brand=Klook Travel - CPS, Cover=True"
+  },
+  {
+    "nodeId": "15:77",
+    "category": "logo-circle",
+    "brand": "Air India - CPS",
+    "slug": "air_india",
+    "name": "Brand=Air India - CPS"
+  },
+  {
+    "nodeId": "15:75",
+    "category": "logo-circle",
+    "brand": "Cotton On",
+    "slug": "cotton_on",
+    "name": "Brand=Cotton On"
+  },
+  {
+    "nodeId": "15:162",
+    "category": "logo-circle",
+    "brand": "Plaud",
+    "slug": "plaud",
+    "name": "Brand=Plaud"
+  },
+  {
+    "nodeId": "15:158",
+    "category": "logo-circle",
+    "brand": "Geekbuying",
+    "slug": "geekbuying",
+    "name": "Brand=Geekbuying"
+  },
+  {
+    "nodeId": "15:160",
+    "category": "logo-circle",
+    "brand": "Sasa",
+    "slug": "sasa",
+    "name": "Brand=Sasa"
+  },
+  {
+    "nodeId": "15:156",
+    "category": "logo-circle",
+    "brand": "Jazeera",
+    "slug": "jazeera",
+    "name": "Brand=Jazeera"
+  },
+  {
+    "nodeId": "15:137",
+    "category": "logo-circle",
+    "brand": "StackSocial",
+    "slug": "stacksocial",
+    "name": "Brand=StackSocial"
+  },
+  {
+    "nodeId": "15:155",
+    "category": "logo-circle",
+    "brand": "Stylevana",
+    "slug": "stylevana",
+    "name": "Brand=Stylevana"
+  },
+  {
+    "nodeId": "15:153",
+    "category": "logo-circle",
+    "brand": "lightpdf",
+    "slug": "lightpdf",
+    "name": "Brand=lightpdf"
+  },
+  {
+    "nodeId": "15:151",
+    "category": "logo-circle",
+    "brand": "Auras insurance",
+    "slug": "auras_insurance",
+    "name": "Brand=Auras insurance"
+  },
+  {
+    "nodeId": "15:149",
+    "category": "logo-circle",
+    "brand": "Bangkok airways",
+    "slug": "bangkok_airways",
+    "name": "Brand=Bangkok airways"
+  },
+  {
+    "nodeId": "15:146",
+    "category": "logo-circle",
+    "brand": "cleartrip",
+    "slug": "cleartrip",
+    "name": "Brand=cleartrip"
+  },
+  {
+    "nodeId": "15:144",
+    "category": "logo-circle",
+    "brand": "jetpac",
+    "slug": "jetpac",
+    "name": "Brand=jetpac"
+  },
+  {
+    "nodeId": "15:168",
+    "category": "logo-circle",
+    "brand": "Etihad",
+    "slug": "etihad",
+    "name": "Brand=Etihad"
+  },
+  {
+    "nodeId": "15:165",
+    "category": "logo-circle",
+    "brand": "pepperstone",
+    "slug": "pepperstone",
+    "name": "Brand=pepperstone"
+  },
+  {
+    "nodeId": "15:142",
+    "category": "logo-circle",
+    "brand": "agoda",
+    "slug": "agoda",
+    "name": "Brand=agoda"
+  },
+  {
+    "nodeId": "15:141",
+    "category": "logo-circle",
+    "brand": "Tumi",
+    "slug": "tumi",
+    "name": "Brand=Tumi"
+  },
+  {
+    "nodeId": "15:140",
+    "category": "logo-circle",
+    "brand": "Puma",
+    "slug": "puma",
+    "name": "Brand=Puma"
+  },
+  {
+    "nodeId": "15:139",
+    "category": "logo-circle",
+    "brand": "Chow Sang Sang",
+    "slug": "chow_sang_sang",
+    "name": "Brand=Chow Sang Sang"
+  },
+  {
+    "nodeId": "15:163",
+    "category": "logo-circle",
+    "brand": "iherb",
+    "slug": "iherb",
+    "name": "Brand=iherb"
+  },
+  {
+    "nodeId": "15:159",
+    "category": "logo-circle",
+    "brand": "qatar airways",
+    "slug": "qatar_airways",
+    "name": "Brand=qatar airways"
+  },
+  {
+    "nodeId": "15:138",
+    "category": "logo-circle",
+    "brand": "hp",
+    "slug": "hp",
+    "name": "Brand=hp"
+  },
+  {
+    "nodeId": "15:135",
+    "category": "logo-circle",
+    "brand": "razer",
+    "slug": "razer",
+    "name": "Brand=razer"
+  },
+  {
+    "nodeId": "15:152",
+    "category": "logo-circle",
+    "brand": "gowabi",
+    "slug": "gowabi",
+    "name": "Brand=gowabi"
+  },
+  {
+    "nodeId": "15:150",
+    "category": "logo-circle",
+    "brand": "foreo",
+    "slug": "foreo",
+    "name": "Brand=foreo"
+  },
+  {
+    "nodeId": "15:147",
+    "category": "logo-circle",
+    "brand": "Pai wellness",
+    "slug": "pai_wellness",
+    "name": "Brand=Pai wellness"
+  },
+  {
+    "nodeId": "15:134",
+    "category": "logo-circle",
+    "brand": "shein",
+    "slug": "shein",
+    "name": "Brand=shein"
+  },
+  {
+    "nodeId": "15:143",
+    "category": "logo-circle",
+    "brand": "Shein Global - CPS",
+    "slug": "shein_global",
+    "name": "Brand=Shein Global - CPS"
+  },
+  {
+    "nodeId": "15:167",
+    "category": "logo-circle",
+    "brand": "hotels.com",
+    "slug": "hotelscom",
+    "name": "Brand=hotels.com"
+  },
+  {
+    "nodeId": "15:164",
+    "category": "logo-circle",
+    "brand": "taobao",
+    "slug": "taobao",
+    "name": "Brand=taobao"
+  },
+  {
+    "nodeId": "15:154",
+    "category": "logo-circle",
+    "brand": "Taobao (Deeplinkable) - CPS",
+    "slug": "taobao_deeplinkable",
+    "name": "Brand=Taobao (Deeplinkable) - CPS"
+  },
+  {
+    "nodeId": "15:133",
+    "category": "logo-circle",
+    "brand": "expedia",
+    "slug": "expedia",
+    "name": "Brand=expedia"
+  },
+  {
+    "nodeId": "15:132",
+    "category": "logo-circle",
+    "brand": "Rakuten travel",
+    "slug": "rakuten_travel",
+    "name": "Brand=Rakuten travel"
+  },
+  {
+    "nodeId": "15:130",
+    "category": "logo-circle",
+    "brand": "Swarovski",
+    "slug": "swarovski",
+    "name": "Brand=Swarovski"
+  },
+  {
+    "nodeId": "15:145",
+    "category": "logo-circle",
+    "brand": "lululemon",
+    "slug": "lululemon",
+    "name": "Brand=lululemon"
+  },
+  {
+    "nodeId": "15:129",
+    "category": "logo-circle",
+    "brand": "go city",
+    "slug": "go_city",
+    "name": "Brand=go city"
+  },
+  {
+    "nodeId": "15:128",
+    "category": "logo-circle",
+    "brand": "Nike",
+    "slug": "nike",
+    "name": "Brand=Nike"
+  },
+  {
+    "nodeId": "15:127",
+    "category": "logo-circle",
+    "brand": "Adidas",
+    "slug": "adidas",
+    "name": "Brand=Adidas"
+  },
+  {
+    "nodeId": "15:126",
+    "category": "logo-circle",
+    "brand": "Malaysia Airlines",
+    "slug": "malaysia_airlines",
+    "name": "Brand=Malaysia Airlines"
+  },
+  {
+    "nodeId": "15:125",
+    "category": "logo-circle",
+    "brand": "British Council",
+    "slug": "british_council",
+    "name": "Brand=British Council"
+  },
+  {
+    "nodeId": "15:169",
+    "category": "logo-circle",
+    "brand": "Lazada",
+    "slug": "lazada",
+    "name": "Brand=Lazada"
+  },
+  {
+    "nodeId": "15:166",
+    "category": "logo-circle",
+    "brand": "GoDaddy.com",
+    "slug": "godaddycom",
+    "name": "Brand=GoDaddy.com"
+  },
+  {
+    "nodeId": "15:124",
+    "category": "logo-circle",
+    "brand": "HideMe VPN - CPS",
+    "slug": "hideme_vpn",
+    "name": "Brand=HideMe VPN - CPS"
+  },
+  {
+    "nodeId": "15:123",
+    "category": "logo-circle",
+    "brand": "Express VPN - CPS (NEW)",
+    "slug": "express_vpn_-_cps_new",
+    "name": "Brand=Express VPN - CPS (NEW)"
+  },
+  {
+    "nodeId": "15:122",
+    "category": "logo-circle",
+    "brand": "iMyFone CPS",
+    "slug": "imyfone_cps",
+    "name": "Brand=iMyFone CPS"
+  },
+  {
+    "nodeId": "15:121",
+    "category": "logo-circle",
+    "brand": "True TH - CPS + CPA",
+    "slug": "true_th_-_cps_cpa",
+    "name": "Brand=True TH - CPS + CPA"
+  },
+  {
+    "nodeId": "15:131",
+    "category": "logo-circle",
+    "brand": "Papique - CPS",
+    "slug": "papique",
+    "name": "Brand=Papique - CPS"
+  },
+  {
+    "nodeId": "15:120",
+    "category": "logo-circle",
+    "brand": "Fever Global - CPS",
+    "slug": "fever_global",
+    "name": "Brand=Fever Global - CPS"
+  },
+  {
+    "nodeId": "15:119",
+    "category": "logo-circle",
+    "brand": "Involve Asia",
+    "slug": "involve_asia",
+    "name": "Brand=Involve Asia"
+  },
+  {
+    "nodeId": "15:118",
+    "category": "logo-circle",
+    "brand": "Muang Thai Life - CPS",
+    "slug": "muang_thai_life",
+    "name": "Brand=Muang Thai Life - CPS"
+  },
+  {
+    "nodeId": "15:117",
+    "category": "logo-circle",
+    "brand": "All Online TH - CPS",
+    "slug": "all_online_th",
+    "name": "Brand=All Online TH - CPS"
+  },
+  {
+    "nodeId": "15:116",
+    "category": "logo-circle",
+    "brand": "Homestyler Global - CPS",
+    "slug": "homestyler_global",
+    "name": "Brand=Homestyler Global - CPS"
+  },
+  {
+    "nodeId": "15:115",
+    "category": "logo-circle",
+    "brand": "Mister Aladin (ID) - CPS",
+    "slug": "mister_aladin_id",
+    "name": "Brand=Mister Aladin (ID) - CPS"
+  },
+  {
+    "nodeId": "15:114",
+    "category": "logo-circle",
+    "brand": "Havaianas TH - CPS",
+    "slug": "havaianas_th",
+    "name": "Brand=Havaianas TH - CPS"
+  },
+  {
+    "nodeId": "15:113",
+    "category": "logo-circle",
+    "brand": "International Open Academy - CPS",
+    "slug": "international_open_academy",
+    "name": "Brand=International Open Academy - CPS"
+  },
+  {
+    "nodeId": "15:112",
+    "category": "logo-circle",
+    "brand": "Roamless eSIM - CPS",
+    "slug": "roamless_esim",
+    "name": "Brand=Roamless eSIM - CPS"
+  },
+  {
+    "nodeId": "15:111",
+    "category": "logo-circle",
+    "brand": "Bask Bear Coffee - CPS",
+    "slug": "bask_bear_coffee",
+    "name": "Brand=Bask Bear Coffee - CPS"
+  },
+  {
+    "nodeId": "15:110",
+    "category": "logo-circle",
+    "brand": "SEAGM",
+    "slug": "seagm",
+    "name": "Brand=SEAGM"
+  },
+  {
+    "nodeId": "15:109",
+    "category": "logo-circle",
+    "brand": "Gameseal Global - CPS",
+    "slug": "gameseal_global",
+    "name": "Brand=Gameseal Global - CPS"
+  },
+  {
+    "nodeId": "15:108",
+    "category": "logo-circle",
+    "brand": "Unipin Global - CPS",
+    "slug": "unipin_global",
+    "name": "Brand=Unipin Global - CPS"
+  },
+  {
+    "nodeId": "15:107",
+    "category": "logo-circle",
+    "brand": "LapakGaming - CPS",
+    "slug": "lapakgaming",
+    "name": "Brand=LapakGaming - CPS"
+  },
+  {
+    "nodeId": "15:106",
+    "category": "logo-circle",
+    "brand": "Pelago - CPS",
+    "slug": "pelago",
+    "name": "Brand=Pelago - CPS"
+  },
+  {
+    "nodeId": "15:105",
+    "category": "logo-circle",
+    "brand": "MyRepublic SG - CPS",
+    "slug": "myrepublic_sg",
+    "name": "Brand=MyRepublic SG - CPS"
+  },
+  {
+    "nodeId": "15:104",
+    "category": "logo-circle",
+    "brand": "HomePro TH - CPS",
+    "slug": "homepro_th",
+    "name": "Brand=HomePro TH - CPS"
+  },
+  {
+    "nodeId": "15:103",
+    "category": "logo-circle",
+    "brand": "Banggood (Global)",
+    "slug": "banggood_global",
+    "name": "Brand=Banggood (Global)"
+  },
+  {
+    "nodeId": "15:102",
+    "category": "logo-circle",
+    "brand": "Zen Hotels - CPS",
+    "slug": "zen_hotels",
+    "name": "Brand=Zen Hotels - CPS"
+  },
+  {
+    "nodeId": "15:101",
+    "category": "logo-circle",
+    "brand": "Thisshop TH - CPS",
+    "slug": "thisshop_th",
+    "name": "Brand=Thisshop TH - CPS"
+  },
+  {
+    "nodeId": "15:100",
+    "category": "logo-circle",
+    "brand": "Omio (GoEuro)",
+    "slug": "omio_goeuro",
+    "name": "Brand=Omio (GoEuro)"
+  },
+  {
+    "nodeId": "15:99",
+    "category": "logo-circle",
+    "brand": "Kiwi Global - CPS",
+    "slug": "kiwi_global",
+    "name": "Brand=Kiwi Global - CPS"
+  },
+  {
+    "nodeId": "15:98",
+    "category": "logo-circle",
+    "brand": "Tripadvisor (CPS)",
+    "slug": "tripadvisor_cps",
+    "name": "Brand=Tripadvisor (CPS)"
+  },
+  {
+    "nodeId": "15:97",
+    "category": "logo-circle",
+    "brand": "Hungry Hub (TH)",
+    "slug": "hungry_hub_th",
+    "name": "Brand=Hungry Hub (TH)"
+  },
+  {
+    "nodeId": "15:96",
+    "category": "logo-circle",
+    "brand": "Beauty Firster TH - CPS",
+    "slug": "beauty_firster_th",
+    "name": "Brand=Beauty Firster TH - CPS"
+  },
+  {
+    "nodeId": "15:95",
+    "category": "logo-circle",
+    "brand": "iMobie - CPS",
+    "slug": "imobie",
+    "name": "Brand=iMobie - CPS"
+  },
+  {
+    "nodeId": "15:94",
+    "category": "logo-circle",
+    "brand": "Studio7 TH - CPS",
+    "slug": "studio7_th",
+    "name": "Brand=Studio7 TH - CPS"
+  },
+  {
+    "nodeId": "15:93",
+    "category": "logo-circle",
+    "brand": "Sephora (TH)",
+    "slug": "sephora_th",
+    "name": "Brand=Sephora (TH)"
+  },
+  {
+    "nodeId": "15:92",
+    "category": "logo-circle",
+    "brand": "DHGate Global (CPS)",
+    "slug": "dhgate_global_cps",
+    "name": "Brand=DHGate Global (CPS)"
+  },
+  {
+    "nodeId": "15:91",
+    "category": "logo-circle",
+    "brand": "Charles & Keith (TH) - CPS",
+    "slug": "charles_keith_th",
+    "name": "Brand=Charles & Keith (TH) - CPS"
+  },
+  {
+    "nodeId": "15:90",
+    "category": "logo-circle",
+    "brand": "HopeGoo - CPS",
+    "slug": "hopegoo",
+    "name": "Brand=HopeGoo - CPS"
+  },
+  {
+    "nodeId": "15:89",
+    "category": "logo-circle",
+    "brand": "Alibaba CPS",
+    "slug": "alibaba_cps",
+    "name": "Brand=Alibaba CPS"
+  },
+  {
+    "nodeId": "15:88",
+    "category": "logo-circle",
+    "brand": "Petronas Shop - CPS",
+    "slug": "petronas_shop",
+    "name": "Brand=Petronas Shop - CPS"
+  },
+  {
+    "nodeId": "15:87",
+    "category": "logo-circle",
+    "brand": "Xiaomi (TH) - CPS",
+    "slug": "xiaomi_th",
+    "name": "Brand=Xiaomi (TH) - CPS"
+  },
+  {
+    "nodeId": "15:86",
+    "category": "logo-circle",
+    "brand": "AliExpress (Global) - CPS",
+    "slug": "aliexpress_global",
+    "name": "Brand=AliExpress (Global) - CPS"
+  },
+  {
+    "nodeId": "15:85",
+    "category": "logo-circle",
+    "brand": "Photobook (TH)",
+    "slug": "photobook_th",
+    "name": "Brand=Photobook (TH)"
+  },
+  {
+    "nodeId": "15:84",
+    "category": "logo-circle",
+    "brand": "GQ Thailand - CPS",
+    "slug": "gq_thailand",
+    "name": "Brand=GQ Thailand - CPS"
+  },
+  {
+    "nodeId": "15:83",
+    "category": "logo-circle",
+    "brand": "WPS SOFTWARE - CPI + CPS",
+    "slug": "wps_software_-_cpi_cps",
+    "name": "Brand=WPS SOFTWARE - CPI + CPS"
+  },
+  {
+    "nodeId": "15:82",
+    "category": "logo-circle",
+    "brand": "Megatix TH",
+    "slug": "megatix_th",
+    "name": "Brand=Megatix TH"
+  },
+  {
+    "nodeId": "15:81",
+    "category": "logo-circle",
+    "brand": "PanelPlace Global - CPA",
+    "slug": "panelplace_global_-_cpa",
+    "name": "Brand=PanelPlace Global - CPA"
+  },
+  {
+    "nodeId": "15:80",
+    "category": "logo-circle",
+    "brand": "Skechers TH - CPS",
+    "slug": "skechers_th",
+    "name": "Brand=Skechers TH - CPS"
+  },
+  {
+    "nodeId": "15:79",
+    "category": "logo-circle",
+    "brand": "KTC Credit Card (TH)",
+    "slug": "ktc_credit_card_th",
+    "name": "Brand=KTC Credit Card (TH)"
+  },
+  {
+    "nodeId": "15:78",
+    "category": "logo-circle",
+    "brand": "Central (TH) - CPS",
+    "slug": "central_th",
+    "name": "Brand=Central (TH) - CPS"
+  },
+  {
+    "nodeId": "15:76",
+    "category": "logo-circle",
+    "brand": "UGREEN Global - CPS",
+    "slug": "ugreen_global",
+    "name": "Brand=UGREEN Global - CPS"
+  },
+  {
+    "nodeId": "15:74",
+    "category": "logo-circle",
+    "brand": "King Power (TH)",
+    "slug": "king_power_th",
+    "name": "Brand=King Power (TH)"
+  },
+  {
+    "nodeId": "15:73",
+    "category": "logo-circle",
+    "brand": "Juice Store",
+    "slug": "juice_store",
+    "name": "Brand=Juice Store"
+  },
+  {
+    "nodeId": "15:136",
+    "category": "logo-circle",
+    "brand": "Codashop - CPS",
+    "slug": "codashop",
+    "name": "Brand=Codashop - CPS"
+  },
+  {
+    "nodeId": "15:72",
+    "category": "logo-circle",
+    "brand": "JD Sports (TH) - CPS",
+    "slug": "jd_sports_th",
+    "name": "Brand=JD Sports (TH) - CPS"
+  },
+  {
+    "nodeId": "15:71",
+    "category": "logo-circle",
+    "brand": "LG (TH) - CPS",
+    "slug": "lg_th",
+    "name": "Brand=LG (TH) - CPS"
+  },
+  {
+    "nodeId": "15:148",
+    "category": "logo-circle",
+    "brand": "Trip.com - CPS",
+    "slug": "tripcom",
+    "name": "Brand=Trip.com - CPS"
+  },
+  {
+    "nodeId": "15:70",
+    "category": "logo-circle",
+    "brand": "Traveloka PH - CPS",
+    "slug": "traveloka_ph",
+    "name": "Brand=Traveloka PH - CPS"
+  },
+  {
+    "nodeId": "15:161",
+    "category": "logo-circle",
+    "brand": "Airalo (Global) - CPS",
+    "slug": "airalo_global",
+    "name": "Brand=Airalo (Global) - CPS"
+  },
+  {
+    "nodeId": "15:157",
+    "category": "logo-circle",
+    "brand": "Wegic AI - CPS",
+    "slug": "wegic_ai",
+    "name": "Brand=Wegic AI - CPS"
+  },
+  {
+    "nodeId": "15:69",
+    "category": "logo-circle",
+    "brand": "Airpaz Global - CPS",
+    "slug": "airpaz_global",
+    "name": "Brand=Airpaz Global - CPS"
+  },
+  {
+    "nodeId": "15:68",
+    "category": "logo-circle",
+    "brand": "SimOptions Global - CPS",
+    "slug": "simoptions_global",
+    "name": "Brand=SimOptions Global - CPS"
+  },
+  {
+    "nodeId": "15:67",
+    "category": "logo-circle",
+    "brand": "TrainPal - CPS",
+    "slug": "trainpal",
+    "name": "Brand=TrainPal - CPS"
+  },
+  {
+    "nodeId": "15:66",
+    "category": "logo-circle",
+    "brand": "Sider AI - CPS",
+    "slug": "sider_ai",
+    "name": "Brand=Sider AI - CPS"
+  },
+  {
+    "nodeId": "15:65",
+    "category": "logo-circle",
+    "brand": "Insurverse TH - CPA",
+    "slug": "insurverse_th_-_cpa",
+    "name": "Brand=Insurverse TH - CPA"
+  },
+  {
+    "nodeId": "15:64",
+    "category": "logo-circle",
+    "brand": "Bro.Game TH - CPS",
+    "slug": "brogame_th",
+    "name": "Brand=Bro.Game TH - CPS"
+  },
+  {
+    "nodeId": "15:63",
+    "category": "logo-circle",
+    "brand": "Kinokuniya (TH)",
+    "slug": "kinokuniya_th",
+    "name": "Brand=Kinokuniya (TH)"
+  },
+  {
+    "nodeId": "15:62",
+    "category": "logo-circle",
+    "brand": "Tiqets CPS",
+    "slug": "tiqets_cps",
+    "name": "Brand=Tiqets CPS"
+  },
+  {
+    "nodeId": "15:61",
+    "category": "logo-circle",
+    "brand": "Double A Thailand",
+    "slug": "double_a_thailand",
+    "name": "Brand=Double A Thailand"
+  },
+  {
+    "nodeId": "15:60",
+    "category": "logo-circle",
+    "brand": "Lotus's TH - CPS",
+    "slug": "lotuss_th",
+    "name": "Brand=Lotus's TH - CPS"
+  },
+  {
+    "nodeId": "15:59",
+    "category": "logo-circle",
+    "brand": "Capcut",
+    "slug": "capcut",
+    "name": "Brand=Capcut"
+  },
+  {
+    "nodeId": "15:58",
+    "category": "logo-circle",
+    "brand": "Shopee TH - CPS",
+    "slug": "shopee_th",
+    "name": "Brand=Shopee TH - CPS"
+  },
+  {
+    "nodeId": "15:57",
+    "category": "logo-circle",
+    "brand": "AirAsia (Travel)",
+    "slug": "airasia_travel",
+    "name": "Brand=AirAsia (Travel)"
+  },
+  {
+    "nodeId": "15:56",
+    "category": "logo-circle",
+    "brand": "KKday Global - CPS",
+    "slug": "kkday_global",
+    "name": "Brand=KKday Global - CPS"
+  },
+  {
+    "nodeId": "15:55",
+    "category": "logo-circle",
+    "brand": "Udemy US - CPS",
+    "slug": "udemy_us",
+    "name": "Brand=Udemy US - CPS"
+  },
+  {
+    "nodeId": "15:54",
+    "category": "logo-circle",
+    "brand": "B2S",
+    "slug": "b2s",
+    "name": "Brand=B2S"
+  },
+  {
+    "nodeId": "15:53",
+    "category": "logo-circle",
+    "brand": "Olive Young",
+    "slug": "olive_young",
+    "name": "Brand=Olive Young"
+  },
+  {
+    "nodeId": "15:52",
+    "category": "logo-circle",
+    "brand": "Banana IT (TH)",
+    "slug": "banana_it_th",
+    "name": "Brand=Banana IT (TH)"
+  },
+  {
+    "nodeId": "15:51",
+    "category": "logo-circle",
+    "brand": "Accor South Asia - CPS",
+    "slug": "accor_south_asia",
+    "name": "Brand=Accor South Asia - CPS"
+  },
+  {
+    "nodeId": "15:50",
+    "category": "logo-circle",
+    "brand": "TikTok B2B",
+    "slug": "tiktok_b2b",
+    "name": "Brand=TikTok B2B"
+  },
+  {
+    "nodeId": "15:49",
+    "category": "logo-circle",
+    "brand": "Domino's Pizza (ID) - CPS",
+    "slug": "dominos_pizza_id",
+    "name": "Brand=Domino's Pizza (ID) - CPS"
+  },
+  {
+    "nodeId": "15:48",
+    "category": "logo-circle",
+    "brand": "Klook Travel - CPS",
+    "slug": "klook_travel",
+    "name": "Brand=Klook Travel - CPS"
+  },
+  {
+    "nodeId": "15:1466",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1466",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1471",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1471",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1476",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1476",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1481",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1481",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1495",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1495",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1500",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1500",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1505",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1505",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1510",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1510",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1515",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1515",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1520",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1520",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1525",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1525",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1530",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1530",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1535",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1535",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1540",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1540",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1545",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1545",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1555",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1555",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1560",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1560",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1565",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1565",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1570",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1570",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1575",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1575",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1580",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1580",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1590",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1590",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1595",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1595",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1600",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1600",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1605",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1605",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1610",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1610",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1615",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1615",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1620",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1620",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1625",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1625",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1630",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1630",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1635",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1635",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1640",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1640",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1645",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1645",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1650",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1650",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1655",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1655",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1660",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1660",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1667",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1667",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1674",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1674",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:135",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_135",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:140",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_140",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:145",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_145",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:150",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_150",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:155",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_155",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:160",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_160",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:165",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_165",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:170",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_170",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:175",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_175",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:180",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_180",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:185",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_185",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:190",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_190",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:195",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_195",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:200",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_200",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:205",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_205",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:210",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_210",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:220",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_220",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:234",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_234",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:241",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_241",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:261",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_261",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:246",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_246",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:251",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_251",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:256",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_256",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:266",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_266",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:276",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_276",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:291",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_291",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:296",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_296",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:316",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_316",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:326",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_326",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:331",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_331",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:336",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_336",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:341",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_341",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:346",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_346",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:351",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_351",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:356",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_356",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:376",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_376",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:381",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_381",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:388",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_388",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:415",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_415",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:445",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_445",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:420",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_420",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:395",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_395",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:400",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_400",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:405",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_405",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:410",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_410",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:425",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_425",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:435",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_435",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:440",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_440",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:430",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_430",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:361",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_361",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:366",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_366",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:371",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_371",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:311",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_311",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:320",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_320",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:301",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_301",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:306",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_306",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:271",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_271",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:281",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_281",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:286",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_286",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:227",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_227",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "27:215",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_27_215",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1585",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1585",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1550",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1550",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1486",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1486",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:209",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_209",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:219",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_219",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:1458",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_1458",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "15:214",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_15_214",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:450",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_450",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:455",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_455",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:460",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_460",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:465",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_465",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:470",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_470",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:475",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_475",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:480",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_480",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:485",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_485",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:490",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_490",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:495",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_495",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:500",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_500",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:505",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_505",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:510",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_510",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:520",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_520",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:525",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_525",
+    "name": "Logo Banner for Shop Page"
+  },
+  {
+    "nodeId": "28:515",
+    "category": "shop-page-banner",
+    "brand": "unknown",
+    "slug": "unknown_28_515",
+    "name": "Logo Banner for Shop Page"
+  }
+]

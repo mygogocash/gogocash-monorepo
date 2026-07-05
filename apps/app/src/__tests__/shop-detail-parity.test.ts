@@ -162,7 +162,8 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("aspectRatio: shop.questBanner.imageWidth / shop.questBanner.imageHeight");
     expect(shopFile).toContain("height: \"100%\"");
     expect(shopFile).toContain("resizeMode=\"cover\"");
-    expect(shopFile).toContain("<ShopQuestBanner shop={shop} />\n              <ShopDealsEmptyState");
+    expect(shopFile).toContain("<ShopQuestBanner shop={shop} />");
+    expect(shopFile).toContain("<ShopDealsEmptyState shop={shop} />");
   });
 
   it("shop detail parity > given selected staging Cashback Tips > then Expo renders structured panel after deals", () => {
@@ -171,9 +172,8 @@ describe("Shop detail parity", () => {
 
     expect(shopFile).not.toContain("merchantCashbackTipsImage");
     expect(shopFile).not.toContain("merchant-cashback-tips-terms");
-    expect(shopFile).toContain(
-      "<ShopDealsEmptyState shop={shop} />\n              <ShopCashbackTipsPanel shop={shop} />"
-    );
+    expect(shopFile).toContain("<ShopDealsEmptyState shop={shop} />");
+    expect(shopFile).toContain("<ShopCashbackTipsPanel shop={shop} />");
     expect(panelFile).toContain("filterShopCashbackTipsForCategory");
     expect(panelFile).toContain("CashbackTipHighlightCard");
     expect(panelFile).toContain("CashbackTipTextCard");
@@ -200,5 +200,26 @@ describe("Shop detail parity", () => {
       /shopNowButton:\s*\{[\s\S]*?backgroundColor: pickThemed\(colors, colors\.ink, colors\.primary\)/,
     );
     expect(shopFile).toMatch(/shopNowText:\s*\{[\s\S]*?color: colors\.white/);
+  });
+
+  it("shop detail parity > given desktop web > then content uses full-bleed shell cap like category pages", () => {
+    const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+
+    expect(shopFile).toContain("desktopShellFrame");
+    expect(shopFile).toContain("desktopContentCap");
+    expect(shopFile).toContain("getDesktopShellOffset");
+    expect(shopFile).toContain("horizontalPadding={desktopFooterHorizontalOffset}");
+    expect(shopFile).toContain("summaryCardDesktop");
+  });
+
+  it("shop detail parity > given an unsigned user taps Shop Now > then login is required before redirect overlay", () => {
+    const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+
+    expect(shopFile).toContain("useAuthGuardSession");
+    expect(shopFile).toContain("buildLoginRedirectWithCallback");
+    expect(shopFile).toContain("setPendingShopNowIntent");
+    expect(shopFile).toContain("consumePendingShopNowIntent");
+    expect(shopFile).toContain("handleShopNow");
+    expect(shopFile).toContain("ShopRedirectOverlay");
   });
 });

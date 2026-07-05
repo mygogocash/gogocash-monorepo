@@ -85,5 +85,6 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
 
     expect(providers).toContain("<QueryClientProvider client={queryClient}>");
     expect(providers).toContain("AccountResourceWarmup");
+    expect(providers).toContain("PublicCatalogRefetchOnFocus");
   });
 });

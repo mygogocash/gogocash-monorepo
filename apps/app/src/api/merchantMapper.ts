@@ -91,7 +91,7 @@ export function mapMerchantOfferToShopDetail<TShop extends ShopDetailIdentity>(
     extraCashback: cashback,
     id: offer._id,
     logoText: initialsFromBrand(brand),
-    logoUri: firstImageUri(offer.logo_circle, offer.logo, offer.logo_desktop, offer.logo_mobile),
+    logoUri: firstImageUri(offer.logo_desktop, offer.logo_mobile, offer.logo_circle, offer.logo),
     note:
       offer.note_to_user?.trim() ||
       `${brand} cashback is tracked through GoGoCash after you open the merchant link and complete an eligible order.`,

@@ -11,6 +11,7 @@ import {
   resolveCustomerAccountResourceQueryKey,
   resolveCustomerAccountResourceSessionScope,
 } from "@mobile/account/customerAccountResourceQueryKey";
+import { resolveCustomerAccountResourceQueryOptions } from "@mobile/account/customerAccountResourceQueryOptions";
 import { normalizeCheckWithdrawResponse } from "@mobile/api/walletTypes";
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
@@ -216,6 +217,7 @@ export function useCustomerAccountResource<TFixture, TBackend = unknown>({
       resourceId,
       sessionScope,
     }),
+    ...resolveCustomerAccountResourceQueryOptions(resourceId),
     retry: false,
   });
 

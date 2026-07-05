@@ -798,6 +798,71 @@ describe('OfferService', () => {
       });
     });
 
+    it('getDisplayTopBrands > given admin desktop logo > then prefers it over circle and legacy logo', async () => {
+      topBrandConfigModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          brands: [{ offerId: 'id1', cashback: '5%' }],
+        }),
+      });
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: 'id1',
+            offer_id: 5031,
+            offer_name: 'Shopee TH - CPS',
+            offer_name_display: 'Shopee',
+            logo: 'https://involve/legacy.png',
+            logo_desktop: 'https://media-staging.gogocash.co/shopee-square.png',
+            logo_circle: 'https://media-staging.gogocash.co/shopee-circle.png',
+          },
+        ]),
+      );
+
+      const result = await service.getDisplayTopBrands();
+
+      expect(result.data).toEqual([
+        {
+          _id: 'id1',
+          offer_id: 5031,
+          brand: 'Shopee',
+          logo: 'https://media-staging.gogocash.co/shopee-square.png',
+          cashback: '5%',
+        },
+      ]);
+    });
+
+    it('getDisplayTopBrands > given circle logo without desktop > then falls back to circle then legacy', async () => {
+      topBrandConfigModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          brands: [{ offerId: 'id1', cashback: '5%' }],
+        }),
+      });
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: 'id1',
+            offer_id: 5031,
+            offer_name: 'Shopee TH - CPS',
+            offer_name_display: 'Shopee',
+            logo: 'https://involve/legacy.png',
+            logo_circle: 'https://media-staging.gogocash.co/shopee-circle.png',
+          },
+        ]),
+      );
+
+      const result = await service.getDisplayTopBrands();
+
+      expect(result.data).toEqual([
+        {
+          _id: 'id1',
+          offer_id: 5031,
+          brand: 'Shopee',
+          logo: 'https://media-staging.gogocash.co/shopee-circle.png',
+          cashback: '5%',
+        },
+      ]);
+    });
+
     it('getDisplayTopBrands > given a saved id with no matching offer > then drops that entry', async () => {
       topBrandConfigModel.findOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue({

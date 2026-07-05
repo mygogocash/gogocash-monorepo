@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildLoginRedirectWithCallback,
   buildProtectedLoginRedirect,
   findRouteForPathname,
   isAllowedInternalCallbackPath,
@@ -37,6 +38,12 @@ describe("Expo protected route guard", () => {
       expect(isProtectedNativePath(pathname), pathname).toBe(false);
       expect(buildProtectedLoginRedirect(pathname), pathname).toBeNull();
     }
+  });
+
+  it("login redirect > given a public shop detail path > then buildLoginRedirectWithCallback returns login with callback", () => {
+    expect(buildLoginRedirectWithCallback("/shop/6a49f3e6ce2e0da81d6dc375")).toBe(
+      "/login?callbackUrl=%2Fshop%2F6a49f3e6ce2e0da81d6dc375",
+    );
   });
 
   it("callback guard > given redirect-after-login targets > then only internal GoGoCash routes are allowed", () => {

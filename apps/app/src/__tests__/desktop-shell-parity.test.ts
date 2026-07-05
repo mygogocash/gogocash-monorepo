@@ -49,6 +49,7 @@ const cappedDesktopFooterScreens = [
   "src/components/AccountPageShell.tsx",
   "src/screens/CustomerHomeScreen.tsx",
   "src/screens/CustomerCategoryDetailScreen.tsx",
+  "src/screens/CustomerShopDetailScreen.tsx",
 ];
 
 function readDiscoveryChromeSources() {

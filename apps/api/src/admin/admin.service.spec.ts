@@ -460,6 +460,9 @@ describe('AdminService', () => {
       expect(persisted.logo_desktop).toBe(
         'https://storage.googleapis.com/gogocash-catalog-staging/brands/new-logo.png',
       );
+      expect(persisted.logo).toBe(
+        'https://storage.googleapis.com/gogocash-catalog-staging/brands/new-logo.png',
+      );
       expect(persisted.logo_mobile).toBe('keep-mobile');
     });
 

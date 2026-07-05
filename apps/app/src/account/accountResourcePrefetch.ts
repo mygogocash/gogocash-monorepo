@@ -10,6 +10,7 @@ import {
   resolveCustomerAccountResourceQueryKey,
   resolveCustomerAccountResourceSessionScope,
 } from "@mobile/account/customerAccountResourceQueryKey";
+import { resolveCustomerAccountResourceQueryOptions } from "@mobile/account/customerAccountResourceQueryOptions";
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import type { MobileSession } from "@mobile/auth/session";
@@ -17,6 +18,14 @@ import type { MobileSession } from "@mobile/auth/session";
 const AUTHED_PREFETCH_RESOURCE_IDS = ["profile", "wallet"] as const satisfies readonly CustomerAccountResourceId[];
 
 const PUBLIC_PREFETCH_RESOURCE_IDS = ["homeBanner", "topBrand", "brandCatalog"] as const satisfies readonly CustomerAccountResourceId[];
+
+export const PUBLIC_CATALOG_REFETCH_RESOURCE_IDS = [
+  "homeBanner",
+  "topBrand",
+  "brandCatalog",
+  "categoryList",
+  "catalog",
+] as const satisfies readonly CustomerAccountResourceId[];
 
 async function prefetchResource(
   queryClient: QueryClient,
@@ -56,6 +65,7 @@ async function prefetchResource(
       resourceId,
       sessionScope,
     }),
+    ...resolveCustomerAccountResourceQueryOptions(resourceId),
   });
 }
 
@@ -81,5 +91,33 @@ export async function prefetchAuthedAccountResources(
     AUTHED_PREFETCH_RESOURCE_IDS.map((resourceId) =>
       prefetchResource(queryClient, apiUrl, accountDataSource, resourceId, session),
     ),
+  );
+}
+
+/** Refetch public catalog feeds when the app returns to foreground (native + web). */
+export async function refetchPublicCatalogResources(
+  queryClient: QueryClient,
+  apiUrl: string,
+  accountDataSource: AccountDataSource,
+): Promise<void> {
+  if (!apiUrl || accountDataSource !== "backend") {
+    return;
+  }
+
+  await Promise.all(
+    PUBLIC_CATALOG_REFETCH_RESOURCE_IDS.map(async (resourceId) => {
+      const endpoint = resolveCustomerAccountResourceEndpoint({ resourceId });
+      const sessionScope = resolveCustomerAccountResourceSessionScope(resourceId, null);
+
+      await queryClient.refetchQueries({
+        queryKey: resolveCustomerAccountResourceQueryKey({
+          apiUrl,
+          endpoint,
+          resourceId,
+          sessionScope,
+        }),
+        type: "active",
+      });
+    }),
   );
 }

@@ -1,0 +1,1102 @@
+[
+  {
+    "brand": "Geekbuying",
+    "slug": "geekbuying",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:450",
+    "figmaName": "Brand=Geekbuying, Cover=False",
+    "relativePath": "docs/assets/brand-logos/geekbuying/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Sasa",
+    "slug": "sasa",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:462",
+    "figmaName": "Brand=Sasa, Cover=False",
+    "relativePath": "docs/assets/brand-logos/sasa/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Jazeera",
+    "slug": "jazeera",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:444",
+    "figmaName": "Brand=Jazeera, Cover=False",
+    "relativePath": "docs/assets/brand-logos/jazeera/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "StackSocial",
+    "slug": "stacksocial",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:453",
+    "figmaName": "Brand=StackSocial, Cover=False",
+    "relativePath": "docs/assets/brand-logos/stacksocial/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Stylevana",
+    "slug": "stylevana",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:438",
+    "figmaName": "Brand=Stylevana, Cover=False",
+    "relativePath": "docs/assets/brand-logos/stylevana/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "lightpdf",
+    "slug": "lightpdf",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:447",
+    "figmaName": "Brand=lightpdf, Cover=False",
+    "relativePath": "docs/assets/brand-logos/lightpdf/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Auras insurance",
+    "slug": "auras_insurance",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:467",
+    "figmaName": "Brand=Auras insurance, Cover=False",
+    "relativePath": "docs/assets/brand-logos/auras_insurance/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Bangkok airways",
+    "slug": "bangkok_airways",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:408",
+    "figmaName": "Brand=Bangkok airways, Cover=False",
+    "relativePath": "docs/assets/brand-logos/bangkok_airways/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "cleartrip",
+    "slug": "cleartrip",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:443",
+    "figmaName": "Brand=cleartrip, Cover=False",
+    "relativePath": "docs/assets/brand-logos/cleartrip/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "jetpac",
+    "slug": "jetpac",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:422",
+    "figmaName": "Brand=jetpac, Cover=False",
+    "relativePath": "docs/assets/brand-logos/jetpac/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Etihad",
+    "slug": "etihad",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:430",
+    "figmaName": "Brand=Etihad, Cover=False",
+    "relativePath": "docs/assets/brand-logos/etihad/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "pepperstone",
+    "slug": "pepperstone",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:468",
+    "figmaName": "Brand=pepperstone, Cover=False",
+    "relativePath": "docs/assets/brand-logos/pepperstone/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "agoda",
+    "slug": "agoda",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:466",
+    "figmaName": "Brand=agoda, Cover=False",
+    "relativePath": "docs/assets/brand-logos/agoda/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Tumi",
+    "slug": "tumi",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:463",
+    "figmaName": "Brand=Tumi, Cover=False",
+    "relativePath": "docs/assets/brand-logos/tumi/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Puma",
+    "slug": "puma",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:461",
+    "figmaName": "Brand=Puma, Cover=False",
+    "relativePath": "docs/assets/brand-logos/puma/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Chow Sang Sang",
+    "slug": "chow_sang_sang",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:380",
+    "figmaName": "Brand=Chow Sang Sang, Cover=False",
+    "relativePath": "docs/assets/brand-logos/chow_sang_sang/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "iherb",
+    "slug": "iherb",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:454",
+    "figmaName": "Brand=iherb, Cover=False",
+    "relativePath": "docs/assets/brand-logos/iherb/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "qatar airways",
+    "slug": "qatar_airways",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:452",
+    "figmaName": "Brand=qatar airways, Cover=False",
+    "relativePath": "docs/assets/brand-logos/qatar_airways/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "hp",
+    "slug": "hp",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:448",
+    "figmaName": "Brand=hp, Cover=False",
+    "relativePath": "docs/assets/brand-logos/hp/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "razer",
+    "slug": "razer",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:445",
+    "figmaName": "Brand=razer, Cover=False",
+    "relativePath": "docs/assets/brand-logos/razer/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "gowabi",
+    "slug": "gowabi",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:449",
+    "figmaName": "Brand=gowabi, Cover=False",
+    "relativePath": "docs/assets/brand-logos/gowabi/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "foreo",
+    "slug": "foreo",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:424",
+    "figmaName": "Brand=foreo, Cover=False",
+    "relativePath": "docs/assets/brand-logos/foreo/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Pai wellness",
+    "slug": "pai_wellness",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:433",
+    "figmaName": "Brand=Pai wellness, Cover=False",
+    "relativePath": "docs/assets/brand-logos/pai_wellness/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "shein",
+    "slug": "shein",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:363",
+    "figmaName": "Brand=shein, Cover=False",
+    "relativePath": "docs/assets/brand-logos/shein/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Shein Global - CPS",
+    "slug": "shein_global",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:431",
+    "figmaName": "Brand=Shein Global - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/shein_global/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "hotels.com",
+    "slug": "hotelscom",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:427",
+    "figmaName": "Brand=hotels.com, Cover=False",
+    "relativePath": "docs/assets/brand-logos/hotelscom/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "taobao",
+    "slug": "taobao",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:426",
+    "figmaName": "Brand=taobao, Cover=False",
+    "relativePath": "docs/assets/brand-logos/taobao/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Taobao (Deeplinkable) - CPS",
+    "slug": "taobao_deeplinkable",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:423",
+    "figmaName": "Brand=Taobao (Deeplinkable) - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/taobao_deeplinkable/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "expedia",
+    "slug": "expedia",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:417",
+    "figmaName": "Brand=expedia, Cover=False",
+    "relativePath": "docs/assets/brand-logos/expedia/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Rakuten travel",
+    "slug": "rakuten_travel",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:413",
+    "figmaName": "Brand=Rakuten travel, Cover=False",
+    "relativePath": "docs/assets/brand-logos/rakuten_travel/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Swarovski",
+    "slug": "swarovski",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:420",
+    "figmaName": "Brand=Swarovski, Cover=False",
+    "relativePath": "docs/assets/brand-logos/swarovski/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "lululemon",
+    "slug": "lululemon",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:412",
+    "figmaName": "Brand=lululemon, Cover=False",
+    "relativePath": "docs/assets/brand-logos/lululemon/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "go city",
+    "slug": "go_city",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:410",
+    "figmaName": "Brand=go city, Cover=False",
+    "relativePath": "docs/assets/brand-logos/go_city/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Nike",
+    "slug": "nike",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:439",
+    "figmaName": "Brand=Nike, Cover=False",
+    "relativePath": "docs/assets/brand-logos/nike/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Adidas",
+    "slug": "adidas",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:407",
+    "figmaName": "Brand=Adidas, Cover=False",
+    "relativePath": "docs/assets/brand-logos/adidas/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Malaysia Airlines",
+    "slug": "malaysia_airlines",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:405",
+    "figmaName": "Brand=Malaysia Airlines, Cover=False",
+    "relativePath": "docs/assets/brand-logos/malaysia_airlines/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "British Council",
+    "slug": "british_council",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:403",
+    "figmaName": "Brand=British Council, Cover=False",
+    "relativePath": "docs/assets/brand-logos/british_council/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Lazada",
+    "slug": "lazada",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:383",
+    "figmaName": "Brand=Lazada, Cover=False",
+    "relativePath": "docs/assets/brand-logos/lazada/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "GoDaddy.com",
+    "slug": "godaddycom",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:428",
+    "figmaName": "Brand=GoDaddy.com, Cover=False",
+    "relativePath": "docs/assets/brand-logos/godaddycom/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "HideMe VPN - CPS",
+    "slug": "hideme_vpn",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:401",
+    "figmaName": "Brand=HideMe VPN - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/hideme_vpn/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Express VPN - CPS (NEW)",
+    "slug": "express_vpn_-_cps_new",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:396",
+    "figmaName": "Brand=Express VPN - CPS (NEW), Cover=False",
+    "relativePath": "docs/assets/brand-logos/express_vpn_-_cps_new/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "iMyFone CPS",
+    "slug": "imyfone_cps",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:460",
+    "figmaName": "Brand=iMyFone CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/imyfone_cps/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "True TH - CPS + CPA",
+    "slug": "true_th_-_cps_cpa",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:393",
+    "figmaName": "Brand=True TH - CPS + CPA, Cover=False",
+    "relativePath": "docs/assets/brand-logos/true_th_-_cps_cpa/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Papique - CPS",
+    "slug": "papique",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:416",
+    "figmaName": "Brand=Papique - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/papique/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Fever Global - CPS",
+    "slug": "fever_global",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:391",
+    "figmaName": "Brand=Fever Global - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/fever_global/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Involve Asia",
+    "slug": "involve_asia",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:451",
+    "figmaName": "Brand=Involve Asia, Cover=False",
+    "relativePath": "docs/assets/brand-logos/involve_asia/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Muang Thai Life - CPS",
+    "slug": "muang_thai_life",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:390",
+    "figmaName": "Brand=Muang Thai Life - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/muang_thai_life/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "All Online TH - CPS",
+    "slug": "all_online_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:456",
+    "figmaName": "Brand=All Online TH - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/all_online_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Homestyler Global - CPS",
+    "slug": "homestyler_global",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:389",
+    "figmaName": "Brand=Homestyler Global - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/homestyler_global/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Mister Aladin (ID) - CPS",
+    "slug": "mister_aladin_id",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:425",
+    "figmaName": "Brand=Mister Aladin (ID) - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/mister_aladin_id/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Havaianas TH - CPS",
+    "slug": "havaianas_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:411",
+    "figmaName": "Brand=Havaianas TH - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/havaianas_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "International Open Academy - CPS",
+    "slug": "international_open_academy",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:446",
+    "figmaName": "Brand=International Open Academy - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/international_open_academy/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Roamless eSIM - CPS",
+    "slug": "roamless_esim",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:388",
+    "figmaName": "Brand=Roamless eSIM - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/roamless_esim/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Bask Bear Coffee - CPS",
+    "slug": "bask_bear_coffee",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:419",
+    "figmaName": "Brand=Bask Bear Coffee - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/bask_bear_coffee/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "SEAGM",
+    "slug": "seagm",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:418",
+    "figmaName": "Brand=SEAGM, Cover=False",
+    "relativePath": "docs/assets/brand-logos/seagm/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Gameseal Global - CPS",
+    "slug": "gameseal_global",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:437",
+    "figmaName": "Brand=Gameseal Global - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/gameseal_global/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Unipin Global - CPS",
+    "slug": "unipin_global",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:406",
+    "figmaName": "Brand=Unipin Global - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/unipin_global/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "LapakGaming - CPS",
+    "slug": "lapakgaming",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:432",
+    "figmaName": "Brand=LapakGaming - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/lapakgaming/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Pelago - CPS",
+    "slug": "pelago",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:458",
+    "figmaName": "Brand=Pelago - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/pelago/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "MyRepublic SG - CPS",
+    "slug": "myrepublic_sg",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:400",
+    "figmaName": "Brand=MyRepublic SG - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/myrepublic_sg/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "HomePro TH - CPS",
+    "slug": "homepro_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:387",
+    "figmaName": "Brand=HomePro TH - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/homepro_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Banggood (Global)",
+    "slug": "banggood_global",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:404",
+    "figmaName": "Brand=Banggood (Global), Cover=False",
+    "relativePath": "docs/assets/brand-logos/banggood_global/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Zen Hotels - CPS",
+    "slug": "zen_hotels",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:386",
+    "figmaName": "Brand=Zen Hotels - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/zen_hotels/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Thisshop TH - CPS",
+    "slug": "thisshop_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:385",
+    "figmaName": "Brand=Thisshop TH - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/thisshop_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Omio (GoEuro)",
+    "slug": "omio_goeuro",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:384",
+    "figmaName": "Brand=Omio (GoEuro), Cover=False",
+    "relativePath": "docs/assets/brand-logos/omio_goeuro/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Kiwi Global - CPS",
+    "slug": "kiwi_global",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:382",
+    "figmaName": "Brand=Kiwi Global - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/kiwi_global/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Tripadvisor (CPS)",
+    "slug": "tripadvisor_cps",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:381",
+    "figmaName": "Brand=Tripadvisor (CPS), Cover=False",
+    "relativePath": "docs/assets/brand-logos/tripadvisor_cps/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Hungry Hub (TH)",
+    "slug": "hungry_hub_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:378",
+    "figmaName": "Brand=Hungry Hub (TH), Cover=False",
+    "relativePath": "docs/assets/brand-logos/hungry_hub_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Beauty Firster TH - CPS",
+    "slug": "beauty_firster_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:402",
+    "figmaName": "Brand=Beauty Firster TH - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/beauty_firster_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "iMobie - CPS",
+    "slug": "imobie",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:409",
+    "figmaName": "Brand=iMobie - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/imobie/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Studio7 TH - CPS",
+    "slug": "studio7_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:455",
+    "figmaName": "Brand=Studio7 TH - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/studio7_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Sephora (TH)",
+    "slug": "sephora_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:377",
+    "figmaName": "Brand=Sephora (TH), Cover=False",
+    "relativePath": "docs/assets/brand-logos/sephora_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "DHGate Global (CPS)",
+    "slug": "dhgate_global_cps",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:399",
+    "figmaName": "Brand=DHGate Global (CPS), Cover=False",
+    "relativePath": "docs/assets/brand-logos/dhgate_global_cps/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Charles & Keith (TH) - CPS",
+    "slug": "charles_keith_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:376",
+    "figmaName": "Brand=Charles & Keith (TH) - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/charles_keith_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "HopeGoo - CPS",
+    "slug": "hopegoo",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:459",
+    "figmaName": "Brand=HopeGoo - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/hopegoo/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Alibaba CPS",
+    "slug": "alibaba_cps",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:375",
+    "figmaName": "Brand=Alibaba CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/alibaba_cps/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Petronas Shop - CPS",
+    "slug": "petronas_shop",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:415",
+    "figmaName": "Brand=Petronas Shop - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/petronas_shop/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Xiaomi (TH) - CPS",
+    "slug": "xiaomi_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:395",
+    "figmaName": "Brand=Xiaomi (TH) - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/xiaomi_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "AliExpress (Global) - CPS",
+    "slug": "aliexpress_global",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:442",
+    "figmaName": "Brand=AliExpress (Global) - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/aliexpress_global/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Photobook (TH)",
+    "slug": "photobook_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:374",
+    "figmaName": "Brand=Photobook (TH), Cover=False",
+    "relativePath": "docs/assets/brand-logos/photobook_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "GQ Thailand - CPS",
+    "slug": "gq_thailand",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:373",
+    "figmaName": "Brand=GQ Thailand - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/gq_thailand/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "WPS SOFTWARE - CPI + CPS",
+    "slug": "wps_software_-_cpi_cps",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:372",
+    "figmaName": "Brand=WPS SOFTWARE - CPI + CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/wps_software_-_cpi_cps/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Megatix TH",
+    "slug": "megatix_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:441",
+    "figmaName": "Brand=Megatix TH, Cover=False",
+    "relativePath": "docs/assets/brand-logos/megatix_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "PanelPlace Global - CPA",
+    "slug": "panelplace_global_-_cpa",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:370",
+    "figmaName": "Brand=PanelPlace Global - CPA, Cover=False",
+    "relativePath": "docs/assets/brand-logos/panelplace_global_-_cpa/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Skechers TH - CPS",
+    "slug": "skechers_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:435",
+    "figmaName": "Brand=Skechers TH - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/skechers_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "KTC Credit Card (TH)",
+    "slug": "ktc_credit_card_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:379",
+    "figmaName": "Brand=KTC Credit Card (TH), Cover=False",
+    "relativePath": "docs/assets/brand-logos/ktc_credit_card_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Central (TH) - CPS",
+    "slug": "central_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:369",
+    "figmaName": "Brand=Central (TH) - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/central_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "UGREEN Global - CPS",
+    "slug": "ugreen_global",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:368",
+    "figmaName": "Brand=UGREEN Global - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/ugreen_global/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "King Power (TH)",
+    "slug": "king_power_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:464",
+    "figmaName": "Brand=King Power (TH), Cover=False",
+    "relativePath": "docs/assets/brand-logos/king_power_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Juice Store",
+    "slug": "juice_store",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:367",
+    "figmaName": "Brand=Juice Store, Cover=False",
+    "relativePath": "docs/assets/brand-logos/juice_store/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Codashop - CPS",
+    "slug": "codashop",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:365",
+    "figmaName": "Brand=Codashop - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/codashop/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "JD Sports (TH) - CPS",
+    "slug": "jd_sports_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:364",
+    "figmaName": "Brand=JD Sports (TH) - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/jd_sports_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "LG (TH) - CPS",
+    "slug": "lg_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:397",
+    "figmaName": "Brand=LG (TH) - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/lg_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Trip.com - CPS",
+    "slug": "tripcom",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:362",
+    "figmaName": "Brand=Trip.com - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/tripcom/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Traveloka PH - CPS",
+    "slug": "traveloka_ph",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:361",
+    "figmaName": "Brand=Traveloka PH - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/traveloka_ph/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Airalo (Global) - CPS",
+    "slug": "airalo_global",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:360",
+    "figmaName": "Brand=Airalo (Global) - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/airalo_global/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Airalo (Global) - CPS",
+    "slug": "airalo_global",
+    "category": "default-shop-card-cover",
+    "figmaNodeId": "100:447",
+    "figmaName": "Brand=Airalo (Global) - CPS, Cover=True",
+    "relativePath": "docs/assets/brand-logos/airalo_global/default-shop-card-cover/logo.png",
+    "adminField": "logo_desktop (cover art)",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Wegic AI - CPS",
+    "slug": "wegic_ai",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:421",
+    "figmaName": "Brand=Wegic AI - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/wegic_ai/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Airpaz Global - CPS",
+    "slug": "airpaz_global",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:398",
+    "figmaName": "Brand=Airpaz Global - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/airpaz_global/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "SimOptions Global - CPS",
+    "slug": "simoptions_global",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:394",
+    "figmaName": "Brand=SimOptions Global - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/simoptions_global/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "TrainPal - CPS",
+    "slug": "trainpal",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:359",
+    "figmaName": "Brand=TrainPal - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/trainpal/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Sider AI - CPS",
+    "slug": "sider_ai",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:358",
+    "figmaName": "Brand=Sider AI - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/sider_ai/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Insurverse TH - CPA",
+    "slug": "insurverse_th_-_cpa",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:414",
+    "figmaName": "Brand=Insurverse TH - CPA, Cover=False",
+    "relativePath": "docs/assets/brand-logos/insurverse_th_-_cpa/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Bro.Game TH - CPS",
+    "slug": "brogame_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:357",
+    "figmaName": "Brand=Bro.Game TH - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/brogame_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Kinokuniya (TH)",
+    "slug": "kinokuniya_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:355",
+    "figmaName": "Brand=Kinokuniya (TH), Cover=False",
+    "relativePath": "docs/assets/brand-logos/kinokuniya_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Tiqets CPS",
+    "slug": "tiqets_cps",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:440",
+    "figmaName": "Brand=Tiqets CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/tiqets_cps/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Double A Thailand",
+    "slug": "double_a_thailand",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:354",
+    "figmaName": "Brand=Double A Thailand, Cover=False",
+    "relativePath": "docs/assets/brand-logos/double_a_thailand/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Lotus's TH - CPS",
+    "slug": "lotuss_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:353",
+    "figmaName": "Brand=Lotus's TH - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/lotuss_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Capcut",
+    "slug": "capcut",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:351",
+    "figmaName": "Brand=Capcut, Cover=False",
+    "relativePath": "docs/assets/brand-logos/capcut/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  },
+  {
+    "brand": "Shopee TH - CPS",
+    "slug": "shopee_th",
+    "category": "default-shop-card",
+    "figmaNodeId": "31:349",
+    "figmaName": "Brand=Shopee TH - CPS, Cover=False",
+    "relativePath": "docs/assets/brand-logos/shopee_th/default-shop-card/logo.png",
+    "adminField": "logo_desktop",
+    "size": "264×148.5"
+  }
+]

@@ -23,6 +23,7 @@ import { MissionOrder } from './schemas/missing-order.schema';
 import { StoredMediaService } from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { parseOfferDisplayTagsField } from './offer-display-tags.util';
+import { resolvePublicOfferLogo } from './offer-logo.util';
 import { Quest, QuestTask } from 'src/point/schemas/quest.schema';
 import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schema';
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
@@ -589,7 +590,9 @@ export class OfferService implements OnApplicationBootstrap {
         _id: { $in: entries.map((entry) => entry.offerId) },
         ...ACTIVE_OFFER_FILTER,
       } as any)
-      .select('offer_id offer_name logo')
+      .select(
+        'offer_id offer_name offer_name_display logo logo_desktop logo_mobile logo_circle',
+      )
       .exec();
     const offerById = new Map(
       offers.map((offer) => [String(offer._id), offer]),
@@ -601,11 +604,21 @@ export class OfferService implements OnApplicationBootstrap {
         if (!offer) {
           return null;
         }
+        const row = offer as {
+          _id: unknown;
+          offer_id: number;
+          offer_name: string;
+          offer_name_display?: string;
+          logo?: string;
+          logo_desktop?: string;
+          logo_mobile?: string;
+          logo_circle?: string;
+        };
         return {
-          _id: String((offer as any)._id),
-          offer_id: offer.offer_id,
-          brand: offer.offer_name,
-          logo: offer.logo,
+          _id: String(row._id),
+          offer_id: row.offer_id,
+          brand: row.offer_name_display?.trim() || row.offer_name,
+          logo: resolvePublicOfferLogo(row),
           cashback: entry.cashback,
         };
       })

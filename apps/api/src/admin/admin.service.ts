@@ -473,12 +473,15 @@ export class AdminService {
       updateData.tracking_link.trim()
         ? updateData.tracking_link.trim()
         : offer.tracking_link;
+    const nextLogoDesktop = file1 ?? offer.logo_desktop;
+    const nextLogoMobile = file2 ?? offer.logo_mobile;
     return this.offerModel
       .findByIdAndUpdate(
         requireObjectId(id),
         mongoSetUpdate({
-          logo_desktop: file1 ?? offer.logo_desktop,
-          logo_mobile: file2 ?? offer.logo_mobile,
+          logo_desktop: nextLogoDesktop,
+          logo_mobile: nextLogoMobile,
+          logo: nextLogoDesktop || nextLogoMobile || offer.logo,
           banner: bannerFile ?? offer.banner,
           banner_mobile: bannerMobileFile ?? offer.banner_mobile,
           logo_circle: logoCircleFile ?? offer.logo_circle,

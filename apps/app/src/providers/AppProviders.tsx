@@ -12,6 +12,7 @@ import { ToastProvider } from "@mobile/components/Toast";
 import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
 import { getObservabilityConfig, initObservability } from "@mobile/observability/client";
 import { AccountResourceWarmup } from "@mobile/providers/AccountResourceWarmup";
+import { PublicCatalogRefetchOnFocus } from "@mobile/providers/PublicCatalogRefetchOnFocus";
 import { customerQueryDefaults } from "@mobile/query/queryDefaults";
 import { PrivacyScreenGuard } from "@mobile/security/PrivacyScreenGuard";
 import { gogoCashRuntimeFonts } from "@mobile/theme/appFonts";
@@ -67,6 +68,7 @@ export function AppProviders({ children }: PropsWithChildren) {
     <>
       <RouteAnalyticsTracker />
       <AccountResourceWarmup />
+      <PublicCatalogRefetchOnFocus />
       <ToastProvider>{children}</ToastProvider>
     </>
   ) : (

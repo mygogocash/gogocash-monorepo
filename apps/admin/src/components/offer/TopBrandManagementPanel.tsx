@@ -460,9 +460,10 @@ export default function TopBrandManagementPanel() {
                 {offer ? (
                   <RemoteOrBlobImage
                     src={pathImage(
-                      offer.logo_circle ||
-                        offer.logo_desktop ||
-                        offer.logo_mobile,
+                      offer.logo_desktop ||
+                        offer.logo_mobile ||
+                        offer.logo_circle ||
+                        offer.logo,
                     )}
                     alt=""
                     width={40}

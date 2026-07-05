@@ -1,4 +1,4 @@
-import { Link, useRouter } from "expo-router";
+import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { sendErrorCopy, toSendErrorKind, type SendErrorKind } from "@mobile/auth/authSendErrorKind";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { Check, ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
@@ -33,6 +33,7 @@ import { markIntroModalPending } from "@mobile/features/introModal/introModalSes
 import { toPhoneE164 } from "@mobile/auth/phoneE164";
 import { useFirebasePhoneRecaptcha } from "@mobile/auth/useFirebasePhoneRecaptcha";
 import { buildDemoMobileSession, persistMobileSession, type MobileSession } from "@mobile/auth/session";
+import { sanitizeCallbackPath } from "@mobile/auth/routeGuard";
 import { resolveAuthSocialProviders } from "@mobile/api/backendIntegrationScope";
 import { getMobileEnv } from "@mobile/config/env";
 import type { ConfirmationResult } from "firebase/auth";
@@ -105,6 +106,8 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { callbackUrl: callbackUrlParam } = useLocalSearchParams<{ callbackUrl?: string | string[] }>();
+  const postLoginPath = useMemo(() => resolvePostLoginPath(callbackUrlParam), [callbackUrlParam]);
   const toastCtx = useContext(ToastContext);
   const { width } = useWindowDimensions();
   // A1 — when reduce-motion is on, the screen-local Animated timelines (consent
@@ -347,7 +350,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           haptics.success();
           markIntroModalPending();
           await persistMobileSession(session);
-          router.push("/link-mycashback");
+          router.replace(postLoginPath as never);
         } catch {
           // Wrong/expired code or a failed backend exchange: no session is
           // written, no navigation happens — surface the error on the OTP step.
@@ -371,7 +374,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           await persistMobileSession(
             buildDemoMobileSession({ mobile: `${selectedCountry.dialCode}${phoneDigits}` })
           );
-          router.push("/link-mycashback");
+          router.replace(postLoginPath as never);
         } catch {
           // A failed session write must not silently land the user on a "signed-in"
           // destination — surface the error and keep them on the OTP step.
@@ -388,7 +391,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     haptics.success();
     markIntroModalPending();
     await persistMobileSession(session);
-    router.push("/link-mycashback");
+    router.replace(postLoginPath as never);
   };
 
   const handleSocialSignIn = (provider: SocialProvider) => {
@@ -1705,5 +1708,12 @@ function createAuthScreenStyles(colors: ThemeColors) {
     fontWeight: typography.bodyWeight,
   },
 });
+}
+
+function resolvePostLoginPath(callbackUrlParam: string | string[] | undefined): string {
+  const raw = Array.isArray(callbackUrlParam) ? callbackUrlParam[0] : callbackUrlParam;
+  const sanitized = sanitizeCallbackPath(raw);
+
+  return sanitized === "/" ? "/link-mycashback" : sanitized;
 }
 

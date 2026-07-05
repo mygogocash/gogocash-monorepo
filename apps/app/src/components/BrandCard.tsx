@@ -110,7 +110,12 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
       testID={props.testID}
     >
         {props.size === "L" ? (
-          <View style={[styles.brandVisual, { backgroundColor: tint }]}>
+          <View
+            style={[
+              styles.brandVisual,
+              { backgroundColor: props.logoUri ? colors.card : tint },
+            ]}
+          >
             {props.showGrabCoupon ? (
               <View style={styles.couponChip}>
                 <Text style={styles.couponIcon}>🧧</Text>
