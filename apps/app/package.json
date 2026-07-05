@@ -33,7 +33,8 @@
     "test:e2e": "playwright test",
     "test:maestro": "maestro test .maestro/flows/",
     "build:preview": "eas build --profile preview",
-    "build:production": "eas build --profile production"
+    "build:production": "eas build --profile production",
+    "postinstall": "node scripts/patch-expo-firebase-core-gradle.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/anuphan": "^0.4.1",
