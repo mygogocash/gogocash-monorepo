@@ -33,11 +33,15 @@ export function FavoriteBrandsProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    void fetchFavoriteOfferIds({ apiUrl: env.apiUrl }).then((ids) => {
-      if (ids.length > 0) {
-        setFavoriteIds(ids);
-      }
-    });
+    void fetchFavoriteOfferIds({ apiUrl: env.apiUrl })
+      .then((ids) => {
+        if (ids.length > 0) {
+          setFavoriteIds(ids);
+        }
+      })
+      .catch(() => {
+        // Keep fixture defaults when the backend favorites list is unavailable.
+      });
   }, [env.accountDataSource, env.apiUrl]);
 
   const isFavorite = useCallback(

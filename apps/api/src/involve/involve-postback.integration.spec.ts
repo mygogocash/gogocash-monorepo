@@ -55,7 +55,8 @@ describe('GET /involve/postback (integration)', () => {
 
   afterEach(async () => {
     await app?.close();
-    if (ORIGINAL_SECRET === undefined) delete process.env.INVOLVE_POSTBACK_SECRET;
+    if (ORIGINAL_SECRET === undefined)
+      delete process.env.INVOLVE_POSTBACK_SECRET;
     else process.env.INVOLVE_POSTBACK_SECRET = ORIGINAL_SECRET;
   });
 
