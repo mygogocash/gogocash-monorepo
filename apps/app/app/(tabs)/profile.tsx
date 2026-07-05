@@ -12,7 +12,11 @@ export default function ProfileRoute() {
   // protected routes (which redirect to /login via `Stack.Protected`), the tab
   // self-guards here. Wait for the one-time session read (`ready`) before redirecting
   // so an authenticated user is never bounced mid-bootstrap.
-  if (ready && !isAuthed) {
+  if (!ready) {
+    return null;
+  }
+
+  if (!isAuthed) {
     return <Redirect href={(buildProtectedLoginRedirect("/profile") ?? "/login") as never} />;
   }
 

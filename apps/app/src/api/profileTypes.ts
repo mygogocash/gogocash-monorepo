@@ -17,6 +17,30 @@ export type UserProfileResponse = {
   wallet?: string | number;
 };
 
+export type ProfileResourceStatus =
+  | "disabled"
+  | "empty"
+  | "error"
+  | "loading"
+  | "offline"
+  | "ready";
+
+/** When the user has a backend session, the profile hub can render from session fields even if GET /user/profile fails. */
+export function isProfileResourceBlocking(
+  status: ProfileResourceStatus,
+  hasSession: boolean,
+): boolean {
+  if (status === "disabled") {
+    return true;
+  }
+
+  if (hasSession) {
+    return false;
+  }
+
+  return status !== "ready";
+}
+
 /** Narrow an unknown backend payload to the raw user doc. */
 export function isUserProfileResponse(payload: unknown): payload is UserProfileResponse {
   if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {

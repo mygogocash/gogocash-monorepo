@@ -20,7 +20,7 @@ import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useMobileLogout } from "@mobile/auth/useMobileLogout";
 import { mapUserProfileToWalletSummary } from "@mobile/api/profileMapper";
-import { isUserProfileResponse } from "@mobile/api/profileTypes";
+import { isProfileResourceBlocking, isUserProfileResponse } from "@mobile/api/profileTypes";
 import { readMembershipTier } from "@mobile/lib/membershipTier";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { copyToClipboard } from "@mobile/lib/clipboard";
@@ -72,10 +72,9 @@ export function CustomerProfileScreen() {
         ? profileResource.data.avatar_url.trim()
         : null;
 
-  const profileShellWhileLoading =
-    profileResource.status === "loading" && Boolean(session?.access_token);
+  const hasSession = Boolean(session?.access_token);
 
-  if (profileResource.status !== "ready" && !profileShellWhileLoading) {
+  if (isProfileResourceBlocking(profileResource.status, hasSession)) {
     return (
       <CustomerAccountResourceState
         emptyBody={tc("Complete your profile setup to unlock account actions.")}
