@@ -1,10 +1,13 @@
-const REMOTE_URI_PREFIXES = ["https://", "http://", "data:", "blob:", "file:", "/"] as const;
+const REMOTE_URI_PREFIXES = ["https://", "http://", "data:", "blob:", "file:"] as const;
 
 function looksLikeGoogleDriveFileId(value: string): boolean {
   return /^[A-Za-z0-9_-]{10,}$/.test(value);
 }
 
-export function resolveRemoteImageUri(value: unknown): string | undefined {
+export function resolveRemoteImageUri(
+  value: unknown,
+  apiBaseUrl?: string,
+): string | undefined {
   if (typeof value !== "string") {
     return undefined;
   }
@@ -12,6 +15,11 @@ export function resolveRemoteImageUri(value: unknown): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) {
     return undefined;
+  }
+
+  if (trimmed.startsWith("/")) {
+    const base = apiBaseUrl?.trim().replace(/\/+$/, "");
+    return base ? `${base}${trimmed}` : trimmed;
   }
 
   if (REMOTE_URI_PREFIXES.some((prefix) => trimmed.startsWith(prefix))) {

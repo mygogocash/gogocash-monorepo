@@ -352,9 +352,11 @@ function ShopHeroSummaryCard({
   const favorited = isFavorite(shop.id);
   return (
     <View style={[styles.summaryCard, isDesktop ? styles.summaryCardDesktop : null]}>
-      <Text numberOfLines={1} style={styles.summaryTitle}>
-        {shop.brand}
-      </Text>
+      <View style={styles.summaryTitleWrap}>
+        <Text numberOfLines={1} style={styles.summaryTitle}>
+          {shop.brand}
+        </Text>
+      </View>
       <MotionPressable
         accessibilityLabel={
           favorited
@@ -752,7 +754,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     width: "100%",
   },
   summaryCard: {
-    alignItems: "center",
+    alignItems: "flex-start",
     backgroundColor: colors.card,
     borderRadius: 32,
     boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
@@ -770,14 +772,18 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     maxWidth: 720,
     width: "100%",
   },
+  summaryTitleWrap: {
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    minWidth: 0,
+  },
   summaryTitle: {
     color: colors.ink,
-    flex: 1,
     fontFamily: typography.family,
     fontSize: 17,
     fontWeight: "600",
     lineHeight: 22,
-    minWidth: 0,
   },
   favoriteButton: {
     alignItems: "center",
@@ -785,6 +791,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     borderColor: pickThemed(colors, "#E6F7ED", colors.border),
     borderRadius: radii.chip,
     borderWidth: 1,
+    flexShrink: 0,
     height: 48,
     justifyContent: "center",
     width: 48,
@@ -793,6 +800,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     alignItems: "center",
     backgroundColor: pickThemed(colors, colors.ink, colors.primary),
     borderRadius: radii.chip,
+    flexShrink: 0,
     height: 48,
     justifyContent: "center",
     minWidth: 126,
@@ -833,7 +841,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     gap: 24,
   },
   cashbackHeader: {
-    alignItems: "flex-end",
+    alignItems: "baseline",
     flexDirection: "row",
     gap: 16,
     justifyContent: "space-between",

@@ -79,7 +79,8 @@ export function mapMerchantOfferToShopDetail<TShop extends ShopDetailIdentity>(
   offer: MerchantOfferResponse,
   fixtureShop: TShop
 ): Omit<TShop, keyof ShopDetailIdentity> & ShopDetailIdentity & LiveShopDetailFields {
-  const brand = offer.offer_name_display?.trim() || offer.offer_name.trim() || fixtureShop.brand;
+  const brand =
+    offer.offer_name_display?.trim() || offer.offer_name?.trim() || fixtureShop.brand;
   const cashback = formatCashback(offer) ?? fixtureShop.cashback;
 
   return {

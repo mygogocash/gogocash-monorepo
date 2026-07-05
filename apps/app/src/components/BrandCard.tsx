@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { resolveFavoriteOfferId } from "@mobile/account/resolveFavoriteOfferId";
 import { Link } from "expo-router";
@@ -117,6 +117,13 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
       : "";
   const isFavorite = props.size === "L" ? isBrandFavorite(favoriteOfferId) : false;
   const [logoFailed, setLogoFailed] = useState(false);
+  const logoSourceKey =
+    props.size === "L"
+      ? props.logoUri
+      : props.logoUri ?? props.logoAsset ?? props.logoFallbackText;
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [logoSourceKey]);
   const onToggleFavorite = (event: GestureResponderEvent) => {
     event.stopPropagation?.();
     event.preventDefault?.();
@@ -289,6 +296,7 @@ function createBrandCardStyles(colors: ThemeColors) {
       justifyContent: "center",
       overflow: "hidden",
       position: "relative",
+      width: "100%",
     },
     couponChip: {
       alignItems: "center",
@@ -381,6 +389,7 @@ function createBrandCardStyles(colors: ThemeColors) {
       height: mobileShellLayout.compactBrandLogoVisualHeight,
       justifyContent: "center",
       overflow: "hidden",
+      position: "relative",
       width: "100%",
     },
     compactBrandLogoImage: {

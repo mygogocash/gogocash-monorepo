@@ -15,6 +15,59 @@ vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
 }));
 
+const merchantResourceState = vi.hoisted(() => ({
+  data: null as unknown,
+  status: "ready" as const,
+  source: "fixtures" as const,
+}));
+
+vi.mock("@mobile/account/customerAccountResource", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@mobile/account/customerAccountResource")>();
+  return {
+    ...actual,
+    useCustomerAccountResource: (options: { resourceId: string; fixtureData: unknown }) => {
+      if (options.resourceId === "merchant") {
+        return {
+          data: merchantResourceState.data ?? options.fixtureData,
+          endpoint: "/offer/test",
+          error: null,
+          retry: vi.fn(),
+          source: merchantResourceState.source,
+          status: merchantResourceState.status,
+        };
+      }
+      if (options.resourceId === "policyCategory") {
+        return {
+          data: options.fixtureData,
+          endpoint: "/policy/test",
+          error: null,
+          retry: vi.fn(),
+          source: merchantResourceState.source,
+          status: "ready" as const,
+        };
+      }
+      if (options.resourceId === "brandCatalog") {
+        return {
+          data: options.fixtureData,
+          endpoint: "/offer/catalog",
+          error: null,
+          retry: vi.fn(),
+          source: merchantResourceState.source,
+          status: "ready" as const,
+        };
+      }
+      return {
+        data: options.fixtureData,
+        endpoint: "/fixture",
+        error: null,
+        retry: vi.fn(),
+        source: merchantResourceState.source,
+        status: "ready" as const,
+      };
+    },
+  };
+});
+
 import { ToastProvider } from "@mobile/components/Toast";
 import { CustomerShopDetailScreen } from "@mobile/screens/CustomerShopDetailScreen";
 
@@ -68,6 +121,24 @@ describe("CustomerShopDetailScreen (render)", () => {
     // A few stable section strings prove the body mounted.
     expect(screen.getByText("Cashback Tracking Period")).toBeTruthy();
     expect(screen.getByText("10% Cashback Bonus")).toBeTruthy();
+  });
+
+  it("renders live-mapped brand name in the hero summary card", () => {
+    merchantResourceState.data = {
+      _id: "6a49f3e6ce2e0da81d6dc375",
+      offer_name: "Shopee Affiliate Program",
+      offer_name_display: "Shopee",
+      categories: "Marketplace",
+      commissions: [{ Commission: "2.02%" }],
+      tracking_link: "https://tracking.example/shopee",
+    };
+    merchantResourceState.source = "backend";
+
+    renderScreen();
+
+    expect(screen.getAllByText("Shopee").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("2.02%").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Grocery Galaxy")).toBeNull();
   });
 });
 

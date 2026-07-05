@@ -9,6 +9,7 @@ import { useCustomerAccountResource } from "@mobile/account/customerAccountResou
 import { BrandCard } from "@mobile/components/BrandCard";
 import { CarouselDots } from "@mobile/components/CarouselDots";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { getMobileEnv } from "@mobile/config/env";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { prefetchRemoteImages } from "@mobile/lib/prefetchRemoteImages";
@@ -37,12 +38,14 @@ export function TopBrandSection({
     fixtureData: webTopBrandCards,
     resourceId: "topBrand",
   });
+  const apiBaseUrl = useMemo(() => getMobileEnv().apiUrl, []);
   const topBrands = resolveTopBrands(
     topBrandResource.source,
     topBrandResource.data,
     webTopBrandCards,
     brandCatalogData,
     region,
+    apiBaseUrl,
   );
   const topBrandPages = chunkTopBrandCards(topBrands, homeLayout.topBrandCardsPerPage);
   const [activeTopBrandPage, setActiveTopBrandPage] = useState(0);

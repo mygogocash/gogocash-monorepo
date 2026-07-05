@@ -65,6 +65,7 @@ const TOP_BRAND_TINTS = ["#6366F1", "#2563EB", "#0EA5E9", "#10B981", "#F59E0B", 
 export function mapBackendTopBrands(
   payload: TopBrandsPayload,
   regionCode: RegionCode = DEFAULT_REGION,
+  apiBaseUrl?: string,
 ): TopBrandCard[] {
   const items = payload?.data ?? [];
   return items
@@ -80,7 +81,8 @@ export function mapBackendTopBrands(
       id: item._id ?? String(item.offer_id),
       label: "Grab Coupon",
       logoUri:
-        resolveRemoteImageUri(resolvePublicOfferLogo(item) ?? item.logo) ?? "",
+        resolveRemoteImageUri(resolvePublicOfferLogo(item) ?? item.logo, apiBaseUrl) ??
+        "",
       showGrabCoupon: false,
       tint: TOP_BRAND_TINTS[index % TOP_BRAND_TINTS.length],
     }));
@@ -114,9 +116,10 @@ export function resolveTopBrands(
   fallback: readonly TopBrandCard[],
   _catalogData?: unknown,
   regionCode: RegionCode = DEFAULT_REGION,
+  apiBaseUrl?: string,
 ): TopBrandCard[] {
   if (source === "backend") {
-    return mapBackendTopBrands(data as TopBrandsPayload, regionCode);
+    return mapBackendTopBrands(data as TopBrandsPayload, regionCode, apiBaseUrl);
   }
   return fallback.filter((card) =>
     offerMatchesRegion(resolveFixtureBrandCountries(card.brand), regionCode),

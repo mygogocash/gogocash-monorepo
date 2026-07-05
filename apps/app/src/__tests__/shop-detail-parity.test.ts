@@ -223,6 +223,23 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("ShopRedirectOverlay");
   });
 
+  it("shop detail parity > given hero summary row > then brand title is wrapped so flex siblings cannot collapse it", () => {
+    const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+
+    expect(shopFile).toContain("styles.summaryTitleWrap");
+    expect(shopFile).toMatch(/summaryTitleWrap:[\s\S]*?flex: 1/);
+    expect(shopFile).toMatch(/summaryTitleWrap:[\s\S]*?minWidth: 0/);
+    expect(shopFile).toMatch(/favoriteButton:[\s\S]*?flexShrink: 0/);
+    expect(shopFile).toMatch(/shopNowButton:[\s\S]*?flexShrink: 0/);
+    expect(shopFile).toMatch(/summaryCard:[\s\S]*?alignItems: "flex-start"/);
+  });
+
+  it("shop detail parity > given cashback headline row > then label and value align on baseline", () => {
+    const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+
+    expect(shopFile).toMatch(/cashbackHeader:[\s\S]*?alignItems: "baseline"/);
+  });
+
   it("shop detail parity > given Explore other shops rail > then live catalog logos use expo-image contain", () => {
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 

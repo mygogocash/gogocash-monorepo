@@ -1,4 +1,5 @@
 import type { OfferListResponse, OfferRecord } from "@mobile/api/catalogTypes";
+import { getMobileEnv } from "@mobile/config/env";
 import { resolvePublicOfferLogo } from "@mobile/api/offerLogo";
 import { resolveRemoteImageUri } from "@mobile/api/mediaUrl";
 
@@ -45,8 +46,9 @@ function formatCashback(commission: OfferRecord["commission_store"]): string {
   return value.endsWith("%") ? value : `${value}%`;
 }
 
-function resolveLogo(offer: OfferRecord): string | undefined {
-  return resolveRemoteImageUri(resolvePublicOfferLogo(offer));
+function resolveLogo(offer: OfferRecord, apiBaseUrl?: string): string | undefined {
+  const baseUrl = apiBaseUrl ?? getMobileEnv().apiUrl;
+  return resolveRemoteImageUri(resolvePublicOfferLogo(offer), baseUrl);
 }
 
 export function isCustomerVisibleOffer({
