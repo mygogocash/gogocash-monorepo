@@ -10,6 +10,7 @@
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import { isCustomerVisibleOffer, mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
+import { resolvePublicOfferLogo } from "@mobile/api/offerLogo";
 import { resolveRemoteImageUri } from "@mobile/api/mediaUrl";
 
 /** Raw payload from GET /offer/top-brands. */
@@ -19,7 +20,10 @@ export type TopBrandsPayload = {
     offer_id: number;
     brand: string;
     disabled?: boolean;
-    logo: string;
+    logo?: string;
+    logo_desktop?: string;
+    logo_mobile?: string;
+    logo_circle?: string;
     cashback: string;
     status?: string;
   }[];
@@ -58,7 +62,8 @@ export function mapBackendTopBrands(payload: TopBrandsPayload): TopBrandCard[] {
       href: item._id ? `/shop/${item._id}` : undefined,
       id: item._id ?? String(item.offer_id),
       label: "Grab Coupon",
-      logoUri: resolveRemoteImageUri(item.logo) ?? "",
+      logoUri:
+        resolveRemoteImageUri(resolvePublicOfferLogo(item) ?? item.logo) ?? "",
       showGrabCoupon: false,
       tint: TOP_BRAND_TINTS[index % TOP_BRAND_TINTS.length],
     }));

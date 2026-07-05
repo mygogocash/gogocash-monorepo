@@ -116,6 +116,16 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
   };
   const compactLogoSource =
     props.size === "S" ? resolveCompactLogoSource(props, logoFailed) : null;
+  const hasCompactLogoSource =
+    props.size === "S" && Boolean(props.logoUri || props.logoAsset) && !logoFailed;
+  const brandVisualBackground =
+    props.size === "L"
+      ? props.logoUri && !logoFailed
+        ? colors.card
+        : tint
+      : hasCompactLogoSource
+        ? colors.card
+        : tint;
 
   const card = (
     <MotionPressable
@@ -132,7 +142,7 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
           <View
             style={[
               styles.brandVisual,
-              { backgroundColor: props.logoUri ? colors.card : tint },
+              { backgroundColor: brandVisualBackground },
             ]}
           >
             {props.showGrabCoupon ? (
@@ -165,11 +175,12 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
             {props.logoUri && !logoFailed ? (
               <Image
                 accessibilityLabel={`${brand} logo`}
-                contentFit="contain"
+                cachePolicy="memory-disk"
+                contentFit="cover"
                 onError={onLogoError}
                 recyclingKey={props.logoUri ?? `${brand}-logo`}
                 source={{ uri: props.logoUri }}
-                style={styles.brandLogo}
+                style={styles.brandLogoFill}
               />
             ) : (
               <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
@@ -181,7 +192,10 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
           <View
             style={[
               styles.compactBrandVisual,
-              { backgroundColor: tint, height: props.logoVisualHeight },
+              {
+                backgroundColor: brandVisualBackground,
+                height: props.logoVisualHeight,
+              },
             ]}
           >
             {props.logoFallbackText ? (
@@ -191,13 +205,14 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
             ) : compactLogoSource ? (
               <Image
                 accessibilityLabel={`${brand} logo`}
-                contentFit="contain"
+                cachePolicy="memory-disk"
+                contentFit="cover"
                 onError={onLogoError}
                 recyclingKey={
                   props.logoUri ?? props.logoAsset ?? props.logoFallbackText ?? `${brand}-logo`
                 }
                 source={compactLogoSource}
-                style={styles.compactBrandLogo}
+                style={styles.compactBrandLogoFill}
               />
             ) : (
               <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
@@ -300,9 +315,8 @@ function createBrandCardStyles(colors: ThemeColors) {
       width: 28,
       zIndex: 2,
     },
-    brandLogo: {
-      height: "62%",
-      width: "72%",
+    brandLogoFill: {
+      ...StyleSheet.absoluteFill,
     },
     lShopCardTitle: {
       color: colors.ink,
@@ -355,9 +369,8 @@ function createBrandCardStyles(colors: ThemeColors) {
       overflow: "hidden",
       width: "100%",
     },
-    compactBrandLogo: {
-      height: "62%",
-      width: "72%",
+    compactBrandLogoFill: {
+      ...StyleSheet.absoluteFill,
     },
     compactBrandLogoFallback: {
       color: colors.accent,

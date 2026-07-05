@@ -3,9 +3,11 @@ import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
+import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { useFeaturedSearchTerms } from "@mobile/account/useFeaturedSearch";
 import { useOfferSearch } from "@mobile/account/useOfferSearch";
-import { getResponsiveHomeLayoutMetrics } from "@mobile/design/webDesignParity";
+import { getResponsiveHomeLayoutMetrics, webHomePromoSections } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
 import {
   clearSearchHistory,
@@ -42,6 +44,14 @@ export function CustomerSearchScreen() {
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
   const suggestionTerms = useFeaturedSearchTerms();
+  const brandCatalogResource = useCustomerAccountResource({
+    fixtureData: webHomePromoSections,
+    resourceId: "brandCatalog",
+  });
+  const liveCards = useMemo(
+    () => resolveLiveBrandCards(brandCatalogResource.source, brandCatalogResource.data, []),
+    [brandCatalogResource.source, brandCatalogResource.data],
+  );
   const columnCount = homeLayout.contentWidth >= 768 ? 3 : 2;
   const trimmedQuery = normalizeSearchQuery(query);
   const hasQuery = trimmedQuery.length > 0;
@@ -195,6 +205,7 @@ export function CustomerSearchScreen() {
           <SearchSuggestionsGrid
             columnCount={columnCount}
             contentWidth={homeLayout.contentWidth}
+            liveCards={liveCards}
             onSelectTerm={(term) => {
               void commitSearch(term);
             }}

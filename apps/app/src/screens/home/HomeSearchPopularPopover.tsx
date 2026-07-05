@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Animated, Pressable, ScrollView, Text, View } from "react-native";
+import type { LiveCompactBrandCard } from "@mobile/account/brandCatalogResource";
+import { resolveSearchSuggestionItem } from "@mobile/account/searchSuggestionResource";
 import { useOfferSearch } from "@mobile/account/useOfferSearch";
 import { webHomeSearchPopularPanel } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -9,14 +11,17 @@ import {
   removeSearchHistoryItem,
 } from "@mobile/search/searchHistory";
 import { SearchRecentChips } from "@mobile/screens/search/SearchRecentChips";
+import { pickThemed } from "@mobile/theme/colorPalettes";
 import { runFadeSlideTiming } from "@mobile/theme/animatedMotion";
 import { motion } from "@mobile/theme/motion";
+import { useTheme } from "@mobile/theme/ThemeProvider";
 import { HomeSearchIntro } from "./HomeSearchIntro";
 import { HomeSearchResultRow } from "./HomeSearchResultRow";
 import { useHomeScreenStyles } from "./homeScreenHooks";
 
 export function HomeSearchPopularPopover({
   horizontalPadding,
+  liveCards = [],
   onClose,
   onExited,
   onSelectRecent,
@@ -25,6 +30,7 @@ export function HomeSearchPopularPopover({
   visible,
 }: {
   horizontalPadding: number;
+  liveCards?: readonly LiveCompactBrandCard[];
   onClose: () => void;
   onExited: () => void;
   onSelectRecent: (term: string) => void;
@@ -34,8 +40,16 @@ export function HomeSearchPopularPopover({
 }) {
   const styles = useHomeScreenStyles();
   const tc = useCopy();
+  const { colors } = useTheme();
   const { matches: searchMatches, status: searchStatus } = useOfferSearch(query);
-  const popularItems = webHomeSearchPopularPanel.items;
+  const fallbackTint = pickThemed(colors, colors.fieldMuted, colors.field);
+  const popularItems = useMemo(
+    () =>
+      webHomeSearchPopularPanel.items.map((item) =>
+        resolveSearchSuggestionItem(item.brand, liveCards, fallbackTint),
+      ),
+    [fallbackTint, liveCards],
+  );
   const hasSearchQuery = query.trim().length > 0;
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const popoverOpacity = useMemo(() => new Animated.Value(0), []);

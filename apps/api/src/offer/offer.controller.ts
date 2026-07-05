@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -241,6 +242,15 @@ export class OfferController {
       true,
       { status, source },
     );
+  }
+
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('superadmin', 'approver')
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Delete(':id')
+  removeOffer(@Param('id') id: string) {
+    return this.offerService.removeOffer(id);
   }
 
   @Get(':id')

@@ -3,6 +3,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
   OnApplicationBootstrap,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -385,6 +386,20 @@ export class OfferService implements OnApplicationBootstrap {
       .select(PUBLIC_OFFER_DETAIL_SELECT)
       .lean();
     return pickPublicOfferDetail(offer as Record<string, any> | null);
+  }
+
+  /** Soft-delete: hide the offer from customer surfaces without breaking history. */
+  async removeOffer(id: string): Promise<{ message: string }> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Offer not found');
+    }
+    const offer = await this.offerModel.findById(id);
+    if (!offer) {
+      throw new NotFoundException('Offer not found');
+    }
+    offer.disabled = true;
+    await offer.save();
+    return { message: 'Offer deleted successfully' };
   }
 
   async createAdminOffer(

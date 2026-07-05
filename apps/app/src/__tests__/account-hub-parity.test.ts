@@ -3,6 +3,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import {
+  getScaledCompactBrandCardMetrics,
+  getShopDirectoryGridMetrics,
+  mobileShellLayout,
+} from "@mobile/design/webDesignParity";
+import { chunkDirectoryGridRows } from "@mobile/screens/discovery/directoryVirtualizedGrid";
+
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
 
@@ -108,13 +115,37 @@ describe("Account hub route parity", () => {
     expect(questFile).toContain("Explore other Shops");
     expect(questFile).toContain("getResponsiveHomeLayoutMetrics");
     expect(questFile).toContain("compactBrandCardsPerPage");
+    expect(questFile).toContain("getShopDirectoryGridMetrics");
+    expect(questFile).toContain("getScaledCompactBrandCardMetrics");
+    expect(questFile).toContain("chunkDirectoryGridRows");
     expect(questFile).toContain("CompactExploreShopCard");
+    expect(questFile).toContain("brandVisualBackground");
     expect(questFile).toContain("getTopBrandHref(card.brand)");
     expect(questFile).toContain('resourceId: "brandCatalog"');
     expect(questFile).toContain("resolveLiveBrandCards");
     expect(questFile).not.toContain("exploreOtherShops.cards.slice(0, 4)");
     expect(questFile).toContain("Let’s Got the Tasks Done!");
     expect(questFile).not.toContain("Earn extra rewards.");
+  });
+
+  it("quest explore shops > given 414px viewport > then grid uses 2 directory columns like Categories", () => {
+    const questContentWidth = 414 - mobileShellLayout.contentHorizontalPadding * 2;
+    const gridMetrics = getShopDirectoryGridMetrics({
+      contentWidth: questContentWidth,
+      viewportWidth: 414,
+    });
+    const scaledCard = getScaledCompactBrandCardMetrics(gridMetrics.cardWidth);
+    const sampleCards = ["A", "B", "C", "D", "E", "F"];
+    const rows = chunkDirectoryGridRows(sampleCards, gridMetrics.columns);
+
+    expect(gridMetrics).toEqual({
+      cardWidth: 185,
+      columns: 2,
+      gap: 12,
+    });
+    expect(scaledCard.logoVisualHeight).toBeGreaterThan(100);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveLength(2);
   });
 
   it("quest leaderboard > given the Leaderboard tab is selected > then it matches the staging rank panel", () => {

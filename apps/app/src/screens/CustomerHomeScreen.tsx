@@ -21,7 +21,7 @@ import { IntroAfterLoginModal } from "@mobile/components/IntroAfterLoginModal";
 import { CustomerLineOfficialFab } from "@mobile/components/CustomerLineOfficialFab";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
-import { resolveHomePromoSections } from "@mobile/account/brandCatalogResource";
+import { resolveHomePromoSections, resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import {
   getDesktopShellOffset,
@@ -83,6 +83,10 @@ export function CustomerHomeScreen() {
     brandCatalogResource.source,
     brandCatalogResource.data,
     webHomePromoSections
+  );
+  const liveCards = useMemo(
+    () => resolveLiveBrandCards(brandCatalogResource.source, brandCatalogResource.data, []),
+    [brandCatalogResource.source, brandCatalogResource.data],
   );
   const searchTopPadding = Math.max(8, insets.top + 8);
   const searchPopoverTop = searchTopPadding + 62;
@@ -192,6 +196,7 @@ export function CustomerHomeScreen() {
           {searchPopoverMounted ? (
             <HomeSearchPopularPopover
               horizontalPadding={homeLayout.contentHorizontalPadding}
+              liveCards={liveCards}
               onClose={closeSearchPopover}
               onExited={handleSearchPopoverExited}
               onSelectRecent={(term) => setSearchQuery(term)}

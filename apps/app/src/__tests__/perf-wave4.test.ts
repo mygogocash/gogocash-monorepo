@@ -43,14 +43,30 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(dotsSource).not.toContain("outputRange: [size, expandedWidth, size]");
   });
 
-  it("BrandCard > given partner logos > then expo-image is used with contentFit contain", () => {
+  it("BrandCard > given partner logos > then expo-image is used with contentFit cover", () => {
     const brandCard = readMobileFile("src/components/BrandCard.tsx");
 
     expect(brandCard).toContain('from "expo-image"');
-    expect(brandCard).toContain('contentFit="contain"');
+    expect(brandCard).toContain('contentFit="cover"');
     expect(brandCard).toContain("recyclingKey=");
+    expect(brandCard).toContain('cachePolicy="memory-disk"');
     expect(brandCard).not.toMatch(
       /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/
+    );
+  });
+
+  it("BrandCard > given remote logoUri > then large and compact visuals use card background not tint", () => {
+    const brandCard = readMobileFile("src/components/BrandCard.tsx");
+
+    expect(brandCard).toContain("const brandVisualBackground =");
+    expect(brandCard).toMatch(
+      /brandVisual[\s\S]*backgroundColor: brandVisualBackground/,
+    );
+    expect(brandCard).toMatch(
+      /compactBrandVisual[\s\S]*backgroundColor: brandVisualBackground/,
+    );
+    expect(brandCard).not.toMatch(
+      /compactBrandVisual[\s\S]*backgroundColor: tint/,
     );
   });
 

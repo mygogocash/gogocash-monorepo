@@ -24,6 +24,27 @@ describe("mapBackendTopBrands", () => {
     expect(mapBackendTopBrands(null)).toEqual([]);
   });
 
+  it("given admin logo_desktop without resolved logo field > then maps logoUri from desktop upload", () => {
+    const payload: TopBrandsPayload = {
+      data: [
+        {
+          _id: "shopee-id",
+          offer_id: 1783231275824,
+          brand: "Shopee",
+          logo_desktop: "https://media-staging.gogocash.co/brands/1783241514085-logo.png",
+          cashback: "10%",
+        },
+      ],
+    };
+
+    expect(mapBackendTopBrands(payload)).toEqual([
+      expect.objectContaining({
+        brand: "Shopee",
+        logoUri: "https://media-staging.gogocash.co/brands/1783241514085-logo.png",
+      }),
+    ]);
+  });
+
   it("given backend brands > then maps name/logo/cashback and fills cosmetic fields", () => {
     const payload: TopBrandsPayload = {
       data: [

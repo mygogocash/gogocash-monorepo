@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
+import { NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { OfferService } from './offer.service';
 import { Offer } from './schemas/offer.schema';
@@ -373,6 +374,34 @@ describe('OfferService', () => {
       await expect(service.findOne('not-an-objectid')).resolves.toBeNull();
 
       expect(offerModel.findOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removeOffer', () => {
+    it('removeOffer > given a valid id > then soft-disables the offer', async () => {
+      const id = new Types.ObjectId().toHexString();
+      const offerDoc = {
+        disabled: false,
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      offerModel.findById.mockResolvedValue(offerDoc);
+
+      await expect(service.removeOffer(id)).resolves.toEqual({
+        message: 'Offer deleted successfully',
+      });
+
+      expect(offerModel.findById).toHaveBeenCalledWith(id);
+      expect(offerDoc.disabled).toBe(true);
+      expect(offerDoc.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('removeOffer > given a missing offer > then throws NotFoundException', async () => {
+      const id = new Types.ObjectId().toHexString();
+      offerModel.findById.mockResolvedValue(null);
+
+      await expect(service.removeOffer(id)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
