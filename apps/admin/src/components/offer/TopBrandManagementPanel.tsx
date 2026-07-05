@@ -5,6 +5,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { Offer, TopBrandConfigEntry } from "@/types/api";
+import {
+  brandSearchOptionLabel,
+  formatOfferCountries,
+  getOfferDisplayName,
+  resolveAdminOfferLogoPath,
+} from "@/lib/offerDisplay";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import { pathImage } from "@/utils/helper";
 import NoData from "@/components/common/NoData";
@@ -15,6 +21,8 @@ import toast from "react-hot-toast";
 import { OFFER_THUMB_SIZES } from "./offerMedia";
 
 const TOP_BRANDS_QUERY_KEY = ["admin", "top-brands"] as const;
+const PICKER_MIN_SEARCH_CHARS = 2;
+const PICKER_RESULTS_LIMIT = 100;
 
 const EMPTY_BRANDS: TopBrandConfigEntry[] = [];
 
@@ -64,7 +72,11 @@ function DragRowGrip() {
 }
 
 function offerLabel(o: Offer): string {
-  return (o.offer_name_display || o.offer_name || o._id).trim();
+  return getOfferDisplayName(o);
+}
+
+function offerPickerLabel(o: Offer): string {
+  return brandSearchOptionLabel(o);
 }
 
 function ordersEqual(a: string[], b: string[]): boolean {
@@ -145,15 +157,19 @@ export default function TopBrandManagementPanel() {
     () => ({
       search: pickerSearch.trim(),
       page: 1,
-      limit: 80,
+      limit: PICKER_RESULTS_LIMIT,
       country: "",
     }),
     [pickerSearch],
   );
+  const pickerSearchActive =
+    pickerSearch.trim().length >= PICKER_MIN_SEARCH_CHARS;
 
-  const { data: offersPick } = useQuery({
+  const { data: offersPick, isFetching: offersPickLoading } = useQuery({
     queryKey: offersListQueryKey(pickerQuery),
     queryFn: () => fetchOffersList(pickerQuery),
+    enabled: pickerSearchActive,
+    staleTime: 0,
   });
 
   const offerById = useMemo(() => {
@@ -169,26 +185,8 @@ export default function TopBrandManagementPanel() {
 
   const pickerOptions = useMemo(() => {
     const inListIds = new Set(localOrder);
-    // Hide a shop once any of its offers is in the order — match on the display
-    // label (not just the offer id), and collapse duplicate labels to a single
-    // option (the offer list can return several offers that share a name).
-    const listedLabels = new Set(
-      localOrder
-        .map((id) => offerById.get(id))
-        .filter((o): o is Offer => Boolean(o))
-        .map(offerLabel),
-    );
-    const seen = new Set<string>();
-    const out: Offer[] = [];
-    for (const o of offersPick?.data ?? []) {
-      if (inListIds.has(o._id)) continue;
-      const label = offerLabel(o);
-      if (listedLabels.has(label) || seen.has(label)) continue;
-      seen.add(label);
-      out.push(o);
-    }
-    return out;
-  }, [offersPick?.data, localOrder, offerById]);
+    return (offersPick?.data ?? []).filter((offer) => !inListIds.has(offer._id));
+  }, [offersPick?.data, localOrder]);
 
   const dirty =
     !ordersEqual(localOrder, serverOrder) ||
@@ -346,7 +344,9 @@ export default function TopBrandManagementPanel() {
           Add offer
         </h3>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Search by name, then pick an offer. Already listed offers are hidden.
+          Type at least {PICKER_MIN_SEARCH_CHARS} characters to search by brand
+          name, country, lookup slug, offer id, or Mongo id. Offers already in
+          the list below are hidden.
         </p>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="min-w-0 flex-1">
@@ -377,7 +377,7 @@ export default function TopBrandManagementPanel() {
               <option value="">Select an offer…</option>
               {pickerOptions.map((o) => (
                 <option key={o._id} value={o._id}>
-                  {offerLabel(o)}
+                  {offerPickerLabel(o)}
                   {o.disabled ? " (disabled)" : ""}
                 </option>
               ))}
@@ -392,6 +392,20 @@ export default function TopBrandManagementPanel() {
             Add to list
           </Button>
         </div>
+        {!pickerSearchActive ? (
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Start typing a brand name to load matching offers.
+          </p>
+        ) : offersPickLoading ? (
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Searching offers…
+          </p>
+        ) : pickerOptions.length === 0 ? (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            No matching offers found. Check the brand name on the Brands tab, or
+            search by offer id / Mongo id if the display name differs.
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-8 space-y-3 border-t border-gray-200 pt-6 dark:border-gray-700">
@@ -459,12 +473,7 @@ export default function TopBrandManagementPanel() {
                 </span>
                 {offer ? (
                   <RemoteOrBlobImage
-                    src={pathImage(
-                      offer.logo_desktop ||
-                        offer.logo_mobile ||
-                        offer.logo_circle ||
-                        offer.logo,
-                    )}
+                    src={pathImage(resolveAdminOfferLogoPath(offer))}
                     alt=""
                     width={40}
                     height={40}

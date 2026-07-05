@@ -28,6 +28,7 @@ import {
   type OfferProductTypeEntry,
 } from "@/types/api";
 import { pathImage } from "@/utils/helper";
+import { resolveAdminOfferLogoPath } from "@/lib/offerDisplay";
 import { useDataSession } from "@/hooks/useDataSession";
 import { useObjectUrl } from "@/hooks/useObjectUrl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -197,9 +198,13 @@ function FormOfferBrandReferenceStrip({
   offer: Offer;
   form: OfferRequestForm;
 }) {
-  const circlePersisted = (offer.logo_circle || offer.logo || "").trim();
-  const circleObjectUrl = useObjectUrl(form.logo_circle);
-  const circleSrc = circleObjectUrl ?? pathImage(circlePersisted || null);
+  const persistedLogo = resolveAdminOfferLogoPath(offer);
+  const logoDesktopObjectUrl = useObjectUrl(form.logo_desktop);
+  const logoMobileObjectUrl = useObjectUrl(form.logo_mobile);
+  const logoSrc =
+    logoDesktopObjectUrl ??
+    logoMobileObjectUrl ??
+    pathImage(persistedLogo || null);
 
   const meta = [
     { label: "Offer ID", value: offer._id },
@@ -230,10 +235,10 @@ function FormOfferBrandReferenceStrip({
             Logo
           </span>
           <div className="shadow-theme-xs flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-white sm:h-[5.5rem] sm:w-[5.5rem] dark:border-gray-600 dark:bg-gray-900">
-            {circleSrc.trim() ? (
+            {logoSrc.trim() ? (
               <RemoteOrBlobImage
-                src={circleSrc}
-                alt="Brand logo, circle"
+                src={logoSrc}
+                alt="Brand logo"
                 width={128}
                 height={128}
                 className="h-full w-full object-contain"

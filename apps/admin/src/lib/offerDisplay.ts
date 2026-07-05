@@ -3,7 +3,7 @@ import type { OfferID } from "@/types/coupon";
 
 type OfferLike = Pick<
   Offer | OfferID,
-  "_id" | "offer_name" | "offer_name_display" | "countries"
+  "_id" | "offer_name" | "offer_name_display" | "countries" | "logo_desktop" | "logo_mobile" | "logo"
 >;
 
 export type { OfferLike };
@@ -23,6 +23,21 @@ export function formatOfferCountries(
 export function getOfferDisplayName(offer: OfferLike | null | undefined): string {
   if (!offer) return "—";
   return offer.offer_name_display || offer.offer_name || "—";
+}
+
+/** Square brand logo for admin lists and reference previews — not `logo_circle` (shop cover). */
+export function resolveAdminOfferLogoPath(
+  offer:
+    | Pick<OfferLike, "logo_desktop" | "logo_mobile" | "logo">
+    | null
+    | undefined,
+): string {
+  if (!offer) return "";
+  return (
+    String(offer.logo_desktop ?? "").trim() ||
+    String(offer.logo_mobile ?? "").trim() ||
+    String(offer.logo ?? "").trim()
+  );
 }
 
 /** Unique, searchable label for brand Autocomplete options. */

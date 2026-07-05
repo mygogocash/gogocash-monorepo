@@ -87,4 +87,30 @@ describe("mapMerchantOfferToShopDetail", () => {
 
     expect(shop.cashback).toBe("7.25%");
   });
+
+  it("given logo_desktop and legacy logo > then prefers admin desktop logo", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        logo: "https://cdn.example/legacy.png",
+        logo_desktop: "https://cdn.example/desktop.png",
+      },
+      fixtureShop
+    );
+
+    expect(shop.logoUri).toBe("https://cdn.example/desktop.png");
+  });
+
+  it("given no banner but logo_circle brand cover > then uses cover on shop hero", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        banner: undefined,
+        logo_circle: "https://cdn.example/cover.png",
+      },
+      fixtureShop
+    );
+
+    expect(shop.bannerUri).toBe("https://cdn.example/cover.png");
+  });
 });

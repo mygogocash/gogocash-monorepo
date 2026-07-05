@@ -218,11 +218,22 @@ export class OfferService implements OnApplicationBootstrap {
     const filter: any = {};
     if (search) {
       const safeSearch = escapeRegexLiteral(search);
-      filter.$or = [
+      const trimmedSearch = search.trim();
+      const orConditions: Record<string, unknown>[] = [
         { offer_name: { $regex: safeSearch, $options: 'i' } },
         { offer_name_display: { $regex: safeSearch, $options: 'i' } },
         { categories: { $regex: safeSearch, $options: 'i' } },
+        { lookup_value: { $regex: safeSearch, $options: 'i' } },
+        { countries: { $regex: safeSearch, $options: 'i' } },
       ];
+      const numericOfferId = Number.parseInt(trimmedSearch, 10);
+      if (trimmedSearch.length > 0 && String(numericOfferId) === trimmedSearch) {
+        orConditions.push({ offer_id: numericOfferId });
+      }
+      if (Types.ObjectId.isValid(trimmedSearch) && trimmedSearch.length === 24) {
+        orConditions.push({ _id: new Types.ObjectId(trimmedSearch) });
+      }
+      filter.$or = orConditions;
     }
     if (categories) {
       filter['categories'] = {
@@ -249,8 +260,15 @@ export class OfferService implements OnApplicationBootstrap {
         filter.source = adminFilters.source;
       }
     }
-    const data = await this.offerModel
-      .find(filter)
+    let listQuery = this.offerModel.find(filter);
+    if (admin) {
+      listQuery = listQuery.sort({
+        datetime_created: -1,
+        offer_name_display: 1,
+        offer_name: 1,
+      });
+    }
+    const data = await listQuery
       .skip((page - 1) * limit)
       .limit(limit)
       .exec();

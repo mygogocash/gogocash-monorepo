@@ -176,9 +176,20 @@ describe('OfferService', () => {
         { offer_name: { $regex: 'shopee', $options: 'i' } },
         { offer_name_display: { $regex: 'shopee', $options: 'i' } },
         { categories: { $regex: 'shopee', $options: 'i' } },
+        { lookup_value: { $regex: 'shopee', $options: 'i' } },
+        { countries: { $regex: 'shopee', $options: 'i' } },
       ]);
       expect(filter.categories).toEqual({ $regex: 'fashion', $options: 'i' });
       expect(filter.countries).toEqual({ $regex: 'Thailand', $options: 'i' });
+    });
+
+    it('findAll > given a numeric offer id search > then matches offer_id', async () => {
+      await service.findAll(1, 10, '803', '', '', true);
+
+      const filter = offerModel.find.mock.calls[0][0];
+      expect(filter.$or).toEqual(
+        expect.arrayContaining([{ offer_id: 803 }]),
+      );
     });
 
     it('findAll > given regex metacharacters in filters > then user input is escaped literally', async () => {
@@ -189,6 +200,8 @@ describe('OfferService', () => {
         { offer_name: { $regex: 'a\\.\\*', $options: 'i' } },
         { offer_name_display: { $regex: 'a\\.\\*', $options: 'i' } },
         { categories: { $regex: 'a\\.\\*', $options: 'i' } },
+        { lookup_value: { $regex: 'a\\.\\*', $options: 'i' } },
+        { countries: { $regex: 'a\\.\\*', $options: 'i' } },
       ]);
       expect(filter.categories).toEqual({
         $regex: 'fashion\\+',
@@ -281,6 +294,11 @@ describe('OfferService', () => {
       const filter = offerModel.find.mock.calls[0][0];
       expect(filter.disabled).toBeUndefined();
       expect(filter.status).toBeUndefined();
+      expect(offerModel.find.mock.results[0].value.sort).toHaveBeenCalledWith({
+        datetime_created: -1,
+        offer_name_display: 1,
+        offer_name: 1,
+      });
     });
 
     it('findAll > given admin filters > then status and source narrow the query', async () => {

@@ -62,12 +62,29 @@ function brandHref(brand: string) {
   return getTopBrandHref(brand);
 }
 
+function brandInitials(brand: string): string {
+  const parts = brand
+    .replace(/&/g, " ")
+    .split(/[^A-Za-z0-9]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "GO";
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 function resolveCompactLogoSource(
   props: Extract<BrandCardProps, { size: "S" }>,
   logoFailed: boolean
-): ImageSourcePropType {
+): ImageSourcePropType | null {
   if (logoFailed) {
-    return shopeeLogo;
+    return null;
   }
 
   if (props.logoUri) {
@@ -75,10 +92,10 @@ function resolveCompactLogoSource(
   }
 
   if (props.logoAsset) {
-    return brandLogoAssets[props.logoAsset] ?? shopeeLogo;
+    return brandLogoAssets[props.logoAsset] ?? null;
   }
 
-  return shopeeLogo;
+  return null;
 }
 
 export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
@@ -97,6 +114,8 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
   const onLogoError = () => {
     setLogoFailed(true);
   };
+  const compactLogoSource =
+    props.size === "S" ? resolveCompactLogoSource(props, logoFailed) : null;
 
   const card = (
     <MotionPressable
@@ -143,14 +162,20 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
                 strokeWidth={isFavorite ? 0 : 2}
               />
             </Pressable>
-            <Image
-              accessibilityLabel={`${brand} logo`}
-              contentFit="contain"
-              onError={onLogoError}
-              recyclingKey={props.logoUri ?? `${brand}-logo`}
-              source={logoFailed || !props.logoUri ? shopeeLogo : { uri: props.logoUri }}
-              style={styles.brandLogo}
-            />
+            {props.logoUri && !logoFailed ? (
+              <Image
+                accessibilityLabel={`${brand} logo`}
+                contentFit="contain"
+                onError={onLogoError}
+                recyclingKey={props.logoUri ?? `${brand}-logo`}
+                source={{ uri: props.logoUri }}
+                style={styles.brandLogo}
+              />
+            ) : (
+              <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
+                {brandInitials(brand)}
+              </Text>
+            )}
           </View>
         ) : (
           <View
@@ -163,7 +188,7 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
               <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
                 {props.logoFallbackText}
               </Text>
-            ) : (
+            ) : compactLogoSource ? (
               <Image
                 accessibilityLabel={`${brand} logo`}
                 contentFit="contain"
@@ -171,9 +196,13 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
                 recyclingKey={
                   props.logoUri ?? props.logoAsset ?? props.logoFallbackText ?? `${brand}-logo`
                 }
-                source={resolveCompactLogoSource(props, logoFailed)}
+                source={compactLogoSource}
                 style={styles.compactBrandLogo}
               />
+            ) : (
+              <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
+                {brandInitials(brand)}
+              </Text>
             )}
           </View>
         )}

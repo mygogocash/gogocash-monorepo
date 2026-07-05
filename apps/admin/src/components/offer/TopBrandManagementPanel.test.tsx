@@ -135,4 +135,38 @@ describe("TopBrandManagementPanel", () => {
     expect(screen.getByRole("button", { name: "Save top brands" })).toBeDisabled();
     expect(screen.getByText(/read-only access/i)).toBeInTheDocument();
   });
+
+  it("given a same-name variant not yet listed > then still appears in the picker", async () => {
+    const user = userEvent.setup();
+    fetchOffersListMock.mockResolvedValue({
+      data: [
+        {
+          ...offer,
+          _id: "o2",
+          offer_name: "Banana IT MY - CPS",
+          offer_name_display: "Banana IT",
+          countries: "MY",
+        },
+      ],
+      limit: 100,
+      page: 1,
+      total: 1,
+      totalPages: 1,
+    });
+
+    renderPanel();
+    await screen.findByLabelText("Cashback for Banana IT");
+
+    await user.type(screen.getByRole("searchbox", { name: "Search offers" }), "Banana");
+
+    await waitFor(() => {
+      expect(fetchOffersListMock).toHaveBeenCalled();
+    });
+
+    const select = screen.getByLabelText("Select offer to add");
+    await waitFor(() => {
+      expect(select).toHaveTextContent("Banana IT");
+      expect(select).toHaveTextContent("o2");
+    });
+  });
 });

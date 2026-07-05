@@ -687,10 +687,16 @@ function handleMockGET(
         const partner =
           o.affiliate_partner?.trim() ||
           affiliateNetworkName(affiliateNetworkIdForOfferId(o._id));
+        const lookup = String(o.lookup_value ?? "").toLowerCase();
+        const countries = String(o.countries ?? "").toLowerCase();
         return (
           o.offer_name.toLowerCase().includes(s) ||
           o.offer_name_display.toLowerCase().includes(s) ||
-          partner.toLowerCase().includes(s)
+          partner.toLowerCase().includes(s) ||
+          lookup.includes(s) ||
+          countries.includes(s) ||
+          o._id.toLowerCase().includes(s) ||
+          String(o.offer_id).includes(s)
         );
       });
     }

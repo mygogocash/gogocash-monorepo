@@ -25,6 +25,7 @@ import {
   offerToEditForm,
 } from "@/lib/offerEditForm";
 import { pathImage } from "@/utils/helper";
+import { resolveAdminOfferLogoPath } from "@/lib/offerDisplay";
 import { devError } from "@/lib/devConsole";
 import { useDataSession } from "@/hooks/useDataSession";
 import FormOffer from "./FormOffer";
@@ -439,7 +440,7 @@ export default function OffersTable({
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                     {offers.map((offer, index) => {
-                      const logoDesktopSrc = pathImage(offer.logo_desktop);
+                      const logoDesktopSrc = pathImage(resolveAdminOfferLogoPath(offer));
                       const has = (s: string) =>
                         typeof s === "string" && s.length > 0;
                       const rowNumber =
