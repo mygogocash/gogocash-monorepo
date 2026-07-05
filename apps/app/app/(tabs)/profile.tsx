@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
+import { InteractionManager } from "react-native";
 
 import { buildProtectedLoginRedirect } from "@mobile/auth/routeGuard";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
@@ -14,9 +15,15 @@ export default function ProfileRoute() {
   // `/login` screen from a tab scene on native (blank tab). `router.replace`
   // targets the root navigator, same pattern as logout in `useMobileLogout`.
   useEffect(() => {
-    if (ready && !isAuthed) {
-      router.replace(loginHref as never);
+    if (!ready || isAuthed) {
+      return;
     }
+
+    const task = InteractionManager.runAfterInteractions(() => {
+      router.replace(loginHref as never);
+    });
+
+    return () => task.cancel();
   }, [ready, isAuthed, loginHref, router]);
 
   if (!ready || !isAuthed) {

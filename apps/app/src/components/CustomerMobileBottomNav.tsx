@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { useRouter } from "expo-router";
 import { type ComponentType } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
@@ -10,6 +10,8 @@ import {
 } from "@mobile/theme/icons";
 
 import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
+import { buildProtectedLoginRedirect } from "@mobile/auth/routeGuard";
+import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { mobileShellLayout, webMobileBottomNavItems } from "@mobile/design/webDesignParity";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -34,6 +36,8 @@ const bottomNavIcons: Record<string, BottomNavIconComponent> = {
   wallet: WalletIcon,
 };
 
+const protectedBottomNavHrefs = new Set(["/profile", "/wallet"]);
+
 export function CustomerMobileBottomNav({
   activeRouteId,
   bottomInset,
@@ -42,10 +46,21 @@ export function CustomerMobileBottomNav({
   bottomInset: number;
 }) {
   const tc = useCopy();
+  const router = useRouter();
   const session = useMobileSessionSnapshot();
+  const { isAuthed, ready } = useAuthGuardSession();
   const { colors, resolved } = useTheme();
   const surfaces = getThemeSurfaces(colors, resolved);
   const styles = useThemedStyles(createBottomNavStyles);
+
+  function handleBottomNavPress(href: string) {
+    if (ready && !isAuthed && protectedBottomNavHrefs.has(href)) {
+      router.push((buildProtectedLoginRedirect(href) ?? "/login") as never);
+      return;
+    }
+
+    router.push(href as never);
+  }
 
   return (
     <View
@@ -70,14 +85,16 @@ export function CustomerMobileBottomNav({
           const emphasized = "emphasized" in item && item.emphasized;
 
           return (
-            <Link asChild href={item.href as never} key={item.label}>
-              <Pressable
-                style={StyleSheet.flatten([
-                  styles.bottomNavItem,
-                  emphasized ? styles.bottomNavItemEmphasized : null,
-                  active ? styles.bottomNavItemActive : null,
-                ])}
-              >
+            <Pressable
+              accessibilityRole="button"
+              key={item.label}
+              onPress={() => handleBottomNavPress(item.href)}
+              style={StyleSheet.flatten([
+                styles.bottomNavItem,
+                emphasized ? styles.bottomNavItemEmphasized : null,
+                active ? styles.bottomNavItemActive : null,
+              ])}
+            >
                 <View
                   style={[styles.bottomNavIcon, emphasized ? styles.bottomNavIconEmphasized : null]}
                 >
@@ -103,7 +120,6 @@ export function CustomerMobileBottomNav({
                   {tc(item.label)}
                 </Text>
               </Pressable>
-            </Link>
           );
         })}
       </View>

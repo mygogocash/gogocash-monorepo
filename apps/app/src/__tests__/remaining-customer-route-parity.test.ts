@@ -103,6 +103,11 @@ describe("Remaining customer route parity", () => {
     expect(profileRoute).toContain("if (!ready || !isAuthed)");
     expect(walletRoute).toContain("if (!ready)");
 
+    const bottomNav = readMobileFile("src/components/CustomerMobileBottomNav.tsx");
+    expect(bottomNav).toContain("protectedBottomNavHrefs");
+    expect(bottomNav).toContain("buildProtectedLoginRedirect");
+    expect(bottomNav).toContain("handleBottomNavPress");
+
     // The guard signal is synchronous-correct on web (localStorage) and async on native.
     expect(guardSession).toContain("createAvailableSessionStore");
     expect(guardSession).toContain("window.localStorage.getItem");
