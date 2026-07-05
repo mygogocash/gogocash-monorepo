@@ -420,6 +420,17 @@ describe('AdminController', () => {
       expect(arg.tracking_link).toBe('https://track.example/brand');
     });
 
+    it('updateOffer > given lookup_value > then it forwards the slug for persistence', () => {
+      controller.updateOffer(
+        'offer-1',
+        { lookup_value: 'shopee_th' } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.lookup_value).toBe('shopee_th');
+    });
+
     // Multipart files arrive as single-element arrays per field; the controller
     // unwraps [0]. A missing field must become null, not undefined, so the
     // service can treat "no new image" consistently.

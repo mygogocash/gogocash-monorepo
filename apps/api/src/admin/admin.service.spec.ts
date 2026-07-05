@@ -493,6 +493,24 @@ describe('AdminService', () => {
       expect(persisted.tracking_link).toBe('https://track.example/new');
     });
 
+    it('updateOffer > given lookup_value > then it persists the trimmed slug', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          lookup_value: 'old_slug',
+        }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        product_type: [],
+        lookup_value: '  shopee_th  ',
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.lookup_value).toBe('shopee_th');
+    });
+
     it('updateOffer > given omitted booleans and zero economics > then it preserves flags and persists zeros', async () => {
       offerModel.findById.mockReturnValue(
         makeQuery({
