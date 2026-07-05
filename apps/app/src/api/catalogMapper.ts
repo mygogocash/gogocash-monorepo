@@ -1,7 +1,7 @@
 import type { OfferListResponse, OfferRecord } from "@mobile/api/catalogTypes";
 import { getMobileEnv } from "@mobile/config/env";
 import { resolvePublicOfferLogo } from "@mobile/api/offerLogo";
-import { resolveRemoteImageUri } from "@mobile/api/mediaUrl";
+import { resolveOfferMediaUrl } from "@mobile/api/mediaUrl";
 
 // View-model the brand cards consume — the same field shape as the
 // webFavoriteBrandsPage.recentBrands fixture rows, plus the live-only extras
@@ -48,7 +48,7 @@ function formatCashback(commission: OfferRecord["commission_store"]): string {
 
 function resolveLogo(offer: OfferRecord, apiBaseUrl?: string): string | undefined {
   const baseUrl = apiBaseUrl ?? getMobileEnv().apiUrl;
-  return resolveRemoteImageUri(resolvePublicOfferLogo(offer), baseUrl);
+  return resolveOfferMediaUrl(resolvePublicOfferLogo(offer), baseUrl);
 }
 
 export function isCustomerVisibleOffer({

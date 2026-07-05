@@ -49,7 +49,8 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(brandCard).toContain('from "expo-image"');
     expect(brandCard).toContain('contentFit="contain"');
     expect(brandCard).toContain("brandLogoImage:");
-    expect(brandCard).toMatch(/brandLogoImage:[\s\S]*absoluteFillObject/);
+    expect(brandCard).toMatch(/brandLogoImage:[\s\S]*width:\s*"100%"/);
+    expect(brandCard).toMatch(/brandLogoImage:[\s\S]*height:\s*"100%"/);
     expect(brandCard).toMatch(/compactBrandLogoImage:[\s\S]*absoluteFillObject/);
     expect(brandCard).toMatch(/brandVisual:[\s\S]*width:\s*"100%"/);
     expect(brandCard).toMatch(/compactBrandVisual:[\s\S]*width:\s*"100%"/);

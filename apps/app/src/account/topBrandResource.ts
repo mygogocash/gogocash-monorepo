@@ -11,7 +11,7 @@ import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import { isCustomerVisibleOffer, mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
 import { resolvePublicOfferLogo } from "@mobile/api/offerLogo";
-import { resolveRemoteImageUri } from "@mobile/api/mediaUrl";
+import { resolveOfferMediaUrl } from "@mobile/api/mediaUrl";
 import { resolveFixtureBrandCountries } from "@mobile/i18n/fixtureRegionCountries";
 import { offerMatchesRegion } from "@mobile/i18n/regionCatalogFilter";
 import type { RegionCode } from "@mobile/i18n/regionTypes";
@@ -81,7 +81,7 @@ export function mapBackendTopBrands(
       id: item._id ?? String(item.offer_id),
       label: "Grab Coupon",
       logoUri:
-        resolveRemoteImageUri(resolvePublicOfferLogo(item) ?? item.logo, apiBaseUrl) ??
+        resolveOfferMediaUrl(resolvePublicOfferLogo(item) ?? item.logo, apiBaseUrl) ??
         "",
       showGrabCoupon: false,
       tint: TOP_BRAND_TINTS[index % TOP_BRAND_TINTS.length],

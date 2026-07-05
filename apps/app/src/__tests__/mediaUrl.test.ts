@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveRemoteImageUri } from "@mobile/api/mediaUrl";
+import { resolveOfferMediaUrl, resolveRemoteImageUri } from "@mobile/api/mediaUrl";
+
+describe("resolveOfferMediaUrl", () => {
+  it("given a local-media ref > then builds the admin stored-media stream URL", () => {
+    expect(
+      resolveOfferMediaUrl("local-media:brands/logo.png", "https://api-staging.gogocash.co"),
+    ).toBe(
+      "https://api-staging.gogocash.co/admin/stored-media/stream?ref=local-media%3Abrands%2Flogo.png",
+    );
+  });
+
+  it("given an absolute https logo > then returns it unchanged", () => {
+    expect(
+      resolveOfferMediaUrl("https://media-staging.gogocash.co/brands/logo.png"),
+    ).toBe("https://media-staging.gogocash.co/brands/logo.png");
+  });
+});
 
 describe("resolveRemoteImageUri", () => {
   it("given an absolute https URL > then returns it unchanged", () => {

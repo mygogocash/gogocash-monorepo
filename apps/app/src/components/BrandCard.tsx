@@ -337,7 +337,8 @@ function createBrandCardStyles(colors: ThemeColors) {
       zIndex: 2,
     },
     brandLogoImage: {
-      ...StyleSheet.absoluteFillObject,
+      height: "100%",
+      width: "100%",
     },
     lShopCardTitle: {
       color: colors.ink,

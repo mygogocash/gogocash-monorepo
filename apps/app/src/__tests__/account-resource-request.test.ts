@@ -46,8 +46,8 @@ describe("resolveCustomerAccountResourceRequest", () => {
 });
 
 describe("PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS", () => {
-  it("includes topBrand and homeBanner as public admin-curated resources", () => {
-    expect(PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS).toEqual(["topBrand", "homeBanner"]);
+  it("includes topBrand, homeBanner, and merchant as public admin-curated resources", () => {
+    expect(PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS).toEqual(["homeBanner", "merchant", "topBrand"]);
   });
 });
 
@@ -70,6 +70,17 @@ describe("shouldFetchCustomerAccountResourceFromBackend", () => {
       shouldFetchCustomerAccountResourceFromBackend({
         accountDataSource: "fixtures",
         resourceId: "homeBanner",
+        enabled: true,
+        apiUrl,
+      }),
+    ).toBe(true);
+  });
+
+  it("fixtures mode + merchant + apiUrl > then fetches from backend", () => {
+    expect(
+      shouldFetchCustomerAccountResourceFromBackend({
+        accountDataSource: "fixtures",
+        resourceId: "merchant",
         enabled: true,
         apiUrl,
       }),

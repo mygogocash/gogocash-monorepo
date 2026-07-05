@@ -130,6 +130,7 @@ describe("CustomerShopDetailScreen (render)", () => {
       offer_name_display: "Shopee",
       categories: "Marketplace",
       commissions: [{ Commission: "2.02%" }],
+      logo: "https://media-staging.gogocash.co/brands/shopee-logo.png",
       tracking_link: "https://tracking.example/shopee",
     };
     merchantResourceState.source = "backend";
@@ -138,6 +139,8 @@ describe("CustomerShopDetailScreen (render)", () => {
 
     expect(screen.getAllByText("Shopee").length).toBeGreaterThan(0);
     expect(screen.getAllByText("2.02%").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("shop-detail-brand-name")).toBeTruthy();
+    expect(screen.getByTestId("shop-detail-brand-logo")).toBeTruthy();
     expect(screen.queryByText("Grocery Galaxy")).toBeNull();
   });
 });

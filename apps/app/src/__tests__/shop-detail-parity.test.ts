@@ -223,15 +223,20 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("ShopRedirectOverlay");
   });
 
-  it("shop detail parity > given hero summary row > then brand title is wrapped so flex siblings cannot collapse it", () => {
+  it("shop detail parity > given hero summary card > then mobile stacks brand identity above actions", () => {
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 
-    expect(shopFile).toContain("styles.summaryTitleWrap");
+    expect(shopFile).toContain('testID="shop-detail-brand-name"');
+    expect(shopFile).toContain('testID="shop-detail-brand-logo"');
+    expect(shopFile).toContain("styles.summaryTitleMobile");
+    expect(shopFile).toContain("styles.summaryIdentityRow");
+    expect(shopFile).toContain("styles.summaryActionsRow");
+    expect(shopFile).toMatch(/summaryCard:[\s\S]*?flexDirection: "column"/);
+    expect(shopFile).toMatch(/summaryCardDesktop:[\s\S]*?flexDirection: "row"/);
     expect(shopFile).toMatch(/summaryTitleWrap:[\s\S]*?flex: 1/);
     expect(shopFile).toMatch(/summaryTitleWrap:[\s\S]*?minWidth: 0/);
     expect(shopFile).toMatch(/favoriteButton:[\s\S]*?flexShrink: 0/);
     expect(shopFile).toMatch(/shopNowButton:[\s\S]*?flexShrink: 0/);
-    expect(shopFile).toMatch(/summaryCard:[\s\S]*?alignItems: "flex-start"/);
   });
 
   it("shop detail parity > given cashback headline row > then label and value align on baseline", () => {

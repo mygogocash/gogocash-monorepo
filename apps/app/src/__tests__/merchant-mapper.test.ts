@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { isMerchantOfferResponse } from "../api/merchantTypes";
 import { mapMerchantOfferToShopDetail } from "../api/merchantMapper";
+
+vi.mock("@mobile/config/env", () => ({
+  getMobileEnv: () => ({
+    apiUrl: "https://api-staging.gogocash.co",
+  }),
+}));
 
 const fixtureShop = {
   id: "brand-grocery-galaxy-1001",

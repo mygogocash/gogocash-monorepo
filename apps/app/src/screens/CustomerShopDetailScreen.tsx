@@ -320,17 +320,33 @@ function ShopHero({
   shop: ShopDetail;
 }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
-  // Banner image is the only brand visual on the hero; logo badge removed for web parity.
+  const [bannerFailed, setBannerFailed] = useState(false);
+  const bannerSource = shop.bannerUri && !bannerFailed
+    ? { uri: shop.bannerUri }
+    : shopBannerAssets[shop.bannerAsset];
+
   return (
     <View style={styles.heroWrap}>
       <View style={styles.heroBanner}>
-        <Image
-          accessibilityLabel={`${shop.brand} promotion banner`}
-          alt={`${shop.brand} promotion banner`}
-          resizeMode="cover"
-          source={shop.bannerUri ? { uri: shop.bannerUri } : shopBannerAssets[shop.bannerAsset]}
-          style={styles.heroImage}
-        />
+        {shop.bannerUri && !bannerFailed ? (
+          <ExpoImage
+            accessibilityLabel={`${shop.brand} promotion banner`}
+            cachePolicy="memory-disk"
+            contentFit="cover"
+            onError={() => setBannerFailed(true)}
+            recyclingKey={shop.bannerUri}
+            source={bannerSource}
+            style={styles.heroImage}
+          />
+        ) : (
+          <Image
+            accessibilityLabel={`${shop.brand} promotion banner`}
+            alt={`${shop.brand} promotion banner`}
+            resizeMode="cover"
+            source={shopBannerAssets[shop.bannerAsset]}
+            style={styles.heroImage}
+          />
+        )}
       </View>
       <ShopHeroSummaryCard isDesktop={isDesktop} onShopNow={onShopNow} shop={shop} />
     </View>
@@ -350,41 +366,94 @@ function ShopHeroSummaryCard({
   const { colors } = useTheme();
   const { isFavorite, toggleFavorite } = useFavoriteBrands();
   const favorited = isFavorite(shop.id);
+  const [logoFailed, setLogoFailed] = useState(false);
+  const brandTitle = (
+    <Text
+      numberOfLines={isDesktop ? 1 : 2}
+      style={[styles.summaryTitle, isDesktop ? null : styles.summaryTitleMobile]}
+      testID="shop-detail-brand-name"
+    >
+      {shop.brand}
+    </Text>
+  );
+  const brandLogo = shop.logoUri && !logoFailed ? (
+    <ExpoImage
+      accessibilityLabel={`${shop.brand} logo`}
+      cachePolicy="memory-disk"
+      contentFit="contain"
+      onError={() => setLogoFailed(true)}
+      recyclingKey={shop.logoUri}
+      source={{ uri: shop.logoUri }}
+      style={styles.summaryLogoImage}
+      testID="shop-detail-brand-logo"
+    />
+  ) : (
+    <View style={styles.summaryLogoFallback} testID="shop-detail-brand-logo-fallback">
+      <Text style={styles.summaryLogoFallbackText}>{shop.logoText}</Text>
+    </View>
+  );
+  const brandIdentity = isDesktop ? (
+    <View style={styles.summaryTitleWrap}>
+      <View style={styles.summaryIdentityRow}>
+        {brandLogo}
+        {brandTitle}
+      </View>
+    </View>
+  ) : (
+    <View style={styles.summaryIdentityBlock}>
+      <View style={styles.summaryIdentityRow}>
+        {brandLogo}
+        <View style={styles.summaryTitleWrap}>{brandTitle}</View>
+      </View>
+    </View>
+  );
+  const favoriteButton = (
+    <MotionPressable
+      accessibilityLabel={
+        favorited
+          ? `Remove from saved brands: ${shop.brand}`
+          : `Save brand: ${shop.brand}`
+      }
+      accessibilityRole="button"
+      accessibilityState={{ selected: favorited }}
+      onPress={() => toggleFavorite(shop.id)}
+      pressScale={0.96}
+      style={styles.favoriteButton}
+    >
+      <HeartIcon
+        color={favorited ? colors.primary : colors.primaryDark}
+        fill={favorited ? colors.primary : undefined}
+        size={20}
+        strokeWidth={favorited ? 0 : 2}
+      />
+    </MotionPressable>
+  );
+  const shopNowButton = (
+    <MotionPressable
+      accessibilityLabel={`Shop now at ${shop.brand}`}
+      accessibilityRole="button"
+      onPress={onShopNow}
+      pressScale={0.98}
+      style={styles.shopNowButton}
+    >
+      <Text style={styles.shopNowText}>{shop.shopNowLabel}</Text>
+    </MotionPressable>
+  );
+
   return (
     <View style={[styles.summaryCard, isDesktop ? styles.summaryCardDesktop : null]}>
-      <View style={styles.summaryTitleWrap}>
-        <Text numberOfLines={1} style={styles.summaryTitle}>
-          {shop.brand}
-        </Text>
-      </View>
-      <MotionPressable
-        accessibilityLabel={
-          favorited
-            ? `Remove from saved brands: ${shop.brand}`
-            : `Save brand: ${shop.brand}`
-        }
-        accessibilityRole="button"
-        accessibilityState={{ selected: favorited }}
-        onPress={() => toggleFavorite(shop.id)}
-        pressScale={0.96}
-        style={styles.favoriteButton}
-      >
-        <HeartIcon
-          color={favorited ? colors.primary : colors.primaryDark}
-          fill={favorited ? colors.primary : undefined}
-          size={20}
-          strokeWidth={favorited ? 0 : 2}
-        />
-      </MotionPressable>
-      <MotionPressable
-        accessibilityLabel={`Shop now at ${shop.brand}`}
-        accessibilityRole="button"
-        onPress={onShopNow}
-        pressScale={0.98}
-        style={styles.shopNowButton}
-      >
-        <Text style={styles.shopNowText}>{shop.shopNowLabel}</Text>
-      </MotionPressable>
+      {brandIdentity}
+      {isDesktop ? (
+        <>
+          {favoriteButton}
+          {shopNowButton}
+        </>
+      ) : (
+        <View style={styles.summaryActionsRow}>
+          {favoriteButton}
+          {shopNowButton}
+        </View>
+      )}
     </View>
   );
 }
@@ -754,12 +823,12 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     width: "100%",
   },
   summaryCard: {
-    alignItems: "flex-start",
+    alignItems: "stretch",
     backgroundColor: colors.card,
     borderRadius: 32,
     boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
-    flexDirection: "row",
-    gap: 10,
+    flexDirection: "column",
+    gap: 12,
     minHeight: 68,
     marginTop: -39,
     paddingHorizontal: 18,
@@ -768,7 +837,10 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     zIndex: 2,
   },
   summaryCardDesktop: {
+    alignItems: "center",
     alignSelf: "center",
+    flexDirection: "row",
+    gap: 10,
     maxWidth: 720,
     width: "100%",
   },
@@ -777,6 +849,53 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     justifyContent: "center",
     minHeight: 48,
     minWidth: 0,
+  },
+  summaryIdentityBlock: {
+    width: "100%",
+  },
+  summaryIdentityRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  summaryLogoImage: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 24,
+    borderWidth: 1,
+    flexShrink: 0,
+    height: 48,
+    width: 48,
+  },
+  summaryLogoFallback: {
+    alignItems: "center",
+    backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
+    borderRadius: 24,
+    flexShrink: 0,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  summaryLogoFallbackText: {
+    color: colors.primaryDark,
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  summaryTitleMobile: {
+    fontSize: 20,
+    lineHeight: 26,
+    width: "100%",
+  },
+  summaryActionsRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexShrink: 0,
+    gap: 10,
+    justifyContent: "flex-end",
+    width: "100%",
   },
   summaryTitle: {
     color: colors.ink,
@@ -814,6 +933,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   },
   detailGrid: {
     gap: 32,
+    width: "100%",
   },
   detailGridDesktop: {
     flexDirection: "row",
@@ -843,8 +963,10 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   cashbackHeader: {
     alignItems: "baseline",
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 16,
     justifyContent: "space-between",
+    width: "100%",
   },
   cashbackLabel: {
     color: colors.muted,
@@ -855,6 +977,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   },
   cashbackValue: {
     color: colors.primary,
+    flexShrink: 0,
     fontFamily: typography.family,
     fontSize: 40,
     fontWeight: "600",
