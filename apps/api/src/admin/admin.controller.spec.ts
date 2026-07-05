@@ -431,6 +431,30 @@ describe('AdminController', () => {
       expect(arg.lookup_value).toBe('shopee_th');
     });
 
+    it('updateOffer > given offer_display_tags JSON > then it forwards normalized tags', () => {
+      controller.updateOffer(
+        'offer-1',
+        {
+          offer_display_tags: JSON.stringify({
+            brand_category_enabled: true,
+            brand_category_label: 'Shopping',
+            grab_coupon_tag: true,
+          }),
+        } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.offer_display_tags).toEqual({
+        brand_category_enabled: true,
+        brand_category_label: 'Shopping',
+        extra_cashback_tag: false,
+        grab_coupon_tag: true,
+        expire_in_days_enabled: false,
+        expire_in_days: null,
+      });
+    });
+
     // Multipart files arrive as single-element arrays per field; the controller
     // unwraps [0]. A missing field must become null, not undefined, so the
     // service can treat "no new image" consistently.

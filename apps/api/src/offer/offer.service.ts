@@ -22,6 +22,7 @@ import { UpdateCouponDto } from './dto/update-offer.dto';
 import { MissionOrder } from './schemas/missing-order.schema';
 import { StoredMediaService } from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
+import { parseOfferDisplayTagsField } from './offer-display-tags.util';
 import { Quest, QuestTask } from 'src/point/schemas/quest.schema';
 import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schema';
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
@@ -460,6 +461,7 @@ export class OfferService implements OnApplicationBootstrap {
       is_global: parseBoolean(body.is_global, false),
       default_country: String(body.default_country ?? '').trim() || undefined,
       app_deeplink: String(body.app_deeplink ?? '').trim() || undefined,
+      offer_display_tags: parseOfferDisplayTagsField(body.offer_display_tags),
     });
   }
 

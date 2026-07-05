@@ -17,6 +17,7 @@ import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
 import { StoredMediaService } from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { Offer } from 'src/offer/schemas/offer.schema';
+import { OfferDisplayTags } from 'src/offer/offer-display-tags.util';
 import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
@@ -410,6 +411,7 @@ export class AdminService {
       logo_circle?: Express.Multer.File;
       offer_name_display?: string;
       lookup_value?: string;
+      offer_display_tags?: OfferDisplayTags;
       disabled?: boolean;
       commission_store?: number;
       max_cap?: number;
@@ -486,6 +488,10 @@ export class AdminService {
             typeof updateData.lookup_value === 'string'
               ? updateData.lookup_value.trim() || offer.lookup_value
               : offer.lookup_value,
+          offer_display_tags:
+            updateData.offer_display_tags !== undefined
+              ? updateData.offer_display_tags
+              : offer.offer_display_tags,
           disabled: Boolean(updateData.disabled ?? offer.disabled),
           commission_store:
             updateData.commission_store ?? offer.commission_store ?? 0,

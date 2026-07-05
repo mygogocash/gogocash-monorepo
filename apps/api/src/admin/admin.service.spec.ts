@@ -511,6 +511,45 @@ describe('AdminService', () => {
       expect(persisted.lookup_value).toBe('shopee_th');
     });
 
+    it('updateOffer > given offer_display_tags > then it persists normalized merchandising tags', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          offer_display_tags: {
+            brand_category_enabled: false,
+            brand_category_label: '',
+            extra_cashback_tag: false,
+            grab_coupon_tag: false,
+            expire_in_days_enabled: false,
+            expire_in_days: null,
+          },
+        }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        product_type: [],
+        offer_display_tags: {
+          brand_category_enabled: true,
+          brand_category_label: 'Shopping',
+          extra_cashback_tag: true,
+          grab_coupon_tag: false,
+          expire_in_days_enabled: true,
+          expire_in_days: 14,
+        },
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.offer_display_tags).toEqual({
+        brand_category_enabled: true,
+        brand_category_label: 'Shopping',
+        extra_cashback_tag: true,
+        grab_coupon_tag: false,
+        expire_in_days_enabled: true,
+        expire_in_days: 14,
+      });
+    });
+
     it('updateOffer > given omitted booleans and zero economics > then it preserves flags and persists zeros', async () => {
       offerModel.findById.mockReturnValue(
         makeQuery({

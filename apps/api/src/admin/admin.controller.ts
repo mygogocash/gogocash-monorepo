@@ -43,6 +43,7 @@ import {
   InviteAdminUserDto,
 } from './dto/admin-auth.dto';
 import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
+import { parseOfferDisplayTagsField } from 'src/offer/offer-display-tags.util';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
@@ -466,6 +467,9 @@ export class AdminController {
       logo_circle: files?.logo_circle ? files?.logo_circle?.[0] : null,
       offer_name_display: updateAdminDto.offer_name_display,
       lookup_value: updateAdminDto.lookup_value,
+      offer_display_tags: parseOfferDisplayTagsField(
+        updateAdminDto.offer_display_tags,
+      ),
       disabled: coerceOptionalBoolean(updateAdminDto?.disabled),
       commission_store: coerceOptionalNumber(updateAdminDto.commission_store),
       max_cap: coerceOptionalNumber(updateAdminDto.max_cap),

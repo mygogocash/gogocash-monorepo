@@ -102,6 +102,14 @@ export class UpdateOfferAdminDto {
   @IsOptional()
   lookup_value?: string;
 
+  @ApiProperty({
+    required: false,
+    description: 'JSON string of admin merchandising tags (multipart FormData).',
+  })
+  @IsString()
+  @IsOptional()
+  offer_display_tags?: string;
+
   @ApiProperty()
   @IsOptional()
   commission_store: number;

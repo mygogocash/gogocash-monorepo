@@ -62,7 +62,15 @@ describe('UpdateOfferAdminDto validation (integration)', () => {
       .field('offer_name_display', 'Shopee')
       .field('lookup_value', 'shopee_th')
       .field('disabled', 'false')
-      .field('extra_store', 'true');
+      .field('extra_store', 'true')
+      .field(
+        'offer_display_tags',
+        JSON.stringify({
+          brand_category_enabled: true,
+          brand_category_label: 'Shopping',
+          extra_cashback_tag: true,
+        }),
+      );
 
     expect(response.status).toBe(200);
     expect(response.body.ok).toBe(true);
@@ -70,5 +78,12 @@ describe('UpdateOfferAdminDto validation (integration)', () => {
     expect(response.body.body.lookup_value).toBe('shopee_th');
     expect(response.body.body.disabled).toBe('false');
     expect(response.body.body.extra_store).toBe('true');
+    expect(response.body.body.offer_display_tags).toBe(
+      JSON.stringify({
+        brand_category_enabled: true,
+        brand_category_label: 'Shopping',
+        extra_cashback_tag: true,
+      }),
+    );
   });
 });
