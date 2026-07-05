@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { refetchPublicCatalogResources } from "@mobile/account/accountResourcePrefetch";
@@ -15,12 +15,15 @@ export function usePublicCatalogPullToRefresh(
   const queryClient = useQueryClient();
   const env = getMobileEnv();
   const [refreshing, setRefreshing] = useState(false);
+  const refreshInFlightRef = useRef(false);
+  const includeOfferSearch = options.includeOfferSearch ?? false;
 
   const onRefresh = useCallback(async () => {
-    if (refreshing) {
+    if (refreshInFlightRef.current) {
       return;
     }
 
+    refreshInFlightRef.current = true;
     setRefreshing(true);
     try {
       await refetchPublicCatalogResources(
@@ -29,22 +32,19 @@ export function usePublicCatalogPullToRefresh(
         env.accountDataSource,
       );
 
-      if (options.includeOfferSearch) {
+      if (includeOfferSearch) {
         await queryClient.refetchQueries({
           queryKey: ["offer-search"],
           type: "active",
         });
       }
+    } catch (error) {
+      console.warn("[usePublicCatalogPullToRefresh] refresh failed", error);
     } finally {
+      refreshInFlightRef.current = false;
       setRefreshing(false);
     }
-  }, [
-    env.accountDataSource,
-    env.apiUrl,
-    options.includeOfferSearch,
-    queryClient,
-    refreshing,
-  ]);
+  }, [env.accountDataSource, env.apiUrl, includeOfferSearch, queryClient]);
 
   return { onRefresh, refreshing };
 }

@@ -10,10 +10,15 @@ import { usePermissions } from "@/hooks/usePermissions";
 import type { Offer, TopBrandConfigEntry } from "@/types/api";
 import {
   brandSearchOptionLabel,
-  formatOfferCountries,
   getOfferDisplayName,
   resolveAdminOfferLogoPath,
 } from "@/lib/offerDisplay";
+import {
+  mergeAutocompleteTextFieldSlotProps,
+  offerAutocompletePopperSlotProps,
+  partitionOffersByIdPresence,
+  syncAutocompleteSearchInput,
+} from "@/lib/offerAutocompleteUi";
 import { resolveTopBrandCashbackLabel } from "@/lib/offerDeeplink";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import { pathImage } from "@/utils/helper";
@@ -26,7 +31,6 @@ import { OFFER_THUMB_SIZES } from "./offerMedia";
 
 const TOP_BRANDS_QUERY_KEY = ["admin", "top-brands"] as const;
 const PICKER_RESULTS_LIMIT = 100;
-const BRAND_AUTOCOMPLETE_POPPER_Z = 100002;
 
 const EMPTY_BRANDS: TopBrandConfigEntry[] = [];
 
@@ -120,9 +124,7 @@ function resolveRowCashback(
   draftCashbackById: Record<string, string> | null,
 ): string {
   if (draftCashbackById !== null && offerId in draftCashbackById) {
-    const explicit = draftCashbackById[offerId];
-    if (String(explicit).trim()) return explicit;
-    return explicit;
+    return draftCashbackById[offerId];
   }
   const saved = serverCashbackById[offerId];
   if (String(saved ?? "").trim()) return saved;
@@ -232,15 +234,12 @@ export default function TopBrandManagementPanel() {
     [effectiveCashbackById, localOrder],
   );
 
-  const pickerOptions = useMemo(() => {
-    const inListIds = new Set(localOrder);
-    return (offersPick?.data ?? []).filter((offer) => !inListIds.has(offer._id));
-  }, [offersPick?.data, localOrder]);
+  const listedOfferIds = useMemo(() => new Set(localOrder), [localOrder]);
 
-  const hiddenPickerMatches = useMemo(() => {
-    const inListIds = new Set(localOrder);
-    return (offersPick?.data ?? []).filter((offer) => inListIds.has(offer._id));
-  }, [offersPick?.data, localOrder]);
+  const { available: pickerOptions, hidden: hiddenPickerMatches } = useMemo(
+    () => partitionOffersByIdPresence(offersPick?.data ?? [], listedOfferIds),
+    [listedOfferIds, offersPick?.data],
+  );
 
   const pickerNoOptionsText = useMemo(() => {
     if (offersPickLoading) return "Loading offers…";
@@ -443,23 +442,16 @@ export default function TopBrandManagementPanel() {
             getOptionKey={(offer) => offer._id}
             isOptionEqualToValue={(left, right) => left._id === right._id}
             noOptionsText={pickerNoOptionsText}
-            slotProps={{
-              popper: {
-                sx: { zIndex: BRAND_AUTOCOMPLETE_POPPER_Z },
-              },
-            }}
+            slotProps={offerAutocompletePopperSlotProps}
             sx={{ width: "100%" }}
             renderInput={(params) => (
               <TextField
                 {...params}
                 placeholder="Search offers to add…"
-                slotProps={{
-                  ...params.slotProps,
-                  htmlInput: {
-                    ...params.slotProps?.htmlInput,
-                    "aria-label": "Search offers to add",
-                  },
-                }}
+                slotProps={mergeAutocompleteTextFieldSlotProps(
+                  params,
+                  "Search offers to add",
+                )}
               />
             )}
             renderOption={(props, offer) => {
@@ -477,9 +469,7 @@ export default function TopBrandManagementPanel() {
               );
             }}
             onInputChange={(_event, value, reason) => {
-              if (reason === "input" || reason === "clear" || reason === "reset") {
-                setPickerSearch(value);
-              }
+              syncAutocompleteSearchInput(reason, value, setPickerSearch);
             }}
             onChange={(_event, offer) => {
               if (!offer) return;
