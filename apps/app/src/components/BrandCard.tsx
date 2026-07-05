@@ -189,11 +189,11 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
               <Image
                 accessibilityLabel={`${brand} logo`}
                 cachePolicy="memory-disk"
-                contentFit="cover"
+                contentFit="contain"
                 onError={onLogoError}
                 recyclingKey={props.logoUri ?? `${brand}-logo`}
                 source={{ uri: props.logoUri }}
-                style={styles.brandLogoFill}
+                style={styles.brandLogoImage}
               />
             ) : (
               <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
@@ -219,13 +219,13 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
               <Image
                 accessibilityLabel={`${brand} logo`}
                 cachePolicy="memory-disk"
-                contentFit="cover"
+                contentFit="contain"
                 onError={onLogoError}
                 recyclingKey={
                   props.logoUri ?? props.logoAsset ?? props.logoFallbackText ?? `${brand}-logo`
                 }
                 source={compactLogoSource}
-                style={styles.compactBrandLogoFill}
+                style={styles.compactBrandLogoImage}
               />
             ) : (
               <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
@@ -328,8 +328,9 @@ function createBrandCardStyles(colors: ThemeColors) {
       width: 28,
       zIndex: 2,
     },
-    brandLogoFill: {
-      ...StyleSheet.absoluteFill,
+    brandLogoImage: {
+      height: "62%",
+      width: "72%",
     },
     lShopCardTitle: {
       color: colors.ink,
@@ -355,6 +356,7 @@ function createBrandCardStyles(colors: ThemeColors) {
     },
     brandCashback: {
       color: colors.primaryDark,
+      flexShrink: 0,
       fontFamily: typography.family,
       fontSize: 18,
       fontWeight: "700",
@@ -382,8 +384,9 @@ function createBrandCardStyles(colors: ThemeColors) {
       overflow: "hidden",
       width: "100%",
     },
-    compactBrandLogoFill: {
-      ...StyleSheet.absoluteFill,
+    compactBrandLogoImage: {
+      height: "62%",
+      width: "72%",
     },
     compactBrandLogoFallback: {
       color: colors.accent,
@@ -411,6 +414,7 @@ function createBrandCardStyles(colors: ThemeColors) {
     },
     compactCashbackCaption: {
       color: colors.muted,
+      flex: 1,
       fontFamily: typography.family,
       fontSize: 10,
       fontWeight: typography.bodyWeight,
@@ -418,6 +422,7 @@ function createBrandCardStyles(colors: ThemeColors) {
     },
     compactCashbackValue: {
       color: colors.primaryDark,
+      flexShrink: 0,
       fontFamily: typography.family,
       fontSize: 16,
       fontWeight: "700",

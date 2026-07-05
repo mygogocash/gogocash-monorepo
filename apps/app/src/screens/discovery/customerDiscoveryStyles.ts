@@ -745,16 +745,17 @@ export function createDiscoveryScreenStyles(colors: ThemeColors) {
     boxShadow: shadows.cardCss,
   },
   shopDirectoryLogoTile: {
+    alignItems: "center",
     aspectRatio: 1,
     borderRadius: 10,
+    justifyContent: "center",
     overflow: "hidden",
     position: "relative",
     width: "100%",
   },
   shopDirectoryLogoImage: {
-    height: "100%",
-    padding: spacing.md,
-    width: "100%",
+    height: "62%",
+    width: "72%",
   },
   shopDirectoryCouponBadge: {
     alignItems: "center",

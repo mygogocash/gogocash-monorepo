@@ -36,6 +36,7 @@ server {
     # plus a root index.html. Serve the file, then the directory's index.html, then
     # fall back to the SPA shell so client-side routes resolve on hard refresh.
     location / {
+        add_header Cache-Control "no-cache";
         try_files $uri $uri/ $uri.html /index.html;
     }
 }

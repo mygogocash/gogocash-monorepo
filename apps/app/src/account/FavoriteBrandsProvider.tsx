@@ -9,6 +9,8 @@ import {
 } from "react";
 
 import { fetchFavoriteOfferIds, toggleFavoriteOffer } from "@mobile/account/favoriteResource";
+import { hasUsableMobileSessionToken } from "@mobile/auth/sessionValidity";
+import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { getMobileEnv } from "@mobile/config/env";
 
 export const INITIAL_FAVORITE_OFFER_IDS = [
@@ -26,23 +28,30 @@ const FavoriteBrandsContext = createContext<FavoriteBrandsContextValue | null>(n
 
 export function FavoriteBrandsProvider({ children }: PropsWithChildren) {
   const env = getMobileEnv();
-  const [favoriteIds, setFavoriteIds] = useState<readonly string[]>(INITIAL_FAVORITE_OFFER_IDS);
+  const session = useMobileSessionSnapshot();
+  const isAuthed = hasUsableMobileSessionToken(session, env.accountDataSource);
+  const [favoriteIds, setFavoriteIds] = useState<readonly string[]>(() =>
+    env.accountDataSource === "backend" ? [] : [...INITIAL_FAVORITE_OFFER_IDS],
+  );
 
   useEffect(() => {
     if (env.accountDataSource !== "backend" || !env.apiUrl) {
       return;
     }
 
+    if (!isAuthed) {
+      setFavoriteIds([]);
+      return;
+    }
+
     void fetchFavoriteOfferIds({ apiUrl: env.apiUrl })
       .then((ids) => {
-        if (ids.length > 0) {
-          setFavoriteIds(ids);
-        }
+        setFavoriteIds(ids);
       })
       .catch(() => {
-        // Keep fixture defaults when the backend favorites list is unavailable.
+        setFavoriteIds([]);
       });
-  }, [env.accountDataSource, env.apiUrl]);
+  }, [env.accountDataSource, env.apiUrl, isAuthed]);
 
   const isFavorite = useCallback(
     (id: string) => favoriteIds.includes(id),
@@ -55,7 +64,7 @@ export function FavoriteBrandsProvider({ children }: PropsWithChildren) {
         previous.includes(id) ? previous.filter((entry) => entry !== id) : [...previous, id],
       );
 
-      if (env.accountDataSource === "backend" && env.apiUrl) {
+      if (env.accountDataSource === "backend" && env.apiUrl && isAuthed) {
         void toggleFavoriteOffer({ apiUrl: env.apiUrl, offerId: id }).catch(() => {
           setFavoriteIds((previous) =>
             previous.includes(id)
@@ -65,7 +74,7 @@ export function FavoriteBrandsProvider({ children }: PropsWithChildren) {
         });
       }
     },
-    [env.accountDataSource, env.apiUrl],
+    [env.accountDataSource, env.apiUrl, isAuthed],
   );
 
   const value = useMemo(

@@ -43,11 +43,13 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(dotsSource).not.toContain("outputRange: [size, expandedWidth, size]");
   });
 
-  it("BrandCard > given partner logos > then expo-image is used with contentFit cover", () => {
+  it("BrandCard > given partner logos > then expo-image is used with contentFit contain", () => {
     const brandCard = readMobileFile("src/components/BrandCard.tsx");
 
     expect(brandCard).toContain('from "expo-image"');
-    expect(brandCard).toContain('contentFit="cover"');
+    expect(brandCard).toContain('contentFit="contain"');
+    expect(brandCard).toContain("brandLogoImage:");
+    expect(brandCard).not.toContain("brandLogoFill");
     expect(brandCard).toContain("recyclingKey=");
     expect(brandCard).toContain('cachePolicy="memory-disk"');
     expect(brandCard).not.toMatch(
@@ -68,6 +70,41 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(brandCard).not.toMatch(
       /compactBrandVisual[\s\S]*backgroundColor: tint/,
     );
+  });
+
+  it("BrandCard > given long cashback values > then caption truncates and value keeps full width", () => {
+    const brandCard = readMobileFile("src/components/BrandCard.tsx");
+
+    expect(brandCard).toMatch(
+      /brandCashbackCaption:[\s\S]*flex:\s*1/,
+    );
+    expect(brandCard).toMatch(
+      /brandCashback:[\s\S]*flexShrink:\s*0/,
+    );
+    expect(brandCard).toMatch(
+      /compactCashbackCaption:[\s\S]*flex:\s*1/,
+    );
+    expect(brandCard).toMatch(
+      /compactCashbackValue:[\s\S]*flexShrink:\s*0/,
+    );
+    expect(brandCard).toMatch(
+      /brandCashbackRow[\s\S]*numberOfLines=\{1\}/,
+    );
+  });
+
+  it("directory store cards > given remote logos > then expo-image uses contain on card background", () => {
+    const shopCard = readMobileFile("src/screens/discovery/ShopDirectoryStoreCard.tsx");
+    const brandCard = readMobileFile("src/screens/discovery/BrandDirectoryStoreCard.tsx");
+
+    for (const source of [shopCard, brandCard]) {
+      expect(source).toContain('from "expo-image"');
+      expect(source).toContain('contentFit="contain"');
+      expect(source).toContain("store.logoUri");
+      expect(source).toContain("colors.card");
+      expect(source).not.toMatch(
+        /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/,
+      );
+    }
   });
 
   it("BrandCard > given custom onPress > then it skips Link so search suggestions stay on-screen", () => {

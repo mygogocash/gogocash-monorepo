@@ -1,4 +1,7 @@
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
+import { hasUsableMobileSessionToken } from "@mobile/auth/sessionValidity";
+import { getSharedSessionStore } from "@mobile/auth/sharedSessionStore";
+import { getMobileEnv } from "@mobile/config/env";
 
 export async function toggleFavoriteOffer({
   apiUrl,
@@ -26,6 +29,13 @@ export async function fetchFavoriteOfferIds({
 }): Promise<string[]> {
   const client = await getSharedMobileApiClient(apiUrl);
   if (!client) {
+    return [];
+  }
+
+  const env = getMobileEnv();
+  const sessionStore = await getSharedSessionStore();
+  const session = await sessionStore?.getSession();
+  if (!hasUsableMobileSessionToken(session ?? null, env.accountDataSource)) {
     return [];
   }
 
