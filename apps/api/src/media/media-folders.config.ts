@@ -48,7 +48,8 @@ const DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 export function resolveMaxUploadBytes(
   env: NodeJS.ProcessEnv = process.env,
 ): number {
-  const raw = env.GCS_MAX_UPLOAD_BYTES?.trim();
+  const raw =
+    env.MEDIA_MAX_UPLOAD_BYTES?.trim() || env.GCS_MAX_UPLOAD_BYTES?.trim();
   if (!raw) {
     return DEFAULT_MAX_UPLOAD_BYTES;
   }

@@ -37,13 +37,12 @@
     "seed:e2e-fixtures": "ts-node -r tsconfig-paths/register scripts/seed-e2e-fixtures.ts",
     "seed:e2e": "ts-node -r tsconfig-paths/register scripts/seed-e2e.ts",
     "media:inventory": "ts-node -r tsconfig-paths/register scripts/inventory-stored-media.ts",
-    "media:migrate-to-gcs": "ts-node -r tsconfig-paths/register scripts/migrate-stored-media-to-gcs.ts",
-    "media:migrate-to-gcs:dry": "ts-node -r tsconfig-paths/register scripts/migrate-stored-media-to-gcs.ts --dry-run"
+    "media:migrate-gcs-to-r2": "ts-node -r tsconfig-paths/register scripts/migrate-stored-media-gcs-to-r2.ts",
+    "media:migrate-gcs-to-r2:dry": "ts-node -r tsconfig-paths/register scripts/migrate-stored-media-gcs-to-r2.ts --dry-run"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1077.0",
     "@crossmint/server-sdk": "^1.2.76",
-    "@google-cloud/storage": "^7.21.0",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.1.27",
     "@nestjs/core": "^11.1.27",

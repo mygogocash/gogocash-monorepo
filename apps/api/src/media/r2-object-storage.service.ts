@@ -78,9 +78,12 @@ export class R2ObjectStorageService {
   }
 
   assertUploadConfigured(): void {
-    if (process.env.GCS_MEDIA_UPLOAD_DISABLED?.trim() === 'true') {
+    if (
+      process.env.MEDIA_UPLOAD_DISABLED?.trim() === 'true' ||
+      process.env.GCS_MEDIA_UPLOAD_DISABLED?.trim() === 'true'
+    ) {
       throw new HttpException(
-        'Media uploads are disabled (GCS_MEDIA_UPLOAD_DISABLED=true).',
+        'Media uploads are disabled (MEDIA_UPLOAD_DISABLED=true).',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }

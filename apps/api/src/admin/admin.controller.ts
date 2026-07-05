@@ -465,6 +465,7 @@ export class AdminController {
       banner_mobile: files?.banner_mobile ? files?.banner_mobile?.[0] : null,
       logo_circle: files?.logo_circle ? files?.logo_circle?.[0] : null,
       offer_name_display: updateAdminDto.offer_name_display,
+      lookup_value: updateAdminDto.lookup_value,
       disabled: coerceOptionalBoolean(updateAdminDto?.disabled),
       commission_store: coerceOptionalNumber(updateAdminDto.commission_store),
       max_cap: coerceOptionalNumber(updateAdminDto.max_cap),

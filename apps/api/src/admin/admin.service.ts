@@ -409,6 +409,7 @@ export class AdminService {
       banner_mobile?: Express.Multer.File;
       logo_circle?: Express.Multer.File;
       offer_name_display?: string;
+      lookup_value?: string;
       disabled?: boolean;
       commission_store?: number;
       max_cap?: number;
@@ -481,6 +482,10 @@ export class AdminService {
           logo_circle: logoCircleFile ?? offer.logo_circle,
           offer_name_display:
             updateData.offer_name_display ?? offer.offer_name_display,
+          lookup_value:
+            typeof updateData.lookup_value === 'string'
+              ? updateData.lookup_value.trim() || offer.lookup_value
+              : offer.lookup_value,
           disabled: Boolean(updateData.disabled ?? offer.disabled),
           commission_store:
             updateData.commission_store ?? offer.commission_store ?? 0,
