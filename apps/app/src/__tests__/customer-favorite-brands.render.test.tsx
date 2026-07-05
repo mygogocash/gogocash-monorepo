@@ -16,6 +16,7 @@ vi.mock("@mobile/observability/client", () => ({
 }));
 
 import { FavoriteBrandsProvider } from "@mobile/account/FavoriteBrandsProvider";
+import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
 import { CustomerFavoriteBrandsScreen } from "@mobile/screens/CustomerFavoriteBrandsScreen";
 import { CustomerHomeScreen } from "@mobile/screens/CustomerHomeScreen";
 
@@ -29,12 +30,16 @@ function renderScreen() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     createElement(
-      FavoriteBrandsProvider,
+      LocaleProvider,
       {},
       createElement(
-        QueryClientProvider,
-        { client: queryClient },
-        createElement(CustomerFavoriteBrandsScreen),
+        FavoriteBrandsProvider,
+        {},
+        createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          createElement(CustomerFavoriteBrandsScreen),
+        ),
       ),
     ),
   );
@@ -99,9 +104,13 @@ describe("CustomerFavoriteBrandsScreen (render)", () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const SharedProviders = ({ children }: PropsWithChildren) =>
       createElement(
-        FavoriteBrandsProvider,
+        LocaleProvider,
         {},
-        createElement(QueryClientProvider, { client: queryClient }, children),
+        createElement(
+          FavoriteBrandsProvider,
+          {},
+          createElement(QueryClientProvider, { client: queryClient }, children),
+        ),
       );
 
     const { rerender } = render(createElement(CustomerHomeScreen), { wrapper: SharedProviders });

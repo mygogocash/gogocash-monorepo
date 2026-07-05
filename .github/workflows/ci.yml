@@ -105,6 +105,7 @@ jobs:
     env:
       NODE_OPTIONS: --max-old-space-size=4096
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/setup-node-monorepo
         with:
           node-options: --max-old-space-size=4096
@@ -134,6 +135,7 @@ jobs:
     env:
       NODE_OPTIONS: --max-old-space-size=4096
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/setup-node-monorepo
         with:
           node-options: --max-old-space-size=4096
@@ -165,6 +167,7 @@ jobs:
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/setup-node-monorepo
       - name: Lint (no --fix)
         # Type-aware lint (typescript-eslint with parserOptions.project) builds
@@ -180,6 +183,7 @@ jobs:
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/setup-node-monorepo
         with:
           node-options: --max-old-space-size=4096
@@ -214,6 +218,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/setup-node-monorepo
         with:
           node-options: --max-old-space-size=4096
@@ -288,6 +293,7 @@ jobs:
     env:
       NODE_OPTIONS: --max-old-space-size=4096
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/setup-node-monorepo
         with:
           node-options: --max-old-space-size=4096
@@ -305,6 +311,7 @@ jobs:
     if: ${{ needs.changes.outputs.knip == 'true' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/setup-node-monorepo
       - run: npx knip --no-progress
 
@@ -324,6 +331,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/setup-node-monorepo
         with:
           node-options: --max-old-space-size=4096

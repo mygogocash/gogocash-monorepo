@@ -25,6 +25,7 @@ vi.mock("@mobile/observability/client", () => ({
 import { readHomeSources } from "../test-support/homeSource";
 
 import { FavoriteBrandsProvider } from "@mobile/account/FavoriteBrandsProvider";
+import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
 import { CustomerHomeScreen } from "@mobile/screens/CustomerHomeScreen";
 
 // Wave B (B4) per-screen UX adoption for the discovery/home landing screen. This is
@@ -63,9 +64,13 @@ function renderHome() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     createElement(
-      FavoriteBrandsProvider,
+      LocaleProvider,
       {},
-      createElement(QueryClientProvider, { client: queryClient }, createElement(CustomerHomeScreen)),
+      createElement(
+        FavoriteBrandsProvider,
+        {},
+        createElement(QueryClientProvider, { client: queryClient }, createElement(CustomerHomeScreen)),
+      ),
     ),
   );
 }
