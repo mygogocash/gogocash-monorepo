@@ -4,7 +4,7 @@ import {
   ChevronUp as ChevronUpIcon,
   Search as SearchIcon,
 } from "@mobile/theme/icons";
-import { Animated, ScrollView, TextInput, useWindowDimensions, View } from "react-native";
+import { Animated, RefreshControl, ScrollView, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
@@ -23,6 +23,7 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { resolveHomePromoSections, resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { usePublicCatalogPullToRefresh } from "@mobile/account/usePublicCatalogPullToRefresh";
 import {
   getDesktopShellOffset,
   getResponsiveHomeLayoutMetrics,
@@ -81,6 +82,14 @@ export function CustomerHomeScreen() {
     fixtureData: webHomePromoSections,
     resourceId: "brandCatalog",
   });
+  const { onRefresh: onPullToRefresh, refreshing } = usePublicCatalogPullToRefresh();
+  const homeRefreshControl = (
+    <RefreshControl
+      onRefresh={onPullToRefresh}
+      refreshing={refreshing}
+      tintColor={colors.primaryDark}
+    />
+  );
   const promoSections = resolveHomePromoSections(
     brandCatalogResource.source,
     brandCatalogResource.data,
@@ -173,6 +182,7 @@ export function CustomerHomeScreen() {
                   paddingTop: mobileShellLayout.desktopHomeTopGap,
                 },
               ]}
+              refreshControl={homeRefreshControl}
               showsVerticalScrollIndicator={false}
             >
               <View
@@ -240,6 +250,7 @@ export function CustomerHomeScreen() {
           <ScrollView
             style={styles.mobileTabletPageScroll}
             contentContainerStyle={styles.mobileTabletPageScrollContent}
+            refreshControl={homeRefreshControl}
             showsVerticalScrollIndicator={false}
           >
             <MobileTabletHomeHeader

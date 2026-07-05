@@ -28,6 +28,10 @@ export const PUBLIC_CATALOG_REFETCH_RESOURCE_IDS = [
   "catalog",
 ] as const satisfies readonly CustomerAccountResourceId[];
 
+const PUBLIC_CATALOG_RESOURCE_ID_SET = new Set<string>(
+  PUBLIC_CATALOG_REFETCH_RESOURCE_IDS,
+);
+
 async function prefetchResource(
   queryClient: QueryClient,
   apiUrl: string,
@@ -106,21 +110,17 @@ export async function refetchPublicCatalogResources(
     return;
   }
 
-  await Promise.all(
-    PUBLIC_CATALOG_REFETCH_RESOURCE_IDS.map(async (resourceId) => {
-      const endpoint = resolveCustomerAccountResourceEndpoint({ regionCode: DEFAULT_REGION, resourceId });
-      const sessionScope = resolveCustomerAccountResourceSessionScope(resourceId, null);
-
-      await queryClient.refetchQueries({
-        queryKey: resolveCustomerAccountResourceQueryKey({
-          apiUrl,
-          endpoint,
-          regionCode: DEFAULT_REGION,
-          resourceId,
-          sessionScope,
-        }),
-        type: "active",
-      });
-    }),
-  );
+  await queryClient.refetchQueries({
+    predicate: (query) => {
+      const key = query.queryKey;
+      return (
+        Array.isArray(key) &&
+        key[0] === "customer-account-resource" &&
+        typeof key[1] === "string" &&
+        PUBLIC_CATALOG_RESOURCE_ID_SET.has(key[1]) &&
+        key[3] === apiUrl
+      );
+    },
+    type: "active",
+  });
 }

@@ -107,6 +107,14 @@ describe("CustomerHomeScreen (render)", () => {
   });
 });
 
+describe("CustomerHomeScreen — pull-to-refresh (source signals)", () => {
+  it("wires RefreshControl to the public catalog refetch hook on home scroll views", () => {
+    expect(homeSource).toContain("RefreshControl");
+    expect(homeSource).toContain("usePublicCatalogPullToRefresh");
+    expect(homeSource).toContain("refreshControl={homeRefreshControl}");
+  });
+});
+
 describe("CustomerHomeScreen — Wave B Thai-truncation pass (source signals)", () => {
   it("caps the previously-unbounded section titles and category pills with numberOfLines", () => {
     // Before this pass, sectionTitle / sectionTitleSmall / shortcutText /
