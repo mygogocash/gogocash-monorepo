@@ -17,9 +17,6 @@ export function resolveHeroBannerImageSource(
   return banner.asset ? heroBannerAssets[banner.asset] : undefined;
 }
 
-/** @deprecated Import `resolveHeroBannerImageSource` instead. */
-export const heroBannerSource = resolveHeroBannerImageSource;
-
 export function brandHref(brand: string) {
   return getTopBrandHref(brand);
 }

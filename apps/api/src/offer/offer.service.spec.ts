@@ -187,9 +187,7 @@ describe('OfferService', () => {
       await service.findAll(1, 10, '803', '', '', true);
 
       const filter = offerModel.find.mock.calls[0][0];
-      expect(filter.$or).toEqual(
-        expect.arrayContaining([{ offer_id: 803 }]),
-      );
+      expect(filter.$or).toEqual(expect.arrayContaining([{ offer_id: 803 }]));
     });
 
     it('findAll > given regex metacharacters in filters > then user input is escaped literally', async () => {

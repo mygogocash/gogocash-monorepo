@@ -227,10 +227,16 @@ export class OfferService implements OnApplicationBootstrap {
         { countries: { $regex: safeSearch, $options: 'i' } },
       ];
       const numericOfferId = Number.parseInt(trimmedSearch, 10);
-      if (trimmedSearch.length > 0 && String(numericOfferId) === trimmedSearch) {
+      if (
+        trimmedSearch.length > 0 &&
+        String(numericOfferId) === trimmedSearch
+      ) {
         orConditions.push({ offer_id: numericOfferId });
       }
-      if (Types.ObjectId.isValid(trimmedSearch) && trimmedSearch.length === 24) {
+      if (
+        Types.ObjectId.isValid(trimmedSearch) &&
+        trimmedSearch.length === 24
+      ) {
         orConditions.push({ _id: new Types.ObjectId(trimmedSearch) });
       }
       filter.$or = orConditions;

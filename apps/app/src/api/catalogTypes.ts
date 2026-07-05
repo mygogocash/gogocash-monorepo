@@ -15,6 +15,9 @@ export type OfferRecord = {
   commission_store?: number | string;
   /** Absolute logo URL when the merchant has one. */
   logo?: string;
+  logo_desktop?: string;
+  logo_mobile?: string;
+  logo_circle?: string;
   /** Extra-points / coupon flag — drives the "Grab Coupon" chip. */
   extra_store?: boolean;
   /** Admin hide flag. Public API already filters this, mapper defends in case stale data leaks. */

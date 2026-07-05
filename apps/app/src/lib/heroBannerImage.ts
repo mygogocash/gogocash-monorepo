@@ -6,9 +6,6 @@ import { mobileShellLayout } from "@mobile/design/webDesignParity";
 export const HOME_HERO_BANNER_DESIGN_WIDTH = 1920;
 export const HOME_HERO_BANNER_DESIGN_HEIGHT = 1080;
 
-/** Minimum source width before upscaling visibly softens hero art on 2x displays. */
-export const HOME_HERO_BANNER_MIN_SOURCE_WIDTH = HOME_HERO_BANNER_DESIGN_WIDTH;
-
 /**
  * expo-image content mode for hero promos: downscale HD art to the frame but never
  * upscale low-res CDN uploads (scale-down = min(none, contain)).
