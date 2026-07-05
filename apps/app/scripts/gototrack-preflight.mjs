@@ -1125,7 +1125,7 @@ function activationNudgeEvidenceResult(options, checkpoint = "gototrack-hub") {
     return result(
       options.requireNudge ? "fail" : "warn",
       "GoGoTrack activation nudge visible",
-      "--require-nudge needs --evidence-dir with --capture-device-evidence"
+      "--require-nudge needs --evidence-dir"
     );
   }
 
@@ -1134,7 +1134,7 @@ function activationNudgeEvidenceResult(options, checkpoint = "gototrack-hub") {
     return result(
       options.requireNudge ? "fail" : "warn",
       "GoGoTrack activation nudge visible",
-      `${uiPath} not found; run with --capture-device-evidence`
+      `${uiPath} not found; hub UI capture failed or device was locked`
     );
   }
 
@@ -1248,7 +1248,7 @@ function activationNudgeTapResult(options, device, checkpoint = "gototrack-hub")
 
   const uiPath = `${options.evidenceDir}/${checkpoint}-ui.xml`;
   if (!existsSync(uiPath)) {
-    return result("fail", "GoGoTrack activation nudge tap", `${uiPath} not found; run with --capture-device-evidence`);
+    return result("fail", "GoGoTrack activation nudge tap", `${uiPath} not found; hub UI capture failed or device was locked`);
   }
 
   const target = activationNudgeTapTarget(readFileSync(uiPath, "utf8"));
@@ -1279,7 +1279,13 @@ function activationNudgeTapResult(options, device, checkpoint = "gototrack-hub")
 }
 
 async function writeDeviceCheckpointEvidence(report, options, checkpoint) {
-  if (!options.captureDeviceEvidence || !options.evidenceDir || !report.context.device) return;
+  if (!options.evidenceDir || !report.context.device) return;
+
+  const captureForNudgeGate =
+    (checkpoint === "gototrack-hub" && (options.requireNudge || options.tapNudge)) ||
+    (checkpoint === "activation-nudge-tap" && options.tapNudge);
+
+  if (!options.captureDeviceEvidence && !captureForNudgeGate) return;
 
   if (checkpoint === "gototrack-hub") {
     if (options.requireNudge || options.tapNudge) {
