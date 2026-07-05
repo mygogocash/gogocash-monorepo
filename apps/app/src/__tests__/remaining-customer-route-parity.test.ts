@@ -98,9 +98,9 @@ describe("Remaining customer route parity", () => {
     // tab, so unauthenticated access is redirected to /login from the screen instead.
     const profileRoute = readMobileFile("app/(tabs)/profile.tsx");
     expect(tabsLayout).toContain('name="profile"');
-    expect(profileRoute).toContain("Redirect");
     expect(profileRoute).toContain("buildProtectedLoginRedirect");
-    expect(profileRoute).toContain("if (!ready)");
+    expect(profileRoute).toContain("router.replace");
+    expect(profileRoute).toContain("if (!ready || !isAuthed)");
     expect(walletRoute).toContain("if (!ready)");
 
     // The guard signal is synchronous-correct on web (localStorage) and async on native.
