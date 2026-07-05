@@ -15,6 +15,12 @@ cd apps/app
 npm run test:maestro
 # or a single flow:
 maestro test .maestro/flows/home.yaml
+
+# Authenticated wallet (device + GOGOTRACK_AUTH_TOKEN or preflight evidence):
+GOGOTRACK_AUTH_TOKEN=... npm run staging:maestro-wallet
+
+# Bug hunt P0/P1 smoke (logged-out flows):
+npm run bug-hunt:maestro
 ```
 
 Set `appId` in flows matches `co.gogocash.app` (see `app.config.ts`).

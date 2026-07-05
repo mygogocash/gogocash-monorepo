@@ -45,6 +45,27 @@ describe("mapBackendTopBrands", () => {
     ]);
   });
 
+  it("given Up to cashback label > then compacts for card layout", () => {
+    expect(
+      mapBackendTopBrands({
+        data: [
+          {
+            _id: "lazada-id",
+            offer_id: 1,
+            brand: "Lazada",
+            logo: "https://cdn/lazada.png",
+            cashback: "Up to 2.02%",
+          },
+        ],
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        brand: "Lazada",
+        cashback: "2.02%",
+      }),
+    ]);
+  });
+
   it("given backend brands > then maps name/logo/cashback and fills cosmetic fields", () => {
     const payload: TopBrandsPayload = {
       data: [

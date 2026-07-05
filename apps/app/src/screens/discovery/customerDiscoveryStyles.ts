@@ -754,8 +754,7 @@ export function createDiscoveryScreenStyles(colors: ThemeColors) {
     width: "100%",
   },
   shopDirectoryLogoImage: {
-    height: "62%",
-    width: "72%",
+    ...StyleSheet.absoluteFillObject,
   },
   shopDirectoryCouponBadge: {
     alignItems: "center",

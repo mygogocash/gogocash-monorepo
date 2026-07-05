@@ -17,6 +17,10 @@ import { offerMatchesRegion } from "@mobile/i18n/regionCatalogFilter";
 import type { RegionCode } from "@mobile/i18n/regionTypes";
 import { DEFAULT_REGION } from "@mobile/i18n/regionTypes";
 
+function normalizeTopBrandCashbackLabel(cashback: string): string {
+  return cashback.trim().replace(/^up to\s+/i, "");
+}
+
 /** Raw payload from GET /offer/top-brands. */
 export type TopBrandsPayload = {
   data?: {
@@ -71,7 +75,7 @@ export function mapBackendTopBrands(
     )
     .map((item, index) => ({
       brand: item.brand,
-      cashback: item.cashback,
+      cashback: normalizeTopBrandCashbackLabel(item.cashback),
       href: item._id ? `/shop/${item._id}` : undefined,
       id: item._id ?? String(item.offer_id),
       label: "Grab Coupon",

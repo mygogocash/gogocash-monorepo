@@ -329,8 +329,7 @@ function createBrandCardStyles(colors: ThemeColors) {
       zIndex: 2,
     },
     brandLogoImage: {
-      height: "62%",
-      width: "72%",
+      ...StyleSheet.absoluteFillObject,
     },
     lShopCardTitle: {
       color: colors.ink,
@@ -385,8 +384,7 @@ function createBrandCardStyles(colors: ThemeColors) {
       width: "100%",
     },
     compactBrandLogoImage: {
-      height: "62%",
-      width: "72%",
+      ...StyleSheet.absoluteFillObject,
     },
     compactBrandLogoFallback: {
       color: colors.accent,

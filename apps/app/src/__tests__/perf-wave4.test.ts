@@ -49,6 +49,9 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(brandCard).toContain('from "expo-image"');
     expect(brandCard).toContain('contentFit="contain"');
     expect(brandCard).toContain("brandLogoImage:");
+    expect(brandCard).toMatch(/brandLogoImage:[\s\S]*absoluteFillObject/);
+    expect(brandCard).toMatch(/compactBrandLogoImage:[\s\S]*absoluteFillObject/);
+    expect(brandCard).not.toContain('height: "62%"');
     expect(brandCard).not.toContain("brandLogoFill");
     expect(brandCard).toContain("recyclingKey=");
     expect(brandCard).toContain('cachePolicy="memory-disk"');
@@ -95,6 +98,7 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
   it("directory store cards > given remote logos > then expo-image uses contain on card background", () => {
     const shopCard = readMobileFile("src/screens/discovery/ShopDirectoryStoreCard.tsx");
     const brandCard = readMobileFile("src/screens/discovery/BrandDirectoryStoreCard.tsx");
+    const discoveryStyles = readMobileFile("src/screens/discovery/customerDiscoveryStyles.ts");
 
     for (const source of [shopCard, brandCard]) {
       expect(source).toContain('from "expo-image"');
@@ -105,6 +109,18 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
         /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/,
       );
     }
+
+    expect(discoveryStyles).toMatch(/shopDirectoryLogoImage:[\s\S]*absoluteFillObject/);
+    expect(discoveryStyles).not.toContain('height: "62%"');
+  });
+
+  it("shop detail related cards > given remote logos > then expo-image uses contain on card background", () => {
+    const shopDetail = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+
+    expect(shopDetail).toContain('from "expo-image"');
+    expect(shopDetail).toContain('contentFit="contain"');
+    expect(shopDetail).toContain("store.logoUri ? colors.card : store.tint");
+    expect(shopDetail).toContain('cachePolicy="memory-disk"');
   });
 
   it("BrandCard > given custom onPress > then it skips Link so search suggestions stay on-screen", () => {
@@ -129,13 +145,35 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
 
   it("HomeSearchResultRow > given remote brand logos > then expo-image caches search hits", () => {
     const searchRow = readMobileFile("src/screens/home/HomeSearchResultRow.tsx");
+    const homeStyles = readMobileFile("src/screens/home/customerHomeStyles.ts");
 
     expect(searchRow).toContain('from "expo-image"');
     expect(searchRow).toContain('contentFit="contain"');
     expect(searchRow).toContain('cachePolicy="memory-disk"');
+    expect(searchRow).toContain("item.logoUri ? colors.card : item.logoBackground");
+    expect(searchRow).toContain("styles.searchResultLogoImage");
+    expect(homeStyles).toMatch(/searchResultLogoImage:[\s\S]*absoluteFillObject/);
+    expect(homeStyles).toMatch(/searchResultCashback:[\s\S]*flexShrink:\s*0/);
     expect(searchRow).not.toMatch(
       /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/
     );
+  });
+
+  it("favorite brand cards > given remote logos > then expo-image fills tile on card background", () => {
+    const favorites = readMobileFile("src/screens/CustomerFavoriteBrandsScreen.tsx");
+
+    expect(favorites).toContain("brandVisualBackground");
+    expect(favorites).toMatch(/brandLogoImage:[\s\S]*absoluteFillObject/);
+    expect(favorites).toMatch(/cashbackValue:[\s\S]*flexShrink:\s*0/);
+  });
+
+  it("quest explore shop cards > given remote logos > then expo-image uses contain fill", () => {
+    const quest = readMobileFile("src/screens/CustomerQuestScreen.tsx");
+
+    expect(quest).toContain('from "expo-image"');
+    expect(quest).toContain("ExpoImage");
+    expect(quest).toContain('contentFit="contain"');
+    expect(quest).toContain("brandVisualBackground");
   });
 
   it("AppProviders > given startup gate > then QueryClientProvider wraps the loading shell", () => {

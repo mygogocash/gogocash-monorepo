@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 /**
  * Dev-only: inject staging JWT via deep link and open Wallet on a connected Android device.
- * Token is read from committed preflight evidence (staging e2e customer), not printed.
+ *
+ * Token resolution order:
+ * 1. `--auth-token <jwt>`
+ * 2. `GOGOTRACK_AUTH_TOKEN` / `GOGOSENSE_AUTH_TOKEN`
+ * 3. committed preflight evidence (legacy fallback)
  */
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -11,17 +15,49 @@ import { spawnSync } from "node:child_process";
 const evidencePath = resolve(
   "evidence/staging/T-018-phase7-android16-fix/preflight-report.json",
 );
-const report = JSON.parse(readFileSync(evidencePath, "utf8"));
-const injectStep = report.results?.find((step) => step.name === "GoGoCash auth token inject");
-const tokenMatch = injectStep?.detail?.match(/token=([^&]+)/);
 
-if (!tokenMatch?.[1]) {
-  console.error("Could not extract staging auth token from preflight evidence.");
+function readTokenFromEvidence() {
+  const report = JSON.parse(readFileSync(evidencePath, "utf8"));
+  const injectStep = report.results?.find((step) => step.name === "GoGoCash auth token inject");
+  const tokenMatch = injectStep?.detail?.match(/token=([^&]+)/);
+  return tokenMatch?.[1]?.trim() ?? null;
+}
+
+function parseArgs(argv) {
+  let authToken = null;
+  let callbackUrl = "/wallet";
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--auth-token") {
+      authToken = argv[index + 1]?.trim() ?? null;
+      index += 1;
+      continue;
+    }
+
+    if (!arg.startsWith("--")) {
+      callbackUrl = arg;
+    }
+  }
+
+  return { authToken, callbackUrl };
+}
+
+const { authToken: cliToken, callbackUrl } = parseArgs(process.argv.slice(2));
+const authToken =
+  cliToken ||
+  process.env.GOGOTRACK_AUTH_TOKEN?.trim() ||
+  process.env.GOGOSENSE_AUTH_TOKEN?.trim() ||
+  readTokenFromEvidence();
+
+if (!authToken) {
+  console.error(
+    "No staging auth token. Set GOGOTRACK_AUTH_TOKEN, pass --auth-token, or refresh preflight evidence.",
+  );
   process.exit(1);
 }
 
-const callbackUrl = process.argv[2] ?? "/wallet";
-const params = new URLSearchParams({ token: tokenMatch[1], callbackUrl });
+const params = new URLSearchParams({ token: authToken, callbackUrl });
 const targetUrl = `gogocash://auth/callback?${params.toString()}`;
 const adb =
   process.env.ADB ?? resolve(homedir(), "Library/Android/sdk/platform-tools/adb");

@@ -381,7 +381,11 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     height: 68,
     justifyContent: "center",
     overflow: "hidden",
+    position: "relative",
     width: 68,
+  },
+  searchResultLogoImage: {
+    ...StyleSheet.absoluteFillObject,
   },
   searchResultLogoCompact: {
     borderRadius: 8,
@@ -423,6 +427,7 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
   },
   searchResultCaption: {
     color: pickThemed(colors, "#7195B8", colors.muted),
+    flex: 1,
     fontFamily: typography.family,
     fontSize: 15,
     fontWeight: typography.bodyWeight,
@@ -432,6 +437,7 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
   },
   searchResultCashback: {
     color: colors.primaryDark,
+    flexShrink: 0,
     fontFamily: typography.family,
     fontSize: 20,
     fontWeight: "700",

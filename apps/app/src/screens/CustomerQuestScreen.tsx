@@ -1,3 +1,4 @@
+import { Image as ExpoImage } from "expo-image";
 import { Link } from "expo-router";
 import {
   CircleDollarSign as CoinIcon,
@@ -493,11 +494,12 @@ function CompactExploreShopCard({
           ]}
         >
           {logoSource && !logoFailed ? (
-            <Image
+            <ExpoImage
               accessibilityLabel={`${card.brand} ${tc("logo")}`}
-              alt={`${card.brand} ${tc("logo")}`}
+              cachePolicy="memory-disk"
+              contentFit="contain"
               onError={() => setLogoFailed(true)}
-              resizeMode="cover"
+              recyclingKey={logoSource.uri}
               source={logoSource}
               style={styles.shopLogoImageFill}
             />
@@ -1109,7 +1111,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
     paddingVertical: 4,
   },
   historyDaysLeftText: {
-    color: "#007D5E",
+    color: colors.primaryDark,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "600",
@@ -1566,7 +1568,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
     width: 44,
   },
   rankViewButton: {
-    borderColor: "rgba(0, 170, 128, 0.4)",
+    borderColor: pickThemed(colors, "rgba(0, 170, 128, 0.4)", colors.borderStrong),
     borderRadius: radii.md,
     borderWidth: 1,
     minHeight: 36,
@@ -1574,7 +1576,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
     paddingVertical: 6,
   },
   rankViewText: {
-    color: "#00AA80",
+    color: colors.primaryDark,
     fontFamily: typography.family,
     fontSize: 13,
     fontWeight: "600",
@@ -1747,6 +1749,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
   },
   shopCashback: {
     color: colors.primaryDark,
+    flexShrink: 0,
     fontFamily: typography.family,
     fontSize: 16,
     fontWeight: "700",

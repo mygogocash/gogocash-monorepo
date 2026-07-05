@@ -316,6 +316,8 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
   const { colors } = useTheme();
   const tc = useCopy();
   const tint = brand.tint ?? FAVORITE_BRAND_TINTS[brand.id] ?? FAVORITE_BRAND_FALLBACK_TINT;
+  const [logoFailed, setLogoFailed] = useState(false);
+  const brandVisualBackground = brand.logo && !logoFailed ? colors.card : tint;
   return (
     <View style={styles.brandCard}>
       <Link asChild href={brand.href as never}>
@@ -325,7 +327,7 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
           pressScale={0.985}
           style={styles.brandCardLink}
         >
-          <View style={[styles.brandVisual, { backgroundColor: tint }]}>
+          <View style={[styles.brandVisual, { backgroundColor: brandVisualBackground }]}>
             {brand.showGrabCoupon ? (
               <View style={styles.couponBadge}>
                 <Text style={styles.couponEmoji}>🧧</Text>
@@ -334,11 +336,12 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
                 </Text>
               </View>
             ) : null}
-            {brand.logo ? (
+            {brand.logo && !logoFailed ? (
               <Image
                 accessibilityLabel={`${brand.name} logo`}
                 cachePolicy="memory-disk"
                 contentFit="contain"
+                onError={() => setLogoFailed(true)}
                 recyclingKey={brand.logo}
                 source={{ uri: brand.logo }}
                 style={styles.brandLogoImage}
@@ -569,8 +572,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     opacity: 0.96,
   },
   brandLogoImage: {
-    height: "55%",
-    width: "70%",
+    ...StyleSheet.absoluteFillObject,
   },
   couponBadge: {
     alignItems: "center",
@@ -646,6 +648,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   },
   cashbackValue: {
     color: colors.primaryDark,
+    flexShrink: 0,
     fontFamily: typography.family,
     fontSize: 27,
     fontWeight: "700",

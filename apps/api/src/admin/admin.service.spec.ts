@@ -896,6 +896,19 @@ describe('AdminService', () => {
       expect(opts).toEqual({ upsert: true });
       expect(result).toEqual({ success: true, brands });
     });
+
+    it('saveTopBrands > given Up to cashback labels > then compacts before save', async () => {
+      topBrandConfigModel.updateOne.mockResolvedValue({ acknowledged: true });
+
+      await service.saveTopBrands([
+        { offerId: 'offer-1', cashback: 'Up to 2.02%' },
+      ]);
+
+      const update = topBrandConfigModel.updateOne.mock.calls[0][1];
+      expect(update.$set.brands).toEqual([
+        { offerId: 'offer-1', cashback: '2.02%' },
+      ]);
+    });
   });
 
   describe('getTopBrands', () => {

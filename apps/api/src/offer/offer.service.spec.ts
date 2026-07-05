@@ -859,6 +859,31 @@ describe('OfferService', () => {
       });
     });
 
+    it('getDisplayTopBrands > given saved Up to cashback labels > then compacts labels for cards', async () => {
+      topBrandConfigModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          brands: [{ offerId: 'id1', cashback: 'Up to 2.02%' }],
+        }),
+      });
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          { _id: 'id1', offer_id: 1, offer_name: 'Lazada', logo: 'a.png' },
+        ]),
+      );
+
+      await expect(service.getDisplayTopBrands()).resolves.toEqual({
+        data: [
+          {
+            _id: 'id1',
+            offer_id: 1,
+            brand: 'Lazada',
+            logo: 'a.png',
+            cashback: '2.02%',
+          },
+        ],
+      });
+    });
+
     it('getDisplayTopBrands > given admin desktop logo > then prefers it over circle and legacy logo', async () => {
       topBrandConfigModel.findOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue({

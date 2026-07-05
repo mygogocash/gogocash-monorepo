@@ -30,6 +30,7 @@ import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schem
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
 import { SearchBlacklist } from 'src/admin/search/schemas/blacklist.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
+import { normalizeCustomerCashbackLabel } from 'src/common/normalize-customer-cashback-label';
 import { requireObjectId, mongoSetUpdate } from 'src/common/mongo-query';
 
 const ACTIVE_OFFER_FILTER = {
@@ -668,7 +669,7 @@ export class OfferService implements OnApplicationBootstrap {
           offer_id: row.offer_id,
           brand: row.offer_name_display?.trim() || row.offer_name,
           logo: resolvePublicOfferLogo(row),
-          cashback: entry.cashback,
+          cashback: normalizeCustomerCashbackLabel(entry.cashback),
         };
       })
       .filter((brand) => brand !== null);

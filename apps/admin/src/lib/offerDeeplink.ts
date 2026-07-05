@@ -87,8 +87,18 @@ export function formatOfferCashbackLabel(
   const max = Math.max(...percents);
   const min = Math.min(...percents);
   const userFacingMax = applyThirtyPercentFee(max);
-  if (min !== max) return `Up to ${userFacingMax}%`;
+  if (min !== max) return `${userFacingMax}%`;
   return `${userFacingMax}%`;
+}
+
+/** Strip verbose prefixes from labels shown on compact brand cards. */
+export function compactCustomerCashbackLabel(label: string | null | undefined): string {
+  const trimmed = String(label ?? "").trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  return trimmed.replace(/^up to\s+/i, "");
 }
 
 /** Saved top-brand cashback, or offer-derived label when saved is blank. */
@@ -96,9 +106,9 @@ export function resolveTopBrandCashbackLabel(
   offer: OfferCashbackFields | null | undefined,
   savedCashback?: string | null,
 ): string {
-  const saved = String(savedCashback ?? "").trim();
+  const saved = compactCustomerCashbackLabel(savedCashback);
   if (saved) return saved;
-  return formatOfferCashbackLabel(offer);
+  return compactCustomerCashbackLabel(formatOfferCashbackLabel(offer));
 }
 
 /**

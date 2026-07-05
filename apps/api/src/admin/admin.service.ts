@@ -23,6 +23,7 @@ import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
 import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
+import { normalizeCustomerCashbackLabel } from 'src/common/normalize-customer-cashback-label';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
@@ -782,7 +783,7 @@ export class AdminService {
     const normalizedBrands = (brands ?? [])
       .map((entry) => ({
         offerId: String(entry.offerId ?? '').trim(),
-        cashback: String(entry.cashback ?? '').trim(),
+        cashback: normalizeCustomerCashbackLabel(String(entry.cashback ?? '').trim()),
       }))
       .filter((entry) => {
         if (!entry.offerId || seen.has(entry.offerId)) {

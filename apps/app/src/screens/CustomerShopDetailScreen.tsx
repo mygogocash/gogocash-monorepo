@@ -1,5 +1,6 @@
+import { Image as ExpoImage } from "expo-image";
 import { Link, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BadgePercent as BadgePercentIcon,
   Banknote as BanknoteIcon,
@@ -29,6 +30,11 @@ import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountRes
 import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import {
+  getFixtureShopDirectoryResults,
+  resolveLiveDirectoryStores,
+} from "@mobile/account/directoryCatalogResource";
+import type { OfferListResponse } from "@mobile/api/catalogTypes";
+import {
   resolveShopTerms,
   type CategoryPolicyPayload,
   type ShopTermsViewModel,
@@ -54,10 +60,10 @@ import { haptics } from "@mobile/lib/haptics";
 import {
   getDesktopShellOffset,
   getResponsiveHomeLayoutMetrics,
-  getShopDirectoryResults,
   mobileShellLayout,
   webShopDetailGroceryGalaxy,
 } from "@mobile/design/webDesignParity";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -194,7 +200,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
         </View>
       </View>
       {!isDesktop ? <ShopTermsPanel terms={shopTerms} /> : null}
-      <ShopExploreRelated />
+      <ShopExploreRelated excludeShopId={shop.id} />
     </>
   );
 
@@ -574,12 +580,27 @@ function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
   );
 }
 
-function ShopExploreRelated() {
+function ShopExploreRelated({ excludeShopId }: { excludeShopId: string }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
-  const related = getShopDirectoryResults().filter(
-    (store) => store.id !== webShopDetailGroceryGalaxy.id
-  );
+  const { region } = useLocale();
+  const catalogResource = useCustomerAccountResource<OfferListResponse, OfferListResponse>({
+    fixtureData: { data: [], limit: 80, page: 1, total: 0, totalPages: 0 },
+    resourceId: "brandCatalog",
+  });
+  const related = useMemo(() => {
+    const stores =
+      catalogResource.source === "backend"
+        ? resolveLiveDirectoryStores(
+            catalogResource.source,
+            catalogResource.data,
+            [],
+            region,
+          )
+        : getFixtureShopDirectoryResults({ regionCode: region });
+
+    return stores.filter((store) => store.id !== excludeShopId).slice(0, 6);
+  }, [catalogResource.data, catalogResource.source, excludeShopId, region]);
 
   return (
     <View style={styles.relatedSection}>
@@ -589,43 +610,54 @@ function ShopExploreRelated() {
         horizontal
         showsHorizontalScrollIndicator={false}
       >
-        {related.slice(0, 6).map((store) => (
-          <Link asChild href={`/shop/${store.id}` as never} key={store.id}>
-            <MotionPressable pressScale={0.98} style={styles.relatedCard}>
-              <View style={[styles.relatedVisual, { backgroundColor: store.tint }]}>
-                <Image
-                  alt={`${store.brand} logo`}
-                  accessibilityLabel={`${store.brand} logo`}
-                  resizeMode="contain"
-                  source={{ uri: store.logoUri }}
-                  style={styles.relatedLogoImage}
-                />
-                {store.showGrabCoupon ? (
-                  <View style={styles.relatedCouponBadge}>
-                    <Text style={styles.relatedCouponIcon}>🧧</Text>
-                    <Text numberOfLines={1} style={styles.relatedCouponText}>
-                      {store.label}
-                    </Text>
+        {related.map((store) => {
+          const logoTileBackground = store.logoUri ? colors.card : store.tint;
+
+          return (
+            <Link asChild href={`/shop/${store.id}` as never} key={store.id}>
+              <MotionPressable pressScale={0.98} style={styles.relatedCard}>
+                <View style={[styles.relatedVisual, { backgroundColor: logoTileBackground }]}>
+                  {store.logoUri ? (
+                    <ExpoImage
+                      accessibilityLabel={`${store.brand} logo`}
+                      cachePolicy="memory-disk"
+                      contentFit="contain"
+                      recyclingKey={store.logoUri}
+                      source={{ uri: store.logoUri }}
+                      style={styles.relatedLogoImage}
+                    />
+                  ) : null}
+                  {store.showGrabCoupon ? (
+                    <View style={styles.relatedCouponBadge}>
+                      <Text style={styles.relatedCouponIcon}>🧧</Text>
+                      <Text numberOfLines={1} style={styles.relatedCouponText}>
+                        {store.label}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <View accessibilityLabel="Add to favorites" style={styles.relatedFavoriteButton}>
+                    <HeartIcon
+                      color={colors.primaryDark}
+                      size={16}
+                      strokeWidth={typography.iconStrokeWidth}
+                    />
                   </View>
-                ) : null}
-                <View accessibilityLabel="Add to favorites" style={styles.relatedFavoriteButton}>
-                  <HeartIcon
-                    color={colors.primaryDark}
-                    size={16}
-                    strokeWidth={typography.iconStrokeWidth}
-                  />
                 </View>
-              </View>
-              <Text numberOfLines={1} style={styles.relatedName}>
-                {store.brand}
-              </Text>
-              <View style={styles.relatedCashbackRow}>
-                <Text style={styles.relatedCashbackCaption}>Cashback upto</Text>
-                <Text style={styles.relatedCashbackValue}>{store.cashback}</Text>
-              </View>
-            </MotionPressable>
-          </Link>
-        ))}
+                <Text numberOfLines={1} style={styles.relatedName}>
+                  {store.brand}
+                </Text>
+                <View style={styles.relatedCashbackRow}>
+                  <Text numberOfLines={1} style={styles.relatedCashbackCaption}>
+                    Cashback upto
+                  </Text>
+                  <Text numberOfLines={1} style={styles.relatedCashbackValue}>
+                    {store.cashback}
+                  </Text>
+                </View>
+              </MotionPressable>
+            </Link>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -1221,6 +1253,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   },
   relatedCashbackValue: {
     color: colors.primaryDark,
+    flexShrink: 0,
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: "700",

@@ -222,4 +222,16 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("handleShopNow");
     expect(shopFile).toContain("ShopRedirectOverlay");
   });
+
+  it("shop detail parity > given Explore other shops rail > then live catalog logos use expo-image contain", () => {
+    const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+
+    expect(shopFile).toContain('from "expo-image"');
+    expect(shopFile).toContain("resolveLiveDirectoryStores");
+    expect(shopFile).toContain("getFixtureShopDirectoryResults");
+    expect(shopFile).toContain("<ShopExploreRelated excludeShopId={shop.id} />");
+    expect(shopFile).toContain('contentFit="contain"');
+    expect(shopFile).toContain("store.logoUri ? colors.card : store.tint");
+    expect(shopFile).toMatch(/relatedCashbackValue:[\s\S]*flexShrink: 0/);
+  });
 });

@@ -41,4 +41,33 @@ describe("syncProfileSessionFields", () => {
     expect(setSession).not.toHaveBeenCalled();
     expect(notifyMobileSessionChange).not.toHaveBeenCalled();
   });
+
+  it("given live profile wallet and username > then merges into session", async () => {
+    const setSession = vi.fn(async () => {});
+    await getSharedSessionStore(async () => ({
+      clearSession: vi.fn(async () => {}),
+      getSession: vi.fn(async () => ({
+        access_token: "token",
+        username: "Old Name",
+        wallet: "0.00",
+      })),
+      setSession,
+    }));
+
+    await syncProfileSessionFields({
+      _id: "abc",
+      provider: "phone",
+      username: "Kunanon",
+      wallet: 125.5,
+      membership_tier: "gogopass",
+    });
+
+    expect(setSession).toHaveBeenCalledWith({
+      access_token: "token",
+      username: "Kunanon",
+      wallet: "125.5",
+      membership_tier: "gogopass",
+    });
+    expect(notifyMobileSessionChange).toHaveBeenCalled();
+  });
 });

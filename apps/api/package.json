@@ -36,6 +36,8 @@
     "seed:local-customer": "ts-node -r tsconfig-paths/register scripts/seed-local-customer.ts",
     "seed:e2e-fixtures": "ts-node -r tsconfig-paths/register scripts/seed-e2e-fixtures.ts",
     "seed:e2e": "ts-node -r tsconfig-paths/register scripts/seed-e2e.ts",
+    "seed:top-brands": "ts-node -r tsconfig-paths/register scripts/seed-top-brands.ts",
+    "seed:top-brands:dry": "ts-node -r tsconfig-paths/register scripts/seed-top-brands.ts --dry-run",
     "media:inventory": "ts-node -r tsconfig-paths/register scripts/inventory-stored-media.ts",
     "media:migrate-gcs-to-r2": "ts-node -r tsconfig-paths/register scripts/migrate-stored-media-gcs-to-r2.ts",
     "media:migrate-gcs-to-r2:dry": "ts-node -r tsconfig-paths/register scripts/migrate-stored-media-gcs-to-r2.ts --dry-run"

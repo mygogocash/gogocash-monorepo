@@ -1,5 +1,10 @@
 appId: co.gogocash.app
 ---
 - launchApp
+- runFlow: ../subflows/dismiss-cookie-banner.yaml
+- extendedWaitUntil:
+    visible:
+      id: "home-top-brands"
+    timeout: 30000
 - assertVisible:
     id: "home-top-brands"
