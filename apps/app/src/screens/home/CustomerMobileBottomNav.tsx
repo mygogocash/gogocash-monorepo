@@ -1,11 +1,15 @@
-import { Link } from "expo-router";
+import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { webMobileBottomNavItems } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { buildProtectedLoginRedirect } from "@mobile/auth/routeGuard";
+import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
 import { BottomNavIcon } from "./BottomNavIcon";
 import { useHomeScreenStyles } from "./homeScreenHooks";
+
+const protectedBottomNavHrefs = new Set(["/profile", "/wallet"]);
 
 export function CustomerMobileBottomNav({
   bottomInset,
@@ -16,6 +20,22 @@ export function CustomerMobileBottomNav({
 }) {
   const styles = useHomeScreenStyles();
   const tc = useCopy();
+  const router = useRouter();
+  const { isAuthed, ready } = useAuthGuardSession();
+
+  function handleBottomNavPress(href: string) {
+    if (!ready) {
+      return;
+    }
+
+    if (!isAuthed && protectedBottomNavHrefs.has(href)) {
+      router.push((buildProtectedLoginRedirect(href) ?? "/login") as never);
+      return;
+    }
+
+    router.push(href as never);
+  }
+
   return (
     <View
       style={[
@@ -69,11 +89,15 @@ export function CustomerMobileBottomNav({
           }
 
           return (
-            <Link asChild href={item.href as never} key={item.label}>
-              <MotionPressable pressScale={motion.scale.subtlePress} style={navItemStyle}>
-                {navItemContent}
-              </MotionPressable>
-            </Link>
+            <MotionPressable
+              accessibilityRole="button"
+              key={item.label}
+              onPress={() => handleBottomNavPress(item.href)}
+              pressScale={motion.scale.subtlePress}
+              style={navItemStyle}
+            >
+              {navItemContent}
+            </MotionPressable>
           );
         })}
       </View>

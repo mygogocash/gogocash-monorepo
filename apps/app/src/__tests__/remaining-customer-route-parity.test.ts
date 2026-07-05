@@ -108,6 +108,14 @@ describe("Remaining customer route parity", () => {
     expect(bottomNav).toContain("buildProtectedLoginRedirect");
     expect(bottomNav).toContain("handleBottomNavPress");
 
+    // Home uses its own bottom nav chrome; it must intercept wallet/profile the same way
+    // as AccountPageShell — `<Link href="/profile">` mounts the tab and leaves a blank scene.
+    const homeBottomNav = readMobileFile("src/screens/home/CustomerMobileBottomNav.tsx");
+    expect(homeBottomNav).toContain("protectedBottomNavHrefs");
+    expect(homeBottomNav).toContain("buildProtectedLoginRedirect");
+    expect(homeBottomNav).toContain("handleBottomNavPress");
+    expect(homeBottomNav).not.toMatch(/<Link[^>]+href=\{item\.href/);
+
     // The guard signal is synchronous-correct on web (localStorage) and async on native.
     expect(guardSession).toContain("createAvailableSessionStore");
     expect(guardSession).toContain("window.localStorage.getItem");
