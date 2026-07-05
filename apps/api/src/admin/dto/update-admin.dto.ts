@@ -104,7 +104,8 @@ export class UpdateOfferAdminDto {
 
   @ApiProperty({
     required: false,
-    description: 'JSON string of admin merchandising tags (multipart FormData).',
+    description:
+      'JSON string of admin merchandising tags (multipart FormData).',
   })
   @IsString()
   @IsOptional()
