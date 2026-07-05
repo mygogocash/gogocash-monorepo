@@ -30,7 +30,7 @@ import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountRes
 import { WalletSkeleton } from "@mobile/components/Skeleton";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { mapCheckWithdrawToWalletMetrics, type WalletMetricView } from "@mobile/api/walletMapper";
-import { isCheckWithdrawResponse } from "@mobile/api/walletTypes";
+import { isCheckWithdrawResponse, isWalletResourceBlocking } from "@mobile/api/walletTypes";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -64,19 +64,26 @@ export function CustomerWalletScreen() {
   // and stays byte-identical.
   const liveMetrics = isCheckWithdrawResponse(walletResource.data)
     ? mapCheckWithdrawToWalletMetrics(walletResource.data, webWalletCashbackSummary.metrics)
-    : null;
+    : walletResource.status === "empty"
+      ? mapCheckWithdrawToWalletMetrics(
+          { netAmount: 0, netAmountTHB: 0, totalPayoutTHB: 0, totalPayoutUSD: 0 },
+          webWalletCashbackSummary.metrics,
+        )
+      : null;
 
   const walletShellWhileLoading = walletResource.status === "loading";
 
-  if (walletResource.status !== "ready" && !walletShellWhileLoading) {
+  if (isWalletResourceBlocking(walletResource.status)) {
     return (
-      <CustomerAccountResourceState
-        emptyBody={tc("Your cashback wallet does not have any backend activity yet.")}
-        emptyTitle={tc("No wallet activity yet")}
-        loadingSkeleton={<WalletSkeleton />}
-        resource={walletResource}
-        resourceLabel="wallet"
-      />
+      <AccountPageShell activeRouteId="wallet" showProfileRail showTitle={false} title={tc("My Wallet")}>
+        {isDesktop ? null : <WalletHeader />}
+        <CustomerAccountResourceState
+          embedded
+          loadingSkeleton={<WalletSkeleton />}
+          resource={walletResource}
+          resourceLabel="wallet"
+        />
+      </AccountPageShell>
     );
   }
 
@@ -384,14 +391,22 @@ function WalletHeader() {
   const styles = useThemedStyles(createWalletScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const [backHovered, setBackHovered] = useState(false);
+
   return (
     <View style={styles.walletHeader}>
       <Link asChild href="/profile">
         <MotionPressable
           accessibilityLabel={tc("Back to Profile")}
           hitSlop={{ bottom: 8, left: 8, right: 8, top: 8 }}
+          hoverLift={false}
+          onHoverIn={() => setBackHovered(true)}
+          onHoverOut={() => setBackHovered(false)}
           pressScale={0.98}
-          style={styles.backButton}
+          style={StyleSheet.flatten([
+            styles.backButton,
+            backHovered ? styles.backButtonHovered : null,
+          ])}
         >
           <ChevronLeftIcon
             color={colors.accent}
@@ -533,9 +548,14 @@ function createWalletScreenStyles(colors: ThemeColors) {
   },
   backButton: {
     alignItems: "center",
+    backgroundColor: "transparent",
     height: 40,
     justifyContent: "center",
     width: 34,
+  },
+  backButtonHovered: {
+    backgroundColor: pickThemed(colors, "rgba(0, 100, 214, 0.08)", "rgba(0, 204, 153, 0.12)"),
+    borderRadius: 12,
   },
   walletHeaderTitle: {
     color: colors.accent,

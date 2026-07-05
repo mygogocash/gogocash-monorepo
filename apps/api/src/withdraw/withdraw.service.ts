@@ -366,6 +366,10 @@ export class WithdrawService {
   }
 
   async checkWithdraw(id: string) {
+    if (!id || !isValidObjectId(id)) {
+      throw new UnauthorizedException({ message: 'User not found' });
+    }
+
     const [user, fee] = await Promise.all([
       this.userModel.findOne({
         _id: new Types.ObjectId(id),

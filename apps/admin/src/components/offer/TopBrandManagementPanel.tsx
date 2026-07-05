@@ -1,10 +1,25 @@
 "use client";
 
 import { useCallback, useMemo, useState, type DragEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { Offer, TopBrandConfigEntry } from "@/types/api";
+import {
+  brandSearchOptionLabel,
+  getOfferDisplayName,
+  resolveAdminOfferLogoPath,
+} from "@/lib/offerDisplay";
+import {
+  mergeAutocompleteTextFieldSlotProps,
+  offerAutocompletePopperSlotProps,
+  partitionOffersByIdPresence,
+  syncAutocompleteSearchInput,
+} from "@/lib/offerAutocompleteUi";
+import { resolveTopBrandCashbackLabel } from "@/lib/offerDeeplink";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import { pathImage } from "@/utils/helper";
 import NoData from "@/components/common/NoData";
@@ -15,6 +30,7 @@ import toast from "react-hot-toast";
 import { OFFER_THUMB_SIZES } from "./offerMedia";
 
 const TOP_BRANDS_QUERY_KEY = ["admin", "top-brands"] as const;
+const PICKER_RESULTS_LIMIT = 100;
 
 const EMPTY_BRANDS: TopBrandConfigEntry[] = [];
 
@@ -64,7 +80,11 @@ function DragRowGrip() {
 }
 
 function offerLabel(o: Offer): string {
-  return (o.offer_name_display || o.offer_name || o._id).trim();
+  return getOfferDisplayName(o);
+}
+
+function offerPickerLabel(o: Offer): string {
+  return brandSearchOptionLabel(o);
 }
 
 function ordersEqual(a: string[], b: string[]): boolean {
@@ -97,6 +117,38 @@ function brandEntriesEqual(
   });
 }
 
+function resolveRowCashback(
+  offerId: string,
+  offerById: ReadonlyMap<string, Offer>,
+  serverCashbackById: Record<string, string>,
+  draftCashbackById: Record<string, string> | null,
+): string {
+  if (draftCashbackById !== null && offerId in draftCashbackById) {
+    return draftCashbackById[offerId];
+  }
+  const saved = serverCashbackById[offerId];
+  if (String(saved ?? "").trim()) return saved;
+  return resolveTopBrandCashbackLabel(offerById.get(offerId), "");
+}
+
+function buildEffectiveCashbackMap(
+  order: readonly string[],
+  offerById: ReadonlyMap<string, Offer>,
+  serverCashbackById: Record<string, string>,
+  draftCashbackById: Record<string, string> | null,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const offerId of order) {
+    out[offerId] = resolveRowCashback(
+      offerId,
+      offerById,
+      serverCashbackById,
+      draftCashbackById,
+    );
+  }
+  return out;
+}
+
 export default function TopBrandManagementPanel() {
   const queryClient = useQueryClient();
   const { can } = usePermissions();
@@ -108,7 +160,6 @@ export default function TopBrandManagementPanel() {
     string,
     string
   > | null>(null);
-  const [addOfferId, setAddOfferId] = useState("");
   const [pickerSearch, setPickerSearch] = useState("");
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -131,29 +182,27 @@ export default function TopBrandManagementPanel() {
     [serverBrands],
   );
   const localOrder = draftOrder ?? serverOrder;
-  const localCashbackById = draftCashbackById ?? serverCashbackById;
-  const localBrands = useMemo(
-    () =>
-      localOrder.map((offerId) => ({
-        offerId,
-        cashback: localCashbackById[offerId] ?? "",
-      })),
-    [localCashbackById, localOrder],
-  );
 
   const pickerQuery = useMemo(
     () => ({
       search: pickerSearch.trim(),
       page: 1,
-      limit: 80,
+      limit: PICKER_RESULTS_LIMIT,
       country: "",
     }),
     [pickerSearch],
   );
 
-  const { data: offersPick } = useQuery({
+  const {
+    data: offersPick,
+    isFetching: offersPickLoading,
+    isError: offersPickError,
+    error: offersPickQueryError,
+  } = useQuery({
     queryKey: offersListQueryKey(pickerQuery),
     queryFn: () => fetchOffersList(pickerQuery),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 
   const offerById = useMemo(() => {
@@ -166,33 +215,51 @@ export default function TopBrandManagementPanel() {
     }
     return m;
   }, [data?.items, offersPick?.data]);
+  const effectiveCashbackById = useMemo(
+    () =>
+      buildEffectiveCashbackMap(
+        localOrder,
+        offerById,
+        serverCashbackById,
+        draftCashbackById,
+      ),
+    [draftCashbackById, localOrder, offerById, serverCashbackById],
+  );
+  const localBrands = useMemo(
+    () =>
+      localOrder.map((offerId) => ({
+        offerId,
+        cashback: effectiveCashbackById[offerId] ?? "",
+      })),
+    [effectiveCashbackById, localOrder],
+  );
 
-  const pickerOptions = useMemo(() => {
-    const inListIds = new Set(localOrder);
-    // Hide a shop once any of its offers is in the order — match on the display
-    // label (not just the offer id), and collapse duplicate labels to a single
-    // option (the offer list can return several offers that share a name).
-    const listedLabels = new Set(
-      localOrder
-        .map((id) => offerById.get(id))
-        .filter((o): o is Offer => Boolean(o))
-        .map(offerLabel),
-    );
-    const seen = new Set<string>();
-    const out: Offer[] = [];
-    for (const o of offersPick?.data ?? []) {
-      if (inListIds.has(o._id)) continue;
-      const label = offerLabel(o);
-      if (listedLabels.has(label) || seen.has(label)) continue;
-      seen.add(label);
-      out.push(o);
+  const listedOfferIds = useMemo(() => new Set(localOrder), [localOrder]);
+
+  const { available: pickerOptions, hidden: hiddenPickerMatches } = useMemo(
+    () => partitionOffersByIdPresence(offersPick?.data ?? [], listedOfferIds),
+    [listedOfferIds, offersPick?.data],
+  );
+
+  const pickerNoOptionsText = useMemo(() => {
+    if (offersPickLoading) return "Loading offers…";
+    if (offersPickError) return "Could not load offers";
+    if (hiddenPickerMatches.length > 0 && pickerSearch.trim()) {
+      const noun =
+        hiddenPickerMatches.length === 1 ? "offer is" : "offers are";
+      return `${hiddenPickerMatches.length} matching ${noun} already in the homepage list below`;
     }
-    return out;
-  }, [offersPick?.data, localOrder, offerById]);
+    return "No matching offers found";
+  }, [
+    hiddenPickerMatches.length,
+    offersPickError,
+    offersPickLoading,
+    pickerSearch,
+  ]);
 
   const dirty =
     !ordersEqual(localOrder, serverOrder) ||
-    !brandEntriesEqual(localOrder, localCashbackById, serverBrands);
+    !brandEntriesEqual(localOrder, effectiveCashbackById, serverBrands);
 
   const saveMutation = useMutation({
     mutationFn: (brands: TopBrandConfigEntry[]) =>
@@ -229,15 +296,24 @@ export default function TopBrandManagementPanel() {
     [serverOrder],
   );
 
-  const addSelected = useCallback(() => {
-    const id = addOfferId.trim();
-    if (!id) return;
-    setDraftOrder((d) => {
-      const prev = d ?? serverOrder;
-      return prev.includes(id) ? prev : [...prev, id];
-    });
-    setAddOfferId("");
-  }, [addOfferId, serverOrder]);
+  const addOfferFromPicker = useCallback(
+    (offer: Offer) => {
+      const id = offer._id.trim();
+      if (!id) return;
+      const derivedCashback = resolveTopBrandCashbackLabel(offer, "");
+      setDraftOrder((d) => {
+        const prev = d ?? serverOrder;
+        return prev.includes(id) ? prev : [...prev, id];
+      });
+      if (derivedCashback) {
+        setDraftCashbackById((draft) => ({
+          ...(draft ?? serverCashbackById),
+          [id]: derivedCashback,
+        }));
+      }
+    },
+    [serverCashbackById, serverOrder],
+  );
 
   const updateCashback = useCallback(
     (offerId: string, cashback: string) => {
@@ -346,52 +422,78 @@ export default function TopBrandManagementPanel() {
           Add offer
         </h3>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Search by name, then pick an offer. Already listed offers are hidden.
+          Click to browse recent offers or type to search by brand name, country,
+          lookup slug, offer id, or Mongo id. Offers already in the list below
+          are hidden.
         </p>
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="min-w-0 flex-1">
-            <label htmlFor="top-brand-search" className="sr-only">
-              Search offers
-            </label>
-            <input
-              id="top-brand-search"
-              type="search"
-              value={pickerSearch}
-              onChange={(e) => setPickerSearch(e.target.value)}
-              disabled={!canManageBrands}
-              placeholder="Search offers…"
-              className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            />
-          </div>
-          <div className="min-w-0 flex-[2]">
-            <label htmlFor="top-brand-add" className="sr-only">
-              Select offer to add
-            </label>
-            <select
-              id="top-brand-add"
-              value={addOfferId}
-              onChange={(e) => setAddOfferId(e.target.value)}
-              disabled={!canManageBrands}
-              className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            >
-              <option value="">Select an offer…</option>
-              {pickerOptions.map((o) => (
-                <option key={o._id} value={o._id}>
-                  {offerLabel(o)}
-                  {o.disabled ? " (disabled)" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            onClick={addSelected}
-            disabled={!canManageBrands || !addOfferId}
-          >
-            Add to list
-          </Button>
+        <div className="mt-3">
+          <Autocomplete
+            id="top-brand-add"
+            disabled={!canManageBrands}
+            options={pickerOptions}
+            value={null}
+            inputValue={pickerSearch}
+            loading={offersPickLoading}
+            openOnFocus
+            filterOptions={(items) => items}
+            getOptionLabel={(offer) =>
+              `${offerPickerLabel(offer)}${offer.disabled ? " (disabled)" : ""}`
+            }
+            getOptionKey={(offer) => offer._id}
+            isOptionEqualToValue={(left, right) => left._id === right._id}
+            noOptionsText={pickerNoOptionsText}
+            slotProps={offerAutocompletePopperSlotProps}
+            sx={{ width: "100%" }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Search offers to add…"
+                slotProps={mergeAutocompleteTextFieldSlotProps(
+                  params,
+                  "Search offers to add",
+                )}
+              />
+            )}
+            renderOption={(props, offer) => {
+              const { key: _key, ...optionProps } = props;
+              return (
+                <li {...optionProps} key={offer._id}>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate">{offerLabel(offer)}</span>
+                    <span className="truncate text-xs text-gray-500">
+                      {offerPickerLabel(offer)}
+                      {offer.disabled ? " (disabled)" : ""}
+                    </span>
+                  </div>
+                </li>
+              );
+            }}
+            onInputChange={(_event, value, reason) => {
+              syncAutocompleteSearchInput(reason, value, setPickerSearch);
+            }}
+            onChange={(_event, offer) => {
+              if (!offer) return;
+              addOfferFromPicker(offer);
+              setPickerSearch("");
+            }}
+          />
         </div>
+        {hiddenPickerMatches.length > 0 && pickerSearch.trim() ? (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            {hiddenPickerMatches.length} matching offer
+            {hiddenPickerMatches.length === 1 ? "" : "s"} already in the
+            homepage list below. Remove one from the list to re-add a different
+            variant, or search by country / offer id.
+          </p>
+        ) : null}
+        {offersPickError ? (
+          <p className="mt-2 text-xs text-red-700 dark:text-red-300">
+            {getApiErrorMessage(
+              offersPickQueryError,
+              "Could not search offers. Check your admin session and API connection.",
+            )}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-8 space-y-3 border-t border-gray-200 pt-6 dark:border-gray-700">
@@ -459,11 +561,7 @@ export default function TopBrandManagementPanel() {
                 </span>
                 {offer ? (
                   <RemoteOrBlobImage
-                    src={pathImage(
-                      offer.logo_circle ||
-                        offer.logo_desktop ||
-                        offer.logo_mobile,
-                    )}
+                    src={pathImage(resolveAdminOfferLogoPath(offer))}
                     alt=""
                     width={40}
                     height={40}
@@ -496,7 +594,7 @@ export default function TopBrandManagementPanel() {
                 <input
                   aria-label={`Cashback for ${offer ? offerLabel(offer) : id}`}
                   type="text"
-                  value={localCashbackById[id] ?? ""}
+                  value={effectiveCashbackById[id] ?? ""}
                   onChange={(e) => updateCashback(id, e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                   draggable={false}

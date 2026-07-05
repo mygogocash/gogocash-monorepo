@@ -28,6 +28,7 @@ describe("Expo motion interaction parity", () => {
     expect(motion.scale).toMatchObject({
       press: 0.97,
       subtlePress: 0.98,
+      hover: 1.01,
       hoverLiftY: -2,
       imageHover: 1.03,
     });
@@ -43,11 +44,11 @@ describe("Expo motion interaction parity", () => {
     });
   });
 
-  it("hover feedback > given web pointer hover > then Expo applies Next hover lift before press scale", () => {
+  it("hover feedback > given web pointer hover > then Expo applies lift and subtle scale before press", () => {
     expect(
       getInteractionTransformStyle({ hovered: true, hoverLift: true, pressed: false })
     ).toEqual({
-      transform: [{ translateY: motion.scale.hoverLiftY }, { scale: 1 }],
+      transform: [{ translateY: motion.scale.hoverLiftY }, { scale: motion.scale.hover }],
     });
     expect(getInteractionTransformStyle({ hovered: true, hoverLift: true, pressed: true })).toEqual(
       {
@@ -56,7 +57,7 @@ describe("Expo motion interaction parity", () => {
     );
     expect(motion.cssTransition).toMatchObject({
       duration: "220ms",
-      property: "transform, box-shadow, opacity, background-color, border-color, color",
+      property: "transform, opacity",
       timingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
     });
   });
@@ -72,13 +73,10 @@ describe("Expo motion interaction parity", () => {
     ).toEqual({
       transform: [{ translateY: 0 }, { scale: 1 }],
     });
-    expect(motionPressableFile).toContain("restingHoverStyle");
-    expect(motionPressableFile).toContain("0 0 0 rgba(0, 0, 0, 0)");
+    expect(motionPressableFile).not.toContain("hoverLiftStyle");
+    expect(motionPressableFile).not.toContain("restingHoverStyle");
     expect(motionPressableFile).toContain("transitionProperty: motion.cssTransition.property");
-    expect(motionPressableFile).toContain("effectiveHoverLift ? restingHoverStyle : null");
-    expect(motionPressableFile).toContain(
-      "interactive && effectiveHoverLift && hovered ? hoverLiftStyle : null"
-    );
+    expect(motionPressableFile).toContain("willChange: \"transform\"");
   });
 
   it("home interactions > given staged carousels > then Expo tracks active dots from scroll", () => {
@@ -108,7 +106,6 @@ describe("Expo motion interaction parity", () => {
     expect(motionPressableFile).toContain("getInteractionTransformStyle");
     expect(motionPressableFile).toContain("onHoverIn");
     expect(motionPressableFile).toContain("onHoverOut");
-    expect(motionPressableFile).toContain("hoverLiftStyle");
     expect(motionPressableFile).toContain("webInteractiveStyle");
     expect(motionPressableFile).toContain("StyleSheet.flatten");
     expect(homeFile).toContain("MotionPressable");

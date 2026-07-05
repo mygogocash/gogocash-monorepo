@@ -1,6 +1,6 @@
-import { Link } from "expo-router";
-import { type ComponentType } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { type ComponentType, useState } from "react";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   CircleUserRound as ProfileIcon,
   Home as HomeIcon,
@@ -9,9 +9,13 @@ import {
   WalletCards as WalletIcon,
 } from "@mobile/theme/icons";
 
-import profileAvatarImage from "../../assets/profile-avatar.png";
+import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
+import { buildProtectedLoginRedirect } from "@mobile/auth/routeGuard";
+import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { mobileShellLayout, webMobileBottomNavItems } from "@mobile/design/webDesignParity";
+import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { CustomerGoLinkScreen } from "@mobile/screens/CustomerGoLinkScreen";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { getThemeSurfaces } from "@mobile/theme/themeSurfaces";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -33,19 +37,51 @@ const bottomNavIcons: Record<string, BottomNavIconComponent> = {
   wallet: WalletIcon,
 };
 
+const protectedBottomNavHrefs = new Set(["/profile", "/wallet"]);
+
 export function CustomerMobileBottomNav({
   activeRouteId,
   bottomInset,
+  onGoLinkPress,
 }: {
   activeRouteId?: BottomNavRouteId;
   bottomInset: number;
+  /** When set, GoGoLink opens as a sheet overlay instead of navigating to `/golink`. */
+  onGoLinkPress?: () => void;
 }) {
   const tc = useCopy();
+  const router = useRouter();
+  const session = useMobileSessionSnapshot();
+  const { isAuthed, ready } = useAuthGuardSession();
+  const [goLinkSheetOpen, setGoLinkSheetOpen] = useState(false);
   const { colors, resolved } = useTheme();
   const surfaces = getThemeSurfaces(colors, resolved);
   const styles = useThemedStyles(createBottomNavStyles);
 
+  function handleBottomNavPress(href: string) {
+    if (!ready) {
+      return;
+    }
+
+    if (href === "/golink") {
+      if (onGoLinkPress) {
+        onGoLinkPress();
+      } else {
+        setGoLinkSheetOpen(true);
+      }
+      return;
+    }
+
+    if (!isAuthed && protectedBottomNavHrefs.has(href)) {
+      router.push((buildProtectedLoginRedirect(href) ?? "/login") as never);
+      return;
+    }
+
+    router.push(href as never);
+  }
+
   return (
+    <>
     <View
       style={[
         styles.bottomNavWrap,
@@ -68,18 +104,29 @@ export function CustomerMobileBottomNav({
           const emphasized = "emphasized" in item && item.emphasized;
 
           return (
-            <Link asChild href={item.href as never} key={item.label}>
-              <Pressable
-                style={StyleSheet.flatten([
-                  styles.bottomNavItem,
-                  emphasized ? styles.bottomNavItemEmphasized : null,
-                  active ? styles.bottomNavItemActive : null,
-                ])}
-              >
+            <Pressable
+              accessibilityRole="button"
+              key={item.label}
+              onPress={() => handleBottomNavPress(item.href)}
+              style={StyleSheet.flatten([
+                styles.bottomNavItem,
+                emphasized ? styles.bottomNavItemEmphasized : null,
+                active ? styles.bottomNavItemActive : null,
+              ])}
+            >
                 <View
                   style={[styles.bottomNavIcon, emphasized ? styles.bottomNavIconEmphasized : null]}
                 >
-                  <BottomNavIcon active={active} emphasized={emphasized} name={item.icon} />
+                  <BottomNavIcon
+                    active={active}
+                    avatarUrl={
+                      typeof session?.avatar_url === "string" && session.avatar_url.trim()
+                        ? session.avatar_url.trim()
+                        : null
+                    }
+                    emphasized={emphasized}
+                    name={item.icon}
+                  />
                 </View>
                 <Text
                   numberOfLines={1}
@@ -92,20 +139,30 @@ export function CustomerMobileBottomNav({
                   {tc(item.label)}
                 </Text>
               </Pressable>
-            </Link>
           );
         })}
       </View>
     </View>
+      {goLinkSheetOpen ? (
+        <Modal animationType="none" statusBarTranslucent transparent visible>
+          <CustomerGoLinkScreen
+            onClose={() => setGoLinkSheetOpen(false)}
+            presentation="homeSheet"
+          />
+        </Modal>
+      ) : null}
+    </>
   );
 }
 
 function BottomNavIcon({
   active,
+  avatarUrl,
   emphasized,
   name,
 }: {
   active: boolean;
+  avatarUrl?: string | null;
   emphasized: boolean;
   name: string;
 }) {
@@ -116,9 +173,10 @@ function BottomNavIcon({
 
   if (name === "profile" && active) {
     return (
-      <Image
-        alt="Profile avatar"
-        source={profileAvatarImage}
+      <ProfileAvatarImage
+        accessibilityLabel="Profile avatar"
+        avatarUrl={avatarUrl}
+        size={28}
         style={styles.bottomNavProfileAvatar}
       />
     );

@@ -195,8 +195,12 @@ function ProfileMyCashbackLinkSection() {
       {PROFILE_LINKED_MYCASHBACK.map((account) => (
         <View key={account.id} style={styles.linkedAccountRow}>
           <View style={styles.linkedAccountInfo}>
-            <Text style={styles.linkedAccountName}>MyCashBack</Text>
-            <Text style={styles.linkedAccountMasked}>{account.masked}</Text>
+            <Text numberOfLines={1} style={styles.linkedAccountName}>
+              MyCashBack
+            </Text>
+            <Text numberOfLines={1} style={styles.linkedAccountMasked}>
+              {account.masked}
+            </Text>
           </View>
           <View style={styles.linkedAccountActions}>
             <View style={styles.linkedPill}>
@@ -262,34 +266,69 @@ function ProfileCashbackSummaryCard() {
   const styles = useThemedStyles(createProfileInfoPanelStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 560;
+
+  const withdrawButton = (
+    <Link asChild href="/withdraw">
+      <Pressable
+        style={StyleSheet.flatten([
+          styles.profileCashbackWithdrawButton,
+          isCompact ? styles.profileCashbackWithdrawButtonCompact : null,
+        ])}
+      >
+        <Text style={styles.profileCashbackWithdrawText}>
+          {tc(webProfileInfoCashbackCard.actionLabel)}
+        </Text>
+      </Pressable>
+    </Link>
+  );
+
   return (
     <View style={styles.profileCashbackCard}>
-      <View style={styles.profileCashbackTop}>
-        <View style={styles.profileCashbackHeader}>
-          <View style={styles.profileCashbackIconBubble}>
-            <WalletIcon color={colors.primaryDark} size={22} strokeWidth={typography.iconStrokeWidth} />
+      <View style={[styles.profileCashbackTop, isCompact ? styles.profileCashbackTopCompact : null]}>
+        <View
+          style={[
+            styles.profileCashbackHeader,
+            isCompact ? styles.profileCashbackHeaderCompact : null,
+          ]}
+        >
+          <View style={styles.profileCashbackHeaderMain}>
+            <View style={styles.profileCashbackIconBubble}>
+              <WalletIcon color={colors.primaryDark} size={22} strokeWidth={typography.iconStrokeWidth} />
+            </View>
+            <View style={styles.profileCashbackTitleCopy}>
+              <Text style={styles.profileCashbackTitle}>{tc(webProfileInfoCashbackCard.title)}</Text>
+              {!isCompact ? (
+                <Text style={styles.profileCashbackHint}>{tc(webProfileInfoCashbackCard.hint)}</Text>
+              ) : null}
+            </View>
+            {!isCompact ? withdrawButton : null}
           </View>
-          <View style={styles.profileCashbackTitleCopy}>
-            <Text style={styles.profileCashbackTitle}>{tc(webProfileInfoCashbackCard.title)}</Text>
-            <Text style={styles.profileCashbackHint}>{tc(webProfileInfoCashbackCard.hint)}</Text>
-          </View>
-          <Link asChild href="/withdraw">
-            <Pressable style={styles.profileCashbackWithdrawButton}>
-              <Text style={styles.profileCashbackWithdrawText}>
-                {tc(webProfileInfoCashbackCard.actionLabel)}
-              </Text>
-            </Pressable>
-          </Link>
+          {isCompact ? (
+            <>
+              <Text style={styles.profileCashbackHint}>{tc(webProfileInfoCashbackCard.hint)}</Text>
+              {withdrawButton}
+            </>
+          ) : null}
         </View>
         <View
           accessibilityLabel={tc("AVAILABLE TO WITHDRAW")}
-          style={styles.profileCashbackAvailableBox}
+          style={[
+            styles.profileCashbackAvailableBox,
+            isCompact ? styles.profileCashbackAvailableBoxCompact : null,
+          ]}
         >
           <Text style={styles.profileCashbackAvailableLabel}>
             {tc(webProfileInfoCashbackCard.availableLabel)}
           </Text>
           <View style={styles.profileCashbackAvailableAmountRow}>
-            <Text style={styles.profileCashbackAvailableAmount}>
+            <Text
+              style={[
+                styles.profileCashbackAvailableAmount,
+                isCompact ? styles.profileCashbackAvailableAmountCompact : null,
+              ]}
+            >
               {webProfileInfoCashbackCard.amount}
             </Text>
             <Text style={styles.profileCashbackCurrencyPill}>
@@ -618,7 +657,17 @@ function createProfileInfoPanelStyles(colors: ThemeColors) {
     gap: spacing.lg,
     padding: spacing.lg,
   },
+  profileCashbackTopCompact: {
+    gap: spacing.md,
+    padding: spacing.md,
+  },
   profileCashbackHeader: {
+    gap: spacing.md,
+  },
+  profileCashbackHeaderCompact: {
+    gap: spacing.sm,
+  },
+  profileCashbackHeaderMain: {
     alignItems: "center",
     flexDirection: "row",
     gap: spacing.md,
@@ -655,9 +704,14 @@ function createProfileInfoPanelStyles(colors: ThemeColors) {
     alignItems: "center",
     backgroundColor: colors.primary,
     borderRadius: radii.chip,
+    flexShrink: 0,
     justifyContent: "center",
     minHeight: 44,
     paddingHorizontal: 22,
+  },
+  profileCashbackWithdrawButtonCompact: {
+    alignSelf: "stretch",
+    width: "100%",
   },
   profileCashbackWithdrawText: {
     color: colors.white,
@@ -672,6 +726,10 @@ function createProfileInfoPanelStyles(colors: ThemeColors) {
     borderWidth: 1,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+  },
+  profileCashbackAvailableBoxCompact: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   profileCashbackAvailableLabel: {
     color: colors.muted,
@@ -691,6 +749,10 @@ function createProfileInfoPanelStyles(colors: ThemeColors) {
     fontSize: 34,
     fontWeight: "600",
     letterSpacing: 0,
+  },
+  profileCashbackAvailableAmountCompact: {
+    fontSize: 28,
+    lineHeight: 32,
   },
   profileCashbackCurrencyPill: {
     backgroundColor: pickThemed(colors, "#E7F8EE", colors.primarySoft),
@@ -806,38 +868,43 @@ function createProfileInfoPanelStyles(colors: ThemeColors) {
     lineHeight: 21,
   },
   linkedAccountRow: {
-    alignItems: "center",
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    justifyContent: "space-between",
+    flexDirection: "column",
+    gap: spacing.sm,
     minHeight: 56,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   linkedAccountInfo: {
     alignItems: "center",
-    flex: 1,
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
     minWidth: 0,
   },
   linkedAccountName: {
     color: colors.ink,
+    flexShrink: 0,
     fontFamily: typography.family,
     fontSize: 16,
+    fontWeight: "600",
   },
   linkedAccountMasked: {
-    color: colors.ink,
+    color: colors.muted,
+    flexShrink: 1,
     fontFamily: typography.family,
     fontSize: 16,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "500",
+    minWidth: 0,
   },
   linkedAccountActions: {
     alignItems: "center",
+    alignSelf: "flex-end",
     flexDirection: "row",
+    flexShrink: 0,
     gap: 12,
   },
   linkedPill: {

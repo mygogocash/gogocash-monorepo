@@ -20,7 +20,6 @@ const PROTECTED_SCREEN_NAMES = [
   "profile/verify-phone",
   "profile/my-rating",
   "profile/offer",
-  "wallet",
   "withdraw/index",
   "withdraw/my-cashback",
   "method/index",
@@ -118,6 +117,9 @@ function RootStack() {
           user hitting the now-removed `/login` falls back to home, not a protected
           screen. */}
       <Stack.Screen name="(tabs)" />
+
+      {/* Self-guarded in `app/wallet.tsx` (redirect to /login when logged out). */}
+      <Stack.Screen name="wallet" />
 
       {/* Authenticated-only routes. */}
       <Stack.Protected guard={isAuthed}>

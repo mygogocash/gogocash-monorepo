@@ -405,18 +405,23 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   {
     appFile: "app/gototrack/index.tsx",
     expectedLinks: [
-      "/gototrack/onboarding",
-      "/gototrack/permissions",
-      "/gototrack/timeline",
-      "/gototrack/settings",
-      "/gototrack/recovery",
+      "GoGoTrackSectionNav",
+      "profileHubGoGoTrackSubNavItems",
+      "isGoGoTrackSubNavItemActive",
     ],
-    landmarks: ["gogoSenseFlowCopy", "Permission checklist", "Tracking timeline"],
+    landmarks: [
+      "gogoSenseFlowCopy",
+      "GoGoTrackPermissionGrantSection",
+      "webGoGoTrackPermissionsPage",
+    ],
     routeId: "gototrack",
     routeMarkers: ["CustomerGoGoTrackScreen", 'mode="hub"'],
-    screenFiles: ["src/screens/CustomerGoGoTrackScreen.tsx"],
+    screenFiles: [
+      "src/screens/CustomerGoGoTrackScreen.tsx",
+      "src/gototrack/GoGoTrackPermissionGrantSection.tsx",
+    ],
     userFlow:
-      "Customer opens the GoGoTrack protected hub and chooses setup, permissions, timeline, settings, or recovery.",
+      "Customer opens the GoGoTrack protected hub and chooses setup, permissions, or settings.",
   },
   {
     appFile: "app/gototrack/onboarding.tsx",
@@ -430,23 +435,20 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/gototrack/permissions.tsx",
-    expectedLinks: ["/gototrack/settings", "/gototrack/timeline"],
-    landmarks: ["Permission checklist", "Usage access", "Usage access disclosure"],
+    expectedLinks: ["/gototrack/settings"],
+    landmarks: [
+      "GoGoTrackPermissionDisclosure",
+      "GoGoTrackPermissionGrantSection",
+      "grantUsageAccessLabel",
+    ],
     routeId: "gototrackPermissions",
     routeMarkers: ["CustomerGoGoTrackScreen", 'mode="permissions"'],
-    screenFiles: ["src/screens/CustomerGoGoTrackScreen.tsx"],
+    screenFiles: [
+      "src/screens/CustomerGoGoTrackScreen.tsx",
+      "src/gototrack/GoGoTrackPermissionGrantSection.tsx",
+    ],
     userFlow:
-      "Customer opens GoGoTrack permissions, reviews OS permission rationale, and moves to settings or timeline.",
-  },
-  {
-    appFile: "app/gototrack/timeline.tsx",
-    expectedLinks: ["/gototrack/recovery", "/gototrack/settings"],
-    landmarks: ["Tracking timeline", "Detected shopping session", "Cashback pending"],
-    routeId: "gototrackTimeline",
-    routeMarkers: ["CustomerGoGoTrackScreen", 'mode="timeline"'],
-    screenFiles: ["src/screens/CustomerGoGoTrackScreen.tsx"],
-    userFlow:
-      "Customer opens GoGoTrack timeline, reviews detection history, and starts recovery when tracking is missing.",
+      "Customer opens GoGoTrack permissions, reviews OS permission rationale, and moves to settings.",
   },
   {
     appFile: "app/gototrack/settings.tsx",
@@ -459,18 +461,8 @@ const frontendFlowContracts: FrontendFlowContract[] = [
       "Customer opens GoGoTrack settings, reviews privacy toggles, and can return to permissions.",
   },
   {
-    appFile: "app/gototrack/recovery.tsx",
-    expectedLinks: ["/gototrack/timeline"],
-    landmarks: ["Screenshot recovery", "Manual merchant review", "Back to timeline"],
-    routeId: "gototrackRecovery",
-    routeMarkers: ["CustomerGoGoTrackScreen", 'mode="recovery"'],
-    screenFiles: ["src/screens/CustomerGoGoTrackScreen.tsx"],
-    userFlow:
-      "Customer opens GoGoTrack recovery, submits missing tracking evidence, and returns to timeline.",
-  },
-  {
     appFile: "app/gototrack/merchant/[id].tsx",
-    expectedLinks: ["/gototrack/timeline", "/gototrack/recovery"],
+    expectedLinks: ["/gototrack", "/gototrack/settings"],
     landmarks: ["Merchant tracking detail", "Catalog status", "Android package detection"],
     routeId: "gototrackMerchant",
     routeMarkers: [
@@ -481,7 +473,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
     ],
     screenFiles: ["src/screens/CustomerGoGoTrackScreen.tsx"],
     userFlow:
-      "Customer opens a GoGoTrack merchant detail screen, reviews detection methods, and starts recovery if tracking is missing.",
+      "Customer opens a GoGoTrack merchant detail screen, reviews detection methods, and returns to overview or settings.",
   },
 ];
 
@@ -614,12 +606,14 @@ describe("Expo frontend user-flow parity", () => {
     expect(rootPackage.scripts.test).toBe("turbo run test");
   });
 
-  it("GoGoTrack frontend parity > given native detector scope > then dedicated onboarding permissions timeline settings recovery and merchant flows replace placeholders", () => {
-    const gototrackContracts = frontendFlowContracts.filter((contract) =>
-      contract.routeId.startsWith("gototrack")
+  it("GoGoTrack frontend parity > given native detector scope > then dedicated onboarding permissions settings and merchant flows replace placeholders", () => {
+    const gototrackContracts = frontendFlowContracts.filter(
+      (contract) =>
+        contract.routeId.startsWith("gototrack") &&
+        contract.routeMarkers.some((marker) => marker.includes("CustomerGoGoTrackScreen")),
     );
 
-    expect(gototrackContracts).toHaveLength(7);
+    expect(gototrackContracts).toHaveLength(5);
     for (const contract of gototrackContracts) {
       const routeFile = readMobileFile(contract.appFile);
       const screenText = readScreenContractSources(contract.screenFiles);
@@ -645,9 +639,7 @@ describe("Expo frontend user-flow parity", () => {
       "/gototrack",
       "/gototrack/onboarding",
       "/gototrack/permissions",
-      "/gototrack/timeline",
       "/gototrack/settings",
-      "/gototrack/recovery",
       "/gototrack/merchant/grocery-galaxy",
     ];
 

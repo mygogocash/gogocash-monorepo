@@ -36,11 +36,9 @@ const selfChromeScreens = [
 // CustomerMembershipScreen now renders inside AccountPageShell, so it inherits the
 // footer from the shell and is intentionally not listed here.
 const rootChromeFooterSlotOwners = [
-  "src/components/AccountPageShell.tsx",
   "src/components/CustomerRouteState.tsx",
   "src/screens/CustomerCategoryDetailScreen.tsx",
   "src/screens/CustomerDiscoveryScreen.tsx",
-  "src/screens/CustomerGoGoTrackScreen.tsx",
   "src/screens/CustomerGoLinkScreen.tsx",
   "src/screens/CustomerMoneyActionScreen.tsx",
   "src/screens/CustomerShopDetailScreen.tsx",
@@ -48,8 +46,10 @@ const rootChromeFooterSlotOwners = [
 ];
 
 const cappedDesktopFooterScreens = [
+  "src/components/AccountPageShell.tsx",
   "src/screens/CustomerHomeScreen.tsx",
   "src/screens/CustomerCategoryDetailScreen.tsx",
+  "src/screens/CustomerShopDetailScreen.tsx",
 ];
 
 function readDiscoveryChromeSources() {
@@ -70,6 +70,7 @@ describe("desktop route shell parity", () => {
     expect(routeChrome).toContain("{children}");
     expect(routeChrome).toContain("isDesktopSelfChromePathname(pathname)");
     expect(footerSlot).toContain("CustomerDesktopFooter");
+    expect(footerSlot).toContain("getDesktopFooterHorizontalPadding");
     expect(footerSlot).toContain("mobileShellLayout.desktopBreakpoint");
 
     for (const routePath of selfChromeRoutes) {
@@ -81,7 +82,9 @@ describe("desktop route shell parity", () => {
       const screenFile = readMobileFile(screenPath);
 
       expect(screenFile, `${screenPath} desktop navbar`).toContain("CustomerDesktopHeader");
-      expect(screenFile, `${screenPath} desktop footer`).toContain("CustomerDesktopFooter");
+      expect(screenFile, `${screenPath} desktop footer`).toMatch(
+        /CustomerDesktopFooter|CustomerDesktopFooterSlot/,
+      );
     }
 
     for (const screenPath of rootChromeFooterSlotOwners) {
@@ -94,29 +97,29 @@ describe("desktop route shell parity", () => {
     }
   });
 
-  it("account shell footer offset > given the capped + padded shell frame > then it passes a computed offset to the footer slot", () => {
+  it("account shell footer offset > given desktop profile/quest pages > then it uses the homepage full-bleed footer path", () => {
     const shell = readMobileFile("src/components/AccountPageShell.tsx");
 
-    expect(shell, "shell should put non-rail desktop pages on the homepage footer path").toContain(
+    expect(shell, "shell should distinguish rail vs quest desktop layouts").toContain(
       "const useDesktopHomepageFooter = isDesktop && !showDesktopRail"
     );
-    expect(shell, "shell should compute the footer offset from frame metrics").toContain(
-      "getAccountShellFooterHorizontalPadding"
+    expect(shell, "shell should full-bleed desktop chrome for rail and quest pages").toContain(
+      "const useDesktopFullBleedChrome = isDesktop && (useDesktopHomepageFooter || showDesktopRail)"
     );
-    expect(shell, "shell should pass rail alignment to the footer offset helper").toContain(
-      "alignToNavbarShell: showDesktopRail"
+    expect(shell, "shell should cap rail content inside a centered column").toContain(
+      "styles.desktopContentCap"
     );
     expect(shell, "shell should use the same desktop footer offset as the homepage").toContain(
       "getDesktopShellOffset(width)"
     );
-    expect(shell, "shell should render the homepage footer element for desktop non-rail pages").toContain(
+    expect(shell, "shell should render CustomerDesktopFooter on desktop").toContain(
       "<CustomerDesktopFooter"
     );
-    expect(shell, "shell should pass the computed offset to the footer slot").toContain(
-      "horizontalPadding={footerHorizontalPadding}"
+    expect(shell, "shell should pass the homepage shell offset to the footer").toContain(
+      "horizontalPadding={desktopFooterHorizontalOffset}"
     );
-    expect(shell, "shell should not leave the footer slot at the default zero offset").not.toMatch(
-      /<CustomerDesktopFooterSlot\s+style=\{styles\.desktopFooter\}\s*\/>/
+    expect(shell, "shell should not use the legacy padded footer slot on desktop").not.toContain(
+      "CustomerDesktopFooterSlot"
     );
   });
 
@@ -179,6 +182,25 @@ describe("desktop route shell parity", () => {
     }
   });
 
+  it("desktop footer trailing gap > given footer inside page scroll > then must not force minHeight fill or extra bottom clearance", () => {
+    const shell = readMobileFile("src/components/AccountPageShell.tsx");
+    const parity = readMobileFile("src/design/webDesignParity.ts");
+    const privacy = readMobileFile("src/screens/CustomerPrivacyPolicyScreen.tsx");
+
+    expect(shell).toContain("pageMinFill");
+    expect(shell).toContain("isDesktop ? null : styles.pageMinFill");
+    expect(shell).not.toContain("mobileShellLayout.desktopBottomClearance");
+    expect(privacy).toContain("publicLegalPageMinFill");
+    expect(privacy).toContain("isDesktop ? null : styles.publicLegalPageMinFill");
+    expect(privacy).not.toContain("desktopBottomClearance + 120");
+    expect(parity).toMatch(/pageBottomPadding: isDesktop\s*\?\s*0/);
+
+    const routeState = readMobileFile("src/components/CustomerRouteState.tsx");
+    expect(routeState).toContain("desktopFooterPinned");
+    expect(routeState).toContain('marginTop: "auto"');
+    expect(routeState).toContain("phoneFrameDesktop");
+  });
+
   it("desktop subnav underline > given an inactive category tab > then Expo always renders the underline and fades it in on hover, matching web SubHeader", () => {
     const header = readMobileFile("src/components/CustomerDesktopHeader.tsx");
 
@@ -218,7 +240,6 @@ describe("desktop route shell parity", () => {
     expect(search).toContain("shellExpanded");
     expect(search).toContain("maxWidth: 640");
     expect(search).toContain('Platform.OS === "web"');
-    expect(search).toContain("max-width");
   });
 
   it("desktop header search > given premium keyboard shortcut > then Meta/Ctrl+K focuses input and tracks search_open", () => {

@@ -30,7 +30,9 @@ export function resolveAuthSocialProviders<T extends { id: string }>(
     return providers;
   }
 
-  return providers.filter((provider) => provider.id !== "wallet");
+  return providers.filter(
+    (provider) => provider.id !== "wallet" && provider.id !== "telegram",
+  );
 }
 
 export const PAYOUT_METHOD_TABS = ["promptpay", "bank", "crypto"] as const;

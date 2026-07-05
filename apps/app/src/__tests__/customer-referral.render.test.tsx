@@ -66,6 +66,12 @@ describe("CustomerReferralScreen (render)", () => {
     expect(() => renderScreen()).not.toThrow();
   });
 
+  it("renders the referral dashboard when the backend referral list is empty", () => {
+    renderScreen();
+    expect(screen.getByText("Refer & Earn")).toBeTruthy();
+    expect(screen.queryByText("No referral activity yet")).toBeNull();
+  });
+
   it("renders the Refer & Earn card heading + share section", () => {
     renderScreen();
     expect(screen.getByText("Refer & Earn")).toBeTruthy();
@@ -132,6 +138,13 @@ describe("CustomerReferralScreen — Wave B foundations adopted (source signals)
     expect(referralSource).toContain("RefreshControl");
     expect(referralSource).toContain("refreshControl=");
     expect(referralSource).toContain(".retry");
+  });
+
+  it("does not replace the whole page when referral activity is empty", () => {
+    expect(referralSource).toContain("isReferralResourceBlocking");
+    expect(referralSource).toContain('referralResource.status === "empty"');
+    expect(referralSource).toContain("referralEmptyInvitesTitle");
+    expect(referralSource).not.toContain('emptyTitle={tc("No referral activity yet")');
   });
 
   it("passes a loadingSkeleton to the shared resource state guard", () => {

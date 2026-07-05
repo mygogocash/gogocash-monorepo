@@ -1,11 +1,18 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "ignore": [".agents/**", ".cursor/**", "skills-lock.json", "e2e/**"],
+  "ignore": [
+    ".agents/**",
+    ".cursor/**",
+    "skills-lock.json",
+    "e2e/**",
+    "scripts/figma-brand-logos/**",
+    "scripts/firebase-staging-auth-setup.mjs"
+  ],
   "ignoreExportsUsedInFile": {
     "interface": true,
     "type": true
   },
-  "ignoreBinaries": ["eas", "knip", "maestro"],
+  "ignoreBinaries": ["eas", "knip", "maestro", "gcloud"],
   "ignoreUnresolved": ["dotenv/config", "expo-system-ui"],
   "ignoreDependencies": [
     "@nestjs/common",

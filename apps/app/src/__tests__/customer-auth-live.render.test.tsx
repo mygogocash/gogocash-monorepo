@@ -9,10 +9,17 @@ vi.mock("expo-localization", () => ({
 }));
 
 const routerPush = vi.fn();
+const routerReplace = vi.fn();
 vi.mock("expo-router", () => ({
   Link: ({ children }: { children: ReactNode }) => children,
-  useRouter: () => ({ push: routerPush, replace: vi.fn(), back: vi.fn(), navigate: vi.fn() }),
+  useRouter: () => ({
+    push: routerPush,
+    replace: routerReplace,
+    back: vi.fn(),
+    navigate: vi.fn(),
+  }),
   usePathname: () => "/login",
+  useLocalSearchParams: () => ({}),
 }));
 
 // Firebase plumbing seams — the live branch dynamic-imports these modules, so the
@@ -51,6 +58,7 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     vi.stubEnv("EXPO_PUBLIC_API_URL", "https://api-staging.gogocash.co");
     window.localStorage.clear();
     routerPush.mockClear();
+    routerReplace.mockClear();
     sendPhoneOtp.mockReset();
     confirmPhoneOtp.mockReset();
     exchangeFirebaseIdToken.mockReset();
@@ -116,7 +124,7 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     await waitFor(() => {
       expect(readStoredSession()?.access_token).toBe("backend-access-token");
     });
-    expect(routerPush).toHaveBeenCalledWith("/link-mycashback");
+    expect(routerReplace).toHaveBeenCalledWith("/link-mycashback");
   });
 
   async function reachOtpStepAndSubmit(code: string) {

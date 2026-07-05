@@ -1,16 +1,19 @@
-import { type NativeScrollEvent, type NativeSyntheticEvent, type ImageSourcePropType } from "react-native";
+import { type ImageSourcePropType, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 
 import { type HomeHeroBanner } from "@mobile/account/homeBannerResource";
+import { resolveHeroBannerRemoteImageSource } from "@mobile/lib/heroBannerImage";
 import { getCarouselActiveIndex, getTopBrandHref } from "@mobile/design/webDesignParity";
 
 import { heroBannerAssets } from "./homeAssets";
 import { type CompactBrandLogoOfferCardProps, type HomeLayoutMetrics, type TopBrandCardProps } from "./homeTypes";
 
-// Backend banners carry a remote URL (imageUri); fixtures carry a bundled asset key.
-export function heroBannerSource(banner: HomeHeroBanner): ImageSourcePropType | undefined {
+export function resolveHeroBannerImageSource(
+  banner: HomeHeroBanner,
+): ImageSourcePropType | undefined {
   if (banner.imageUri) {
-    return { uri: banner.imageUri };
+    return resolveHeroBannerRemoteImageSource(banner.imageUri);
   }
+
   return banner.asset ? heroBannerAssets[banner.asset] : undefined;
 }
 
@@ -70,3 +73,14 @@ export function getPagedScrollIndex(
     pageWidth,
   });
 }
+
+export {
+  buildLoopedHeroBannerSlides,
+  getLoopedHeroBannerActiveIndex,
+  getLoopedHeroBannerAutoAdvanceTarget,
+  getLoopedHeroBannerDotScrollX,
+  nextBannerIndex,
+  normalizeBannerIndex,
+  prevBannerIndex,
+  resolveLoopedHeroBannerJumpTarget,
+} from "./homeHeroBannerCarousel";

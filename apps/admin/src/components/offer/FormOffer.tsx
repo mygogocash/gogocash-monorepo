@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { isAxiosError } from "axios";
+import type { FetchBestResponse } from "@/components/commission/CommissionManagementClient";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import NoData from "@/components/common/NoData";
 import CopyButton from "@/components/ui/CopyButton";
@@ -28,6 +30,8 @@ import {
   type OfferProductTypeEntry,
 } from "@/types/api";
 import { pathImage } from "@/utils/helper";
+import { resolveAdminOfferLogoPath } from "@/lib/offerDisplay";
+import { reorder } from "@/lib/reorder";
 import { useDataSession } from "@/hooks/useDataSession";
 import { useObjectUrl } from "@/hooks/useObjectUrl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,6 +41,10 @@ import {
   AFFILIATE_NETWORKS,
   affiliateNetworkIdForOfferId,
 } from "@/data/affiliateNetworks";
+import {
+  bestPartnerRawFromCommissions,
+  commissionFieldsFromPartnerRaw,
+} from "@/lib/autoCommissionFromPartner";
 import {
   buildSuggestedAppDeeplink,
   formatPartnerRatesMinMax,
@@ -54,8 +62,12 @@ import {
   productTypeEntryToDraft,
   serializeOfferProductTypes,
 } from "@/lib/productTypeDraft";
-import { reorder } from "@/lib/reorder";
+import { appendCashbackPatchFields } from "@/lib/offerCashbackSave";
 import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
+import {
+  brandSectionSaveBlockedMessage,
+  isBrandSectionDirty,
+} from "@/lib/brandSectionEdit";
 import { isDirty } from "@/lib/isDirty";
 import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
 import { OfferFullscreenCardShell } from "./OfferFullscreenCardShell";
@@ -197,9 +209,13 @@ function FormOfferBrandReferenceStrip({
   offer: Offer;
   form: OfferRequestForm;
 }) {
-  const circlePersisted = (offer.logo_circle || offer.logo || "").trim();
-  const circleObjectUrl = useObjectUrl(form.logo_circle);
-  const circleSrc = circleObjectUrl ?? pathImage(circlePersisted || null);
+  const persistedLogo = resolveAdminOfferLogoPath(offer);
+  const logoDesktopObjectUrl = useObjectUrl(form.logo_desktop);
+  const logoMobileObjectUrl = useObjectUrl(form.logo_mobile);
+  const logoSrc =
+    logoDesktopObjectUrl ??
+    logoMobileObjectUrl ??
+    pathImage(persistedLogo || null);
 
   const meta = [
     { label: "Offer ID", value: offer._id },
@@ -230,10 +246,10 @@ function FormOfferBrandReferenceStrip({
             Logo
           </span>
           <div className="shadow-theme-xs flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-white sm:h-[5.5rem] sm:w-[5.5rem] dark:border-gray-600 dark:bg-gray-900">
-            {circleSrc.trim() ? (
+            {logoSrc.trim() ? (
               <RemoteOrBlobImage
-                src={circleSrc}
-                alt="Brand logo, circle"
+                src={logoSrc}
+                alt="Brand logo"
                 width={128}
                 height={128}
                 className="h-full w-full object-contain"
@@ -501,6 +517,97 @@ const FormOffer = ({
   // The single-commission controls are read-only when per-row rates drive the
   // value ("All product types" off) — it's auto-filled from the highest line.
   const commissionLockedToRows = !form.all_product_types;
+
+  const applyPartnerCommissionToForm = useCallback(
+    (rawPercent: number): boolean => {
+      const fields = commissionFieldsFromPartnerRaw(rawPercent);
+      if (!fields) return false;
+      setCommissionRaw(fields.commissionRaw);
+      setForm((prev) => ({
+        ...prev,
+        commission_entry_mode: "auto",
+        commission_store: fields.commission_store,
+      }));
+      return true;
+    },
+    [setForm],
+  );
+
+  const fetchBestCommission = useMutation({
+    mutationFn: async (payload: {
+      offerId: string;
+      affiliateNetworkId: string;
+    }) => {
+      const { data } = await client.post<FetchBestResponse>(
+        "/admin/commission-management/fetch-best",
+        payload,
+      );
+      return data;
+    },
+  });
+
+  const syncAutoCommissionFromPartner = useCallback(async () => {
+    if (!offer || commissionLockedToRows) return;
+
+    const localRaw = bestPartnerRawFromCommissions(offer.commissions ?? []);
+    const affiliateNetworkId =
+      form.affiliate_network_id.trim() ||
+      affiliateNetworkIdForOfferId(offer._id);
+
+    if (!form.id) {
+      if (localRaw > 0) applyPartnerCommissionToForm(localRaw);
+      return;
+    }
+
+    try {
+      const data = await fetchBestCommission.mutateAsync({
+        offerId: form.id,
+        affiliateNetworkId,
+      });
+      if (data.bestRatePercent > 0) {
+        applyPartnerCommissionToForm(data.bestRatePercent);
+        fetchOffers();
+        toast.success(
+          `Loaded partner rate ${data.bestRatePercent}% (user-facing ${applyThirtyPercentFee(data.bestRatePercent)}% after 30% fee)`,
+        );
+        return;
+      }
+      if (localRaw > 0) {
+        applyPartnerCommissionToForm(localRaw);
+        toast.success(
+          `Using partner rate on file ${localRaw}% (user-facing ${applyThirtyPercentFee(localRaw)}%)`,
+        );
+        return;
+      }
+      toast.error(
+        "No partner rate found. Set commission in Commission Management or switch to Manual.",
+      );
+    } catch (err) {
+      if (localRaw > 0) {
+        applyPartnerCommissionToForm(localRaw);
+        toast.success(
+          `Using partner rate on file ${localRaw}% (live sync unavailable)`,
+        );
+        return;
+      }
+      const msg =
+        isAxiosError(err) &&
+        err.response?.data &&
+        typeof err.response.data === "object" &&
+        "message" in err.response.data
+          ? String((err.response.data as { message?: string }).message)
+          : "Could not fetch partner rate. Try again or enter manually.";
+      toast.error(msg);
+    }
+  }, [
+    offer,
+    commissionLockedToRows,
+    form.id,
+    form.affiliate_network_id,
+    fetchBestCommission,
+    applyPartnerCommissionToForm,
+    fetchOffers,
+  ]);
 
   // Product-type "add" frame: a local draft, committed into form.product_types
   // on Add (the committed lines show in a summary table — a later step). Cancel
@@ -801,6 +908,8 @@ const FormOffer = ({
   // saves everything else.
   const [editingBrand, setEditingBrand] = useState(false);
   const [savingBrand, setSavingBrand] = useState(false);
+  // Remount brand edit controls so uncontrolled fields re-read form after Cancel.
+  const [brandEditKey, setBrandEditKey] = useState(0);
   const [brandSnapshot, setBrandSnapshot] = useState<{
     offer_name_display: string;
     lookup_value: string;
@@ -822,6 +931,7 @@ const FormOffer = ({
     });
     setBrandSaveError(null);
     setEditingBrand(true);
+    setBrandEditKey((k) => k + 1);
   };
 
   const cancelEditBrand = () => {
@@ -837,11 +947,19 @@ const FormOffer = ({
       setSyncLookupFromBrandCountry(brandSnapshot.syncLookup);
     }
     setBrandSaveError(null);
+    setBrandEditKey((k) => k + 1);
     setEditingBrand(false);
   };
 
   const saveBrandEdit = async () => {
     if (!form.id) return;
+    const validationMessage = brandSectionSaveBlockedMessage(
+      form.offer_name_display,
+    );
+    if (validationMessage) {
+      setBrandSaveError(validationMessage);
+      return;
+    }
     setSavingBrand(true);
     setBrandSaveError(null);
     try {
@@ -870,6 +988,7 @@ const FormOffer = ({
         },
       }));
       setEditingBrand(false);
+      setBrandEditKey((k) => k + 1);
       fetchOffers();
       toast.success("Brand info updated successfully");
     } catch (err) {
@@ -882,30 +1001,37 @@ const FormOffer = ({
 
   // Whether the Brand Info fields changed since Edit was opened (drives the
   // section Save button: disabled + "No changes" until something is edited).
-  const brandDirty =
-    !!brandSnapshot &&
-    isDirty(
-      {
-        offer_name_display: form.offer_name_display,
-        lookup_value: form.lookup_value ?? "",
-        disabled: form.disabled,
-        extra_store: form.extra_store,
-        offer_display_tags: form.offer_display_tags,
-        syncLookup: syncLookupFromBrandCountry,
-      },
-      brandSnapshot,
-    );
+  const brandDirty = isBrandSectionDirty(
+    {
+      offer_name_display: form.offer_name_display,
+      lookup_value: form.lookup_value ?? "",
+      disabled: form.disabled,
+      extra_store: form.extra_store,
+      offer_display_tags: form.offer_display_tags,
+      syncLookup: syncLookupFromBrandCountry,
+    },
+    brandSnapshot,
+  );
 
-  // Cashback Management edit toggle — locks/unlocks the fields. No section save:
-  // changes persist via the form-wide "Save changes". Cancel reverts the snapshot.
+  // Cashback Management edit toggle — locks/unlocks the fields. Save persists
+  // commission/max-cap/product-type lines via a partial PATCH (mirrors Brand Info).
   const [editingCashback, setEditingCashback] = useState(false);
+  const [savingCashback, setSavingCashback] = useState(false);
+  const [cashbackSaveError, setCashbackSaveError] = useState<string | null>(null);
   // Bump to remount the locked fieldset so uncontrolled controls (the Switch's
   // defaultChecked, defaultValue inputs) re-read the form after a Cancel revert.
   const [cashbackEditKey, setCashbackEditKey] = useState(0);
-  const [cashbackSnapshot, setCashbackSnapshot] = useState<Pick<
-    OfferRequestForm,
-    "commission_store" | "all_product_types" | "max_cap" | "product_types"
-  > | null>(null);
+  const [cashbackSnapshot, setCashbackSnapshot] = useState<
+    | (Pick<
+        OfferRequestForm,
+        | "commission_store"
+        | "all_product_types"
+        | "max_cap"
+        | "product_types"
+        | "commission_entry_mode"
+      > & { commissionRaw: string })
+    | null
+  >(null);
 
   const beginEditCashback = () => {
     setCashbackSnapshot({
@@ -913,15 +1039,101 @@ const FormOffer = ({
       all_product_types: form.all_product_types,
       max_cap: form.max_cap,
       product_types: form.product_types,
+      commission_entry_mode: form.commission_entry_mode,
+      commissionRaw,
     });
+    setCashbackSaveError(null);
     setEditingCashback(true);
+    if (
+      form.commission_entry_mode === "auto" &&
+      (form.commission_store == null || form.commission_store === 0) &&
+      !commissionRaw.trim()
+    ) {
+      void syncAutoCommissionFromPartner();
+    }
   };
 
   const cancelEditCashback = () => {
-    if (cashbackSnapshot) setForm((prev) => ({ ...prev, ...cashbackSnapshot }));
+    if (cashbackSnapshot) {
+      setForm((prev) => ({
+        ...prev,
+        commission_store: cashbackSnapshot.commission_store,
+        all_product_types: cashbackSnapshot.all_product_types,
+        max_cap: cashbackSnapshot.max_cap,
+        product_types: cashbackSnapshot.product_types,
+        commission_entry_mode: cashbackSnapshot.commission_entry_mode,
+      }));
+      setCommissionRaw(cashbackSnapshot.commissionRaw);
+    }
+    setCashbackSaveError(null);
     setCashbackEditKey((k) => k + 1);
     setEditingCashback(false);
   };
+
+  const saveCashbackEdit = async () => {
+    if (!form.id) return;
+    setSavingCashback(true);
+    setCashbackSaveError(null);
+    try {
+      const fd = new FormData();
+      appendCashbackPatchFields(fd, {
+        commission_store: form.commission_store,
+        max_cap: form.max_cap,
+        all_product_types: form.all_product_types,
+        product_types: form.product_types,
+      });
+      await client.patch(`/admin/update-offer/${form.id}`, fd, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setFormBaseline((prev) => ({
+        ...prev,
+        snapshot: {
+          ...prev.snapshot,
+          commission_store: form.commission_store,
+          all_product_types: form.all_product_types,
+          max_cap: form.max_cap,
+          product_types: form.product_types,
+          commission_entry_mode: form.commission_entry_mode,
+        },
+      }));
+      setOpenModal((prev) =>
+        prev && typeof prev === "object"
+          ? {
+              ...prev,
+              commission_store: form.commission_store,
+              max_cap: form.max_cap,
+              all_product_types: form.all_product_types,
+              product_types: form.product_types,
+            }
+          : prev,
+      );
+      setEditingCashback(false);
+      fetchOffers();
+      toast.success("Cashback updated successfully");
+    } catch (err) {
+      devError("Failed to update cashback:", err);
+      setCashbackSaveError("Could not update cashback. Please try again.");
+    } finally {
+      setSavingCashback(false);
+    }
+  };
+
+  const cashbackDirty =
+    !!cashbackSnapshot &&
+    isDirty(
+      {
+        commission_store: form.commission_store,
+        all_product_types: form.all_product_types,
+        max_cap: form.max_cap,
+        product_types: form.product_types,
+        commission_entry_mode: form.commission_entry_mode,
+        commissionRaw,
+      },
+      cashbackSnapshot,
+    );
 
   // Upsize event edit toggle — mirrors Cashback (lock/unlock; no section save).
   const [editingUpsize, setEditingUpsize] = useState(false);
@@ -1265,37 +1477,6 @@ const FormOffer = ({
           id="offer-section-brand"
           className={`relative space-y-8 rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
-          {/* Section actions — pinned top-right, out of normal flow (ignores auto layout) */}
-          <div className="absolute top-4 right-4 z-10 sm:top-5 sm:right-5">
-            {!editingBrand ? (
-              <SecondaryButton onClick={beginEditBrand} disabled={!offer}>
-                Edit
-              </SecondaryButton>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={cancelEditBrand}
-                  disabled={savingBrand}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void saveBrandEdit()}
-                  disabled={savingBrand || !brandDirty}
-                  className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {savingBrand
-                    ? "Saving…"
-                    : brandDirty
-                      ? "Save changes"
-                      : "No changes"}
-                </button>
-              </div>
-            )}
-          </div>
           {brandSaveError && (
             <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
               {brandSaveError}
@@ -1303,12 +1484,47 @@ const FormOffer = ({
           )}
           {/* Brand info fields — grouped for easier selection */}
           <div>
-            <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-              Brand Info
-            </h4>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+                Brand Info
+              </h4>
+              <div className="relative z-20 flex shrink-0 flex-wrap items-center gap-2">
+                {!editingBrand ? (
+                  <SecondaryButton onClick={beginEditBrand} disabled={!offer}>
+                    Edit
+                  </SecondaryButton>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={cancelEditBrand}
+                      disabled={savingBrand}
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void saveBrandEdit()}
+                      disabled={savingBrand || !brandDirty}
+                      className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {savingBrand
+                        ? "Saving…"
+                        : brandDirty
+                          ? "Save changes"
+                          : "No changes"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
             {editingBrand ? (
               <>
-                <div className="mt-2 space-y-[18px]">
+                <div
+                  key={`brand-edit-fields-${brandEditKey}`}
+                  className="mt-2 space-y-[18px]"
+                >
                   <div>
                     <FieldLabel
                       label="Name of offer"
@@ -1317,10 +1533,13 @@ const FormOffer = ({
                     <Input
                       type="text"
                       name="offer_name_display"
+                      value={form.offer_name_display}
                       onChange={(e) =>
-                        setForm({ ...form, offer_name_display: e.target.value })
+                        setForm((prev) => ({
+                          ...prev,
+                          offer_name_display: e.target.value,
+                        }))
                       }
-                      defaultValue={form.offer_name_display}
                     />
                   </div>
                   {/* Brand category dropdown — picks the system-category tag; the
@@ -1466,9 +1685,12 @@ const FormOffer = ({
                 <div className="mt-[18px] flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-start sm:gap-6">
                   <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
                     <Switch
+                      key={`brand-active-${brandEditKey}`}
                       label=""
-                      onChange={(e) => setForm({ ...form, disabled: !e })}
-                      defaultChecked={!form.disabled}
+                      checked={!form.disabled}
+                      onChange={(checked) =>
+                        setForm((prev) => ({ ...prev, disabled: !checked }))
+                      }
                     />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
@@ -1481,9 +1703,12 @@ const FormOffer = ({
                   </div>
                   <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
                     <Switch
+                      key={`brand-top-${brandEditKey}`}
                       label=""
-                      onChange={(e) => setForm({ ...form, extra_store: e })}
-                      defaultChecked={form.extra_store}
+                      checked={form.extra_store}
+                      onChange={(checked) =>
+                        setForm((prev) => ({ ...prev, extra_store: checked }))
+                      }
                     />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
@@ -1774,8 +1999,7 @@ const FormOffer = ({
             className={`relative space-y-8 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
           >
             {/* Section actions — pinned top-right; Edit unlocks the fields,
-            Done locks them (changes persist via the form-wide "Save changes"),
-            Cancel reverts. */}
+            Save PATCHes cashback to the API, Cancel reverts. */}
             <div className="absolute top-0 right-0 z-10">
               {!editingCashback ? (
                 <SecondaryButton onClick={beginEditCashback} disabled={!offer}>
@@ -1786,20 +2010,31 @@ const FormOffer = ({
                   <button
                     type="button"
                     onClick={cancelEditCashback}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                    disabled={savingCashback}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditingCashback(false)}
-                    className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white"
+                    onClick={() => void saveCashbackEdit()}
+                    disabled={savingCashback || !cashbackDirty}
+                    className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Save
+                    {savingCashback
+                      ? "Saving…"
+                      : cashbackDirty
+                        ? "Save changes"
+                        : "No changes"}
                   </button>
                 </div>
               )}
             </div>
+            {cashbackSaveError ? (
+              <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                {cashbackSaveError}
+              </p>
+            ) : null}
             <fieldset
               key={cashbackEditKey}
               disabled={!editingCashback || isLoading}
@@ -1854,13 +2089,18 @@ const FormOffer = ({
                     <div className="mb-2 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
                           setForm((prev) => ({
                             ...prev,
                             commission_entry_mode: "auto",
-                          }))
+                          }));
+                          void syncAutoCommissionFromPartner();
+                        }}
+                        disabled={
+                          isLoading ||
+                          commissionLockedToRows ||
+                          fetchBestCommission.isPending
                         }
-                        disabled={isLoading || commissionLockedToRows}
                         aria-pressed={form.commission_entry_mode === "auto"}
                         className={`${
                           form.commission_entry_mode === "auto"
@@ -1868,7 +2108,9 @@ const FormOffer = ({
                             : COMMISSION_MODE_TOGGLE_INACTIVE
                         } touch-manipulation`}
                       >
-                        Auto apply 30% fee
+                        {fetchBestCommission.isPending
+                          ? "Loading partner rate…"
+                          : "Auto apply 30% fee"}
                       </button>
                       <button
                         type="button"

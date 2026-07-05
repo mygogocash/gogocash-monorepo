@@ -27,6 +27,34 @@ describe("useGoGoTrackSettings (render)", () => {
     expect(api.updateSettings).toHaveBeenCalledWith({ usageStatsEnabled: false });
   });
 
+  it("setField > given background prompts enabled > then also sends enabled true", async () => {
+    const api = {
+      getSettings: vi.fn(async () => ({
+        enabled: false,
+        usage_stats_enabled: false,
+        notification_listener_enabled: false,
+        screenshot_recovery_enabled: true,
+        background_prompts_enabled: false,
+      })),
+      updateSettings: vi.fn(async () => ({})),
+    };
+
+    const { result } = renderHook(() => useGoGoTrackSettings(api));
+
+    await waitFor(() =>
+      expect(result.current.settings.backgroundPromptsEnabled).toBe(false),
+    );
+
+    act(() => {
+      result.current.setField("backgroundPromptsEnabled", true);
+    });
+
+    expect(api.updateSettings).toHaveBeenCalledWith({
+      backgroundPromptsEnabled: true,
+      enabled: true,
+    });
+  });
+
   it("uses safe defaults off-device (no api)", () => {
     const { result } = renderHook(() => useGoGoTrackSettings(null));
 

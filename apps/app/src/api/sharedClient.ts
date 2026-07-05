@@ -1,4 +1,5 @@
 import { getSharedSessionStore } from "@mobile/auth/sharedSessionStore";
+import { shouldAttachFirebasePreferredAuthToken } from "@mobile/api/mobileApiAuthStrategy";
 import { createMobileApiClient } from "./client";
 
 /**
@@ -8,10 +9,31 @@ import { createMobileApiClient } from "./client";
  * re-reads sessionStore.getSession() on every request, so login/logout are
  * picked up automatically. Resolves null when no session store is available
  * on this platform (callers surface that as SESSION_STORE_UNAVAILABLE).
+ *
+ * Native (Android/iOS) uses the backend JWT persisted in SecureStore only.
+ * Firebase phone OTP is Expo-web-only today, so preferring Firebase ID tokens
+ * on native often 401s wallet/profile despite a valid backend session.
  */
 type SharedClient = ReturnType<typeof createMobileApiClient>;
 
 let cached: { baseUrl: string; client: SharedClient } | null = null;
+
+function resolvePreferredAuthTokenGetter():
+  | (() => Promise<string | null>)
+  | undefined {
+  if (!shouldAttachFirebasePreferredAuthToken()) {
+    return undefined;
+  }
+
+  return async () => {
+    try {
+      const { getCachedFirebaseIdToken } = await import("@mobile/auth/firebaseIdTokenCache");
+      return await getCachedFirebaseIdToken();
+    } catch {
+      return null;
+    }
+  };
+}
 
 export async function getSharedMobileApiClient(
   baseUrl: string
@@ -29,14 +51,7 @@ export async function getSharedMobileApiClient(
     baseUrl,
     client: createMobileApiClient({
       baseUrl,
-      getPreferredAuthToken: async () => {
-        try {
-          const { getCachedFirebaseIdToken } = await import("@mobile/auth/firebaseIdTokenCache");
-          return await getCachedFirebaseIdToken();
-        } catch {
-          return null;
-        }
-      },
+      getPreferredAuthToken: resolvePreferredAuthTokenGetter(),
       sessionStore,
     }),
   };

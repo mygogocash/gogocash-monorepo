@@ -43,14 +43,30 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(dotsSource).not.toContain("outputRange: [size, expandedWidth, size]");
   });
 
-  it("BrandCard > given partner logos > then expo-image is used with contentFit contain", () => {
+  it("BrandCard > given partner logos > then expo-image is used with contentFit cover", () => {
     const brandCard = readMobileFile("src/components/BrandCard.tsx");
 
     expect(brandCard).toContain('from "expo-image"');
-    expect(brandCard).toContain('contentFit="contain"');
+    expect(brandCard).toContain('contentFit="cover"');
     expect(brandCard).toContain("recyclingKey=");
+    expect(brandCard).toContain('cachePolicy="memory-disk"');
     expect(brandCard).not.toMatch(
       /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/
+    );
+  });
+
+  it("BrandCard > given remote logoUri > then large and compact visuals use card background not tint", () => {
+    const brandCard = readMobileFile("src/components/BrandCard.tsx");
+
+    expect(brandCard).toContain("const brandVisualBackground =");
+    expect(brandCard).toMatch(
+      /brandVisual[\s\S]*backgroundColor: brandVisualBackground/,
+    );
+    expect(brandCard).toMatch(
+      /compactBrandVisual[\s\S]*backgroundColor: brandVisualBackground/,
+    );
+    expect(brandCard).not.toMatch(
+      /compactBrandVisual[\s\S]*backgroundColor: tint/,
     );
   });
 
@@ -61,12 +77,17 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(brandCard).toMatch(/if \(props\.onPress\) \{[\s\S]*?return card;/);
   });
 
-  it("HomeHeroBanners > given remote hero art > then expo-image caches banner URLs", () => {
+  it("HomeHeroBanners > given remote hero art > then expo-image renders HD-safe hero banners", () => {
     const heroBanners = readMobileFile("src/screens/home/HomeHeroBanners.tsx");
+    const heroBannerImage = readMobileFile("src/screens/home/HeroBannerImage.tsx");
 
-    expect(heroBanners).toContain('from "expo-image"');
-    expect(heroBanners).toContain('cachePolicy="memory-disk"');
+    expect(heroBanners).toContain("HeroBannerImage");
     expect(heroBanners).toContain("prefetchRemoteImages");
+    expect(heroBannerImage).toContain('from "expo-image"');
+    expect(heroBannerImage).toContain('cachePolicy="memory-disk"');
+    expect(heroBannerImage).toContain('contentFit={HOME_HERO_BANNER_CONTENT_FIT}');
+    expect(heroBannerImage).toContain("allowDownscaling={false}");
+    expect(heroBannerImage).toContain('priority="high"');
   });
 
   it("HomeSearchResultRow > given remote brand logos > then expo-image caches search hits", () => {
@@ -85,5 +106,6 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
 
     expect(providers).toContain("<QueryClientProvider client={queryClient}>");
     expect(providers).toContain("AccountResourceWarmup");
+    expect(providers).toContain("PublicCatalogRefetchOnFocus");
   });
 });

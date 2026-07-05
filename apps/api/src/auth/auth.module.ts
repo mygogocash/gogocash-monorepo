@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { ConfigModule } from '@nestjs/config';
-import { UserService } from 'src/user/user.service';
+import { UserModule } from 'src/user/user.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { JwtModule, JwtService } from '@nestjs/jwt';
@@ -27,6 +27,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     }),
     EmailModule, // Provides EmailService (Resend) — used by both OTP subsystems
     AnalyticsModule, // Provides AnalyticsService
+    UserModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Point.name, schema: PointSchema },
@@ -45,6 +46,6 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     // transport — both OTP flows now go through one provider + verified domain.
   ],
   controllers: [AuthController],
-  providers: [AuthService, UserService, JwtService, OtpService, RateLimitGuard],
+  providers: [AuthService, JwtService, OtpService, RateLimitGuard],
 })
 export class AuthModule {}

@@ -29,11 +29,14 @@ import { resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { QuestCoinIcon } from "@mobile/components/QuestCoinIcon";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { haptics } from "@mobile/lib/haptics";
 import type { QuestTaskRow } from "@mobile/quest/questTaskResource";
 import { useQuestTaskRows } from "@mobile/quest/questTaskResource";
 import {
   getResponsiveHomeLayoutMetrics,
+  getScaledCompactBrandCardMetrics,
+  getShopDirectoryGridMetrics,
   getTopBrandHref,
   mobileShellLayout,
   webAccountPageSurface,
@@ -43,6 +46,7 @@ import {
   webQuestMyRank,
   webQuestTabs,
 } from "@mobile/design/webDesignParity";
+import { chunkDirectoryGridRows } from "@mobile/screens/discovery/directoryVirtualizedGrid";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -391,6 +395,8 @@ function RankTrophy({ index }: { index: number }) {
 function ExploreOtherShops({ layout }: { layout: HomeLayoutMetrics }) {
   const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
+  const { region } = useLocale();
+  const { width: viewportWidth } = useWindowDimensions();
   const fallbackCards = exploreOtherShops?.cards ?? [];
   const brandCatalogResource = useCustomerAccountResource({
     fixtureData: fallbackCards,
@@ -399,14 +405,21 @@ function ExploreOtherShops({ layout }: { layout: HomeLayoutMetrics }) {
   const cards = resolveLiveBrandCards(
     brandCatalogResource.source,
     brandCatalogResource.data,
-    fallbackCards
+    fallbackCards,
+    region,
   );
 
   if (!exploreOtherShops) {
     return null;
   }
 
+  const gridMetrics = getShopDirectoryGridMetrics({
+    contentWidth: layout.contentWidth,
+    viewportWidth,
+  });
+  const scaledCard = getScaledCompactBrandCardMetrics(gridMetrics.cardWidth);
   const visibleCards = cards.slice(0, layout.compactBrandCardsPerPage);
+  const shopRows = chunkDirectoryGridRows(visibleCards, gridMetrics.columns);
 
   return (
     <View style={styles.exploreSection}>
@@ -418,15 +431,19 @@ function ExploreOtherShops({ layout }: { layout: HomeLayoutMetrics }) {
           </MotionPressable>
         </Link>
       </View>
-      <View style={[styles.shopGrid, { gap: layout.compactBrandGap }]}>
-        {visibleCards.map((card) => (
-          <CompactExploreShopCard
-            card={card}
-            cardHeight={layout.compactBrandCardHeight}
-            cardWidth={layout.compactBrandCardWidth}
-            key={card.brand}
-            logoVisualHeight={layout.compactBrandLogoVisualHeight}
-          />
+      <View style={[styles.shopGrid, { gap: gridMetrics.gap }]}>
+        {shopRows.map((row, rowIndex) => (
+          <View key={`quest-shop-row-${rowIndex}`} style={[styles.shopGridRow, { gap: gridMetrics.gap }]}>
+            {row.map((card) => (
+              <CompactExploreShopCard
+                card={card}
+                cardHeight={scaledCard.cardHeight}
+                cardWidth={gridMetrics.cardWidth}
+                key={card.brand}
+                logoVisualHeight={scaledCard.logoVisualHeight}
+              />
+            ))}
+          </View>
         ))}
       </View>
     </View>
@@ -445,7 +462,9 @@ function CompactExploreShopCard({
   logoVisualHeight: number;
 }) {
   const styles = useThemedStyles(createQuestScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
+  const [logoFailed, setLogoFailed] = useState(false);
   const logoSource = "logoUri" in card && card.logoUri ? { uri: card.logoUri } : null;
   const logoFallback =
     "logoFallbackText" in card &&
@@ -453,6 +472,7 @@ function CompactExploreShopCard({
     card.logoFallbackText
       ? card.logoFallbackText
       : card.brand.slice(0, 2).toUpperCase();
+  const brandVisualBackground = logoSource && !logoFailed ? colors.card : card.tint;
 
   return (
     <Link asChild href={(card.href ?? getTopBrandHref(card.brand)) as never}>
@@ -467,15 +487,19 @@ function CompactExploreShopCard({
         ])}
       >
         <View
-          style={[styles.shopLogo, { backgroundColor: card.tint, height: logoVisualHeight }]}
+          style={[
+            styles.shopLogo,
+            { backgroundColor: brandVisualBackground, height: logoVisualHeight },
+          ]}
         >
-          {logoSource ? (
+          {logoSource && !logoFailed ? (
             <Image
               accessibilityLabel={`${card.brand} ${tc("logo")}`}
               alt={`${card.brand} ${tc("logo")}`}
-              resizeMode="contain"
+              onError={() => setLogoFailed(true)}
+              resizeMode="cover"
               source={logoSource}
-              style={styles.shopLogoImage}
+              style={styles.shopLogoImageFill}
             />
           ) : (
             <Text numberOfLines={2} style={styles.shopLogoFallback}>
@@ -1667,9 +1691,10 @@ function createQuestScreenStyles(colors: ThemeColors) {
     fontSize: typography.body,
   },
   shopGrid: {
+    flexDirection: "column",
+  },
+  shopGridRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.md,
   },
   shopCard: {
     backgroundColor: colors.card,
@@ -1688,9 +1713,8 @@ function createQuestScreenStyles(colors: ThemeColors) {
     overflow: "hidden",
     width: "100%",
   },
-  shopLogoImage: {
-    height: "62%",
-    width: "72%",
+  shopLogoImageFill: {
+    ...StyleSheet.absoluteFill,
   },
   shopLogoFallback: {
     color: colors.accent,

@@ -1,102 +1,150 @@
-# GitHub Actions — monorepo CI
+# GitHub Actions — monorepo CI/CD
 
-GitHub only reads workflows from this directory (`.github/workflows/` at the
-repo root). The CI/deploy files still nested under `apps/api/.github/` are
-**inert** — GitHub never runs them. This root workflow set replaces them for
-build/test. (The landing site is a separate repo, not in this monorepo.)
+GitHub only reads workflows from **`.github/workflows/`** at the repo root. Files under `apps/api/.github/workflows/` are **inert** (see `apps/api/.github/README.md`).
 
-## What runs
+## Architecture
 
-`ci.yml` — runs on pull requests targeting `main`, `dev`, `staging`, or
-`production`, and on pushes to `main` and `dev`.
+```text
+PR / push main|dev  ──►  ci.yml  (path-filtered lint/test/build)
+push staging        ──►  ci-staging.yml  ──►  ci.yml (gate)
+                              │
+                              └──► Railway auto-deploy (API, admin, mobile web)
 
-Promotion flow: **main → dev → staging → production** (merge PRs between branches,
-one step at a time). `production` is **locked** in branch protection until the
-Railway/GCP cutover is deliberate.
+Manual / rollback   ──►  build-staging.yml  ──►  release-staging.yml  (GCP Cloud Run)
+Health checks       ──►  staging-smoke.yml  (Railway URLs, optional Involve postback)
+Native / OTA        ──►  deploy-app-native-eas.yml, app-ota-staging.yml  (manual)
+Security            ──►  codeql.yml, dependabot.yml
+E2E (non-gating)    ──►  e2e-weekly.yml, ci.yml → e2e-local (dispatch)
+```
 
-A `changes` job (using `dorny/paths-filter`) detects which app changed, then
-gates each app's job. A change confined to `apps/<X>/**` runs only `<X>`'s
-job; a change to shared root config (`package.json`, `package-lock.json`,
-`turbo.json`, `.nvmrc`, `.npmrc`, `ci.yml`) fans out to every app.
+**Promotion flow:** `main → dev → staging → production` (merge PRs one step at a time).
 
-Every job uses `actions/setup-node@v6` on **Node 22** and installs with a bare
-`npm ci` at the repo root (the root `.npmrc` already sets
-`legacy-peer-deps=true`).
+---
 
-| App | Workspace / package | Jobs | Gate |
-|-----|---------------------|------|------|
-| admin | `gogocash-admin` | lint (informational) · test · build | **test + build are gates**; lint stays informational (~54 react-hooks/compiler warnings — tracked in #45) |
-| app (mobile) | `@gogocash/mobile` | typecheck · unit · render · web export | **all four are gates** (P2-CI) |
-| api | `gogocash-api` | **lint** | **gate** |
-| api | `gogocash-api` | **unit tests** | **gate** |
-| api | `gogocash-api` | **build + boot smoke + integration** | **required** — `nest build`, boots vs ephemeral Mongo, then runs the `checkWithdraw`↔Mongo integration test (`test/withdraw-balance.e2e-spec.ts`) |
-Notes:
-- **app (`@gogocash/mobile`)** has no `build` script — Expo apps export via EAS,
-  not a CI build. Its gates are `typecheck` + the unit and render suites + the
-  web export. It has no `lint` script, so lint is omitted (not invented).
-- **admin test + app typecheck/unit/render are gates** (P2-CI — all verified
-  green). Admin **lint** stays informational: ~54 React-Compiler / react-hooks
-  warnings-as-errors (`setState-in-effect`, `refs-during-render`) are real
-  pre-existing component debt — see #45. Drop its `continue-on-error` after that
-  cleanup.
-- **api lint + unit tests are gates.**
-- **api build + boot smoke + integration is the required gate.** It runs
-  `nest build` (type-check), boots `node dist/main` against an ephemeral Mongo
-  service probing `/` (catches DI/bootstrap crashes), then runs the
-  `checkWithdraw`↔Mongo integration test (covers the mongoose-9 aggregation
-  risk the mock-based unit specs can't). Dummy env values only
-  (`RESEND_API_KEY=re_ci_smoke_dummy`, `MONGO_URI`/`JWT_SECRET`/
-  `JWT_ADMIN_SECRET`/`FIREBASE_PROJECT_ID` dummies); the smoke test never sends
-  email.
-- There is **no aggregator job** — the `ci-gate` aggregator was removed. The
-  per-app jobs run directly; nothing requires them yet (no branch protection on
-  this free-plan repo, see below).
+## What runs when
 
-### Branch protection
+| Trigger | Workflow | Purpose |
+|---------|----------|---------|
+| PR → `main`, `dev`, `staging`, `production` | `ci.yml` | Path-filtered gates per app |
+| Push → `main`, `dev` | `ci.yml` | Same |
+| Push → `staging` | `ci-staging.yml` | CI gate before Railway deploy |
+| Manual | `staging-smoke.yml` | HTTP smoke on Railway staging |
+| Manual | `build-staging.yml` | Build GCP `:staging-candidate` images (rollback) |
+| Manual | `release-staging.yml` | Deploy GCP image to Cloud Run |
+| Weekly Mon 04:00 UTC | `e2e-weekly.yml` | Optional API e2e (non-gating) |
+| Weekly Sun 01:30 UTC | `codeql.yml` | SAST |
+| Weekly Mon | Dependabot | npm + actions bumps → `main` |
 
-| Branch | Status |
-|--------|--------|
-| **`production`** | **Locked** — no pushes or merges until unlocked in repo Settings → Branches |
-| `main`, `dev`, `staging` | Open (add PR + required CI checks when ready) |
+---
 
-Dependabot opens PRs against **`main`**; promote dependency bumps down the chain
-with the same PR flow as feature work.
+## CI gates (`ci.yml`)
 
-> ⚠️ Separately, GitHub Actions is currently **blocked org-wide by a billing /
-> spending-limit issue** (jobs fail at "Set up job" with 0 steps). Resolve it in
-> **Org → Settings → Billing & plans**; the workflows themselves are healthy.
+Uses `dorny/paths-filter`: changes under `apps/<app>/**` run only that app’s jobs; root config changes fan out to all apps.
 
-## Staging CD — auto build, manual release
+Shared setup: **`.github/actions/setup-node-monorepo`** (Node 22, `npm ci`).
 
-Staging deploys use an **auto-build + approval-gate** split (a real-money
-platform: builds are automatic, releases are a deliberate human action). All
-three Cloud Run lanes share two **reusable** workflows so the deploy logic lives
-in one place.
+| Job | When | Gate? |
+|-----|------|-------|
+| `admin` | `apps/admin/**` | test + build **yes**; lint informational (#45) |
+| `app` | `apps/app/**` | typecheck, unit, render, web export **yes** |
+| `api-lint` | `apps/api/**` | **yes** |
+| `api-test` | `apps/api/**` | **yes** (includes Involve postback integration specs) |
+| `api-build-smoke` | `apps/api/**` | **required** — nest build, boot vs Mongo **8.0.4**, withdraw integration |
+| `gototrack` | api or app | **yes** — `test:gototrack` / `test:gototrack:api` |
+| `knip` | apps/scripts/root | **yes** (path-filtered) |
+| `e2e-local` | manual dispatch only | optional |
 
-| Workflow | Trigger | Does |
-|----------|---------|------|
-| **`build-staging.yml`** | push to `staging` + manual (`workflow_dispatch`) | reuses `ci.yml` as the gate, then builds + pushes a `:staging-candidate` image for each **changed** app (path-filtered). **No deploy.** |
-| **`release-staging.yml`** | manual `workflow_dispatch` (pick app + tag) | deploys the chosen candidate image to Cloud Run, then **health-smokes** the new revision. API releases smoke `/gototrack/merchants` so stale deployments without the GoGoTrack module fail before device acceptance. The dispatch **is** the approval. |
-| `_build-push.yml` | `workflow_call` | reusable: WIF auth → optional prebuild → docker build → push `:sha` + `:staging-candidate`. |
-| `_deploy-cloudrun.yml` | `workflow_call` | reusable: WIF auth → `gcloud run deploy` a given tag → post-deploy `curl` health check. |
+### Branch protection (recommended)
 
-Both reusables run in the **`staging` GitHub Environment** (holds the `GCP_*` WIF
-vars; GCP Secret-Manager secrets stay in GCP via `--set-secrets`).
+When org billing allows, require on **`staging`** (and `dev`):
 
-**Approval gate:** GitHub Environment required-reviewer protection needs a paid
-plan for private repos (see #44). Until then the approval is the manual
-`release-staging` dispatch. Once on Pro/public, add required-reviewers to the
-`staging` environment and the release pauses for one-click approval (no workflow
-change needed).
+- `api build + boot smoke (required)`
+- `api lint`
+- `api unit tests`
+- `app (@gogocash/mobile)`
+- `admin (gogocash-admin)`
+- `gototrack tests` (when applicable)
 
-**Native app** (`deploy-app-native-eas.yml`) stays manual for build/update/submit
-(needs `EXPO_TOKEN`). Android `build` runs wait for EAS to finish, download the
-completed archive, and upload it as a GitHub artifact so device QA can install
-the dev client without local EAS auth. If the `GCP_EAS_ARTIFACT_BUCKET` Actions
-variable is set, the same APK and SHA-256 sidecar are also archived to
-`gs://$GCP_EAS_ARTIFACT_BUCKET/eas/android/<profile>/<run-id>/` using the
-existing `GCP_WIF_PROVIDER` and `GCP_SERVICE_ACCOUNT` workload identity setup.
+`production` stays locked until deliberate cutover.
 
-> The legacy `deploy-{api,admin,app-web}-staging.yml` lanes are kept as a manual
-> fallback during cutover; delete them once `build-staging` + `release-staging`
-> are verified on a real merge.
+---
+
+## Staging deploy — Railway (primary)
+
+| Service | Railway name | URL |
+|---------|--------------|-----|
+| API | `gogocash-api` | `https://api-staging.gogocash.co` |
+| Admin | `gogocash-admin` | `https://admin-staging.gogocash.co` |
+| Customer web | `@gogocash/mobile` | `https://app-staging.gogocash.co` |
+
+Merge to **`staging`** → `ci-staging.yml` must pass → Railway GitHub integration deploys changed services.
+
+Config-as-code: `apps/*/railway.json` (e.g. `sleepApplication: false` on mobile web).
+
+### Post-deploy smoke
+
+Run **`staging-smoke.yml`** after merges or on schedule. Optional repo secret:
+
+- `INVOLVE_POSTBACK_TEST_TOKEN` — must match Railway `INVOLVE_POSTBACK_SECRET` (not `INVOLVE_SECRET`).
+
+---
+
+## Staging deploy — GCP Cloud Run (rollback / legacy)
+
+Use when Railway is unavailable or during production migration.
+
+1. **`build-staging.yml`** (manual) — builds `:staging-candidate` to Artifact Registry  
+2. **`release-staging.yml`** (manual) — deploys chosen tag + health smoke  
+
+Legacy one-shot workflows (same behavior, duplicated logic):
+
+- `deploy-api-staging.yml`
+- `deploy-admin-staging.yml`
+- `deploy-app-web-staging.yml`
+
+Prefer `build-staging` + `release-staging` once verified.
+
+WIF vars live in GitHub Environment **`staging`**: `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER`, `GCP_SERVICE_ACCOUNT`.
+
+---
+
+## Native app (EAS)
+
+| Workflow | Trigger | Notes |
+|----------|---------|-------|
+| `deploy-app-native-eas.yml` | manual | Needs `EXPO_TOKEN`; optional `wait_for_ci` input |
+| `app-ota-staging.yml` | manual | OTA to staging channel |
+
+Run EAS **after** CI is green on the target SHA (check Actions tab or enable `wait_for_ci`).
+
+---
+
+## Security
+
+| Control | Location |
+|---------|----------|
+| Pinned action SHAs | All workflows |
+| `permissions: contents: read` default | CI workflows |
+| `id-token: write` | GCP deploy / build only |
+| CodeQL | `codeql.yml` — skips docs-only paths |
+| Dependabot | `.github/dependabot.yml` — weekly npm + actions |
+
+See **`docs/github-actions-environments.md`** for secrets/vars matrix (GitHub ↔ Railway ↔ GCP).
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+|---------|----------------|
+| Jobs fail at “Set up job”, 0 steps | Org Actions billing / spending limit |
+| Staging deploy but CI didn’t run | Push bypassed branch protection; check `ci-staging` |
+| Involve postback 401 on staging | `INVOLVE_POSTBACK_SECRET` missing on Railway API |
+| Mobile web “Sleeping” | Railway `sleepApplication: true` — set false in `apps/app/railway.json` |
+| GCP deploy works but Railway is live | Expected — GCP is rollback path only |
+
+---
+
+## Maestro (scaffold)
+
+`maestro-smoke.yml` documents local/self-hosted Maestro runs. Default GitHub-hosted runners do not include Maestro or Android emulators — use a self-hosted runner or Maestro Cloud when ready.

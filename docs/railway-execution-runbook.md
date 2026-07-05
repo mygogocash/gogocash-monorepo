@@ -121,7 +121,7 @@ Staging hostnames are registered on Railway but may still CNAME to `ghs.googleho
 |------|------------------------|
 | `api-staging.gogocash.co` | `i313nfy0.up.railway.app` |
 | `admin-staging.gogocash.co` | `hs31ua3b.up.railway.app` |
-| `app-staging.gogocash.co` | `cs1bxvuq.up.railway.app` |
+| `app-staging.gogocash.co` | `dwxmdvrr.up.railway.app` (Railway custom domain on `@gogocash/mobile`) |
 
 **Point API at external Atlas staging data:**
 
@@ -144,6 +144,6 @@ railway variables --service app-web \
 railway redeploy --service app-web
 ```
 
-**Media (Cloudflare R2):** `MEDIA_STORAGE_DRIVER=r2` and `R2_*` vars are documented in `.env.railway.production.example` but the R2 upload driver is not wired in the API yet — use GCS credentials (Phase 2c) or `GOOGLE_APPLICATION_CREDENTIALS` until R2 support lands.
+**Media (Cloudflare R2):** `R2_BUCKET`, `R2_ENDPOINT`, `R2_PUBLIC_BASE_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `MEDIA_MAX_UPLOAD_BYTES` on `gogocash-api`. Staging: bucket `gogocash-catalog-staging`, public domain **`https://media-staging.gogocash.co`**. Create S3 API token in Cloudflare → R2 → **Manage R2 API Tokens** (**Object Read & Write** on the bucket). **Migrate legacy GCS URLs in Mongo:** `npm run media:migrate-gcs-to-r2:dry -w gogocash-api` then `npm run media:migrate-gcs-to-r2 -w gogocash-api` (requires `MONGO_URI` + R2 env; run from a host that reaches Mongo — Railway shell or TCP proxy). Inventory first: `npm run media:inventory -w gogocash-api`. GCS upload code removed; `@google-cloud/storage` dependency dropped.
 
 **Common blockers:** empty `[]` merchants (wrong/empty Mongo), missing JWT secrets (login fails), DNS still on Google Frontend (custom domain 500).

@@ -10,7 +10,9 @@ type GoGoTrackApi = ReturnType<typeof createGoGoTrackApi>;
 /**
  * Builds the authed GoGoTrack api from the shared mobile api client. Resolves to
  * `null` when no session store is available on this platform (web / render
- * tests), so GoGoTrack read-only screens can fall back instead of crashing.
+ * tests), or when the app is not on `accountDataSource=backend` (fixtures demo
+ * sessions must never hit the live API — a 401 would force-logout the user).
+ * GoGoTrack read-only screens fall back to defaults instead of crashing.
  * The client re-reads the session per request, so no refresh wiring.
  */
 export function useGoGoTrackApi(enabled = true): GoGoTrackApi | null {
@@ -27,7 +29,15 @@ export function useGoGoTrackApi(enabled = true): GoGoTrackApi | null {
 
     void (async () => {
       try {
-        const client = await getSharedMobileApiClient(getMobileEnv().apiUrl);
+        const env = getMobileEnv();
+        if (env.accountDataSource !== "backend") {
+          if (active) {
+            setApi(null);
+          }
+          return;
+        }
+
+        const client = await getSharedMobileApiClient(env.apiUrl);
         if (active) {
           setApi(client ? createGoGoTrackApi(client) : null);
         }

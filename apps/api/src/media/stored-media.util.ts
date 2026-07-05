@@ -62,6 +62,17 @@ export function parseR2PublicUrl(
   return objectKey ? { objectKey } : null;
 }
 
+export function rewriteGcsPublicUrlToR2(
+  gcsUrl: string,
+  r2PublicBaseUrl: string,
+): string | null {
+  const location = parseGcsPublicUrl(gcsUrl);
+  if (!location) {
+    return null;
+  }
+  return buildR2PublicUrl(r2PublicBaseUrl, location.objectKey);
+}
+
 export function parseGcsPublicUrl(value: string): GcsObjectLocation | null {
   const trimmed = value.trim();
   if (!trimmed.startsWith('https://')) {

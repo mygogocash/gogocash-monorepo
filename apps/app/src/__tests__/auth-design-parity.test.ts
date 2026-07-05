@@ -56,7 +56,8 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("CustomerDesktopHeader");
     expect(authFile).toContain("CustomerCookieConsentBanner");
     expect(authFile).toContain("const authDesktopPageHorizontalPadding = 56;");
-    expect(authFile).toContain("horizontalPadding={authDesktopPageHorizontalPadding}");
+    expect(authFile).toContain("getDesktopFooterHorizontalPadding(");
+    expect(authFile).toContain("authDesktopPageHorizontalPadding");
     expect(authFile).toContain("authHeroImage");
     expect(authFile).toContain("resolveAuthSocialProviders");
     expect(authFile).toContain("authSocialProviders.slice(0, 4)");

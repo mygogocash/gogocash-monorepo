@@ -32,6 +32,7 @@ const WAVE2_SCREENS = [
 // tokens. These render identically in both locales (like "LINE"); see the i18n plan doc.
 const ENGLISH_ALLOWLIST = new Set<string>([
   "ภาษาไทย", // already-Thai placeholder wrapped for consistency; tc() returns it unchanged
+  "GoGoTrack", // brand proper noun — renders identically in en/th (like GoGoPass)
 ]);
 
 function extractTcLiterals(source: string): string[] {

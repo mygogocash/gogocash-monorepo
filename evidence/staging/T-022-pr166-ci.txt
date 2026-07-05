@@ -1,0 +1,25 @@
+PR #166 CI check — 2026-07-02T13:46Z
+PR: https://github.com/mygogocash/gogocash-monorepo/pull/166
+State: MERGED (staging → main)
+Title: GoGoTrack staging launch: EAS preview fix + Phase 7 preflight (T-018)
+
+## gh pr checks 166 (snapshot at check time)
+PASS:
+  - CI gate / app (@gogocash/mobile)
+  - app (@gogocash/mobile) [parallel workflow]
+  - CI gate / dead-code scan, detect changed apps
+  - EAS Update staging
+  - Cursor Security Agent, Cursor Approval Agent
+  - GoGoCash Railway (api + admin): no deployment needed
+
+FAIL:
+  - Analyze (actions) — CodeQL
+  - Analyze (javascript-typescript) — CodeQL
+  - build app-web / build + push gogocash-app-web-staging
+
+PENDING at check:
+  - gogocash-ci-pr (gogocash-staging) — GCP Cloud Build
+
+SKIPPED: api/admin builds (paths not changed in that workflow run)
+
+Note: PR merged despite some ancillary check failures; GoGoTrack mobile CI gate passed.

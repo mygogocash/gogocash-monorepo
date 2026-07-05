@@ -17,6 +17,8 @@ describe("expo updates config > app.config.ts", () => {
     expect(configSource).toContain("updates:");
     expect(configSource).toContain("https://u.expo.dev/");
     expect(configSource).toContain("EXPO_PUBLIC_EAS_PROJECT_ID");
+    expect(configSource).toContain('checkAutomatically: "ON_LOAD"');
+    expect(configSource).toContain("fallbackToCacheTimeout: 0");
   });
 
   it("lists expo-updates config plugin for native OTA manifest wiring", () => {

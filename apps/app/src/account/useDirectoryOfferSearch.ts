@@ -4,6 +4,8 @@ import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse, type OfferListResponse } from "@mobile/api/catalogTypes";
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 import { getMobileEnv } from "@mobile/config/env";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
+import { filterCatalogItemsByRegion } from "@mobile/i18n/regionCatalogFilter";
 
 import { buildOfferSearchPath } from "./searchResource";
 import { mapCatalogBrandsToDirectoryStores } from "./directoryCatalogResource";
@@ -11,6 +13,7 @@ import type { BrandDirectoryStore } from "@mobile/screens/discovery/discoveryTyp
 
 export function useDirectoryOfferSearch(query: string, enabled: boolean) {
   const env = getMobileEnv();
+  const { region } = useLocale();
   const trimmed = query.trim();
   const shouldFetch = enabled && trimmed.length > 0;
 
@@ -22,10 +25,10 @@ export function useDirectoryOfferSearch(query: string, enabled: boolean) {
         throw new Error("No mobile session store is available.");
       }
       return client.get<OfferListResponse>(
-        buildOfferSearchPath({ limit: 80, page: 1, query: trimmed }),
+        buildOfferSearchPath({ limit: 80, page: 1, query: trimmed, regionCode: region }),
       );
     },
-    queryKey: ["directory-offer-search", trimmed, env.apiUrl],
+    queryKey: ["directory-offer-search", trimmed, env.apiUrl, region],
     retry: false,
   });
 
@@ -43,6 +46,8 @@ export function useDirectoryOfferSearch(query: string, enabled: boolean) {
 
   return {
     status: "ready" as const,
-    stores: mapCatalogBrandsToDirectoryStores(mapOffersToCatalogBrands(searchQuery.data)),
+    stores: mapCatalogBrandsToDirectoryStores(
+      filterCatalogItemsByRegion(mapOffersToCatalogBrands(searchQuery.data), region),
+    ),
   };
 }

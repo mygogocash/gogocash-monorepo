@@ -13,7 +13,12 @@ import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import { parseDmyDate } from "@mobile/lib/birthdate";
 import { mobileShellLayout } from "@mobile/design/webDesignParity";
-import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import {
+  premiumOutlineButtonDisabledStyle,
+  premiumOutlineButtonStyle,
+  premiumOutlineButtonTextStyle,
+} from "@mobile/theme/premiumPanelCard";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -105,8 +110,8 @@ export function CustomerAgeVerificationScreen() {
           <View accessibilityLabel={tc(pdpaAgeVerifyTitle)} style={styles.card}>
             <View style={styles.iconFrame}>
               <ShieldCheckIcon
-                color={colors.primaryDark}
-                size={30}
+                color={colors.white}
+                size={28}
                 strokeWidth={typography.iconStrokeWidth}
               />
             </View>
@@ -186,17 +191,16 @@ function createAgeVerificationScreenStyles(colors: ThemeColors) {
     fontWeight: "700",
   },
   card: {
-    backgroundColor: colors.primarySoft,
     gap: spacing.md,
     padding: spacing.lg,
   },
   iconFrame: {
     alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderRadius: radii.md,
-    height: 54,
+    backgroundColor: colors.primary,
+    borderRadius: 18,
+    height: 52,
     justifyContent: "center",
-    width: 54,
+    width: 52,
   },
   copy: {
     gap: spacing.sm,
@@ -229,7 +233,7 @@ function createAgeVerificationScreenStyles(colors: ThemeColors) {
   input: {
     alignItems: "center",
     flexDirection: "row",
-    backgroundColor: colors.card,
+    backgroundColor: pickThemed(colors, colors.fieldMuted, colors.field),
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -245,23 +249,9 @@ function createAgeVerificationScreenStyles(colors: ThemeColors) {
   inputFocused: {
     borderColor: colors.primary,
   },
-  submitButton: {
-    alignItems: "center",
-    backgroundColor: colors.primaryDark,
-    borderRadius: radii.chip,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: spacing.lg,
-  },
-  submitButtonSuccess: {
-    backgroundColor: colors.accent,
-  },
-  submitText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "800",
-  },
+  submitButton: premiumOutlineButtonStyle(colors),
+  submitButtonSuccess: premiumOutlineButtonDisabledStyle(colors),
+  submitText: premiumOutlineButtonTextStyle(colors),
   hint: {
     color: colors.muted,
     fontFamily: typography.family,

@@ -38,6 +38,7 @@ npx knip --no-progress
 1. **API fixes:** multer path validation, duplicate pagination removal, boolean coercion in offer/auth services.
 2. **Admin cleanup:** Removed knip-ignored dead template files; tightened knip + ESLint.
 3. **CI:** Knip job blocks merges (no `continue-on-error`).
+4. **Local mongo sanitizer pack:** Custom model pack at `.github/codeql/gogocash-mongo-sanitizers/` is injected in CI via `CODEQL_ACTION_EXTRA_OPTIONS` (`--additional-packs` + `--extension-packs`) on the JS/TS analyze job — `packs:` in `codeql-config.yml` only accepts published GHCR packs. Repo-root [`codeql-workspace.yml`](../codeql-workspace.yml) remains for local CLI use. Expo Kotlin/Swift local modules use `build-mode: none` in [`codeql.yml`](../.github/workflows/codeql.yml) (no repo-root Gradle/Xcode project).
 
 ## Related docs
 

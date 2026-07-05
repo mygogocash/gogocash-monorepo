@@ -124,7 +124,7 @@ Brand greens stay consistent; surfaces and text invert for readability. There is
 
 Some UI still uses fixed hex for **web parity** or **brand assets**:
 
-- **Cookie consent banner** — always dark chrome (`#1D1929`) regardless of theme
+- **Cookie consent banner** — always dark chrome (`#1D1929`) regardless of theme; dismissal persists via `cookieConsentStorage.ts` (web `localStorage`, native SecureStore key `pdpa_consent_banner_dismissed_v1`)
 - **Profile hero banner** — SVG / `#00CC99` brand gradient (web asset parity)
 - **GoGoPass profile menu** — `#00AA80` header band, `#83F2D6` masked ID (marketing layout)
 - **GoLink banner frosted pills** — intentional white translucent chips on the dark banner backdrop in dark mode

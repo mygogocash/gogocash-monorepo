@@ -12,6 +12,7 @@ import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing } from "@mobile/theme/tokens";
+import { runOpacityTiming } from "@mobile/theme/animatedMotion";
 import { motion } from "@mobile/theme/motion";
 
 // A3 — skeleton primitives. Perceived-performance placeholders shown while data
@@ -69,17 +70,15 @@ export function Skeleton({
 
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, {
+        runOpacityTiming(opacity, {
+          duration: motion.duration.shimmer,
+          easing: motion.easing.standard,
           toValue: PULSE_MAX_OPACITY,
-          duration: motion.duration.shimmer,
-          easing: motion.easing.standard,
-          useNativeDriver: motion.useNativeDriver,
         }),
-        Animated.timing(opacity, {
-          toValue: PULSE_MIN_OPACITY,
+        runOpacityTiming(opacity, {
           duration: motion.duration.shimmer,
           easing: motion.easing.standard,
-          useNativeDriver: motion.useNativeDriver,
+          toValue: PULSE_MIN_OPACITY,
         }),
       ])
     );

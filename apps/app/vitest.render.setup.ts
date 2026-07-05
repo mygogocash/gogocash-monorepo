@@ -54,12 +54,18 @@ function ensureLocalStorage() {
 (globalThis as { __DEV__?: boolean }).__DEV__ = true;
 ensureLocalStorage();
 
+vi.mock("expo-localization", () => ({
+  getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
+}));
+
 const renderFetch = vi.fn(async () => new Response(null, { status: 204 }));
 vi.stubGlobal("fetch", renderFetch);
 
 vi.mock("@testing-library/react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@testing-library/react")>();
   const { ThemeProvider } = await import("@mobile/theme/ThemeProvider");
+  const { LocaleProvider } = await import("@mobile/i18n/LocaleProvider");
+  const { FavoriteBrandsProvider } = await import("@mobile/account/FavoriteBrandsProvider");
 
   function wrapWithTheme(
     ui: ReactElement,
@@ -67,7 +73,9 @@ vi.mock("@testing-library/react", async (importOriginal) => {
   ): ReturnType<typeof actual.render> {
     const UserWrapper = options?.wrapper;
     const Wrapper = ({ children }: PropsWithChildren) => {
-      const themed = createElement(ThemeProvider, {}, children);
+      const favorites = createElement(FavoriteBrandsProvider, {}, children);
+      const localized = createElement(LocaleProvider, {}, favorites);
+      const themed = createElement(ThemeProvider, {}, localized);
       return UserWrapper ? createElement(UserWrapper, {}, themed) : themed;
     };
     return actual.render(ui, { ...options, wrapper: Wrapper });

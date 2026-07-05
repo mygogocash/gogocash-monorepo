@@ -31,6 +31,7 @@ class GototrackMonitorService : Service() {
   private val handler = Handler(Looper.getMainLooper())
   private val worker = Executors.newSingleThreadExecutor()
   private var lastPackage: String? = null
+  private var lastDetectAtMs: Long = 0L
   private var lastPromptKey: String? = null
   private var lastPromptAtMs: Long = 0L
 
@@ -88,10 +89,16 @@ class GototrackMonitorService : Service() {
     if (packageName == applicationContext.packageName) {
       return
     }
+
+    val now = System.currentTimeMillis()
     if (packageName == lastPackage) {
-      return
+      if (now - lastDetectAtMs < SAME_PACKAGE_REDETECT_MS) {
+        return
+      }
+    } else {
+      lastPackage = packageName
     }
-    lastPackage = packageName
+    lastDetectAtMs = now
 
     val apiBaseUrl = prefs.getApiBaseUrl() ?: return
     val authToken = prefs.getAuthToken() ?: return
@@ -112,12 +119,12 @@ class GototrackMonitorService : Service() {
 
     val detectionEventId = detectResponse.optString("detectionEventId", "")
     val promptKey = "$packageName:$detectionEventId"
-    val now = System.currentTimeMillis()
-    if (promptKey == lastPromptKey && now - lastPromptAtMs < PROMPT_COOLDOWN_MS) {
+    val promptNow = System.currentTimeMillis()
+    if (promptKey == lastPromptKey && promptNow - lastPromptAtMs < PROMPT_COOLDOWN_MS) {
       return
     }
     lastPromptKey = promptKey
-    lastPromptAtMs = now
+    lastPromptAtMs = promptNow
 
     val merchantName = detectResponse.optString("merchantName", merchantId)
     showActivationNotification(
@@ -176,14 +183,16 @@ class GototrackMonitorService : Service() {
       )
 
     val notification =
-      NotificationCompat.Builder(this, CHANNEL_ID)
+      NotificationCompat.Builder(this, PROMPT_CHANNEL_ID)
         .setSmallIcon(android.R.drawable.ic_dialog_info)
         .setContentTitle(getString(R.string.gototrack_prompt_title))
         .setContentText(
           getString(R.string.gototrack_prompt_body, merchantName),
         )
-        .setOngoing(true)
-        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        .setOngoing(false)
+        .setAutoCancel(true)
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
         .addAction(
           android.R.drawable.ic_menu_close_clear_cancel,
           getString(R.string.gototrack_prompt_dismiss),
@@ -214,15 +223,25 @@ class GototrackMonitorService : Service() {
       return
     }
     val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    val channel =
+    val monitorChannel =
       NotificationChannel(
         CHANNEL_ID,
         getString(R.string.gototrack_channel_name),
-        NotificationManager.IMPORTANCE_DEFAULT,
+        NotificationManager.IMPORTANCE_LOW,
       ).apply {
         description = getString(R.string.gototrack_channel_description)
       }
-    manager.createNotificationChannel(channel)
+    val promptChannel =
+      NotificationChannel(
+        PROMPT_CHANNEL_ID,
+        getString(R.string.gototrack_prompt_channel_name),
+        NotificationManager.IMPORTANCE_HIGH,
+      ).apply {
+        description = getString(R.string.gototrack_prompt_channel_description)
+        enableVibration(true)
+      }
+    manager.createNotificationChannel(monitorChannel)
+    manager.createNotificationChannel(promptChannel)
   }
 
   private fun currentForegroundPackage(): String? {
@@ -295,10 +314,12 @@ class GototrackMonitorService : Service() {
   companion object {
     const val ACTION_STOP = "co.gogocash.gototrack.action.STOP_MONITOR"
     private const val CHANNEL_ID = "gototrack_monitor"
+    private const val PROMPT_CHANNEL_ID = "gototrack_prompt"
     private const val NOTIFICATION_ID_MONITOR = 7101
     private const val NOTIFICATION_ID_PROMPT = 7102
     private const val LOOKBACK_MS = 120_000L
-    private const val POLL_INTERVAL_MS = 45_000L
+    private const val POLL_INTERVAL_MS = 3_000L
+    private const val SAME_PACKAGE_REDETECT_MS = 5_000L
     private const val PROMPT_COOLDOWN_MS = 5 * 60 * 1000L
 
     fun buildActivateDeepLink(

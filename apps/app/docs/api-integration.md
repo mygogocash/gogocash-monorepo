@@ -53,7 +53,8 @@ Screen
 ```bash
 # apps/app/.env
 EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=backend
-EXPO_PUBLIC_API_URL=https://api.gogocash.co   # prod — read-only testing only! staging is down
+EXPO_PUBLIC_API_URL=https://api.gogocash.co   # prod — read-only testing only
+# Staging: EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co (live on Railway; see §4)
 ```
 
 1. **Restart the Expo dev server** — `EXPO_PUBLIC_*` values are inlined at bundle time; a running Metro will not pick up `.env` edits.
@@ -78,7 +79,7 @@ To bring another resource live: write the DTO from a real response → TDD a map
 - **Verified to NOT exist** (404): `/auth/mobile/callback` (the `CustomerAuthCallbackScreen` exchange endpoint is fictional), and `/auth/send-otp` + `/auth/verify-otp` + `/auth/siwe-nonce` — **the web's phone-OTP and SIWE flows are mock-only**; they exist solely in the web's mock adapter.
 - **Verified to exist** (401 without auth): `/customer-billing/subscription` (GET; billing disabled or email-required statuses are returned as 200 payloads, not 404).
 - **Auth requirement is explicit:** `POST /auth/log-in` replies *"Firebase token is required in Authorization header or body"*. There is no Firebase-free login path.
-- **Staging (`api-staging.gogocash.co` + `app-staging.gogocash.co`) is down** at the infrastructure level (Google Frontend 503 / TLS failure). Until it's redeployed, the only live backend is production — fine for public reads, **not** for auth/write testing (real accounts/data).
+- **Staging is live on Railway** (`https://api-staging.gogocash.co`, `https://app-staging.gogocash.co`, `https://admin-staging.gogocash.co`). Customer web uses Firebase phone OTP → `POST /auth/log-in`. **Phone sign-in on `app-staging.gogocash.co` requires that hostname in Firebase authorized domains** — add it in Console or run `node scripts/firebase-staging-auth-setup.mjs` after `gcloud auth login`. Workaround: sign in at `https://staging.gogocash.co/en/login` (already authorized), or use test phone `+66999999999` / OTP `654321`.
 
 ## 5. Auth: what exists and how to finish it
 

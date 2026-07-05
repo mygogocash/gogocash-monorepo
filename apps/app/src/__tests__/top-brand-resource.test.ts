@@ -24,6 +24,27 @@ describe("mapBackendTopBrands", () => {
     expect(mapBackendTopBrands(null)).toEqual([]);
   });
 
+  it("given admin logo_desktop without resolved logo field > then maps logoUri from desktop upload", () => {
+    const payload: TopBrandsPayload = {
+      data: [
+        {
+          _id: "shopee-id",
+          offer_id: 1783231275824,
+          brand: "Shopee",
+          logo_desktop: "https://media-staging.gogocash.co/brands/1783241514085-logo.png",
+          cashback: "10%",
+        },
+      ],
+    };
+
+    expect(mapBackendTopBrands(payload)).toEqual([
+      expect.objectContaining({
+        brand: "Shopee",
+        logoUri: "https://media-staging.gogocash.co/brands/1783241514085-logo.png",
+      }),
+    ]);
+  });
+
   it("given backend brands > then maps name/logo/cashback and fills cosmetic fields", () => {
     const payload: TopBrandsPayload = {
       data: [
@@ -54,6 +75,17 @@ describe("mapBackendTopBrands", () => {
         tint: "#2563EB",
       },
     ]);
+  });
+
+  it("given Taiwan region > then filters backend brands by countries metadata", () => {
+    const payload: TopBrandsPayload = {
+      data: [
+        { _id: "th", offer_id: 1, brand: "Shopee TH", cashback: "10%", countries: "TH" },
+        { _id: "tw", offer_id: 2, brand: "Shopee TW", cashback: "10%", countries: "TW" },
+      ],
+    };
+
+    expect(mapBackendTopBrands(payload, "TW").map((brand) => brand.brand)).toEqual(["Shopee TW"]);
   });
 
   it("given stale hidden or unapproved backend brands > then drops them from customer cards", () => {
@@ -119,6 +151,17 @@ describe("mapBackendTopBrands", () => {
 describe("resolveTopBrands", () => {
   it("given fixtures source > then returns the fallback", () => {
     expect(resolveTopBrands("fixtures", null, FIXTURE)).toEqual(FIXTURE);
+  });
+
+  it("given fixtures source and Taiwan region > then filters tagged fixture brands", () => {
+    const cards: TopBrandCard[] = [
+      { ...FIXTURE[0], brand: "Grocery Galaxy" },
+      { ...FIXTURE[0], brand: "PixelPort" },
+    ];
+
+    expect(resolveTopBrands("fixtures", null, cards, undefined, "TW").map((card) => card.brand)).toEqual([
+      "PixelPort",
+    ]);
   });
 
   it("given backend source with brands > then returns the mapped list", () => {

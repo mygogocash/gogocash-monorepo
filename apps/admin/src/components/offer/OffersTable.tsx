@@ -25,10 +25,14 @@ import {
   offerToEditForm,
 } from "@/lib/offerEditForm";
 import { pathImage } from "@/utils/helper";
+import { resolveAdminOfferLogoPath } from "@/lib/offerDisplay";
 import { devError } from "@/lib/devConsole";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { useDataSession } from "@/hooks/useDataSession";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import FormOffer from "./FormOffer";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import SearchBar from "@/components/ui/button/SearchBar";
 import SortByDropdown from "@/components/ui/button/SortByDropdown";
 import { OFFER_THUMB_SIZES } from "./offerMedia";
@@ -78,6 +82,11 @@ export default function OffersTable({
   setOpenModal,
 }: OffersTableProps) {
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [offerToDelete, setOfferToDelete] = useState<{
+    _id: string;
+    name: string;
+  } | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
   // "Now" captured once at mount — drives the live "Upsize" status tag.
   const [nowMs] = useState(() => Date.now());
@@ -195,7 +204,7 @@ export default function OffersTable({
   // Close actions dropdown when clicking outside
   useEffect(() => {
     if (!openActionsId) return;
-    const handleClick = (e: MouseEvent) => {
+    const handlePointerDown = (e: PointerEvent) => {
       const target = e.target as Node;
       if (
         actionsDropdownRef.current &&
@@ -204,9 +213,30 @@ export default function OffersTable({
         setOpenActionsId(null);
       }
     };
-    document.addEventListener("click", handleClick, true);
-    return () => document.removeEventListener("click", handleClick, true);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [openActionsId]);
+
+  const openDeleteConfirm = (offer: Offer) => {
+    setOfferToDelete({
+      _id: offer._id,
+      name: offer.offer_name_display || offer.offer_name,
+    });
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDeleteOffer = async () => {
+    if (!offerToDelete) return;
+    try {
+      await deleteOfferMutation.mutateAsync(offerToDelete._id);
+      toast.success(`Deleted “${offerToDelete.name}”.`);
+      setDeleteConfirmOpen(false);
+      setOfferToDelete(null);
+    } catch (err) {
+      devError("Failed to delete offer:", err);
+      toast.error(getApiErrorMessage(err, "Could not delete offer."));
+    }
+  };
 
   const handleSearch = (searchValue: string) => {
     setQuery((q) => ({ ...q, search: searchValue, page: 1 }));
@@ -214,15 +244,6 @@ export default function OffersTable({
 
   const handlePageChange = (newPage: number) => {
     setQuery((q) => ({ ...q, page: newPage }));
-  };
-
-  const handleDeleteOffer = async (offerId: string) => {
-    if (!confirm("Are you sure you want to delete this offer?")) return;
-    try {
-      await deleteOfferMutation.mutateAsync(offerId);
-    } catch {
-      /* toast via devError in mutation */
-    }
   };
 
   const hasNextPage = pagination.page < pagination.totalPages;
@@ -439,7 +460,7 @@ export default function OffersTable({
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                     {offers.map((offer, index) => {
-                      const logoDesktopSrc = pathImage(offer.logo_desktop);
+                      const logoDesktopSrc = pathImage(resolveAdminOfferLogoPath(offer));
                       const has = (s: string) =>
                         typeof s === "string" && s.length > 0;
                       const rowNumber =
@@ -722,7 +743,7 @@ export default function OffersTable({
                                         role="menuitem"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          handleDeleteOffer(offer._id);
+                                          openDeleteConfirm(offer);
                                           setOpenActionsId(null);
                                         }}
                                         className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
@@ -821,6 +842,27 @@ export default function OffersTable({
           </>
         )}
       </div>
+      <ConfirmDialog
+        busy={deleteOfferMutation.isPending}
+        confirmLabel="Permanently delete"
+        description="This permanently removes the brand from the admin list and customer app. This cannot be undone. Historical conversions are kept."
+        isOpen={deleteConfirmOpen}
+        onCancel={() => {
+          if (!deleteOfferMutation.isPending) {
+            setDeleteConfirmOpen(false);
+            setOfferToDelete(null);
+          }
+        }}
+        onConfirm={() => {
+          void handleConfirmDeleteOffer();
+        }}
+        title={
+          offerToDelete
+            ? `Delete “${offerToDelete.name}”?`
+            : "Delete this offer?"
+        }
+        tone="danger"
+      />
     </div>
   );
 }

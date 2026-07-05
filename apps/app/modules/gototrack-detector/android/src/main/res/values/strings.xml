@@ -4,6 +4,8 @@
   <string name="gototrack_channel_description">Background cashback prompts while you shop</string>
   <string name="gototrack_monitor_title">GoGoTrack is watching for cashback</string>
   <string name="gototrack_monitor_body">Shows a prompt when a supported store is open.</string>
+  <string name="gototrack_prompt_channel_name">GoGoTrack cashback alerts</string>
+  <string name="gototrack_prompt_channel_description">Heads-up prompts when cashback is available while you shop</string>
   <string name="gototrack_prompt_title">Cashback available</string>
   <string name="gototrack_prompt_body">Activate cashback for %1$s before you keep shopping.</string>
   <string name="gototrack_prompt_accept">Accept</string>

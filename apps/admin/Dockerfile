@@ -19,6 +19,8 @@ WORKDIR /app
 #    Copy only the manifests needed to resolve the workspace tree. The admin
 #    postinstall (scripts/patch-apexcharts-border-radius.mjs) runs during
 #    `npm ci`, so the admin package.json + scripts must be present.
+#    Root postinstall must stay admin-only — do not reference apps/app paths
+#    (this image copies only apps/admin before npm ci).
 COPY package.json package-lock.json .npmrc ./
 COPY apps/admin/package.json ./apps/admin/package.json
 COPY apps/admin/.npmrc ./apps/admin/.npmrc

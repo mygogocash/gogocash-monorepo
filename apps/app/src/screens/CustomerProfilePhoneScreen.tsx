@@ -9,6 +9,7 @@ import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { pickThemed } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -214,7 +215,7 @@ function createProfilePhoneScreenStyles(colors: ThemeColors) {
     padding: spacing.lg,
   },
   title: {
-    color: "#00B14F",
+    color: pickThemed(colors, "#00B14F", colors.primary),
     fontFamily: typography.family,
     fontSize: 26,
     fontWeight: "800",
@@ -295,7 +296,7 @@ function createProfilePhoneScreenStyles(colors: ThemeColors) {
   },
   otpPanel: {
     alignItems: "center",
-    backgroundColor: "#F3FBF8",
+    backgroundColor: pickThemed(colors, "#F3FBF8", colors.primarySoft),
     borderColor: colors.border,
     borderRadius: radii.lg,
     borderWidth: 1,

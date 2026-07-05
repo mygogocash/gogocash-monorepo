@@ -19,6 +19,7 @@ const merchantCatalogPath = "/gototrack/merchants";
 const activationNudgeMarkers = [
   "Activate cashback",
   "gototrack-activate-cashback-button",
+  "gototrack-activation-nudge",
   "Activate cashback for",
   "Cashback available",
   "เปิดใช้งานเงินคืน",
@@ -313,6 +314,22 @@ async function prepareGoGoTrackHubCapture(adb, deviceOptions, options) {
 
 function uiXmlContainsActivationNudge(uiXml = "") {
   return activationNudgeMarkers.some((marker) => uiXml.includes(marker));
+}
+
+async function waitForActivationNudgeInHub(adb, deviceOptions, options, maxWaitMs = 15000) {
+  const pollMs = 1000;
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    const dump = run(adb, adbArgs(deviceOptions, ["exec-out", "uiautomator", "dump", "/dev/tty"]), {
+      timeoutMs: 15000,
+    });
+    const uiXml = dump.status === 0 ? dump.stdout : "";
+    if (uiXmlContainsGoGoTrackHub(uiXml) && uiXmlContainsActivationNudge(uiXml)) {
+      return true;
+    }
+    await wait(pollMs);
+  }
+  return false;
 }
 
 function runPrepareDeviceScreen(adb, deviceOptions) {
@@ -1125,7 +1142,7 @@ function activationNudgeEvidenceResult(options, checkpoint = "gototrack-hub") {
     return result(
       options.requireNudge ? "fail" : "warn",
       "GoGoTrack activation nudge visible",
-      "--require-nudge needs --evidence-dir with --capture-device-evidence"
+      "--require-nudge needs --evidence-dir"
     );
   }
 
@@ -1134,7 +1151,7 @@ function activationNudgeEvidenceResult(options, checkpoint = "gototrack-hub") {
     return result(
       options.requireNudge ? "fail" : "warn",
       "GoGoTrack activation nudge visible",
-      `${uiPath} not found; run with --capture-device-evidence`
+      `${uiPath} not found; hub UI capture failed or device was locked`
     );
   }
 
@@ -1248,7 +1265,7 @@ function activationNudgeTapResult(options, device, checkpoint = "gototrack-hub")
 
   const uiPath = `${options.evidenceDir}/${checkpoint}-ui.xml`;
   if (!existsSync(uiPath)) {
-    return result("fail", "GoGoTrack activation nudge tap", `${uiPath} not found; run with --capture-device-evidence`);
+    return result("fail", "GoGoTrack activation nudge tap", `${uiPath} not found; hub UI capture failed or device was locked`);
   }
 
   const target = activationNudgeTapTarget(readFileSync(uiPath, "utf8"));
@@ -1279,7 +1296,13 @@ function activationNudgeTapResult(options, device, checkpoint = "gototrack-hub")
 }
 
 async function writeDeviceCheckpointEvidence(report, options, checkpoint) {
-  if (!options.captureDeviceEvidence || !options.evidenceDir || !report.context.device) return;
+  if (!options.evidenceDir || !report.context.device) return;
+
+  const captureForNudgeGate =
+    (checkpoint === "gototrack-hub" && (options.requireNudge || options.tapNudge)) ||
+    (checkpoint === "activation-nudge-tap" && options.tapNudge);
+
+  if (!options.captureDeviceEvidence && !captureForNudgeGate) return;
 
   if (checkpoint === "gototrack-hub") {
     if (options.requireNudge || options.tapNudge) {
@@ -1292,6 +1315,12 @@ async function writeDeviceCheckpointEvidence(report, options, checkpoint) {
           `focusPackage=${foreground.focusPackage}\nattempts=${foreground.attempt}\n`
         );
       }
+      await waitForActivationNudgeInHub(
+        options.adb,
+        deviceOptions,
+        options,
+        Math.max(options.checkpointDelayMs > 0 ? 15000 : 3000, 3000),
+      );
     } else {
       runPrepareDeviceScreen(options.adb, { ...options, device: report.context.device });
     }

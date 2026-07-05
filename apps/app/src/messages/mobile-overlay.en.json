@@ -360,5 +360,10 @@
   "mobileHomeGoLinkSubcopy": "Earn cashback with GoGoLink",
   "mobileHomeGoLinkLead": "Easy to earn cashback by just",
   "mobileSearchLoading": "Searching brands and shops…",
-  "mobileSearchUnavailable": "Search is temporarily unavailable. Try again in a moment."
+  "mobileSearchUnavailable": "Search is temporarily unavailable. Try again in a moment.",
+  "mobileProfileAvatarUploadHint": "Upload a profile photo",
+  "mobileProfileAvatarAltShort": "Avatar",
+  "mobileProfileAvatarUploading": "Uploading…",
+  "mobileProfileAvatarChangePhoto": "Change photo",
+  "mobileProfileAvatarWebOnly": "Profile photo upload is available on web for now."
 }

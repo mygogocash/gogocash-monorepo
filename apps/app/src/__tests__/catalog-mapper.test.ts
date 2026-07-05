@@ -50,6 +50,25 @@ describe("catalog mapper > mapOffersToCatalogBrands", () => {
     });
   });
 
+  it("given logo_desktop from admin > then prefers it over legacy logo", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          _id: "shopee-offer",
+          offer_name: "Shopee TH",
+          commission_store: 1,
+          logo: "https://cdn.example/legacy.png",
+          logo_desktop: "https://cdn.example/desktop.png",
+          disabled: false,
+          status: "approved",
+        },
+      ],
+    });
+
+    expect(brand.logo).toBe("https://cdn.example/desktop.png");
+  });
+
   it("given a sparse record > then falls back to offer_name, Others category, no coupon, no logo", () => {
     const [, brand] = mapOffersToCatalogBrands(sampleResponse);
     expect(brand).toMatchObject({

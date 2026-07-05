@@ -611,6 +611,26 @@ describe('GototrackService settings and timeline', () => {
     );
   });
 
+  it('settings > given background prompts enabled > then also enables master tracking', async () => {
+    const { service } = makeService();
+    const userSettingsModel = (service as any).userSettingsModel;
+
+    await service.updateSettings('507f1f77bcf86cd799439011', {
+      backgroundPromptsEnabled: true,
+    });
+
+    expect(userSettingsModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { user_id: '507f1f77bcf86cd799439011' },
+      {
+        $set: {
+          background_prompts_enabled: true,
+          enabled: true,
+        },
+      },
+      { new: true, upsert: true },
+    );
+  });
+
   it('timeline > given user > then queries only current user events', async () => {
     const { activationEventModel, detectionEventModel, service } =
       makeService();

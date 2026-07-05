@@ -1,6 +1,5 @@
-import { CustomerGoGoTrackScreen } from "@mobile/screens/CustomerGoGoTrackScreen";
-import { gototrackDetector } from "@mobile/gototrack/detectorInstance";
+import { Redirect } from "expo-router";
 
-export default function GoGoTrackRecoveryRoute() {
-  return <CustomerGoGoTrackScreen mode="recovery" detector={gototrackDetector} />;
+export default function GoGoTrackRecoveryRedirect() {
+  return <Redirect href="/gototrack" />;
 }

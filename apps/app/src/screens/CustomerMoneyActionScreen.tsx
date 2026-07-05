@@ -1014,7 +1014,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           ]}
         >
           {moneyActionBlocks}
-          <CustomerDesktopFooterSlot style={styles.desktopFooter} />
+          <CustomerDesktopFooterSlot innerPadding={spacing.md} style={styles.desktopFooter} />
         </KeyboardAwareScreen>
       </View>
     </View>

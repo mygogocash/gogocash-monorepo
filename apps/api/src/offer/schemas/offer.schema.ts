@@ -197,6 +197,17 @@ export class Offer {
   /** GoGoCash app tracking link (Commission Management / Create Brand). */
   @Prop()
   app_deeplink?: string;
+
+  /** Admin-controlled offer card / listing tags (merchandising). */
+  @Prop({ type: Object })
+  offer_display_tags?: {
+    brand_category_enabled: boolean;
+    brand_category_label: string;
+    extra_cashback_tag: boolean;
+    grab_coupon_tag: boolean;
+    expire_in_days_enabled: boolean;
+    expire_in_days: number | null;
+  };
 }
 
 export const OfferSchema = SchemaFactory.createForClass(Offer);

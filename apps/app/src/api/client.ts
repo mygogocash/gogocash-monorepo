@@ -33,12 +33,43 @@ export function createMobileApiClient(options: MobileApiClientOptions) {
     const preferredToken = options.getPreferredAuthToken
       ? await options.getPreferredAuthToken()
       : null;
-    const token =
-      (typeof preferredToken === "string" && preferredToken.length > 0
-        ? preferredToken
-        : typeof session?.access_token === "string"
-          ? session.access_token
-          : "") ?? "";
+    const preferredUsed =
+      typeof preferredToken === "string" && preferredToken.length > 0;
+    const sessionToken =
+      typeof session?.access_token === "string" ? session.access_token : "";
+    const initialToken = preferredUsed ? preferredToken : sessionToken;
+
+    return executeRequest<TResponse>({
+      body,
+      customHeaders,
+      isAuthRetry: false,
+      method,
+      path,
+      preferredUsed,
+      sessionToken,
+      token: initialToken,
+    });
+  }
+
+  async function executeRequest<TResponse>({
+    body,
+    customHeaders,
+    isAuthRetry,
+    method,
+    path,
+    preferredUsed,
+    sessionToken,
+    token,
+  }: {
+    body?: unknown;
+    customHeaders: Record<string, string>;
+    isAuthRetry: boolean;
+    method: "GET" | "POST";
+    path: string;
+    preferredUsed: boolean;
+    sessionToken: string;
+    token: string;
+  }): Promise<TResponse> {
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": "application/json",
@@ -67,6 +98,25 @@ export function createMobileApiClient(options: MobileApiClientOptions) {
           responseBody && typeof responseBody === "object" && "message" in responseBody
             ? String(responseBody.message)
             : `Request failed with status ${response.status}`;
+
+        if (
+          response.status === 401 &&
+          !isAuthRetry &&
+          preferredUsed &&
+          sessionToken &&
+          sessionToken !== token
+        ) {
+          return executeRequest<TResponse>({
+            body,
+            customHeaders,
+            isAuthRetry: true,
+            method,
+            path,
+            preferredUsed: false,
+            sessionToken,
+            token: sessionToken,
+          });
+        }
 
         // Only an authenticated request 401-ing means the stored session is
         // bad; a public endpoint's 401 must never force-logout the user.

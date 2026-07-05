@@ -1,15 +1,24 @@
 # CodeQL advanced setup — replaces GitHub Default setup so language selection is
-# version-controlled. The repo is JS/TS (admin, api, mobile web) plus one Expo
-# local Android module (gototrack-detector) that has no root Gradle project and
-# is built only via EAS; scanning java-kotlin with autobuild fails with
-# "No build command found". Languages match the prior Default setup config.
+# version-controlled. JS/TS (admin, api, mobile web) plus GitHub Actions.
+# Expo local Android (Kotlin) and iOS (Swift) modules use build-mode: none — there
+# is no repo-root Gradle/Xcode project (EAS prebuild only).
 name: CodeQL
 
 on:
   push:
     branches: [main, dev, staging, production]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".cursor/**"
+      - "assets/**"
   pull_request:
     branches: [main, dev, staging, production]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".cursor/**"
+      - "assets/**"
   schedule:
     # Weekly — same cadence as GitHub Default setup.
     - cron: "30 1 * * 0"
@@ -30,7 +39,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [javascript-typescript, actions]
+        include:
+          - language: javascript-typescript
+            build-mode: none
+            config-file: ./.github/codeql/codeql-config.yml
+          - language: actions
+            build-mode: none
+            config-file: ./.github/codeql/codeql-config.yml
+          - language: java-kotlin
+            build-mode: none
+            config-file: ./.github/codeql/codeql-native-config.yml
+          - language: swift
+            build-mode: none
+            config-file: ./.github/codeql/codeql-native-config.yml
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -39,7 +60,14 @@ jobs:
         uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
         with:
           languages: ${{ matrix.language }}
-          config-file: ./.github/codeql/codeql-config.yml
+          build-mode: ${{ matrix.build-mode }}
+          config-file: ${{ matrix.config-file }}
+
+      # In-repo model packs are not on GHCR; codeql-workspace.yml is not applied at init.
+      - name: Wire local mongo sanitizer model pack (JS/TS)
+        if: matrix.language == 'javascript-typescript'
+        run: |
+          echo "CODEQL_ACTION_EXTRA_OPTIONS={\"database\":{\"run-queries\":[\"--additional-packs=${GITHUB_WORKSPACE}/.github/codeql\",\"--extension-packs=mygogocash/gogocash-mongo-sanitizers\"]}}" >> "$GITHUB_ENV"
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4

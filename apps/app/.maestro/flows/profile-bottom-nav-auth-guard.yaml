@@ -1,0 +1,13 @@
+appId: co.gogocash.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Accept all cookies"
+    timeout: 30000
+- tapOn: "Accept all cookies"
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible: "Sign in"
+    timeout: 45000
+- assertVisible: "Sign in"

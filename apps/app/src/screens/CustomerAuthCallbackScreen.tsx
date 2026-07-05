@@ -2,8 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  createExpoSecureSessionStore,
-  createWebSessionStore,
+  persistMobileSession,
   type MobileSession,
 } from "@mobile/auth/session";
 import { sanitizeCallbackPath } from "@mobile/auth/routeGuard";
@@ -169,18 +168,7 @@ function createDevRawTokenSession(validatedToken: string): MobileSession {
 }
 
 async function persistCallbackSession(callbackSession: MobileSession) {
-  try {
-    const secureStore = await createExpoSecureSessionStore();
-    await secureStore.setSession(callbackSession);
-  } catch {
-    const webStore = createWebSessionStore();
-
-    if (!webStore) {
-      throw new Error("No session store is available for auth callback.");
-    }
-
-    await webStore.setSession(callbackSession);
-  }
+  await persistMobileSession(callbackSession);
 }
 
 function getTitle(state: CallbackState) {

@@ -15,6 +15,7 @@ export const toastErrorMessages = {
   saveWithdrawalMethodFailed: "Could not save your withdrawal method. Please try again.",
   uploadPhotoFailed: "Could not upload photo. Please try again.",
   saveChoiceFailed: "Could not save your choice. Please try again.",
+  saveGoGoTrackSettingsFailed: "Could not save GoGoTrack settings. Please try again.",
   loadCatalogFailed: "Could not load catalog. Please try again.",
 } as const;
 
@@ -26,6 +27,7 @@ export const authSendErrorMessages = {
   securityCheck: "Security check failed. Please refresh the page and try again.",
   invalidPhone: "That phone number doesn't look valid. Check it and try again.",
   notConfigured: "Sign-in is temporarily unavailable. Please try again later.",
+  webOnly: "Social sign-in is available on Expo web. Use your browser to continue.",
   generic: toastErrorMessages.requestFailed,
 } as const;
 
@@ -35,6 +37,7 @@ export const approvedNonStandardErrorMessages = [
   authSendErrorMessages.securityCheck,
   authSendErrorMessages.invalidPhone,
   authSendErrorMessages.notConfigured,
+  authSendErrorMessages.webOnly,
 ] as const;
 
 /** Validates a user-facing error string follows the house pattern. */

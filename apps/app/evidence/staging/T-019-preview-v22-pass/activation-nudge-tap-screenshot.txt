@@ -1,0 +1,7 @@
+command=activation-nudge-tap: adb exec-out screencap -p
+ok=true
+status=0
+--- stdout ---
+<321885 bytes>
+--- stderr ---
+

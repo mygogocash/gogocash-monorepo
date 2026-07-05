@@ -1,0 +1,55 @@
+# Post-deploy smoke for Railway staging — manual or scheduled health checks.
+# Does NOT deploy. Run after a staging merge or when debugging hosted envs.
+name: Staging smoke (Railway)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Twice daily — catches drift without spamming Involve/postback endpoints.
+    - cron: "0 2,14 * * *"
+
+concurrency:
+  group: staging-smoke
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  API_URL: https://api-staging.gogocash.co
+  ADMIN_URL: https://admin-staging.gogocash.co
+  APP_URL: https://app-staging.gogocash.co
+
+jobs:
+  smoke:
+    name: HTTP smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: API root
+        run: curl -fsS --max-time 30 "${{ env.API_URL }}/" >/dev/null
+
+      - name: GoGoTrack merchant catalog
+        run: curl -fsS --max-time 30 "${{ env.API_URL }}/gototrack/merchants" >/dev/null
+
+      - name: Admin (expect redirect or 200)
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${{ env.ADMIN_URL }}/")
+          case "$code" in
+            2*|3*) echo "Admin reachable ($code)" ;;
+            *) echo "::error::Admin returned HTTP $code"; exit 1 ;;
+          esac
+
+      - name: Customer web
+        run: curl -fsS --max-time 30 "${{ env.APP_URL }}/" >/dev/null
+
+      - name: Involve postback (token required)
+        env:
+          INVOLVE_POSTBACK_TEST_TOKEN: ${{ secrets.INVOLVE_POSTBACK_TEST_TOKEN }}
+        run: |
+          if [ -z "${INVOLVE_POSTBACK_TEST_TOKEN:-}" ]; then
+            echo "Skipping Involve postback smoke — set INVOLVE_POSTBACK_TEST_TOKEN in repo secrets to enable."
+            exit 0
+          fi
+          url="${{ env.API_URL }}/involve/postback?token=${INVOLVE_POSTBACK_TEST_TOKEN}&conversion_id=ci_smoke&offer_id=ci&offer_name=ci&datetime_conversion=ci&sale_amount_local=0&payout_local=0&conversion_currency=THB&aff_sub=ci&status=pending"
+          body=$(curl -fsS --max-time 30 "$url")
+          echo "$body" | grep -q 'OK' || { echo "::error::Unexpected postback body: $body"; exit 1; }

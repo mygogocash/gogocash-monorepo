@@ -34,7 +34,7 @@ export async function fetchFavoriteOfferIds({
   }>(`/offer/favorite/${page}/${limit}`);
 
   return (
-    response.data
+    response?.data
       ?.map((row) => {
         const offer = row.offer_id;
         if (typeof offer === "string") {

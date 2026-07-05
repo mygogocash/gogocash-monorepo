@@ -3,6 +3,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
   OnApplicationBootstrap,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -22,6 +23,8 @@ import { UpdateCouponDto } from './dto/update-offer.dto';
 import { MissionOrder } from './schemas/missing-order.schema';
 import { StoredMediaService } from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
+import { parseOfferDisplayTagsField } from './offer-display-tags.util';
+import { resolvePublicOfferLogo } from './offer-logo.util';
 import { Quest, QuestTask } from 'src/point/schemas/quest.schema';
 import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schema';
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
@@ -216,11 +219,28 @@ export class OfferService implements OnApplicationBootstrap {
     const filter: any = {};
     if (search) {
       const safeSearch = escapeRegexLiteral(search);
-      filter.$or = [
+      const trimmedSearch = search.trim();
+      const orConditions: Record<string, unknown>[] = [
         { offer_name: { $regex: safeSearch, $options: 'i' } },
         { offer_name_display: { $regex: safeSearch, $options: 'i' } },
         { categories: { $regex: safeSearch, $options: 'i' } },
+        { lookup_value: { $regex: safeSearch, $options: 'i' } },
+        { countries: { $regex: safeSearch, $options: 'i' } },
       ];
+      const numericOfferId = Number.parseInt(trimmedSearch, 10);
+      if (
+        trimmedSearch.length > 0 &&
+        String(numericOfferId) === trimmedSearch
+      ) {
+        orConditions.push({ offer_id: numericOfferId });
+      }
+      if (
+        Types.ObjectId.isValid(trimmedSearch) &&
+        trimmedSearch.length === 24
+      ) {
+        orConditions.push({ _id: new Types.ObjectId(trimmedSearch) });
+      }
+      filter.$or = orConditions;
     }
     if (categories) {
       filter['categories'] = {
@@ -247,8 +267,15 @@ export class OfferService implements OnApplicationBootstrap {
         filter.source = adminFilters.source;
       }
     }
-    const data = await this.offerModel
-      .find(filter)
+    let listQuery = this.offerModel.find(filter);
+    if (admin) {
+      listQuery = listQuery.sort({
+        datetime_created: -1,
+        offer_name_display: 1,
+        offer_name: 1,
+      });
+    }
+    const data = await listQuery
       .skip((page - 1) * limit)
       .limit(limit)
       .exec();
@@ -361,6 +388,30 @@ export class OfferService implements OnApplicationBootstrap {
     return pickPublicOfferDetail(offer as Record<string, any> | null);
   }
 
+  /** Permanent delete: remove the offer and clean up merchandising references. */
+  async removeOffer(id: string): Promise<{ message: string }> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Offer not found');
+    }
+    const offer = await this.offerModel.findById(id);
+    if (!offer) {
+      throw new NotFoundException('Offer not found');
+    }
+
+    const offerObjectId = new Types.ObjectId(id);
+    await Promise.all([
+      this.favoriteOfferModel.deleteMany({ offer_id: offerObjectId }),
+      this.topBrandConfigModel.updateOne(
+        {},
+        { $pull: { brands: { offerId: id } } },
+      ),
+      this.searchBoostModel.deleteMany({ offer_id: id }),
+    ]);
+    await this.offerModel.findByIdAndDelete(id);
+
+    return { message: 'Offer deleted successfully' };
+  }
+
   async createAdminOffer(
     body: Record<string, any>,
     files: {
@@ -460,6 +511,7 @@ export class OfferService implements OnApplicationBootstrap {
       is_global: parseBoolean(body.is_global, false),
       default_country: String(body.default_country ?? '').trim() || undefined,
       app_deeplink: String(body.app_deeplink ?? '').trim() || undefined,
+      offer_display_tags: parseOfferDisplayTagsField(body.offer_display_tags),
     });
   }
 
@@ -587,7 +639,9 @@ export class OfferService implements OnApplicationBootstrap {
         _id: { $in: entries.map((entry) => entry.offerId) },
         ...ACTIVE_OFFER_FILTER,
       } as any)
-      .select('offer_id offer_name logo')
+      .select(
+        'offer_id offer_name offer_name_display logo logo_desktop logo_mobile logo_circle',
+      )
       .exec();
     const offerById = new Map(
       offers.map((offer) => [String(offer._id), offer]),
@@ -599,11 +653,21 @@ export class OfferService implements OnApplicationBootstrap {
         if (!offer) {
           return null;
         }
+        const row = offer as {
+          _id: unknown;
+          offer_id: number;
+          offer_name: string;
+          offer_name_display?: string;
+          logo?: string;
+          logo_desktop?: string;
+          logo_mobile?: string;
+          logo_circle?: string;
+        };
         return {
-          _id: String((offer as any)._id),
-          offer_id: offer.offer_id,
-          brand: offer.offer_name,
-          logo: offer.logo,
+          _id: String(row._id),
+          offer_id: row.offer_id,
+          brand: row.offer_name_display?.trim() || row.offer_name,
+          logo: resolvePublicOfferLogo(row),
           cashback: entry.cashback,
         };
       })

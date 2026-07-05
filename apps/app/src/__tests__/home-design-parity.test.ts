@@ -105,8 +105,12 @@ describe("Expo home design parity", () => {
       path.join(mobileRoot, "src/components/CustomerCookieConsentBanner.tsx"),
       "utf8"
     );
+    const cookieConsentStorageFile = fs.readFileSync(
+      path.join(mobileRoot, "src/pdpa/cookieConsentStorage.ts"),
+      "utf8"
+    );
 
-    expect(cookieBannerFile).toContain("webCookieConsentBanner.dismissedStorageKey");
+    expect(cookieConsentStorageFile).toContain("webCookieConsentBanner.dismissedStorageKey");
     expect(cookieBannerFile).toContain("webCookieConsentBanner.dismissedEventName");
     expect(cookieBannerFile).toContain("webCookieConsentBanner.privacyPolicyLabel");
   });
@@ -320,7 +324,7 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain(
       'heroBanners.filter((banner) => banner.placement === "main")'
     );
-    expect(homeFile).toContain("mainBanners.map");
+    expect(homeFile).toContain("heroCarouselSlides.map");
     expect(homeFile).toContain("setHeroBannerWidth");
     expect(homeFile).toContain("styles.heroScroll");
     expect(homeFile).toContain("CarouselDots");
@@ -906,14 +910,16 @@ describe("Expo home design parity", () => {
     expect(homeSource).toContain('pickThemed(colors, "#303846", "rgba(255, 255, 255, 0.92)")');
   });
 
-  it("mobile/tablet GoLink banner collapse > given covered before layout > then height stays zero", () => {
+  it("mobile/tablet GoLink banner collapse > given covered state > then banner unmounts after compositor animation", () => {
     const collapseSource = fs.readFileSync(
       path.resolve(mobileRoot, "src/screens/home/MobileTabletGoLinkBannerCollapse.tsx"),
       "utf8"
     );
 
     expect(collapseSource).toContain("isCovered");
-    expect(collapseSource).toMatch(/isCovered[\s\S]*\?\s*0/);
+    expect(collapseSource).toContain("bannerMounted");
+    expect(collapseSource).toContain("scaleY");
+    expect(collapseSource).toContain("runTransformTiming");
   });
 
   it("mobile search screen > given suggestion cards > then it renders the shared compact BrandCard", () => {

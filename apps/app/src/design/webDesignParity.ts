@@ -319,7 +319,7 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
     isDesktop,
     mainBannerAspectRatio: mobileShellLayout.homeBannerAspectRatio,
     pageBottomPadding: isDesktop
-      ? mobileShellLayout.desktopBottomClearance
+      ? 0
       : mobileShellLayout.bottomNavClearance + 24,
     showBottomNav: !isDesktop,
     topBrandCardHeight,
@@ -359,6 +359,11 @@ export function getDesktopShellOffset(viewportWidth: number) {
   const shellContentWidth = Math.min(viewportWidth, mobileShellLayout.desktopContentMaxWidth);
 
   return Math.max(0, (viewportWidth - shellContentWidth) / 2);
+}
+
+/** Full-bleed footer breakout: viewport centering gap plus any inner scroll/frame padding. */
+export function getDesktopFooterHorizontalPadding(viewportWidth: number, innerPadding = 0) {
+  return getDesktopShellOffset(viewportWidth) + innerPadding;
 }
 
 export function getDesktopShellContentWidth(viewportWidth: number) {
@@ -913,12 +918,13 @@ export const webProfileSectionOrder = [
 
 export const webProfileWalletSummary = {
   username: "Mock User",
+  userId: "mock-user-0001",
   maskedId: "***0001",
   amount: "3,180.24",
   currency: "THB",
   lastUpdated: "Last Updated: 28 Mar 2026 07:00",
-  // Demo default: the mock profile is a GoGoPass member (matches the web mock session).
-  membershipTier: "gogopass",
+  // Non-subscriber default — badge/avatar ring only render for live `membership_tier`.
+  membershipTier: "starter",
 } as const;
 
 export const webProfileWalletHeroSurface = {
@@ -1084,6 +1090,8 @@ export const webProfileHeroCard = {
   userIdLabel: "User ID",
   // Mock 9-digit display id (mirrors the web `nineDigitUserIdDisplay` output shape).
   userId: "204815963",
+  userIdRevealAria: "Show User ID",
+  userIdHideAria: "Hide User ID",
   userIdCopyAria: "Copy User ID",
   userIdCopiedToast: "User ID copied",
   inviteLinkLabel: "invite link",
@@ -3029,10 +3037,19 @@ export const profileHubSubNavItems = [
   { label: "Account Setting", href: "/language" },
 ] as const;
 
+/** Desktop profile-rail accordion under GoGoTrack — mirrors hub quick links. */
+export const profileHubGoGoTrackSubNavItems = [
+  { label: "Overview", href: "/gototrack" },
+  { label: "Start setup", href: "/gototrack/onboarding" },
+  { label: "Permissions", href: "/gototrack/permissions" },
+  { label: "Settings", href: "/gototrack/settings" },
+] as const;
+
 export const profileHubMenuItems = [
   { label: "Profile", href: "/profile", activePrefix: "/profile" },
   { label: "Invite your Friends", href: "/referral", activePrefix: "/referral" },
   { label: "My Wallet", href: "/wallet", activePrefix: "/wallet" },
+  { label: "GoGoTrack", href: "/gototrack", activePrefix: "/gototrack" },
   { label: "GoGoPass", href: "/membership", activePrefix: "/membership" },
   { label: "Missing Orders", href: "/missing-orders", activePrefix: "/missing-orders" },
   { label: "Favorite Brands", href: "/favorite", activePrefix: "/favorite" },
@@ -3320,6 +3337,62 @@ export const webPrivacyCenterPage = {
     badge: "Always on",
     description:
       "We track eligible purchases and cashback while your account is active so we can credit rewards and meet merchant agreements. This is not optional while you use the service.",
+  },
+} as const;
+
+export const webGoGoTrackPermissionsPage = {
+  sectionTitle: "Permission checklist",
+  microNotice:
+    "GoGoTrack never enables sensitive signals silently. Review why each permission is needed before granting access.",
+  hero: {
+    title: "Enable GoGoTrack to protect your cashback",
+    eyebrow: "Grant access",
+    body: "Grant usage access and optional notifications so GoGoTrack can detect supported stores, prompt activation, and recover missing cashback evidence.",
+    actionLabel: "Enable all GoGoTrack permissions",
+    allEnabledLabel: "All GoGoTrack permissions are already enabled.",
+    hint: "One tap opens Android Usage Access when needed, then enables cashback notifications and screenshot recovery. You can adjust each permission below.",
+    hintWeb:
+      "Turn permissions on or off below. Preferences save to your account; native cashback alerts need the Android app with Usage Access granted.",
+  },
+  permissionsTitle: "Tracking permissions",
+  onLabel: "On",
+  offLabel: "Off",
+  items: [
+    {
+      id: "usageAccess",
+      title: "Usage access",
+      description: "Detect supported shopping apps and browser transitions.",
+      kind: "os_grant" as const,
+    },
+    {
+      id: "backgroundPrompts",
+      title: "Cashback notifications",
+      description:
+        "Optional heads-up while supported stores are open. Save your preference here; native notifications need Android and Usage Access.",
+      kind: "toggle" as const,
+      field: "backgroundPromptsEnabled" as const,
+      requiresUsageAccess: true,
+    },
+    {
+      id: "screenshotRecovery",
+      title: "Screenshot recovery",
+      description: "Allow user-submitted screenshots only when automatic tracking fails.",
+      kind: "toggle" as const,
+      field: "screenshotRecoveryEnabled" as const,
+    },
+  ],
+  usageAccessGrantedLabel: "Usage access granted",
+  usageAccessNotGrantedLabel: "Usage access not granted yet",
+  usageAccessAndroidOnlyLabel: "Usage access is only available on Android",
+  grantUsageAccessLabel: "Grant usage access",
+  grantedLabel: "Granted",
+  requiresUsageAccessHint:
+    "Native cashback notifications require Android and Usage Access. Your preference is saved here and applies when tracking is active.",
+  backgroundPromptsPendingUsageAccessHint:
+    "Grant Usage Access on Android before cashback notifications can fire.",
+  disclosure: {
+    title: "Usage access disclosure",
+    body: "These controls map to native OS permission prompts and privacy-policy wording. GoGoTrack uses Android Usage Access to detect supported shopping apps. Nothing is read until you grant access.",
   },
 } as const;
 

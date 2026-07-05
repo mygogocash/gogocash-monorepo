@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { TabletFrame } from "@mobile/components/TabletFrame";
 import { CustomerCookieConsentBanner } from "@mobile/components/CustomerCookieConsentBanner";
-import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
+import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
 import { CustomerLineOfficialFab } from "@mobile/components/CustomerLineOfficialFab";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
@@ -63,9 +63,10 @@ export function CustomerPrivacyPolicyScreen() {
           contentContainerStyle={[
             styles.publicLegalPage,
             isDesktop ? styles.publicLegalPageDesktop : styles.publicLegalPageMobile,
+            isDesktop ? null : styles.publicLegalPageMinFill,
             {
               paddingBottom: isDesktop
-                ? mobileShellLayout.desktopBottomClearance + 120
+                ? 0
                 : mobileShellLayout.bottomNavClearance + 180,
               paddingTop: isDesktop
                 ? mobileShellLayout.desktopHomeTopGap
@@ -78,9 +79,10 @@ export function CustomerPrivacyPolicyScreen() {
             <PrivacyPolicyArticle isDesktop={isDesktop} />
           </TabletFrame>
           {isDesktop ? (
-            <View style={styles.desktopFooter}>
-              <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
-            </View>
+            <CustomerDesktopFooterSlot
+              innerPadding={mobileShellLayout.desktopContentHorizontalPadding}
+              style={styles.desktopFooter}
+            />
           ) : null}
         </ScrollView>
         {isDesktop ? null : (
@@ -282,6 +284,8 @@ function createPrivacyPolicyScreenStyles(colors: ThemeColors) {
   },
   publicLegalPage: {
     alignItems: "center",
+  },
+  publicLegalPageMinFill: {
     minHeight: "100%",
   },
   publicLegalPageMobile: {

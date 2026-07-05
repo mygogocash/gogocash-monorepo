@@ -24,6 +24,8 @@ vi.mock("@mobile/observability/client", () => ({
 
 import { readHomeSources } from "../test-support/homeSource";
 
+import { FavoriteBrandsProvider } from "@mobile/account/FavoriteBrandsProvider";
+import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
 import { CustomerHomeScreen } from "@mobile/screens/CustomerHomeScreen";
 
 // Wave B (B4) per-screen UX adoption for the discovery/home landing screen. This is
@@ -61,7 +63,15 @@ function setViewportWidth(width: number) {
 function renderHome() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    createElement(QueryClientProvider, { client: queryClient }, createElement(CustomerHomeScreen))
+    createElement(
+      LocaleProvider,
+      {},
+      createElement(
+        FavoriteBrandsProvider,
+        {},
+        createElement(QueryClientProvider, { client: queryClient }, createElement(CustomerHomeScreen)),
+      ),
+    ),
   );
 }
 
@@ -94,6 +104,14 @@ describe("CustomerHomeScreen (render)", () => {
     const brand = (saveButtons[0].getAttribute("aria-label") ?? "").replace(/^Save brand:\s*/, "");
     fireEvent.click(saveButtons[0]);
     expect(screen.getByRole("button", { name: `Remove from saved brands: ${brand}` })).toBeTruthy();
+  });
+});
+
+describe("CustomerHomeScreen — pull-to-refresh (source signals)", () => {
+  it("wires RefreshControl to the public catalog refetch hook on home scroll views", () => {
+    expect(homeSource).toContain("RefreshControl");
+    expect(homeSource).toContain("usePublicCatalogPullToRefresh");
+    expect(homeSource).toContain("refreshControl={homeRefreshControl}");
   });
 });
 
@@ -144,5 +162,15 @@ describe("CustomerHomeScreen — Wave 2 mobile-friendly P0 (source signals)", ()
 
   it("gives the sub-44px GoLink info icon button a hitSlop so the tap target reaches 44px", () => {
     expect(homeSource).toMatch(/hitSlop=\{10\}[\s\S]*?styles\.desktopGoLinkInfoButton/);
+  });
+});
+
+describe("BrandCard — favorite heart (source signals)", () => {
+  it("uses GoGoCash primary brand colors for the large-card heart, not danger red", () => {
+    expect(brandCardSource).toContain("colors.primary");
+    expect(brandCardSource).toContain("colors.primaryDark");
+    expect(brandCardSource).not.toContain("colors.danger");
+    expect(brandCardSource).toContain("useFavoriteBrands");
+    expect(brandCardSource).toContain("resolveFavoriteOfferId");
   });
 });

@@ -1,4 +1,5 @@
 import type { MobileSession } from "@mobile/auth/session";
+import type { RegionCode } from "@mobile/i18n/regionTypes";
 
 import type { CustomerAccountResourceId } from "./customerAccountResourceIds";
 
@@ -33,13 +34,15 @@ export function resolveCustomerAccountResourceSessionScope(
 export function resolveCustomerAccountResourceQueryKey({
   apiUrl,
   endpoint,
+  regionCode,
   resourceId,
   sessionScope,
 }: {
   apiUrl: string;
   endpoint: string;
+  regionCode: RegionCode;
   resourceId: CustomerAccountResourceId;
   sessionScope: string;
 }) {
-  return ["customer-account-resource", resourceId, endpoint, apiUrl, sessionScope] as const;
+  return ["customer-account-resource", resourceId, endpoint, apiUrl, sessionScope, regionCode] as const;
 }

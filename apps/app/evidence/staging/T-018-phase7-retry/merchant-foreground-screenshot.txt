@@ -1,0 +1,7 @@
+command=merchant-foreground: adb exec-out screencap -p
+ok=true
+status=0
+--- stdout ---
+<1692105 bytes>
+--- stderr ---
+

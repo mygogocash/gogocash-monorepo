@@ -25,12 +25,15 @@ describe("desktop profile rail parity", () => {
   it("rail > given the menu > then it renders the full web menu, the Profile accordion, and Log Out", () => {
     const shell = readMobileFile("src/components/AccountPageShell.tsx");
 
-    // Full menu (no 9-item cap) + accordion sub-nav + active-by-route helpers.
+    // Full menu (no 9-item cap) + Profile accordion sub-nav + active-by-route helpers.
     expect(shell).toContain("profileHubMenuItems.map");
     expect(shell).not.toContain("profileHubMenuItems.slice(0, 9)");
     expect(shell).toContain("profileHubSubNavItems.map");
+    expect(shell).not.toContain("profileHubGoGoTrackSubNavItems");
     expect(shell).toContain("shouldAutoExpandProfileSubNav");
+    expect(shell).not.toContain("shouldAutoExpandGoGoTrackSubNav");
     expect(shell).toContain("isProfileSubNavItemActive");
+    expect(shell).not.toContain("isGoGoTrackSubNavItemActive");
     expect(shell).toContain("isProfileMenuItemActive");
     // Log Out reuses the shared hook + confirm card.
     expect(shell).toContain("useMobileLogout");
@@ -44,5 +47,14 @@ describe("desktop profile rail parity", () => {
 
     expect(membership).toContain("AccountPageShell");
     expect(membership).not.toContain("styles.phoneFrame");
+  });
+
+  it("gototrack > given any GoGoTrack flow > then it renders inside AccountPageShell so it gets the rail", () => {
+    const gototrack = readMobileFile("src/screens/CustomerGoGoTrackScreen.tsx");
+
+    expect(gototrack).toContain("AccountPageShell");
+    expect(gototrack).toContain("showProfileRail");
+    expect(gototrack).not.toContain("styles.phoneFrame");
+    expect(gototrack).not.toContain("CustomerDesktopFooterSlot");
   });
 });

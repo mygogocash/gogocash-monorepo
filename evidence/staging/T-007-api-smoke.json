@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-07-01T15:05:00Z",
+  "finding": "Staging API healthy on api-staging.gogocash.co after Railway custom domain bind (was 404 when only api.staging.gogocash.co was configured).",
+  "api-staging.gogocash.co": {
+    "health": { "url": "https://api-staging.gogocash.co/health", "http": 200, "body": "{\"status\":\"ok\"}" },
+    "merchants": { "url": "https://api-staging.gogocash.co/gototrack/merchants", "http": 200, "body": "[]" },
+    "agentSearch": {
+      "url": "https://api-staging.gogocash.co/agent/v1/gototrack/merchants/search?q=shopee",
+      "http": 200,
+      "body": "{\"type\":\"gototrack_merchant_options\",\"options\":[],\"nextAction\":\"search_again\"}"
+    }
+  },
+  "admin-staging.gogocash.co": { "http": 307 }
+}

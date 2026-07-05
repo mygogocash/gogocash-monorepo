@@ -5,7 +5,9 @@ import path from 'path';
 import { buildLocalMediaRef, parseLocalMediaRef } from './stored-media.util';
 
 export function getLocalMediaRootDir(): string {
-  const configured = process.env.GCS_LOCAL_STORAGE_DIR?.trim();
+  const configured =
+    process.env.MEDIA_LOCAL_STORAGE_DIR?.trim() ||
+    process.env.GCS_LOCAL_STORAGE_DIR?.trim();
   if (configured) {
     return path.isAbsolute(configured)
       ? configured

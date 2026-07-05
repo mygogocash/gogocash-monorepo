@@ -25,6 +25,11 @@ import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountRes
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { mapReferralPointsToInviteRows, type ReferralInviteRow } from "@mobile/api/referralMapper";
 import { isReferralPointList } from "@mobile/api/referralTypes";
+import {
+  isReferralResourceBlocking,
+  resolveReferralInviteLink,
+} from "@mobile/auth/referralInviteUrl";
+import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import { haptics } from "@mobile/lib/haptics";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
@@ -38,7 +43,8 @@ import {
 import { WalletSkeleton } from "@mobile/components/Skeleton";
 import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { mobileShellLayout, profileInviteUrl, webReferralPage } from "@mobile/design/webDesignParity";
+import { mobileShellLayout, webReferralPage } from "@mobile/design/webDesignParity";
+import { getMobileEnv } from "@mobile/config/env";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -51,27 +57,42 @@ type SocialLink = (typeof webReferralPage.earn.socialLinks)[number];
 type SocialLinkId = SocialLink["id"];
 type FaqItem = (typeof webReferralPage.faq.items)[number];
 
+function resolveReferralSocialIconColor(link: SocialLink, colors: ThemeColors): string {
+  if (link.id === "x") {
+    return pickThemed(colors, link.color, colors.white);
+  }
+  return link.color;
+}
+
 export function CustomerReferralScreen() {
   const styles = useThemedStyles(createReferralScreenStyles);
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  const session = useMobileSessionSnapshot();
+  const mobileEnv = getMobileEnv();
+  const inviteLink = resolveReferralInviteLink({
+    frontendUrl: mobileEnv.frontendUrl,
+    userId: typeof session?._id === "string" ? session._id : null,
+    useFixtures: mobileEnv.accountDataSource === "fixtures",
+  });
   const referralResource = useCustomerAccountResource({
     fixtureData: webReferralPage,
     resourceId: "referral",
   });
-  const copyReferralLink = useCopyReferralLink();
+  const copyReferralLink = useCopyReferralLink(inviteLink.inviteUrl);
   // Live referral activity replaces the demo rows when the backend list
   // narrows; fixtures mode keeps the screen-local rows byte-identically.
-  const liveInviteRows = isReferralPointList(referralResource.data)
-    ? mapReferralPointsToInviteRows(referralResource.data)
-    : null;
+  const liveInviteRows: ReferralInviteRow[] | null =
+    referralResource.status === "empty"
+      ? []
+      : referralResource.status === "ready" && isReferralPointList(referralResource.data)
+        ? mapReferralPointsToInviteRows(referralResource.data)
+        : null;
 
-  if (referralResource.status !== "ready") {
+  if (isReferralResourceBlocking(referralResource.status)) {
     return (
       <CustomerAccountResourceState
-        emptyBody={tc("Invite friends to start building referral activity.")}
-        emptyTitle={tc("No referral activity yet")}
         loadingSkeleton={<WalletSkeleton />}
         resource={referralResource}
         resourceLabel="referral activity"
@@ -93,7 +114,13 @@ export function CustomerReferralScreen() {
             />
           }
         >
-          <ReferralEarnCard isDesktop={isDesktop} onCopyLink={copyReferralLink} />
+          <ReferralEarnCard
+            displayLink={inviteLink.displayLink}
+            inviteUrl={inviteLink.inviteUrl}
+            isDesktop={isDesktop}
+            onCopyLink={copyReferralLink}
+            referralCode={inviteLink.referralCode}
+          />
           <ReferralInvitationPanel liveRows={liveInviteRows} />
           <ReferralStepsSection />
           <ReferralFaqsSection />
@@ -109,11 +136,11 @@ export function CustomerReferralScreen() {
 // up to the walletTransactionsCopied catalog key → Thai "คัดลอกแล้ว"), so no new copy
 // is added. Returns a stable callback shared by the copy button and the Instagram
 // social action (which copies the link rather than opening a share sheet).
-function useCopyReferralLink(): () => void {
+function useCopyReferralLink(inviteUrl: string): () => void {
   const tc = useCopy();
   const toast = useToast();
   return () => {
-    void copyToClipboard(profileInviteUrl).then((copied) => {
+    void copyToClipboard(inviteUrl).then((copied) => {
       if (!copied) {
         return;
       }
@@ -148,18 +175,22 @@ function ReferralTopBar() {
 }
 
 function ReferralEarnCard({
+  displayLink,
+  inviteUrl,
   isDesktop,
   onCopyLink,
+  referralCode,
 }: {
+  displayLink: string;
+  inviteUrl: string;
   isDesktop: boolean;
   onCopyLink: () => void;
+  referralCode: string;
 }) {
   const styles = useThemedStyles(createReferralScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
   const [copied, setCopied] = useState(false);
-  // Referral code = the path segment of the (mock) invite URL — not invented.
-  const referralCode = (profileInviteUrl.split("/").pop() ?? "").toUpperCase();
   const handleCopy = () => {
     onCopyLink();
     setCopied(true);
@@ -204,7 +235,7 @@ function ReferralEarnCard({
               <Text numberOfLines={1} style={styles.copyLink}>
                 {copied
                   ? tc("Copied!")
-                  : `${tc(webReferralPage.earn.inviteLinkLabel)} : ${webReferralPage.earn.displayLink}`}
+                  : `${tc(webReferralPage.earn.inviteLinkLabel)} : ${displayLink}`}
               </Text>
               {copied ? (
                 <CheckIcon color={colors.white} size={24} strokeWidth={typography.iconStrokeWidth} />
@@ -244,7 +275,12 @@ function ReferralEarnCard({
           </Text>
           <View accessibilityRole="list" style={styles.socialRow}>
             {webReferralPage.earn.socialLinks.map((link) => (
-              <SocialIconButton key={link.id} link={link} onCopyLink={onCopyLink} />
+              <SocialIconButton
+                key={link.id}
+                inviteUrl={inviteUrl}
+                link={link}
+                onCopyLink={onCopyLink}
+              />
             ))}
           </View>
         </View>
@@ -257,8 +293,8 @@ function shareUrlEncoded(url: string): string {
   return encodeURIComponent(url);
 }
 
-function openReferralShare(kind: Exclude<SocialLinkId, "instagram">) {
-  const encodedUrl = shareUrlEncoded(profileInviteUrl);
+function openReferralShare(kind: Exclude<SocialLinkId, "instagram">, inviteUrl: string) {
+  const encodedUrl = shareUrlEncoded(inviteUrl);
   const urls = {
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
     linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
@@ -274,30 +310,40 @@ function openReferralShare(kind: Exclude<SocialLinkId, "instagram">) {
   void Linking.openURL(url);
 }
 
-function handleSocialPress(id: SocialLinkId, onCopyLink: () => void) {
+function handleSocialPress(id: SocialLinkId, inviteUrl: string, onCopyLink: () => void) {
   if (id === "instagram") {
     onCopyLink();
     return;
   }
 
-  openReferralShare(id);
+  openReferralShare(id, inviteUrl);
 }
 
-function SocialIconButton({ link, onCopyLink }: { link: SocialLink; onCopyLink: () => void }) {
+function SocialIconButton({
+  inviteUrl,
+  link,
+  onCopyLink,
+}: {
+  inviteUrl: string;
+  link: SocialLink;
+  onCopyLink: () => void;
+}) {
   const styles = useThemedStyles(createReferralScreenStyles);
+  const { colors } = useTheme();
+  const iconColor = resolveReferralSocialIconColor(link, colors);
   return (
     <MotionPressable
       accessibilityLabel={link.label}
       accessibilityRole="button"
       hitSlop={8}
-      onPress={() => handleSocialPress(link.id, onCopyLink)}
+      onPress={() => handleSocialPress(link.id, inviteUrl, onCopyLink)}
       pressScale={0.92}
       style={styles.socialButton}
     >
-      {link.id === "facebook" ? <FacebookBrandIcon color={link.color} size={24} /> : null}
-      {link.id === "linkedin" ? <LinkedInBrandIcon color={link.color} size={24} /> : null}
-      {link.id === "instagram" ? <InstagramBrandIcon color={link.color} size={24} /> : null}
-      {link.id === "x" ? <XBrandIcon color={link.color} size={24} /> : null}
+      {link.id === "facebook" ? <FacebookBrandIcon color={iconColor} size={24} /> : null}
+      {link.id === "linkedin" ? <LinkedInBrandIcon color={iconColor} size={24} /> : null}
+      {link.id === "instagram" ? <InstagramBrandIcon color={iconColor} size={24} /> : null}
+      {link.id === "x" ? <XBrandIcon color={iconColor} size={24} /> : null}
     </MotionPressable>
   );
 }
@@ -375,6 +421,7 @@ function ReferralInvitationTable({
   const rows = category
     ? sourceRows.filter((row) => row.category === category)
     : sourceRows;
+  const showEmptyInvites = liveRows !== null && rows.length === 0;
   return (
     <View style={styles.tableCard}>
       <View style={styles.tableHeader}>
@@ -384,18 +431,25 @@ function ReferralInvitationTable({
           </Text>
         ))}
       </View>
-      {rows.map((row) => (
-        <View key={`${row.date}-${row.user}`} style={styles.tableRow}>
-          <Text style={styles.tableCell}>{row.date}</Text>
-          <Text style={styles.tableCell}>{row.user}</Text>
-          <Text style={styles.tableCell}>{row.point}</Text>
-          <View style={styles.tableCell}>
-            <View style={styles.invitationStatusPill}>
-              <Text style={styles.invitationStatusPillText}>{tc(row.status)}</Text>
+      {showEmptyInvites ? (
+        <View style={styles.tableEmptyState}>
+          <Text style={styles.tableEmptyTitle}>{tc("referralEmptyInvitesTitle")}</Text>
+          <Text style={styles.tableEmptySubtitle}>{tc("referralEmptyInvitesSubtitle")}</Text>
+        </View>
+      ) : (
+        rows.map((row) => (
+          <View key={`${row.date}-${row.user}`} style={styles.tableRow}>
+            <Text style={styles.tableCell}>{row.date}</Text>
+            <Text style={styles.tableCell}>{row.user}</Text>
+            <Text style={styles.tableCell}>{row.point}</Text>
+            <View style={styles.tableCell}>
+              <View style={styles.invitationStatusPill}>
+                <Text style={styles.invitationStatusPillText}>{tc(row.status)}</Text>
+              </View>
             </View>
           </View>
-        </View>
-      ))}
+        ))
+      )}
     </View>
   );
 }
@@ -455,6 +509,7 @@ function ReferralFaqItem({
   onPress: () => void;
 }) {
   const styles = useThemedStyles(createReferralScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.faqCard}>
@@ -464,7 +519,7 @@ function ReferralFaqItem({
           <Text style={styles.faqQuestion}>{tc(item.question)}</Text>
         </View>
         <ChevronDownIcon
-          color="#3B3B3B"
+          color={colors.ink}
           size={20}
           strokeWidth={typography.iconStrokeWidth}
           style={expanded ? styles.faqChevronExpanded : null}
@@ -578,7 +633,7 @@ function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: Explor
           style={styles.exploreFavoriteButton}
         >
           <HeartIcon
-            color={isFavorite ? colors.primary : "#686868"}
+            color={isFavorite ? colors.primary : colors.muted}
             fill={isFavorite ? colors.primary : undefined}
             size={22}
             strokeWidth={isFavorite ? 0 : typography.iconStrokeWidth}
@@ -611,7 +666,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   },
   topBar: {
     alignItems: "center",
-    borderBottomColor: "rgba(16, 53, 34, 0.12)",
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
     gap: spacing.md,
@@ -680,7 +735,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     lineHeight: 40,
   },
   earnSubtitle: {
-    color: "#007D5E",
+    color: colors.accentSoft,
     fontFamily: typography.family,
     fontSize: 21,
     fontWeight: "600",
@@ -732,7 +787,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     marginTop: 14,
   },
   codeLabel: {
-    color: "#6F7E91",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "400",
@@ -740,7 +795,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   codeChip: {
     alignItems: "center",
     backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
-    borderColor: "rgba(0, 170, 128, 0.28)",
+    borderColor: pickThemed(colors, "rgba(0, 170, 128, 0.28)", colors.border),
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: "row",
@@ -794,7 +849,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     gap: 22,
   },
   invitationTitle: {
-    color: "#3A4B61",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 32,
     fontWeight: "700",
@@ -823,7 +878,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   },
   tabButtonActive: {
     backgroundColor: colors.card,
-    borderBottomColor: "#00CC99",
+    borderBottomColor: colors.primary,
   },
   tabButtonInactive: {
     backgroundColor: colors.fieldMuted,
@@ -836,7 +891,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     textAlign: "center",
   },
   tabTextActive: {
-    color: "#00B89D",
+    color: colors.primary,
   },
   tabTextInactive: {
     color: colors.muted,
@@ -849,13 +904,13 @@ function createReferralScreenStyles(colors: ThemeColors) {
     overflow: "hidden",
   },
   tableHeader: {
-    backgroundColor: "rgba(246,246,246,0.42)",
+    backgroundColor: colors.fieldMuted,
     flexDirection: "row",
     paddingHorizontal: 22,
     paddingVertical: 24,
   },
   tableHeaderText: {
-    color: "#2F4055",
+    color: colors.muted,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 18,
@@ -863,14 +918,14 @@ function createReferralScreenStyles(colors: ThemeColors) {
     lineHeight: 24,
   },
   tableRow: {
-    borderTopColor: "rgba(184, 212, 239, 0.55)",
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: "row",
     paddingHorizontal: 22,
     paddingVertical: 28,
   },
   tableCell: {
-    color: "#3A4B61",
+    color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 18,
@@ -878,6 +933,27 @@ function createReferralScreenStyles(colors: ThemeColors) {
   },
   tableCellRight: {
     textAlign: "right",
+  },
+  tableEmptyState: {
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+  },
+  tableEmptyTitle: {
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: typography.body,
+    fontWeight: typography.titleWeight,
+    lineHeight: typography.bodyLineHeight,
+    textAlign: "center",
+  },
+  tableEmptySubtitle: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: typography.label,
+    lineHeight: typography.labelLineHeight,
+    textAlign: "center",
   },
   invitationStatusPill: {
     alignSelf: "flex-start",
@@ -887,7 +963,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     paddingVertical: 4,
   },
   invitationStatusPillText: {
-    color: "#00B14F",
+    color: pickThemed(colors, "#00B14F", colors.primary),
     fontFamily: typography.family,
     fontSize: typography.label,
     fontWeight: typography.labelWeight,
@@ -908,7 +984,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     fontSize: 15,
   },
   rewardPillText: {
-    color: "#00875A",
+    color: pickThemed(colors, "#00875A", colors.accentSoft),
     fontFamily: typography.family,
     fontSize: 14,
     fontWeight: "400",
@@ -924,7 +1000,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     letterSpacing: 0.3,
   },
   stepsTitle: {
-    color: "#3A4B61",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 22,
     fontWeight: "700",
@@ -954,13 +1030,13 @@ function createReferralScreenStyles(colors: ThemeColors) {
     width: 36,
   },
   stepNumberText: {
-    color: "#00875A",
+    color: pickThemed(colors, "#00875A", colors.accentSoft),
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: "800",
   },
   stepCardText: {
-    color: "#3A4B61",
+    color: colors.ink,
     flex: 1,
     fontFamily: typography.family,
     fontSize: 15,
@@ -981,7 +1057,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   },
   faqCard: {
     backgroundColor: colors.card,
-    borderColor: "#B7E7DB",
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
@@ -1145,7 +1221,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
     lineHeight: 18,
   },
   exploreCashbackValue: {
-    color: "#00CC99",
+    color: colors.primary,
     flexShrink: 0,
     fontFamily: typography.family,
     fontSize: 18,

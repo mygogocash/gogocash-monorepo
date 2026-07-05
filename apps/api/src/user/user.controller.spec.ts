@@ -1,7 +1,8 @@
 import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { Types } from 'mongoose';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
@@ -13,6 +14,8 @@ describe('UserController', () => {
     updateProfile: jest.fn().mockResolvedValue({}),
     update: jest.fn().mockResolvedValue({}),
     findOne: jest.fn(),
+    uploadProfileAvatar: jest.fn(),
+    streamProfileAvatar: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -78,6 +81,77 @@ describe('UserController', () => {
         .calls[0][0] as Types.ObjectId;
       expect(calledId.toString()).toBe(selfId.toString());
       expect(calledId.toString()).not.toBe('0123456789abcdef01234567');
+    });
+  });
+
+  describe('POST /user/profile/avatar', () => {
+    it('uploadProfileAvatar > given a non-image file > then rejects with BadRequestException', async () => {
+      const req = {
+        user: { sub: new Types.ObjectId().toString() },
+      } as unknown as Request;
+
+      await expect(
+        controller.uploadProfileAvatar(req, {
+          mimetype: 'application/pdf',
+        } as Express.Multer.File),
+      ).rejects.toThrow(BadRequestException);
+      expect(userService.uploadProfileAvatar).not.toHaveBeenCalled();
+    });
+
+    it('uploadProfileAvatar > given an image file > then returns avatar_url from the service', async () => {
+      const id = new Types.ObjectId();
+      const req = { user: { sub: id.toString() } } as unknown as Request;
+      userService.uploadProfileAvatar.mockResolvedValue({
+        avatar_url: 'local-media:avatar.jpg',
+      });
+
+      await expect(
+        controller.uploadProfileAvatar(req, {
+          mimetype: 'image/jpeg',
+        } as Express.Multer.File),
+      ).resolves.toEqual({ avatar_url: 'local-media:avatar.jpg' });
+
+      expect(userService.uploadProfileAvatar).toHaveBeenCalledWith(
+        expect.any(Types.ObjectId),
+        expect.objectContaining({ mimetype: 'image/jpeg' }),
+      );
+    });
+  });
+
+  describe('GET /user/profile/avatar/stream', () => {
+    it('streamProfileAvatar > given empty ref > then rejects with BadRequestException', async () => {
+      const req = {
+        user: { sub: new Types.ObjectId().toString() },
+      } as unknown as Request;
+      const res = { setHeader: jest.fn() } as unknown as Response;
+
+      await expect(
+        controller.streamProfileAvatar(req, '', res),
+      ).rejects.toThrow(BadRequestException);
+      expect(userService.streamProfileAvatar).not.toHaveBeenCalled();
+    });
+
+    it('streamProfileAvatar > given a stored ref > then pipes the stream with content type', async () => {
+      const id = new Types.ObjectId();
+      const req = { user: { sub: id.toString() } } as unknown as Request;
+      const pipe = jest.fn();
+      userService.streamProfileAvatar.mockResolvedValue({
+        contentType: 'image/png',
+        stream: { pipe },
+      });
+
+      const res = {
+        setHeader: jest.fn(),
+      } as unknown as Response;
+
+      await controller.streamProfileAvatar(req, 'local-media:avatar.png', res);
+
+      expect(userService.streamProfileAvatar).toHaveBeenCalledWith(
+        expect.any(Types.ObjectId),
+        'local-media:avatar.png',
+      );
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'image/png');
+      expect(pipe).toHaveBeenCalledWith(res);
     });
   });
 });

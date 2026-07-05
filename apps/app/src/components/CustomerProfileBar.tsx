@@ -1,23 +1,18 @@
-import { Image } from "expo-image";
 import { StyleSheet, Text, View, type ViewStyle } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 import type { MobileSession } from "@mobile/auth/session";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
 import { GoGoPassMark } from "@mobile/components/GoGoPassMark";
+import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
 import { webProfileWalletSummary } from "@mobile/design/webDesignParity";
+import { isGoGoPassSubscriber, readMembershipTier } from "@mobile/lib/membershipTier";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { typography } from "@mobile/theme/tokens";
 
-import profileAvatarImage from "../../assets/profile-avatar.png";
-
 const AVATAR_SIZE = 34;
-
-function isPremiumTier(tier?: string): boolean {
-  return tier === "gogopass" || tier === "gogopass-pro";
-}
 
 // Flat 16x9 chevron — parity with the web `ArrowIcon`. Points down; rotates 180°
 // (to point up) while the account popover is open, mirroring `rotate-180`.
@@ -58,10 +53,7 @@ export function CustomerProfileBar({ open, session }: { open?: boolean; session:
     typeof session.wallet === "string" && session.wallet
       ? session.wallet
       : webProfileWalletSummary.amount;
-  const tier =
-    typeof session.membership_tier === "string" && session.membership_tier
-      ? session.membership_tier
-      : webProfileWalletSummary.membershipTier;
+  const tier = readMembershipTier(session.membership_tier);
   const avatarUrl =
     typeof session.avatar_url === "string" && session.avatar_url.trim()
       ? session.avatar_url.trim()
@@ -70,16 +62,15 @@ export function CustomerProfileBar({ open, session }: { open?: boolean; session:
     typeof session.region === "string" && session.region && session.region !== "Thailand"
       ? "USD"
       : webProfileWalletSummary.currency;
-  const premium = isPremiumTier(tier);
+  const premium = isGoGoPassSubscriber(tier);
 
   return (
     <View style={[styles.panel, colors.isDark ? null : softPanelGradient]}>
       <GoGoPassAvatar ringWidth={2} size={AVATAR_SIZE} tier={tier}>
-        <Image
+        <ProfileAvatarImage
           accessibilityLabel="Avatar"
-          cachePolicy="memory-disk"
-          contentFit="cover"
-          source={avatarUrl ? { uri: avatarUrl } : profileAvatarImage}
+          avatarUrl={avatarUrl}
+          size={AVATAR_SIZE}
           style={styles.avatarImage}
         />
       </GoGoPassAvatar>

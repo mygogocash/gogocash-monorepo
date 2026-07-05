@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { createHmac } from 'crypto';
 
 import { normalizeSlugSegment } from 'src/common/mongo-query';
+import { buildR2PublicUrl } from 'src/media/stored-media.util';
 
 import { CreateMediaUploadDto } from './dto/catalog.dto';
 
@@ -13,10 +14,14 @@ export class CatalogMediaService {
       throw new BadRequestException('Invalid media filename');
     }
 
-    const bucket = process.env.GCS_CATALOG_BUCKET || 'gogocash-catalog-staging';
-    const publicBaseUrl =
-      process.env.GCS_CATALOG_PUBLIC_BASE_URL ||
-      `https://storage.googleapis.com/${bucket}`;
+    const bucket = process.env.R2_BUCKET?.trim();
+    const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL?.trim();
+    if (!bucket || !publicBaseUrl) {
+      throw new BadRequestException(
+        'Catalog media uploads require R2_BUCKET and R2_PUBLIC_BASE_URL',
+      );
+    }
+
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     const key = `catalog/${dto.folder}/${Date.now()}-${safeName}`;
     const signature = this.signUpload(
@@ -30,11 +35,10 @@ export class CatalogMediaService {
       bucket,
       key,
       method: 'PUT',
-      upload_url: `${publicBaseUrl}/${key}?signature=${signature}`,
-      public_url: `${publicBaseUrl}/${key}`,
+      upload_url: `${buildR2PublicUrl(publicBaseUrl, key)}?signature=${signature}`,
+      public_url: buildR2PublicUrl(publicBaseUrl, key),
       headers: {
         'content-type': dto.content_type,
-        'x-goog-content-length-range': `1,${dto.size_bytes}`,
       },
       expires_at: expiresAt.toISOString(),
     };
@@ -47,7 +51,8 @@ export class CatalogMediaService {
     expiresAt: Date,
   ): string {
     const secret =
-      process.env.GCS_CATALOG_UPLOAD_SIGNING_SECRET ||
+      process.env.MEDIA_UPLOAD_SIGNING_SECRET?.trim() ||
+      process.env.GCS_CATALOG_UPLOAD_SIGNING_SECRET?.trim() ||
       process.env.JWT_SECRET ||
       'local-catalog-media';
     return createHmac('sha256', secret)

@@ -4,7 +4,7 @@ import {
   ChevronUp as ChevronUpIcon,
   Search as SearchIcon,
 } from "@mobile/theme/icons";
-import { Animated, ScrollView, TextInput, useWindowDimensions, View } from "react-native";
+import { Animated, RefreshControl, ScrollView, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
@@ -21,8 +21,9 @@ import { IntroAfterLoginModal } from "@mobile/components/IntroAfterLoginModal";
 import { CustomerLineOfficialFab } from "@mobile/components/CustomerLineOfficialFab";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
-import { resolveHomePromoSections } from "@mobile/account/brandCatalogResource";
+import { resolveHomePromoSections, resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { usePublicCatalogPullToRefresh } from "@mobile/account/usePublicCatalogPullToRefresh";
 import {
   getDesktopShellOffset,
   getResponsiveHomeLayoutMetrics,
@@ -32,6 +33,7 @@ import {
   webHomeSectionOrder,
 } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { normalizeSearchQuery } from "@mobile/search/searchHistoryCore";
 import { getThemeSurfaces } from "@mobile/theme/themeSurfaces";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -64,6 +66,7 @@ export function CustomerHomeScreen() {
   const reducedMotion = useReducedMotion();
   const goLinkToggleProgress = useRef(new Animated.Value(0)).current;
   const tc = useCopy();
+  const { region } = useLocale();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -79,10 +82,23 @@ export function CustomerHomeScreen() {
     fixtureData: webHomePromoSections,
     resourceId: "brandCatalog",
   });
+  const { onRefresh: onPullToRefresh, refreshing } = usePublicCatalogPullToRefresh();
+  const homeRefreshControl = (
+    <RefreshControl
+      onRefresh={onPullToRefresh}
+      refreshing={refreshing}
+      tintColor={colors.primaryDark}
+    />
+  );
   const promoSections = resolveHomePromoSections(
     brandCatalogResource.source,
     brandCatalogResource.data,
-    webHomePromoSections
+    webHomePromoSections,
+    region,
+  );
+  const liveCards = useMemo(
+    () => resolveLiveBrandCards(brandCatalogResource.source, brandCatalogResource.data, [], region),
+    [brandCatalogResource.source, brandCatalogResource.data, region],
   );
   const searchTopPadding = Math.max(8, insets.top + 8);
   const searchPopoverTop = searchTopPadding + 62;
@@ -166,6 +182,7 @@ export function CustomerHomeScreen() {
                   paddingTop: mobileShellLayout.desktopHomeTopGap,
                 },
               ]}
+              refreshControl={homeRefreshControl}
               showsVerticalScrollIndicator={false}
             >
               <View
@@ -192,6 +209,7 @@ export function CustomerHomeScreen() {
           {searchPopoverMounted ? (
             <HomeSearchPopularPopover
               horizontalPadding={homeLayout.contentHorizontalPadding}
+              liveCards={liveCards}
               onClose={closeSearchPopover}
               onExited={handleSearchPopoverExited}
               onSelectRecent={(term) => setSearchQuery(term)}
@@ -232,6 +250,7 @@ export function CustomerHomeScreen() {
           <ScrollView
             style={styles.mobileTabletPageScroll}
             contentContainerStyle={styles.mobileTabletPageScrollContent}
+            refreshControl={homeRefreshControl}
             showsVerticalScrollIndicator={false}
           >
             <MobileTabletHomeHeader

@@ -5,10 +5,20 @@ import {
   isLegacyGoogleDriveFileId,
   parseGcsPublicUrl,
   parseLocalMediaRef,
+  rewriteGcsPublicUrlToR2,
 } from './stored-media.util';
 
 describe('stored-media.util', () => {
   describe('parseGcsPublicUrl', () => {
+    it('rewriteGcsPublicUrlToR2 > given gcs url > then returns r2 url with same object key', () => {
+      expect(
+        rewriteGcsPublicUrlToR2(
+          'https://storage.googleapis.com/gogocash-catalog-staging/brands/123-logo.png',
+          'https://media-staging.gogocash.co',
+        ),
+      ).toBe('https://media-staging.gogocash.co/brands/123-logo.png');
+    });
+
     it('parseGcsPublicUrl > given storage.googleapis.com URL > then returns bucket and object key', () => {
       expect(
         parseGcsPublicUrl(

@@ -16,15 +16,30 @@ describe("useGoGoTrackTimeline (render)", () => {
 
     const { result } = renderHook(() => useGoGoTrackTimeline(api));
 
-    await waitFor(() => expect(result.current).not.toBeNull());
-    expect(result.current).toEqual([
-      { id: "d1", title: "Shopee", body: "2026-05-23", status: "Matched" },
-    ]);
+    await waitFor(() => expect(result.current.kind).toBe("ready"));
+    if (result.current.kind === "ready") {
+      expect(result.current.entries).toEqual([
+        { id: "d1", title: "Shopee", body: "2026-05-23", status: "Matched" },
+      ]);
+    }
   });
 
-  it("returns null off-device (no api) so the screen keeps its static fallback", () => {
+  it("returns idle off-device (no api)", () => {
     const { result } = renderHook(() => useGoGoTrackTimeline(null));
 
-    expect(result.current).toBeNull();
+    expect(result.current).toEqual({ kind: "idle" });
+  });
+
+  it("returns ready with empty entries when api returns no detections", async () => {
+    const api = {
+      getTimeline: vi.fn(async () => ({ detections: [], activations: [] })),
+    };
+
+    const { result } = renderHook(() => useGoGoTrackTimeline(api));
+
+    await waitFor(() => expect(result.current.kind).toBe("ready"));
+    if (result.current.kind === "ready") {
+      expect(result.current.entries).toEqual([]);
+    }
   });
 });
