@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
-import { type ComponentType } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { type ComponentType, useState } from "react";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   CircleUserRound as ProfileIcon,
   Home as HomeIcon,
@@ -15,6 +15,7 @@ import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { mobileShellLayout, webMobileBottomNavItems } from "@mobile/design/webDesignParity";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { CustomerGoLinkScreen } from "@mobile/screens/CustomerGoLinkScreen";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { getThemeSurfaces } from "@mobile/theme/themeSurfaces";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -41,20 +42,33 @@ const protectedBottomNavHrefs = new Set(["/profile", "/wallet"]);
 export function CustomerMobileBottomNav({
   activeRouteId,
   bottomInset,
+  onGoLinkPress,
 }: {
   activeRouteId?: BottomNavRouteId;
   bottomInset: number;
+  /** When set, GoGoLink opens as a sheet overlay instead of navigating to `/golink`. */
+  onGoLinkPress?: () => void;
 }) {
   const tc = useCopy();
   const router = useRouter();
   const session = useMobileSessionSnapshot();
   const { isAuthed, ready } = useAuthGuardSession();
+  const [goLinkSheetOpen, setGoLinkSheetOpen] = useState(false);
   const { colors, resolved } = useTheme();
   const surfaces = getThemeSurfaces(colors, resolved);
   const styles = useThemedStyles(createBottomNavStyles);
 
   function handleBottomNavPress(href: string) {
     if (!ready) {
+      return;
+    }
+
+    if (href === "/golink") {
+      if (onGoLinkPress) {
+        onGoLinkPress();
+      } else {
+        setGoLinkSheetOpen(true);
+      }
       return;
     }
 
@@ -67,6 +81,7 @@ export function CustomerMobileBottomNav({
   }
 
   return (
+    <>
     <View
       style={[
         styles.bottomNavWrap,
@@ -128,6 +143,15 @@ export function CustomerMobileBottomNav({
         })}
       </View>
     </View>
+      {goLinkSheetOpen ? (
+        <Modal animationType="none" statusBarTranslucent transparent visible>
+          <CustomerGoLinkScreen
+            onClose={() => setGoLinkSheetOpen(false)}
+            presentation="homeSheet"
+          />
+        </Modal>
+      ) : null}
+    </>
   );
 }
 

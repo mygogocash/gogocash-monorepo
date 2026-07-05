@@ -38,6 +38,7 @@ import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
+import { CustomerGoLinkScreen } from "@mobile/screens/CustomerGoLinkScreen";
 import {
   getAccountShellFrameMetrics,
   getDesktopShellOffset,
@@ -86,6 +87,7 @@ export function AccountPageShell({
   const styles = useAccountPageShellStyles();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const [goLinkSheetOpen, setGoLinkSheetOpen] = useState(false);
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const showBottomNav = !isDesktop;
   const pathname = normalizePathname(usePathname() ?? "/");
@@ -200,8 +202,18 @@ export function AccountPageShell({
             </View>
           ) : null}
         </ScrollView>
+        {goLinkSheetOpen ? (
+          <CustomerGoLinkScreen
+            onClose={() => setGoLinkSheetOpen(false)}
+            presentation="homeSheet"
+          />
+        ) : null}
         {showBottomNav ? (
-          <CustomerMobileBottomNav activeRouteId={activeRouteId} bottomInset={insets.bottom} />
+          <CustomerMobileBottomNav
+            activeRouteId={activeRouteId}
+            bottomInset={insets.bottom}
+            onGoLinkPress={() => setGoLinkSheetOpen(true)}
+          />
         ) : null}
       </View>
     </View>
