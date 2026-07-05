@@ -147,6 +147,27 @@ describe("top-brands config", () => {
   });
 });
 
+describe("offer admin search", () => {
+  it("findAll > given search Shopee > then returns Shopee mock offers", async () => {
+    const res = await call("GET", ["offer", "admin"], {
+      query: { search: "Shopee", limit: "10", page: "1" },
+    });
+    expect(res.status).toBe(200);
+    const body = res.body as {
+      data: Array<{ offer_name_display?: string; offer_name: string }>;
+      total: number;
+    };
+    expect(body.total).toBeGreaterThan(0);
+    expect(
+      body.data.some(
+        (offer) =>
+          offer.offer_name_display === "Shopee" ||
+          offer.offer_name.toLowerCase().includes("shopee"),
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("quest task management", () => {
   it("round-trips task saves and mirrors extra_point to mock offers", async () => {
     const list = await call("GET", ["point", "admin-get-quest"]);

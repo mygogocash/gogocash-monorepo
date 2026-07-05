@@ -122,7 +122,9 @@ export function QuestTaskBrandSelect({
           {...params}
           placeholder="Search active brands…"
           slotProps={{
+            ...params.slotProps,
             htmlInput: {
+              ...params.slotProps?.htmlInput,
               "aria-label": "Brand",
             },
           }}

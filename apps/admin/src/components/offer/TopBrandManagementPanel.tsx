@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState, type DragEvent } from "react";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -199,6 +199,7 @@ export default function TopBrandManagementPanel() {
   } = useQuery({
     queryKey: offersListQueryKey(pickerQuery),
     queryFn: () => fetchOffersList(pickerQuery),
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
@@ -235,6 +236,27 @@ export default function TopBrandManagementPanel() {
     const inListIds = new Set(localOrder);
     return (offersPick?.data ?? []).filter((offer) => !inListIds.has(offer._id));
   }, [offersPick?.data, localOrder]);
+
+  const hiddenPickerMatches = useMemo(() => {
+    const inListIds = new Set(localOrder);
+    return (offersPick?.data ?? []).filter((offer) => inListIds.has(offer._id));
+  }, [offersPick?.data, localOrder]);
+
+  const pickerNoOptionsText = useMemo(() => {
+    if (offersPickLoading) return "Loading offers…";
+    if (offersPickError) return "Could not load offers";
+    if (hiddenPickerMatches.length > 0 && pickerSearch.trim()) {
+      const noun =
+        hiddenPickerMatches.length === 1 ? "offer is" : "offers are";
+      return `${hiddenPickerMatches.length} matching ${noun} already in the homepage list below`;
+    }
+    return "No matching offers found";
+  }, [
+    hiddenPickerMatches.length,
+    offersPickError,
+    offersPickLoading,
+    pickerSearch,
+  ]);
 
   const dirty =
     !ordersEqual(localOrder, serverOrder) ||
@@ -420,16 +442,9 @@ export default function TopBrandManagementPanel() {
             }
             getOptionKey={(offer) => offer._id}
             isOptionEqualToValue={(left, right) => left._id === right._id}
-            noOptionsText={
-              offersPickLoading
-                ? "Loading offers…"
-                : offersPickError
-                  ? "Could not load offers"
-                  : "No matching offers found"
-            }
+            noOptionsText={pickerNoOptionsText}
             slotProps={{
               popper: {
-                disablePortal: true,
                 sx: { zIndex: BRAND_AUTOCOMPLETE_POPPER_Z },
               },
             }}
@@ -439,7 +454,9 @@ export default function TopBrandManagementPanel() {
                 {...params}
                 placeholder="Search offers to add…"
                 slotProps={{
+                  ...params.slotProps,
                   htmlInput: {
+                    ...params.slotProps?.htmlInput,
                     "aria-label": "Search offers to add",
                   },
                 }}
@@ -460,8 +477,9 @@ export default function TopBrandManagementPanel() {
               );
             }}
             onInputChange={(_event, value, reason) => {
-              if (reason === "input") setPickerSearch(value);
-              if (reason === "clear") setPickerSearch("");
+              if (reason === "input" || reason === "clear" || reason === "reset") {
+                setPickerSearch(value);
+              }
             }}
             onChange={(_event, offer) => {
               if (!offer) return;
@@ -470,6 +488,14 @@ export default function TopBrandManagementPanel() {
             }}
           />
         </div>
+        {hiddenPickerMatches.length > 0 && pickerSearch.trim() ? (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            {hiddenPickerMatches.length} matching offer
+            {hiddenPickerMatches.length === 1 ? "" : "s"} already in the
+            homepage list below. Remove one from the list to re-add a different
+            variant, or search by country / offer id.
+          </p>
+        ) : null}
         {offersPickError ? (
           <p className="mt-2 text-xs text-red-700 dark:text-red-300">
             {getApiErrorMessage(

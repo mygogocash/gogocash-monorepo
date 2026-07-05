@@ -250,6 +250,64 @@ describe("TopBrandManagementPanel", () => {
     expect(cashbackInput).toHaveValue("5.6%");
   });
 
+  it("given typed search text > when fetch returns Shopee > then requests include the search term", async () => {
+    const user = userEvent.setup();
+    apiClientMock.getTopBrands.mockResolvedValue({
+      brands: [],
+      items: [],
+      order: [],
+    });
+    fetchOffersListMock.mockResolvedValue({
+      data: [shopeeOffer],
+      limit: 100,
+      page: 1,
+      total: 1,
+      totalPages: 1,
+    });
+
+    renderPanel();
+
+    await screen.findByRole("heading", { name: "Homepage top brands" });
+    await user.type(
+      screen.getByRole("textbox", { name: "Search offers to add" }),
+      "Shopee",
+    );
+
+    await waitFor(() => {
+      expect(fetchOffersListMock).toHaveBeenCalledWith(
+        expect.objectContaining({ search: "Shopee" }),
+      );
+    });
+  });
+
+  it("given matching offers already listed > then shows already-in-list helper text", async () => {
+    const user = userEvent.setup();
+    apiClientMock.getTopBrands.mockResolvedValue({
+      brands: [{ offerId: "o-shopee", cashback: "5.6%" }],
+      items: [shopeeOffer],
+      order: ["o-shopee"],
+    });
+    fetchOffersListMock.mockResolvedValue({
+      data: [shopeeOffer],
+      limit: 100,
+      page: 1,
+      total: 1,
+      totalPages: 1,
+    });
+
+    renderPanel();
+
+    await screen.findByRole("heading", { name: "Homepage top brands" });
+    await user.type(
+      screen.getByRole("textbox", { name: "Search offers to add" }),
+      "Shopee",
+    );
+
+    expect(
+      await screen.findByText(/already in the homepage list below/i),
+    ).toBeInTheDocument();
+  });
+
   it("given a same-name variant not yet listed > then still appears in the picker", async () => {
     const user = userEvent.setup();
     fetchOffersListMock.mockResolvedValue({
