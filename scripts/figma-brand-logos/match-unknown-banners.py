@@ -28,6 +28,9 @@ VALIDATED = {
     "unknown_15_1458": "geekbuying",
 }
 
+# Hard-pinned before Hungarian assignment (validated ground truth)
+PINNED = dict(VALIDATED)
+
 
 def load_gray(path: Path) -> np.ndarray | None:
     img = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
@@ -40,34 +43,41 @@ def load_gray(path: Path) -> np.ndarray | None:
     return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 
-def orb_match_count(banner_path: Path, ref_path: Path) -> int:
-    banner = load_gray(banner_path)
-    ref = load_gray(ref_path)
-    if banner is None or ref is None:
-        return 0
+def compute_descriptors(path: Path) -> np.ndarray | None:
+    gray = load_gray(path)
+    if gray is None:
+        return None
     orb = cv2.ORB_create(ORB_FEATURES)
-    _, des_ref = orb.detectAndCompute(ref, None)
-    _, des_banner = orb.detectAndCompute(banner, None)
-    if des_ref is None or des_banner is None:
+    _, des = orb.detectAndCompute(gray, None)
+    return des
+
+
+def match_count(des_a: np.ndarray | None, des_b: np.ndarray | None) -> int:
+    if des_a is None or des_b is None or len(des_a) == 0 or len(des_b) == 0:
         return 0
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-    return len(bf.match(des_ref, des_banner))
+    return len(bf.match(des_a, des_b))
 
 
-def build_references() -> dict[str, list[Path]]:
-    refs: dict[str, list[Path]] = {}
+def build_reference_descriptors() -> dict[str, list[np.ndarray]]:
+    refs: dict[str, list[np.ndarray]] = {}
     for slug_dir in sorted(BRAND_LOGOS.iterdir()):
         if not slug_dir.is_dir() or slug_dir.name.startswith("unknown_"):
             continue
-        paths = [slug_dir / cat / "logo.png" for cat in REF_CATEGORIES]
-        paths = [p for p in paths if p.is_file()]
-        if paths:
-            refs[slug_dir.name] = paths
+        descs: list[np.ndarray] = []
+        for cat in REF_CATEGORIES:
+            logo = slug_dir / cat / "logo.png"
+            if logo.is_file():
+                des = compute_descriptors(logo)
+                if des is not None:
+                    descs.append(des)
+        if descs:
+            refs[slug_dir.name] = descs
     return refs
 
 
-def score_banner_vs_slug(banner_path: Path, ref_paths: list[Path]) -> int:
-    return max(orb_match_count(banner_path, ref) for ref in ref_paths)
+def score_vs_slug(banner_des: np.ndarray | None, ref_descs: list[np.ndarray]) -> int:
+    return max(match_count(banner_des, rd) for rd in ref_descs)
 
 
 def list_unknown_banners() -> list[tuple[str, Path]]:
@@ -84,16 +94,12 @@ def list_unknown_banners() -> list[tuple[str, Path]]:
 def optimal_assign(
     unknown_ids: list[str], slugs: list[str], scores: list[list[int]]
 ) -> dict[str, tuple[str, int]]:
-    """Maximize total ORB matches via Hungarian algorithm (minimize negative scores)."""
     from scipy.optimize import linear_sum_assignment
 
-    cost = np.array(scores, dtype=float)
-    cost = cost.max() - cost  # invert for maximization
+    arr = np.array(scores, dtype=float)
+    cost = arr.max() - arr
     row_ind, col_ind = linear_sum_assignment(cost)
-    return {
-        unknown_ids[r]: (slugs[c], scores[r][c])
-        for r, c in zip(row_ind, col_ind)
-    }
+    return {unknown_ids[r]: (slugs[c], scores[r][c]) for r, c in zip(row_ind, col_ind)}
 
 
 def load_brand_name(slug: str, manifest: list[dict]) -> str:
@@ -110,6 +116,8 @@ def apply_moves(
     assignments: dict[str, tuple[str, int]],
     manifest: list[dict],
     entries: list[dict],
+    ref_descs: dict[str, list[np.ndarray]],
+    banner_descs: dict[str, np.ndarray | None],
     dry_run: bool,
 ) -> dict:
     report: dict = {
@@ -124,29 +132,18 @@ def apply_moves(
         src_dir = BRAND_LOGOS / unknown_slug
         src_logo = src_dir / "shop-page-banner" / "logo.png"
         dest_dir = BRAND_LOGOS / target_slug / "shop-page-banner"
-        dest_logo = dest_dir / "shop-page-banner/logo.png" if False else dest_dir / "logo.png"
+        dest_logo = dest_dir / "logo.png"
         brand_name = load_brand_name(target_slug, manifest)
 
         if dest_logo.exists():
-            existing_score = score_banner_vs_slug(src_logo, build_references().get(target_slug, []))
             report["skipped_existing"].append(
-                {
-                    "unknown": unknown_slug,
-                    "slug": target_slug,
-                    "score": score,
-                    "existing_at": str(dest_logo.relative_to(REPO_ROOT)),
-                }
+                {"unknown": unknown_slug, "slug": target_slug, "score": score}
             )
             if not dry_run:
                 shutil.rmtree(src_dir, ignore_errors=True)
         else:
             report["moved"].append(
-                {
-                    "unknown": unknown_slug,
-                    "slug": target_slug,
-                    "score": score,
-                    "brand": brand_name,
-                }
+                {"unknown": unknown_slug, "slug": target_slug, "score": score, "brand": brand_name}
             )
             if not dry_run:
                 dest_dir.mkdir(parents=True, exist_ok=True)
@@ -173,12 +170,7 @@ def apply_moves(
                 report["validated_ok"].append(unknown_slug)
             else:
                 report["validated_fail"].append(
-                    {
-                        "unknown": unknown_slug,
-                        "expected": expected,
-                        "got": target_slug,
-                        "score": score,
-                    }
+                    {"unknown": unknown_slug, "expected": expected, "got": target_slug, "score": score}
                 )
 
     return report
@@ -216,24 +208,45 @@ def main() -> int:
         print(json.dumps(verify(), indent=2))
         return 0
 
-    refs = build_references()
+    print("Computing reference descriptors...", file=sys.stderr)
+    ref_descs = build_reference_descriptors()
+    slugs = sorted(ref_descs.keys())
+
     unknowns = list_unknown_banners()
-    slugs = sorted(refs.keys())
+    print(f"Computing banner descriptors ({len(unknowns)})...", file=sys.stderr)
+    banner_descs: dict[str, np.ndarray | None] = {}
+    for unknown_id, banner_path in unknowns:
+        banner_descs[unknown_id] = compute_descriptors(banner_path)
+
     unknown_ids = [u[0] for u in unknowns]
+    pinned_slugs = set(PINNED.values())
+    pinned_unknowns = set(PINNED.keys())
 
-    print(f"Building score matrix: {len(unknowns)} banners × {len(slugs)} slugs", file=sys.stderr)
+    # Score matrix for remaining (non-pinned) unknowns vs available slugs
+    free_unknowns = [u for u in unknown_ids if u not in pinned_unknowns]
+    free_slugs = [s for s in slugs if s not in pinned_slugs]
+
+    print(f"Scoring {len(free_unknowns)} × {len(free_slugs)} (after {len(PINNED)} pins)...", file=sys.stderr)
+    slug_index = {s: i for i, s in enumerate(slugs)}
     matrix: list[list[int]] = []
-    for i, (_, banner_path) in enumerate(unknowns):
-        row = [score_banner_vs_slug(banner_path, refs[s]) for s in slugs]
-        matrix.append(row)
-        if (i + 1) % 10 == 0:
-            print(f"  scored {i + 1}/{len(unknowns)}", file=sys.stderr)
+    for unknown_id in free_unknowns:
+        bd = banner_descs[unknown_id]
+        matrix.append([score_vs_slug(bd, ref_descs[s]) for s in free_slugs])
 
-    assignments = optimal_assign(unknown_ids, slugs, matrix)
+    free_assignments = optimal_assign(free_unknowns, free_slugs, matrix) if free_unknowns else {}
+
+    # Merge pinned + free assignments with scores
+    assignments: dict[str, tuple[str, int]] = {}
+    for unknown_id, target_slug in PINNED.items():
+        bd = banner_descs[unknown_id]
+        score = score_vs_slug(bd, ref_descs[target_slug])
+        assignments[unknown_id] = (target_slug, score)
+    for unknown_id, (target_slug, score) in free_assignments.items():
+        assignments[unknown_id] = (target_slug, score)
 
     manifest = json.loads(MANIFEST.read_text())
     entries = json.loads(ENTRIES.read_text())
-    report = apply_moves(assignments, manifest, entries, args.dry_run)
+    report = apply_moves(assignments, manifest, entries, ref_descs, banner_descs, args.dry_run)
 
     if not args.dry_run:
         MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
