@@ -61,4 +61,76 @@ describe("useGoGoTrackSettings (render)", () => {
     expect(result.current.settings.usageStatsEnabled).toBe(false);
     expect(result.current.settings.screenshotRecoveryEnabled).toBe(true);
   });
+
+  it("setField > background prompts toggled on > syncs native monitor immediately", async () => {
+    const api = {
+      getSettings: vi.fn(async () => ({ background_prompts_enabled: false })),
+      updateSettings: vi.fn(async () => ({})),
+    };
+    const syncMonitor = vi.fn();
+
+    const { result } = renderHook(() =>
+      useGoGoTrackSettings(api, { syncMonitor }),
+    );
+
+    await waitFor(() =>
+      expect(result.current.settings.backgroundPromptsEnabled).toBe(false),
+    );
+
+    act(() => {
+      result.current.setField("backgroundPromptsEnabled", true);
+    });
+
+    expect(syncMonitor).toHaveBeenCalledWith(true);
+  });
+
+  it("setField > background prompts persist fails > re-syncs monitor with rolled-back value", async () => {
+    const api = {
+      getSettings: vi.fn(async () => ({ background_prompts_enabled: false })),
+      updateSettings: vi.fn(async () => {
+        throw new Error("persist failed");
+      }),
+    };
+    const syncMonitor = vi.fn();
+
+    const { result } = renderHook(() =>
+      useGoGoTrackSettings(api, { syncMonitor }),
+    );
+
+    await waitFor(() =>
+      expect(result.current.settings.backgroundPromptsEnabled).toBe(false),
+    );
+
+    act(() => {
+      result.current.setField("backgroundPromptsEnabled", true);
+    });
+
+    await waitFor(() =>
+      expect(result.current.settings.backgroundPromptsEnabled).toBe(false),
+    );
+    expect(syncMonitor).toHaveBeenNthCalledWith(1, true);
+    expect(syncMonitor).toHaveBeenNthCalledWith(2, false);
+  });
+
+  it("setField > usage stats toggle > does not touch the monitor sync", async () => {
+    const api = {
+      getSettings: vi.fn(async () => ({ usage_stats_enabled: false })),
+      updateSettings: vi.fn(async () => ({})),
+    };
+    const syncMonitor = vi.fn();
+
+    const { result } = renderHook(() =>
+      useGoGoTrackSettings(api, { syncMonitor }),
+    );
+
+    await waitFor(() =>
+      expect(result.current.settings.usageStatsEnabled).toBe(false),
+    );
+
+    act(() => {
+      result.current.setField("usageStatsEnabled", true);
+    });
+
+    expect(syncMonitor).not.toHaveBeenCalled();
+  });
 });
