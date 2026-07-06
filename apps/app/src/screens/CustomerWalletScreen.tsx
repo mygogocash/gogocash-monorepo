@@ -102,7 +102,7 @@ export function CustomerWalletScreen() {
       {/* Mobile-only back link + title — on desktop the persistent sidebar replaces it (web parity). */}
       {isDesktop ? null : <WalletHeader />}
       <WalletSupportBanner />
-      <WalletCashbackSummary liveMetrics={liveMetrics} />
+      <WalletCashbackSummary compact={!isDesktop} liveMetrics={liveMetrics} />
       <WalletTransactions onRefresh={walletResource.retry} />
     </AccountPageShell>
   );
@@ -447,7 +447,13 @@ function WalletSupportBanner() {
   );
 }
 
-function WalletCashbackSummary({ liveMetrics }: { liveMetrics: WalletMetricView[] | null }) {
+function WalletCashbackSummary({
+  compact,
+  liveMetrics,
+}: {
+  compact: boolean;
+  liveMetrics: WalletMetricView[] | null;
+}) {
   const styles = useThemedStyles(createWalletScreenStyles);
   const tc = useCopy();
   return (
@@ -459,16 +465,16 @@ function WalletCashbackSummary({ liveMetrics }: { liveMetrics: WalletMetricView[
         </View>
         <HelpCircleIcon color="#7089A5" size={28} strokeWidth={2.4} />
       </View>
-      <View style={styles.walletMetricStack}>
+      <View style={styles.walletMetricRow}>
         {(liveMetrics ?? webWalletCashbackSummary.metrics).map((metric) => (
-          <WalletMetricCard key={metric.label} metric={metric} />
+          <WalletMetricCard compact={compact} key={metric.label} metric={metric} />
         ))}
       </View>
     </View>
   );
 }
 
-function WalletMetricCard({ metric }: { metric: WalletMetric }) {
+function WalletMetricCard({ compact, metric }: { compact: boolean; metric: WalletMetric }) {
   const styles = useThemedStyles(createWalletScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
@@ -481,23 +487,48 @@ function WalletMetricCard({ metric }: { metric: WalletMetric }) {
         : BanknoteIcon;
 
   return (
-    <View style={[styles.metricCard, metric.primary ? styles.metricCardPrimary : null]}>
-      <View style={styles.metricTopRow}>
-        <View style={[styles.metricIcon, metric.primary ? styles.metricIconPrimary : null]}>
+    <View
+      style={[
+        styles.metricCard,
+        metric.primary ? styles.metricCardPrimary : null,
+        compact ? styles.metricCardCompact : null,
+      ]}
+    >
+      <View style={compact ? styles.metricTopColumn : styles.metricTopRow}>
+        <View
+          style={[
+            styles.metricIcon,
+            metric.primary ? styles.metricIconPrimary : null,
+            compact ? styles.metricIconCompact : null,
+          ]}
+        >
           <Icon
             color={metric.primary ? colors.white : colors.primaryDark}
-            size={20}
+            size={compact ? 16 : 20}
             strokeWidth={typography.iconStrokeWidth}
           />
         </View>
         <View style={styles.metricCopy}>
-          <Text style={styles.metricLabel}>{tc(metric.label)}</Text>
-          <Text style={styles.metricHint}>{tc(metric.hint)}</Text>
+          <Text
+            numberOfLines={2}
+            style={[styles.metricLabel, compact ? styles.metricLabelCompact : null]}
+          >
+            {tc(metric.label)}
+          </Text>
+          {compact ? null : <Text style={styles.metricHint}>{tc(metric.hint)}</Text>}
         </View>
       </View>
       <View style={styles.metricAmountRow}>
-        <Text style={styles.metricAmount}>{metric.amount}</Text>
-        <Text style={styles.metricCurrency}>{metric.currency}</Text>
+        <Text
+          adjustsFontSizeToFit
+          numberOfLines={1}
+          style={[styles.metricAmount, compact ? styles.metricAmountCompact : null]}
+        >
+          {metric.amount}
+        </Text>
+        <Text style={[styles.metricCurrency, compact ? styles.metricCurrencyCompact : null]}>
+          {metric.currency}
+        </Text>
       </View>
     </View>
   );
@@ -652,16 +683,45 @@ function createWalletScreenStyles(colors: ThemeColors) {
     fontSize: typography.body,
     lineHeight: 24,
   },
-  walletMetricStack: {
-    gap: spacing.md,
+  // One row, three equal cards; stretch + marginTop:auto on the amount row keep
+  // the amounts baseline-aligned even when hint copy lengths differ.
+  walletMetricRow: {
+    alignItems: "stretch",
+    flexDirection: "row",
+    gap: spacing.sm,
   },
   metricCard: {
     backgroundColor: colors.fieldMuted,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
+    flex: 1,
     gap: spacing.md,
     padding: spacing.md,
+  },
+  metricCardCompact: {
+    gap: spacing.sm,
+    padding: spacing.sm,
+  },
+  metricTopColumn: {
+    alignItems: "flex-start",
+    gap: spacing.xs,
+  },
+  metricIconCompact: {
+    borderRadius: radii.sm,
+    height: 30,
+    width: 30,
+  },
+  metricLabelCompact: {
+    fontSize: 13,
+    lineHeight: 17,
+    minHeight: 34,
+  },
+  metricAmountCompact: {
+    fontSize: 18,
+  },
+  metricCurrencyCompact: {
+    fontSize: 11,
   },
   metricCardPrimary: {
     backgroundColor: pickThemed(colors, "#E4F8F9", colors.primarySoft),
@@ -703,6 +763,7 @@ function createWalletScreenStyles(colors: ThemeColors) {
     alignItems: "baseline",
     flexDirection: "row",
     gap: spacing.xs,
+    marginTop: "auto",
   },
   metricAmount: {
     color: colors.primaryDark,
