@@ -55,7 +55,7 @@ describe("resolveSearchSuggestionItem", () => {
         brand: "Grocery Galaxy",
         cashback: "12.5%",
         logoBackground: "#EAF3FB",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
       }),
     );
   });

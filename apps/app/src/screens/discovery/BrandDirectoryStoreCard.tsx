@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { Link } from "expo-router";
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Heart as HeartIcon } from "@mobile/theme/icons";
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -11,6 +11,7 @@ import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { typography } from "@mobile/theme/tokens";
 
 import { createDiscoveryScreenStyles } from "./customerDiscoveryStyles";
+import { directoryBrandInitials } from "./directoryInitials";
 import { type BrandDirectoryStore } from "./discoveryTypes";
 
 export const BrandDirectoryStoreCard = memo(function BrandDirectoryStoreCard({
@@ -23,7 +24,12 @@ export const BrandDirectoryStoreCard = memo(function BrandDirectoryStoreCard({
   const styles = useThemedStyles(createDiscoveryScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
-  const logoTileBackground = store.logoUri ? colors.card : store.tint;
+  const [logoFailed, setLogoFailed] = useState(false);
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [store.logoUri]);
+  const showLogo = Boolean(store.logoUri) && !logoFailed;
+  const logoTileBackground = showLogo ? colors.card : store.tint;
 
   return (
     <Link asChild href={store.href as never}>
@@ -35,16 +41,21 @@ export const BrandDirectoryStoreCard = memo(function BrandDirectoryStoreCard({
         testID={`brand-directory-card-${store.id}`}
       >
         <View style={[styles.shopDirectoryLogoTile, { backgroundColor: logoTileBackground }]}>
-          {store.logoUri ? (
+          {showLogo ? (
             <Image
               accessibilityLabel={`${store.brand} logo`}
               cachePolicy="memory-disk"
               contentFit="contain"
+              onError={() => setLogoFailed(true)}
               recyclingKey={store.logoUri}
               source={{ uri: store.logoUri }}
               style={styles.shopDirectoryLogoImage}
             />
-          ) : null}
+          ) : (
+            <Text numberOfLines={1} style={styles.shopDirectoryLogoFallback}>
+              {directoryBrandInitials(store.brand)}
+            </Text>
+          )}
           {store.showGrabCoupon ? (
             <View style={styles.shopDirectoryCouponBadge}>
               <Text style={styles.shopDirectoryCouponIcon}>🧧</Text>

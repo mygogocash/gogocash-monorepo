@@ -756,6 +756,14 @@ export function createDiscoveryScreenStyles(colors: ThemeColors) {
   shopDirectoryLogoImage: {
     ...StyleSheet.absoluteFillObject,
   },
+  shopDirectoryLogoFallback: {
+    color: "#FFFFFF",
+    fontFamily: typography.family,
+    fontSize: 22,
+    fontWeight: typography.labelWeight,
+    lineHeight: 28,
+    textAlign: "center",
+  },
   shopDirectoryCouponBadge: {
     alignItems: "center",
     backgroundColor: pickThemed(colors, "rgba(255,255,255,0.95)", colors.card),

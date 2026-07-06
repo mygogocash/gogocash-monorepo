@@ -16,6 +16,9 @@ describe("discovery directory dark mode surfaces", () => {
     const shopCard = readMobileFile("src/screens/discovery/ShopDirectoryStoreCard.tsx");
 
     expect(styles).toMatch(/shopDirectoryLogoImage:[\s\S]*absoluteFillObject/);
-    expect(shopCard).toContain("store.logoUri ? colors.card : store.tint");
+    // Card background only goes neutral once a logo is actually rendering —
+    // failed/missing logos fall back to the brand tint + initials.
+    expect(shopCard).toContain("const showLogo = Boolean(store.logoUri) && !logoFailed");
+    expect(shopCard).toContain("showLogo ? colors.card : store.tint");
   });
 });
