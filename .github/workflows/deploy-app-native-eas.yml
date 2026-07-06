@@ -227,10 +227,10 @@ jobs:
           # eas.json build-profile env — without these the OTA bundle falls back
           # to app.config.ts envDefaults (fixtures mode). Mirror the eas.json
           # profile matching the target channel.
-          EXPO_PUBLIC_API_URL: ${{ inputs.channel == 'development' && 'https://api.dev.gogocash.co' || 'https://api-staging.gogocash.co' }}
-          EXPO_PUBLIC_APP_ENV: ${{ inputs.channel == 'development' && 'dev' || 'staging' }}
+          EXPO_PUBLIC_API_URL: ${{ inputs.channel == 'development' && 'https://api.dev.gogocash.co' || inputs.channel == 'production' && 'https://api.gogocash.co' || 'https://api-staging.gogocash.co' }}
+          EXPO_PUBLIC_APP_ENV: ${{ inputs.channel == 'development' && 'dev' || inputs.channel == 'production' && 'production' || 'staging' }}
           EXPO_PUBLIC_ACCOUNT_DATA_SOURCE: backend
-          EXPO_PUBLIC_FRONTEND_URL: ${{ inputs.channel == 'development' && 'http://localhost:8081' || 'https://app-staging.gogocash.co' }}
+          EXPO_PUBLIC_FRONTEND_URL: ${{ inputs.channel == 'development' && 'http://localhost:8081' || inputs.channel == 'production' && 'https://app.gogocash.co' || 'https://app-staging.gogocash.co' }}
           EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
           EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
           EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}

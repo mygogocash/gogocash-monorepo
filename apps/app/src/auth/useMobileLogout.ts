@@ -23,6 +23,19 @@ export function useMobileLogout(): { logout: () => Promise<void>; pending: boole
       // torn down (fire-and-forget; no-op on web).
       void haptics.success();
       await clearMobileAppSession();
+      // The native GoGoTrack monitor keeps the JWT in SharedPreferences and
+      // would go on polling /gototrack/detect after logout — disable it and
+      // clear the stored token (session is already gone, so the re-resolved
+      // config carries authToken: null). Re-enabled on next login when the
+      // GoGoTrack screen re-syncs from server settings.
+      void (async () => {
+        const [{ gototrackDetector }, { syncBackgroundPromptMonitorConfig }] =
+          await Promise.all([
+            import("@mobile/gototrack/detectorInstance"),
+            import("@mobile/gototrack/syncBackgroundPromptMonitorConfig"),
+          ]);
+        await syncBackgroundPromptMonitorConfig(gototrackDetector, false);
+      })().catch(() => {});
       queryClient.clear();
       resetObservabilityIdentity();
       router.replace("/login" as never);

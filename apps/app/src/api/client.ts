@@ -156,18 +156,46 @@ async function requestFormData<TResponse>(
   formData: FormData,
   options: MobileApiClientOptions,
 ): Promise<TResponse> {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  const baseUrl = normalizeBaseUrl(options.baseUrl);
   const session = await options.sessionStore.getSession();
   const preferredToken = options.getPreferredAuthToken
     ? await options.getPreferredAuthToken()
     : null;
-  const token =
-    (typeof preferredToken === "string" && preferredToken.length > 0
-      ? preferredToken
-      : typeof session?.access_token === "string"
-        ? session.access_token
-        : "") ?? "";
+  const preferredUsed =
+    typeof preferredToken === "string" && preferredToken.length > 0;
+  const sessionToken =
+    typeof session?.access_token === "string" ? session.access_token : "";
+  const token = (preferredUsed ? preferredToken : sessionToken) ?? "";
+
+  return executeFormDataRequest<TResponse>({
+    formData,
+    isAuthRetry: false,
+    options,
+    path,
+    preferredUsed,
+    sessionToken,
+    token,
+  });
+}
+
+async function executeFormDataRequest<TResponse>({
+  formData,
+  isAuthRetry,
+  options,
+  path,
+  preferredUsed,
+  sessionToken,
+  token,
+}: {
+  formData: FormData;
+  isAuthRetry: boolean;
+  options: MobileApiClientOptions;
+  path: string;
+  preferredUsed: boolean;
+  sessionToken: string;
+  token: string;
+}): Promise<TResponse> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const baseUrl = normalizeBaseUrl(options.baseUrl);
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
@@ -189,6 +217,26 @@ async function requestFormData<TResponse>(
         responseBody && typeof responseBody === "object" && "message" in responseBody
           ? String(responseBody.message)
           : `Request failed with status ${response.status}`;
+
+      // Mirror executeRequest: a preferred (e.g. Firebase) token 401 falls back
+      // once to the stored backend JWT before the session is treated as bad.
+      if (
+        response.status === 401 &&
+        !isAuthRetry &&
+        preferredUsed &&
+        sessionToken &&
+        sessionToken !== token
+      ) {
+        return executeFormDataRequest<TResponse>({
+          formData,
+          isAuthRetry: true,
+          options,
+          path,
+          preferredUsed: false,
+          sessionToken,
+          token: sessionToken,
+        });
+      }
 
       if (response.status === 401 && token) {
         await options.sessionStore.clearSession();
