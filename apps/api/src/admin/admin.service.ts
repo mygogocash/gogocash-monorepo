@@ -783,7 +783,9 @@ export class AdminService {
     const normalizedBrands = (brands ?? [])
       .map((entry) => ({
         offerId: String(entry.offerId ?? '').trim(),
-        cashback: normalizeCustomerCashbackLabel(String(entry.cashback ?? '').trim()),
+        cashback: normalizeCustomerCashbackLabel(
+          String(entry.cashback ?? '').trim(),
+        ),
       }))
       .filter((entry) => {
         if (!entry.offerId || seen.has(entry.offerId)) {

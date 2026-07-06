@@ -1,7 +1,7 @@
 # CodeQL advanced setup — replaces GitHub Default setup so language selection is
 # version-controlled. JS/TS (admin, api, mobile web) plus GitHub Actions.
-# Expo local Android (Kotlin) and iOS (Swift) modules use build-mode: none — there
-# is no repo-root Gradle/Xcode project (EAS prebuild only).
+# Native Expo modules (Kotlin/Swift) are not scanned: CodeQL no longer supports
+# Kotlin without a build, and Swift needs macOS runners (see matrix note).
 name: CodeQL
 
 on:
@@ -46,12 +46,9 @@ jobs:
           - language: actions
             build-mode: none
             config-file: ./.github/codeql/codeql-config.yml
-          - language: java-kotlin
-            build-mode: none
-            config-file: ./.github/codeql/codeql-native-config.yml
-          - language: swift
-            build-mode: none
-            config-file: ./.github/codeql/codeql-native-config.yml
+          # java-kotlin: CodeQL 2.25+ refuses Kotlin with build-mode none and the
+          # Expo module has no repo-root Gradle project to build; swift analysis
+          # requires a macOS runner. Both dropped until a manual-build job exists.
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7

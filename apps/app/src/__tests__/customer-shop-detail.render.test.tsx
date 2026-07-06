@@ -18,7 +18,7 @@ vi.mock("expo-localization", () => ({
 const merchantResourceState = vi.hoisted(() => ({
   data: null as unknown,
   status: "ready" as const,
-  source: "fixtures" as const,
+  source: "fixtures" as "fixtures" | "backend",
 }));
 
 vi.mock("@mobile/account/customerAccountResource", async (importOriginal) => {
