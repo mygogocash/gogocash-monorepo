@@ -733,6 +733,7 @@ function createWalletScreenStyles(colors: ThemeColors) {
     gap: spacing.md,
   },
   metricIcon: {
+    flexShrink: 0,
     alignItems: "center",
     backgroundColor: pickThemed(colors, "#EEF9FA", colors.card),
     borderRadius: radii.sm,
@@ -746,6 +747,7 @@ function createWalletScreenStyles(colors: ThemeColors) {
   metricCopy: {
     flex: 1,
     gap: 4,
+    minWidth: 0,
   },
   metricLabel: {
     color: pickThemed(colors, "#1B3854", colors.ink),
@@ -763,19 +765,23 @@ function createWalletScreenStyles(colors: ThemeColors) {
     alignItems: "baseline",
     flexDirection: "row",
     gap: spacing.xs,
+    justifyContent: "flex-end",
     marginTop: "auto",
+    width: "100%",
   },
   metricAmount: {
     color: colors.primaryDark,
     fontFamily: typography.family,
     fontSize: 28,
     fontWeight: "800",
+    textAlign: "right",
   },
   metricCurrency: {
     color: colors.primaryDark,
     fontFamily: typography.family,
     fontSize: typography.body,
     fontWeight: "600",
+    textAlign: "right",
   },
   transactionArea: {
     gap: spacing.md,

@@ -180,6 +180,19 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     );
   });
 
+  it("right-aligns cashback metric amounts at the card bottom across the three-up row", () => {
+    const metricCardBlock = walletSource.slice(
+      walletSource.indexOf("function WalletMetricCard"),
+      walletSource.indexOf("function FilterPill"),
+    );
+    expect(metricCardBlock).toContain("metricAmountRow");
+    expect(metricCardBlock).not.toContain("metricAmountWrap");
+    expect(walletSource).toContain("walletMetricRow");
+    expect(walletSource).toMatch(/metricAmountRow:[\s\S]*justifyContent: "flex-end"/);
+    expect(walletSource).toMatch(/metricAmountRow:[\s\S]*marginTop: "auto"/);
+    expect(walletSource).toMatch(/metricAmountRow:[\s\S]*width: "100%"/);
+  });
+
   it("has state-driven transaction tabs + mock rows (all cases) + working Search/Status/Date filters", () => {
     // Tabs switch via state (not hardcoded index 0) and filter the mock rows by kind.
     expect(walletSource).toContain("setActiveTab");
