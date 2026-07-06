@@ -51,7 +51,7 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(brandCard).toContain("brandLogoImage:");
     expect(brandCard).toMatch(/brandLogoImage:[\s\S]*width:\s*"100%"/);
     expect(brandCard).toMatch(/brandLogoImage:[\s\S]*height:\s*"100%"/);
-    expect(brandCard).toMatch(/compactBrandLogoImage:[\s\S]*absoluteFillObject/);
+    expect(brandCard).toMatch(/compactBrandLogoImage:[\s\S]*height: "100%"/);
     expect(brandCard).toMatch(/brandVisual:[\s\S]*width:\s*"100%"/);
     expect(brandCard).toMatch(/compactBrandVisual:[\s\S]*width:\s*"100%"/);
     expect(brandCard).not.toContain('height: "62%"');
@@ -113,7 +113,7 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
       );
     }
 
-    expect(discoveryStyles).toMatch(/shopDirectoryLogoImage:[\s\S]*absoluteFillObject/);
+    expect(discoveryStyles).toMatch(/shopDirectoryLogoImage:[\s\S]*height: "100%"/);
     expect(discoveryStyles).not.toContain('height: "62%"');
   });
 
@@ -155,7 +155,7 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(searchRow).toContain('cachePolicy="memory-disk"');
     expect(searchRow).toContain("item.logoUri ? colors.card : item.logoBackground");
     expect(searchRow).toContain("styles.searchResultLogoImage");
-    expect(homeStyles).toMatch(/searchResultLogoImage:[\s\S]*absoluteFillObject/);
+    expect(homeStyles).toMatch(/searchResultLogoImage:[\s\S]*height: "100%"/);
     expect(homeStyles).toMatch(/searchResultCashback:[\s\S]*flexShrink:\s*0/);
     expect(searchRow).not.toMatch(
       /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/
@@ -166,7 +166,7 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     const favorites = readMobileFile("src/screens/CustomerFavoriteBrandsScreen.tsx");
 
     expect(favorites).toContain("brandVisualBackground");
-    expect(favorites).toMatch(/brandLogoImage:[\s\S]*absoluteFillObject/);
+    expect(favorites).toMatch(/brandLogoImage:[\s\S]*height: "100%"/);
     expect(favorites).toMatch(/cashbackValue:[\s\S]*flexShrink:\s*0/);
   });
 

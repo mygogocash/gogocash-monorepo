@@ -394,7 +394,9 @@ function createBrandCardStyles(colors: ThemeColors) {
       width: "100%",
     },
     compactBrandLogoImage: {
-      ...StyleSheet.absoluteFillObject,
+      // expo-image gets no size from absolute-fill alone on Android new arch.
+      height: "100%",
+      width: "100%",
     },
     compactBrandLogoFallback: {
       color: colors.accent,

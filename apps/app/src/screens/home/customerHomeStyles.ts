@@ -385,7 +385,9 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     width: 68,
   },
   searchResultLogoImage: {
-    ...StyleSheet.absoluteFillObject,
+    // expo-image gets no size from absolute-fill alone on Android new arch.
+    height: "100%",
+    width: "100%",
   },
   searchResultLogoCompact: {
     borderRadius: 8,

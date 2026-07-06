@@ -754,7 +754,9 @@ export function createDiscoveryScreenStyles(colors: ThemeColors) {
     width: "100%",
   },
   shopDirectoryLogoImage: {
-    ...StyleSheet.absoluteFillObject,
+    // expo-image gets no size from absolute-fill alone on Android new arch.
+    height: "100%",
+    width: "100%",
   },
   shopDirectoryLogoFallback: {
     color: "#FFFFFF",
