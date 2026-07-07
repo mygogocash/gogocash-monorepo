@@ -44,7 +44,7 @@ function makeId() {
 }
 
 function storedToItem(s: AppOpenPopupStoredBanner): AppOpenPopupBannerItem {
-  const endForever = s.endForever !== false;
+  const endForever = s.endForever ?? true;
   return {
     id: s.id,
     imageDesktop: null,
