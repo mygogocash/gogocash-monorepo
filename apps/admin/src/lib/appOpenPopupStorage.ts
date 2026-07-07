@@ -119,7 +119,7 @@ export function savePopupConfig(banners: AppOpenPopupStoredBanner[]): void {
       duration: b.duration,
       link: b.link.trim(),
       startDate: (b.startDate ?? "").trim(),
-      endForever: b.endForever !== false,
+      endForever: b.endForever ?? true,
       endDate: b.endForever === false ? (b.endDate ?? "").trim() : "",
     }));
     localStorage.setItem(CONFIG_KEY, JSON.stringify({ banners: trimmed }));

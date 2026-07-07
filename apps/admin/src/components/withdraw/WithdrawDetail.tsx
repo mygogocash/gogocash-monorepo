@@ -638,7 +638,7 @@ const WithdrawDetail = () => {
       gender: u.gender ?? "",
       birthdate: birthIso,
       wallet: u.wallet ?? "",
-      gogopassActive: u.gogopassActive === true,
+      gogopassActive: u.gogopassActive ?? false,
     };
     setUserDraft(loadedDraft);
     setUserEditSnapshot(buildUserEditSnapshot(loadedDraft));
