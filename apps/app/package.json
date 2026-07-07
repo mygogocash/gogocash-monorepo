@@ -83,7 +83,7 @@
     "happy-dom": "^20.9.0",
     "react-test-renderer": "19.2.7",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.9"
   },
   "expo": {
     "install": {
