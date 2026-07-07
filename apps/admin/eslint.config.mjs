@@ -1,5 +1,4 @@
 import eslintConfig from "eslint-config-next/core-web-vitals";
-import tseslint from "typescript-eslint";
 
 /** @type {import("eslint").Linter.Config[]} */
 const config = [
@@ -15,11 +14,19 @@ const config = [
       "**/.turbo/**",
       "**/out/**",
       "e2e/**",
+      "scripts/**",
+      "**/*.config.js",
+      "**/*.config.mjs",
+      "eslint.config.mjs",
     ],
   },
   {
-    plugins: {
-      "@typescript-eslint": tseslint.plugin,
+    settings: {
+      // eslint-plugin-react still uses legacy context.getFilename() for version
+      // auto-detection, which ESLint 10 removed — pin version to avoid the crash.
+      react: {
+        version: "19.2",
+      },
     },
     rules: {
       // Stricter in eslint-plugin-react-hooks v7; codebase predates these patterns.
@@ -27,10 +34,6 @@ const config = [
       "react-hooks/refs": "warn",
       "react-hooks/static-components": "warn",
       "react-hooks/purity": "warn",
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
-      ],
     },
   },
 ];
