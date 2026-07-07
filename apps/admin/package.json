@@ -40,7 +40,7 @@
     "@fullcalendar/react": "^6.1.21",
     "@fullcalendar/timegrid": "^6.1.21",
     "@mui/material": "^9.2.0",
-    "@mui/system": "^9.1.1",
+    "@mui/system": "^9.2.0",
     "@mui/x-data-grid": "^9.8.0",
     "@react-jvectormap/core": "^1.0.4",
     "@react-jvectormap/world": "^1.1.2",
