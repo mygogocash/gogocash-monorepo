@@ -50,6 +50,7 @@
     "@nestjs/platform-express",
     "mongoose",
     "happy-dom",
+    "typescript-eslint",
     "@mui/material",
     "@mui/system",
     "cache-manager",
