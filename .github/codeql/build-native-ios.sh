@@ -31,11 +31,26 @@ NODE
 export CI=1
 npx expo prebuild --platform ios --no-install --clean
 
+# Prebuild emits Podfile + xcodeproj; CocoaPods workspace is required before xcodebuild.
+npx pod-install ios
+
 cd ios
-xcodebuild \
-  -workspace GoGoCash.xcworkspace \
-  -scheme GoGoCash \
-  -sdk iphonesimulator \
-  -destination "generic/platform=iOS Simulator" \
-  CODE_SIGNING_ALLOWED=NO \
-  build
+
+WORKSPACE="$(find . -maxdepth 1 -name '*.xcworkspace' -print -quit)"
+if [[ -n "$WORKSPACE" ]]; then
+  xcodebuild \
+    -workspace "$(basename "$WORKSPACE")" \
+    -scheme GoGoCash \
+    -sdk iphonesimulator \
+    -destination "generic/platform=iOS Simulator" \
+    CODE_SIGNING_ALLOWED=NO \
+    build
+else
+  xcodebuild \
+    -project GoGoCash.xcodeproj \
+    -scheme GoGoCash \
+    -sdk iphonesimulator \
+    -destination "generic/platform=iOS Simulator" \
+    CODE_SIGNING_ALLOWED=NO \
+    build
+fi
