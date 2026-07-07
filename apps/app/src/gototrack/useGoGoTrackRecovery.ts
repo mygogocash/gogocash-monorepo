@@ -10,10 +10,12 @@ export type GoGoTrackRecoveryJob = {
   merchantId?: string;
 };
 
-type RecoveryApi = {
+export type GoGoTrackRecoveryApi = {
   createScreenshotJob(): Promise<unknown>;
   getScreenshotJob?(id: string): Promise<unknown>;
 };
+
+type RecoveryApi = GoGoTrackRecoveryApi;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)

@@ -1,19 +1,22 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { useGoGoTrackRecovery } from "@mobile/gototrack/useGoGoTrackRecovery";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  useGoGoTrackRecovery,
+  type GoGoTrackRecoveryApi,
+} from "@mobile/gototrack/useGoGoTrackRecovery";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
-type RecoveryTestApi = {
-  createScreenshotJob: ReturnType<typeof vi.fn>;
-  getScreenshotJob: ReturnType<typeof vi.fn>;
+type RecoveryTestApi = GoGoTrackRecoveryApi & {
+  createScreenshotJob: Mock<GoGoTrackRecoveryApi["createScreenshotJob"]>;
+  getScreenshotJob: Mock<NonNullable<GoGoTrackRecoveryApi["getScreenshotJob"]>>;
 };
 
 function createRecoveryTestApi(overrides: Partial<RecoveryTestApi> = {}): RecoveryTestApi {
   return {
-    createScreenshotJob: vi.fn(async () => ({
+    createScreenshotJob: vi.fn<GoGoTrackRecoveryApi["createScreenshotJob"]>(async () => ({
       _id: "screenshot-1",
       status: "pending",
     })),
-    getScreenshotJob: vi.fn(async () => ({
+    getScreenshotJob: vi.fn<NonNullable<GoGoTrackRecoveryApi["getScreenshotJob"]>>(async () => ({
       _id: "screenshot-1",
       status: "manual_review",
       upload_url: "https://uploads.gogocash.test/screenshot-1",
@@ -52,13 +55,13 @@ describe("useGoGoTrackRecovery (render)", () => {
   it("clears a stale manual recovery job when the next start fails", async () => {
     const api = createRecoveryTestApi({
       createScreenshotJob: vi
-        .fn()
+        .fn<GoGoTrackRecoveryApi["createScreenshotJob"]>()
         .mockResolvedValueOnce({
           _id: "screenshot-1",
           status: "pending",
         })
         .mockRejectedValueOnce(new Error("network down")),
-      getScreenshotJob: vi.fn(async () => ({
+      getScreenshotJob: vi.fn<NonNullable<GoGoTrackRecoveryApi["getScreenshotJob"]>>(async () => ({
         _id: "screenshot-1",
         status: "manual_review",
         upload_url: "https://uploads.gogocash.test/screenshot-1",
