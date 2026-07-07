@@ -18,7 +18,7 @@ function fmtDateOnly(v: unknown): string {
 
 function strPublisherId(v: unknown): string {
   if (v == null || v === "") return "—";
-  if (typeof v === "object" && v !== null && "$oid" in v) {
+  if (typeof v === "object" && "$oid" in v) {
     return String((v as { $oid: string }).$oid);
   }
   return String(v);
