@@ -233,9 +233,9 @@ _None — Phase 1 complete. Next sweep or new findings go here._
 
 ## Suggested fix order
 
-Phase 1 complete. Suggested next steps:
+Phase 1 complete. Post-deploy ops tracked in `docs/BUG_HUNT_BACKLOG_PHASE2.md` § Post-deploy backlog.
 
-1. **Commit + PR** the local diff (61 files) with deploy notes above.
-2. **Smoke on staging:** payout method create → list → withdraw; GoGoTrack toggle + foreground; favorites heart race; referral explore heart.
-3. **Operator:** R2 secrets on GCP; EAS secrets for Firebase/Sentry/PostHog on expo.dev; verify admin Railway `NEXT_PUBLIC_API_URL`.
-4. **Phase 2 sweep** (if desired): re-run adversarial bug hunt on post-fix `staging` for regressions and new surface area.
+1. ~~**Commit + PR** the local diff~~ ✅ (`9369694c`, `69d18414` on `staging`)
+2. **Staging smoke** — see Phase 2 post-deploy backlog #1
+3. **Operator:** EAS secrets (Firebase/Sentry/PostHog); GoGoTrack device preflight; Railway admin `NEXT_PUBLIC_API_URL`. ~~R2 on Railway~~ ✅ verified 2026-07-07.
+4. **Phase 3 sweep** (optional) — after smoke green

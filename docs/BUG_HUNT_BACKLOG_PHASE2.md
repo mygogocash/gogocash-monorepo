@@ -82,6 +82,61 @@ _All Phase 2 items fixed (local, uncommitted)._
 
 ---
 
+## Post-deploy backlog (ops + verification)
+
+Code fixes shipped on `staging` (`9369694c`, `69d18414`). CI green. Items below are **not code bugs** — track until owner-verified.
+
+### ~~P0 — Cloudflare R2 on Railway staging~~ ✅ Verified 2026-07-07
+
+- **Check:** `GET https://api-staging.gogocash.co/offer/top-brands` — all logos use `https://media-staging.gogocash.co/...`; sample object GET **200** (~25 KB PNG). Zero GCS / `local-media` URLs in response.
+- **Stack:** Cloudflare R2 (not GCP). Day-to-day vars on Railway `gogocash-api`: `R2_BUCKET`, `R2_ENDPOINT`, `R2_PUBLIC_BASE_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. See `docs/railway-env-matrix.md`.
+- **Not re-checked:** fresh admin logo upload (needs admin JWT); GCP Secret Manager R2 secrets (only if using Cloud Run rollback lane).
+
+### 1. [P1] Staging manual smoke — bug-hunt regression paths
+
+- **Why:** Automated CI passed; user-visible paths below were not exercised on hosted staging after push.
+- **Checklist:**
+  1. **Payout** — create method → `/method` list → `/withdraw` selector → withdraw → wallet balance updates (no fixture `3,180.24`).
+  2. **Profile hero** — header pill / profile hub shows real balance or `—`, not fixture amount.
+  3. **GoGoTrack** — toggle on `/gototrack/settings`, back to permissions/hub — toggles match server.
+  4. **Favorites** — heart tap while list still loading — optimistic state not reverted.
+  5. **Referral** — explore-shop heart persists to `/favorite`.
+  6. **Admin dashboard** — with real API, force/see API error → error state, not mock totals.
+- **Hosts:** `https://app-staging.gogocash.co`, `https://admin-staging.gogocash.co`, `https://api-staging.gogocash.co`
+
+### 2. [P2] EAS / observability secrets on expo.dev
+
+- **Why:** `eas.json` no longer inlines `$EXPO_PUBLIC_FIREBASE_*` / Sentry / PostHog — native builds and OTA need EAS project secrets or GitHub staging env.
+- **Verify:** `docs/firebase-native-eas.md`, `docs/sentry-native-eas.md`, `docs/posthog-native-verification.md`
+- **Smoke:** crash/event appears in Sentry/PostHog after staging preview build or OTA.
+
+### 3. [P2] GoGoTrack device acceptance (Phase 7)
+
+- **Why:** Native monitor + background prompts need physical Android + EAS rebuild; not covered by unit/render tests.
+- **Runbook:** `docs/gototrack-android-acceptance-plan.md`, `npm run gototrack:preflight -- --require-background-prompt`
+- **Needs:** `EXPO_TOKEN`, `GOGOTRACK_AUTH_TOKEN` (backend JWT), Usage Access, `com.shopee.th`
+- **Pre:** dedupe `gogosense_activation_events` `(user_id, detection_event_id)` before unique index sync on API boot.
+
+### 4. [P3] Railway admin `NEXT_PUBLIC_API_URL` build-time confirm
+
+- **Why:** Dockerfile no longer defaults to staging API — mis-set var → mock mode or wrong API host.
+- **Verify:** Railway `gogocash-admin` service has `NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co` at **build** time.
+
+### 5. [P3] Phase 3 adversarial sweep (optional)
+
+- Re-run bug hunt on post-fix `staging` for regressions and new surface area.
+- Seed new findings in a `BUG_HUNT_BACKLOG_PHASE3.md` if anything surfaces.
+
+### Suggested order
+
+1. **#1 Staging smoke** (highest leverage, ~30 min)
+2. **#3 GoGoTrack device** (if demo/device QA is next milestone)
+3. **#2 EAS secrets** (before next native EAS build)
+4. **#4 admin build arg** (one-time Railway check)
+5. **#5 Phase 3 sweep** (when smoke is green)
+
+---
+
 ## Phase 1 regression watchlist
 
 When fixing Phase 2, re-run:
