@@ -1,0 +1,8 @@
+---
+- extendedWaitUntil:
+    visible: "Accept all cookies"
+    timeout: 30000
+    optional: true
+- tapOn:
+    text: "Accept all cookies"
+    optional: true

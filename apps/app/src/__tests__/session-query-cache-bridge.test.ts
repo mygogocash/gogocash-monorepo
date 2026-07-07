@@ -16,9 +16,15 @@ function seedAccountQuery(queryClient: QueryClient) {
 }
 
 describe("createSessionQueryCacheBridge", () => {
-  it("given a session change notification > then customer-account-resource queries are removed", () => {
+  it("given a session change notification > then identity-scoped query caches are removed", () => {
     const queryClient = new QueryClient();
     seedAccountQuery(queryClient);
+    queryClient.setQueryData(["gototrack-settings", "https://api", "user-a"], {
+      enabled: true,
+    });
+    queryClient.setQueryData(["gototrack-merchants", "https://api"], [
+      { id: "shopee", name: "Shopee", enabled: true, androidPackages: [], domains: [] },
+    ]);
     let listener: (() => void) | undefined;
     const subscribe = vi.fn((fn: () => void) => {
       listener = fn;
@@ -26,13 +32,18 @@ describe("createSessionQueryCacheBridge", () => {
     });
 
     createSessionQueryCacheBridge({ queryClient, subscribe });
-    expect(queryClient.getQueryCache().findAll().length).toBe(1);
+    expect(queryClient.getQueryCache().findAll().length).toBe(3);
 
     listener?.();
 
-    // Stale identity-scoped data must never survive a login/logout boundary.
     expect(
-      queryClient.getQueryCache().findAll({ queryKey: ["customer-account-resource"] }).length
+      queryClient.getQueryCache().findAll({ queryKey: ["customer-account-resource"] }).length,
+    ).toBe(0);
+    expect(
+      queryClient.getQueryCache().findAll({ queryKey: ["gototrack-settings"] }).length,
+    ).toBe(0);
+    expect(
+      queryClient.getQueryCache().findAll({ queryKey: ["gototrack-merchants"] }).length,
     ).toBe(0);
   });
 
@@ -52,12 +63,14 @@ describe("createSessionQueryCacheBridge", () => {
     const userAKey = resolveCustomerAccountResourceQueryKey({
       apiUrl: "https://api.test",
       endpoint: "/withdraw/check",
+      regionCode: "TH",
       resourceId: "wallet",
       sessionScope: "user-a",
     });
     const userBKey = resolveCustomerAccountResourceQueryKey({
       apiUrl: "https://api.test",
       endpoint: "/withdraw/check",
+      regionCode: "TH",
       resourceId: "wallet",
       sessionScope: "user-b",
     });

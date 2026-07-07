@@ -276,7 +276,7 @@ const p0Routes = [
       "GoGoTrack",
       "Cashback tracking assistant",
       "Permission checklist",
-      "Tracking timeline",
+      "Settings",
       "Start setup",
     ],
   },
@@ -294,18 +294,8 @@ const p0Routes = [
     requiredText: [
       "Permission checklist",
       "Usage access",
-      "Notification listener",
+      "Cashback notifications",
       "Open settings",
-      "View timeline",
-    ],
-  },
-  {
-    path: "/gototrack/timeline",
-    requiredText: [
-      "Tracking timeline",
-      "Detected shopping session",
-      "Cashback pending",
-      "Start recovery",
     ],
   },
   {
@@ -318,20 +308,12 @@ const p0Routes = [
     ],
   },
   {
-    path: "/gototrack/recovery",
-    requiredText: [
-      "Screenshot recovery",
-      "Manual merchant review",
-      "Back to timeline",
-    ],
-  },
-  {
     path: "/gototrack/merchant/grocery-galaxy",
     requiredText: [
       "Merchant tracking detail",
       "grocery-galaxy",
-      "Detection methods",
-      "Start recovery",
+      "Android package detection",
+      "GoGoTrack overview",
     ],
   },
 ] as const;

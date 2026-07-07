@@ -5,8 +5,7 @@ import {
   Search as SearchIcon,
   ShoppingCart as ShoppingCartIcon,
 } from "@mobile/theme/icons";
-import type { ReactNode } from "react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
@@ -17,10 +16,8 @@ import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
 import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
-import { toggleFavoriteOffer } from "@mobile/account/offerActionsApi";
-import { fetchFavoriteOfferIds } from "@mobile/account/favoriteResource";
-import { getMobileEnv } from "@mobile/config/env";
 import { mobileShellLayout, webFavoriteBrandsPage } from "@mobile/design/webDesignParity";
 import {
   DirectoryVirtualizedGrid,
@@ -29,7 +26,7 @@ import {
   getFavoriteBrandCardHeight,
   getFavoriteBrandGridMetrics,
 } from "@mobile/screens/favoriteBrandGrid";
-import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -59,35 +56,13 @@ const FAVORITE_BRAND_TINTS: Record<string, string> = {
   "brand-glow-theory-1005": "#7C3AED",
 };
 const FAVORITE_BRAND_FALLBACK_TINT = "#2E7D5B";
-const INITIAL_FAVORITE_IDS: readonly string[] = [
-  "brand-grocery-galaxy-1001",
-  "brand-glow-theory-1005",
-];
 
 export function CustomerFavoriteBrandsScreen() {
   const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
-  const env = getMobileEnv();
-  const [favoriteIds, setFavoriteIds] = useState<readonly string[]>(INITIAL_FAVORITE_IDS);
-  useEffect(() => {
-    if (env.accountDataSource !== "backend" || !env.apiUrl) {
-      return;
-    }
-
-    void fetchFavoriteOfferIds({ apiUrl: env.apiUrl }).then((ids) => {
-      if (ids.length > 0) {
-        setFavoriteIds(ids);
-      }
-    });
-  }, [env.accountDataSource, env.apiUrl]);
-  const toggleFavorite = (id: string) => {
-    setFavoriteIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-    if (env.accountDataSource === "backend") {
-      void toggleFavoriteOffer(env.apiUrl, id).catch(() => undefined);
-    }
-  };
+  const { favoriteIds, toggleFavorite } = useFavoriteBrands();
 
   // Fixtures mode (default) renders the parity rows synchronously; backend mode
   // pulls the live public catalog (GET /offer) and maps it into the same row shape —
@@ -341,6 +316,8 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
   const { colors } = useTheme();
   const tc = useCopy();
   const tint = brand.tint ?? FAVORITE_BRAND_TINTS[brand.id] ?? FAVORITE_BRAND_FALLBACK_TINT;
+  const [logoFailed, setLogoFailed] = useState(false);
+  const brandVisualBackground = brand.logo && !logoFailed ? colors.card : tint;
   return (
     <View style={styles.brandCard}>
       <Link asChild href={brand.href as never}>
@@ -350,7 +327,7 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
           pressScale={0.985}
           style={styles.brandCardLink}
         >
-          <View style={[styles.brandVisual, { backgroundColor: tint }]}>
+          <View style={[styles.brandVisual, { backgroundColor: brandVisualBackground }]}>
             {brand.showGrabCoupon ? (
               <View style={styles.couponBadge}>
                 <Text style={styles.couponEmoji}>🧧</Text>
@@ -359,11 +336,12 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
                 </Text>
               </View>
             ) : null}
-            {brand.logo ? (
+            {brand.logo && !logoFailed ? (
               <Image
                 accessibilityLabel={`${brand.name} logo`}
                 cachePolicy="memory-disk"
                 contentFit="contain"
+                onError={() => setLogoFailed(true)}
                 recyclingKey={brand.logo}
                 source={{ uri: brand.logo }}
                 style={styles.brandLogoImage}
@@ -437,7 +415,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   },
   topBar: {
     alignItems: "center",
-    borderBottomColor: "rgba(16, 53, 34, 0.12)",
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
     gap: spacing.md,
@@ -459,7 +437,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     paddingTop: 24,
   },
   pageTitle: {
-    color: "#3A4B61",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 32,
     fontWeight: "700",
@@ -467,8 +445,8 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   },
   heroCard: {
     alignItems: "center",
-    backgroundColor: "#F2FBF8",
-    borderColor: "#D8F0E8",
+    backgroundColor: pickThemed(colors, "#F2FBF8", colors.fieldMuted),
+    borderColor: pickThemed(colors, "#D8F0E8", colors.border),
     borderRadius: 24,
     borderWidth: 1,
     boxShadow: "0 4px 16px rgba(16, 53, 34, 0.10)",
@@ -507,7 +485,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     textAlign: "center",
   },
   heroDescription: {
-    color: "#3A4B61",
+    color: colors.muted,
     fontFamily: typography.family,
     fontSize: 15,
     lineHeight: 24,
@@ -550,7 +528,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     gap: 16,
   },
   sectionTitle: {
-    color: "#3A4B61",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 26,
     fontWeight: "700",
@@ -594,8 +572,9 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     opacity: 0.96,
   },
   brandLogoImage: {
-    height: "55%",
-    width: "70%",
+    // expo-image gets no size from absolute-fill alone on Android new arch.
+    height: "100%",
+    width: "100%",
   },
   couponBadge: {
     alignItems: "center",
@@ -671,6 +650,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   },
   cashbackValue: {
     color: colors.primaryDark,
+    flexShrink: 0,
     fontFamily: typography.family,
     fontSize: 27,
     fontWeight: "700",
@@ -682,7 +662,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   },
   searchPill: {
     alignItems: "center",
-    backgroundColor: colors.card,
+    backgroundColor: colors.field,
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
@@ -717,7 +697,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   },
   favoritesEmpty: {
     alignItems: "center",
-    backgroundColor: colors.card,
+    backgroundColor: colors.fieldMuted,
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
@@ -734,7 +714,7 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     width: 56,
   },
   favoritesEmptyTitle: {
-    color: "#3A4B61",
+    color: colors.ink,
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: "700",

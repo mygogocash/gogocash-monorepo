@@ -1,0 +1,9 @@
+api=https://api-staging.gogocash.co
+adb=/Users/kunanonjarat/Library/Android/sdk/platform-tools/adb
+device=SM02G4061912033
+foreground=co.gogocash.app
+activationDeeplinkForeground=com.android.chrome
+activationDeeplink=https://invl.me/clnlmow
+pass=17
+warn=1
+fail=3

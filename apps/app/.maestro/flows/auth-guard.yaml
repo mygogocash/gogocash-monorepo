@@ -1,6 +1,12 @@
 appId: co.gogocash.app
 ---
-- launchApp
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/dismiss-cookie-banner.yaml
 - openLink: gogocash://wallet
+- extendedWaitUntil:
+    visible:
+      id: "login-screen"
+    timeout: 30000
 - assertVisible:
     id: "login-screen"

@@ -11,6 +11,7 @@ import {
 import { useState } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
+import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { AccountPageShell, AccountWalletHeroCard } from "@mobile/components/AccountPageShell";
@@ -20,7 +21,8 @@ import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useMobileLogout } from "@mobile/auth/useMobileLogout";
 import { mapUserProfileToWalletSummary } from "@mobile/api/profileMapper";
-import { isUserProfileResponse } from "@mobile/api/profileTypes";
+import { isProfileResourceBlocking, isUserProfileResponse } from "@mobile/api/profileTypes";
+import { readMembershipTier } from "@mobile/lib/membershipTier";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import {
@@ -31,20 +33,26 @@ import {
   webProfileWalletSummary,
 } from "@mobile/design/webDesignParity";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
+import { pickThemed } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing, typography } from "@mobile/theme/tokens";
 import { LogoutConfirmCard } from "@mobile/components/LogoutConfirmCard";
 import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/profileMenuIcons";
+import { useSyncProfileSessionFields } from "@mobile/hooks/useSyncProfileSessionFields";
 
 export function CustomerProfileScreen() {
   const styles = useThemedStyles(createProfileScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
   const session = useMobileSessionSnapshot();
+  const { amount: profileWalletAmount } = useProfileWalletAmount();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
-  const sessionWalletSummary = getSessionWalletSummary(session);
+  const sessionWalletSummary = {
+    ...getSessionWalletSummary(session),
+    amount: profileWalletAmount,
+  };
   const [profileSubNavOpen, setProfileSubNavOpen] = useState(true);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const { logout: handleLogout, pending: logoutPending } = useMobileLogout();
@@ -58,11 +66,20 @@ export function CustomerProfileScreen() {
   const walletSummary = isUserProfileResponse(profileResource.data)
     ? mapUserProfileToWalletSummary(profileResource.data, sessionWalletSummary)
     : sessionWalletSummary;
+  useSyncProfileSessionFields(profileResource.data);
 
-  const profileShellWhileLoading =
-    profileResource.status === "loading" && Boolean(session?.access_token);
+  const avatarUrl =
+    typeof session?.avatar_url === "string" && session.avatar_url.trim()
+      ? session.avatar_url.trim()
+      : isUserProfileResponse(profileResource.data) &&
+          typeof profileResource.data.avatar_url === "string" &&
+          profileResource.data.avatar_url.trim()
+        ? profileResource.data.avatar_url.trim()
+        : null;
 
-  if (profileResource.status !== "ready" && !profileShellWhileLoading) {
+  const hasSession = Boolean(session?.access_token);
+
+  if (isProfileResourceBlocking(profileResource.status, hasSession)) {
     return (
       <CustomerAccountResourceState
         emptyBody={tc("Complete your profile setup to unlock account actions.")}
@@ -81,11 +98,13 @@ export function CustomerProfileScreen() {
       <View style={styles.profileHubStack}>
         <AccountWalletHeroCard
           amount={walletSummary.amount}
+          avatarUrl={avatarUrl}
           currency={walletSummary.currency}
           lastUpdated={walletSummary.lastUpdated}
           maskedId={walletSummary.maskedId}
           tier={walletSummary.tier}
           title={walletSummary.username}
+          userId={walletSummary.userId}
         />
         <View style={styles.profilePanelShell}>
           <ProfilePanelHeader
@@ -186,6 +205,7 @@ function InviteFriendsRow({ href }: { href: string }) {
   const tc = useCopy();
   const router = useRouter();
   const toast = useToast();
+  const [rowHovered, setRowHovered] = useState(false);
 
   const handleCopyLink = () => {
     copyInviteLink();
@@ -195,10 +215,13 @@ function InviteFriendsRow({ href }: { href: string }) {
   };
 
   return (
-    <View style={styles.inviteRow}>
+    <View style={[styles.inviteRow, rowHovered ? styles.inviteRowHovered : null]}>
       <MotionPressable
         accessibilityLabel={tc("Open referral page")}
         accessibilityRole="button"
+        hoverLift={false}
+        onHoverIn={() => setRowHovered(true)}
+        onHoverOut={() => setRowHovered(false)}
         onPress={() => router.push(href as never)}
         pressScale={0.98}
         style={styles.inviteCardLinkArea}
@@ -216,6 +239,9 @@ function InviteFriendsRow({ href }: { href: string }) {
         // The pill is only 24px tall (styles.copyButton); hitSlop expands the
         // tap target to a comfortable ~44px without changing the visual layout.
         hitSlop={{ bottom: 10, left: 10, right: 10, top: 10 }}
+        hoverLift={false}
+        onHoverIn={() => setRowHovered(true)}
+        onHoverOut={() => setRowHovered(false)}
         onPress={handleCopyLink}
         pressScale={0.98}
         style={styles.copyButton}
@@ -270,18 +296,17 @@ function ProfileNavRow({
 }
 
 function getSessionWalletSummary(session: ReturnType<typeof useMobileSessionSnapshot>) {
+  const sessionId = typeof session?._id === "string" && session._id ? session._id : null;
+
   return {
     ...webProfileWalletSummary,
-    amount: typeof session?.wallet === "string" && session.wallet ? session.wallet : webProfileWalletSummary.amount,
-    maskedId: maskSessionId(session?._id) ?? webProfileWalletSummary.maskedId,
+    maskedId: sessionId ? maskSessionId(sessionId) ?? webProfileWalletSummary.maskedId : webProfileWalletSummary.maskedId,
+    userId: sessionId ?? webProfileWalletSummary.userId,
     username:
       typeof session?.username === "string" && session.username
         ? session.username
         : webProfileWalletSummary.username,
-    tier:
-      typeof session?.membership_tier === "string" && session.membership_tier
-        ? session.membership_tier
-        : webProfileWalletSummary.membershipTier,
+    tier: readMembershipTier(session?.membership_tier) ?? "",
   };
 }
 
@@ -370,17 +395,22 @@ function createProfileScreenStyles(colors: ThemeColors) {
   },
   inviteRow: {
     alignItems: "center",
-    backgroundColor: "#DCEBFF",
+    backgroundColor: pickThemed(colors, "#DCEBFF", colors.primarySoft),
     borderRadius: 18,
     flexDirection: "row",
     gap: spacing.md,
     maxHeight: 52,
     minHeight: 52,
+    overflow: "hidden",
     paddingHorizontal: 16,
     width: "100%",
   },
+  inviteRowHovered: {
+    backgroundColor: pickThemed(colors, "#C8DFFB", "#0A3329"),
+  },
   inviteCardLinkArea: {
     alignItems: "center",
+    backgroundColor: "transparent",
     flex: 1,
     flexDirection: "row",
     gap: 16,

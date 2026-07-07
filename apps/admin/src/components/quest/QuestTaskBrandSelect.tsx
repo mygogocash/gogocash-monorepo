@@ -3,17 +3,20 @@
 import { useMemo, useState } from "react";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { isActiveGoGoCashOffer } from "@/lib/isActiveGoGoCashOffer";
 import {
   brandSearchOptionLabel,
   getOfferDisplayName,
 } from "@/lib/offerDisplay";
+import {
+  mergeAutocompleteTextFieldSlotProps,
+  offerAutocompletePopperSlotProps,
+  syncAutocompleteSearchInput,
+} from "@/lib/offerAutocompleteUi";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import type { Offer, OffersQuery } from "@/types/api";
-
-const BRAND_AUTOCOMPLETE_POPPER_Z = 100002;
 
 const BASE_OFFERS_QUERY: OffersQuery = {
   search: "",
@@ -56,6 +59,7 @@ export function QuestTaskBrandSelect({
   const { data: brandOffers, isFetching } = useQuery({
     queryKey: offersListQueryKey(offersQuery),
     queryFn: () => fetchOffersList(offersQuery),
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
@@ -111,21 +115,13 @@ export function QuestTaskBrandSelect({
       noOptionsText={
         isFetching ? "Loading brands…" : "No active brands found"
       }
-      slotProps={{
-        popper: {
-          sx: { zIndex: BRAND_AUTOCOMPLETE_POPPER_Z },
-        },
-      }}
+      slotProps={offerAutocompletePopperSlotProps}
       sx={{ width: "100%" }}
       renderInput={(params) => (
         <TextField
           {...params}
           placeholder="Search active brands…"
-          slotProps={{
-            htmlInput: {
-              "aria-label": "Brand",
-            },
-          }}
+          slotProps={mergeAutocompleteTextFieldSlotProps(params, "Brand")}
         />
       )}
       renderOption={(props, option) => {
@@ -142,8 +138,7 @@ export function QuestTaskBrandSelect({
         );
       }}
       onInputChange={(_event, value, reason) => {
-        if (reason === "input") setSearch(value);
-        if (reason === "clear") setSearch("");
+        syncAutocompleteSearchInput(reason, value, setSearch);
       }}
       onChange={(_event, value) => {
         if (!value) return;

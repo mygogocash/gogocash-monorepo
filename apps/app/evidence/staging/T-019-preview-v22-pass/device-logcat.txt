@@ -1,0 +1,337 @@
+command=adb logcat -d -t 300
+ok=true
+status=0
+--- stdout ---
+--------- beginning of main
+07-04 10:18:20.812  2483  3348 I MMCAVPlayer: [, , 0]:[external_io_wrapper.cc:165] SeekIO:0x7dc82373b8 pos:0 whence:65536
+07-04 10:18:20.812  2483  3348 I MMCAVPlayer: [, , 0]:[external_io_wrapper_jni.cc:146] SeekIO:0x7dc82373b8 seek_pos:0,whence:65536
+07-04 10:18:20.812  2483  3348 I MMCAVPlayer: [, , 0]:[mmcio.cc:83] [SeekIO:0x7dc82373b8]MMCIO SeekIO ret:241049
+07-04 10:18:20.812  2483  3348 I MMCAVPlayer: [, , 0]:[mmcio.cc:72] [SeekIO:0x7dc82373b8]SeekIO pos:0 whence:65536
+07-04 10:18:20.812  2483  3348 I MMCAVPlayer: [, , 0]:[external_io_wrapper.cc:165] SeekIO:0x7dc82373b8 pos:0 whence:65536
+07-04 10:18:20.812  2483  3348 I MMCAVPlayer: [, , 0]:[external_io_wrapper_jni.cc:146] SeekIO:0x7dc82373b8 seek_pos:0,whence:65536
+07-04 10:18:20.812  2483  3348 I MMCAVPlayer: [, , 0]:[mmcio.cc:83] [SeekIO:0x7dc82373b8]MMCIO SeekIO ret:241049
+07-04 10:18:20.812  2483  3348 I MMCAVPlayer: [, , 0]:[mmcio.cc:72] [SeekIO:0x7dc82373b8]SeekIO pos:0 whence:65536
+07-04 10:18:20.812  2483  3348 I MMCAVPlayer: [, , 0]:[external_io_wrapper.cc:165] SeekIO:0x7dc82373b8 pos:0 whence:65536
+07-04 10:18:20.812  2483  3348 I MMCAVPlayer: [, , 0]:[external_io_wrapper_jni.cc:146] SeekIO:0x7dc82373b8 seek_pos:0,whence:65536
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[mmcio.cc:83] [SeekIO:0x7dc82373b8]MMCIO SeekIO ret:241049
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1190] [Open:0x7dc82373b8]find stream info done.
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1364] [CheckStreamInfo:0x7dc82373b8]enter
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:380] [OnDataReceived:0x7dc82373b8]OpenURL completed
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.h:213] [operator=]tag:0x7dc82373b8, State: IDLE to PLAYING
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1409] [CreateFormatPacket:0x7dc82373b8]enter
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:1394] [OnMessage: 0x7dc82373b8]PLAY_EVT_CONNECT_SUCC, set_hit_decoder_pool_:0
+07-04 10:18:20.813  2483  3348 I MMCPlayerNative: [, , 0]: onPlayEvent 4002
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:453] [OnDataReceived:0x7dc82373b8]Start loop
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1471] [StartMainTaskLoop:0x7dc82373b8]enter
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:655] [OnStateChanged:0x7dc82373b8]State::Ready
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:595] [OnStateChanged:0x7dc82373b8]State::Paused
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:612] [OnStateChanged:0x7dc82373b8]State::Playing
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1471] [StartMainTaskLoop:0x7dc82373b8]enter
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1579] [HandleEvent:0x7dc82373b8]HandleEvent: index=3,event=1(PLAY),current=PLAYING,next=PLAYING
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[clock.cc:115] [OnGetAVPacket:0x7dc82373b8]first video packet pts:0
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1989] [OnPlay:0x7dc82373b8][cache_control] water_mark{current:100000,next:1000000} cached:120.000ms
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[context_impl.cc:512] track firstBufferEndTimestamp_ms: 1783135100812940 firstBufferingCost_:0.039
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[context_impl.cc:696] [SetCacheControl:0x7dc82373b8] isLive:0 begin:100000, seek:10000, lag:1000000, current:1000000
+07-04 10:18:20.813  2483  3348 I MMCAVPlayer: [, , 0]:[status_listener.cc:684] Fps in file 25 25.000000
+07-04 10:18:20.813  2483  3348 I MMCLivePlayerImpl: [, , 0]:onPlayEvent PLAY_EVT_GET_METADATA width: 480 height: 640video codec video/hevcaudio codec 
+07-04 10:18:20.813  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc82373b8] onPlayEvent 4003
+07-04 10:18:20.813  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc82373b8] onPlayEvent 2014
+07-04 10:18:20.814  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:84] [OnMessage:0x7dc82373b8]enter, message type:2029
+07-04 10:18:20.815  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1190] [Open:0x7dc80634e8]find stream info done.
+07-04 10:18:20.815  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1364] [CheckStreamInfo:0x7dc80634e8]enter
+07-04 10:18:20.815  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:380] [OnDataReceived:0x7dc80634e8]OpenURL completed
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.h:213] [operator=]tag:0x7dc80634e8, State: IDLE to PLAYING
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1409] [CreateFormatPacket:0x7dc80634e8]enter
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:311] [OnDataReceived:0x7dc80634e8]get format packet, las_changed:0
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:722] [HandleFormatPacket:0x7dc80634e8]enter isPreCreated:0
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:747] [HandleFormatPacket:0x7dc80634e8]force enable hw decoder in live mode
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:775] [HandleFormatPacket:0x7dc80634e8] not pre create
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:453] [OnDataReceived:0x7dc80634e8]Start loop
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1471] [StartMainTaskLoop:0x7dc80634e8]enter
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:1394] [OnMessage: 0x7dc80634e8]PLAY_EVT_CONNECT_SUCC, set_hit_decoder_pool_:0
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:655] [OnStateChanged:0x7dc80634e8]State::Ready
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:612] [OnStateChanged:0x7dc80634e8]State::Playing
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1579] [HandleEvent:0x7dc80634e8]HandleEvent: index=3,event=1(PLAY),current=PLAYING,next=PLAYING
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:852] [HandleFormatPacket:0x7dc80634e8]get new format packet
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[video_format.cc:68] mime is not changed when pre_created decoder, treat as same format
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:924] [HandleFormatPacket:0x7dc80634e8]decoder reuse
+07-04 10:18:20.816  2483  3348 I MMCPlayerNative: [, , 0]: onPlayEvent 4002
+07-04 10:18:20.816  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:715] [SendMediaFormatOnce:0x7dc80634e8]
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:172] send packet media_format mCsdSent 0
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:469] [configureFormat:0x7dc80634e8]is_pre_created:1
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:490] [configureFormat:0x7dc80634e8]bsf start alloc and init
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:504] [configureFormat:0x7dc80634e8]bsf init successfully
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:539] [configureFormat:0x7dc80634e8]extra data size:44
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:556] [configureFormat:0x7dc80634e8]sps_pps_size:37
+07-04 10:18:20.817  2483  3348 I MMCLivePlayerImpl: [, , 0]:onPlayEvent PLAY_EVT_GET_METADATA width: 272 height: 480video codec video/avcaudio codec 
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:576] [configureFormat:0x7dc80634e8]set csd buffer successfully
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:582] [configureFormat:0x7dc80634e8]configure MediaFormat successfully
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:175] send packet media_format
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:326] [OnDataReceived:0x7dc80634e8]get format packet complete
+07-04 10:18:20.817  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc80634e8] onPlayEvent 4003
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[clock.cc:115] [OnGetAVPacket:0x7dc80634e8]first video packet pts:4560032000
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1989] [OnPlay:0x7dc80634e8][cache_control] water_mark{current:22000,next:400000} cached:291.000ms
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[context_impl.cc:512] track firstBufferEndTimestamp_ms: 1783135100816250 firstBufferingCost_:0.069
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[video_decode_statistic.cc:16] [0x7dc80634e8][performance]First Video Packet into VideoDecoder
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[conn_info.h:316] [update_end_stage]connection end state change from HttpRecvHead to FirstFrameDecoding
+07-04 10:18:20.817  2483  3348 I MMCAVPlayer: [, , 0]:[context_impl.cc:696] [SetCacheControl:0x7dc80634e8] isLive:1 begin:22000, seek:10000, lag:400000, current:400000
+07-04 10:18:20.817  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc80634e8] onPlayEvent 2014
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1190] [Open:0x7dc8372448]find stream info done.
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1364] [CheckStreamInfo:0x7dc8372448]enter
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:380] [OnDataReceived:0x7dc8372448]OpenURL completed
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.h:213] [operator=]tag:0x7dc8372448, State: IDLE to PLAYING
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1409] [CreateFormatPacket:0x7dc8372448]enter
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:453] [OnDataReceived:0x7dc8372448]Start loop
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1471] [StartMainTaskLoop:0x7dc8372448]enter
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:655] [OnStateChanged:0x7dc8372448]State::Ready
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:612] [OnStateChanged:0x7dc8372448]State::Playing
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1579] [HandleEvent:0x7dc8372448]HandleEvent: index=3,event=1(PLAY),current=PLAYING,next=PLAYING
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[clock.cc:115] [OnGetAVPacket:0x7dc8372448]first video packet pts:1534988445000
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:311] [OnDataReceived:0x7dc8372448]get format packet, las_changed:0
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:722] [HandleFormatPacket:0x7dc8372448]enter isPreCreated:0
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:747] [HandleFormatPacket:0x7dc8372448]force enable hw decoder in live mode
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:1394] [OnMessage: 0x7dc8372448]PLAY_EVT_CONNECT_SUCC, set_hit_decoder_pool_:0
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:775] [HandleFormatPacket:0x7dc8372448] not pre create
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:852] [HandleFormatPacket:0x7dc8372448]get new format packet
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_format.cc:68] mime is not changed when pre_created decoder, treat as same format
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:924] [HandleFormatPacket:0x7dc8372448]decoder reuse
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:715] [SendMediaFormatOnce:0x7dc8372448]
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:172] send packet media_format mCsdSent 0
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:469] [configureFormat:0x7dc8372448]is_pre_created:1
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:490] [configureFormat:0x7dc8372448]bsf start alloc and init
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:504] [configureFormat:0x7dc8372448]bsf init successfully
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:539] [configureFormat:0x7dc8372448]extra data size:44
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:556] [configureFormat:0x7dc8372448]sps_pps_size:37
+07-04 10:18:20.818  2483  3348 I MMCPlayerNative: [, , 0]: onPlayEvent 4002
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1989] [OnPlay:0x7dc8372448][cache_control] water_mark{current:22000,next:400000} cached:374.000ms
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:576] [configureFormat:0x7dc8372448]set csd buffer successfully
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:582] [configureFormat:0x7dc8372448]configure MediaFormat successfully
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:175] send packet media_format
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:326] [OnDataReceived:0x7dc8372448]get format packet complete
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[context_impl.cc:512] track firstBufferEndTimestamp_ms: 1783135100818022 firstBufferingCost_:0.052
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[context_impl.cc:696] [SetCacheControl:0x7dc8372448] isLive:1 begin:22000, seek:10000, lag:400000, current:400000
+07-04 10:18:20.818  2483  3348 I MMCLivePlayerImpl: [, , 0]:onPlayEvent PLAY_EVT_GET_METADATA width: 272 height: 480video codec video/avcaudio codec 
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[video_decode_statistic.cc:16] [0x7dc8372448][performance]First Video Packet into VideoDecoder
+07-04 10:18:20.818  2483  3348 I MMCAVPlayer: [, , 0]:[conn_info.h:316] [update_end_stage]connection end state change from HttpRecvHead to FirstFrameDecoding
+07-04 10:18:20.819  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc8372448] onPlayEvent 4003
+07-04 10:18:20.819  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc8372448] onPlayEvent 2014
+07-04 10:18:20.820  2483  3348 I MMCAVPlayer: [, , 0]:[context_impl.cc:561] [ToggleEvent:0x7dc82373b8][cache_control] eof_waiting: begin
+07-04 10:18:20.821  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1740] [OnPlay:0x7dc82373b8]EOF demux completed!(continuousReconnection:0)
+07-04 10:18:20.821  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.h:213] [operator=]tag:0x7dc82373b8, State: PLAYING to PAUSED
+07-04 10:18:20.821  2483  3348 I MMCAVPlayer: [, , 0]:[context_impl.cc:477] [ToggleEvent:0x7dc80634e8] [cache_control] buffering: begin, reason:1005 AntiJitterBuffer buffer:2.591 audioBuffer:0.000 videoBuffer:2.591 waterMark(cur:0.400 first:0.138 lag:0.277)
+07-04 10:18:20.821  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc80634e8] onPlayEvent 2007
+07-04 10:18:20.824  2483  3348 I MMCAVPlayer: [, , 0]:[context_impl.cc:477] [ToggleEvent:0x7dc8372448] [cache_control] buffering: begin, reason:1005 AntiJitterBuffer buffer:1.833 audioBuffer:0.000 videoBuffer:1.833 waterMark(cur:0.400 first:0.138 lag:0.277)
+07-04 10:18:20.824  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc8372448] onPlayEvent 2007
+07-04 10:18:20.824  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.829  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1989] [OnPlay:0x7dc80634e8][cache_control] water_mark{current:400000,next:800000} cached:2958.000ms
+07-04 10:18:20.830  2483  3348 I MMCAVPlayer: [, , 0]:[context_impl.cc:696] [SetCacheControl:0x7dc80634e8] isLive:1 begin:22000, seek:10000, lag:400000, current:800000
+07-04 10:18:20.830  2483  3348 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1989] [OnPlay:0x7dc8372448][cache_control] water_mark{current:400000,next:800000} cached:1916.000ms
+07-04 10:18:20.830  2483  3348 I MMCAVPlayer: [, , 0]:[context_impl.cc:696] [SetCacheControl:0x7dc8372448] isLive:1 begin:22000, seek:10000, lag:400000, current:800000
+07-04 10:18:20.830  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc8372448] onPlayEvent 2014
+07-04 10:18:20.830  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc80634e8] onPlayEvent 2014
+07-04 10:18:20.832  2483  3348 I MMCMediaPlayer: [, , 0]:64235597 surfaceChanged
+07-04 10:18:20.832  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc8372448][setRenderSurfaceInternal]set surface : Surface(name=null mNativeObject=540230018384)/@0x13e7c44, current:Surface(name=null mNativeObject=540230018384)/@0x13e7c44
+07-04 10:18:20.832  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc8372448][setRenderSurfaceInternal]set render surface end, cost 0
+07-04 10:18:20.833  2483  3348 I MMCMediaPlayer: [, , 0]:229588058 surfaceChanged
+07-04 10:18:20.833  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc80634e8][setRenderSurfaceInternal]set surface : Surface(name=null mNativeObject=540223724672)/@0x845f662, current:Surface(name=null mNativeObject=540223724672)/@0x845f662
+07-04 10:18:20.833  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc80634e8][setRenderSurfaceInternal]set render surface end, cost 0
+07-04 10:18:20.834  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.834  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.834  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.835  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.836  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.836 27009 27009 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: window
+07-04 10:18:20.837  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.837  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.838  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.838  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.840  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.840  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.842  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.844  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.844  1950  3758 I system_server: AssetManager2(0xb400007cc787c6d8) locale list changing from [] to [en-US]
+07-04 10:18:20.845  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.845  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.846  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.846  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:798] [onDecode:0x7dc80634e8]output format changed, media format :272 480 2130708361 crop[0 0 271 479]
+07-04 10:18:20.846  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:744] get INFO_OUTPUT_FORMAT_CHANGED, let's loop!
+07-04 10:18:20.846  2483  3348 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:1156] [OnMessage:0x7dc80634e8]PLAY_EVT_CHANGE_RESOLUTION w/h 272/480
+07-04 10:18:20.846  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1724] [MainForNewJitter:0x7dc80634e8][onFrameRendered] firstFrameDecoded
+07-04 10:18:20.847  2483  3348 I MMCAVPlayer: [, , 0]:[video_decode_statistic.cc:30] [0x7dc80634e8][performance]First Frame decoded by VideoDecoder, 6 packets sent into dec
+07-04 10:18:20.847  2483  3348 I MMCAVPlayer: [, , 0]:[conn_info.h:316] [update_end_stage]connection end state change from FirstFrameDecoding to FirstFrameDecoded
+07-04 10:18:20.847  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc80634e8] onPlayEvent 8013
+07-04 10:18:20.847  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1481] [OnFrameRendered:0x7dc80634e8]test_First_Frame_Rendered(not on screen actually)
+07-04 10:18:20.848  2483  3348 I MMCAVPlayer: [, , 0]:[conn_info.h:316] [update_end_stage]connection end state change from FirstFrameDecoded to FirstFrameRendered
+07-04 10:18:20.848  2483  3348 I MMCAVPlayer: [, , 0]:[status_listener.cc:163] [0x7e27e9b2c0][onVideoOutputBuffer] Render====>>>> send ready
+07-04 10:18:20.848  2483  3348 I MMCAVPlayer: [, , 0]:[status_listener.cc:780] [0x7dc80634e8][first-frame-opt] set flag = 1, mediacode_render callback_type:1
+07-04 10:18:20.848  2483  3348 I MMCAVPlayer: [, , 0]:[status_listener.cc:790] [notifyVideoRenderFirstFrame:0x7dc80634e8][performance]First Frame Render , render time ms:126710136
+07-04 10:18:20.848  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.848  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc80634e8] onPlayEvent 2004
+07-04 10:18:20.848  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc80634e8] onPlayEvent 8005
+07-04 10:18:20.848  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc80634e8] onPlayEvent 8101
+07-04 10:18:20.849  1950  3758 I system_server: AssetManager2(0xb400007cc78d9978) locale list changing from [] to [en-US]
+07-04 10:18:20.850  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:798] [onDecode:0x7dc8372448]output format changed, media format :272 480 2130708361 crop[0 0 271 479]
+07-04 10:18:20.850  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:744] get INFO_OUTPUT_FORMAT_CHANGED, let's loop!
+07-04 10:18:20.850  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1724] [MainForNewJitter:0x7dc8372448][onFrameRendered] firstFrameDecoded
+07-04 10:18:20.850  2483  3348 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:1156] [OnMessage:0x7dc8372448]PLAY_EVT_CHANGE_RESOLUTION w/h 272/480
+07-04 10:18:20.850  2483  3348 I MMCAVPlayer: [, , 0]:[video_decode_statistic.cc:30] [0x7dc8372448][performance]First Frame decoded by VideoDecoder, 8 packets sent into dec
+07-04 10:18:20.850  2483  3348 I MMCAVPlayer: [, , 0]:[conn_info.h:316] [update_end_stage]connection end state change from FirstFrameDecoding to FirstFrameDecoded
+07-04 10:18:20.850  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc8372448] onPlayEvent 8013
+07-04 10:18:20.851  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.852  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.853  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c518b0) Buffer queue is created with size(3), m_id(862), q2  
+07-04 10:18:20.853  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c518b0) Reallocate Slot(0), pool(0 -> 1284559472) size(0 -> 6408000) secure(0 -> 0)  
+07-04 10:18:20.853  1950  3758 I system_server: AssetManager2(0xb400007cc78d54b8) locale list changing from [] to [en-US]
+07-04 10:18:20.854  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c518b0) Alloc Slot(0), handle=0xb400007af8c61730 c=0 w=1200 h=2670 p=1200 ys=1200 vs=2670 f=268 sec=0 sh=0, usage=0x800  
+07-04 10:18:20.855  1381 26989 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.856  1379  1744 W hwcomposer: [DRMDEV] paramIsSame(), id 850, w 1200/1200, h 2670/2670, pitch 1216/1216, format 0x2/0x1, secure 0/0  
+07-04 10:18:20.859  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.859  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1481] [OnFrameRendered:0x7dc8372448]test_First_Frame_Rendered(not on screen actually)
+07-04 10:18:20.859  1950  3758 I system_server: AssetManager2(0xb400007cc79048f8) locale list changing from [] to [en-US]
+07-04 10:18:20.859  2483  3348 I MMCAVPlayer: [, , 0]:[conn_info.h:316] [update_end_stage]connection end state change from FirstFrameDecoded to FirstFrameRendered
+07-04 10:18:20.859  2483  3348 I MMCAVPlayer: [, , 0]:[status_listener.cc:163] [0x7e284de690][onVideoOutputBuffer] Render====>>>> send ready
+07-04 10:18:20.860  1379  1379 I hwcomposer: [HWCLayer] pending release queue sp q2_862, type 3 -> 0 (0-862:FsetHwlayerType-L712)  
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: [, , 0]:[status_listener.cc:780] [0x7dc8372448][first-frame-opt] set flag = 1, mediacode_render callback_type:1
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: [, , 0]:[status_listener.cc:790] [notifyVideoRenderFirstFrame:0x7dc8372448][performance]First Frame Render , render time ms:126710140
+07-04 10:18:20.860  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc8372448] onPlayEvent 2004
+07-04 10:18:20.860  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc8372448] onPlayEvent 8005
+07-04 10:18:20.860  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc8372448] onPlayEvent 8101
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: [, , 0]:[android_global_config.cc:195] enable_show_time_use_event_timestamp: 1
+07-04 10:18:20.860  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc8372448] onPlayEvent 9013
+07-04 10:18:20.860  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc8372448] onPlayEvent 3903
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: [, , 0]:[status_listener.cc:1386] [0x7dc8372448][performance]prepare->dmx_open:21
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: dmx_open->mmcio_open:0
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: mmcio open->mmcio open done:0
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: mmcio open done->ff_open:0
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer:   ff_open->cache start read:0
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer:   cache start read->1st byte from datasource:0
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer:   1st byte from datasource->cache read 1st byte:0
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer:   cache read 1st byte->ff_open_done:0
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: ff open total:50
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: ff_open_done->1st vpkt:0
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: 1st vpkt->1st vpkt into dec:0
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: 1st frame decode cost:32
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: decoded->render:1
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: decoder create cost:27
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: play->1st frame:81
+07-04 10:18:20.860  2483  3348 I MMCAVPlayer: prepare->1st frame:107
+07-04 10:18:20.860  2483  3348 I ILivePlayerReport: [, , 0]:PLAY_EVT_RCV_FIRST_I_FRAME:1783135100852
+07-04 10:18:20.860  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.861  2483  3348 I MMCAVPlayer: [, , 0]:[status_listener.cc:2010] [SPV2] startplay_v2 report: mode=0, default=-1, suggested=-1, result=-1, dist=0, trend=0, trend_value=0.00, time_diff_ms=-1, priority=0, first_switch_ms=0
+07-04 10:18:20.861  1407  1418 I mtkpower@impl: [setMode] type:6, enabled:1
+07-04 10:18:20.861  1407  1418 E mtkpower@impl: [setMode] unknown type
+07-04 10:18:20.861  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.862  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc80634e8] onPlayEvent 9013
+07-04 10:18:20.862  2483  3348 I MMCPlayerNative: [, , 0]:[0x7dc80634e8] onPlayEvent 3903
+07-04 10:18:20.862  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.863  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: [, , 0]:[status_listener.cc:1386] [0x7dc80634e8][performance]prepare->dmx_open:13
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: dmx_open->mmcio_open:0
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: mmcio open->mmcio open done:0
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: mmcio open done->ff_open:0
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer:   ff_open->cache start read:0
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer:   cache start read->1st byte from datasource:0
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer:   1st byte from datasource->cache read 1st byte:0
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer:   cache read 1st byte->ff_open_done:0
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: ff open total:61
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: ff_open_done->1st vpkt:0
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: 1st vpkt->1st vpkt into dec:0
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: 1st frame decode cost:30
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: decoded->render:1
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: decoder create cost:33
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: play->1st frame:87
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: prepare->1st frame:108
+07-04 10:18:20.863  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c58030) Buffer queue is created with size(3), m_id(863), q2  
+07-04 10:18:20.863  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c58030) Reallocate Slot(0), pool(0 -> 1284548992) size(0 -> 6408000) secure(0 -> 0)  
+07-04 10:18:20.863  2483  3348 I MMCAVPlayer: [, , 0]:[status_listener.cc:2010] [SPV2] startplay_v2 report: mode=0, default=-1, suggested=-1, result=-1, dist=0, trend=0, trend_value=0.00, time_diff_ms=-1, priority=0, first_switch_ms=0
+07-04 10:18:20.864  1950  3758 I system_server: AssetManager2(0xb400007cc790f7f8) locale list changing from [] to [en-US]
+07-04 10:18:20.864  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.865  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c58030) Alloc Slot(0), handle=0xb400007af8c5b6f0 c=0 w=1200 h=2670 p=1200 ys=1200 vs=2670 f=268 sec=0 sh=0, usage=0x800  
+07-04 10:18:20.866  2483  3348 I ILivePlayerReport: [, , 0]:PLAY_EVT_RCV_FIRST_I_FRAME:1783135100847
+07-04 10:18:20.866  1381 26992 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.866  1379  1379 I hwcomposer: [HWCLayer] release queue sp q2_862 (0-862:FafterPresent-L667)  
+07-04 10:18:20.866  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c518b0) Buffer queue is destroyed, m_id(862)  
+07-04 10:18:20.866  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c518b0) ~DisplayBufferQueue(), m_id(862), release buf  
+07-04 10:18:20.866  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c518b0) Free Slot(0), handle=0xb400007af8c61730, 6408000 -> 0  
+07-04 10:18:20.869  1950  3758 I system_server: AssetManager2(0xb400007cc7a515f8) locale list changing from [] to [en-US]
+07-04 10:18:20.874  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:311] [OnDataReceived:0x7dc82373b8]get format packet, las_changed:0
+07-04 10:18:20.874  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:722] [HandleFormatPacket:0x7dc82373b8]enter isPreCreated:0
+07-04 10:18:20.875  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:775] [HandleFormatPacket:0x7dc82373b8] not pre create
+07-04 10:18:20.875  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:794] [HandleFormatPacket:0x7dc82373b8] [dummy-view-opt], exist surface, main surface:0x9226, dummy surface:0x91ce
+07-04 10:18:20.875  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:804] [HandleFormatPacket]codecpara_3, width:0, height:0, codec id:0, extrasize:0
+07-04 10:18:20.875  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:812] [HandleFormatPacket]codecpara_4, width:480, height:640, codec id:173, extrasize:2338, video_timebase:90000,1
+07-04 10:18:20.875  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:606] [CreateDecoder:0x7dc82373b8]createDecoder, target type:HW
+07-04 10:18:20.875  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_base.cc:20] [0x7dc82373b8]createDecoder codec hevc, dectype:hardware
+07-04 10:18:20.875  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_base.cc:34] [createDecoder]codecpara_4, width:480, height:640, codec id:173, extrasize:2338
+07-04 10:18:20.875  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:332] [createMediaCodecDecoder:0x7dc82373b8] mime:video/hevc
+07-04 10:18:20.875  2483  3348 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:197] createCodecInstance:0x7dc82373b8
+07-04 10:18:20.875  2483  3348 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:201] mime:video/hevc
+07-04 10:18:20.878  2483 26975 W libc    : Access denied finding property "persist.vendor.media.c2.frameworks.debug.log"
+07-04 10:18:20.879  2483 26975 W libc    : Access denied finding property "persist.vendor.media.c2.frameworks.buffercount.trace"
+07-04 10:18:20.879  2483 26975 W libc    : Access denied finding property "persist.vendor.media.c2.frameworks.debug.log"
+07-04 10:18:20.879  2483 26975 W libc    : Access denied finding property "persist.vendor.media.c2.frameworks.buffercount.trace"
+07-04 10:18:20.879  2483 26975 W libc    : Access denied finding property "persist.vendor.media.playback.mbrain.MtkVideoInfo"
+07-04 10:18:20.879  2483 26975 W libc    : Access denied finding property "persist.vendor.media.c2.frameworks.debug.log"
+07-04 10:18:20.881  2483 27016 I CCodec  : setting up 'default' as default (vendor) store
+07-04 10:18:20.884  1381  9982 E C2MtkVdec: [0xB400006FEC94E8A8] Lock on weak_ptr (mIntf) returns null.
+07-04 10:18:20.885  2483 27016 I CCodec  : Created component [c2.mtk.hevc.decoder] for [c2.mtk.hevc.decoder]
+07-04 10:18:20.889  2483 27016 I CCodecConfig: query failed after returning 18 values (BAD_INDEX)
+07-04 10:18:20.890  2483 27016 W ColorUtils: expected specified color aspects (2:0:0:0)
+07-04 10:18:20.890  2483  3348 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:75] SSZMediaCodecWrapper
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[android_global_config.cc:140] enable_frame_listener_on_player_handler: 1
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[android_global_config.cc:195] copy_android_image_mode: 0
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:71] [VideoDecoderMediaCodec:0x7dc82373b8]copy_android_image_mode:0
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[android_global_config.cc:195] enable_android_bsf_process_packet_v2: 0
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:73] [VideoDecoderMediaCodec:0x7dc82373b8]enable_android_bsf_process_packet_v2:0
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:89] [VideoDecoderMediaCodec:0x7dc82373b8] Ctor width 480, height 640 is_pre_create 0
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:469] [configureFormat:0x7dc82373b8]is_pre_created:0
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:490] [configureFormat:0x7dc82373b8]bsf start alloc and init
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:504] [configureFormat:0x7dc82373b8]bsf init successfully
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:539] [configureFormat:0x7dc82373b8]extra data size:2338
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:556] [configureFormat:0x7dc82373b8]sps_pps_size:2311
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:576] [configureFormat:0x7dc82373b8]set csd buffer successfully
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:582] [configureFormat:0x7dc82373b8]configure MediaFormat successfully
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:587] [openDecoder:0x7dc82373b8]open mediacodec decoder, surface:0x9226
+07-04 10:18:20.891  2483  3348 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:226] [0x7dc82373b8]configure surface:0x9226
+07-04 10:18:20.891  2483 26975 E MediaCodec: Media Quality Service not found.
+07-04 10:18:20.891  2483 27015 I MediaCodec: [c2.mtk.hevc.decoder] setting surface generation to 2542631
+07-04 10:18:20.893  2483 27016 W Codec2Client: query -- param skipped: index = 1107298332.
+07-04 10:18:20.893  2483 27016 I CCodecConfig: query failed after returning 19 values (BAD_INDEX)
+07-04 10:18:20.893  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1777] [MainForNewJitter:0x7dc8372448]get repeated frame, render
+07-04 10:18:20.893  2483 27016 E com.shopee.th: Failed to query component interface for required system resources: 6
+07-04 10:18:20.894  2483  3348 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:251] setFrameListener player:0x781a
+07-04 10:18:20.894  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:600] [openDecoder:0x7dc82373b8]MediaCodec configure successfully
+07-04 10:18:20.894  2483  3348 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:300] [0x7dc82373b8]start
+07-04 10:18:20.896  2483 27016 W Codec2Client: query -- param skipped: index = 1342179345.
+07-04 10:18:20.896  2483 27016 W Codec2Client: query -- param skipped: index = 2415921170.
+07-04 10:18:20.896  2483 27016 W Codec2Client: query -- param skipped: index = 1610614798.
+07-04 10:18:20.897  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1777] [MainForNewJitter:0x7dc80634e8]get repeated frame, render
+07-04 10:18:20.897  2483 27016 I CCodecBufferChannel: [c2.mtk.hevc.decoder#551] Created output block pool with allocatorID 18 => poolID 111 - OK
+07-04 10:18:20.897  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1777] [MainForNewJitter:0x7dc8372448]get repeated frame, render
+07-04 10:18:20.899  1550  1701 W ResourceManagerServiceUtils: Ignoring request to add new resource entry with value <= 0
+07-04 10:18:20.902  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c58030) Reallocate Slot(1), pool(0 -> 1284548992) size(0 -> 6408000) secure(0 -> 0)  
+07-04 10:18:20.900  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1777] [MainForNewJitter:0x7dc8372448]get repeated frame, render
+07-04 10:18:20.902  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1777] [MainForNewJitter:0x7dc80634e8]get repeated frame, render
+07-04 10:18:20.902  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:608] [openDecoder:0x7dc82373b8]MediaCodec start successfully
+07-04 10:18:20.902  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:365] [createMediaCodecDecoder:0x7dc82373b8]createMediaCodecDecoder successfully
+07-04 10:18:20.902  2483  3348 I MMCAVPlayer: [, , 0]:[context_impl.cc:407] [SetCurrentVdecType:0x7dc82373b8] 0
+07-04 10:18:20.903  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c58030) Alloc Slot(1), handle=0xb400007af8c5b590 c=0 w=1200 h=2670 p=1200 ys=1200 vs=2670 f=268 sec=0 sh=0, usage=0x800  
+07-04 10:18:20.904  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:625] [CreateDecoder:0x7dc82373b8]Create Hardware Decoder(0x7d27a76010) DONE
+07-04 10:18:20.904  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:326] [OnDataReceived:0x7dc82373b8]get format packet complete
+07-04 10:18:20.904  2483  3348 I MMCAVPlayer: [, , 0]:[video_decode_statistic.cc:16] [0x7dc82373b8][performance]First Video Packet into VideoDecoder
+07-04 10:18:20.905  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1777] [MainForNewJitter:0x7dc80634e8]get repeated frame, render
+07-04 10:18:20.906  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1777] [MainForNewJitter:0x7dc8372448]get repeated frame, render
+07-04 10:18:20.907  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1777] [MainForNewJitter:0x7dc80634e8]get repeated frame, render
+07-04 10:18:20.909  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1777] [MainForNewJitter:0x7dc80634e8]get repeated frame, render
+07-04 10:18:20.910  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c58030) Reallocate Slot(2), pool(0 -> 1284548992) size(0 -> 6408000) secure(0 -> 0)  
+07-04 10:18:20.911  1379  1379 I hwcomposer: [DBQ] (q2:0xb400007b18c58030) Alloc Slot(2), handle=0xb400007af8c5f4d0 c=0 w=1200 h=2670 p=1200 ys=1200 vs=2670 f=268 sec=0 sh=0, usage=0x800  
+07-04 10:18:20.912  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1777] [MainForNewJitter:0x7dc8372448]get repeated frame, render
+07-04 10:18:20.914  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1777] [MainForNewJitter:0x7dc8372448]get repeated frame, render
+07-04 10:18:20.916  2483  3348 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:1777] [MainForNewJitter:0x7dc8372448]get repeated frame, render
+07-04 10:18:20.917  1381 27017 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.923  1381 27017 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.923  1381 27017 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.925  1381 27017 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:18:20.927  1381 27017 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+--- stderr ---
+

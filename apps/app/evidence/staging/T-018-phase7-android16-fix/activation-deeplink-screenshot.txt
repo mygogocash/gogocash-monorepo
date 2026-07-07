@@ -1,0 +1,7 @@
+command=activation-deeplink: adb exec-out screencap -p
+ok=true
+status=0
+--- stdout ---
+<89211 bytes>
+--- stderr ---
+

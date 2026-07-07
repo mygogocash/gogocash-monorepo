@@ -33,10 +33,17 @@ export async function fetchDashboardUserStats(): Promise<DashboardStatsResponse>
   }
 }
 
+export function isRealApiConfigured(): boolean {
+  return !!process.env.NEXT_PUBLIC_API_URL;
+}
+
 export async function fetchDashboardWithdrawSummary(): Promise<DashboardSummaryResponse> {
   try {
     return await apiClient.getDashboardSummary();
-  } catch {
+  } catch (error) {
+    if (isRealApiConfigured()) {
+      throw error;
+    }
     return MOCK_DASHBOARD_SUMMARY;
   }
 }

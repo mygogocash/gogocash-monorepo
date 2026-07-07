@@ -1,0 +1,308 @@
+command=adb logcat -d -t 300
+ok=true
+status=0
+--- stdout ---
+--------- beginning of main
+07-04 10:15:44.222  1401  1444 I libPerfCtl: xgfGetFPS pid:24446 fps:-1
+07-04 10:15:44.278 25519 25519 W RefBase : RefBase: Explicit destruction, weak count = 0 (in 0x74e11e6848). Use sp<> to manage this object. Note - if weak count is 0, this leaks mRefs (weakref_impl).
+07-04 10:15:44.349 25536 25536 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: window
+07-04 10:15:44.405  2628  2628 I WifiHAL : LLS RSP: data=0xb4000072120b7c00, len=5052
+07-04 10:15:44.405  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=45
+07-04 10:15:44.405  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=16
+07-04 10:15:44.405  2628  2628 I WifiHAL : LLS check_data_sanity: confirmed_size=5052, len=5052
+07-04 10:15:44.410 25539 25539 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: window
+07-04 10:15:44.417  2628  2628 I WifiHAL : feature_set=0x8489341a
+07-04 10:15:44.545 25544 25544 W screencap: Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: SurfaceFlingerAIDL
+07-04 10:15:44.545 25544 25544 W BpBinder: Linking to death on android.gui.ISurfaceComposer but there are no threads (yet?) listening to incoming transactions. See ProcessState::startThreadPool and ProcessState::setThreadPoolMaxThreadCount. Generally you should setup the binder threadpool before other initialization steps.
+07-04 10:15:44.545 25544 25544 W ProcessState: Extra binder thread started, but 0 threads requested. Do not use *startThreadPool when zero threads are requested.
+07-04 10:15:44.556 25544 25545 W ServiceManagerCppClient: Failed to get isDeclared for mapper/mediatek: Status(-1, EX_SECURITY): 'SELinux denied for service.'
+07-04 10:15:44.556 25544 25545 E Gralloc5: Failed to load mapper.mediatek.so
+07-04 10:15:44.578 25544 25544 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm
+07-04 10:15:44.578 25544 25544 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_mm-uncached
+07-04 10:15:44.578 25544 25544 I DMABUFHEAPS: Using DMA-BUF heap named: mtk_prot_region
+07-04 10:15:44.799 25544 25544 W RefBase : RefBase: Explicit destruction, weak count = 0 (in 0x77c89be848). Use sp<> to manage this object. Note - if weak count is 0, this leaks mRefs (weakref_impl).
+07-04 10:15:44.969 25548 25548 I AndroidRuntime: Using default boot image
+07-04 10:15:44.969 25548 25548 I AndroidRuntime: Leaving lock profiling enabled
+07-04 10:15:44.973 25548 25548 I app_process: Using CollectorTypeCMC GC.
+07-04 10:15:45.064 25548 25548 I app_process: Priority-to-niceness mapping: 19, 16, 13, 10, 0, -2, -4, -5, -6, -8
+07-04 10:15:45.075 25548 25548 W main    : type=1400 audit(0.0:17943): avc:  denied  { read } for  name="u:object_r:system_mtk_app32_boost_prop:s0" dev="tmpfs" ino=464 scontext=u:r:shell:s0 tcontext=u:object_r:system_mtk_app32_boost_prop:s0 tclass=file permissive=0
+07-04 10:15:45.081 25548 25548 W libc    : Access denied finding property "ro.vendor.mtk.hbt_binfmt_misc_support"
+07-04 10:15:45.081 25548 25548 W libc    : Access denied finding property "ro.vendor.mtk.app32_boost_support"
+07-04 10:15:45.081 25548 25548 W libc    : Access denied finding property "ro.vendor.mtk.hbt_dyn_type"
+07-04 10:15:45.081 25548 25548 W libc    : Access denied finding property "persist.vendor.mtk.hbt_dyn_type"
+07-04 10:15:45.075 25548 25548 W main    : type=1400 audit(0.0:17944): avc:  denied  { read } for  name="u:object_r:system_mtk_app32_boost_prop:s0" dev="tmpfs" ino=464 scontext=u:r:shell:s0 tcontext=u:object_r:system_mtk_app32_boost_prop:s0 tclass=file permissive=0
+07-04 10:15:45.075 25548 25548 W main    : type=1400 audit(0.0:17945): avc:  denied  { read } for  name="u:object_r:system_mtk_app32_boost_prop:s0" dev="tmpfs" ino=464 scontext=u:r:shell:s0 tcontext=u:object_r:system_mtk_app32_boost_prop:s0 tclass=file permissive=0
+07-04 10:15:45.075 25548 25548 W main    : type=1400 audit(0.0:17946): avc:  denied  { read } for  name="u:object_r:system_mtk_app32_boost_prop:s0" dev="tmpfs" ino=464 scontext=u:r:shell:s0 tcontext=u:object_r:system_mtk_app32_boost_prop:s0 tclass=file permissive=0
+07-04 10:15:45.095 25548 25548 W PlatformAconfigPackage: android.os.flagging.AconfigStorageReadException: ERROR_CANNOT_READ_STORAGE_FILE: Fail to mmap storage
+07-04 10:15:45.095 25548 25548 I AconfigPackage: android.graphics.pdf.flags is mapped to com.android.mediaprovider
+07-04 10:15:45.095 25548 25548 I AconfigPackage: com.android.providers.media.flags is mapped to com.android.mediaprovider
+07-04 10:15:45.095 25548 25548 I AconfigPackage: android.graphics.pdf.flags.readonly is mapped to com.android.mediaprovider
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.adservices.ondevicepersonalization.flags is mapped to com.android.ondevicepersonalization
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.ipsec.flags is mapped to com.android.ipsec
+07-04 10:15:45.096 25548 25548 I AconfigPackage: android.provider.flags is mapped to com.android.configinfrastructure
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.server.deviceconfig is mapped to com.android.configinfrastructure
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.wifi.flags is mapped to com.android.wifi
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.tethering.mainline.beta is mapped to com.android.tethering
+07-04 10:15:45.096 25548 25548 I AconfigPackage: android.net.http is mapped to com.android.tethering
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.tethering.readonly.flags is mapped to com.android.tethering
+07-04 10:15:45.096 25548 25548 I AconfigPackage: android.net.vcn is mapped to com.android.tethering
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.net.flags is mapped to com.android.tethering
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.tethering.flags is mapped to com.android.tethering
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.tethering.beta.test is mapped to com.android.tethering
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.nearby.flags is mapped to com.android.tethering
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.net.thread.flags is mapped to com.android.tethering
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.net.ct.flags is mapped to com.android.tethering
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.org.conscrypt.flags is mapped to com.android.conscrypt
+07-04 10:15:45.096 25548 25548 I AconfigPackage: com.android.org.conscrypt.net.flags is mapped to com.android.conscrypt
+07-04 10:15:45.097 25548 25548 I AconfigPackage: com.android.adservices.flags is mapped to com.android.adservices
+07-04 10:15:45.097 25548 25548 I AconfigPackage: com.android.sdksandbox.flags is mapped to com.android.adservices
+07-04 10:15:45.097 25548 25548 I AconfigPackage: com.android.appsearch.flags is mapped to com.android.appsearch
+07-04 10:15:45.097 25548 25548 I AconfigPackage: com.android.media.extractor.flags is mapped to com.android.media
+07-04 10:15:45.097 25548 25548 I AconfigPackage: com.android.media.mainline.flags is mapped to com.android.media
+07-04 10:15:45.097 25548 25548 I AconfigPackage: com.android.healthfitness.flags is mapped to com.android.healthfitness
+07-04 10:15:45.097 25548 25548 I AconfigPackage: android.media.swcodec.flags is mapped to com.android.media.swcodec
+07-04 10:15:45.097 25548 25548 I AconfigPackage: com.android.os.statsd.flags is mapped to com.android.os.statsd
+07-04 10:15:45.097 25548 25548 I AconfigPackage: com.android.uwb.flags is mapped to com.android.uwb
+07-04 10:15:45.097 25548 25548 I AconfigPackage: com.android.ranging.flags is mapped to com.android.uwb
+07-04 10:15:45.098 25548 25548 I AconfigPackage: com.android.adbd.flags is mapped to com.android.adbd
+07-04 10:15:45.098 25548 25548 I AconfigPackage: com.android.system.virtualmachine.flags is mapped to com.android.virt
+07-04 10:15:45.098 25548 25548 I AconfigPackage: com.android.cellbroadcastreceiver.flags is mapped to com.android.cellbroadcast
+07-04 10:15:45.098 25548 25548 I AconfigPackage: com.android.permission.flags is mapped to com.android.permission
+07-04 10:15:45.098 25548 25548 I AconfigPackage: com.android.permissioncontroller.flags is mapped to com.android.permission
+07-04 10:15:45.098 25548 25548 I AconfigPackage: com.android.art.flags is mapped to com.android.art
+07-04 10:15:45.098 25548 25548 I AconfigPackage: com.android.art.rw.flags is mapped to com.android.art
+07-04 10:15:45.098 25548 25548 I AconfigPackage: com.android.libcore is mapped to com.android.art
+07-04 10:15:45.098 25548 25548 I AconfigPackage: com.android.nfc.module.flags is mapped to com.android.nfcservices
+07-04 10:15:45.098 25548 25548 I AconfigPackage: com.android.devicelock.flags is mapped to com.android.devicelock
+07-04 10:15:45.099 25548 25548 I AconfigPackage: com.android.bluetooth.flags is mapped to com.android.bt
+07-04 10:15:45.099 25548 25548 I AconfigPackage: android.uprobestats.mainline.flags is mapped to com.android.uprobestats
+07-04 10:15:45.099 25548 25548 I AconfigPackage: android.os.profiling is mapped to com.android.profiling
+07-04 10:15:45.099 25548 25548 I AconfigPackage: android.os.profiling.anomaly.flags is mapped to com.android.profiling
+07-04 10:15:45.099 25548 25548 I AconfigPackage: com.android.rkpd.flags is mapped to com.android.rkpd
+07-04 10:15:45.099 25548 25548 I AconfigPackage: com.android.icu is mapped to com.android.i18n
+07-04 10:15:45.099 25548 25548 I AconfigPackage: com.android.crashrecovery.flags is mapped to com.android.crashrecovery
+07-04 10:15:45.099 25548 25548 E FeatureFlagsImplExport: android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package android.xr cannot be found on the device
+07-04 10:15:45.101 25548 25548 I UiAutomation: Initialized for user 0 on display 0
+07-04 10:15:45.101 25548 25548 W UiAutomation: Created with deprecatead constructor, assumes DEFAULT_DISPLAY
+--------- beginning of system
+07-04 10:15:45.101  1950  2969 I UiAutomationManager: Registering UiTestAutomationService (id=com.android.server.accessibility/UiAutomation, flags=0x0) when called by user 0
+07-04 10:15:45.102  1950  2969 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+07-04 10:15:45.107  1379  1379 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:1.186955,dur:1684.98,max:1677.60,min:7.39  
+07-04 10:15:45.113  1950  2094 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+07-04 10:15:45.222  1401  1444 I libPerfCtl: xgfGetFPS pid:2660 fps:-1
+07-04 10:15:45.223  1401  1444 I libPerfCtl: xgfGetFPS pid:24446 fps:-1
+07-04 10:15:45.793  1343  1343 I Finsky  : [2] Memory trim requested to level 40
+07-04 10:15:45.794  6171  6171 I Finsky:background: [2] Memory trim requested to level 40
+07-04 10:15:45.795  1343  1343 I Finsky  : [2] Flushing in-memory image cache
+07-04 10:15:45.802  1348  1362 I netd    : tetherGetStats() -> {[]} <4.09ms>
+07-04 10:15:46.125 25548 25548 W libc    : Access denied finding property "qemu.sf.lcd_density"
+07-04 10:15:46.125 25548 25548 W libc    : Access denied finding property "qemu.sf.lcd_density"
+07-04 10:15:46.119 25548 25548 W uiautomator: type=1400 audit(0.0:17947): avc:  denied  { read } for  name="u:object_r:qemu_sf_lcd_density_prop:s0" dev="tmpfs" ino=417 scontext=u:r:shell:s0 tcontext=u:object_r:qemu_sf_lcd_density_prop:s0 tclass=file permissive=0
+07-04 10:15:46.119 25548 25548 W uiautomator: type=1400 audit(0.0:17948): avc:  denied  { read } for  name="u:object_r:qemu_sf_lcd_density_prop:s0" dev="tmpfs" ino=417 scontext=u:r:shell:s0 tcontext=u:object_r:qemu_sf_lcd_density_prop:s0 tclass=file permissive=0
+07-04 10:15:46.137 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b04c7; boundsInParent: Rect(0, 0 - 1200, 0); boundsInScreen: Rect(0, 0 - 1200, 0); boundsInWindow: Rect(0, 0 - 1200, 0); packageName: co.gogocash.app; className: android.widget.LinearLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.137 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b0106; boundsInParent: Rect(0, 0 - 1200, 0); boundsInScreen: Rect(0, 0 - 1200, 0); boundsInWindow: Rect(0, 0 - 1200, 0); packageName: co.gogocash.app; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.223  1401  1444 I libPerfCtl: xgfGetFPS pid:2660 fps:-1
+07-04 10:15:46.351 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b13cb; boundsInParent: Rect(0, 0 - 870, 54); boundsInScreen: Rect(207, 2677 - 1077, 2670); boundsInWindow: Rect(207, 2677 - 1077, 2670); packageName: co.gogocash.app; className: android.widget.TextView; text: 2026-07-02T23:34:38.598Z; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.356 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b178c; boundsInParent: Rect(0, 0 - 36, 36); boundsInScreen: Rect(123, 2791 - 159, 2670); boundsInWindow: Rect(123, 2791 - 159, 2670); packageName: co.gogocash.app; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.363 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b1b4d; boundsInParent: Rect(0, 0 - 517, 59); boundsInScreen: Rect(207, 2779 - 724, 2670); boundsInWindow: Rect(207, 2779 - 724, 2670); packageName: co.gogocash.app; className: android.widget.TextView; text: com.android.launcher3; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.370 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b1f0e; boundsInParent: Rect(0, 0 - 81, 44); boundsInScreen: Rect(996, 2786 - 1077, 2670); boundsInWindow: Rect(996, 2786 - 1077, 2670); packageName: co.gogocash.app; className: android.widget.TextView; text: Seen; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.376 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b22cf; boundsInParent: Rect(0, 0 - 870, 54); boundsInScreen: Rect(207, 2850 - 1077, 2670); boundsInWindow: Rect(207, 2850 - 1077, 2670); packageName: co.gogocash.app; className: android.widget.TextView; text: 2026-07-02T23:34:38.598Z; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.381 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b2690; boundsInParent: Rect(0, 0 - 36, 36); boundsInScreen: Rect(123, 2964 - 159, 2670); boundsInWindow: Rect(123, 2964 - 159, 2670); packageName: co.gogocash.app; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.388 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b2a51; boundsInParent: Rect(0, 0 - 517, 59); boundsInScreen: Rect(207, 2952 - 724, 2670); boundsInWindow: Rect(207, 2952 - 724, 2670); packageName: co.gogocash.app; className: android.widget.TextView; text: com.android.launcher3; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.395 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b2e12; boundsInParent: Rect(0, 0 - 81, 44); boundsInScreen: Rect(996, 2959 - 1077, 2670); boundsInWindow: Rect(996, 2959 - 1077, 2670); packageName: co.gogocash.app; className: android.widget.TextView; text: Seen; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.401 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@b31d3; boundsInParent: Rect(0, 0 - 870, 54); boundsInScreen: Rect(207, 3023 - 1077, 2670); boundsInWindow: Rect(207, 3023 - 1077, 2670); packageName: co.gogocash.app; className: android.widget.TextView; text: 2026-07-02T23:34:38.598Z; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_NEXT_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY - null, AccessibilityAction: ACTION_SET_SELECTION - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.411 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@adb7c; boundsInParent: Rect(0, 0 - 395, 138); boundsInScreen: Rect(48, 3200 - 443, 2670); boundsInWindow: Rect(48, 3200 - 443, 2670); packageName: co.gogocash.app; className: android.view.View; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: Start setup; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.419 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@ae2fe; boundsInParent: Rect(0, 0 - 418, 138); boundsInScreen: Rect(473, 3200 - 891, 2670); boundsInWindow: Rect(473, 3200 - 891, 2670); packageName: co.gogocash.app; className: android.view.View; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: Permissions; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.426 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@aea80; boundsInParent: Rect(0, 0 - 340, 138); boundsInScreen: Rect(48, 3368 - 388, 2670); boundsInWindow: Rect(48, 3368 - 388, 2670); packageName: co.gogocash.app; className: android.view.View; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: Timeline; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.432 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@af202; boundsInParent: Rect(0, 0 - 336, 138); boundsInScreen: Rect(418, 3368 - 754, 2670); boundsInWindow: Rect(418, 3368 - 754, 2670); packageName: co.gogocash.app; className: android.view.View; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: Settings; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.437 25548 25548 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@af984; boundsInParent: Rect(0, 0 - 357, 138); boundsInScreen: Rect(784, 3368 - 1141, 2670); boundsInWindow: Rect(784, 3368 - 1141, 2670); packageName: co.gogocash.app; className: android.view.View; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: Recovery; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: true; focused: false; selected: false; clickable: true; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_FOCUS - null, AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_CLICK - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-04 10:15:46.441 25548 25548 W AccessibilityNodeInfoDumper: Fetch time: 314ms
+07-04 10:15:46.450  1950  4858 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+07-04 10:15:46.456 25548 25558 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+07-04 10:15:46.456 25548 25556 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+07-04 10:15:46.456 25548 25561 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+07-04 10:15:46.461  1428  1428 I SurfaceFlinger: onHandleDestroyed: layerId=3692, name=WindowToken{fa3986b type=2032 android.os.Binder@44001ba}#3692
+07-04 10:15:46.463  1379  1379 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:2.212199,dur:1356.12,max:1338.88,min:8.39  
+07-04 10:15:46.604  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:15:47.314 25548 25548 W RefBase : RefBase: Explicit destruction, weak count = 0 (in 0x7a58db5848). Use sp<> to manage this object. Note - if weak count is 0, this leaks mRefs (weakref_impl).
+07-04 10:15:47.443  2628  2628 I WifiHAL : LLS RSP: data=0xb4000072120b7c00, len=5052
+07-04 10:15:47.443  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=45
+07-04 10:15:47.443  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=16
+07-04 10:15:47.443  2628  2628 I WifiHAL : LLS check_data_sanity: confirmed_size=5052, len=5052
+07-04 10:15:47.459  2628  2628 I WifiHAL : feature_set=0x8489341a
+07-04 10:15:47.605  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 9
+07-04 10:15:47.607  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:15:48.608  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 8
+07-04 10:15:48.610  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:15:49.611  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 7
+07-04 10:15:49.614  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:15:50.488  2628  2628 I WifiHAL : LLS RSP: data=0xb4000072120b7c00, len=5052
+07-04 10:15:50.488  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=45
+07-04 10:15:50.488  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=16
+07-04 10:15:50.488  2628  2628 I WifiHAL : LLS check_data_sanity: confirmed_size=5052, len=5052
+07-04 10:15:50.505  2628  2628 I WifiHAL : feature_set=0x8489341a
+07-04 10:15:50.615  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 6
+07-04 10:15:50.617  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:15:51.618  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 5
+07-04 10:15:51.618  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:15:51.926   782 24620 I keystore2: system/security/keystore2/watchdog/src/lib.rs:377 - Watchdog thread idle -> terminating. Have a great day.
+07-04 10:15:52.101 31937 31937 E eara_io@service: [main] notify: boost=1
+07-04 10:15:52.202 31937 31937 I eara_io@boost: [eara_io_boost] wl 30 , top 98 , req_r 50 , req_w 0 , top_r_sz_mb 16 , top_w_sz_mb 39 , reqc_rand 32
+07-04 10:15:52.202 31937 31937 I eara_io@boost: [eara_io_boost] init_w_threshold_accu_mb 0 , init_w_threshold_accu_mb_prev 0 , perf_rsc_init_w_to_set 0
+07-04 10:15:52.202 31937 31937 I eara_io@boost: [eara_io_boost] Light boost=0
+07-04 10:15:52.302 31937 31937 I eara_io@boost: [eara_io_boost] wl 4 , top 99 , req_r 10 , req_w 0 , top_r_sz_mb 2 , top_w_sz_mb 0 , reqc_rand 3
+07-04 10:15:52.302 31937 31937 I eara_io@boost: [eara_io_boost] init_w_threshold_accu_mb 0 , init_w_threshold_accu_mb_prev 0 , perf_rsc_init_w_to_set 0
+07-04 10:15:52.302 31937 31937 I eara_io@boost: [eara_io_boost] Light boost=0
+07-04 10:15:52.403 31937 31937 I eara_io@boost: [eara_io_boost] wl 0 , top 0 , req_r 0 , req_w 0 , top_r_sz_mb 0 , top_w_sz_mb 0 , reqc_rand 0
+07-04 10:15:52.403 31937 31937 I eara_io@boost: [eara_io_boost] init_w_threshold_accu_mb 0 , init_w_threshold_accu_mb_prev 0 , perf_rsc_init_w_to_set 0
+07-04 10:15:52.403 31937 31937 I eara_io@boost: [eara_io_boost] Light boost=0
+07-04 10:15:52.502 31937 31937 I eara_io@boost: [eara_io_boost] wl 0 , top 0 , req_r 0 , req_w 0 , top_r_sz_mb 0 , top_w_sz_mb 0 , reqc_rand 0
+07-04 10:15:52.502 31937 31937 I eara_io@boost: [eara_io_boost] init_w_threshold_accu_mb 0 , init_w_threshold_accu_mb_prev 0 , perf_rsc_init_w_to_set 0
+07-04 10:15:52.502 31937 31937 I eara_io@boost: [eara_io_boost] Light boost=0
+07-04 10:15:52.602 31937 31937 I eara_io@boost: [eara_io_boost] wl 0 , top 0 , req_r 0 , req_w 0 , top_r_sz_mb 0 , top_w_sz_mb 0 , reqc_rand 0
+07-04 10:15:52.602 31937 31937 I eara_io@boost: [eara_io_boost] init_w_threshold_accu_mb 0 , init_w_threshold_accu_mb_prev 0 , perf_rsc_init_w_to_set 0
+07-04 10:15:52.603 31937 31937 I eara_io@boost: [eara_io_boost] Light boost=0
+07-04 10:15:52.619  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 4
+07-04 10:15:52.621  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:15:52.704 31937 31937 I eara_io@boost: [eara_io_boost] wl 0 , top 0 , req_r 0 , req_w 0 , top_r_sz_mb 0 , top_w_sz_mb 0 , reqc_rand 0
+07-04 10:15:52.705 31937 31937 I eara_io@boost: [eara_io_boost] init_w_threshold_accu_mb 0 , init_w_threshold_accu_mb_prev 0 , perf_rsc_init_w_to_set 0
+07-04 10:15:52.705 31937 31937 I eara_io@boost: [eara_io_boost] Light boost=0
+07-04 10:15:53.053 31271 24351 I NearbyMediums: No BLE Fast/GATT advertisements found in the latest cycle.
+07-04 10:15:53.054 31271 24351 I NearbyMediums: Current Tracked Scanning Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing}
+07-04 10:15:53.533  2628  2628 I WifiHAL : LLS RSP: data=0xb4000072120b7c00, len=5052
+07-04 10:15:53.533  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=45
+07-04 10:15:53.533  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=16
+07-04 10:15:53.533  2628  2628 I WifiHAL : LLS check_data_sanity: confirmed_size=5052, len=5052
+07-04 10:15:53.550  2628  2628 I WifiHAL : feature_set=0x8489341a
+07-04 10:15:53.622  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 3
+07-04 10:15:53.624  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:15:53.820  1950  2094 W ActivityManager: Unbind failed: could not find connection for android.os.BinderProxy@b26440d
+07-04 10:15:53.823  1950  2094 W ActivityManager: Unable to start service Intent { act=android.telephony.satellite.SatelliteService xflg=0x4 pkg=com.mediatek.satellite.service } U=0: not found
+07-04 10:15:53.826  2903  2903 E SatelliteModemInterface: Error binding to the satellite service. Retrying in 34423 ms.
+07-04 10:15:54.624  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 2
+07-04 10:15:54.626  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:15:55.394  1950  2094 W ActivityTaskManager: callingPackage for (uid=2000, pid=25566) has no WPC
+07-04 10:15:55.395  1950  2094 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES
+07-04 10:15:55.395  1950  2094 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE
+07-04 10:15:55.395  1950  1978 W BoostModuleDispatcher: Not found identify scenario.
+07-04 10:15:55.396  1950  2094 I ActivityTaskManager: START u0 {act=android.intent.action.VIEW dat=gogocash://auth/... flg=0x10000000 xflg=0x4 pkg=co.gogocash.app cmp=co.gogocash.app/.MainActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=3
+07-04 10:15:55.398  1428  1510 I BpBinder: onLastStrongRef automatically unlinking death recipients: 
+07-04 10:15:55.401 24446 24446 W unknown:BridgelessReact: ReactHost{0}.onHostPause(activity)
+07-04 10:15:55.401 24446 24446 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostPause()
+07-04 10:15:55.413 24446 24446 W unknown:BridgelessReact: ReactHost{0}.onHostResume(activity)
+07-04 10:15:55.413 24446 24446 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostResume()
+07-04 10:15:55.425  1950  2094 I PowerHalWrapper: amsBoostStop AMS_BOOST_PACK_SWITCH:false, AMS_BOOST_ACT_SWITCH:false, AMS_BOOST_PROCESS_CREATE:false, AMS_BOOST_PROCESS_CREATE_FOR_GAME:false, AMS_BOOST_HOT_LAUNCH:false 
+07-04 10:15:55.431  1428  1428 I BufferQueueProducer: [co.gogocash.app/co.gogocash.app.MainActivity#3679](this:0xb400007c83e81ac8,id:-1,api:0,p:-1,c:1428) queueBuffer: fps=4.75 dur=13880.15 max=13240.49 min=7.56
+07-04 10:15:55.434  1379  1379 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:0.334401,dur:8971.26,max:8956.27,min:6.84  
+07-04 10:15:55.499 24446 24488 W unknown:ReactNative: StatusBarModule: Ignored status bar change, current activity is edge-to-edge.
+07-04 10:15:55.525  1379  1749 I hwcomposer: [DRMDEV] (0:113) failed to waitNextVsync: -1  
+07-04 10:15:55.547 24446 24487 E ReactNativeJNI: Could not parse OutlineStyle:none
+07-04 10:15:55.556 24446 24487 E ReactNativeJNI: Could not parse OutlineStyle:none
+07-04 10:15:55.563 24446 24446 W HWUI    : Image decoding logging dropped!
+07-04 10:15:55.564 24446 24446 W HWUI    : Image decoding logging dropped!
+07-04 10:15:55.605 24446 24487 I ReactNativeJNI: instanceHandle is null, event of type topWillAppear will be dropped
+07-04 10:15:55.627  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 1
+07-04 10:15:55.628  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:15:55.657  1409  1409 I Vibrator: Vibrator on for timeoutMs: 40
+07-04 10:15:55.797  1409  1409 I Vibrator: Vibrator on for timeoutMs: 40
+07-04 10:15:56.428  1401  1444 I libPerfCtl: xgfGetFPS pid:2660 fps:-1
+07-04 10:15:56.428  1401  1444 I libPerfCtl: xgfGetFPS pid:24446 fps:-1
+07-04 10:15:56.569  2628  2628 I WifiHAL : LLS RSP: data=0xb4000072120b7c00, len=5052
+07-04 10:15:56.569  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=45
+07-04 10:15:56.569  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=16
+07-04 10:15:56.569  2628  2628 I WifiHAL : LLS check_data_sanity: confirmed_size=5052, len=5052
+07-04 10:15:56.584  2628  2628 I WifiHAL : feature_set=0x8489341a
+07-04 10:15:56.629  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 0
+07-04 10:15:56.629  1563  1661 E mtk_storageproxyd: mtk.ufs.trustonic.ta: ipc connect failed (-12)
+07-04 10:15:57.428  1401  1444 I libPerfCtl: xgfGetFPS pid:2660 fps:-1
+07-04 10:15:57.429  1401  1444 I libPerfCtl: xgfGetFPS pid:24446 fps:-1
+07-04 10:15:58.429  1401  1444 I libPerfCtl: xgfGetFPS pid:2660 fps:-1
+07-04 10:15:58.429  1401  1444 I libPerfCtl: xgfGetFPS pid:24446 fps:-1
+07-04 10:15:58.646  1950  4858 W ActivityTaskManager: callingPackage for (uid=2000, pid=25592) has no WPC
+07-04 10:15:58.647  1950  4858 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES
+07-04 10:15:58.647  1950  4858 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE
+07-04 10:15:58.647  1950  1978 W BoostModuleDispatcher: Not found identify scenario.
+07-04 10:15:58.648  1950  4858 I ActivityTaskManager: START u0 {act=android.intent.action.VIEW dat=gogocash://gototrack/... flg=0x10000000 xflg=0x4 pkg=co.gogocash.app cmp=co.gogocash.app/.MainActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=3
+07-04 10:15:58.650  1428  1511 I BpBinder: onLastStrongRef automatically unlinking death recipients: 
+07-04 10:15:58.652 24446 24446 W unknown:BridgelessReact: ReactHost{0}.onHostPause(activity)
+07-04 10:15:58.652 24446 24446 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostPause()
+07-04 10:15:58.656 24446 24446 W unknown:BridgelessReact: ReactHost{0}.onHostResume(activity)
+07-04 10:15:58.656 24446 24446 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostResume()
+07-04 10:15:58.670  1950  2093 I PowerHalWrapper: amsBoostStop AMS_BOOST_PACK_SWITCH:false, AMS_BOOST_ACT_SWITCH:false, AMS_BOOST_PROCESS_CREATE:false, AMS_BOOST_PROCESS_CREATE_FOR_GAME:false, AMS_BOOST_HOT_LAUNCH:false 
+07-04 10:15:58.677  1428  1428 I BufferQueueProducer: [co.gogocash.app/co.gogocash.app.MainActivity#3679](this:0xb400007c83e81ac8,id:-1,api:0,p:-1,c:1428) queueBuffer: fps=22.49 dur=3245.80 max=2541.71 min=7.79
+07-04 10:15:58.679  1379  1379 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:22.496927,dur:3244.89,max:2542.58,min:6.66  
+07-04 10:15:58.761 24446 24488 W unknown:ReactNative: StatusBarModule: Ignored status bar change, current activity is edge-to-edge.
+07-04 10:15:58.793  1950  2093 W ForegroundServiceTypeLoggerModule: FGS stop call for: 10329 has no types!
+07-04 10:15:58.800  1950  2093 I ActivityManager: Background started FGS: Allowed [callingPackage: co.gogocash.app; callingUid: 10329; uidState: TOP ; uidBFSL: [BFSL]; intent: Intent { xflg=0x4 cmp=co.gogocash.app/co.gogocash.gototrack.GototrackMonitorService }; code:PROC_STATE_TOP; tempAllowListReason:<null>; allowWiu:12; targetSdkVersion:36; callerTargetSdkVersion:36; startForegroundCount:0; bindFromPackage:null: isBindService:false]
+07-04 10:15:58.813  3065  3065 I NotificationListener: received notification removed event - co.gogocash.app#UserHandle{0},category=-1
+07-04 10:15:58.816  1950  2093 W ForegroundServiceTypeLoggerModule: Foreground service start for UID: 10329 does not have any types
+07-04 10:15:58.818  1950  4858 W ForegroundServiceTypeLoggerModule: FGS stop call for: 10329 has no types!
+07-04 10:15:58.843  1428  1428 I BufferQueueProducer: [StatusBar#86](this:0xb400007c84065c68,id:-1,api:0,p:-1,c:1428) queueBuffer: fps=0.18 dur=17026.38 max=16253.07 min=265.89
+07-04 10:15:58.981  1950  2093 I ActivityManager: Background started FGS: Allowed [callingPackage: co.gogocash.app; callingUid: 10329; uidState: TOP ; uidBFSL: [BFSL]; intent: Intent { xflg=0x4 cmp=co.gogocash.app/co.gogocash.gototrack.GototrackMonitorService }; code:PROC_STATE_TOP; tempAllowListReason:<null>; allowWiu:12; targetSdkVersion:36; callerTargetSdkVersion:36; startForegroundCount:0; bindFromPackage:null: isBindService:false]
+07-04 10:15:58.990  1950  2093 W ForegroundServiceTypeLoggerModule: Foreground service start for UID: 10329 does not have any types
+07-04 10:15:59.035  1950  1950 W NotificationHistory: Attempted to add notif for locked/gone/disabled user 0
+07-04 10:15:59.047  3065  3065 I NotificationListener: received notification posted event - co.gogocash.app#UserHandle{0},category=-1
+07-04 10:15:59.071  2660  3167 W HWUI    : Image decoding logging dropped!
+07-04 10:15:59.086  2660  3167 W HWUI    : Image decoding logging dropped!
+07-04 10:15:59.166  1535  1556 E md_thermal: interval=40 temp: 40400 37000 35600 35400
+07-04 10:15:59.195  1950  1950 I NotificationService: Cannot find enqueued record for key: 0|co.gogocash.app|7101|null|10329
+07-04 10:15:59.429  1401  1444 I libPerfCtl: xgfGetFPS pid:2660 fps:120
+07-04 10:15:59.429  1401  1444 I libPerfCtl: xgfGetFPS pid:24446 fps:-1
+07-04 10:15:59.600  2628  2628 I WifiHAL : LLS RSP: data=0xb4000072120b7c00, len=5052
+07-04 10:15:59.600  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=45
+07-04 10:15:59.600  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=16
+07-04 10:15:59.600  2628  2628 I WifiHAL : LLS check_data_sanity: confirmed_size=5052, len=5052
+07-04 10:15:59.615  2628  2628 I WifiHAL : feature_set=0x8489341a
+07-04 10:15:59.631  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:16:00.065  1428  1428 I BufferQueueProducer: [StatusBar#86](this:0xb400007c84065c68,id:-1,api:0,p:-1,c:1428) queueBuffer: fps=2.46 dur=1221.63 max=672.80 min=273.97
+07-04 10:16:00.068  1379  1379 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:42.463810,dur:1389.42,max:672.88,min:6.77  
+07-04 10:16:00.399  1950  1977 E BLASTSyncEngine: WM sent Transaction (#281, Transition-OPEN, tx=8375186252436) to organizer, but never received commit callback. Application ANR likely to follow.
+07-04 10:16:00.429  1401  1444 I libPerfCtl: xgfGetFPS pid:2660 fps:120
+07-04 10:16:00.429  1401  1444 I libPerfCtl: xgfGetFPS pid:24446 fps:-1
+07-04 10:16:00.631  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 9
+07-04 10:16:00.633  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:16:01.430  1401  1444 I libPerfCtl: xgfGetFPS pid:2660 fps:120
+07-04 10:16:01.430  1401  1444 I libPerfCtl: xgfGetFPS pid:24446 fps:-1
+07-04 10:16:01.634  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 8
+07-04 10:16:01.636  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:16:02.430  1401  1444 I libPerfCtl: xgfGetFPS pid:2660 fps:-1
+07-04 10:16:02.431  1401  1444 I libPerfCtl: xgfGetFPS pid:24446 fps:-1
+07-04 10:16:02.637  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 7
+07-04 10:16:02.639  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:16:02.640  2628  2628 I WifiHAL : LLS RSP: data=0xb4000072120b7c00, len=5052
+07-04 10:16:02.640  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=45
+07-04 10:16:02.640  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=16
+07-04 10:16:02.640  2628  2628 I WifiHAL : LLS check_data_sanity: confirmed_size=5052, len=5052
+07-04 10:16:02.652  2628  2628 I WifiHAL : feature_set=0x8489341a
+07-04 10:16:03.058 31271 24351 I NearbyMediums: No BLE Fast/GATT advertisements found in the latest cycle.
+07-04 10:16:03.059 31271 24351 I NearbyMediums: Current Tracked Scanning Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing}
+07-04 10:16:03.640  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 6
+07-04 10:16:03.641  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:16:03.652  1950  1977 E BLASTSyncEngine: WM sent Transaction (#282, Transition-OPEN, tx=8375186252438) to organizer, but never received commit callback. Application ANR likely to follow.
+07-04 10:16:04.642  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 5
+07-04 10:16:04.644  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:16:05.645  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 4
+07-04 10:16:05.647  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:16:05.675  2628  2628 I WifiHAL : LLS RSP: data=0xb4000072120b7c00, len=5052
+07-04 10:16:05.676  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=45
+07-04 10:16:05.676  2628  2628 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=16
+07-04 10:16:05.676  2628  2628 I WifiHAL : LLS check_data_sanity: confirmed_size=5052, len=5052
+07-04 10:16:05.692  2628  2628 I WifiHAL : feature_set=0x8489341a
+07-04 10:16:06.648  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 3
+07-04 10:16:06.650  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-04 10:16:06.709 25598 25598 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: notification
+07-04 10:16:06.825 25601 25601 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: activity
+07-04 10:16:06.920 25607 25607 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: window
+07-04 10:16:06.942  1950  2093 I system_server: AssetManager2(0xb400007cc794adf8) locale list changing from [] to [en-US]
+07-04 10:16:06.950  1950  2093 I system_server: AssetManager2(0xb400007cc78a21f8) locale list changing from [] to [en-US]
+07-04 10:16:06.959  1950  2093 I system_server: AssetManager2(0xb400007cc78aab78) locale list changing from [] to [en-US]
+07-04 10:16:06.967  1950  2093 I system_server: AssetManager2(0xb400007cc78e03b8) locale list changing from [] to [en-US]
+07-04 10:16:06.978  1950  2093 I system_server: AssetManager2(0xb400007cc78b9c18) locale list changing from [] to [en-US]
+07-04 10:16:06.987  1950  2093 I system_server: AssetManager2(0xb400007cc78a5718) locale list changing from [] to [en-US]
+07-04 10:16:06.991  1950  1962 I system_server: Background young concurrent mark compact GC freed 93MB AllocSpace bytes, 129(2876KB) LOS objects, 56% free, 74MB/170MB, paused 1.095ms,2.650ms total 236.209ms
+07-04 10:16:06.999  1950  1963 I BpBinder: onLastStrongRef automatically unlinking death recipients: 
+07-04 10:16:07.000  1950  1964 W System  : A resource failed to call release. 
+07-04 10:16:07.002  1950  1964 W System  : A resource failed to call release. 
+07-04 10:16:07.003  1950  1964 W System  : A resource failed to call HardwareBuffer.close.
+--- stderr ---
+

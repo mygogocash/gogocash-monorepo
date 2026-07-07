@@ -61,6 +61,8 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
     ? {
         updates: {
           url: `https://u.expo.dev/${easProjectId}`,
+          checkAutomatically: "ON_LOAD",
+          fallbackToCacheTimeout: 0,
         },
       }
     : {}),
@@ -74,7 +76,8 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: "#ffffff",
+      backgroundColor: "#00CC99",
+      backgroundImage: "./assets/adaptive-icon-bg.png",
       foregroundImage: "./assets/adaptive-icon.png",
     },
     package: appIdentity.androidPackage,

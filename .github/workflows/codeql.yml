@@ -1,15 +1,24 @@
 # CodeQL advanced setup — replaces GitHub Default setup so language selection is
-# version-controlled. The repo is JS/TS (admin, api, mobile web) plus one Expo
-# local Android module (gototrack-detector) that has no root Gradle project and
-# is built only via EAS; scanning java-kotlin with autobuild fails with
-# "No build command found". Languages match the prior Default setup config.
+# version-controlled. JS/TS (admin, api, mobile web) plus GitHub Actions.
+# Native Expo modules (Kotlin/Swift) are not scanned: CodeQL no longer supports
+# Kotlin without a build, and Swift needs macOS runners (see matrix note).
 name: CodeQL
 
 on:
   push:
     branches: [main, dev, staging, production]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".cursor/**"
+      - "assets/**"
   pull_request:
     branches: [main, dev, staging, production]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".cursor/**"
+      - "assets/**"
   schedule:
     # Weekly — same cadence as GitHub Default setup.
     - cron: "30 1 * * 0"
@@ -30,7 +39,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [javascript-typescript, actions]
+        include:
+          - language: javascript-typescript
+            build-mode: none
+            config-file: ./.github/codeql/codeql-config.yml
+          - language: actions
+            build-mode: none
+            config-file: ./.github/codeql/codeql-config.yml
+          # java-kotlin: CodeQL 2.25+ refuses Kotlin with build-mode none and the
+          # Expo module has no repo-root Gradle project to build; swift analysis
+          # requires a macOS runner. Both dropped until a manual-build job exists.
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -44,7 +62,8 @@ jobs:
         uses: github/codeql-action/init@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4
         with:
           languages: ${{ matrix.language }}
-          config-file: ./.github/codeql/codeql-config.yml
+          build-mode: ${{ matrix.build-mode }}
+          config-file: ${{ matrix.config-file }}
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4

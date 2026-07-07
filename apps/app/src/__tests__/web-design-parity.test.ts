@@ -18,6 +18,7 @@ import {
   mobileShellLayout,
   webCookieConsentBanner,
   profileHubMenuItems,
+  profileHubGoGoTrackSubNavItems,
   profileHubSections,
   profileHubSubNavItems,
   webBrowseShortcuts,
@@ -242,7 +243,7 @@ describe("GoGoCash web design parity", () => {
       contentHorizontalPadding: 120,
       contentMaxWidth: 1440,
       isDesktop: true,
-      pageBottomPadding: 40,
+      pageBottomPadding: 0,
       showBottomNav: false,
       topBrandCardsPerPage: 12,
       topBrandColumns: 6,
@@ -665,10 +666,17 @@ describe("GoGoCash web design parity", () => {
       { label: "Withdraw Methods", href: "/method" },
       { label: "Account Setting", href: "/language" },
     ]);
+    expect(profileHubGoGoTrackSubNavItems).toEqual([
+      { label: "Overview", href: "/gototrack" },
+      { label: "Start setup", href: "/gototrack/onboarding" },
+      { label: "Permissions", href: "/gototrack/permissions" },
+      { label: "Settings", href: "/gototrack/settings" },
+    ]);
     expect(profileHubMenuItems).toEqual([
       { label: "Profile", href: "/profile", activePrefix: "/profile" },
       { label: "Invite your Friends", href: "/referral", activePrefix: "/referral" },
       { label: "My Wallet", href: "/wallet", activePrefix: "/wallet" },
+      { label: "GoGoTrack", href: "/gototrack", activePrefix: "/gototrack" },
       { label: "GoGoPass", href: "/membership", activePrefix: "/membership" },
       { label: "Missing Orders", href: "/missing-orders", activePrefix: "/missing-orders" },
       { label: "Favorite Brands", href: "/favorite", activePrefix: "/favorite" },

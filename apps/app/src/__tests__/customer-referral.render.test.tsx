@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // CustomerReferralScreen pulls in AccountPageShell -> CustomerDesktopHeader ->
@@ -17,6 +17,7 @@ vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
 }));
 
+import { FavoriteBrandsProvider } from "@mobile/account/FavoriteBrandsProvider";
 import { ToastProvider } from "@mobile/components/Toast";
 import { CustomerReferralScreen } from "@mobile/screens/CustomerReferralScreen";
 
@@ -56,7 +57,11 @@ function renderScreen() {
     createElement(
       QueryClientProvider,
       { client: queryClient },
-      createElement(ToastProvider, {}, createElement(CustomerReferralScreen)),
+      createElement(
+        FavoriteBrandsProvider,
+        {},
+        createElement(ToastProvider, {}, createElement(CustomerReferralScreen)),
+      ),
     ),
   );
 }
@@ -64,6 +69,12 @@ function renderScreen() {
 describe("CustomerReferralScreen (render)", () => {
   it("mounts the referral screen without throwing inside the providers", () => {
     expect(() => renderScreen()).not.toThrow();
+  });
+
+  it("renders the referral dashboard when the backend referral list is empty", () => {
+    renderScreen();
+    expect(screen.getByText("Refer & Earn")).toBeTruthy();
+    expect(screen.queryByText("No referral activity yet")).toBeNull();
   });
 
   it("renders the Refer & Earn card heading + share section", () => {
@@ -104,6 +115,14 @@ describe("CustomerReferralScreen (render)", () => {
     expect(referralSource).toContain("shop.tint");
     expect(referralSource).not.toContain("favoritePageAddFavorite");
   });
+
+  it("explore-shop cards > given heart press > then toggles via FavoriteBrandsProvider", () => {
+    renderScreen();
+    expect(referralSource).toContain("useFavoriteBrands");
+    const saveButton = screen.getByLabelText("Save brand: Orbit Airways");
+    fireEvent.click(saveButton);
+    expect(screen.getByLabelText("Remove from saved brands: Orbit Airways")).toBeTruthy();
+  });
 });
 
 describe("CustomerReferralScreen — Wave B foundations adopted (source signals)", () => {
@@ -132,6 +151,13 @@ describe("CustomerReferralScreen — Wave B foundations adopted (source signals)
     expect(referralSource).toContain("RefreshControl");
     expect(referralSource).toContain("refreshControl=");
     expect(referralSource).toContain(".retry");
+  });
+
+  it("does not replace the whole page when referral activity is empty", () => {
+    expect(referralSource).toContain("isReferralResourceBlocking");
+    expect(referralSource).toContain('referralResource.status === "empty"');
+    expect(referralSource).toContain("referralEmptyInvitesTitle");
+    expect(referralSource).not.toContain('emptyTitle={tc("No referral activity yet")');
   });
 
   it("passes a loadingSkeleton to the shared resource state guard", () => {

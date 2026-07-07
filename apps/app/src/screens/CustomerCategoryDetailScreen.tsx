@@ -24,6 +24,7 @@ import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottom
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import {
   getDesktopShellOffset,
   getResponsiveHomeLayoutMetrics,
@@ -119,6 +120,7 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
   const styles = useThemedStyles(createCategoryDetailScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const { region } = useLocale();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
@@ -138,10 +140,11 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
         category,
         data: catalogResource.data,
         query: searchQuery,
+        regionCode: region,
         sortBy,
         source: catalogResource.source,
       }),
-    [catalogResource.data, catalogResource.source, category, searchQuery, sortBy]
+    [catalogResource.data, catalogResource.source, category, region, searchQuery, sortBy]
   );
   const gridMetrics = getCategoryGridMetrics({
     contentWidth: homeLayout.contentWidth,
@@ -275,7 +278,6 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
             contentContainerStyle={[
               styles.pageDesktopFullBleed,
               {
-                paddingBottom: mobileShellLayout.desktopBottomClearance,
                 paddingTop: Math.max(spacing.lg, insets.top + spacing.lg),
               },
             ]}

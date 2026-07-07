@@ -1,6 +1,5 @@
 import { Link } from "expo-router";
 import {
-  Image,
   Linking,
   Platform,
   ScrollView,
@@ -19,9 +18,11 @@ import Svg, { Path } from "react-native-svg";
 // `AccountWalletHeroCard` cannot reproduce (different avatar size, radius, type scale).
 export { AccountWalletHeroCard } from "@mobile/components/AccountPageShell";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
+import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/profileMenuIcons";
+import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import { clearMobileAppSession, type MobileSession } from "@mobile/auth/session";
 import { webProfileWalletHeroSurface, webProfileWalletSummary } from "@mobile/design/webDesignParity";
 import { profileHubMenuItems } from "@mobile/design/webDesignParity";
@@ -32,14 +33,11 @@ import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { typography } from "@mobile/theme/tokens";
 
-import profileAvatarImage from "../../assets/profile-avatar.png";
-
 function deriveSummary(session: MobileSession) {
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
   const region = str(session.region);
   return {
     title: str(session.username) ?? webProfileWalletSummary.username,
-    amount: str(session.wallet) ?? webProfileWalletSummary.amount,
     tier: str(session.membership_tier) ?? webProfileWalletSummary.membershipTier,
     avatarUrl: str(session.avatar_url),
     maskedId: webProfileWalletSummary.maskedId,
@@ -116,10 +114,10 @@ function PopoverWalletHeroCard({
       <View style={styles.heroHeader}>
         <GoGoPassAvatar ringWidth={3} size={52} tier={tier}>
           <View style={styles.heroAvatarFrame}>
-            <Image
+            <ProfileAvatarImage
               accessibilityLabel={tc("Profile avatar")}
-              resizeMode="cover"
-              source={avatarUrl ? { uri: avatarUrl } : profileAvatarImage}
+              avatarUrl={avatarUrl}
+              size={52}
               style={styles.heroAvatarImage}
             />
           </View>
@@ -243,6 +241,7 @@ export function CustomerProfileMenu({
   const styles = useThemedStyles(createProfileMenuStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const { amount: walletAmount } = useProfileWalletAmount();
   const summary = deriveSummary(session);
 
   return (
@@ -252,7 +251,7 @@ export function CustomerProfileMenu({
       style={styles.scroller}
     >
       <PopoverWalletHeroCard
-        amount={summary.amount}
+        amount={walletAmount}
         avatarUrl={summary.avatarUrl}
         currency={summary.currency}
         lastUpdated={summary.lastUpdated}
@@ -493,7 +492,7 @@ function createProfileMenuStyles(colors: ThemeColors) {
     fontWeight: "400",
   },
   divider: {
-    backgroundColor: "#E4E4E4",
+    backgroundColor: colors.border,
     height: 1,
     marginVertical: 4,
     width: "100%",

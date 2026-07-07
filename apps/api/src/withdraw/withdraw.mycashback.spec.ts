@@ -1,5 +1,11 @@
 import { Types } from 'mongoose';
+import * as helper from 'src/utils/helper';
 import { WithdrawService } from './withdraw.service';
+
+jest.mock('src/utils/helper', () => ({
+  ...jest.requireActual('src/utils/helper'),
+  rateCurrencyUSD: jest.fn(),
+}));
 
 // Focused unit harness: the default scaffold spec cannot compile the full DI
 // graph (pre-existing), so the method under test gets exactly the model seams
@@ -10,10 +16,12 @@ function buildService({
   user,
   myCashbackFind,
   userFindOne,
+  withdrawFind,
 }: {
   user: Record<string, unknown>;
   myCashbackFind: jest.Mock;
   userFindOne?: jest.Mock;
+  withdrawFind?: jest.Mock;
 }): WithdrawService {
   const service = Object.create(WithdrawService.prototype) as WithdrawService;
   (service as unknown as Record<string, unknown>).userModel = {
@@ -21,6 +29,13 @@ function buildService({
   };
   (service as unknown as Record<string, unknown>).userMyCashbackModel = {
     find: myCashbackFind,
+  };
+  (service as unknown as Record<string, unknown>).withdrawModel = {
+    find:
+      withdrawFind ??
+      jest.fn(() => ({
+        lean: jest.fn().mockResolvedValue([]),
+      })),
   };
   return service;
 }
@@ -66,7 +81,27 @@ describe('WithdrawService.checkWithdrawMyCashback', () => {
     await service.checkWithdrawMyCashback(userId);
 
     expect(myCashbackFind).toHaveBeenCalledWith({
-      email: { $regex: 'user@example.com' },
+      email: { $regex: '^user@example\\.com$', $options: 'i' },
+    });
+  });
+
+  it('given an email with regex metacharacters > then escapes and anchors the lookup', async () => {
+    const myCashbackFind = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue([]),
+    }));
+    const service = buildService({
+      user: {
+        _id: new Types.ObjectId(userId),
+        email: 'a+b@x.com',
+        provider: 'google.com',
+      },
+      myCashbackFind,
+    });
+
+    await service.checkWithdrawMyCashback(userId);
+
+    expect(myCashbackFind).toHaveBeenCalledWith({
+      email: { $regex: '^a\\+b@x\\.com$', $options: 'i' },
     });
   });
 
@@ -89,5 +124,39 @@ describe('WithdrawService.checkWithdrawMyCashback', () => {
     await service.checkWithdrawMyCashback(userId, loadedUser as never);
 
     expect(userFindOne).not.toHaveBeenCalled();
+  });
+
+  it('given mixed USD and THB balances > then totalMyCashbackUSD sums per-currency conversions', async () => {
+    const rateCurrencyUSD = helper.rateCurrencyUSD as jest.Mock;
+    rateCurrencyUSD.mockResolvedValue({ THB: 35 });
+
+    const cashbackId = new Types.ObjectId();
+    const myCashbackFind = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue([
+        {
+          _id: cashbackId,
+          balance: [{ amount: 10, currency: 'USD' }],
+        },
+        {
+          _id: new Types.ObjectId(),
+          balance: [{ amount: 700, currency: 'THB' }],
+        },
+      ]),
+    }));
+    const service = buildService({
+      user: {
+        _id: new Types.ObjectId(userId),
+        email: 'user@example.com',
+        provider: 'google.com',
+      },
+      myCashbackFind,
+    });
+
+    const result = await service.checkWithdrawMyCashback(userId);
+
+    expect(result.totalMyCashbackUSD).toBeCloseTo(30, 5);
+    expect(result.totalMyCashbackTHB).toBeCloseTo(1050, 5);
+    expect(result.availableUSD).toBeCloseTo(30, 5);
+    expect(result.availableTHB).toBeCloseTo(1050, 5);
   });
 });

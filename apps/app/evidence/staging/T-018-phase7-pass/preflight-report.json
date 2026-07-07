@@ -1,0 +1,138 @@
+{
+  "context": {
+    "adb": "/Users/kunanonjarat/Library/Android/sdk/platform-tools/adb",
+    "apiUrl": "https://api-staging.gogocash.co",
+    "activationDeeplink": "https://invl.me/clnlpe6",
+    "appPackage": "co.gogocash.app",
+    "authTokenPresent": true,
+    "installApk": "",
+    "installApkSha256": "",
+    "detectPackage": "com.shopee.th",
+    "device": "SM02G4061912033",
+    "foregroundPackage": "com.shopee.th",
+    "activationDeeplinkForegroundPackage": "com.shopee.th",
+    "installedMerchantPackages": [
+      "com.shopee.th"
+    ],
+    "merchantPackages": [
+      "com.shopee.th"
+    ]
+  },
+  "results": [
+    {
+      "status": "pass",
+      "name": "staging merchant catalog",
+      "detail": "1 merchant(s) returned"
+    },
+    {
+      "status": "pass",
+      "name": "merchant Android package list",
+      "detail": "1 package(s)"
+    },
+    {
+      "status": "pass",
+      "name": "authenticated GoGoTrack API",
+      "detail": "GET /gototrack/settings accepted token"
+    },
+    {
+      "status": "pass",
+      "name": "protected detection probe",
+      "detail": "matched Shopee"
+    },
+    {
+      "status": "pass",
+      "name": "protected activation probe",
+      "detail": "https://invl.me/clnlpe6"
+    },
+    {
+      "status": "pass",
+      "name": "adb available",
+      "detail": "Android Debug Bridge version 1.0.41"
+    },
+    {
+      "status": "pass",
+      "name": "android device connected",
+      "detail": "SM02G4061912033"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash app installed",
+      "detail": "co.gogocash.app"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash usage access grant",
+      "detail": "co.gogocash.app GET_USAGE_STATS set to allow"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash POST_NOTIFICATIONS grant",
+      "detail": "co.gogocash.app android.permission.POST_NOTIFICATIONS granted"
+    },
+    {
+      "status": "pass",
+      "name": "Usage Access grant",
+      "detail": "GET_USAGE_STATS: allow; time=+12m3s538ms ago"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash dev-client launch",
+      "detail": "exp+gogocash-mobile://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081 opened in co.gogocash.app"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash auth token inject",
+      "detail": "gogocash://auth/callback?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTQ2NjM5M2NlMmUwZGE4MWQ2ZGMyMGUiLCJmaXJlYmFzZUlkIjoiZTJlLWZpcmViYXNlLWN1c3RvbWVyLTAwMSIsImlhdCI6MTc4Mjk5NzkwNywiZXhwIjoxNzgzNjAyNzA3fQ.4pM2BoJbi8uH73Evtdmt2uuBohHshtvVIx4HI1BR_1Y&callbackUrl=%2F opened in co.gogocash.app"
+    },
+    {
+      "status": "pass",
+      "name": "supported merchant app installed",
+      "detail": "com.shopee.th"
+    },
+    {
+      "status": "pass",
+      "name": "supported merchant launch",
+      "detail": "com.shopee.th launcher intent sent"
+    },
+    {
+      "status": "pass",
+      "name": "foreground merchant app",
+      "detail": "com.shopee.th"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoTrack hub return",
+      "detail": "gogocash://gototrack opened in co.gogocash.app"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoTrack activation nudge visible",
+      "detail": "./evidence/staging/T-018-phase7-pass//gototrack-hub-ui.xml contains activation nudge evidence"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoTrack activation nudge tap",
+      "detail": "./evidence/staging/T-018-phase7-pass//gototrack-hub-ui.xml tapped at 600,1031"
+    },
+    {
+      "status": "fail",
+      "name": "GoGoTrack background prompt notification",
+      "detail": "notification dump missing background prompt markers (GoGoTrack is watching for cashback, gototrack_monitor_title, Cashback available, …)"
+    },
+    {
+      "status": "pass",
+      "name": "activation deeplink open",
+      "detail": "https://invl.me/clnlpe6"
+    },
+    {
+      "status": "pass",
+      "name": "activation deeplink foreground",
+      "detail": "com.shopee.th after activation deeplink"
+    },
+    {
+      "status": "pass",
+      "name": "device evidence captured",
+      "detail": "device-evidence.txt, device-adb-reverse.txt, device-window.txt, device-logcat.txt, device-screenshot.png"
+    }
+  ]
+}

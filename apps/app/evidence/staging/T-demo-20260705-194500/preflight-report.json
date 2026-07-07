@@ -1,0 +1,118 @@
+{
+  "context": {
+    "adb": "/Users/kunanonjarat/Library/Android/sdk/platform-tools/adb",
+    "apiUrl": "https://api-staging.gogocash.co",
+    "activationDeeplink": "",
+    "appPackage": "co.gogocash.app",
+    "authTokenPresent": true,
+    "installApk": "",
+    "installApkSha256": "",
+    "detectPackage": "com.shopee.th",
+    "device": "SM02G4061912033",
+    "foregroundPackage": "com.shopee.th",
+    "activationDeeplinkForegroundPackage": "",
+    "installedMerchantPackages": [
+      "com.shopee.th"
+    ],
+    "merchantPackages": [
+      "com.shopee.th"
+    ]
+  },
+  "results": [
+    {
+      "status": "pass",
+      "name": "staging merchant catalog",
+      "detail": "1 merchant(s) returned"
+    },
+    {
+      "status": "pass",
+      "name": "merchant Android package list",
+      "detail": "1 package(s)"
+    },
+    {
+      "status": "pass",
+      "name": "authenticated GoGoTrack API",
+      "detail": "GET /gototrack/settings accepted token"
+    },
+    {
+      "status": "pass",
+      "name": "protected detection probe",
+      "detail": "matched Shopee"
+    },
+    {
+      "status": "pass",
+      "name": "adb available",
+      "detail": "Android Debug Bridge version 1.0.41"
+    },
+    {
+      "status": "pass",
+      "name": "android device connected",
+      "detail": "SM02G4061912033"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash app installed",
+      "detail": "co.gogocash.app"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash usage access grant",
+      "detail": "co.gogocash.app GET_USAGE_STATS set to allow"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash POST_NOTIFICATIONS grant",
+      "detail": "co.gogocash.app android.permission.POST_NOTIFICATIONS granted"
+    },
+    {
+      "status": "pass",
+      "name": "Usage Access grant",
+      "detail": "GET_USAGE_STATS: allow; time=+16m12s376ms ago"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash dev-client launch",
+      "detail": "exp+gogocash-mobile://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081 opened in co.gogocash.app"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash auth token inject",
+      "detail": "gogocash://auth/callback?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTQ2NjM5M2NlMmUwZGE4MWQ2ZGMyMGUiLCJmaXJlYmFzZUlkIjoiZTJlLWZpcmViYXNlLWN1c3RvbWVyLTAwMSIsImlhdCI6MTc4Mjk5ODQ3MCwiZXhwIjoxNzgzNjAzMjcwfQ.cowB2iCqfPUoqBSs6ZTVULxkqxWjqo84WS2XWt9sZP4&callbackUrl=%2F opened in co.gogocash.app"
+    },
+    {
+      "status": "pass",
+      "name": "supported merchant app installed",
+      "detail": "com.shopee.th"
+    },
+    {
+      "status": "pass",
+      "name": "supported merchant launch",
+      "detail": "com.shopee.th launcher intent sent"
+    },
+    {
+      "status": "pass",
+      "name": "foreground merchant app",
+      "detail": "com.shopee.th"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoTrack hub return",
+      "detail": "gogocash://gototrack opened in co.gogocash.app"
+    },
+    {
+      "status": "fail",
+      "name": "GoGoTrack activation nudge visible",
+      "detail": "evidence/staging/T-demo-20260705-194500/gototrack-hub-ui.xml not found; run with --capture-device-evidence"
+    },
+    {
+      "status": "fail",
+      "name": "GoGoTrack activation nudge tap",
+      "detail": "evidence/staging/T-demo-20260705-194500/gototrack-hub-ui.xml not found; run with --capture-device-evidence"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoTrack background prompt notification",
+      "detail": "notification dump contains markers (GoGoTrack is watching for cashback, gototrack_monitor_title, …)"
+    }
+  ]
+}

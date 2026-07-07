@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import authHeroImage from "../../assets/auth-login-hero.png";
 import logoMarkImage from "../../assets/nav/logo.png";
-import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
+import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -289,9 +289,7 @@ export function CustomerAccountSetupScreen() {
             </View>
           </View>
             {isDesktopShell ? (
-              <View style={styles.desktopFooter}>
-                <CustomerDesktopFooter horizontalPadding={0} viewportWidth={width} />
-              </View>
+              <CustomerDesktopFooterSlot innerPadding={56} style={styles.desktopFooter} />
             ) : null}
           </KeyboardAwareScreen>
         </View>

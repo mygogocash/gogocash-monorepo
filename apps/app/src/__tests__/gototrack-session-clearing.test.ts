@@ -77,4 +77,40 @@ describe("GoGoTrack session stale match clearing", () => {
     expect(api.detect).toHaveBeenCalledTimes(2);
     expect(onChange).toHaveBeenCalled();
   });
+
+  it("polling > given cooldown suppresses repeat detect for the same merchant > keeps the actionable match", async () => {
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    let currentTime = now.getTime();
+    const detector = detectorWithPackages(["com.shopee.th", "com.shopee.th"]);
+    const api = {
+      detect: vi.fn(async ({ packageName }: { packageName?: string }) =>
+        packageName === "com.shopee.th"
+          ? {
+              matched: true,
+              merchantId: "shopee",
+              merchantName: "Shopee",
+              offerId: 101,
+              networkMerchantId: 201,
+              recommendedAction: "activate" as const,
+            }
+          : { matched: false },
+      ),
+    };
+    const session = createGoGoTrackSession({
+      api,
+      detector,
+      cooldownMs: 60_000,
+      now: () => new Date(currentTime),
+    });
+
+    await session.start();
+    await session.poll();
+    expect(session.getState().lastMatch?.response.merchantId).toBe("shopee");
+
+    currentTime += 1000;
+    await session.poll();
+
+    expect(session.getState().lastMatch?.response.merchantId).toBe("shopee");
+    expect(api.detect).toHaveBeenCalledTimes(1);
+  });
 });

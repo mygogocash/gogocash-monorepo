@@ -21,9 +21,8 @@
 #   The repo root `.npmrc` sets `legacy-peer-deps=true`, so a bare `npm ci`
 #   already resolves the admin/api NestJS + Vite peer mix. No flag needed.
 #
-# DEPLOYS ARE NOT HERE. This file builds and tests only. Nothing in it deploys
-# to staging/production. See README.md — deploys are manual (workflow_dispatch)
-# pending Phase 3.
+# DEPLOYS ARE NOT HERE. Staging deploys via Railway on push to `staging`
+# (after ci-staging.yml). GCP workflows are manual rollback. See README.md.
 
 name: CI
 
@@ -31,14 +30,9 @@ on:
   # Validate PRs into promotion branches (main → dev → staging → production).
   pull_request:
     branches: [main, dev, staging, production]
-  # Pushes to staging are handled by build-staging.yml (which calls this
-  # workflow as its gate via workflow_call), so staging is intentionally NOT in
-  # the push list here — otherwise a merge would run CI twice.
   push:
     branches: [main, dev]
-  # Reusable: build-staging.yml calls this as its deploy gate AND reuses the
-  # per-app change outputs to decide which images to build (no duplicated tests
-  # or path-filter).
+  # Reusable: ci-staging.yml + build-staging.yml (manual GCP) call this workflow.
   workflow_call:
     outputs:
       admin:
@@ -70,6 +64,7 @@ jobs:
       admin: ${{ steps.filter.outputs.admin }}
       api: ${{ steps.filter.outputs.api }}
       app: ${{ steps.filter.outputs.app }}
+      knip: ${{ steps.filter.outputs.knip }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4
@@ -83,6 +78,8 @@ jobs:
               - '.nvmrc'
               - '.npmrc'
               - '.github/workflows/ci.yml'
+              - '.github/workflows/ci-staging.yml'
+              - '.github/actions/**'
             admin:
               - *root
               - 'apps/admin/**'
@@ -92,6 +89,10 @@ jobs:
             app:
               - *root
               - 'apps/app/**'
+            knip:
+              - *root
+              - 'apps/**'
+              - 'scripts/**'
 
   # ── admin (gogocash-admin) — Next.js dashboard ────────────────────────────
   admin:
@@ -105,12 +106,9 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: ./.github/actions/setup-node-monorepo
         with:
-          node-version: "22"
-          cache: npm
-      - name: Install (root, workspace-aware)
-        run: npm ci
+          node-options: --max-old-space-size=4096
       # Test + Build are GATES (P2-CI: admin unit suite verified green). LINT
       # stays informational for now — admin ESLint is clean (0 warnings as of
       # PR #138); keep continue-on-error until lint is promoted to a gate.
@@ -138,12 +136,9 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: ./.github/actions/setup-node-monorepo
         with:
-          node-version: "22"
-          cache: npm
-      - name: Install (root, workspace-aware)
-        run: npm ci
+          node-options: --max-old-space-size=4096
       - name: Typecheck (gate)
         run: npx turbo run typecheck --filter=@gogocash/mobile
       - name: Test (unit — gate)
@@ -173,12 +168,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version: "22"
-          cache: npm
-      - name: Install (root, workspace-aware)
-        run: npm ci
+      - uses: ./.github/actions/setup-node-monorepo
       - name: Lint (no --fix)
         # Type-aware lint (typescript-eslint with parserOptions.project) builds
         # a full TS program; under TypeScript 6 that exceeds Node's ~2GB default
@@ -194,12 +184,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: ./.github/actions/setup-node-monorepo
         with:
-          node-version: "22"
-          cache: npm
-      - name: Install (root, workspace-aware)
-        run: npm ci
+          node-options: --max-old-space-size=4096
       - name: Jest
         # Jest exceeds Node's ~2GB default heap running all api suites (exit
         # 134); bump it, same as the build/lint jobs.
@@ -222,7 +209,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mongo:
-        image: mongo:7
+        image: mongo:8.0.4
         ports:
           - 27017:27017
         options: >-
@@ -232,12 +219,9 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: ./.github/actions/setup-node-monorepo
         with:
-          node-version: "22"
-          cache: npm
-      - name: Install (root, workspace-aware)
-        run: npm ci
+          node-options: --max-old-space-size=4096
 
       - name: Build (type-check)
         # nest build (tsc) exceeds Node's 2GB default heap on runners (exit 134).
@@ -286,7 +270,7 @@ jobs:
           fi
           echo "Booted and responded on / — DI graph resolved, app starts cleanly."
 
-      - name: Integration test (checkWithdraw vs real Mongo 7 / mongoose 9)
+      - name: Integration test (checkWithdraw vs real Mongo 8 / mongoose 9)
         # Exercises the withdraw balance aggregation end-to-end against the
         # ephemeral Mongo — covers the #36 risk (mongoose-9 strictQuery /
         # sanitizeFilter / find-lean defaults) that the mock-based unit specs
@@ -300,27 +284,45 @@ jobs:
           MONGO_URI: mongodb://localhost:27017/inttest
         run: npx jest --config ./test/jest-e2e.json withdraw-balance --runInBand
 
-  # ── dead-code scan (gate) ─────────────────────────────────────────────────
+  # ── GoGoTrack (gate when api or app changes) ───────────────────────────────
+  gototrack:
+    name: gototrack tests
+    needs: changes
+    if: ${{ needs.changes.outputs.api == 'true' || needs.changes.outputs.app == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: ./.github/actions/setup-node-monorepo
+        with:
+          node-options: --max-old-space-size=4096
+      - name: API GoGoTrack specs
+        if: ${{ needs.changes.outputs.api == 'true' }}
+        run: npm run test:gototrack:api -w @gogocash/mobile
+      - name: Mobile GoGoTrack specs
+        if: ${{ needs.changes.outputs.app == 'true' }}
+        run: npm run test:gototrack -w @gogocash/mobile
+
+  # ── dead-code scan (gate, path-filtered) ──────────────────────────────────
   knip:
     name: dead-code scan
+    needs: changes
+    if: ${{ needs.changes.outputs.knip == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-monorepo
       - run: npx knip --no-progress
 
-  # ── optional local E2E (manual dispatch until suite stabilizes) ───────────
+  # ── optional local E2E (manual dispatch) ─────────────────────────────────
   e2e-local:
     name: e2e local (optional)
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     services:
       mongo:
-        image: mongo:7
+        image: mongo:8.0.4
         ports:
           - 27017:27017
         options: >-
@@ -330,11 +332,9 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: ./.github/actions/setup-node-monorepo
         with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
+          node-options: --max-old-space-size=4096
       - name: Init Mongo replica set
         run: |
           mongosh --quiet mongodb://localhost:27017/admin --eval \

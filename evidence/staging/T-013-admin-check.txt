@@ -1,0 +1,31 @@
+T-013 Admin-staging environment check
+Checked: 2026-07-02T13:48Z (agent automation)
+
+## HTTP reachability
+GET https://admin-staging.gogocash.co/
+  → HTTP 307 Location: /signin?callbackUrl=%2F
+  → server: cloudflare, x-railway-edge: sin1 (Railway staging)
+
+GET https://admin-staging.gogocash.co/signin (follow redirects)
+  → HTTP 200, HTML ~28 KB (Next.js sign-in page loads)
+
+## Build-time API URL (page source)
+Could not extract NEXT_PUBLIC_API_URL from sign-in HTML or sampled /_next/static/chunks/*.js
+(no api-staging.gogocash.co, api.dev.gogocash.co, /api/mock, or gogocash-api-* strings in initial bundles).
+Owner must confirm in browser DevTools → Network after login (requests should hit https://api-staging.gogocash.co, not /api/mock).
+
+## Railway staging service variables (gogocash-admin) — MISCONFIGURED
+Environment: staging (verified via RAILWAY_ENVIRONMENT_NAME)
+NEXT_PUBLIC_API_URL: https://gogocash-api-production.up.railway.app  ← WRONG (production hostname, not api-staging)
+NEXTAUTH_URL:        https://gogocash-admin-production.up.railway.app ← WRONG (production hostname, not admin-staging)
+NEXTAUTH_SECRET:     MISSING
+
+Expected for staging:
+  NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co
+  NEXTAUTH_URL=https://admin-staging.gogocash.co
+  NEXTAUTH_SECRET=<set in Railway staging secrets>
+
+Note: NEXT_PUBLIC_* is baked at Docker build time; fixing Railway runtime vars alone requires admin redeploy with correct build args.
+
+## Status
+partial — endpoint live; env vars wrong; login + real-API verification still owner-required

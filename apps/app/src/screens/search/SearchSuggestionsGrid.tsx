@@ -1,5 +1,7 @@
 import { Text, View } from "react-native";
 
+import type { LiveCompactBrandCard } from "@mobile/account/brandCatalogResource";
+import { resolveSearchSuggestionItem } from "@mobile/account/searchSuggestionResource";
 import { BrandCard } from "@mobile/components/BrandCard";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -18,6 +20,7 @@ import { createSearchScreenStyles } from "./createSearchScreenStyles";
 type SearchSuggestionsGridProps = {
   readonly columnCount: number;
   readonly contentWidth: number;
+  readonly liveCards?: readonly LiveCompactBrandCard[];
   readonly onSelectTerm: (term: string) => void;
   readonly onShowAll?: () => void;
   readonly showSeeAll?: boolean;
@@ -25,28 +28,10 @@ type SearchSuggestionsGridProps = {
   readonly title?: string;
 };
 
-function resolveSuggestionItem(
-  term: string,
-  fallbackTint: string
-) {
-  const popular = webHomeSearchPopularPanel.items.find(
-    (item) => item.brand.toLowerCase() === term.toLowerCase()
-  );
-  if (popular) {
-    return popular;
-  }
-  return {
-    brand: term,
-    cashback: "",
-    logoBackground: fallbackTint,
-    logoText: term.slice(0, 2).toUpperCase(),
-    logoTextColor: "#00CC99",
-  };
-}
-
 export function SearchSuggestionsGrid({
   columnCount,
   contentWidth,
+  liveCards = [],
   onSelectTerm,
   onShowAll,
   showSeeAll = false,
@@ -72,7 +57,7 @@ export function SearchSuggestionsGrid({
       <Text style={styles.sectionSubtitle}>{tc(webHomeSearchPopularPanel.subtitle)}</Text>
       <View style={[styles.suggestionsGrid, { gap }]}>
         {terms.map((term, index) => {
-          const item = resolveSuggestionItem(term, fallbackTint);
+          const item = resolveSearchSuggestionItem(term, liveCards, fallbackTint);
           const logoFallbackText =
             item.logoText.trim().length > 0 ? item.logoText : item.brand.slice(0, 2).toUpperCase();
 
@@ -85,6 +70,7 @@ export function SearchSuggestionsGrid({
               cashback={item.cashback}
               key={`${term}-${index}`}
               logoFallbackText={logoFallbackText}
+              logoUri={item.logoUri}
               logoVisualHeight={scaledCard.logoVisualHeight}
               onPress={() => onSelectTerm(item.brand)}
               size="S"

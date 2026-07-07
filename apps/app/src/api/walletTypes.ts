@@ -11,13 +11,53 @@ export type CheckWithdrawResponse = {
   totalPayoutUSD: number;
 };
 
+function readWalletAmount(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const parsed = Number(trimmed.replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+/** Normalize POST /withdraw/check payloads before resource + UI guards run. */
+export function normalizeCheckWithdrawResponse(payload: unknown): CheckWithdrawResponse | null {
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    return null;
+  }
+
+  const candidate = payload as Record<string, unknown>;
+  const netAmountTHB = readWalletAmount(candidate.netAmountTHB);
+  const totalPayoutTHB = readWalletAmount(candidate.totalPayoutTHB);
+
+  if (netAmountTHB === null || totalPayoutTHB === null) {
+    return null;
+  }
+
+  return {
+    netAmount: readWalletAmount(candidate.netAmount) ?? netAmountTHB,
+    netAmountTHB,
+    totalPayoutTHB,
+    totalPayoutUSD: readWalletAmount(candidate.totalPayoutUSD) ?? totalPayoutTHB,
+  };
+}
+
 /** Narrow an unknown backend payload to the withdraw-check totals. */
 export function isCheckWithdrawResponse(payload: unknown): payload is CheckWithdrawResponse {
-  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
-    return false;
-  }
-  const candidate = payload as { netAmountTHB?: unknown; totalPayoutTHB?: unknown };
-  return (
-    typeof candidate.netAmountTHB === "number" && typeof candidate.totalPayoutTHB === "number"
-  );
+  return normalizeCheckWithdrawResponse(payload) !== null;
+}
+
+export function isWalletResourceBlocking(
+  status: "disabled" | "empty" | "error" | "loading" | "offline" | "ready",
+): boolean {
+  return status === "loading" || status === "error" || status === "offline" || status === "disabled";
 }

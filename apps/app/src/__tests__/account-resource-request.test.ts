@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS } from "../account/customerAccountResourceIds";
 import {
-  PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS,
   resolveCustomerAccountResourceRequest,
   shouldFetchCustomerAccountResourceFromBackend,
-} from "../account/customerAccountResource";
+} from "../account/customerAccountResourceEndpoints";
 
 describe("resolveCustomerAccountResourceRequest", () => {
   it("offers > then describes the real backend contract: POST /offer/my-offers with a paged body", () => {
@@ -31,7 +31,7 @@ describe("resolveCustomerAccountResourceRequest", () => {
   it("brandCatalog > then requests a modest first page for faster home paint", () => {
     expect(resolveCustomerAccountResourceRequest({ resourceId: "brandCatalog" })).toEqual({
       method: "GET",
-      path: "/offer?limit=20&page=1",
+      path: "/offer?limit=20&page=1&country=TH",
     });
   });
 
@@ -46,8 +46,8 @@ describe("resolveCustomerAccountResourceRequest", () => {
 });
 
 describe("PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS", () => {
-  it("includes topBrand and homeBanner as public admin-curated resources", () => {
-    expect(PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS).toEqual(["topBrand", "homeBanner"]);
+  it("includes topBrand, homeBanner, and merchant as public admin-curated resources", () => {
+    expect(PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS).toEqual(["homeBanner", "merchant", "topBrand"]);
   });
 });
 
@@ -70,6 +70,17 @@ describe("shouldFetchCustomerAccountResourceFromBackend", () => {
       shouldFetchCustomerAccountResourceFromBackend({
         accountDataSource: "fixtures",
         resourceId: "homeBanner",
+        enabled: true,
+        apiUrl,
+      }),
+    ).toBe(true);
+  });
+
+  it("fixtures mode + merchant + apiUrl > then fetches from backend", () => {
+    expect(
+      shouldFetchCustomerAccountResourceFromBackend({
+        accountDataSource: "fixtures",
+        resourceId: "merchant",
         enabled: true,
         apiUrl,
       }),

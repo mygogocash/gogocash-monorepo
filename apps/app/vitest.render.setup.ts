@@ -54,21 +54,32 @@ function ensureLocalStorage() {
 (globalThis as { __DEV__?: boolean }).__DEV__ = true;
 ensureLocalStorage();
 
+vi.mock("expo-localization", () => ({
+  getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
+}));
+
 const renderFetch = vi.fn(async () => new Response(null, { status: 204 }));
 vi.stubGlobal("fetch", renderFetch);
 
 vi.mock("@testing-library/react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@testing-library/react")>();
+  const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
   const { ThemeProvider } = await import("@mobile/theme/ThemeProvider");
+  const { LocaleProvider } = await import("@mobile/i18n/LocaleProvider");
+  const { FavoriteBrandsProvider } = await import("@mobile/account/FavoriteBrandsProvider");
 
   function wrapWithTheme(
     ui: ReactElement,
     options?: Parameters<typeof actual.render>[1]
   ): ReturnType<typeof actual.render> {
     const UserWrapper = options?.wrapper;
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const Wrapper = ({ children }: PropsWithChildren) => {
-      const themed = createElement(ThemeProvider, {}, children);
-      return UserWrapper ? createElement(UserWrapper, {}, themed) : themed;
+      const favorites = createElement(FavoriteBrandsProvider, {}, children);
+      const localized = createElement(LocaleProvider, {}, favorites);
+      const themed = createElement(ThemeProvider, {}, localized);
+      const queried = createElement(QueryClientProvider, { client: queryClient }, themed);
+      return UserWrapper ? createElement(UserWrapper, {}, queried) : queried;
     };
     return actual.render(ui, { ...options, wrapper: Wrapper });
   }
@@ -81,8 +92,11 @@ vi.mock("@testing-library/react", async (importOriginal) => {
 
 import { cleanup } from "@testing-library/react";
 
+import { resetOfflineGoGoTrackSettingsForTests } from "@mobile/gototrack/useGoGoTrackSettings";
+
 // Unmount React trees between render tests so happy-dom state never leaks.
 afterEach(() => {
   renderFetch.mockClear();
+  resetOfflineGoGoTrackSettingsForTests();
   cleanup();
 });

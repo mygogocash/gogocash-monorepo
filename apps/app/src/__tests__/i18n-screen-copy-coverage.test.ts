@@ -57,7 +57,7 @@ describe("i18n screen copy coverage — CustomerWalletScreen", () => {
 });
 
 // Brand names render identically in en/th (like "LINE"), so they are excluded from the translate check.
-const BRAND_LABELS = new Set<string>(["GoGoPass"]);
+const BRAND_LABELS = new Set<string>(["GoGoPass", "GoGoTrack"]);
 
 describe("i18n screen copy coverage — AccountPageShell (shared chrome)", () => {
   it("translates the desktop profile rail labels to Thai", () => {

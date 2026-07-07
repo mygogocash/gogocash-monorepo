@@ -1,0 +1,23 @@
+T-014 iOS preview EAS build — credentials verification
+Checked: 2026-07-02T13:47Z
+
+## Last iOS preview build attempt
+GH run: https://github.com/mygogocash/gogocash-monorepo/actions/runs/28523675003
+Result: FAIL (before EAS queue)
+
+Error (EAS Build step):
+  "Failed to set up credentials."
+  "You're in non-interactive mode. EAS CLI couldn't find any credentials suitable for internal distribution."
+
+Profile: preview (distribution: internal per apps/app/eas.json)
+
+## Owner fix (expo.dev)
+1. https://expo.dev → gogocash → gogocash-mobile → Credentials → iOS
+2. Configure Ad Hoc / internal distribution: Distribution Certificate + Provisioning Profile
+   (preview profile uses distribution: "internal")
+3. Re-run:
+   gh workflow run deploy-app-native-eas.yml \
+     -f action=build -f platform=ios -f profile=preview
+
+## Status
+fail — iOS internal-distribution credentials still missing on EAS (no new iOS build run since 2026-07-01)

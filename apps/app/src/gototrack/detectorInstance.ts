@@ -1,6 +1,5 @@
 import { AppState, Platform } from "react-native";
 
-import { loadGototrackNativeModule } from "../../modules/gototrack-detector";
 import { selectGoGoTrackDetector } from "./selectDetector";
 
 /**
@@ -11,7 +10,15 @@ import { selectGoGoTrackDetector } from "./selectDetector";
 export const gototrackDetector = selectGoGoTrackDetector({
   isAndroid: Platform.OS === "android",
   isIos: Platform.OS === "ios",
-  loadNativeModule: loadGototrackNativeModule,
+  loadNativeModule: () => {
+    if (Platform.OS !== "android") {
+      return null;
+    }
+    // Lazy require keeps expo-modules-core out of the web bundle path.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { loadGototrackNativeModule } = require("../../modules/gototrack-detector") as typeof import("../../modules/gototrack-detector");
+    return loadGototrackNativeModule();
+  },
   subscribeAppState: (listener) => {
     const subscription = AppState.addEventListener("change", (next) => {
       if (next === "active") {

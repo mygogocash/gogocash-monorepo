@@ -27,6 +27,7 @@ const PROFILE_SECTION_PREFIXES = [
   "/profile",
   "/referral",
   "/wallet",
+  "/gototrack",
   "/withdraw",
   "/method",
   "/membership",
@@ -103,6 +104,29 @@ export function isProfileSubNavItemActive(pathname: string, href: string): boole
 /** Keep the Profile accordion expanded whenever the user is inside the hub. */
 export function shouldAutoExpandProfileSubNav(pathname: string | null | undefined): boolean {
   return isProfileSectionHubActive(pathname);
+}
+
+/** True anywhere inside GoGoTrack — keeps the accordion open and parent row highlighted. */
+export function isGoGoTrackSectionHubActive(pathname: string | null | undefined): boolean {
+  if (!pathname) {
+    return false;
+  }
+
+  return matchesPrefix(pathname, "/gototrack");
+}
+
+/** Active state for a GoGoTrack accordion sub-item. Overview matches only the hub route. */
+export function isGoGoTrackSubNavItemActive(pathname: string, href: string): boolean {
+  if (href === "/gototrack") {
+    return pathname === "/gototrack" || pathname === "/gototrack/";
+  }
+
+  return matchesPrefix(pathname, href);
+}
+
+/** Keep the GoGoTrack accordion expanded whenever the user is on a GoGoTrack route. */
+export function shouldAutoExpandGoGoTrackSubNav(pathname: string | null | undefined): boolean {
+  return isGoGoTrackSectionHubActive(pathname);
 }
 
 /** Active state for a top-level rail menu item (Profile row uses the hub check). */

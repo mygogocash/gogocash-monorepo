@@ -1,0 +1,11 @@
+# Authenticated wallet smoke — run after JWT inject:
+#   GOGOTRACK_AUTH_TOKEN=... npm run staging:maestro-wallet
+appId: co.gogocash.app
+---
+- launchApp
+- runFlow: ../subflows/dismiss-cookie-banner.yaml
+- openLink: gogocash://wallet
+- extendedWaitUntil:
+    visible: "Wallet"
+    timeout: 30000
+- assertVisible: "Wallet"

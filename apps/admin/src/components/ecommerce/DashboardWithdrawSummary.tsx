@@ -5,19 +5,22 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRightIcon } from "@/icons";
 import { formatDateTime } from "@/lib/dateFormat";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import {
   MOCK_DASHBOARD_SUMMARY,
   fetchDashboardWithdrawSummary,
+  isRealApiConfigured,
 } from "@/lib/query/dashboardQueries";
 
 export function DashboardWithdrawSummary() {
-  const { data: summary, isLoading } = useQuery({
+  const hasRealApi = isRealApiConfigured();
+  const { data: summary, isLoading, isError, error } = useQuery({
     queryKey: ["dashboard", "withdraw-summary"],
     queryFn: fetchDashboardWithdrawSummary,
     staleTime: 60_000,
   });
 
-  const displaySummary = summary ?? MOCK_DASHBOARD_SUMMARY;
+  const displaySummary = summary ?? (hasRealApi ? null : MOCK_DASHBOARD_SUMMARY);
   const pendingCount = displaySummary?.withdrawByStatus?.pending?.count ?? 0;
   const showAttention = pendingCount > 0;
 
@@ -34,6 +37,17 @@ export function DashboardWithdrawSummary() {
           ))}
         </div>
       </div>
+    );
+  }
+
+  if (hasRealApi && isError) {
+    return (
+      <p className="border-error-200 bg-error-50 text-error-800 dark:border-error-800 dark:bg-error-950/30 dark:text-error-200 rounded-xl border px-4 py-3 text-sm">
+        {getApiErrorMessage(
+          error,
+          "Could not load withdraw summary. Refresh the page or check your connection.",
+        )}
+      </p>
     );
   }
 

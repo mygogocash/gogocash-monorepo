@@ -13,7 +13,11 @@ export type CustomerAccountResourceId =
   | "wallet";
 
 /** Public, no-auth resources whose live admin config should load even in fixtures mode. */
-export const PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS = ["topBrand", "homeBanner"] as const satisfies readonly CustomerAccountResourceId[];
+export const PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS = [
+  "homeBanner",
+  "merchant",
+  "topBrand",
+] as const satisfies readonly CustomerAccountResourceId[];
 
 export type PublicAdminConfiguredResourceId =
   (typeof PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS)[number];

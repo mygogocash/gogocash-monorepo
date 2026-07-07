@@ -105,8 +105,12 @@ describe("Expo home design parity", () => {
       path.join(mobileRoot, "src/components/CustomerCookieConsentBanner.tsx"),
       "utf8"
     );
+    const cookieConsentStorageFile = fs.readFileSync(
+      path.join(mobileRoot, "src/pdpa/cookieConsentStorage.ts"),
+      "utf8"
+    );
 
-    expect(cookieBannerFile).toContain("webCookieConsentBanner.dismissedStorageKey");
+    expect(cookieConsentStorageFile).toContain("webCookieConsentBanner.dismissedStorageKey");
     expect(cookieBannerFile).toContain("webCookieConsentBanner.dismissedEventName");
     expect(cookieBannerFile).toContain("webCookieConsentBanner.privacyPolicyLabel");
   });
@@ -320,7 +324,7 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain(
       'heroBanners.filter((banner) => banner.placement === "main")'
     );
-    expect(homeFile).toContain("mainBanners.map");
+    expect(homeFile).toContain("heroCarouselSlides.map");
     expect(homeFile).toContain("setHeroBannerWidth");
     expect(homeFile).toContain("styles.heroScroll");
     expect(homeFile).toContain("CarouselDots");
@@ -365,25 +369,25 @@ describe("Expo home design parity", () => {
     expect(webTopBrandCards.slice(0, 4)).toEqual([
       expect.objectContaining({
         brand: "Grocery Galaxy",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
         showGrabCoupon: true,
         tint: "#6366F1",
       }),
       expect.objectContaining({
         brand: "Pocket Pantry",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
         showGrabCoupon: true,
         tint: "#6366F1",
       }),
       expect.objectContaining({
         brand: "Orbit Airways",
-        logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
+        logoUri: "https://cdn.simpleicons.org/americanairlines",
         showGrabCoupon: false,
         tint: "#2563EB",
       }),
       expect.objectContaining({
         brand: "PixelPort",
-        logoUri: "https://cdn.simpleicons.org/apple/ffffff",
+        logoUri: "https://cdn.simpleicons.org/apple",
         showGrabCoupon: false,
         tint: "#2563EB",
       }),
@@ -585,32 +589,32 @@ describe("Expo home design parity", () => {
     expect(trending?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Grocery Galaxy",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
         tint: "#6366F1",
       }),
       expect.objectContaining({
         brand: "Pocket Pantry",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
         tint: "#6366F1",
       }),
       expect.objectContaining({
         brand: "Orbit Airways",
-        logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
+        logoUri: "https://cdn.simpleicons.org/americanairlines",
         tint: "#2563EB",
       }),
       expect.objectContaining({
         brand: "PixelPort",
-        logoUri: "https://cdn.simpleicons.org/apple/ffffff",
+        logoUri: "https://cdn.simpleicons.org/apple",
         tint: "#2563EB",
       }),
       expect.objectContaining({
         brand: "Glow Theory",
-        logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopify",
         tint: "#6366F1",
       }),
       expect.objectContaining({
         brand: "Bloom & Beam",
-        logoUri: "https://cdn.simpleicons.org/nike/ffffff",
+        logoUri: "https://cdn.simpleicons.org/nike",
         tint: "#7F1D1D",
       }),
     ]);
@@ -623,32 +627,32 @@ describe("Expo home design parity", () => {
     expect(travel?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Orbit Airways",
-        logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
+        logoUri: "https://cdn.simpleicons.org/americanairlines",
         tint: "#2563EB",
       }),
       expect.objectContaining({
         brand: "Nova Travel Club",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+        logoUri: "https://cdn.simpleicons.org/tripadvisor",
         tint: "#1D4ED8",
       }),
       expect.objectContaining({
         brand: "Horizon Escapes",
-        logoUri: "https://cdn.simpleicons.org/meta/ffffff",
+        logoUri: "https://cdn.simpleicons.org/meta",
         tint: "#1F3E5F",
       }),
       expect.objectContaining({
         brand: "CloudNine Travel",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+        logoUri: "https://cdn.simpleicons.org/tripadvisor",
         tint: "#EAB308",
       }),
       expect.objectContaining({
         brand: "StayMint Hotels",
-        logoUri: "https://cdn.simpleicons.org/airbnb/ffffff",
+        logoUri: "https://cdn.simpleicons.org/airbnb",
         tint: "#0EA5E9",
       }),
       expect.objectContaining({
         brand: "Trailhead Outfitters",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+        logoUri: "https://cdn.simpleicons.org/tripadvisor",
         tint: "#0F766E",
       }),
     ]);
@@ -690,33 +694,33 @@ describe("Expo home design parity", () => {
     expect(makeup?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Bloom & Beam",
-        logoUri: "https://cdn.simpleicons.org/nike/ffffff",
+        logoUri: "https://cdn.simpleicons.org/nike",
         tint: "#7F1D1D",
       }),
       expect.objectContaining({
         brand: "Mint Mirror",
-        logoUri: "https://cdn.simpleicons.org/target/ffffff",
+        logoUri: "https://cdn.simpleicons.org/target",
         tint: "#0EA5E9",
       }),
       expect.objectContaining({
         brand: "Pure Ritual",
-        logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopee",
         tint: "#0F766E",
       }),
       expect.objectContaining({
         brand: "Luxe Lane Beauty",
-        logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopify",
         tint: "#F97316",
       }),
       expect.objectContaining({
         brand: "Amber Apothecary",
         logoFallbackText: "Amber Apothecary",
-        logoUri: "https://cdn.simpleicons.org/target/ffffff",
+        logoUri: "https://cdn.simpleicons.org/target",
         tint: "#7F1D1D",
       }),
       expect.objectContaining({
         brand: "Pearl Polish",
-        logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopee",
         tint: "#6366F1",
       }),
     ]);
@@ -906,14 +910,16 @@ describe("Expo home design parity", () => {
     expect(homeSource).toContain('pickThemed(colors, "#303846", "rgba(255, 255, 255, 0.92)")');
   });
 
-  it("mobile/tablet GoLink banner collapse > given covered before layout > then height stays zero", () => {
+  it("mobile/tablet GoLink banner collapse > given covered state > then banner unmounts after compositor animation", () => {
     const collapseSource = fs.readFileSync(
       path.resolve(mobileRoot, "src/screens/home/MobileTabletGoLinkBannerCollapse.tsx"),
       "utf8"
     );
 
     expect(collapseSource).toContain("isCovered");
-    expect(collapseSource).toMatch(/isCovered[\s\S]*\?\s*0/);
+    expect(collapseSource).toContain("bannerMounted");
+    expect(collapseSource).toContain("scaleY");
+    expect(collapseSource).toContain("runTransformTiming");
   });
 
   it("mobile search screen > given suggestion cards > then it renders the shared compact BrandCard", () => {

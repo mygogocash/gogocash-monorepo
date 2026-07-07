@@ -99,9 +99,8 @@ set_var gogocash-api TELEGRAM_BOT_TOKEN
 set_var gogocash-api OPTIMISE_API_KEY
 set_var gogocash-api CORS_EXTRA_ORIGINS
 # optional media (GCS JSON one-liner or R2 — see runbook)
-set_var gogocash-api GOOGLE_APPLICATION_CREDENTIALS_JSON
-set_var gogocash-api GCS_CATALOG_PUBLIC_BASE_URL
-set_var gogocash-api MEDIA_STORAGE_DRIVER
+set_var gogocash-api MEDIA_MAX_UPLOAD_BYTES
+set_var gogocash-api MEDIA_UPLOAD_SIGNING_SECRET
 set_var gogocash-api R2_BUCKET
 set_var gogocash-api R2_ENDPOINT
 set_var gogocash-api R2_PUBLIC_BASE_URL

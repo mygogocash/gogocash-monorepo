@@ -1,0 +1,3 @@
+device=SM02G4061912033
+capturedAt=2026-07-04T03:18:22.953Z
+artifacts=device-adb-reverse.txt,device-window.txt,device-logcat.txt,device-screenshot.png,device-screenshot.txt

@@ -1,15 +1,12 @@
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
+import { isGoGoPassSubscriber } from "@mobile/lib/membershipTier";
 import { typography } from "@mobile/theme/tokens";
 
-// "GOGOPASS" gold pill shown next to the member name. Renders null for free/undefined tiers.
-function isPremiumTier(tier?: string): boolean {
-  return tier === "gogopass" || tier === "gogopass-pro";
-}
-
+// "GOGOPASS" gold pill shown next to the member name. Renders null unless subscribed.
 export function GoGoPassBadge({ tier }: { tier?: string }) {
-  if (!isPremiumTier(tier)) {
+  if (!isGoGoPassSubscriber(tier)) {
     return null;
   }
   const label = tier === "gogopass-pro" ? "GOGOPASS PRO" : "GOGOPASS";
@@ -26,9 +23,11 @@ export function GoGoPassBadge({ tier }: { tier?: string }) {
 const styles = StyleSheet.create({
   badge: {
     alignItems: "center",
+    alignSelf: "flex-start",
     backgroundColor: "#D4AF37",
     borderRadius: 999,
     flexDirection: "row",
+    flexShrink: 0,
     gap: 3,
     paddingHorizontal: 8,
     paddingVertical: 3,

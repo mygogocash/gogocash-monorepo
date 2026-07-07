@@ -23,6 +23,7 @@ import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFoo
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { haptics } from "@mobile/lib/haptics";
 import { motion } from "@mobile/theme/motion";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -56,6 +57,7 @@ export function CustomerShopDirectoryScreen() {
   const styles = useThemedStyles(createDiscoveryScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const { region } = useLocale();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
@@ -92,7 +94,8 @@ export function CustomerShopDirectoryScreen() {
   const liveStores = resolveLiveDirectoryStores(
     catalogResource.source,
     catalogResource.data,
-    webShopDirectory.stores
+    webShopDirectory.stores,
+    region,
   );
   const directorySearch = useDirectoryOfferSearch(
     searchQuery,
@@ -126,6 +129,7 @@ export function CustomerShopDirectoryScreen() {
     return getFixtureShopDirectoryResults({
       category: selectedCategory,
       query: searchQuery,
+      regionCode: region,
       shopType: selectedShopType,
       sortBy,
     });
@@ -134,6 +138,7 @@ export function CustomerShopDirectoryScreen() {
     directorySearch.status,
     directorySearch.stores,
     liveStores,
+    region,
     searchQuery,
     selectedCategory,
     selectedShopType,

@@ -56,7 +56,6 @@ function createRouteChromeStyles(colors: ThemeColors) {
     desktopViewport: {
       backgroundColor: colors.card,
       flex: 1,
-      minHeight: "100%",
       width: "100%",
     },
     routeContent: {

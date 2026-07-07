@@ -84,6 +84,40 @@ describe("GoGoTrack detection runner", () => {
     expect(api.detect).toHaveBeenCalledTimes(1);
   });
 
+  it("throttling > given concurrent polls before detect resolves > then sends only one POST", async () => {
+    let resolveDetect: ((value: { matched: boolean }) => void) | undefined;
+    const detectPromise = new Promise<{ matched: boolean }>((resolve) => {
+      resolveDetect = resolve;
+    });
+    const api = {
+      detect: vi.fn(() => detectPromise),
+    };
+    const runner = createGoGoTrackDetectionRunner({
+      api,
+      cooldownMs: 30_000,
+      detector: createDetector(),
+      now: () => new Date("2026-05-23T09:00:00.000Z"),
+    });
+
+    await runner.start();
+    const firstPoll = runner.pollForegroundPackage();
+    const secondPoll = runner.pollForegroundPackage();
+
+    resolveDetect?.({ matched: true });
+    await expect(firstPoll).resolves.toEqual({
+      detected: true,
+      packageName: "com.shopee.th",
+      suppressed: false,
+    });
+    await expect(secondPoll).resolves.toEqual({
+      detected: false,
+      packageName: "com.shopee.th",
+      suppressed: true,
+    });
+
+    expect(api.detect).toHaveBeenCalledTimes(1);
+  });
+
   it("throttling > given detection upload fails > then does not suppress retry", async () => {
     const detector = createDetector();
     const api = {

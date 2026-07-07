@@ -1,0 +1,25 @@
+T-020 Admin ↔ beta app cross-check — endpoint prep (no admin login)
+Checked: 2026-07-02T13:48Z
+
+## Admin Brands Management (customer-visible offers)
+Admin UI routes: /brands, /brands/create-brand, commission, policy tabs
+API calls (from apps/admin/src/components/offer/FormOffer.tsx):
+  GET  /admin/commission-management/brands?networkId=...
+  PATCH /admin/update-offer/:id  (multipart FormData — brand logo, enable/disable, cashback)
+  POST /admin/offer/:id/approve | /admin/offer/:id/reject
+
+Public customer mirror:
+  GET /offer/top-brands (drops disabled offers)
+  GET /offer/... (customer app shop/discovery)
+
+## GoGoTrack merchants (separate collection)
+Collection: gogosense_merchants (API Mongoose schema)
+Public: GET https://api-staging.gogocash.co/gototrack/merchants
+NOT edited via admin Brands Management — seeded via gototrack:seed-merchants (T-008 pass).
+
+## Cross-check procedure (owner, after T-013 + app build)
+1. Login admin-staging → Brands Management → enable/edit an offer
+2. Confirm on preview APK (api-staging) or Expo staging channel: offer appears in customer app
+3. GoGoTrack path: confirm Shopee still in GET /gototrack/merchants after any DB ops
+
+Blocked: no admin credentials in agent env; T-013 env misconfig must be fixed first.

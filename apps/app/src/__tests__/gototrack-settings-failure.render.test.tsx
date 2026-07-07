@@ -1,10 +1,20 @@
+import { createElement, type PropsWithChildren } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { useGoGoTrackSettings } from "@mobile/gototrack/useGoGoTrackSettings";
 
+function createSettingsTestWrapper() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return function Wrapper({ children }: PropsWithChildren) {
+    return createElement(QueryClientProvider, { client: queryClient }, children);
+  };
+}
+
 describe("useGoGoTrackSettings failure handling", () => {
   it("reverts an optimistic toggle when persistence rejects", async () => {
+    const onPersistError = vi.fn();
     const api = {
       getSettings: vi.fn(async () => ({
         notification_listener_enabled: false,
@@ -16,7 +26,9 @@ describe("useGoGoTrackSettings failure handling", () => {
       }),
     };
 
-    const { result } = renderHook(() => useGoGoTrackSettings(api));
+    const { result } = renderHook(() => useGoGoTrackSettings(api, { onPersistError }), {
+      wrapper: createSettingsTestWrapper(),
+    });
 
     await waitFor(() => expect(api.getSettings).toHaveBeenCalled());
 
@@ -25,6 +37,10 @@ describe("useGoGoTrackSettings failure handling", () => {
     });
 
     await waitFor(() => expect(result.current.settings.usageStatsEnabled).toBe(false));
-    expect(api.updateSettings).toHaveBeenCalledWith({ usageStatsEnabled: true });
+    expect(api.updateSettings).toHaveBeenCalledWith({
+      usageStatsEnabled: true,
+      enabled: true,
+    });
+    expect(onPersistError).toHaveBeenCalledWith("usageStatsEnabled");
   });
 });

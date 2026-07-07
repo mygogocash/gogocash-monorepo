@@ -31,6 +31,12 @@ export function buildProtectedLoginRedirect(pathname: string): string | null {
     return null;
   }
 
+  return buildLoginRedirectWithCallback(callbackPath);
+}
+
+/** Login redirect for any safe in-app return path (including public routes like /shop/:id). */
+export function buildLoginRedirectWithCallback(pathname: string): string {
+  const callbackPath = sanitizeCallbackPath(pathname);
   return `/login?callbackUrl=${encodeURIComponent(callbackPath)}`;
 }
 

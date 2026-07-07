@@ -745,16 +745,26 @@ export function createDiscoveryScreenStyles(colors: ThemeColors) {
     boxShadow: shadows.cardCss,
   },
   shopDirectoryLogoTile: {
+    alignItems: "center",
     aspectRatio: 1,
     borderRadius: 10,
+    justifyContent: "center",
     overflow: "hidden",
     position: "relative",
     width: "100%",
   },
   shopDirectoryLogoImage: {
+    // expo-image gets no size from absolute-fill alone on Android new arch.
     height: "100%",
-    padding: spacing.md,
     width: "100%",
+  },
+  shopDirectoryLogoFallback: {
+    color: "#FFFFFF",
+    fontFamily: typography.family,
+    fontSize: 22,
+    fontWeight: typography.labelWeight,
+    lineHeight: 28,
+    textAlign: "center",
   },
   shopDirectoryCouponBadge: {
     alignItems: "center",

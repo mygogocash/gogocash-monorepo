@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { isMerchantOfferResponse } from "../api/merchantTypes";
 import { mapMerchantOfferToShopDetail } from "../api/merchantMapper";
+
+vi.mock("@mobile/config/env", () => ({
+  getMobileEnv: () => ({
+    apiUrl: "https://api-staging.gogocash.co",
+  }),
+}));
 
 const fixtureShop = {
   id: "brand-grocery-galaxy-1001",
@@ -86,5 +92,60 @@ describe("mapMerchantOfferToShopDetail", () => {
     );
 
     expect(shop.cashback).toBe("7.25%");
+  });
+
+  it("given logo_desktop and legacy logo > then prefers admin desktop logo", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        logo: "https://cdn.example/legacy.png",
+        logo_desktop: "https://cdn.example/desktop.png",
+      },
+      fixtureShop
+    );
+
+    expect(shop.logoUri).toBe("https://cdn.example/desktop.png");
+  });
+
+  it("given offer_name_display from staging Shopee detail > then prefers display name over offer_name", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        _id: "6a49f3e6ce2e0da81d6dc375",
+        offer_name: "Shopee Affiliate Program",
+        offer_name_display: "Shopee",
+        commissions: [{ Commission: "2.02%" }],
+      },
+      fixtureShop
+    );
+
+    expect(shop.brand).toBe("Shopee");
+    expect(shop.cashback).toBe("2.02%");
+  });
+
+  it("given missing offer_name but display name present > then still maps brand", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        offer_name: "",
+        offer_name_display: "Shopee",
+      },
+      fixtureShop
+    );
+
+    expect(shop.brand).toBe("Shopee");
+  });
+
+  it("given no banner but logo_circle brand cover > then uses cover on shop hero", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        banner: undefined,
+        logo_circle: "https://cdn.example/cover.png",
+      },
+      fixtureShop
+    );
+
+    expect(shop.bannerUri).toBe("https://cdn.example/cover.png");
   });
 });

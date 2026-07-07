@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 const STORAGE_KEY = "gogocash.gototrack.backgroundPromptsEnabled";
 
 type SecureStoreLike = {
@@ -26,7 +28,15 @@ function writeWebFlag(enabled: boolean): void {
 
 async function resolveSecureStore(): Promise<SecureStoreLike | null> {
   try {
-    return await import("expo-secure-store");
+    const secureStore = await import("expo-secure-store");
+    if (
+      typeof secureStore.getItemAsync !== "function" ||
+      typeof secureStore.setItemAsync !== "function" ||
+      typeof secureStore.deleteItemAsync !== "function"
+    ) {
+      return null;
+    }
+    return secureStore;
   } catch {
     return null;
   }
@@ -34,9 +44,8 @@ async function resolveSecureStore(): Promise<SecureStoreLike | null> {
 
 /** Native monitor service reads this opt-in flag (default off). */
 export async function readBackgroundPromptsEnabled(): Promise<boolean> {
-  const webValue = readWebFlag();
-  if (webValue != null) {
-    return webValue;
+  if (Platform.OS === "web") {
+    return readWebFlag() ?? false;
   }
 
   const secureStore = await resolveSecureStore();
@@ -51,7 +60,10 @@ export async function readBackgroundPromptsEnabled(): Promise<boolean> {
 export async function writeBackgroundPromptsEnabled(
   enabled: boolean,
 ): Promise<void> {
-  writeWebFlag(enabled);
+  if (Platform.OS === "web") {
+    writeWebFlag(enabled);
+    return;
+  }
 
   const secureStore = await resolveSecureStore();
   if (!secureStore) {

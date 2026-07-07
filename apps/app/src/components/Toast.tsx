@@ -17,7 +17,7 @@ import {
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
-import { motion } from "@mobile/theme/motion";
+import { runFadeSlideTiming } from "@mobile/theme/animatedMotion";
 
 /** Default auto-dismiss timeout for a toast (~2.5s). */
 export const TOAST_DEFAULT_DURATION_MS = 2500;
@@ -50,20 +50,12 @@ function ToastView({ message, toastKey }: ToastViewProps) {
     }
     opacity.setValue(0);
     translateY.setValue(12);
-    const animation = Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: motion.duration.fast,
-        easing: motion.easing.out,
-        useNativeDriver: motion.useNativeDriver,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: motion.duration.fast,
-        easing: motion.easing.out,
-        useNativeDriver: motion.useNativeDriver,
-      }),
-    ]);
+    const animation = runFadeSlideTiming({
+      opacity,
+      reducedMotion: false,
+      translateY,
+      visible: true,
+    });
     animation.start();
     return () => animation.stop();
     // toastKey re-triggers the entrance when a new toast replaces the current one.

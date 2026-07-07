@@ -1,25 +1,25 @@
-import { Link } from "expo-router";
+import { Link, usePathname } from "expo-router";
 import {
-  Activity as ActivityIcon,
-  Bell as BellIcon,
-  Camera as CameraIcon,
   CheckCircle2 as CheckIcon,
-  Eye as EyeIcon,
-  FileSearch as FileSearchIcon,
-  LockKeyhole as LockIcon,
+  ChevronLeft as ChevronLeftIcon,
   Settings as SettingsIcon,
   ShieldCheck as ShieldIcon,
   Store as StoreIcon,
 } from "@mobile/theme/icons";
-import { useEffect, type ComponentType } from "react";
-import { Platform, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { type ComponentType } from "react";
+import { Platform, StyleSheet, Switch, Text, useWindowDimensions, View } from "react-native";
 
-import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
+import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { useToast } from "@mobile/hooks/useToast";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { mobileShellLayout } from "@mobile/design/webDesignParity";
+import { toastErrorMessages } from "@mobile/i18n/toastMessages";
+import {
+  mobileShellLayout,
+  profileHubGoGoTrackSubNavItems,
+} from "@mobile/design/webDesignParity";
+import { isGoGoTrackSubNavItemActive } from "@mobile/navigation/profileSectionNav";
 import { motion } from "@mobile/theme/motion";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -30,24 +30,23 @@ import {
   type GoGoTrackDetector,
 } from "@mobile/gototrack/detector";
 import { GoGoTrackDetectionBanner } from "@mobile/gototrack/GoGoTrackDetectionBanner";
-import { useGoGoTrack } from "@mobile/gototrack/useGoGoTrack";
+import {
+  GoGoTrackPermissionDisclosure,
+  GoGoTrackPermissionGrantSection,
+} from "@mobile/gototrack/GoGoTrackPermissionGrantSection";
 import {
   type GoGoTrackMerchant,
   useGoGoTrackMerchants,
 } from "@mobile/gototrack/useGoGoTrackMerchants";
-import { useGoGoTrackRecovery } from "@mobile/gototrack/useGoGoTrackRecovery";
 import { useGoGoTrackSettings } from "@mobile/gototrack/useGoGoTrackSettings";
 import { useGoGoTrackBackgroundPrompts } from "@mobile/gototrack/useGoGoTrackBackgroundPrompts";
-import { useGoGoTrackTimeline } from "@mobile/gototrack/useGoGoTrackTimeline";
 
 export type GoGoTrackFlowMode =
   | "hub"
   | "merchant"
   | "onboarding"
   | "permissions"
-  | "recovery"
-  | "settings"
-  | "timeline";
+  | "settings";
 
 type GoGoTrackIcon = ComponentType<{
   color?: string;
@@ -80,63 +79,17 @@ const gogoSenseFlowCopy = {
     title: "Permission checklist",
     body: "GoGoTrack never enables sensitive signals silently. Review why each permission is needed before opening device settings.",
   },
-  timeline: {
-    eyebrow: "Tracking history",
-    title: "Tracking timeline",
-    body: "Review detected shopping sessions, activation status, and recovery tasks without exposing raw receipt or screenshot content.",
-  },
   settings: {
     eyebrow: "Privacy controls",
     title: "Tracking controls",
     body: "Tune GoGoTrack detection sources and data minimization before the native detector is enabled.",
   },
-  recovery: {
-    eyebrow: "Manual proof",
-    title: "Screenshot recovery",
-    body: "Use recovery when a shopping session was not detected or a merchant asks for proof before validating cashback.",
-  },
   merchant: {
     eyebrow: "Merchant detail",
     title: "Merchant tracking detail",
-    body: "Check supported detection methods, activation status, and recovery options for this merchant.",
+    body: "Check supported detection methods and activation status for this merchant.",
   },
 } as const;
-
-const permissionRows = [
-  {
-    title: "Usage access",
-    body: "Detect supported shopping apps and browser transitions.",
-    icon: EyeIcon,
-  },
-  {
-    title: "Usage access disclosure",
-    body: "Check foreground merchant sessions only after Android Usage Access is granted.",
-    icon: BellIcon,
-  },
-  {
-    title: "Screenshot recovery",
-    body: "Allow user-submitted screenshots only when automatic tracking fails.",
-    icon: CameraIcon,
-  },
-] as const;
-
-const timelineRows = [
-  {
-    title: "Detected shopping session",
-    body: "Grocery Galaxy opened from GoGoCash at 08:42.",
-    status: "Captured",
-  },
-  {
-    title: "Activation event",
-    body: "Cashback click ID linked to merchant session.",
-    status: "Protected",
-  },
-  {
-    title: "Cashback pending",
-    body: "Waiting for merchant confirmation before wallet credit.",
-    status: "Pending",
-  },
-] as const;
 
 const setupRows = [
   "Install native detector",
@@ -160,11 +113,6 @@ const settingRows = [
     field: "usageStatsEnabled",
   },
   {
-    title: "Notification listener matching",
-    body: "Read merchant confirmation notices only after notification access is granted.",
-    field: "notificationListenerEnabled",
-  },
-  {
     title: "PII minimization",
     body: "Redact receipt and screenshot data before upload.",
     field: "screenshotRecoveryEnabled",
@@ -179,7 +127,8 @@ export function CustomerGoGoTrackScreen({
   const styles = useThemedStyles(createGoGoTrackScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
-  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const copy = gogoSenseFlowCopy[mode];
   const merchantRouteId = mode === "merchant" ? merchantId : undefined;
   const { loading: merchantLoading, merchant } = useGoGoTrackMerchants(
@@ -188,120 +137,78 @@ export function CustomerGoGoTrackScreen({
     mode === "merchant",
   );
   const merchantLabel = merchant?.name ?? merchantRouteId;
-  const topPadding = Math.max(spacing.md, insets.top + spacing.md);
-  const bottomPadding = Math.max(
-    mobileShellLayout.bottomNavClearance,
-    insets.bottom + spacing.xl,
-  );
 
   return (
-    <View style={styles.viewport}>
-      <View style={styles.phoneFrame}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.page,
-            {
-              paddingBottom: bottomPadding,
-              paddingTop: topPadding,
-            },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.hero}>
-            <View style={styles.heroIcon}>
-              <ShieldIcon
-                color={colors.white}
-                size={28}
+    <AccountPageShell activeRouteId="profile" showProfileRail showTitle={false} title={tc(copy.title)}>
+      <View style={styles.page}>
+        {isDesktop ? null : (
+          <Link asChild href="/profile">
+            <MotionPressable
+              accessibilityRole="link"
+              hitSlop={{ bottom: 8, left: 8, right: 8, top: 8 }}
+              pressScale={0.98}
+              style={styles.backLink}
+            >
+              <ChevronLeftIcon
+                color={colors.accent}
+                size={26}
                 strokeWidth={typography.iconStrokeWidth}
               />
-            </View>
-            <Text numberOfLines={1} style={styles.eyebrow}>
-              {tc(copy.eyebrow)}
-            </Text>
-            <Text numberOfLines={1} style={styles.title}>
-              {tc(copy.title)}
-            </Text>
-            <Text style={styles.body}>{tc(copy.body)}</Text>
-            {merchantId ? (
-              <View style={styles.merchantIdPill}>
-                <Text style={styles.merchantIdLabel}>
-                  {merchant ? "merchant" : "merchantId"}
-                </Text>
-                <Text style={styles.merchantIdValue}>{merchantLabel}</Text>
-              </View>
-            ) : null}
-          </View>
+              <Text style={styles.backLinkText}>{tc("GoGoTrack")}</Text>
+            </MotionPressable>
+          </Link>
+        )}
 
-          {mode === "hub" ? <HubContent detector={detector} /> : null}
-          {mode === "onboarding" ? <OnboardingContent /> : null}
-          {mode === "permissions" ? (
-            <PermissionsContent detector={detector} />
-          ) : null}
-          {mode === "timeline" ? <TimelineContent /> : null}
-          {mode === "settings" ? <SettingsContent detector={detector} /> : null}
-          {mode === "recovery" ? <RecoveryContent /> : null}
-          {mode === "merchant" ? (
-            <MerchantContent
-              loading={merchantLoading}
-              merchant={merchant}
-              merchantId={merchantId}
+        <View style={styles.hero}>
+          <View style={styles.heroIcon}>
+            <ShieldIcon
+              color={colors.white}
+              size={28}
+              strokeWidth={typography.iconStrokeWidth}
             />
+          </View>
+          <Text numberOfLines={1} style={styles.eyebrow}>
+            {tc(copy.eyebrow)}
+          </Text>
+          <Text numberOfLines={1} style={styles.title}>
+            {tc(copy.title)}
+          </Text>
+          <Text style={styles.body}>{tc(copy.body)}</Text>
+          {merchantId ? (
+            <View style={styles.merchantIdPill}>
+              <Text style={styles.merchantIdLabel}>
+                {merchant ? "merchant" : "merchantId"}
+              </Text>
+              <Text style={styles.merchantIdValue}>{merchantLabel}</Text>
+            </View>
           ) : null}
-          <CustomerDesktopFooterSlot style={styles.desktopFooter} />
-        </ScrollView>
+        </View>
+
+        {mode !== "merchant" ? <GoGoTrackSectionNav /> : null}
+
+        {mode === "hub" ? <HubContent detector={detector} /> : null}
+        {mode === "onboarding" ? <OnboardingContent /> : null}
+        {mode === "permissions" ? <PermissionsContent detector={detector} /> : null}
+        {mode === "settings" ? <SettingsContent detector={detector} /> : null}
+        {mode === "merchant" ? (
+          <MerchantContent
+            loading={merchantLoading}
+            merchant={merchant}
+            merchantId={merchantId}
+          />
+        ) : null}
       </View>
-    </View>
+    </AccountPageShell>
   );
 }
 
 function HubContent({ detector }: { detector: GoGoTrackDetector }) {
-  const styles = useThemedStyles(createGoGoTrackScreenStyles);
   useGoGoTrackBackgroundPrompts(detector);
   return (
-    <>
+    <View style={{ gap: spacing.lg, width: "100%" }}>
       <GoGoTrackDetectionBanner detector={detector} />
-      <View style={styles.card}>
-        <SectionHeader
-          icon={LockIcon}
-          subtitle="Native detection stays disabled until the customer reviews each permission."
-          title="Permission checklist"
-        />
-        <View style={styles.permissionGrid}>
-          {permissionRows.map((row) => (
-            <InfoRow
-              body={row.body}
-              icon={row.icon}
-              key={row.title}
-              title={row.title}
-            />
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.card}>
-        <SectionHeader
-          icon={ActivityIcon}
-          subtitle="Recent sessions stay visible so missing cashback can be recovered quickly."
-          title="Tracking timeline"
-        />
-        {timelineRows.map((row) => (
-          <TimelineRow
-            body={row.body}
-            key={row.title}
-            status={row.status}
-            title={row.title}
-          />
-        ))}
-      </View>
-
-      <View style={styles.actionGrid}>
-        <PrimaryLink href="/gototrack/onboarding" label="Start setup" />
-        <SecondaryLink href="/gototrack/permissions" label="Permissions" />
-        <SecondaryLink href="/gototrack/timeline" label="Timeline" />
-        <SecondaryLink href="/gototrack/settings" label="Settings" />
-        <SecondaryLink href="/gototrack/recovery" label="Recovery" />
-      </View>
-    </>
+      <GoGoTrackPermissionGrantSection detector={detector} />
+    </View>
   );
 }
 
@@ -337,126 +244,12 @@ function OnboardingContent() {
 }
 
 function PermissionsContent({ detector }: { detector: GoGoTrackDetector }) {
-  const styles = useThemedStyles(createGoGoTrackScreenStyles);
+  useGoGoTrackBackgroundPrompts(detector);
   return (
     <>
-      <View style={styles.card}>
-        <SectionHeader
-          icon={LockIcon}
-          subtitle="These controls map to native OS permission prompts and privacy-policy wording."
-          title="Permission checklist"
-        />
-        <View style={styles.permissionGrid}>
-          {permissionRows.map((row) => (
-            <InfoRow
-              body={row.body}
-              icon={row.icon}
-              key={row.title}
-              title={row.title}
-            />
-          ))}
-        </View>
-      </View>
-      <UsageAccessControl detector={detector} />
-      <View style={styles.actionGrid}>
-        <PrimaryLink href="/gototrack/settings" label="Open settings" />
-        <SecondaryLink href="/gototrack/timeline" label="View timeline" />
-      </View>
-    </>
-  );
-}
-
-// No-op api: the permissions screen only manages Usage-Access (detector-only);
-// detection (detect/activate) is wired with the authed api in a later step.
-const permissionsScopeApi = {
-  detect: async () => ({ matched: false }),
-};
-
-function UsageAccessControl({ detector }: { detector: GoGoTrackDetector }) {
-  const styles = useThemedStyles(createGoGoTrackScreenStyles);
-  const tc = useCopy();
-  const { state, refreshPermission, requestPermission } = useGoGoTrack({
-    detector,
-    api: permissionsScopeApi,
-  });
-
-  useEffect(() => {
-    void refreshPermission();
-  }, [refreshPermission]);
-
-  const statusLabel = !state.supported
-    ? "Usage access is only available on Android"
-    : state.permissionGranted
-      ? "Usage access granted"
-      : "Usage access not granted yet";
-
-  const canGrant = state.supported && !state.permissionGranted;
-
-  return (
-    <View style={styles.card}>
-      <SectionHeader
-        icon={EyeIcon}
-        subtitle="GoGoTrack uses Android Usage Access to detect supported shopping apps. Nothing is read until you grant access."
-        title="Usage access"
-      />
-      <Text numberOfLines={1} style={styles.rowTitle}>
-        {tc(statusLabel)}
-      </Text>
-      {canGrant ? (
-        <MotionPressable
-          onPress={() => {
-            // Opens the OS Usage-Access settings screen; the status refreshes
-            // when the customer returns to GoGoCash.
-            void haptics.impact();
-            void requestPermission();
-          }}
-          pressScale={motion.scale.subtlePress}
-          style={styles.primaryButton}
-        >
-          <Text numberOfLines={1} style={styles.primaryButtonText}>
-            {tc("Grant usage access")}
-          </Text>
-        </MotionPressable>
-      ) : null}
-    </View>
-  );
-}
-
-function TimelineContent({
-  api,
-}: { api?: { getTimeline(): Promise<unknown> } | null } = {}) {
-  const styles = useThemedStyles(createGoGoTrackScreenStyles);
-  const liveEntries = useGoGoTrackTimeline(api);
-  return (
-    <>
-      <View style={styles.card}>
-        <SectionHeader
-          icon={ActivityIcon}
-          subtitle="Only the state needed for cashback support is shown here."
-          title="Tracking timeline"
-        />
-        {liveEntries
-          ? liveEntries.map((entry) => (
-              <TimelineRow
-                body={entry.body}
-                key={entry.id}
-                status={entry.status}
-                title={entry.title}
-              />
-            ))
-          : timelineRows.map((row) => (
-              <TimelineRow
-                body={row.body}
-                key={row.title}
-                status={row.status}
-                title={row.title}
-              />
-            ))}
-      </View>
-      <View style={styles.actionGrid}>
-        <PrimaryLink href="/gototrack/recovery" label="Start recovery" />
-        <SecondaryLink href="/gototrack/settings" label="Tracking settings" />
-      </View>
+      <GoGoTrackPermissionDisclosure />
+      <GoGoTrackPermissionGrantSection detector={detector} />
+      <PrimaryLink href="/gototrack/settings" label="Open settings" />
     </>
   );
 }
@@ -465,7 +258,10 @@ function SettingsContent({ detector }: { detector: GoGoTrackDetector }) {
   const styles = useThemedStyles(createGoGoTrackScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
-  const { settings, setField } = useGoGoTrackSettings();
+  const toast = useToast();
+  const { settings, setField } = useGoGoTrackSettings(undefined, {
+    onPersistError: () => toast.show(tc(toastErrorMessages.saveGoGoTrackSettingsFailed)),
+  });
   useGoGoTrackBackgroundPrompts(detector);
 
   async function handleSettingChange(
@@ -486,14 +282,6 @@ function SettingsContent({ detector }: { detector: GoGoTrackDetector }) {
       const granted = await detector.hasUsageAccessPermission();
       if (!granted) {
         await detector.openUsageAccessSettings();
-        return;
-      }
-    }
-
-    if (value && field === "notificationListenerEnabled") {
-      const granted = await detector.hasNotificationListenerPermission();
-      if (!granted) {
-        await detector.openNotificationListenerSettings();
         return;
       }
     }
@@ -535,68 +323,6 @@ function SettingsContent({ detector }: { detector: GoGoTrackDetector }) {
   );
 }
 
-function RecoveryContent() {
-  const styles = useThemedStyles(createGoGoTrackScreenStyles);
-  const { available, error, job, loading, startRecovery } =
-    useGoGoTrackRecovery();
-  const recoveryStatus = job
-    ? `Recovery job ${job.id} is ${job.status}.`
-    : available
-      ? "Create a manual recovery job before sending evidence to support."
-      : "Manual recovery is available after sign-in on the Android app.";
-  const uploadStatus = job?.uploadUrl
-    ? "Upload link is ready for customer-provided receipt evidence."
-    : "Support can attach receipt evidence after the recovery job is created.";
-  return (
-    <>
-      <View style={styles.card}>
-        <SectionHeader
-          icon={FileSearchIcon}
-          subtitle="Recovery accepts customer-provided evidence only after automatic tracking misses."
-          title="Screenshot recovery"
-        />
-        <InfoRow
-          body="Submit one receipt or checkout screenshot for review."
-          icon={CameraIcon}
-          title="Upload receipt screenshot"
-        />
-        <InfoRow
-          body="Support can compare the screenshot to the merchant tracking window."
-          icon={StoreIcon}
-          title="Manual merchant review"
-        />
-        <InfoRow
-          body={recoveryStatus}
-          icon={FileSearchIcon}
-          title="Recovery job status"
-        />
-        <InfoRow
-          body={error ?? uploadStatus}
-          icon={CameraIcon}
-          title="Evidence upload"
-        />
-      </View>
-      <View style={styles.actionGrid}>
-        <MotionPressable
-          accessibilityRole="button"
-          disabled={!available || loading}
-          onPress={startRecovery}
-          pressScale={motion.scale.subtlePress}
-          style={[
-            styles.primaryButton,
-            (!available || loading) && styles.disabledButton,
-          ]}
-        >
-          <Text numberOfLines={1} style={styles.primaryButtonText}>
-            {loading ? "Creating recovery job" : "Create recovery job"}
-          </Text>
-        </MotionPressable>
-        <SecondaryLink href="/gototrack/timeline" label="Back to timeline" />
-      </View>
-    </>
-  );
-}
-
 type MerchantContentProps = {
   loading: boolean;
   merchant: GoGoTrackMerchant | null;
@@ -630,7 +356,7 @@ function MerchantContent({
         />
         <InfoRow
           body={catalogStatus}
-          icon={ActivityIcon}
+          icon={ShieldIcon}
           title="Catalog status"
         />
         <InfoRow
@@ -639,14 +365,14 @@ function MerchantContent({
           title="Android package detection"
         />
         <InfoRow
-          body="Use recovery when the session is missing from the timeline."
-          icon={FileSearchIcon}
+          body="Cashback evidence stays on-device until activation is confirmed."
+          icon={ShieldIcon}
           title="Cashback evidence"
         />
       </View>
       <View style={styles.actionGrid}>
-        <PrimaryLink href="/gototrack/timeline" label="View timeline" />
-        <SecondaryLink href="/gototrack/recovery" label="Start recovery" />
+        <PrimaryLink href="/gototrack" label="GoGoTrack overview" />
+        <SecondaryLink href="/gototrack/settings" label="Tracking settings" />
       </View>
     </>
   );
@@ -714,31 +440,40 @@ function InfoRow({
   );
 }
 
-function TimelineRow({
-  body,
-  status,
-  title,
-}: {
-  body: string;
-  status: string;
-  title: string;
-}) {
+function GoGoTrackSectionNav() {
   const styles = useThemedStyles(createGoGoTrackScreenStyles);
   const tc = useCopy();
+  const pathname = usePathname();
+
   return (
-    <View style={styles.timelineRow}>
-      <View style={styles.timelineDot} />
-      <View style={styles.timelineCopy}>
-        <View style={styles.timelineTitleRow}>
-          <Text numberOfLines={1} style={styles.rowTitle}>
-            {tc(title)}
-          </Text>
-          <Text numberOfLines={1} style={styles.timelineStatus}>
-            {tc(status)}
-          </Text>
-        </View>
-        <Text style={styles.rowBody}>{tc(body)}</Text>
-      </View>
+    <View accessibilityRole="tablist" style={styles.sectionNav}>
+      {profileHubGoGoTrackSubNavItems.map((item) => {
+        const active = isGoGoTrackSubNavItemActive(pathname, item.href);
+        return (
+          <Link asChild href={item.href as never} key={item.href}>
+            <MotionPressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              onPress={() => {
+                void haptics.impact();
+              }}
+              pressScale={motion.scale.subtlePress}
+              style={StyleSheet.flatten([
+                active ? styles.sectionNavItemActive : styles.sectionNavItem,
+              ])}
+            >
+              <Text
+                numberOfLines={1}
+                style={StyleSheet.flatten([
+                  active ? styles.sectionNavLabelActive : styles.sectionNavLabel,
+                ])}
+              >
+                {tc(item.label)}
+              </Text>
+            </MotionPressable>
+          </Link>
+        );
+      })}
     </View>
   );
 }
@@ -787,23 +522,21 @@ function SecondaryLink({ href, label }: { href: string; label: string }) {
 
 function createGoGoTrackScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
-    viewport: {
-      alignItems: "center",
-      backgroundColor: colors.background,
-      flex: 1,
-    },
-    phoneFrame: {
-      backgroundColor: colors.background,
-      flex: 1,
-      maxWidth: mobileShellLayout.contentMaxWidth,
-      width: "100%",
-    },
     page: {
       gap: spacing.md,
-      paddingHorizontal: spacing.md,
+      width: "100%",
     },
-    desktopFooter: {
-      marginTop: 64,
+    backLink: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: spacing.xs,
+      minHeight: 44,
+    },
+    backLinkText: {
+      color: colors.accent,
+      fontFamily: typography.family,
+      fontSize: 18,
+      fontWeight: "700",
     },
     hero: {
       backgroundColor: colors.card,
@@ -940,34 +673,6 @@ function createGoGoTrackScreenStyles(colors: ThemeColors) {
       fontSize: typography.caption,
       lineHeight: 18,
     },
-    timelineRow: {
-      alignItems: "flex-start",
-      flexDirection: "row",
-      gap: spacing.md,
-    },
-    timelineDot: {
-      backgroundColor: colors.primary,
-      borderRadius: 6,
-      height: 12,
-      marginTop: 4,
-      width: 12,
-    },
-    timelineCopy: {
-      flex: 1,
-      gap: 4,
-    },
-    timelineTitleRow: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: spacing.sm,
-      justifyContent: "space-between",
-    },
-    timelineStatus: {
-      color: colors.primaryDark,
-      fontFamily: typography.family,
-      fontSize: 11,
-      fontWeight: "800",
-    },
     stepRow: {
       alignItems: "center",
       backgroundColor: colors.background,
@@ -1022,6 +727,43 @@ function createGoGoTrackScreenStyles(colors: ThemeColors) {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: spacing.sm,
+    },
+    sectionNav: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+    },
+    sectionNavItem: {
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderColor: colors.primary,
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      minHeight: 40,
+      justifyContent: "center",
+      paddingHorizontal: spacing.md,
+    },
+    sectionNavItemActive: {
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      minHeight: 40,
+      justifyContent: "center",
+      paddingHorizontal: spacing.md,
+    },
+    sectionNavLabel: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "800",
+    },
+    sectionNavLabelActive: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "800",
     },
     primaryButton: {
       alignItems: "center",

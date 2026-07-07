@@ -45,7 +45,7 @@ These map directly to the migration-plan phases (0 primitives / 2 auth / 3 live-
 | # | Blocker | Screens affected | Phase |
 |---|---|---|---|
 | X1 | `navigator.clipboard` used for copy → **no-op on native iOS/Android** | profile, profile/offer, referral, wallet, golink, shop-detail | 0 (expo-clipboard) |
-| X2 | `localStorage` for missing-order claims / consent → **crashes on native** | wallet, missing-orders, privacy-center | 0 (AsyncStorage) |
+| X2 | `localStorage` for missing-order claims → **no-op on native**; ~~cookie consent~~ **fixed** (`cookieConsentStorage.ts` → SecureStore) | missing-orders, privacy-center (toggles still local-only) | 0 (SecureStore / AsyncStorage) |
 | X3 | i18n hardcoded English; web uses next-intl (en/th) | every verified group | 1 (i18n) |
 | X4 | Auth mocked: OTP hardcoded `123456`, no Firebase, no session creation | auth, profile phone, all `requiresAuth` flows | 2 (Firebase) |
 | X5 | All data is fixtures (`webDesignParity.ts`), not react-query on the live API | every page group | 3 (live data) |
@@ -125,7 +125,7 @@ Cleanest surface. (Icon set unverified — see caveats.)
 | profile journey | partial | copy-invite `navigator.clipboard`; subpage edits not persisted |
 | auth & onboarding | partial | OTP `123456`; no real Firebase phone/social; cannot complete on device; account-setup + link-mycashback UI-only |
 | membership & billing | partial | Stripe checkout/portal not wired; no deep-link return |
-| privacy / PDPA / age | partial | consent toggles local-only (not `/api/pdpa/consent`); age-verification no backend call |
+| privacy / PDPA / age | partial | cookie banner dismiss persists on native (SecureStore); Privacy Center toggles + `/api/pdpa/consent` still local-only; age-verification no backend call |
 
 **Dead links:** none confirmed. (`/quest/history` resolves to a route but renders a stub — degraded, not broken.)
 

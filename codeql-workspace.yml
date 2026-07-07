@@ -1,0 +1,7 @@
+# Resolve the in-repo mongo sanitizer library pack without repo-root qlconfig.yml
+# (CodeQL 2.25+ rejects legacy `source: local` registry entries).
+provide:
+  - .github/codeql/gogocash-mongo-sanitizers/qlpack.yml
+registries:
+  - packages: codeql/*
+    url: https://ghcr.io/v2/

@@ -12,10 +12,17 @@ vi.mock("expo-localization", () => ({
 // Neutralize navigation so the OTP "Next" press is a deterministic no-op (we assert on the
 // session write, not on routing). The tree uses Link, useRouter, and usePathname.
 const routerPush = vi.fn();
+const routerReplace = vi.fn();
 vi.mock("expo-router", () => ({
   Link: ({ children }: { children: ReactNode }) => children,
-  useRouter: () => ({ push: routerPush, replace: vi.fn(), back: vi.fn(), navigate: vi.fn() }),
+  useRouter: () => ({
+    push: routerPush,
+    replace: routerReplace,
+    back: vi.fn(),
+    navigate: vi.fn(),
+  }),
   usePathname: () => "/login",
+  useLocalSearchParams: () => ({}),
 }));
 
 import { CustomerAuthScreen } from "@mobile/screens/CustomerAuthScreen";
@@ -45,6 +52,7 @@ describe("CustomerAuthScreen — phone-OTP sign-in persists a session", () => {
   beforeEach(() => {
     window.localStorage.clear();
     routerPush.mockClear();
+    routerReplace.mockClear();
   });
 
   afterEach(() => {
@@ -72,6 +80,6 @@ describe("CustomerAuthScreen — phone-OTP sign-in persists a session", () => {
       expect(readStoredSession()?.access_token).toBeTruthy();
     });
     // Navigation is the last step of a verified sign-in.
-    expect(routerPush).toHaveBeenCalledWith("/link-mycashback");
+    expect(routerReplace).toHaveBeenCalledWith("/link-mycashback");
   });
 });

@@ -5,6 +5,7 @@ import { webHomeSearchPopularPanel } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
+import { useTheme } from "@mobile/theme/ThemeProvider";
 import { brandHref } from "./homeHelpers";
 import { useHomeScreenStyles } from "./homeScreenHooks";
 import { type HomeSearchPanelItem } from "./homeTypes";
@@ -22,9 +23,11 @@ export function HomeSearchResultRow({
   variant: "compact" | "large";
 }) {
   const styles = useHomeScreenStyles();
+  const { colors } = useTheme();
   const tc = useCopy();
   const compact = variant === "compact";
   const href = item.href ?? brandHref(item.brand);
+  const logoBackground = item.logoUri ? colors.card : item.logoBackground;
 
   return (
     <Link asChild href={href as never}>
@@ -39,7 +42,7 @@ export function HomeSearchResultRow({
           style={[
             styles.searchResultLogo,
             compact ? styles.searchResultLogoCompact : null,
-            { backgroundColor: item.logoBackground },
+            { backgroundColor: logoBackground },
           ]}
         >
           {item.logoUri ? (
@@ -49,7 +52,7 @@ export function HomeSearchResultRow({
               contentFit="contain"
               recyclingKey={item.logoUri}
               source={{ uri: item.logoUri }}
-              style={{ height: "70%", width: "70%" }}
+              style={styles.searchResultLogoImage}
             />
           ) : (
             <Text

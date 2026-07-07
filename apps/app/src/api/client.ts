@@ -24,7 +24,7 @@ export function createMobileApiClient(options: MobileApiClientOptions) {
   const baseUrl = normalizeBaseUrl(options.baseUrl);
 
   async function request<TResponse>(
-    method: "GET" | "POST",
+    method: "GET" | "PATCH" | "POST",
     path: string,
     body?: unknown,
     customHeaders: Record<string, string> = {}
@@ -33,12 +33,43 @@ export function createMobileApiClient(options: MobileApiClientOptions) {
     const preferredToken = options.getPreferredAuthToken
       ? await options.getPreferredAuthToken()
       : null;
-    const token =
-      (typeof preferredToken === "string" && preferredToken.length > 0
-        ? preferredToken
-        : typeof session?.access_token === "string"
-          ? session.access_token
-          : "") ?? "";
+    const preferredUsed =
+      typeof preferredToken === "string" && preferredToken.length > 0;
+    const sessionToken =
+      typeof session?.access_token === "string" ? session.access_token : "";
+    const initialToken = preferredUsed ? preferredToken : sessionToken;
+
+    return executeRequest<TResponse>({
+      body,
+      customHeaders,
+      isAuthRetry: false,
+      method,
+      path,
+      preferredUsed,
+      sessionToken,
+      token: initialToken,
+    });
+  }
+
+  async function executeRequest<TResponse>({
+    body,
+    customHeaders,
+    isAuthRetry,
+    method,
+    path,
+    preferredUsed,
+    sessionToken,
+    token,
+  }: {
+    body?: unknown;
+    customHeaders: Record<string, string>;
+    isAuthRetry: boolean;
+    method: "GET" | "PATCH" | "POST";
+    path: string;
+    preferredUsed: boolean;
+    sessionToken: string;
+    token: string;
+  }): Promise<TResponse> {
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": "application/json",
@@ -68,6 +99,25 @@ export function createMobileApiClient(options: MobileApiClientOptions) {
             ? String(responseBody.message)
             : `Request failed with status ${response.status}`;
 
+        if (
+          response.status === 401 &&
+          !isAuthRetry &&
+          preferredUsed &&
+          sessionToken &&
+          sessionToken !== token
+        ) {
+          return executeRequest<TResponse>({
+            body,
+            customHeaders,
+            isAuthRetry: true,
+            method,
+            path,
+            preferredUsed: false,
+            sessionToken,
+            token: sessionToken,
+          });
+        }
+
         // Only an authenticated request 401-ing means the stored session is
         // bad; a public endpoint's 401 must never force-logout the user.
         if (response.status === 401 && token) {
@@ -95,6 +145,9 @@ export function createMobileApiClient(options: MobileApiClientOptions) {
     post<TResponse = unknown>(path: string, body?: unknown, headers?: Record<string, string>) {
       return request<TResponse>("POST", path, body, headers);
     },
+    patch<TResponse = unknown>(path: string, body?: unknown, headers?: Record<string, string>) {
+      return request<TResponse>("PATCH", path, body, headers);
+    },
     postFormData<TResponse = unknown>(path: string, formData: FormData) {
       return requestFormData<TResponse>(path, formData, options);
     },
@@ -106,18 +159,46 @@ async function requestFormData<TResponse>(
   formData: FormData,
   options: MobileApiClientOptions,
 ): Promise<TResponse> {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  const baseUrl = normalizeBaseUrl(options.baseUrl);
   const session = await options.sessionStore.getSession();
   const preferredToken = options.getPreferredAuthToken
     ? await options.getPreferredAuthToken()
     : null;
-  const token =
-    (typeof preferredToken === "string" && preferredToken.length > 0
-      ? preferredToken
-      : typeof session?.access_token === "string"
-        ? session.access_token
-        : "") ?? "";
+  const preferredUsed =
+    typeof preferredToken === "string" && preferredToken.length > 0;
+  const sessionToken =
+    typeof session?.access_token === "string" ? session.access_token : "";
+  const token = (preferredUsed ? preferredToken : sessionToken) ?? "";
+
+  return executeFormDataRequest<TResponse>({
+    formData,
+    isAuthRetry: false,
+    options,
+    path,
+    preferredUsed,
+    sessionToken,
+    token,
+  });
+}
+
+async function executeFormDataRequest<TResponse>({
+  formData,
+  isAuthRetry,
+  options,
+  path,
+  preferredUsed,
+  sessionToken,
+  token,
+}: {
+  formData: FormData;
+  isAuthRetry: boolean;
+  options: MobileApiClientOptions;
+  path: string;
+  preferredUsed: boolean;
+  sessionToken: string;
+  token: string;
+}): Promise<TResponse> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const baseUrl = normalizeBaseUrl(options.baseUrl);
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
@@ -139,6 +220,26 @@ async function requestFormData<TResponse>(
         responseBody && typeof responseBody === "object" && "message" in responseBody
           ? String(responseBody.message)
           : `Request failed with status ${response.status}`;
+
+      // Mirror executeRequest: a preferred (e.g. Firebase) token 401 falls back
+      // once to the stored backend JWT before the session is treated as bad.
+      if (
+        response.status === 401 &&
+        !isAuthRetry &&
+        preferredUsed &&
+        sessionToken &&
+        sessionToken !== token
+      ) {
+        return executeFormDataRequest<TResponse>({
+          formData,
+          isAuthRetry: true,
+          options,
+          path,
+          preferredUsed: false,
+          sessionToken,
+          token: sessionToken,
+        });
+      }
 
       if (response.status === 401 && token) {
         await options.sessionStore.clearSession();

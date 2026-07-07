@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { RefreshControl, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
+import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { usePublicCatalogPullToRefresh } from "@mobile/account/usePublicCatalogPullToRefresh";
 import { useFeaturedSearchTerms } from "@mobile/account/useFeaturedSearch";
 import { useOfferSearch } from "@mobile/account/useOfferSearch";
-import { getResponsiveHomeLayoutMetrics } from "@mobile/design/webDesignParity";
+import { getResponsiveHomeLayoutMetrics, webHomePromoSections } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import {
   clearSearchHistory,
   normalizeSearchQuery,
@@ -16,6 +20,7 @@ import {
 } from "@mobile/search/searchHistory";
 import { dedupeSearchTerms } from "@mobile/search/searchHistoryCore";
 import { spacing } from "@mobile/theme/tokens";
+import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 
 import { SearchPopularIntro } from "./search/SearchPopularIntro";
@@ -31,7 +36,9 @@ const TRENDING_TERM_LIMIT = 8;
 
 export function CustomerSearchScreen() {
   const styles = useThemedStyles(createSearchScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
+  const { region } = useLocale();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ q?: string }>();
@@ -42,6 +49,17 @@ export function CustomerSearchScreen() {
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
   const suggestionTerms = useFeaturedSearchTerms();
+  const brandCatalogResource = useCustomerAccountResource({
+    fixtureData: webHomePromoSections,
+    resourceId: "brandCatalog",
+  });
+  const { onRefresh: onPullToRefresh, refreshing } = usePublicCatalogPullToRefresh({
+    includeOfferSearch: true,
+  });
+  const liveCards = useMemo(
+    () => resolveLiveBrandCards(brandCatalogResource.source, brandCatalogResource.data, [], region),
+    [brandCatalogResource.source, brandCatalogResource.data, region],
+  );
   const columnCount = homeLayout.contentWidth >= 768 ? 3 : 2;
   const trimmedQuery = normalizeSearchQuery(query);
   const hasQuery = trimmedQuery.length > 0;
@@ -158,6 +176,13 @@ export function CustomerSearchScreen() {
         ]}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            onRefresh={onPullToRefresh}
+            refreshing={refreshing}
+            tintColor={colors.primaryDark}
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
         <SearchRecentChips
@@ -195,6 +220,7 @@ export function CustomerSearchScreen() {
           <SearchSuggestionsGrid
             columnCount={columnCount}
             contentWidth={homeLayout.contentWidth}
+            liveCards={liveCards}
             onSelectTerm={(term) => {
               void commitSearch(term);
             }}

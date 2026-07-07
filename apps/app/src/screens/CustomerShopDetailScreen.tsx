@@ -1,5 +1,6 @@
-import { Link } from "expo-router";
-import { useState } from "react";
+import { Image as ExpoImage } from "expo-image";
+import { Link, useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import {
   BadgePercent as BadgePercentIcon,
   Banknote as BanknoteIcon,
@@ -26,7 +27,13 @@ import sideWatchImage from "../../assets/home-side-watch.png";
 import questBannerImage from "../../assets/quest-banner-en.png";
 import walletNoDataImage from "../../assets/wallet-no-data.png";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
+import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import {
+  getFixtureShopDirectoryResults,
+  resolveLiveDirectoryStores,
+} from "@mobile/account/directoryCatalogResource";
+import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import {
   resolveShopTerms,
   type CategoryPolicyPayload,
@@ -34,6 +41,13 @@ import {
 } from "@mobile/account/policyResource";
 import { mapMerchantOfferToShopDetail } from "@mobile/api/merchantMapper";
 import { isMerchantOfferResponse } from "@mobile/api/merchantTypes";
+import { buildLoginRedirectWithCallback } from "@mobile/auth/routeGuard";
+import {
+  consumePendingShopNowIntent,
+  setPendingShopNowIntent,
+} from "@mobile/auth/shopNowIntent";
+import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
+import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -44,11 +58,12 @@ import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import {
+  getDesktopShellOffset,
   getResponsiveHomeLayoutMetrics,
-  getShopDirectoryResults,
   mobileShellLayout,
   webShopDetailGroceryGalaxy,
 } from "@mobile/design/webDesignParity";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -81,10 +96,13 @@ type TrackingStep = ShopDetail["trackingPeriod"][number];
 export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { isAuthed, ready: authReady } = useAuthGuardSession();
   const { width } = useWindowDimensions();
   const tc = useCopy();
   const toast = useToast();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
+  const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const showBottomNav = !isDesktop;
   const fixtureShop = webShopDetailGroceryGalaxy;
@@ -125,6 +143,34 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
     void haptics.success();
   };
 
+  const beginShopNowRedirect = () => {
+    setRedirecting(true);
+  };
+
+  const handleShopNow = () => {
+    if (!authReady) {
+      return;
+    }
+
+    if (!isAuthed) {
+      setPendingShopNowIntent(shop.id);
+      router.push(buildLoginRedirectWithCallback(`/shop/${shop.id}`) as never);
+      return;
+    }
+
+    beginShopNowRedirect();
+  };
+
+  useEffect(() => {
+    if (!authReady || !isAuthed || merchantResource.status !== "ready") {
+      return;
+    }
+
+    if (consumePendingShopNowIntent(shop.id)) {
+      setRedirecting(true);
+    }
+  }, [authReady, isAuthed, merchantResource.status, shop.id]);
+
   if (merchantResource.status !== "ready") {
     return (
       <CustomerAccountResourceState
@@ -137,9 +183,93 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
     );
   }
 
+  const shopPageContent = (
+    <>
+      <ShopHero isDesktop={isDesktop} onShopNow={handleShopNow} shop={shop} />
+      <View style={[styles.detailGrid, isDesktop ? styles.detailGridDesktop : null]}>
+        <View style={[styles.leftColumn, isDesktop ? styles.leftColumnDesktop : null]}>
+          <ShopCashbackRail shop={shop} />
+          <ShopTrackingPeriod shop={shop} />
+          <ShopReferralCard onShare={handleShareReferral} shop={shop} />
+          {isDesktop ? <ShopTermsPanel terms={shopTerms} /> : null}
+        </View>
+        <View style={[styles.rightColumn, isDesktop ? styles.rightColumnDesktop : null]}>
+          <ShopQuestBanner shop={shop} />
+          <ShopDealsEmptyState shop={shop} />
+          <ShopCashbackTipsPanel shop={shop} />
+        </View>
+      </View>
+      {!isDesktop ? <ShopTermsPanel terms={shopTerms} /> : null}
+      <ShopExploreRelated excludeShopId={shop.id} />
+    </>
+  );
+
+  const refreshControl = (
+    <RefreshControl
+      onRefresh={merchantResource.retry}
+      refreshing={false}
+      title={tc("Loading…")}
+    />
+  );
+
+  if (isDesktop) {
+    return (
+      <View style={styles.viewport}>
+        <View style={styles.desktopShellFrame}>
+          <ScrollView
+            contentContainerStyle={[
+              styles.pageDesktopFullBleed,
+              {
+                paddingTop: spacing.lg,
+              },
+            ]}
+            refreshControl={refreshControl}
+            showsVerticalScrollIndicator={false}
+          >
+            <View
+              style={[
+                styles.desktopContentCap,
+                {
+                  maxWidth: homeLayout.contentMaxWidth,
+                  paddingHorizontal: homeLayout.contentHorizontalPadding,
+                },
+              ]}
+            >
+              {shopPageContent}
+            </View>
+            <View
+              style={[
+                styles.desktopFooterCap,
+                styles.desktopFooter,
+                { maxWidth: homeLayout.contentMaxWidth },
+              ]}
+            >
+              <CustomerDesktopFooter
+                horizontalPadding={desktopFooterHorizontalOffset}
+                viewportWidth={width}
+              />
+            </View>
+          </ScrollView>
+        </View>
+        {redirecting ? (
+          <ShopRedirectOverlay
+            brand={shop.brand}
+            onComplete={() => {
+              setRedirecting(false);
+              void Linking.openURL(
+                shop.trackingUrl ||
+                  `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
+              ).catch(() => undefined);
+            }}
+          />
+        ) : null}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.viewport}>
-      <View style={[styles.frame, { maxWidth: homeLayout.contentMaxWidth }]}>
+      <View style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}>
         <ScrollView
           contentContainerStyle={[
             styles.page,
@@ -151,31 +281,10 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
               paddingTop: Math.max(spacing.md, insets.top + spacing.md),
             },
           ]}
-          refreshControl={
-            <RefreshControl
-              onRefresh={merchantResource.retry}
-              refreshing={false}
-              title={tc("Loading…")}
-            />
-          }
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
         >
-          <ShopHero onShopNow={() => setRedirecting(true)} shop={shop} />
-          <View style={[styles.detailGrid, isDesktop ? styles.detailGridDesktop : null]}>
-            <View style={[styles.leftColumn, isDesktop ? styles.leftColumnDesktop : null]}>
-              <ShopCashbackRail shop={shop} />
-              <ShopTrackingPeriod shop={shop} />
-              <ShopReferralCard onShare={handleShareReferral} shop={shop} />
-              {isDesktop ? <ShopTermsPanel terms={shopTerms} /> : null}
-            </View>
-            <View style={[styles.rightColumn, isDesktop ? styles.rightColumnDesktop : null]}>
-              <ShopQuestBanner shop={shop} />
-              <ShopDealsEmptyState shop={shop} />
-              <ShopCashbackTipsPanel shop={shop} />
-            </View>
-          </View>
-          {!isDesktop ? <ShopTermsPanel terms={shopTerms} /> : null}
-          <ShopExploreRelated />
+          {shopPageContent}
           <CustomerDesktopFooterSlot
             horizontalPadding={homeLayout.contentHorizontalPadding}
             style={styles.desktopFooter}
@@ -190,8 +299,6 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
           brand={shop.brand}
           onComplete={() => {
             setRedirecting(false);
-            // Hand the user off to the admin-managed affiliate tracking URL when live
-            // backend data supplies one; fixtures fall back to a brand search.
             void Linking.openURL(
               shop.trackingUrl ||
                 `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
@@ -203,49 +310,150 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   );
 }
 
-function ShopHero({ onShopNow, shop }: { onShopNow: () => void; shop: ShopDetail }) {
+function ShopHero({
+  isDesktop,
+  onShopNow,
+  shop,
+}: {
+  isDesktop: boolean;
+  onShopNow: () => void;
+  shop: ShopDetail;
+}) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
-  // Banner image is the only brand visual on the hero; logo badge removed for web parity.
+  const [bannerFailed, setBannerFailed] = useState(false);
+  const bannerSource = shop.bannerUri && !bannerFailed
+    ? { uri: shop.bannerUri }
+    : shopBannerAssets[shop.bannerAsset];
+
   return (
     <View style={styles.heroWrap}>
       <View style={styles.heroBanner}>
-        <Image
-          accessibilityLabel={`${shop.brand} promotion banner`}
-          alt={`${shop.brand} promotion banner`}
-          resizeMode="cover"
-          source={shop.bannerUri ? { uri: shop.bannerUri } : shopBannerAssets[shop.bannerAsset]}
-          style={styles.heroImage}
-        />
+        {shop.bannerUri && !bannerFailed ? (
+          <ExpoImage
+            accessibilityLabel={`${shop.brand} promotion banner`}
+            cachePolicy="memory-disk"
+            contentFit="cover"
+            onError={() => setBannerFailed(true)}
+            recyclingKey={shop.bannerUri}
+            source={bannerSource}
+            style={styles.heroImage}
+          />
+        ) : (
+          <Image
+            accessibilityLabel={`${shop.brand} promotion banner`}
+            alt={`${shop.brand} promotion banner`}
+            resizeMode="cover"
+            source={shopBannerAssets[shop.bannerAsset]}
+            style={styles.heroImage}
+          />
+        )}
       </View>
-      <ShopHeroSummaryCard onShopNow={onShopNow} shop={shop} />
+      <ShopHeroSummaryCard isDesktop={isDesktop} onShopNow={onShopNow} shop={shop} />
     </View>
   );
 }
 
-function ShopHeroSummaryCard({ onShopNow, shop }: { onShopNow: () => void; shop: ShopDetail }) {
+function ShopHeroSummaryCard({
+  isDesktop,
+  onShopNow,
+  shop,
+}: {
+  isDesktop: boolean;
+  onShopNow: () => void;
+  shop: ShopDetail;
+}) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
+  const { isFavorite, toggleFavorite } = useFavoriteBrands();
+  const favorited = isFavorite(shop.id);
+  const [logoFailed, setLogoFailed] = useState(false);
+  const brandTitle = (
+    <Text
+      numberOfLines={isDesktop ? 1 : 2}
+      style={[styles.summaryTitle, isDesktop ? null : styles.summaryTitleMobile]}
+      testID="shop-detail-brand-name"
+    >
+      {shop.brand}
+    </Text>
+  );
+  const brandLogo = shop.logoUri && !logoFailed ? (
+    <ExpoImage
+      accessibilityLabel={`${shop.brand} logo`}
+      cachePolicy="memory-disk"
+      contentFit="contain"
+      onError={() => setLogoFailed(true)}
+      recyclingKey={shop.logoUri}
+      source={{ uri: shop.logoUri }}
+      style={styles.summaryLogoImage}
+      testID="shop-detail-brand-logo"
+    />
+  ) : (
+    <View style={styles.summaryLogoFallback} testID="shop-detail-brand-logo-fallback">
+      <Text style={styles.summaryLogoFallbackText}>{shop.logoText}</Text>
+    </View>
+  );
+  const brandIdentity = isDesktop ? (
+    <View style={styles.summaryTitleWrap}>
+      <View style={styles.summaryIdentityRow}>
+        {brandLogo}
+        {brandTitle}
+      </View>
+    </View>
+  ) : (
+    <View style={styles.summaryIdentityBlock}>
+      <View style={styles.summaryIdentityRow}>
+        {brandLogo}
+        <View style={styles.summaryTitleWrap}>{brandTitle}</View>
+      </View>
+    </View>
+  );
+  const favoriteButton = (
+    <MotionPressable
+      accessibilityLabel={
+        favorited
+          ? `Remove from saved brands: ${shop.brand}`
+          : `Save brand: ${shop.brand}`
+      }
+      accessibilityRole="button"
+      accessibilityState={{ selected: favorited }}
+      onPress={() => toggleFavorite(shop.id)}
+      pressScale={0.96}
+      style={styles.favoriteButton}
+    >
+      <HeartIcon
+        color={favorited ? colors.primary : colors.primaryDark}
+        fill={favorited ? colors.primary : undefined}
+        size={20}
+        strokeWidth={favorited ? 0 : 2}
+      />
+    </MotionPressable>
+  );
+  const shopNowButton = (
+    <MotionPressable
+      accessibilityLabel={`Shop now at ${shop.brand}`}
+      accessibilityRole="button"
+      onPress={onShopNow}
+      pressScale={0.98}
+      style={styles.shopNowButton}
+    >
+      <Text style={styles.shopNowText}>{shop.shopNowLabel}</Text>
+    </MotionPressable>
+  );
+
   return (
-    <View style={styles.summaryCard}>
-      <Text numberOfLines={1} style={styles.summaryTitle}>
-        {shop.brand}
-      </Text>
-      <MotionPressable
-        accessibilityLabel={`Favorite ${shop.brand}`}
-        pressScale={0.96}
-        style={styles.favoriteButton}
-      >
-        <HeartIcon color={colors.primaryDark} fill={colors.primaryDark} size={20} strokeWidth={0} />
-      </MotionPressable>
-      <MotionPressable
-        accessibilityLabel={`Shop now at ${shop.brand}`}
-        accessibilityRole="button"
-        onPress={onShopNow}
-        pressScale={0.98}
-        style={styles.shopNowButton}
-      >
-        <Text style={styles.shopNowText}>{shop.shopNowLabel}</Text>
-      </MotionPressable>
+    <View style={[styles.summaryCard, isDesktop ? styles.summaryCardDesktop : null]}>
+      {brandIdentity}
+      {isDesktop ? (
+        <>
+          {favoriteButton}
+          {shopNowButton}
+        </>
+      ) : (
+        <View style={styles.summaryActionsRow}>
+          {favoriteButton}
+          {shopNowButton}
+        </View>
+      )}
     </View>
   );
 }
@@ -443,12 +651,27 @@ function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
   );
 }
 
-function ShopExploreRelated() {
+function ShopExploreRelated({ excludeShopId }: { excludeShopId: string }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
-  const related = getShopDirectoryResults().filter(
-    (store) => store.id !== webShopDetailGroceryGalaxy.id
-  );
+  const { region } = useLocale();
+  const catalogResource = useCustomerAccountResource<OfferListResponse, OfferListResponse>({
+    fixtureData: { data: [], limit: 80, page: 1, total: 0, totalPages: 0 },
+    resourceId: "brandCatalog",
+  });
+  const related = useMemo(() => {
+    const stores =
+      catalogResource.source === "backend"
+        ? resolveLiveDirectoryStores(
+            catalogResource.source,
+            catalogResource.data,
+            [],
+            region,
+          )
+        : getFixtureShopDirectoryResults({ regionCode: region });
+
+    return stores.filter((store) => store.id !== excludeShopId).slice(0, 6);
+  }, [catalogResource.data, catalogResource.source, excludeShopId, region]);
 
   return (
     <View style={styles.relatedSection}>
@@ -458,43 +681,54 @@ function ShopExploreRelated() {
         horizontal
         showsHorizontalScrollIndicator={false}
       >
-        {related.slice(0, 6).map((store) => (
-          <Link asChild href={`/shop/${store.id}` as never} key={store.id}>
-            <MotionPressable pressScale={0.98} style={styles.relatedCard}>
-              <View style={[styles.relatedVisual, { backgroundColor: store.tint }]}>
-                <Image
-                  alt={`${store.brand} logo`}
-                  accessibilityLabel={`${store.brand} logo`}
-                  resizeMode="contain"
-                  source={{ uri: store.logoUri }}
-                  style={styles.relatedLogoImage}
-                />
-                {store.showGrabCoupon ? (
-                  <View style={styles.relatedCouponBadge}>
-                    <Text style={styles.relatedCouponIcon}>🧧</Text>
-                    <Text numberOfLines={1} style={styles.relatedCouponText}>
-                      {store.label}
-                    </Text>
+        {related.map((store) => {
+          const logoTileBackground = store.logoUri ? colors.card : store.tint;
+
+          return (
+            <Link asChild href={`/shop/${store.id}` as never} key={store.id}>
+              <MotionPressable pressScale={0.98} style={styles.relatedCard}>
+                <View style={[styles.relatedVisual, { backgroundColor: logoTileBackground }]}>
+                  {store.logoUri ? (
+                    <ExpoImage
+                      accessibilityLabel={`${store.brand} logo`}
+                      cachePolicy="memory-disk"
+                      contentFit="contain"
+                      recyclingKey={store.logoUri}
+                      source={{ uri: store.logoUri }}
+                      style={styles.relatedLogoImage}
+                    />
+                  ) : null}
+                  {store.showGrabCoupon ? (
+                    <View style={styles.relatedCouponBadge}>
+                      <Text style={styles.relatedCouponIcon}>🧧</Text>
+                      <Text numberOfLines={1} style={styles.relatedCouponText}>
+                        {store.label}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <View accessibilityLabel="Add to favorites" style={styles.relatedFavoriteButton}>
+                    <HeartIcon
+                      color={colors.primaryDark}
+                      size={16}
+                      strokeWidth={typography.iconStrokeWidth}
+                    />
                   </View>
-                ) : null}
-                <View accessibilityLabel="Add to favorites" style={styles.relatedFavoriteButton}>
-                  <HeartIcon
-                    color={colors.primaryDark}
-                    size={16}
-                    strokeWidth={typography.iconStrokeWidth}
-                  />
                 </View>
-              </View>
-              <Text numberOfLines={1} style={styles.relatedName}>
-                {store.brand}
-              </Text>
-              <View style={styles.relatedCashbackRow}>
-                <Text style={styles.relatedCashbackCaption}>Cashback upto</Text>
-                <Text style={styles.relatedCashbackValue}>{store.cashback}</Text>
-              </View>
-            </MotionPressable>
-          </Link>
-        ))}
+                <Text numberOfLines={1} style={styles.relatedName}>
+                  {store.brand}
+                </Text>
+                <View style={styles.relatedCashbackRow}>
+                  <Text numberOfLines={1} style={styles.relatedCashbackCaption}>
+                    Cashback upto
+                  </Text>
+                  <Text numberOfLines={1} style={styles.relatedCashbackValue}>
+                    {store.cashback}
+                  </Text>
+                </View>
+              </MotionPressable>
+            </Link>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -542,6 +776,29 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     position: "relative",
     width: "100%",
   },
+  phoneFrame: {
+    backgroundColor: colors.background,
+    flex: 1,
+    position: "relative",
+    width: "100%",
+  },
+  desktopShellFrame: {
+    backgroundColor: colors.background,
+    flex: 1,
+    position: "relative",
+    width: "100%",
+  },
+  desktopContentCap: {
+    alignSelf: "center",
+    width: "100%",
+  },
+  desktopFooterCap: {
+    alignSelf: "center",
+    width: "100%",
+  },
+  pageDesktopFullBleed: {
+    paddingHorizontal: 0,
+  },
   page: {
     gap: 32,
   },
@@ -566,12 +823,12 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     width: "100%",
   },
   summaryCard: {
-    alignItems: "center",
+    alignItems: "stretch",
     backgroundColor: colors.card,
     borderRadius: 32,
     boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
-    flexDirection: "row",
-    gap: 10,
+    flexDirection: "column",
+    gap: 12,
     minHeight: 68,
     marginTop: -39,
     paddingHorizontal: 18,
@@ -579,14 +836,73 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     width: "90%",
     zIndex: 2,
   },
+  summaryCardDesktop: {
+    alignItems: "center",
+    alignSelf: "center",
+    flexDirection: "row",
+    gap: 10,
+    maxWidth: 720,
+    width: "100%",
+  },
+  summaryTitleWrap: {
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    minWidth: 0,
+  },
+  summaryIdentityBlock: {
+    width: "100%",
+  },
+  summaryIdentityRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  summaryLogoImage: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 24,
+    borderWidth: 1,
+    flexShrink: 0,
+    height: 48,
+    width: 48,
+  },
+  summaryLogoFallback: {
+    alignItems: "center",
+    backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
+    borderRadius: 24,
+    flexShrink: 0,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  summaryLogoFallbackText: {
+    color: colors.primaryDark,
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  summaryTitleMobile: {
+    fontSize: 20,
+    lineHeight: 26,
+    width: "100%",
+  },
+  summaryActionsRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexShrink: 0,
+    gap: 10,
+    justifyContent: "flex-end",
+    width: "100%",
+  },
   summaryTitle: {
     color: colors.ink,
-    flex: 1,
     fontFamily: typography.family,
     fontSize: 17,
     fontWeight: "600",
     lineHeight: 22,
-    minWidth: 0,
   },
   favoriteButton: {
     alignItems: "center",
@@ -594,6 +910,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     borderColor: pickThemed(colors, "#E6F7ED", colors.border),
     borderRadius: radii.chip,
     borderWidth: 1,
+    flexShrink: 0,
     height: 48,
     justifyContent: "center",
     width: 48,
@@ -602,6 +919,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     alignItems: "center",
     backgroundColor: pickThemed(colors, colors.ink, colors.primary),
     borderRadius: radii.chip,
+    flexShrink: 0,
     height: 48,
     justifyContent: "center",
     minWidth: 126,
@@ -615,6 +933,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   },
   detailGrid: {
     gap: 32,
+    width: "100%",
   },
   detailGridDesktop: {
     flexDirection: "row",
@@ -642,10 +961,12 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     gap: 24,
   },
   cashbackHeader: {
-    alignItems: "flex-end",
+    alignItems: "baseline",
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 16,
     justifyContent: "space-between",
+    width: "100%",
   },
   cashbackLabel: {
     color: colors.muted,
@@ -656,6 +977,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   },
   cashbackValue: {
     color: colors.primary,
+    flexShrink: 0,
     fontFamily: typography.family,
     fontSize: 40,
     fontWeight: "600",
@@ -1062,6 +1384,7 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   },
   relatedCashbackValue: {
     color: colors.primaryDark,
+    flexShrink: 0,
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: "700",

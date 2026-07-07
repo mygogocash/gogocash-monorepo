@@ -12,6 +12,7 @@ function readMobileFile(relativePath: string) {
 
 describe("Account resource state parity", () => {
   it("account_resource_contract__given_backend_mode__then_priority_routes_have_backend_endpoints", () => {
+    const endpointsFile = readMobileFile("src/account/customerAccountResourceEndpoints.ts");
     const resourceFile = readMobileFile("src/account/customerAccountResource.ts");
 
     for (const endpoint of [
@@ -22,7 +23,7 @@ describe("Account resource state parity", () => {
       "/offer/${merchantId}",
       "/customer-billing/subscription",
     ]) {
-      expect(resourceFile).toContain(endpoint);
+      expect(endpointsFile).toContain(endpoint);
     }
 
     // Singleton seam (perf mandate): the hook resolves the shared client —

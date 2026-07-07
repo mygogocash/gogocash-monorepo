@@ -1,4 +1,5 @@
 import type { Offer } from "@/types/api";
+import { applyThirtyPercentFee } from "@/lib/commissionFee";
 
 function parseCommissionPercentString(s: unknown): number | null {
   if (s == null) return null;
@@ -37,11 +38,7 @@ export function formatPartnerRatesMinMax(
   return `Min ${min}% · Max ${max}%`;
 }
 
-/**
- * Best partner % from commission data.
- * Handles both string arrays (`["5%"]`) and Involve Asia object arrays
- * (`[{ "Commission": "2.80%" }]`).
- */
+/** Best partner % from commission data. */
 export function bestPercentFromPartnerRates(commissions: unknown[]): number {
   let max = 0;
   for (const c of commissions) {
@@ -57,6 +54,61 @@ export function bestPercentFromPartnerRates(commissions: unknown[]): number {
     }
   }
   return max;
+}
+
+type OfferCashbackFields = Pick<
+  Offer,
+  "commission_store" | "commissions"
+>;
+
+/** Customer-facing cashback label derived from offer commission fields. */
+export function formatOfferCashbackLabel(
+  offer: OfferCashbackFields | null | undefined,
+): string {
+  if (!offer) return "";
+
+  const store = offer.commission_store;
+  if (typeof store === "number" && Number.isFinite(store) && store > 0) {
+    return `${store}%`;
+  }
+  if (store != null && String(store).trim()) {
+    const trimmed = String(store).trim();
+    const asNum = Number(trimmed.replace(/%/g, ""));
+    if (Number.isFinite(asNum) && asNum <= 0) {
+      // Treat zero as unset — fall through to partner rates.
+    } else {
+      return trimmed.includes("%") ? trimmed : `${trimmed}%`;
+    }
+  }
+
+  const percents = collectPercentsFromPartnerRates(offer.commissions ?? []);
+  if (percents.length === 0) return "";
+
+  const max = Math.max(...percents);
+  const min = Math.min(...percents);
+  const userFacingMax = applyThirtyPercentFee(max);
+  if (min !== max) return `${userFacingMax}%`;
+  return `${userFacingMax}%`;
+}
+
+/** Strip verbose prefixes from labels shown on compact brand cards. */
+export function compactCustomerCashbackLabel(label: string | null | undefined): string {
+  const trimmed = String(label ?? "").trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  return trimmed.replace(/^up to\s+/i, "");
+}
+
+/** Saved top-brand cashback, or offer-derived label when saved is blank. */
+export function resolveTopBrandCashbackLabel(
+  offer: OfferCashbackFields | null | undefined,
+  savedCashback?: string | null,
+): string {
+  const saved = compactCustomerCashbackLabel(savedCashback);
+  if (saved) return saved;
+  return compactCustomerCashbackLabel(formatOfferCashbackLabel(offer));
 }
 
 /**

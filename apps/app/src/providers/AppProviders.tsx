@@ -11,11 +11,14 @@ import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import { ToastProvider } from "@mobile/components/Toast";
 import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
 import { getObservabilityConfig, initObservability } from "@mobile/observability/client";
+import { FavoriteBrandsProvider } from "@mobile/account/FavoriteBrandsProvider";
 import { AccountResourceWarmup } from "@mobile/providers/AccountResourceWarmup";
+import { PublicCatalogRefetchOnFocus } from "@mobile/providers/PublicCatalogRefetchOnFocus";
 import { customerQueryDefaults } from "@mobile/query/queryDefaults";
 import { PrivacyScreenGuard } from "@mobile/security/PrivacyScreenGuard";
 import { gogoCashRuntimeFonts } from "@mobile/theme/appFonts";
 import { ThemeProvider } from "@mobile/theme/ThemeProvider";
+import { useOtaUpdateOnLaunch } from "@mobile/updates/useOtaUpdateOnLaunch";
 
 // A no-op PostHog client used when no posthogKey is configured (local/web dev).
 // We mount <PostHogProvider> in BOTH cases so usePostHog() always resolves a
@@ -36,6 +39,7 @@ const noOpPostHogClient = {
 } as unknown as PostHog;
 
 export function AppProviders({ children }: PropsWithChildren) {
+  useOtaUpdateOnLaunch();
   const [fontsLoaded, fontError] = useFonts(gogoCashRuntimeFonts);
   const { ready: sessionReady } = useAuthGuardSession();
   const queryClient = useMemo(
@@ -65,7 +69,10 @@ export function AppProviders({ children }: PropsWithChildren) {
     <>
       <RouteAnalyticsTracker />
       <AccountResourceWarmup />
-      <ToastProvider>{children}</ToastProvider>
+      <PublicCatalogRefetchOnFocus />
+      <ToastProvider>
+        <FavoriteBrandsProvider>{children}</FavoriteBrandsProvider>
+      </ToastProvider>
     </>
   ) : (
     <CustomerRouteState

@@ -19,7 +19,7 @@ Railway project **GoGoCash** · services `gogocash-api`, `gogocash-admin`, `app-
 **`MONGO_URI`** — `apps/api/src/app.module.ts:38` `MongooseModule.forRoot(process.env.MONGO_URI!, { lazyConnection: true })`.
 `lazyConnection` defers the *handshake*, not the URI *parse*; an undefined URI throws at module init before the
 port binds. **Already set** on `gogocash-api` to `${{MongoDB.MONGO_URL}}`. Everything else in the API is
-constructed defensively (JWT/PostHog/Firebase/GCS/ethers are all lazy) and will NOT crash boot.
+constructed defensively (JWT/PostHog/Firebase/R2/ethers are all lazy) and will NOT crash boot.
 
 ⇒ The API passes its DB-free `/health` probe with only `MONGO_URI` + `PORT`. Auth/email/etc. need their
 secrets to *function*, but not to boot.
@@ -41,8 +41,10 @@ railway variables --set 'API_BASE_URL=https://api-staging.gogocash.co' --service
 railway variables --set 'ADMIN_APP_URL=https://admin-staging.gogocash.co' --service gogocash-api
 railway variables --set 'POSTHOG_HOST=https://us.i.posthog.com' --service gogocash-api
 railway variables --set 'POSTHOG_ENABLED=true' --service gogocash-api
-railway variables --set 'GCS_CATALOG_BUCKET=gogocash-catalog-staging' --service gogocash-api
-railway variables --set 'GCS_MAX_UPLOAD_BYTES=10485760' --service gogocash-api
+railway variables --set 'R2_BUCKET=gogocash-catalog-staging' --service gogocash-api
+railway variables --set 'R2_ENDPOINT=https://187ab61ed9dbc6e616cb23e6b95aa8f1.r2.cloudflarestorage.com' --service gogocash-api
+railway variables --set 'R2_PUBLIC_BASE_URL=https://media-staging.gogocash.co' --service gogocash-api
+railway variables --set 'MEDIA_MAX_UPLOAD_BYTES=10485760' --service gogocash-api
 railway variables --set 'OPTIMISE_CONTACT_ID=2442123' --service gogocash-api
 railway variables --set 'OPTIMISE_API_BASE=https://api.optimisemedia.com' --service gogocash-api
 railway variables --set 'STRIPE_BILLING_ENABLED=false' --service gogocash-api
@@ -58,9 +60,15 @@ railway variables --set 'INVOLVE_AI_API_KEY=<SET_ME: FAILS CLOSED on /involve/cr
 railway variables --set 'TELEGRAM_BOT_TOKEN=<SET_ME: BotFather token — also GATES TelegramBotModule; omit to disable>' --service gogocash-api
 railway variables --set 'RESEND_API_KEY=<SET_ME: email OTP/invites>' --service gogocash-api
 railway variables --set 'POSTHOG_KEY=<SET_ME: empty disables analytics>' --service gogocash-api
+railway variables --set 'R2_ACCESS_KEY_ID=<SET_ME: Cloudflare R2 S3 API token access key>' --service gogocash-api
+railway variables --set 'R2_SECRET_ACCESS_KEY=<SET_ME: Cloudflare R2 S3 API token secret>' --service gogocash-api
 ```
-Optional / feature-gated (set only if used): `INVOLVE_SECRET_OLD`, `SIWE_EXPECTED_DOMAIN`,
-`GCS_CATALOG_PUBLIC_BASE_URL`, `OPTIMISE_API_KEY`/`OPTIMISE_AGENCY_ID`, `STRIPE_SECRET_KEY` +
+Optional / feature-gated (set only if used): `CORS_EXTRA_ORIGINS` (comma-separated exact-match
+origins merged into the API CORS allow-list at runtime — use for Railway preview hosts
+`*.up.railway.app` or new custom domains without a code deploy; no wildcards), e.g.
+`https://admin-staging.gogocash.co,https://app-staging.gogocash.co,https://gogocash-admin-production.up.railway.app`,
+`INVOLVE_SECRET_OLD`, `SIWE_EXPECTED_DOMAIN`,
+`OPTIMISE_API_KEY`/`OPTIMISE_AGENCY_ID`, `STRIPE_SECRET_KEY` +
 `STRIPE_COMMERCE_WEBHOOK_SECRET` + `STRIPE_PRICE_*`, `TG_OPS_WITHDRAWALS_CHAT_ID`/`TG_ALERTS_CHAT_ID`,
 withdrawal on-chain (`PRIVATE_KEY_WITHDRAW`, `CHAIN_ID_WITHDRAW_*`, `RPC_URL_*`, `CONTRACT_WITHDRAW_ADDRESS_*`),
 legacy Google Drive (`GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI/REFRESH_TOKEN`).
@@ -96,10 +104,11 @@ railway variables --set 'EXPO_PUBLIC_EAS_PROJECT_ID=0039c25f-f88e-491d-8da9-85b8
 The nginx runtime reads no env except `$PORT`; all `EXPO_PUBLIC_*` must be present when the build runs the export.
 
 ## Special notes
-- **GCS credential gap** (`apps/api/src/media/gcs-object-storage.service.ts` `new Storage()` = ADC): Railway has no
-  ambient GCP identity. Provide a service-account JSON file and `GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json`
-  (file mount), or leave uploads disabled (`GCS_MEDIA_UPLOAD_DISABLED=true`). Uploads fail with HTTP 503 (not a
-  crash) until ADC is provided — RUNTIME-LAZY, but catalog/withdraw-slip media is broken without it.
+- **R2 media uploads** (`apps/api/src/media/r2-object-storage.service.ts`): all admin/customer media uploads require
+  `R2_BUCKET`, `R2_ENDPOINT`, `R2_PUBLIC_BASE_URL`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY`. Missing any of
+  these returns HTTP 503 (not a crash) — RUNTIME-LAZY, but catalog/withdraw-slip/avatar media is broken until set.
+  Create an S3 API token in Cloudflare → R2 → **Manage R2 API Tokens** (**Object Read & Write** on the bucket).
+  Set `MEDIA_UPLOAD_DISABLED=true` only to deliberately disable uploads.
 - **`TELEGRAM_BOT_TOKEN` changes the dependency graph** (`app.module.ts:51-54`): `TelegramBotModule` loads only
   when it's set and ≠ `'PLACEHOLDER'`. Unset = Telegram cleanly disabled.
 - **Fail-closed secrets**: `INVOLVE_POSTBACK_SECRET` and `INVOLVE_AI_API_KEY` reject every request when empty.

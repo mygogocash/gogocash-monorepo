@@ -1,0 +1,24 @@
+appId: co.gogocash.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Hi!"
+    timeout: 30000
+- runFlow: ../subflows/dismiss-cookie-banner.yaml
+- tapOn: "Wallet"
+- extendedWaitUntil:
+    visible: "Sign in"
+    timeout: 30000
+- assertVisible: "Sign in"
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Hi!"
+    timeout: 30000
+- runFlow: ../subflows/dismiss-cookie-banner.yaml
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible: "Sign in"
+    timeout: 30000
+- assertVisible: "Sign in"

@@ -69,6 +69,14 @@ describe("firebase login > mapLoginResponseToMobileSession", () => {
     );
   });
 
+  it("given a user provider from the backend > then maps it into the session", () => {
+    const session = mapLoginResponseToMobileSession({
+      token: "jwt-only",
+      user: { _id: "abc", provider: "telegram" },
+    });
+    expect(session.provider).toBe("telegram");
+  });
+
   it("emits only keys from the pinned 15-field session schema", () => {
     const session = mapLoginResponseToMobileSession(fullResponse);
     const allowed = new Set<string>(mobileSessionFields);

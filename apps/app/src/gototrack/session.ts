@@ -6,11 +6,21 @@ import type {
 } from "./api";
 import type { GoGoTrackDetector } from "./detector";
 import { createGoGoTrackDetectionRunner } from "./detectionRunner";
+import {
+  resolveGoGoTrackActivationKey,
+  runExclusiveGoGoTrackActivation,
+} from "./activationMutex";
 
 export type GoGoTrackMatch = {
   packageName: string;
   response: GoGoTrackDetectionResponse;
 };
+
+function isActionableActivateMatch(match: GoGoTrackMatch | null): boolean {
+  return Boolean(
+    match?.response.matched && match.response.recommendedAction === "activate",
+  );
+}
 
 export type GoGoTrackSessionState = {
   supported: boolean;
@@ -128,6 +138,19 @@ export function createGoGoTrackSession(options: GoGoTrackSessionOptions) {
         }
         return;
       }
+      const pendingActivation = isActionableActivateMatch(lastMatch);
+
+      // UsageStats reports the recent merchant even after the user returns to
+      // GoGoCash; keep the surfaced match when poll hits the per-package cooldown.
+      if (
+        result.suppressed &&
+        pendingActivation &&
+        lastMatch != null &&
+        result.packageName === lastMatch.packageName
+      ) {
+        return;
+      }
+
       const shouldClearMatch =
         !result.detected || (!result.suppressed && !matchedDuringPoll);
       if (shouldClearMatch && lastMatch != null) {
@@ -150,14 +173,30 @@ export function createGoGoTrackSession(options: GoGoTrackSessionOptions) {
       ) {
         return null;
       }
-      const result = await options.api.activate({
-        detectionEventId: match.detectionEventId,
-        merchantId: match.merchantId,
-        offerId: match.offerId,
-        networkMerchantId: match.networkMerchantId,
-        source: "gototrack",
-      });
-      return { deeplink: result.deeplink };
+
+      const merchantId = match.merchantId;
+      const offerId = match.offerId;
+      const networkMerchantId = match.networkMerchantId;
+
+      const result = await runExclusiveGoGoTrackActivation(
+        resolveGoGoTrackActivationKey({
+          detectionEventId: match.detectionEventId,
+          merchantId,
+          offerId,
+          networkMerchantId,
+        }),
+        async () => {
+          const activation = await options.api.activate!({
+            detectionEventId: match.detectionEventId,
+            merchantId,
+            offerId,
+            networkMerchantId,
+            source: "gototrack",
+          });
+          return { deeplink: activation.deeplink };
+        },
+      );
+      return result;
     },
   };
 }

@@ -17,7 +17,7 @@ import {
 } from './dto/auth.dto';
 import { ethers } from 'ethers';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { isValidObjectId, Model, Types } from 'mongoose';
 import { Point, PointDocument } from 'src/point/schemas/point.schema';
 import { getAdminAuth } from './firebase-admin.provider';
 import { JwtService } from '@nestjs/jwt';
@@ -195,20 +195,7 @@ export class AuthService {
         mobile: data?.phone_number ? data.phone_number : '',
         provider: data?.firebase?.sign_in_provider,
       });
-      if (payload?.referral_id && payload.referral_id !== 'undefined') {
-        const refData = await this.userService.findOne({
-          _id: new Types.ObjectId(payload?.referral_id),
-        });
-        if (
-          refData &&
-          user._id?.toString() !== payload.referral_id?.toString()
-        ) {
-          await this.updatePoint({
-            user_id: user._id.toString(),
-            referral_id: payload.referral_id,
-          });
-        }
-      }
+      await this.awardReferralOnRegistration(user, payload?.referral_id);
 
       if (user?.disabled) {
         throw new Error('Your account has been disabled');
@@ -387,6 +374,37 @@ export class AuthService {
       // Caller (admin endpoint) only checks Boolean(user); avoid throwing
       // raw upstream errors that could leak internals.
       return null;
+    }
+  }
+
+  private isUsableReferralId(referralId?: string): referralId is string {
+    return (
+      !!referralId &&
+      referralId !== 'undefined' &&
+      referralId !== 'null' &&
+      isValidObjectId(referralId)
+    );
+  }
+
+  private async awardReferralOnRegistration(
+    user: UserDocument,
+    referralId?: string,
+  ): Promise<void> {
+    if (!this.isUsableReferralId(referralId)) {
+      return;
+    }
+    try {
+      const refData = await this.userService.findOne({
+        _id: new Types.ObjectId(referralId),
+      });
+      if (refData && user._id?.toString() !== referralId.toString()) {
+        await this.updatePoint({
+          user_id: user._id.toString(),
+          referral_id: referralId,
+        });
+      }
+    } catch {
+      // Referral credit must not block registration.
     }
   }
 

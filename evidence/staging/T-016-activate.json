@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-07-02T00:36:00Z",
+  "authNote": "Staging API was missing JWT_SECRET; copied JWT_SECRET + INVOLVE_SECRET from dev. Backend JWT used (not Firebase ID token).",
+  "settings": { "http": 200, "body": null },
+  "detect": {
+    "http": 200,
+    "matched": true,
+    "merchantId": "merchant-shopee",
+    "detectionEventId": "6a45b1cc7329a2077c4d6ba1"
+  },
+  "activate": {
+    "http": 200,
+    "activationEventId": "6a45b1cd7329a2077c4d6ba3",
+    "deeplink": "https://invl.me/clnlmow"
+  }
+}

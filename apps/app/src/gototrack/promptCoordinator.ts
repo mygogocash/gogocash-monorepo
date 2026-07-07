@@ -2,6 +2,10 @@ import type {
   GoGoTrackActivationRequest,
   GoGoTrackActivationResponse,
 } from "./api";
+import {
+  resolveGoGoTrackActivationKey,
+  runExclusiveGoGoTrackActivation,
+} from "./activationMutex";
 
 export type GoGoTrackPromptPayload = {
   packageName?: string;
@@ -48,11 +52,17 @@ export function createGoGoTrackPromptCoordinator(
   const now = options.now ?? (() => new Date());
   const cooldownMs = options.cooldownMs ?? defaultCooldownMs;
   const lastPromptAtByKey = new Map<string, number>();
+  const dismissedPromptKeys = new Set<string>();
+  const listeners = new Set<() => void>();
   let activePromptKey: string | null = null;
   let activePayload: GoGoTrackPromptPayload | null = null;
-  let activationInFlight = false;
 
-  const emitChange = () => options.onChange?.();
+  const emitChange = () => {
+    options.onChange?.();
+    for (const listener of listeners) {
+      listener();
+    }
+  };
 
   return {
     getState(): GoGoTrackPromptCoordinatorState {
@@ -66,6 +76,13 @@ export function createGoGoTrackPromptCoordinator(
       return activePromptKey != null;
     },
 
+    subscribe(listener: () => void): () => void {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+
     showNativePrompt(payload: GoGoTrackPromptPayload): boolean {
       const key = promptKey(payload);
       const observedAt = now().getTime();
@@ -75,6 +92,7 @@ export function createGoGoTrackPromptCoordinator(
       }
 
       lastPromptAtByKey.set(key, observedAt);
+      dismissedPromptKeys.delete(key);
       activePromptKey = key;
       activePayload = payload;
       emitChange();
@@ -87,6 +105,7 @@ export function createGoGoTrackPromptCoordinator(
         if (activePromptKey != null && activePromptKey !== key) {
           return;
         }
+        dismissedPromptKeys.add(key);
       }
       activePromptKey = null;
       activePayload = null;
@@ -96,35 +115,42 @@ export function createGoGoTrackPromptCoordinator(
     async activateFromNative(
       payload: GoGoTrackPromptPayload,
     ): Promise<{ deeplink: string } | null> {
-      if (activationInFlight) {
-        return null;
-      }
-
       const key = promptKey(payload);
       if (activePromptKey != null && activePromptKey !== key) {
         return null;
       }
       if (activePromptKey == null) {
-        return null;
+        if (dismissedPromptKeys.has(key)) {
+          return null;
+        }
+        if (!lastPromptAtByKey.has(key)) {
+          return null;
+        }
       }
 
-      activationInFlight = true;
-      try {
-        const result = await options.api.activate({
+      return runExclusiveGoGoTrackActivation(
+        resolveGoGoTrackActivationKey({
           detectionEventId: payload.detectionEventId,
           merchantId: payload.merchantId,
           offerId: payload.offerId,
           networkMerchantId: payload.networkMerchantId,
-          source: "gototrack_background_prompt",
-        });
-        activePromptKey = null;
-        activePayload = null;
-        emitChange();
-        await options.openUrl?.(result.deeplink);
-        return { deeplink: result.deeplink };
-      } finally {
-        activationInFlight = false;
-      }
+        }),
+        async () => {
+          const result = await options.api.activate({
+            detectionEventId: payload.detectionEventId,
+            merchantId: payload.merchantId,
+            offerId: payload.offerId,
+            networkMerchantId: payload.networkMerchantId,
+            source: "gototrack_background_prompt",
+          });
+          activePromptKey = null;
+          activePayload = null;
+          dismissedPromptKeys.delete(key);
+          emitChange();
+          await options.openUrl?.(result.deeplink);
+          return { deeplink: result.deeplink };
+        },
+      );
     },
   };
 }

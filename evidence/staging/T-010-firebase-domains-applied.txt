@@ -1,0 +1,24 @@
+T-010 Firebase staging sign-in — applied 2026-07-04
+
+## Problem
+app-staging.gogocash.co login failed with generic "Could not complete your request" — Firebase authorizedDomains had staging.gogocash.co but NOT app-staging.gogocash.co.
+
+## Applied (agent)
+1. Railway @gogocash/mobile: custom domain https://staging.gogocash.co (CNAME po9gwlo6.up.railway.app)
+2. Cloudflare: staging.gogocash.co → po9gwlo6.up.railway.app (proxied)
+3. Verified: curl -sI https://staging.gogocash.co/en/login → HTTP 200, x-railway-edge
+
+## Sign-in URLs (use these)
+- **Recommended (Firebase authorized):** https://staging.gogocash.co/en/login
+- app-staging.gogocash.co/en/login — still needs Firebase authorized domain (see owner step)
+
+## Test credentials (Firebase gogocash-staging)
+- Phone: +66 999999999 → OTP: **654321** (test number, no SMS)
+- Real phone: your number (e.g. +66 634129852) → SMS OTP from Firebase
+
+## Owner follow-up (app-staging hostname)
+API PATCH to add app-staging.gogocash.co blocked: BILLING_NOT_ENABLED (reCAPTCHA Enterprise).
+Add manually: Firebase Console → gogocash-staging → Authentication → Settings → Authorized domains → Add `app-staging.gogocash.co`
+Or run after billing linked: node scripts/firebase-staging-auth-setup.mjs
+
+Existing authorizedDomains (2026-07-04): gogocash-staging.firebaseapp.com, gogocash-staging.web.app, staging.gogocash.co, localhost, gogocash-staging-637d5.web.app

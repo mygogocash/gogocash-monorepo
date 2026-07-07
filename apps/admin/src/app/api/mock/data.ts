@@ -298,23 +298,53 @@ const offerTemplates = [
     extra_store: false,
     offer_name_display: "Banana IT (TH) — Food",
   },
+  {
+    categories: "Marketplace",
+    commission_tracking: "CPS",
+    commissions: ["5.6%"],
+    countries: "TH",
+    currency: "THB",
+    description: "Shopee Thailand cashback offer for admin search fixtures.",
+    directory_page: "https://shopee.co.th",
+    is_require_approval: 0,
+    logo: "/images/merchant-logos/gadgethub-electronics.png",
+    logo_desktop: "/images/merchant-logos/gadgethub-electronics.png",
+    logo_mobile: "/images/merchant-logos/gadgethub-electronics-mobile.png",
+    banner: "/images/merchant-logos/gadgethub-electronics.png",
+    logo_circle: "/images/merchant-logos/gadgethub-electronics-mobile.png",
+    marketplace_store_offer: true,
+    payment_terms: 45,
+    preview_url: "https://shopee.co.th",
+    special_commissions: [],
+    tracking_type: "pixel",
+    validation_terms: 30,
+    disabled: false,
+    commission_store: 5.6,
+    max_cap: null as number | null,
+    partner_max_cap: null as number | null,
+    banner_mobile: "",
+    extra_store: true,
+    offer_name_display: "Shopee",
+  },
 ];
 
 export const mockOffers = Array.from({ length: 550 }, (_, i) => {
-  const t = offerTemplates[i % 4];
+  const t = offerTemplates[i % offerTemplates.length];
   const offerId = 1001 + i;
-  const merchantId = 2001 + (i % 4);
+  const merchantId = 2001 + (i % offerTemplates.length);
   const names = [
     "Banana IT TH - CPS",
     "Adidas TH - CPS",
     "AirAsia Travel - CPS",
     "Banana IT TH Food - CPS",
+    "Shopee TH - CPS",
   ];
   const lookups = [
     "banana_it_th",
     "adidas_th",
     "airasia_travel",
     "banana_it_food",
+    "shopee_th",
   ];
   const _id = `o${i + 1}`;
   return {
@@ -324,10 +354,10 @@ export const mockOffers = Array.from({ length: 550 }, (_, i) => {
     ...t,
     datetime_created: i % 3 === 0 ? lastWeek : i % 3 === 1 ? yesterday : now,
     datetime_updated: now,
-    lookup_value: `${lookups[i % 4]}_${i}`,
+    lookup_value: `${lookups[i % offerTemplates.length]}_${i}`,
     merchant_id: merchantId,
-    offer_name: `${names[i % 4]} #${i + 1}`,
-    tracking_link: `https://track.example.com/${lookups[i % 4]}/${i}`,
+    offer_name: `${names[i % offerTemplates.length]} #${i + 1}`,
+    tracking_link: `https://track.example.com/${lookups[i % offerTemplates.length]}/${i}`,
     affiliate_partner: affiliateNetworkName(affiliateNetworkIdForOfferId(_id)),
   };
 });

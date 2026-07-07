@@ -1,0 +1,307 @@
+command=adb logcat -d -t 300
+ok=true
+status=0
+--- stdout ---
+--------- beginning of main
+07-02 07:44:03.950 19928 20210 I MMCLivePlayerDelegate: [, , 0]:setPlayListener null
+07-02 07:44:03.950 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:142] [StopImmediately:0x7a63de4908], start
+07-02 07:44:03.950 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:373] [stopDecoderImmediately:0x7a63de4908]
+07-02 07:44:03.950  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.950 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_base.cc:91] 0x7a037b3b10 [stopDecode]Stop Decode
+07-02 07:44:03.950  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.950 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:348] [0x7a63de4908]stop
+07-02 07:44:03.951 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:25] [0x7a63dd2758]PlayerImpl: setSurface 0x0 isDummy:0, isSyncCall:1
+07-02 07:44:03.951 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:789] [SetSurfaceOpt:0x7a63dd2758]new surface is set , old:0x9966, new:0x0
+07-02 07:44:03.951 19928 15180 I MediaCodec: [c2.mtk.avc.decoder] setting surface generation to 20406314
+07-02 07:44:03.952 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:57] [0x7a63dd2758]setSurface - video render process completely
+07-02 07:44:03.952 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:84] [OnMessage:0x7a63dd2758]enter, message type:1105
+07-02 07:44:03.952 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:263] [SetOutputSurface:0x7a63dd2758][dummy-view-opt]new surface is null and replace dummy 0x78e2 into decoder
+07-02 07:44:03.953 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_mediacodec.cc:267] [SetOutputSurface:0x7a63dd2758]set new surface old:0x9966 new:0x78e2
+07-02 07:44:03.953 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:374] [0x7a6390bbc8]release
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[pipeline.cc:65] [SetState:0x7a6390bbc8]state change from 3 to 0
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer.cc:62] [0x7a6390bbc8]State:0,abortRequest_=1
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:658] [OnStateChanged:0x7a6390bbc8]State::Stopped
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl.cc:437] [ToggleEvent:0x7a6390bbc8][cache_control] reset AntiJitterBuffer buffringCount:1, buffringCost:0.024 
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[audio_decoder_node.cc:111] [OnStateChanged:0x7a6390bbc8]new state is 0
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[audio_player_node_v2.cpp:391] [onStop:0x7a6390bbc8]OnStateChanged, newState is stop
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[video_jitter_buffer_impl.cc:254] [Stop:0x7a6390bbc8]enter
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[audio_jitter_buffer_impl.cc:162] 0x7a0368b2d0 [Clear:0x7a6390bbc8]enter
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[audio_jitter_buffer_impl.cc:201] 0x7a0368b2d0 [reset:0x7a6390bbc8]enter
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[video_jitter_buffer_impl.cc:254] [Stop:0x7a6390bbc8]enter
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[audio_jitter_buffer_impl.cc:178] [Stop:0x7a6390bbc8]enter
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[jitter_buffer_node.cc:214] 0x7b0374ba30 [OnStateChanged:0x7a6390bbc8]state change to Stopped
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[status_listener.cc:1158] 0x7993f680e0 [onStateChanged]not playing
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:253] [OnStateChanged:0x7a6390bbc8]Stopped
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:267] [OnStateChanged:0x7a6390bbc8] stop and release native window, mSurface:0x9d56, Context->GetSurface():0x9d56
+07-02 07:44:03.954 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:187] [~PlayerImpl:0x7a6390bbc8]dtor enter
+07-02 07:44:03.955 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:151] [OnStateChanged:0x7a6390bbc8]enter, old:3	new:0	
+07-02 07:44:03.955 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:182] [OnStateChanged:0x7a6390bbc8]enter, Stopped
+07-02 07:44:03.955 19928 20210 I MMCAVPlayer: [, , 0]:[pipeline.cc:34] [~PipelineImpl:0x7a6390bbc8]dtor enter
+07-02 07:44:03.955 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_base.cc:91] 0x7a037bd510 [stopDecode]Stop Decode
+07-02 07:44:03.955 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:348] [0x7a6390bbc8]stop
+07-02 07:44:03.955 19928 15148 W System.err: java.lang.IllegalStateException: codec is released already
+07-02 07:44:03.955 19928 15148 W System.err: 	at android.media.MediaCodec.native_stop(Native Method)
+07-02 07:44:03.955 19928 15148 W System.err: 	at android.media.MediaCodec.stop(MediaCodec.java:2791)
+07-02 07:44:03.955 19928 20210 E MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:355] [0x7a6390bbc8]MediaCodec stop fail
+07-02 07:44:03.956 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:374] [0x7a6390bbc8]release
+07-02 07:44:03.956 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:165] ~SSZMediaCodecWrapper
+07-02 07:44:03.956  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.956  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer.cc:27] [~Demuxer:0x7a6390bbc8]dtor enter
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:209] [~DemuxerImpl:0x7a6390bbc8]Dtor enter
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:720] [Release:0x7a6390bbc8]enter
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:734] [Release:0x7a6390bbc8]backtrace: MMCIO Close begin
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[external_io_wrapper.cc:184] SetInterruptCallback:0x7a6390bbc8 opaque ptr:0x0
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[external_io_wrapper.cc:175] CloseIO:0x7a6390bbc8
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[external_io_wrapper_jni.cc:180] CloseIO:0x7a6390bbc8
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[external_io_wrapper.cc:26] ~ExternalIOWrapper:0x7a6390bbc8
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[external_io_wrapper_jni.cc:53] ~ExternalIOWrapperJNI:0x7a6390bbc8
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[external_io_wrapper_jni.cc:180] CloseIO:0x7a6390bbc8
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:737] [Release:0x7a6390bbc8]backtrace: MMCIO Close done
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:374] [0x7a63de4908]release
+07-02 07:44:03.957 19928 15138 W System.err: java.lang.IllegalStateException: codec is released already
+07-02 07:44:03.957 19928 20210 I MMCAVPlayer: [, , 0]:[pipeline.cc:65] [SetState:0x7a63de4908]state change from 2 to 0
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer.cc:62] [0x7a63de4908]State:0,abortRequest_=1
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[video_jitter_buffer_impl.cc:254] [Stop:0x7a63de4908]enter
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[audio_jitter_buffer_impl.cc:162] 0x7a037b04d0 [Clear:0x7a63de4908]enter
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[audio_jitter_buffer_impl.cc:201] 0x7a037b04d0 [reset:0x7a63de4908]enter
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[video_jitter_buffer_impl.cc:254] [Stop:0x7a63de4908]enter
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[audio_jitter_buffer_impl.cc:178] [Stop:0x7a63de4908]enter
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[jitter_buffer_node.cc:214] 0x7b036d7690 [OnStateChanged:0x7a63de4908]state change to Stopped
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[status_listener.cc:1158] 0x7993e9e450 [onStateChanged]not playing
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:253] [OnStateChanged:0x7a63de4908]Stopped
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:267] [OnStateChanged:0x7a63de4908] stop and release native window, mSurface:0x0, Context->GetSurface():0x0
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:71] [0x7a63dd2758]setSurface - video decoder process completely
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:77] [0x7a63dd2758]PlayerImpl: setSurface completely
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:187] [~PlayerImpl:0x7a63de4908]dtor enter
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[packet_ffmpeg.cc:42] free audioCodecpar: 0x0
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[packet_ffmpeg.cc:44] free videoCodecpar: 0x7af3785bb0
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:805] [Release:0x7a6390bbc8] leave.
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:222] [~DemuxerImpl:0x7a6390bbc8]Dtor leave
+07-02 07:44:03.958 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer.cc:32] [~Demuxer:0x7a6390bbc8]dtor leave
+07-02 07:44:03.959 19928 20210 I MMCAVPlayer: [, , 0]:[jitter_buffer_node.cc:479] [~JitterBufferNode:0x7a6390bbc8]dtor enter
+07-02 07:44:03.959 19928 20210 I MMCAVPlayer: [, , 0]:[audio_jitter_buffer_impl.cc:178] [Stop:0x7a6390bbc8]enter
+07-02 07:44:03.959 19928 20210 I MMCAVPlayer: [, , 0]:[video_jitter_buffer_impl.cc:254] [Stop:0x7a6390bbc8]enter
+07-02 07:44:03.959 19928 20210 I MMCAVPlayer: [, , 0]:[jitter_buffer_node.cc:481] [~JitterBufferNode:0x7a6390bbc8]dtor leave
+07-02 07:44:03.959 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node.cc:71] [~VideoDecoderNode:0x7a6390bbc8]dtor enter
+07-02 07:44:03.959 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node.cc:84] [~VideoDecoderNode:0x7a6390bbc8]dtor leave
+07-02 07:44:03.959 19928 20210 I MMCAVPlayer: [, , 0]:[pipeline.cc:34] [~PipelineImpl:0x7a63de4908]dtor enter
+07-02 07:44:03.959 19928 20210 I MMCAVPlayer: [, , 0]:[audio_decoder_node.cc:37] [~AudioDecoderNode:0x7a6390bbc8]dtor enter
+07-02 07:44:03.959 19928 20210 I MMCAVPlayer: [, , 0]:[audio_decoder_node.cc:55] [~AudioDecoderNode:0x7a6390bbc8]dtor leave
+07-02 07:44:03.959 19928 20210 I MMCAVPlayer: [, , 0]:[audio_player_node_v2.cpp:43] [~AudioPlayerNodeNonJitter:0x7a6390bbc8]dtor enter
+07-02 07:44:03.959 19928 20210 I MMCAVPlayer: [, , 0]:[audio_player_node_v2.cpp:58] [~AudioPlayerNodeNonJitter:0x7a6390bbc8]dtor leave
+07-02 07:44:03.959 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:89] [~VideoRenderer:0x7a6390bbc8]dtor enter
+07-02 07:44:03.960 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:108] [~VideoRenderer:0x7a6390bbc8]dtor leave
+07-02 07:44:03.960 19928 20210 I MMCAVPlayer: [, , 0]:[pipeline.cc:36] [~PipelineImpl:0x7a6390bbc8]dtor leave
+07-02 07:44:03.960 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:154] [PlatformCleanup:0x7a6390bbc8]enter
+07-02 07:44:03.960 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:158] [PlatformCleanup:0x7a6390bbc8]clean surface
+07-02 07:44:03.960 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl_android.cc:52] [0x7a6390bbc8][dummy-view-opt]ContextImpl_clean_DummySurface:0x9906
+07-02 07:44:03.960 19928 20210 E MMCAVPlayer: [, , 0]:[MMC_ViewHelper_jni.cc:77] releaseDummyView end
+07-02 07:44:03.960 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:181] [PlatformCleanup:0x7a6390bbc8]clean JavaPlayer
+07-02 07:44:03.960 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl.cc:146] [~ContextImpl:0x7a6390bbc8]dtor enter
+07-02 07:44:03.960 19928 20210 I MMCAVPlayer: [, , 0]:[monitor.cc:19] [~Monitor]dtor enter
+07-02 07:44:03.961 19928 20210 I MMCAVPlayer: [, , 0]:[monitor.cc:29] [~Monitor]dtor leave
+07-02 07:44:03.961 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl.cc:153] [~ContextImpl:0x7a6390bbc8]monitor cleared
+07-02 07:44:03.961 19928 20210 I MMCAVPlayer: [, , 0]:[android_global_config.cc:140] api_async_invoke: 0
+07-02 07:44:03.961 19928 15138 W System.err: 	at android.media.MediaCodec.native_dequeueInputBuffer(Native Method)
+07-02 07:44:03.962 19928 15138 W System.err: 	at android.media.MediaCodec.dequeueInputBuffer(MediaCodec.java:3602)
+07-02 07:44:03.962 19928 15138 W System.err: java.lang.IllegalStateException: codec is released already
+07-02 07:44:03.962 19928 15138 W System.err: 	at android.media.MediaCodec.native_dequeueOutputBuffer(Native Method)
+07-02 07:44:03.962 19928 15138 W System.err: 	at android.media.MediaCodec.dequeueOutputBuffer(MediaCodec.java:4287)
+07-02 07:44:03.962 19928 15138 W System.err: java.lang.IllegalStateException: codec is released already
+07-02 07:44:03.962 19928 20210 E MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:395] [dequeueInputBuffer]java.lang.IllegalStateException: codec is released already
+07-02 07:44:03.962 19928 15138 W System.err: 	at android.media.MediaCodec.native_stop(Native Method)
+07-02 07:44:03.962 19928 15138 W System.err: 	at android.media.MediaCodec.stop(MediaCodec.java:2791)
+07-02 07:44:03.962 19928 20210 E MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:508] [dequeueOutputBuffer]java.lang.IllegalStateException: codec is released already
+07-02 07:44:03.962 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:151] [OnStateChanged:0x7a63de4908]enter, old:2	new:0	
+07-02 07:44:03.962 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:182] [OnStateChanged:0x7a63de4908]enter, Stopped
+07-02 07:44:03.962 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_base.cc:91] 0x7a037b3b10 [stopDecode]Stop Decode
+07-02 07:44:03.962 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:348] [0x7a63de4908]stop
+07-02 07:44:03.962 19928 20210 E MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:355] [0x7a63de4908]MediaCodec stop fail
+07-02 07:44:03.962 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:374] [0x7a63de4908]release
+07-02 07:44:03.962 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:165] ~SSZMediaCodecWrapper
+07-02 07:44:03.964 19928 15300 I hw-BpHwBinder: onLastStrongRef automatically unlinking death recipients
+07-02 07:44:03.964  1229  3506 I hw-BpHwBinder: onLastStrongRef automatically unlinking death recipients
+07-02 07:44:03.970 19928 20210 I SZTrackingReporter: [, , 0]:report reportStreamConnEvent
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[mmcio.cc:34] [~MMCIO:0x7a6390bbc8]MMCIO dtor
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[mmcio.cc:36] [~MMCIO:0x7a6390bbc8]MMCIO dtor end
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl.cc:179] [~ContextImpl:0x7a6390bbc8]dtor leave
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:205] [~PlayerImpl:0x7a6390bbc8]dtor leave
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[android_mediacodec_helper.cc:35] deInitClazz
+07-02 07:44:03.970 19928 20210 W ShopeeVideoViewManager: [, , 0]:destroyVideoView MMC
+07-02 07:44:03.970 19928 20210 I MMCLivePlayerDelegate: [, , 0]:setPlayListener null
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:658] [OnStateChanged:0x7a63de4908]State::Stopped
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl.cc:437] [ToggleEvent:0x7a63de4908][cache_control] reset AntiJitterBuffer buffringCount:2, buffringCost:0.192 
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:1579] [HandleEvent:0x7a63de4908]HandleEvent: index=4,event=5(STOP),current=PLAYING,next=STOPPED
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.h:213] [operator=]tag:0x7a63de4908, State: PLAYING to STOPPED
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:720] [Release:0x7a63de4908]enter
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[transport_log_callback.h:27] [trans] 0x7a136d2650 close url
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[transport_log_callback.h:27] [trans] TransReceiver close begin 0x7a53865380
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[transport_log_callback.h:27] [trans] TransReceiver close: 0
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[packet_ffmpeg.cc:42] free audioCodecpar: 0x0
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[packet_ffmpeg.cc:44] free videoCodecpar: 0x7af382fe30
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:805] [Release:0x7a63de4908] leave.
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:2023] [OnStop:0x7a63de4908]ReleaseCompleted
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.h:213] [operator=]tag:0x7a63de4908, State: STOPPED to IDLE
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:662] [stop:0x7a63dd2758]enter
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:540] [stopPlay:0x7a63dd2758]enter
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[android_global_config.cc:140] enable_decoder_state_check: 1
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:115] [SetDecoderState:0x7a63dd2758] :1, start
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:657] [setDecoderState:0x7a63dd2758]
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:551] [SyncStop:0x7a63dd2758]enter
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:142] [StopImmediately:0x7a63dd2758], start
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:373] [stopDecoderImmediately:0x7a63dd2758]
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_base.cc:91] 0x7a037c5f50 [stopDecode]Stop Decode
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:348] [0x7a63dd2758]stop
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[audio_decoder_node.cc:111] [OnStateChanged:0x7a63de4908]new state is 0
+07-02 07:44:03.970 19928 20210 I MMCAVPlayer: [, , 0]:[audio_player_node_v2.cpp:391] [onStop:0x7a63de4908]OnStateChanged, newState is stop
+07-02 07:44:03.971 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer.cc:27] [~Demuxer:0x7a63de4908]dtor enter
+07-02 07:44:03.972 19928 15298 I hw-BpHwBinder: onLastStrongRef automatically unlinking death recipients
+07-02 07:44:03.972 19928 19932 I com.shopee.th: Background young concurrent mark compact GC freed 15MB AllocSpace bytes, 396(75MB) LOS objects, 29% free, 107MB/152MB, paused 2.188ms,1.774ms total 122.913ms
+07-02 07:44:03.973  1229  2080 I hw-BpHwBinder: onLastStrongRef automatically unlinking death recipients
+07-02 07:44:03.978 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:209] [~DemuxerImpl:0x7a63de4908]Dtor enter
+07-02 07:44:03.978 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:720] [Release:0x7a63de4908]enter
+07-02 07:44:03.978 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:805] [Release:0x7a63de4908] leave.
+07-02 07:44:03.979 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:222] [~DemuxerImpl:0x7a63de4908]Dtor leave
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[transport_log_callback.h:27] [trans] Transport release 0x7a136d2650
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[transport_log_callback.h:27] [trans] TransReceiver close begin 0x7a53865380
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[transport_log_callback.h:27] [trans] TransReceiver release 0x7a53865380
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer.cc:32] [~Demuxer:0x7a63de4908]dtor leave
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[jitter_buffer_node.cc:479] [~JitterBufferNode:0x7a63de4908]dtor enter
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[audio_jitter_buffer_impl.cc:178] [Stop:0x7a63de4908]enter
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[video_jitter_buffer_impl.cc:254] [Stop:0x7a63de4908]enter
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[jitter_buffer_node.cc:481] [~JitterBufferNode:0x7a63de4908]dtor leave
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node.cc:71] [~VideoDecoderNode:0x7a63de4908]dtor enter
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node.cc:84] [~VideoDecoderNode:0x7a63de4908]dtor leave
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[audio_decoder_node.cc:37] [~AudioDecoderNode:0x7a63de4908]dtor enter
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[audio_decoder_node.cc:55] [~AudioDecoderNode:0x7a63de4908]dtor leave
+07-02 07:44:03.980 19928 20210 I MMCAVPlayer: [, , 0]:[audio_player_node_v2.cpp:43] [~AudioPlayerNodeNonJitter:0x7a63de4908]dtor enter
+07-02 07:44:03.981 19928 20210 I MMCAVPlayer: [, , 0]:[audio_player_node_v2.cpp:58] [~AudioPlayerNodeNonJitter:0x7a63de4908]dtor leave
+07-02 07:44:03.981 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:89] [~VideoRenderer:0x7a63de4908]dtor enter
+07-02 07:44:03.981 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:108] [~VideoRenderer:0x7a63de4908]dtor leave
+07-02 07:44:03.981 19928 20210 I MMCAVPlayer: [, , 0]:[pipeline.cc:36] [~PipelineImpl:0x7a63de4908]dtor leave
+07-02 07:44:03.981 19928 13153 E libEGL  : call to OpenGL ES API with no current context (logged once per thread)
+07-02 07:44:03.982 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:154] [PlatformCleanup:0x7a63de4908]enter
+07-02 07:44:03.982 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl_android.cc:52] [0x7a63de4908][dummy-view-opt]ContextImpl_clean_DummySurface:0x3352
+07-02 07:44:03.982 19928 20210 E MMCAVPlayer: [, , 0]:[MMC_ViewHelper_jni.cc:77] releaseDummyView end
+07-02 07:44:03.982 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:181] [PlatformCleanup:0x7a63de4908]clean JavaPlayer
+07-02 07:44:03.982 19928 20210 I MMCAVPlayer: [, , 0]:[stream_heater.cpp:249] update ptr: 0x7b43707730 alloc:0
+07-02 07:44:03.982 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:205] [~PlayerImpl:0x7a63de4908]dtor leave
+07-02 07:44:03.982 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl.cc:146] [~ContextImpl:0x7a63de4908]dtor enter
+07-02 07:44:03.982 19928 20210 I MMCAVPlayer: [, , 0]:[monitor.cc:19] [~Monitor]dtor enter
+07-02 07:44:03.982  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.982  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.982 19928 20210 I MMCAVPlayer: [, , 0]:[monitor.cc:29] [~Monitor]dtor leave
+07-02 07:44:03.982 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl.cc:153] [~ContextImpl:0x7a63de4908]monitor cleared
+07-02 07:44:03.982 19928 20210 I MMCAVPlayer: [, , 0]:[android_global_config.cc:140] api_async_invoke: 0
+07-02 07:44:03.983  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.983  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.983  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.983  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.984  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.984  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.984  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.984  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.985  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.985  1226  1292 E android.hardware.graphics.allocator-V2-service-mediatek: Producer and consumer not identified.
+07-02 07:44:03.988 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:374] [0x7a63dd2758]release
+07-02 07:44:03.988 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl.cc:179] [~ContextImpl:0x7a63de4908]dtor leave
+07-02 07:44:03.988 19928 20210 I MMCAVPlayer: [, , 0]:[android_mediacodec_helper.cc:35] deInitClazz
+07-02 07:44:03.991 19928 20210 I MMCAVPlayer: [, , 0]:[pipeline.cc:65] [SetState:0x7a63dd2758]state change from 2 to 0
+07-02 07:44:03.991 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer.cc:62] [0x7a63dd2758]State:0,abortRequest_=1
+07-02 07:44:03.991 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:253] [OnStateChanged:0x7a63dd2758]Stopped
+07-02 07:44:03.991 19928 15144 W System.err: java.lang.IllegalStateException: codec is released already
+07-02 07:44:03.991 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:267] [OnStateChanged:0x7a63dd2758] stop and release native window, mSurface:0x0, Context->GetSurface():0x0
+07-02 07:44:03.991 19928 20210 I MMCAVPlayer: [, , 0]:[audio_decoder_node.cc:111] [OnStateChanged:0x7a63dd2758]new state is 0
+07-02 07:44:03.993 19928 15144 W System.err: 	at android.media.MediaCodec.releaseOutputBuffer(Native Method)
+07-02 07:44:03.993 19928 15144 W System.err: 	at android.media.MediaCodec.releaseOutputBufferInternal(MediaCodec.java:4403)
+07-02 07:44:03.993 19928 15144 W System.err: 	at android.media.MediaCodec.releaseOutputBuffer(MediaCodec.java:4324)
+07-02 07:44:03.993 19928 15144 W System.err: java.lang.IllegalStateException: codec is released already
+07-02 07:44:03.993 19928 15144 W System.err: 	at android.media.MediaCodec.native_stop(Native Method)
+07-02 07:44:03.993 19928 15144 W System.err: 	at android.media.MediaCodec.stop(MediaCodec.java:2791)
+07-02 07:44:03.993 19928 20210 I MMCAVPlayer: [, , 0]:[audio_player_node_v2.cpp:391] [onStop:0x7a63dd2758]OnStateChanged, newState is stop
+07-02 07:44:03.993 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:187] [~PlayerImpl:0x7a63dd2758]dtor enter
+07-02 07:44:03.993 19928 20210 I MMCAVPlayer: [, , 0]:[video_jitter_buffer_impl.cc:254] [Stop:0x7a63dd2758]enter
+07-02 07:44:03.993 19928 20210 I MMCAVPlayer: [, , 0]:[audio_jitter_buffer_impl.cc:162] 0x7a037ac950 [Clear:0x7a63dd2758]enter
+07-02 07:44:03.993 19928 20210 I MMCAVPlayer: [, , 0]:[audio_jitter_buffer_impl.cc:201] 0x7a037ac950 [reset:0x7a63dd2758]enter
+07-02 07:44:03.994 19928 20210 I MMCAVPlayer: [, , 0]:[video_jitter_buffer_impl.cc:254] [Stop:0x7a63dd2758]enter
+07-02 07:44:03.994 19928 20210 I MMCAVPlayer: [, , 0]:[audio_jitter_buffer_impl.cc:178] [Stop:0x7a63dd2758]enter
+07-02 07:44:03.994 19928 20210 I MMCAVPlayer: [, , 0]:[jitter_buffer_node.cc:214] 0x7b036d2fb0 [OnStateChanged:0x7a63dd2758]state change to Stopped
+07-02 07:44:03.994  1229  3506 I hw-BpHwBinder: onLastStrongRef automatically unlinking death recipients
+07-02 07:44:03.994 19928 20210 I MMCAVPlayer: [, , 0]:[status_listener.cc:1158] 0x7993ea74e0 [onStateChanged]not playing
+07-02 07:44:03.994 19928 20210 I MMCAVPlayer: [, , 0]:[pipeline.cc:34] [~PipelineImpl:0x7a63dd2758]dtor enter
+07-02 07:44:03.994 19928 15302 I hw-BpHwBinder: onLastStrongRef automatically unlinking death recipients
+07-02 07:44:03.994 19928 20210 W MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:322] [0x780857ad4d]releaseOuputBuffer fail, index:2
+07-02 07:44:03.995 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:151] [OnStateChanged:0x7a63dd2758]enter, old:2	new:0	
+07-02 07:44:03.995 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node_impl.cc:182] [OnStateChanged:0x7a63dd2758]enter, Stopped
+07-02 07:44:03.995 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_base.cc:91] 0x7a037c5f50 [stopDecode]Stop Decode
+07-02 07:44:03.995 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:348] [0x7a63dd2758]stop
+07-02 07:44:03.995 19928 20210 E MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:355] [0x7a63dd2758]MediaCodec stop fail
+07-02 07:44:03.995 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:374] [0x7a63dd2758]release
+07-02 07:44:03.995 19928 20210 I MMCAVPlayer: [, , 0]:[media_codec_wrapper.cc:165] ~SSZMediaCodecWrapper
+07-02 07:44:03.995 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer.cc:27] [~Demuxer:0x7a63dd2758]dtor enter
+07-02 07:44:03.995 19928 20210 W ShopeeVideoViewManager: [, , 0]:getUsablePlayerType playerType: MMC, biz: 2104
+07-02 07:44:03.995 19928 20210 I MMCLivePlayerDelegate: [, , 0]:setDeviceScore :630
+07-02 07:44:03.995 19928 20210 I MMCLivePlayerImpl: [, , 0]:[70628605:]setPlayerViewForLive 
+07-02 07:44:03.996 19928 20210 I MMCLivePlayerDelegate: [, , 0]:setPlayListener com.shopee.liveplayersdk.w.b$b@edd8443
+07-02 07:44:03.996 19928 20210 I MMCLivePlayerImpl: [, , 0]:setPlayListener com.shopee.liveplayersdk.w.c$c@16feac0
+07-02 07:44:04.000 19928 20210 W ShopeeVideoViewManager: [, , 0]:getUsablePlayerType playerType: MMC, biz: 2104
+07-02 07:44:04.000 19928 20210 I MMCLivePlayerImpl: [, , 0]:setPlayListener com.shopee.liveplayersdk.w.c$a@e64ef1c
+07-02 07:44:04.000 19928 20210 I MMCLivePlayerDelegate: [, , 0]:setDeviceScore :630
+07-02 07:44:04.001 19928 20210 I MMCLivePlayerImpl: [, , 0]:[226264869:]setPlayerViewForLive 
+07-02 07:44:04.001 19928 20210 I MMCLivePlayerDelegate: [, , 0]:setPlayListener com.shopee.liveplayersdk.w.b$b@4a5c6ab
+07-02 07:44:04.001 19928 20210 I MMCLivePlayerImpl: [, , 0]:setPlayListener com.shopee.liveplayersdk.w.c$c@5fe108
+07-02 07:44:04.006 12098 12098 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=android.view.ViewRootImpl$$ExternalSyntheticLambda12@6d948dd
+07-02 07:44:04.012 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:658] [OnStateChanged:0x7a63dd2758]State::Stopped
+07-02 07:44:04.012 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl.cc:437] [ToggleEvent:0x7a63dd2758][cache_control] reset AntiJitterBuffer buffringCount:2, buffringCost:0.188 
+07-02 07:44:04.012 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:209] [~DemuxerImpl:0x7a63dd2758]Dtor enter
+07-02 07:44:04.012 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:720] [Release:0x7a63dd2758]enter
+07-02 07:44:04.012 19928 20210 I MMCAVPlayer: [, , 0]:[transport_log_callback.h:27] [trans] 0x7a1370f270 close url
+07-02 07:44:04.013 19928 20210 I MMCAVPlayer: [, , 0]:[transport_log_callback.h:27] [trans] TransReceiver close begin 0x7a53862860
+07-02 07:44:04.013 19928 20210 I MMCAVPlayer: [, , 0]:[transport_log_callback.h:27] [trans] TransReceiver close: 0
+07-02 07:44:04.014 19928 20210 I MMCAVPlayer: [, , 0]:[packet_ffmpeg.cc:42] free audioCodecpar: 0x0
+07-02 07:44:04.015 19928 20210 I MMCAVPlayer: [, , 0]:[packet_ffmpeg.cc:44] free videoCodecpar: 0x7af3830bf0
+07-02 07:44:04.015 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:805] [Release:0x7a63dd2758] leave.
+07-02 07:44:04.015 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer_impl.cc:222] [~DemuxerImpl:0x7a63dd2758]Dtor leave
+07-02 07:44:04.015 19928 20210 I MMCAVPlayer: [, , 0]:[transport_log_callback.h:27] [trans] Transport release 0x7a1370f270
+07-02 07:44:04.015 19928 20210 I MMCAVPlayer: [, , 0]:[transport_log_callback.h:27] [trans] TransReceiver close begin 0x7a53862860
+07-02 07:44:04.015 19928 20210 I MMCAVPlayer: [, , 0]:[transport_log_callback.h:27] [trans] TransReceiver release 0x7a53862860
+07-02 07:44:04.015 19928 20210 I MMCAVPlayer: [, , 0]:[demuxer.cc:32] [~Demuxer:0x7a63dd2758]dtor leave
+07-02 07:44:04.015 19928 20210 I MMCAVPlayer: [, , 0]:[jitter_buffer_node.cc:479] [~JitterBufferNode:0x7a63dd2758]dtor enter
+07-02 07:44:04.016 19928 13153 E libEGL  : call to OpenGL ES API with no current context (logged once per thread)
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[audio_jitter_buffer_impl.cc:178] [Stop:0x7a63dd2758]enter
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[video_jitter_buffer_impl.cc:254] [Stop:0x7a63dd2758]enter
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[jitter_buffer_node.cc:481] [~JitterBufferNode:0x7a63dd2758]dtor leave
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node.cc:71] [~VideoDecoderNode:0x7a63dd2758]dtor enter
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[video_decoder_node.cc:84] [~VideoDecoderNode:0x7a63dd2758]dtor leave
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[audio_decoder_node.cc:37] [~AudioDecoderNode:0x7a63dd2758]dtor enter
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[audio_decoder_node.cc:55] [~AudioDecoderNode:0x7a63dd2758]dtor leave
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[audio_player_node_v2.cpp:43] [~AudioPlayerNodeNonJitter:0x7a63dd2758]dtor enter
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[audio_player_node_v2.cpp:58] [~AudioPlayerNodeNonJitter:0x7a63dd2758]dtor leave
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:89] [~VideoRenderer:0x7a63dd2758]dtor enter
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[video_renderer.cc:108] [~VideoRenderer:0x7a63dd2758]dtor leave
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[pipeline.cc:36] [~PipelineImpl:0x7a63dd2758]dtor leave
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:154] [PlatformCleanup:0x7a63dd2758]enter
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl_android.cc:52] [0x7a63dd2758][dummy-view-opt]ContextImpl_clean_DummySurface:0x78e2
+07-02 07:44:04.016 19928 20210 E MMCAVPlayer: [, , 0]:[MMC_ViewHelper_jni.cc:77] releaseDummyView end
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl_Android.cc:181] [PlatformCleanup:0x7a63dd2758]clean JavaPlayer
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[stream_heater.cpp:249] update ptr: 0x7b43650a30 alloc:0
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[PlayerImpl.cpp:205] [~PlayerImpl:0x7a63dd2758]dtor leave
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl.cc:146] [~ContextImpl:0x7a63dd2758]dtor enter
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[monitor.cc:19] [~Monitor]dtor enter
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[monitor.cc:29] [~Monitor]dtor leave
+07-02 07:44:04.016 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl.cc:153] [~ContextImpl:0x7a63dd2758]monitor cleared
+07-02 07:44:04.017 19928 20210 I MMCAVPlayer: [, , 0]:[android_global_config.cc:140] api_async_invoke: 0
+07-02 07:44:04.018 19928 20210 I MMCAVPlayer: [, , 0]:[context_impl.cc:179] [~ContextImpl:0x7a63dd2758]dtor leave
+07-02 07:44:04.019 19928 12754 W HWUI    : Image decoding logging dropped!
+07-02 07:44:04.019 19928 20210 I MMCAVPlayer: [, , 0]:[android_mediacodec_helper.cc:35] deInitClazz
+07-02 07:44:04.023  1294  1294 I SurfaceFlinger: onHandleDestroyed: layerId=16137, name=73c2f8 PopupWindow:3f013a1#16137
+07-02 07:44:04.024  1261  1281 I mtkpower@impl: [setMode] type:6, enabled:0
+07-02 07:44:04.024  1261  1281 E mtkpower@impl: [setMode] unknown type
+07-02 07:44:04.032 19928 19928 W HWUI    : Image decoding logging dropped!
+07-02 07:44:04.033 19928 19928 W HWUI    : Image decoding logging dropped!
+07-02 07:44:04.034 19928 19928 W HWUI    : Image decoding logging dropped!
+07-02 07:44:04.040  1294  1294 I SurfaceFlinger: onHandleDestroyed: layerId=16138, name=b95704b PopupWindow:ff0ab38#16138
+07-02 07:44:04.041 19928 13005 W HWUI    : Image decoding logging dropped!
+--- stderr ---
+

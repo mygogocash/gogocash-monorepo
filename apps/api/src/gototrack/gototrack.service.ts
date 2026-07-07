@@ -162,6 +162,15 @@ function getAffiliateNetworkStatusCode(error: unknown): number | undefined {
   return response?.data?.status_code ?? response?.status;
 }
 
+function isMongoDuplicateKeyError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: number }).code === 11000
+  );
+}
+
 @Injectable()
 export class GototrackService {
   constructor(
@@ -395,37 +404,15 @@ export class GototrackService {
       }
     }
 
-    let deeplinkDoc: unknown;
-    try {
-      deeplinkDoc = await this.involveService.createAffiliate(
-        {
-          offer_id: request.offerId,
-          merchant_id: request.networkMerchantId,
-          deeplink: '',
-        },
-        validatedUserId,
-      );
-    } catch (error) {
-      const upstreamStatusCode = getAffiliateNetworkStatusCode(error);
-      if ([400, 404, 422].includes(upstreamStatusCode ?? 0)) {
-        throw new HttpException(
-          {
-            message:
-              'GoGoTrack deeplink is unavailable for this merchant activation.',
-            code: GOGOSENSE_DEEPLINK_UNAVAILABLE,
-            upstreamStatusCode,
-          },
-          422,
-        );
-      }
-
-      throw error;
+    if (request.detectionEventId) {
+      return this.activateWithReservedDetectionEvent(validatedUserId, request);
     }
-    const deeplink =
-      (deeplinkDoc as { deeplink?: string; tracking_link?: string })
-        ?.deeplink ||
-      (deeplinkDoc as { tracking_link?: string })?.tracking_link ||
-      '';
+
+    const deeplinkDoc = await this.createAffiliateDeeplink(
+      validatedUserId,
+      request,
+    );
+    const deeplink = this.resolveAffiliateDeeplink(deeplinkDoc);
 
     const activation = await this.activationEventModel.create({
       user_id: validatedUserId,
@@ -452,6 +439,110 @@ export class GototrackService {
       activationEventId: getDocumentId(activation) || '',
       deeplink,
     };
+  }
+
+  private async activateWithReservedDetectionEvent(
+    validatedUserId: string,
+    request: ActivationRequestDto,
+  ): Promise<ActivationResponse> {
+    let activation: GototrackActivationEventDocument;
+    try {
+      activation = await this.activationEventModel.create({
+        user_id: validatedUserId,
+        detection_event_id: request.detectionEventId,
+        merchant_id: request.merchantId,
+        offer_id: request.offerId,
+        network_merchant_id: request.networkMerchantId,
+        source: request.source,
+        deeplink: '',
+      });
+    } catch (error) {
+      if (isMongoDuplicateKeyError(error)) {
+        throw new BadRequestException(
+          'GoGoTrack detection event has already been activated',
+        );
+      }
+
+      throw error;
+    }
+
+    try {
+      const deeplinkDoc = await this.createAffiliateDeeplink(
+        validatedUserId,
+        request,
+      );
+      const deeplink = this.resolveAffiliateDeeplink(deeplinkDoc);
+      const updatedActivation =
+        await this.activationEventModel.findByIdAndUpdate(
+          activation._id,
+          { deeplink },
+          { new: true },
+        );
+      if (!updatedActivation) {
+        throw new BadRequestException(
+          'GoGoTrack activation could not be saved',
+        );
+      }
+
+      await this.analytics.capture(
+        'gototrack_activation_completed',
+        { platform: 'api', userId: validatedUserId },
+        {
+          merchant_id: request.merchantId,
+          offer_id: request.offerId,
+          network_merchant_id: request.networkMerchantId,
+          source: request.source,
+        },
+      );
+
+      return {
+        activationEventId: getDocumentId(updatedActivation) || '',
+        deeplink,
+      };
+    } catch (error) {
+      await this.activationEventModel.deleteOne({ _id: activation._id });
+      throw error;
+    }
+  }
+
+  private async createAffiliateDeeplink(
+    validatedUserId: string,
+    request: ActivationRequestDto,
+  ): Promise<unknown> {
+    try {
+      return await this.involveService.createAffiliate(
+        {
+          offer_id: request.offerId,
+          merchant_id: request.networkMerchantId,
+          deeplink: '',
+        },
+        validatedUserId,
+      );
+    } catch (error) {
+      const upstreamStatusCode = getAffiliateNetworkStatusCode(error);
+      if ([400, 404, 422].includes(upstreamStatusCode ?? 0)) {
+        throw new HttpException(
+          {
+            message:
+              'GoGoTrack deeplink is unavailable for this merchant activation.',
+            code: GOGOSENSE_DEEPLINK_UNAVAILABLE,
+            upstreamStatusCode,
+          },
+          422,
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  private resolveAffiliateDeeplink(deeplinkDoc: unknown): string {
+    return (
+      (deeplinkDoc as { deeplink?: string; tracking_link?: string })
+        ?.deeplink ||
+      (deeplinkDoc as { tracking_link?: string })?.tracking_link ||
+      ''
+    );
   }
 
   private async assertDetectionEventMatchesActivation(
@@ -568,6 +659,14 @@ export class GototrackService {
     }
     if (settings.backgroundPromptsEnabled !== undefined) {
       update.background_prompts_enabled = settings.backgroundPromptsEnabled;
+    }
+
+    if (
+      (settings.backgroundPromptsEnabled === true ||
+        settings.usageStatsEnabled === true) &&
+      settings.enabled !== false
+    ) {
+      update.enabled = true;
     }
 
     return this.userSettingsModel

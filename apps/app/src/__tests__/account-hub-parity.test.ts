@@ -3,6 +3,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import {
+  getScaledCompactBrandCardMetrics,
+  getShopDirectoryGridMetrics,
+  mobileShellLayout,
+} from "@mobile/design/webDesignParity";
+import { chunkDirectoryGridRows } from "@mobile/screens/discovery/directoryVirtualizedGrid";
+
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
 
@@ -20,6 +27,11 @@ describe("Account hub route parity", () => {
     expect(bottomNavFile).toContain("activeRouteId");
     expect(bottomNavFile).toContain("mobileShellLayout.bottomNavMaxWidth");
     expect(bottomNavFile).toContain("shadows.bottomNavCss");
+
+    // GoGoLink from mobile bottom nav opens the sheet overlay — never `/golink` route navigation.
+    expect(bottomNavFile).toContain('href === "/golink"');
+    expect(bottomNavFile).toContain("onGoLinkPress");
+    expect(bottomNavFile).toContain('presentation="homeSheet"');
 
     // Emphasized (Wallet) center button mirrors web FooterMobile: 64x64 (h-[64px] w-[64px])
     // lifted -32px (-mt-8), and the active profile avatar is h-7 w-7 (28px) — not 72/-22/34.
@@ -103,13 +115,37 @@ describe("Account hub route parity", () => {
     expect(questFile).toContain("Explore other Shops");
     expect(questFile).toContain("getResponsiveHomeLayoutMetrics");
     expect(questFile).toContain("compactBrandCardsPerPage");
+    expect(questFile).toContain("getShopDirectoryGridMetrics");
+    expect(questFile).toContain("getScaledCompactBrandCardMetrics");
+    expect(questFile).toContain("chunkDirectoryGridRows");
     expect(questFile).toContain("CompactExploreShopCard");
+    expect(questFile).toContain("brandVisualBackground");
     expect(questFile).toContain("getTopBrandHref(card.brand)");
     expect(questFile).toContain('resourceId: "brandCatalog"');
     expect(questFile).toContain("resolveLiveBrandCards");
     expect(questFile).not.toContain("exploreOtherShops.cards.slice(0, 4)");
     expect(questFile).toContain("Let’s Got the Tasks Done!");
     expect(questFile).not.toContain("Earn extra rewards.");
+  });
+
+  it("quest explore shops > given 414px viewport > then grid uses 2 directory columns like Categories", () => {
+    const questContentWidth = 414 - mobileShellLayout.contentHorizontalPadding * 2;
+    const gridMetrics = getShopDirectoryGridMetrics({
+      contentWidth: questContentWidth,
+      viewportWidth: 414,
+    });
+    const scaledCard = getScaledCompactBrandCardMetrics(gridMetrics.cardWidth);
+    const sampleCards = ["A", "B", "C", "D", "E", "F"];
+    const rows = chunkDirectoryGridRows(sampleCards, gridMetrics.columns);
+
+    expect(gridMetrics).toEqual({
+      cardWidth: 185,
+      columns: 2,
+      gap: 12,
+    });
+    expect(scaledCard.logoVisualHeight).toBeGreaterThan(100);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveLength(2);
   });
 
   it("quest leaderboard > given the Leaderboard tab is selected > then it matches the staging rank panel", () => {
@@ -200,7 +236,7 @@ describe("Account hub route parity", () => {
     expect(profileFile).toContain("webProfileWalletSummary");
     expect(profileFile).toContain("useMobileSessionSnapshot");
     expect(profileFile).toContain("getSessionWalletSummary");
-    expect(profileFile).toContain("session?.wallet");
+    expect(profileFile).toContain("useProfileWalletAmount");
     expect(profileFile).toContain("ProfilePanelHeader");
     expect(profileFile).toContain("InviteFriendsRow");
     expect(profileFile).toContain("copyInviteLink");
@@ -219,6 +255,24 @@ describe("Account hub route parity", () => {
     expect(profileFile).not.toContain("profileHubMenuItems.slice(0, 10)");
   });
 
+  it("profile invite row > given web hover > then row hover is container-level without nested hoverLift", () => {
+    const profileFile = readMobileFile("src/screens/CustomerProfileScreen.tsx");
+    const inviteFriendsRow =
+      profileFile.match(/function InviteFriendsRow[\s\S]*?\n\}\n\nfunction copyInviteLink/)?.[0] ??
+      "";
+
+    expect(inviteFriendsRow.match(/hoverLift=\{false\}/g)?.length).toBe(2);
+    expect(inviteFriendsRow).toContain("onHoverIn");
+    expect(inviteFriendsRow).toContain("onHoverOut");
+    expect(inviteFriendsRow).toContain("inviteRowHovered");
+    expect(profileFile).toMatch(
+      /inviteCardLinkArea:[\s\S]*backgroundColor: "transparent"/,
+    );
+    expect(profileFile).toMatch(
+      /inviteRowHovered:[\s\S]*backgroundColor: pickThemed\(colors, "#C8DFFB"/,
+    );
+  });
+
   it("profile referral nav > given selected Next referral row > then Expo renders the same highlighted card and copy affordance", () => {
     const profileFile = readMobileFile("src/screens/CustomerProfileScreen.tsx");
 
@@ -229,7 +283,7 @@ describe("Account hub route parity", () => {
     expect(profileFile).toContain("Copy Link");
     expect(profileFile).toContain("useRouter");
     expect(profileFile).toContain("router.push(href as never)");
-    expect(profileFile).toContain('backgroundColor: "#DCEBFF"');
+    expect(profileFile).toContain("pickThemed(colors, \"#DCEBFF\", colors.primarySoft)");
     expect(profileFile).toContain("minHeight: 52");
     expect(profileFile).toContain("borderRadius: 18");
     expect(profileFile).toContain("minWidth: 102");
@@ -280,7 +334,10 @@ describe("Account hub route parity", () => {
     expect(shellFile).toContain("walletHeroGlassPanel");
     expect(shellFile).toContain("walletHeroGlassGradientStyle");
     expect(shellFile).toContain("webProfileWalletHeroSurface.glassBackgroundImage");
-    expect(shellFile).toContain("walletAvatarLarge");
+    expect(shellFile).toContain("COMPACT_WALLET_HERO_MAX_WIDTH");
+    expect(shellFile).toContain("DESKTOP_WALLET_AVATAR_SIZE");
+    expect(shellFile).toContain("walletHeroGlassPanelCompact");
+    expect(shellFile).toContain("walletHeroIdRowCompact");
     expect(shellFile).toContain("profileContentMobile");
     expect(shellFile).toContain("profileContentDesktop");
     expect(shellFile).toContain("webProfileWalletHeroSurface.headerColor");
@@ -294,7 +351,7 @@ describe("Account hub route parity", () => {
     expect(shellFile).not.toContain('backgroundColor: "rgba(112, 157, 255, 0.28)"');
     expect(shellFile).toContain("marginTop: -10");
     expect(shellFile).toContain("minHeight: 260");
-    expect(shellFile).toContain("height: 72");
+    expect(shellFile).toContain("DESKTOP_WALLET_AVATAR_SIZE = 72");
     expect(shellFile).toContain("fontSize: 48");
     expect(shellFile).toContain("lineHeight: 56");
     expect(shellFile).toContain("minHeight: 60");
@@ -315,11 +372,11 @@ describe("Account hub route parity", () => {
     expect(profileFile).toContain("paddingHorizontal: 16");
     expect(profileFile).toMatch(/<InviteIcon[\s\S]{0,120}size=\{24\}/);
     expect(profileFile).toMatch(
-      /inviteRow:[\s\S]*backgroundColor: "#DCEBFF"[\s\S]*maxHeight: 52,[\s\S]*minHeight: 52/
+      /inviteRow:[\s\S]*backgroundColor: pickThemed\(colors, "#DCEBFF", colors\.primarySoft\)[\s\S]*maxHeight: 52,[\s\S]*minHeight: 52/
     );
     expect(profileFile).toMatch(/copyButton:[\s\S]*height: 24,[\s\S]*minWidth: 102/);
     expect(profileFile).toContain("height: 14");
-    expect(bottomNavFile).toContain("profileAvatarImage");
+    expect(bottomNavFile).toContain("ProfileAvatarImage");
     expect(bottomNavFile).toContain("bottomNavProfileAvatar");
     expect(bottomNavFile).toContain('name === "profile" && active');
   });
@@ -356,6 +413,8 @@ describe("Account hub route parity", () => {
     // Shared panel: now owns the cashback-summary + personal-information sections and
     // their parity strings (moved here from the detail screen).
     expect(panelFile).toContain("ProfileCashbackSummaryCard");
+    expect(panelFile).toContain("profileCashbackHeaderCompact");
+    expect(panelFile).toContain("profileCashbackWithdrawButtonCompact");
     expect(panelFile).toContain("ProfilePersonalInformationPanel");
     expect(panelFile).toContain("webProfileInfoCashbackCard");
     expect(panelFile).toContain("Personal Information");
@@ -672,7 +731,7 @@ describe("Account hub route parity", () => {
     expect(privacyCenterFile).toContain("RequiredConsentCard");
     expect(privacyCenterFile).not.toContain("CheckCircle2");
     expect(privacyCenterFile).not.toContain("CheckIcon");
-    expect(privacyCenterFile).toMatch(/heroTitle:[\s\S]*fontSize: 20,[\s\S]*lineHeight: 26/);
+    expect(privacyCenterFile).toMatch(/heroTitle:[\s\S]*color: colors\.ink/);
     expect(privacyCenterFile).toContain("privacyCenterSurfaceBleed");
     expect(privacyCenterFile).toContain("privacyTintShell");
     expect(privacyCenterFile).toContain('activeRouteId="profile"');
@@ -680,8 +739,9 @@ describe("Account hub route parity", () => {
     expect(privacyCenterFile).toContain("setOptionalConsent");
     expect(privacyCenterFile).not.toContain("Update preferences");
     expect(privacyCenterFile).not.toContain("GoGoTrack history");
-    // Mint/green palette (matches the Total Cashback card), not the old blue theme.
-    expect(privacyCenterFile).toContain('"#F3FCF9"');
+    // Light-mode nested cards keep mint soft fills; shell follows themed card surface.
+    expect(privacyCenterFile).toMatch(/surface:[\s\S]*backgroundColor: colors\.card/);
+    expect(privacyCenterFile).toContain("premiumPanelCardStyle");
     expect(privacyCenterFile).not.toContain('"#DCEEFF"');
     expect(privacyCenterFile).not.toContain('"#10253F"');
     expect(privacyCenterFile).not.toContain('"#B6D3EC"');

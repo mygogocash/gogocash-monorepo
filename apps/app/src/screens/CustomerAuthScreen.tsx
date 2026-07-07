@@ -1,4 +1,4 @@
-import { Link, useRouter } from "expo-router";
+import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { sendErrorCopy, toSendErrorKind, type SendErrorKind } from "@mobile/auth/authSendErrorKind";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { Check, ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
@@ -26,15 +26,19 @@ import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader"
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { ToastContext } from "@mobile/hooks/useToast";
+import { authSendErrorMessages } from "@mobile/i18n/toastMessages";
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import { haptics } from "@mobile/lib/haptics";
 import { markIntroModalPending } from "@mobile/features/introModal/introModalSession";
 import { toPhoneE164 } from "@mobile/auth/phoneE164";
-import { buildDemoMobileSession, persistMobileSession } from "@mobile/auth/session";
+import { useFirebasePhoneRecaptcha } from "@mobile/auth/useFirebasePhoneRecaptcha";
+import { buildDemoMobileSession, persistMobileSession, type MobileSession } from "@mobile/auth/session";
+import { sanitizeCallbackPath } from "@mobile/auth/routeGuard";
 import { resolveAuthSocialProviders } from "@mobile/api/backendIntegrationScope";
 import { getMobileEnv } from "@mobile/config/env";
 import type { ConfirmationResult } from "firebase/auth";
 import {
+  getDesktopFooterHorizontalPadding,
   getDesktopShellHorizontalPadding,
   getDeviceClass,
   getTabletContentFrame,
@@ -48,24 +52,26 @@ import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, typography } from "@mobile/theme/tokens";
 
-// Premium polish for the consent checkbox checked state (web-only smoothing + brand-green glow).
+// Premium polish for the consent checkbox checked state (web-only transform smoothing).
 const webConsentCheckboxMotionStyle = {
   transitionDuration: motion.cssTransition.duration,
-  transitionProperty: "background-color, border-color, box-shadow",
+  transitionProperty: "transform, opacity",
   transitionTimingFunction: motion.cssTransition.timingFunction,
 } as unknown as ViewStyle;
 
+// Static elevation when checked — not CSS-transitioned (compositor-safe).
 const webConsentCheckboxGlowStyle = {
   boxShadow: "0 4px 12px rgba(0, 204, 153, 0.45)",
 } as unknown as ViewStyle;
 
-// Premium OTP cell motion + focus ring (web-only smoothing; native shows the states instantly).
+// Premium OTP cell motion (web-only transform smoothing; native shows states instantly).
 const webOtpBoxMotionStyle = {
   transitionDuration: motion.cssTransition.duration,
-  transitionProperty: "transform, border-color, box-shadow, background-color",
+  transitionProperty: "transform, opacity",
   transitionTimingFunction: motion.cssTransition.timingFunction,
 } as unknown as ViewStyle;
 
+// Static focus ring when active — not CSS-transitioned (compositor-safe).
 const webOtpBoxActiveGlowStyle = {
   boxShadow: "0 0 0 4px rgba(86, 212, 170, 0.18), 0 6px 16px rgba(0, 204, 153, 0.18)",
 } as unknown as ViewStyle;
@@ -100,6 +106,9 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { callbackUrl: callbackUrlParam } = useLocalSearchParams<{ callbackUrl?: string | string[] }>();
+  const postLoginPath = useMemo(() => resolvePostLoginPath(callbackUrlParam), [callbackUrlParam]);
+  const toastCtx = useContext(ToastContext);
   const { width } = useWindowDimensions();
   // A1 — when reduce-motion is on, the screen-local Animated timelines (consent
   // checkmark, country menu) snap to their end state instantly (duration 0) instead
@@ -116,10 +125,12 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<AuthCountry>(webAuthPage.countries[0]);
   const [countryMenuOpen, setCountryMenuOpen] = useState(false);
+  const [socialBusyProviderId, setSocialBusyProviderId] = useState<string | null>(null);
   const countryWrapRef = useRef<View>(null);
   // Live (backend-mode) phone auth: the Firebase ConfirmationResult is a live,
   // non-serializable object — held in a ref between OTP send and confirm.
   const liveAuth = getMobileEnv().accountDataSource === "backend";
+  const { sendPhoneOtpWithRecaptcha, recaptchaModal } = useFirebasePhoneRecaptcha();
   const confirmationRef = useRef<ConfirmationResult | null>(null);
   const consentCheckProgress = useMemo(() => new Animated.Value(0), []);
   useEffect(() => {
@@ -250,8 +261,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
       setSendError(null);
       void (async () => {
         try {
-          const { sendPhoneOtp } = await import("@mobile/auth/firebasePhoneAuth");
-          confirmationRef.current = await sendPhoneOtp(
+          confirmationRef.current = await sendPhoneOtpWithRecaptcha(
             toPhoneE164(selectedCountry.dialCode, phoneDigits)
           );
           setAuthPhase("otp");
@@ -340,7 +350,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           haptics.success();
           markIntroModalPending();
           await persistMobileSession(session);
-          router.push("/link-mycashback");
+          router.replace(postLoginPath as never);
         } catch {
           // Wrong/expired code or a failed backend exchange: no session is
           // written, no navigation happens — surface the error on the OTP step.
@@ -364,7 +374,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           await persistMobileSession(
             buildDemoMobileSession({ mobile: `${selectedCountry.dialCode}${phoneDigits}` })
           );
-          router.push("/link-mycashback");
+          router.replace(postLoginPath as never);
         } catch {
           // A failed session write must not silently land the user on a "signed-in"
           // destination — surface the error and keep them on the OTP step.
@@ -376,6 +386,62 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
       haptics.error();
     }
   };
+
+  const completeSocialSession = async (session: MobileSession) => {
+    haptics.success();
+    markIntroModalPending();
+    await persistMobileSession(session);
+    router.replace(postLoginPath as never);
+  };
+
+  const handleSocialSignIn = (provider: SocialProvider) => {
+    if (socialBusyProviderId) {
+      return;
+    }
+
+    if (!liveAuth) {
+      toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+      return;
+    }
+
+    if (Platform.OS !== "web") {
+      toastCtx?.show(tc(authSendErrorMessages.webOnly));
+      return;
+    }
+
+    setSocialBusyProviderId(provider.id);
+    void (async () => {
+      try {
+        const { isFirebaseSocialProviderId, signInWithSocialProvider } = await import(
+          "@mobile/auth/firebaseSocialAuth"
+        );
+        if (!isFirebaseSocialProviderId(provider.id)) {
+          toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+          return;
+        }
+
+        const { idToken } = await signInWithSocialProvider(provider.id);
+        const { exchangeFirebaseIdToken } = await import("@mobile/auth/firebaseLogin");
+        const session = await exchangeFirebaseIdToken({
+          apiUrl: env.apiUrl,
+          country: selectedCountry.code,
+          idToken,
+        });
+        await completeSocialSession(session);
+      } catch (error) {
+        const code = (error as { code?: string })?.code;
+        if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+          return;
+        }
+        toastCtx?.show(sendErrorCopy[toSendErrorKind(error)]);
+        haptics.error();
+      } finally {
+        setSocialBusyProviderId(null);
+      }
+    })();
+  };
+
+  const socialSignInDisabled = socialBusyProviderId !== null;
 
   return (
     <View style={styles.viewport} testID={mode === "login" ? "login-screen" : "register-screen"}>
@@ -673,10 +739,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                             // replacement confirmation is what the next submit verifies.
                             void (async () => {
                               try {
-                                const { sendPhoneOtp } = await import(
-                                  "@mobile/auth/firebasePhoneAuth"
-                                );
-                                confirmationRef.current = await sendPhoneOtp(
+                                confirmationRef.current = await sendPhoneOtpWithRecaptcha(
                                   toPhoneE164(selectedCountry.dialCode, phoneDigits)
                                 );
                                 setOtpInput("");
@@ -737,19 +800,35 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                     <View style={styles.socialRows}>
                       <View style={styles.socialRow}>
                         {primarySocialProviders.map((provider) => (
-                          <SocialProviderButton provider={provider} key={provider.id} />
+                          <SocialProviderButton
+                            disabled={socialSignInDisabled}
+                            onPress={() => handleSocialSignIn(provider)}
+                            provider={provider}
+                            key={provider.id}
+                          />
                         ))}
                       </View>
                       <View style={styles.socialRowSecondary}>
                         {secondarySocialProviders.map((provider) => (
-                          <SocialProviderButton provider={provider} key={provider.id} />
+                          <SocialProviderButton
+                            disabled={socialSignInDisabled}
+                            onPress={() => handleSocialSignIn(provider)}
+                            provider={provider}
+                            key={provider.id}
+                          />
                         ))}
                       </View>
                     </View>
                   ) : (
                     <View style={styles.socialGridMobile}>
                       {authSocialProviders.map((provider) => (
-                        <SocialProviderButton isMobile provider={provider} key={provider.id} />
+                        <SocialProviderButton
+                          disabled={socialSignInDisabled}
+                          isMobile
+                          onPress={() => handleSocialSignIn(provider)}
+                          provider={provider}
+                          key={provider.id}
+                        />
                       ))}
                     </View>
                   )}
@@ -770,7 +849,10 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
             {isDesktopShell ? (
               <View style={styles.desktopFooter}>
                 <CustomerDesktopFooter
-                  horizontalPadding={authDesktopPageHorizontalPadding}
+                  horizontalPadding={getDesktopFooterHorizontalPadding(
+                    width,
+                    authDesktopPageHorizontalPadding,
+                  )}
                   viewportWidth={width}
                 />
               </View>
@@ -778,6 +860,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           </KeyboardAwareScreen>
         </View>
       <CustomerCookieConsentBanner isDesktop={isDesktopShell} />
+      {liveAuth ? recaptchaModal : null}
     </View>
   );
 }
@@ -836,25 +919,32 @@ function PhoneOtpBoxes({
 }
 
 function SocialProviderButton({
+  disabled = false,
   isMobile = false,
+  onPress,
   provider,
 }: {
+  disabled?: boolean;
   isMobile?: boolean;
+  onPress: () => void;
   provider: SocialProvider;
 }) {
   const styles = useThemedStyles(createAuthScreenStyles);
   const [hovered, setHovered] = useState(false);
-  const toastCtx = useContext(ToastContext);
-  const tc = useCopy();
 
   const handlePress = () => {
-    toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+    if (disabled) {
+      return;
+    }
+    onPress();
   };
 
   return (
     <MotionPressable
       accessibilityLabel={provider.label}
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
       onPress={handlePress}
@@ -864,6 +954,7 @@ function SocialProviderButton({
         webSocialButtonRestStyle,
         isMobile ? styles.socialButtonMobile : null,
         hovered ? styles.socialButtonHovered : null,
+        disabled ? styles.socialButtonDisabled : null,
       ]}
     >
       <SocialProviderIcon provider={provider} />
@@ -1588,6 +1679,9 @@ function createAuthScreenStyles(colors: ThemeColors) {
   socialButtonHovered: {
     borderColor: "#56D4AA",
   },
+  socialButtonDisabled: {
+    opacity: 0.55,
+  },
   socialButtonMobile: {
     height: 72,
     width: "48%",
@@ -1614,5 +1708,12 @@ function createAuthScreenStyles(colors: ThemeColors) {
     fontWeight: typography.bodyWeight,
   },
 });
+}
+
+function resolvePostLoginPath(callbackUrlParam: string | string[] | undefined): string {
+  const raw = Array.isArray(callbackUrlParam) ? callbackUrlParam[0] : callbackUrlParam;
+  const sanitized = sanitizeCallbackPath(raw);
+
+  return sanitized === "/" ? "/link-mycashback" : sanitized;
 }
 

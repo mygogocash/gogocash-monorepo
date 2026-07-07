@@ -6,6 +6,12 @@ type OfferLike = Pick<
   "_id" | "offer_name" | "offer_name_display" | "countries"
 >;
 
+export type AdminOfferLogoFields = {
+  logo_desktop?: string | null;
+  logo_mobile?: string | null;
+  logo?: string | null;
+};
+
 export type { OfferLike };
 
 /** Comma-separated country codes → display string, or em dash when empty. */
@@ -23,6 +29,18 @@ export function formatOfferCountries(
 export function getOfferDisplayName(offer: OfferLike | null | undefined): string {
   if (!offer) return "—";
   return offer.offer_name_display || offer.offer_name || "—";
+}
+
+/** Square brand logo for admin lists and reference previews — not `logo_circle` (shop cover). */
+export function resolveAdminOfferLogoPath(
+  offer: AdminOfferLogoFields | null | undefined,
+): string {
+  if (!offer) return "";
+  return (
+    String(offer.logo_desktop ?? "").trim() ||
+    String(offer.logo_mobile ?? "").trim() ||
+    String(offer.logo ?? "").trim()
+  );
 }
 
 /** Unique, searchable label for brand Autocomplete options. */

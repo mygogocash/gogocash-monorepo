@@ -93,6 +93,9 @@ async function bootstrap() {
     // Expo web dev server (apps/mobile)
     'http://localhost:8081',
     'http://localhost:19006',
+    // Production
+    'https://app.gogocash.co',
+    'https://admin.gogocash.co',
   ];
   // Extra origins supplied at deploy time via CORS_EXTRA_ORIGINS (comma-separated,
   // exact-match only — no wildcards): the Railway preview hosts during migration

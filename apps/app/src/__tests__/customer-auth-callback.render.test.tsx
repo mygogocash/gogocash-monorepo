@@ -42,9 +42,7 @@ vi.mock("expo-router", async () => {
 // reaches setState("success") without depending on expo-secure-store under
 // happy-dom. The screen imports these from @mobile/auth/session.
 vi.mock("@mobile/auth/session", () => ({
-  createExpoSecureSessionStore: () =>
-    Promise.resolve({ setSession: () => Promise.resolve() }),
-  createWebSessionStore: () => ({ setSession: () => Promise.resolve() }),
+  persistMobileSession: vi.fn(() => Promise.resolve()),
 }));
 
 import { CustomerAuthCallbackScreen } from "@mobile/screens/CustomerAuthCallbackScreen";

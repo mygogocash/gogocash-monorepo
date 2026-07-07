@@ -8,7 +8,7 @@ import {
   Lock as LockIcon,
   WifiOff as OfflineIcon,
 } from "@mobile/theme/icons";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -88,6 +88,7 @@ const routeStateCopy = {
 export function CustomerRouteState({
   action,
   body,
+  embedded = false,
   loadingSkeleton,
   secondaryAction,
   testID,
@@ -96,6 +97,7 @@ export function CustomerRouteState({
 }: {
   action?: CustomerRouteStateAction;
   body?: string;
+  embedded?: boolean;
   loadingSkeleton?: ReactNode;
   secondaryAction?: CustomerRouteStateAction;
   testID?: string;
@@ -104,6 +106,8 @@ export function CustomerRouteState({
 }) {
   const styles = useThemedStyles(createRouteStateStyles);
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const formatMessage = useSafeFormatMessage();
   const copy = routeStateCopy[variant];
   const isAlertVariant = variant === "error" || variant === "offline";
@@ -111,38 +115,62 @@ export function CustomerRouteState({
   // Wave B (B3): when a loading skeleton is supplied, render it in place of the spinner card so data
   // screens show a content-shaped placeholder. Opt-in — without it the spinner card is unchanged.
   if (variant === "loading" && loadingSkeleton) {
+    if (embedded) {
+      return (
+        <View style={styles.embeddedRoot} testID={testID}>
+          {loadingSkeleton}
+        </View>
+      );
+    }
+
     return (
       <View style={styles.viewport} testID={testID}>
-        <View style={styles.phoneFrame}>{loadingSkeleton}</View>
-        <CustomerDesktopFooterSlot style={styles.desktopFooter} />
+        <View style={[styles.phoneFrame, isDesktop ? styles.phoneFrameDesktop : null]}>
+          {loadingSkeleton}
+        </View>
+        <CustomerDesktopFooterSlot
+          style={[styles.desktopFooter, isDesktop ? styles.desktopFooterPinned : null]}
+        />
+      </View>
+    );
+  }
+
+  const stateCard = (
+    <View accessibilityRole={isAlertVariant ? "alert" : undefined} style={styles.card}>
+      <View style={[styles.iconShell, styles[`${variant}IconShell`]]}>
+        {variant === "loading" ? (
+          <ActivityIndicator color={colors.primaryDark} size="large" />
+        ) : (
+          renderStateIcon(variant, colors)
+        )}
+      </View>
+      <Text style={styles.title}>{title ?? formatMessage(copy.title)}</Text>
+      <Text style={styles.body}>{body ?? formatMessage(copy.body)}</Text>
+      {action || secondaryAction ? (
+        <View style={styles.actionStack}>
+          {action ? <RouteStateAction action={action} emphasis="primary" /> : null}
+          {secondaryAction ? (
+            <RouteStateAction action={secondaryAction} emphasis="secondary" />
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+
+  if (embedded) {
+    return (
+      <View style={styles.embeddedRoot} testID={testID}>
+        {stateCard}
       </View>
     );
   }
 
   return (
     <View style={styles.viewport} testID={testID}>
-      <View style={styles.phoneFrame}>
-        <View accessibilityRole={isAlertVariant ? "alert" : undefined} style={styles.card}>
-          <View style={[styles.iconShell, styles[`${variant}IconShell`]]}>
-            {variant === "loading" ? (
-              <ActivityIndicator color={colors.primaryDark} size="large" />
-            ) : (
-              renderStateIcon(variant, colors)
-            )}
-          </View>
-          <Text style={styles.title}>{title ?? formatMessage(copy.title)}</Text>
-          <Text style={styles.body}>{body ?? formatMessage(copy.body)}</Text>
-          {action || secondaryAction ? (
-            <View style={styles.actionStack}>
-              {action ? <RouteStateAction action={action} emphasis="primary" /> : null}
-              {secondaryAction ? (
-                <RouteStateAction action={secondaryAction} emphasis="secondary" />
-              ) : null}
-            </View>
-          ) : null}
-        </View>
-      </View>
-      <CustomerDesktopFooterSlot style={styles.desktopFooter} />
+      <View style={[styles.phoneFrame, isDesktop ? styles.phoneFrameDesktop : null]}>{stateCard}</View>
+      <CustomerDesktopFooterSlot
+        style={[styles.desktopFooter, isDesktop ? styles.desktopFooterPinned : null]}
+      />
     </View>
   );
 }
@@ -228,7 +256,20 @@ function createRouteStateStyles(colors: ThemeColors) {
     padding: spacing.lg,
     width: "100%",
   },
+  phoneFrameDesktop: {
+    flexGrow: 1,
+    justifyContent: "flex-start",
+    paddingTop: spacing.xl,
+  },
   desktopFooter: {
+    width: "100%",
+  },
+  desktopFooterPinned: {
+    flexShrink: 0,
+    marginTop: "auto",
+  },
+  embeddedRoot: {
+    alignSelf: "stretch",
     width: "100%",
   },
   card: {

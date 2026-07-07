@@ -1,0 +1,9 @@
+api=https://api-staging.gogocash.co
+adb=/Users/kunanonjarat/Library/Android/sdk/platform-tools/adb
+device=SM02G4061912033
+foreground=com.shopee.th
+activationDeeplinkForeground=com.android.chrome
+activationDeeplink=https://invl.me/clnlpe6
+pass=23
+warn=0
+fail=0

@@ -124,9 +124,9 @@ describe("CustomerProfileScreen — Wave B foundations adopted (source signals)"
     expect(profileSource).toContain("hitSlop=");
   });
 
-  it("renders the profile shell from session balance while the backend resource is loading", () => {
-    expect(profileSource).toContain("profileShellWhileLoading");
-    expect(profileSource).toContain('profileResource.status === "loading"');
+  it("renders the profile hub from session fields when the backend resource is not ready", () => {
+    expect(profileSource).toContain("isProfileResourceBlocking");
+    expect(profileSource).toContain("hasSession");
     expect(profileSource).toContain("session?.access_token");
   });
 });

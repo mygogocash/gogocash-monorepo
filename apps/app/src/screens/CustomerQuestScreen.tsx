@@ -1,5 +1,7 @@
+import { Image as ExpoImage } from "expo-image";
 import { Link } from "expo-router";
 import {
+  ChevronUp as ChevronUpIcon,
   CircleDollarSign as CoinIcon,
   DeviceMobile as DeviceMobileIcon,
   MousePointerClick as MousePointerClickIcon,
@@ -8,7 +10,6 @@ import {
   Storefront as StorefrontIcon,
   Trophy as TrophyIcon,
 } from "@mobile/theme/icons";
-import { ChevronUp as ChevronUpIcon } from "@mobile/theme/icons";
 import type { IconComponent } from "@mobile/theme/icons";
 import { useState } from "react";
 import { Image, Modal, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -29,11 +30,14 @@ import { resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { QuestCoinIcon } from "@mobile/components/QuestCoinIcon";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { haptics } from "@mobile/lib/haptics";
 import type { QuestTaskRow } from "@mobile/quest/questTaskResource";
 import { useQuestTaskRows } from "@mobile/quest/questTaskResource";
 import {
   getResponsiveHomeLayoutMetrics,
+  getScaledCompactBrandCardMetrics,
+  getShopDirectoryGridMetrics,
   getTopBrandHref,
   mobileShellLayout,
   webAccountPageSurface,
@@ -43,6 +47,7 @@ import {
   webQuestMyRank,
   webQuestTabs,
 } from "@mobile/design/webDesignParity";
+import { chunkDirectoryGridRows } from "@mobile/screens/discovery/directoryVirtualizedGrid";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -62,9 +67,26 @@ type QuestExploreShopCard = {
 };
 
 export function CustomerQuestScreen({ history = false }: { history?: boolean }) {
+  if (history) {
+    return <CustomerQuestHistoryScreen />;
+  }
+  return <CustomerQuestMainScreen />;
+}
+
+function CustomerQuestHistoryScreen() {
+  const tc = useCopy();
+
+  return (
+    <AccountPageShell activeRouteId="quest" tabletContentMode="fluid" title={tc("Quest History")}>
+      <QuestHistoryView />
+    </AccountPageShell>
+  );
+}
+
+function CustomerQuestMainScreen() {
   const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
-  const [activeTab, setActiveTab] = useState<QuestTabId>(history ? "leaderboard" : "how-to-win");
+  const [activeTab, setActiveTab] = useState<QuestTabId>("how-to-win");
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const shellWidth = Math.min(
@@ -79,14 +101,6 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
   const heroHeight = contentWidth / (1200 / 675);
   const mediaColumnWidth = isDesktop ? (contentWidth - spacing.lg) / 2 : contentWidth;
   const exploreLayout = getQuestExploreLayout(width, contentWidth);
-
-  if (history) {
-    return (
-      <AccountPageShell activeRouteId="quest" tabletContentMode="fluid" title={tc("Quest History")}>
-        <QuestHistoryView />
-      </AccountPageShell>
-    );
-  }
 
   return (
     <AccountPageShell activeRouteId="quest" tabletContentMode="fluid" title={tc("Quest")}>
@@ -391,6 +405,8 @@ function RankTrophy({ index }: { index: number }) {
 function ExploreOtherShops({ layout }: { layout: HomeLayoutMetrics }) {
   const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
+  const { region } = useLocale();
+  const { width: viewportWidth } = useWindowDimensions();
   const fallbackCards = exploreOtherShops?.cards ?? [];
   const brandCatalogResource = useCustomerAccountResource({
     fixtureData: fallbackCards,
@@ -399,14 +415,21 @@ function ExploreOtherShops({ layout }: { layout: HomeLayoutMetrics }) {
   const cards = resolveLiveBrandCards(
     brandCatalogResource.source,
     brandCatalogResource.data,
-    fallbackCards
+    fallbackCards,
+    region,
   );
 
   if (!exploreOtherShops) {
     return null;
   }
 
+  const gridMetrics = getShopDirectoryGridMetrics({
+    contentWidth: layout.contentWidth,
+    viewportWidth,
+  });
+  const scaledCard = getScaledCompactBrandCardMetrics(gridMetrics.cardWidth);
   const visibleCards = cards.slice(0, layout.compactBrandCardsPerPage);
+  const shopRows = chunkDirectoryGridRows(visibleCards, gridMetrics.columns);
 
   return (
     <View style={styles.exploreSection}>
@@ -418,15 +441,19 @@ function ExploreOtherShops({ layout }: { layout: HomeLayoutMetrics }) {
           </MotionPressable>
         </Link>
       </View>
-      <View style={[styles.shopGrid, { gap: layout.compactBrandGap }]}>
-        {visibleCards.map((card) => (
-          <CompactExploreShopCard
-            card={card}
-            cardHeight={layout.compactBrandCardHeight}
-            cardWidth={layout.compactBrandCardWidth}
-            key={card.brand}
-            logoVisualHeight={layout.compactBrandLogoVisualHeight}
-          />
+      <View style={[styles.shopGrid, { gap: gridMetrics.gap }]}>
+        {shopRows.map((row, rowIndex) => (
+          <View key={`quest-shop-row-${rowIndex}`} style={[styles.shopGridRow, { gap: gridMetrics.gap }]}>
+            {row.map((card) => (
+              <CompactExploreShopCard
+                card={card}
+                cardHeight={scaledCard.cardHeight}
+                cardWidth={gridMetrics.cardWidth}
+                key={card.brand}
+                logoVisualHeight={scaledCard.logoVisualHeight}
+              />
+            ))}
+          </View>
         ))}
       </View>
     </View>
@@ -445,7 +472,9 @@ function CompactExploreShopCard({
   logoVisualHeight: number;
 }) {
   const styles = useThemedStyles(createQuestScreenStyles);
+  const { colors } = useTheme();
   const tc = useCopy();
+  const [logoFailed, setLogoFailed] = useState(false);
   const logoSource = "logoUri" in card && card.logoUri ? { uri: card.logoUri } : null;
   const logoFallback =
     "logoFallbackText" in card &&
@@ -453,6 +482,7 @@ function CompactExploreShopCard({
     card.logoFallbackText
       ? card.logoFallbackText
       : card.brand.slice(0, 2).toUpperCase();
+  const brandVisualBackground = logoSource && !logoFailed ? colors.card : card.tint;
 
   return (
     <Link asChild href={(card.href ?? getTopBrandHref(card.brand)) as never}>
@@ -467,15 +497,20 @@ function CompactExploreShopCard({
         ])}
       >
         <View
-          style={[styles.shopLogo, { backgroundColor: card.tint, height: logoVisualHeight }]}
+          style={[
+            styles.shopLogo,
+            { backgroundColor: brandVisualBackground, height: logoVisualHeight },
+          ]}
         >
-          {logoSource ? (
-            <Image
+          {logoSource && !logoFailed ? (
+            <ExpoImage
               accessibilityLabel={`${card.brand} ${tc("logo")}`}
-              alt={`${card.brand} ${tc("logo")}`}
-              resizeMode="contain"
+              cachePolicy="memory-disk"
+              contentFit="contain"
+              onError={() => setLogoFailed(true)}
+              recyclingKey={logoSource.uri}
               source={logoSource}
-              style={styles.shopLogoImage}
+              style={styles.shopLogoImageFill}
             />
           ) : (
             <Text numberOfLines={2} style={styles.shopLogoFallback}>
@@ -1085,7 +1120,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
     paddingVertical: 4,
   },
   historyDaysLeftText: {
-    color: "#007D5E",
+    color: colors.primaryDark,
     fontFamily: typography.family,
     fontSize: 12,
     fontWeight: "600",
@@ -1542,7 +1577,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
     width: 44,
   },
   rankViewButton: {
-    borderColor: "rgba(0, 170, 128, 0.4)",
+    borderColor: pickThemed(colors, "rgba(0, 170, 128, 0.4)", colors.borderStrong),
     borderRadius: radii.md,
     borderWidth: 1,
     minHeight: 36,
@@ -1550,7 +1585,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
     paddingVertical: 6,
   },
   rankViewText: {
-    color: "#00AA80",
+    color: colors.primaryDark,
     fontFamily: typography.family,
     fontSize: 13,
     fontWeight: "600",
@@ -1667,9 +1702,10 @@ function createQuestScreenStyles(colors: ThemeColors) {
     fontSize: typography.body,
   },
   shopGrid: {
+    flexDirection: "column",
+  },
+  shopGridRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.md,
   },
   shopCard: {
     backgroundColor: colors.card,
@@ -1688,9 +1724,8 @@ function createQuestScreenStyles(colors: ThemeColors) {
     overflow: "hidden",
     width: "100%",
   },
-  shopLogoImage: {
-    height: "62%",
-    width: "72%",
+  shopLogoImageFill: {
+    ...StyleSheet.absoluteFill,
   },
   shopLogoFallback: {
     color: colors.accent,
@@ -1723,6 +1758,7 @@ function createQuestScreenStyles(colors: ThemeColors) {
   },
   shopCashback: {
     color: colors.primaryDark,
+    flexShrink: 0,
     fontFamily: typography.family,
     fontSize: 16,
     fontWeight: "700",

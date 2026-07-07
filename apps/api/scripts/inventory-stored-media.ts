@@ -5,37 +5,17 @@ import {
   classifyStoredMediaValue,
   StoredMediaKind,
 } from '../src/media/stored-media.util';
+import { STORED_MEDIA_TARGET_SPECS } from './stored-media-targets';
 
-type FieldSpec = {
-  collection: string;
-  fields: string[];
-  arrayFields?: string[];
-};
-
-const SPECS: FieldSpec[] = [
-  {
-    collection: 'banners',
-    fields: ['image_1', 'image_2', 'image_3', 'image_4', 'image_5'],
-  },
-  {
-    collection: 'offers',
-    fields: [
-      'logo',
-      'logo_desktop',
-      'logo_mobile',
-      'logo_circle',
-      'banner',
-      'banner_mobile',
-    ],
-  },
-  { collection: 'categories', fields: ['image'] },
-  {
-    collection: 'quests',
-    fields: ['banner_en', 'banner_th', 'sub_banner_en', 'sub_banner_th'],
-  },
-  { collection: 'withdraws', fields: ['slip_file'] },
-  { collection: 'missionorders', fields: [], arrayFields: ['attachments'] },
-];
+function emptyCounts(): Record<StoredMediaKind, number> {
+  return {
+    empty: 0,
+    gcs: 0,
+    local: 0,
+    drive_id: 0,
+    other: 0,
+  };
+}
 
 function bump(counts: Record<StoredMediaKind, number>, kind: StoredMediaKind) {
   counts[kind] += 1;
@@ -53,22 +33,12 @@ async function main() {
     throw new Error('Mongo connection failed');
   }
 
-  const totals: Record<StoredMediaKind, number> = {
-    empty: 0,
-    gcs: 0,
-    drive_id: 0,
-    other: 0,
-  };
+  const totals = emptyCounts();
 
-  for (const spec of SPECS) {
+  for (const spec of STORED_MEDIA_TARGET_SPECS) {
     const collection = db.collection(spec.collection);
     const docs = await collection.find({}).toArray();
-    const counts: Record<StoredMediaKind, number> = {
-      empty: 0,
-      gcs: 0,
-      drive_id: 0,
-      other: 0,
-    };
+    const counts = emptyCounts();
 
     for (const doc of docs) {
       for (const field of spec.fields) {

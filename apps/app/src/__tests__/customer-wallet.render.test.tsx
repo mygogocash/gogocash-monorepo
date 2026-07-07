@@ -139,6 +139,21 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     expect(walletSource).toContain("hitSlop=");
   });
 
+  it("disables default hoverLift on the back chevron and uses a subtle rounded hover tint", () => {
+    // Default MotionPressable hoverLift draws an awkward rectangular light-blue
+    // background on the 34x40px icon-only back control — disable it and apply a
+    // rounded accent tint via backButtonHovered instead.
+    const walletHeaderBlock = walletSource.slice(
+      walletSource.indexOf("function WalletHeader"),
+      walletSource.indexOf("function WalletSupportBanner"),
+    );
+    expect(walletHeaderBlock).toContain("hoverLift={false}");
+    expect(walletHeaderBlock).toContain("backButtonHovered");
+    expect(walletHeaderBlock).toContain("onHoverIn");
+    expect(walletHeaderBlock).toContain("onHoverOut");
+    expect(walletSource).toContain("backButtonHovered:");
+  });
+
   it("renders an in-shell wallet skeleton while the backend resource is loading", () => {
     expect(walletSource).toContain("walletShellWhileLoading");
     expect(walletSource).toContain('walletResource.status === "loading"');
@@ -146,15 +161,36 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     expect(walletSource).toContain("<WalletSkeleton />");
   });
 
-  it("passes WalletSkeleton to the shared resource state's opt-in loadingSkeleton for non-loading errors", () => {
-    // The status !== "ready" guard still delegates to CustomerAccountResourceState (owned
-    // centrally), but that shared component now accepts an opt-in loadingSkeleton prop (B3
+  it("passes WalletSkeleton to the shared resource state's opt-in loadingSkeleton for blocking states", () => {
+    // Loading/error/offline/disabled still delegate to CustomerAccountResourceState (owned
+    // centrally), but that shared component accepts an opt-in loadingSkeleton prop (B3
     // enhancement). The wallet hands it <WalletSkeleton /> so the loading state renders a
-    // content-shaped placeholder instead of the generic spinner — finding #2, now real.
+    // content-shaped placeholder instead of the generic spinner.
     expect(walletSource).toContain("CustomerAccountResourceState");
-    expect(walletSource).toContain('walletResource.status !== "ready"');
+    expect(walletSource).toContain("isWalletResourceBlocking");
     expect(walletSource).toContain("WalletSkeleton");
     expect(walletSource).toContain("loadingSkeleton={<WalletSkeleton");
+  });
+
+  it("does not replace the whole page when the wallet conversion list is empty", () => {
+    expect(walletSource).toContain("isWalletResourceBlocking");
+    expect(walletSource).not.toContain('emptyTitle={tc("No wallet activity yet")');
+    expect(walletSource).not.toContain(
+      'emptyBody={tc("Your cashback wallet does not have any backend activity yet.")}',
+    );
+  });
+
+  it("right-aligns cashback metric amounts at the card bottom across the three-up row", () => {
+    const metricCardBlock = walletSource.slice(
+      walletSource.indexOf("function WalletMetricCard"),
+      walletSource.indexOf("function FilterPill"),
+    );
+    expect(metricCardBlock).toContain("metricAmountRow");
+    expect(metricCardBlock).not.toContain("metricAmountWrap");
+    expect(walletSource).toContain("walletMetricRow");
+    expect(walletSource).toMatch(/metricAmountRow:[\s\S]*justifyContent: "flex-end"/);
+    expect(walletSource).toMatch(/metricAmountRow:[\s\S]*marginTop: "auto"/);
+    expect(walletSource).toMatch(/metricAmountRow:[\s\S]*width: "100%"/);
   });
 
   it("has state-driven transaction tabs + mock rows (all cases) + working Search/Status/Date filters", () => {

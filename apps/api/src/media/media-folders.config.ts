@@ -5,6 +5,7 @@ export const MEDIA_FOLDER = {
   QUESTS: 'quests',
   MISSING_ORDERS: 'missing-orders',
   WITHDRAW_SLIPS: 'withdraw-slips',
+  PROFILE_AVATARS: 'profile-avatars',
 } as const;
 
 export type MediaFolder = (typeof MEDIA_FOLDER)[keyof typeof MEDIA_FOLDER];
@@ -16,6 +17,7 @@ const DEFAULT_FOLDER_BY_ENV: Record<string, MediaFolder> = {
   GCS_MEDIA_PREFIX_QUESTS: MEDIA_FOLDER.QUESTS,
   GCS_MEDIA_PREFIX_MISSING_ORDERS: MEDIA_FOLDER.MISSING_ORDERS,
   GCS_MEDIA_PREFIX_WITHDRAW_SLIPS: MEDIA_FOLDER.WITHDRAW_SLIPS,
+  GCS_MEDIA_PREFIX_PROFILE_AVATARS: MEDIA_FOLDER.PROFILE_AVATARS,
 };
 
 /** Folders whose objects are not world-readable; admin streams via /admin/stored-media/stream. */
@@ -46,7 +48,8 @@ const DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 export function resolveMaxUploadBytes(
   env: NodeJS.ProcessEnv = process.env,
 ): number {
-  const raw = env.GCS_MAX_UPLOAD_BYTES?.trim();
+  const raw =
+    env.MEDIA_MAX_UPLOAD_BYTES?.trim() || env.GCS_MAX_UPLOAD_BYTES?.trim();
   if (!raw) {
     return DEFAULT_MAX_UPLOAD_BYTES;
   }

@@ -435,6 +435,61 @@ describe('WithdrawService', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Auto MyCashback withdrawal tagging — server-owned mycashback_id so repeat
+  // conversion-only withdraws cannot mint untracked MCB payouts (#8).
+  // ---------------------------------------------------------------------------
+  describe('auto MyCashback withdrawal tagging (#8)', () => {
+    const MCB_DOC_ID = new Types.ObjectId().toString();
+
+    const setupCreateWithMcb = () => {
+      mocks.userModel.findOne.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
+      mocks.userModel.findOneAndUpdate.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+      });
+      jest
+        .spyOn(mocks.service, 'checkWithdraw')
+        .mockResolvedValue({ netAmount: 1000, netAmountTHB: 1000 } as never);
+      jest
+        .spyOn(mocks.service, 'createRecordOnChain')
+        .mockResolvedValue('0xrecord' as never);
+      jest.spyOn(mocks.service, 'checkWithdrawMyCashback').mockResolvedValue({
+        availableTHB: 0,
+        availableUSD: 30,
+        conversionIdMyCashback: [MCB_DOC_ID],
+      } as never);
+      mocks.withdrawModel.create
+        .mockResolvedValueOnce([{ _id: 'w-main' }])
+        .mockResolvedValueOnce({ _id: 'w-mcb' });
+      mocks.withdrawModel.findByIdAndUpdate.mockResolvedValue({
+        _id: 'w-main',
+        status: 'pending',
+      });
+    };
+
+    it('create > given client omits mycashback_id and amount_total > then auto MCB record uses server ids', async () => {
+      setupCreateWithMcb();
+
+      await mocks.service.create(
+        {
+          amount_net: 10,
+          currency: 'USDT',
+          chain: 137,
+          conversion_ids: [1],
+        } as never,
+        VALID_USER_ID,
+      );
+
+      expect(mocks.withdrawModel.create).toHaveBeenCalledTimes(2);
+      const autoRecord = mocks.withdrawModel.create.mock.calls[1][0];
+      expect(autoRecord.amount_net).toBe(30);
+      expect(autoRecord.mycashback_id.map(String)).toEqual([MCB_DOC_ID]);
+      expect(autoRecord.mycashback_id).not.toBeUndefined();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // create reserve-then-settle (#41) — balance reserved in serialized txn
   // before any on-chain call; on-chain failure marks the record rejected so
   // the reserved balance is released (checkWithdraw excludes rejected).
@@ -884,6 +939,15 @@ describe('WithdrawService', () => {
   });
 
   describe('checkWithdraw user lookup', () => {
+    it('checkWithdraw > given an invalid user id > then throws UnauthorizedException', async () => {
+      await expect(
+        mocks.service.checkWithdraw(undefined as never),
+      ).rejects.toMatchObject({
+        response: { message: 'User not found' },
+      });
+      expect(mocks.userModel.findOne).not.toHaveBeenCalled();
+    });
+
     it('checkWithdraw > given a loaded user > then passes the user doc into checkWithdrawMyCashback', async () => {
       const userDoc = {
         _id: new Types.ObjectId(VALID_USER_ID),

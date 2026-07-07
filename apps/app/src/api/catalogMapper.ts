@@ -1,5 +1,7 @@
 import type { OfferListResponse, OfferRecord } from "@mobile/api/catalogTypes";
-import { resolveRemoteImageUri } from "@mobile/api/mediaUrl";
+import { getMobileEnv } from "@mobile/config/env";
+import { resolvePublicOfferLogo } from "@mobile/api/offerLogo";
+import { resolveOfferMediaUrl } from "@mobile/api/mediaUrl";
 
 // View-model the brand cards consume — the same field shape as the
 // webFavoriteBrandsPage.recentBrands fixture rows, plus the live-only extras
@@ -13,6 +15,8 @@ export type CatalogBrand = {
   showGrabCoupon: boolean;
   logo?: string;
   tint: string;
+  countries?: string;
+  isGlobal?: boolean;
 };
 
 // The fixture cards' brand-tint language, reused so live brands get the same
@@ -42,8 +46,9 @@ function formatCashback(commission: OfferRecord["commission_store"]): string {
   return value.endsWith("%") ? value : `${value}%`;
 }
 
-function resolveLogo(logo: OfferRecord["logo"]): string | undefined {
-  return resolveRemoteImageUri(logo);
+function resolveLogo(offer: OfferRecord, apiBaseUrl?: string): string | undefined {
+  const baseUrl = apiBaseUrl ?? getMobileEnv().apiUrl;
+  return resolveOfferMediaUrl(resolvePublicOfferLogo(offer), baseUrl);
 }
 
 export function isCustomerVisibleOffer({
@@ -80,8 +85,10 @@ export function mapOffersToCatalogBrands(response: OfferListResponse): CatalogBr
         cashback: formatCashback(offer.commission_store),
         href: `/shop/${offer._id}`,
         showGrabCoupon: Boolean(offer.extra_store),
-        logo: resolveLogo(offer.logo),
+        logo: resolveLogo(offer),
         tint: deriveCatalogTint(name),
+        countries: offer.countries?.trim() || undefined,
+        isGlobal: offer.is_global === true,
       },
     ];
   });

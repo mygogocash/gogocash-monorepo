@@ -63,8 +63,7 @@ describe("Remaining customer route parity", () => {
     const callbackScreen = readMobileFile("src/screens/CustomerAuthCallbackScreen.tsx");
 
     expect(callbackScreen).toContain("useLocalSearchParams");
-    expect(callbackScreen).toContain("createExpoSecureSessionStore");
-    expect(callbackScreen).toContain("createWebSessionStore");
+    expect(callbackScreen).toContain("persistMobileSession");
     expect(callbackScreen).toContain("sanitizeCallbackPath");
     expect(callbackScreen).toContain("exchangeMobileAuthCode");
     expect(callbackScreen).toContain("createDevRawTokenSession");
@@ -84,14 +83,38 @@ describe("Remaining customer route parity", () => {
     // Protected routes are gated natively, so the navigator stays mounted across navigations.
     expect(rootLayout).toContain("Stack.Protected");
     expect(rootLayout).toContain("guard={isAuthed}");
-    expect(rootLayout).toContain('"wallet"');
+
+    const protectedListMatch = rootLayout.match(/PROTECTED_SCREEN_NAMES = \[([\s\S]*?)\] as const;/);
+    expect(protectedListMatch?.[1] ?? "").not.toContain('"wallet"');
+
+    // Wallet and profile self-guard with `<Redirect>` so unauthenticated taps reach
+    // `/login?callbackUrl=…` instead of falling back to home.
+    const walletRoute = readMobileFile("app/wallet.tsx");
+    expect(rootLayout).toContain('name="wallet"');
+    expect(walletRoute).toContain("Redirect");
+    expect(walletRoute).toContain("buildProtectedLoginRedirect");
 
     // The /profile tab self-guards: a Tabs.Protected fallback can only reach a sibling
     // tab, so unauthenticated access is redirected to /login from the screen instead.
     const profileRoute = readMobileFile("app/(tabs)/profile.tsx");
     expect(tabsLayout).toContain('name="profile"');
-    expect(profileRoute).toContain("Redirect");
     expect(profileRoute).toContain("buildProtectedLoginRedirect");
+    expect(profileRoute).toContain("router.replace");
+    expect(profileRoute).toContain("if (!ready || !isAuthed)");
+    expect(walletRoute).toContain("if (!ready)");
+
+    const bottomNav = readMobileFile("src/components/CustomerMobileBottomNav.tsx");
+    expect(bottomNav).toContain("protectedBottomNavHrefs");
+    expect(bottomNav).toContain("buildProtectedLoginRedirect");
+    expect(bottomNav).toContain("handleBottomNavPress");
+
+    // Home uses its own bottom nav chrome; it must intercept wallet/profile the same way
+    // as AccountPageShell — `<Link href="/profile">` mounts the tab and leaves a blank scene.
+    const homeBottomNav = readMobileFile("src/screens/home/CustomerMobileBottomNav.tsx");
+    expect(homeBottomNav).toContain("protectedBottomNavHrefs");
+    expect(homeBottomNav).toContain("buildProtectedLoginRedirect");
+    expect(homeBottomNav).toContain("handleBottomNavPress");
+    expect(homeBottomNav).not.toMatch(/<Link[^>]+href=\{item\.href/);
 
     // The guard signal is synchronous-correct on web (localStorage) and async on native.
     expect(guardSession).toContain("createAvailableSessionStore");

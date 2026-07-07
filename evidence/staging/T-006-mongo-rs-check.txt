@@ -1,0 +1,22 @@
+T-006 Mongo mongo-staging RS health
+Checked: 2026-07-02T13:48Z (agent via Railway SSH)
+
+## Service
+mongo-staging: Online, image mongo:8.3.4, volume mongo-staging-volume mounted at /data/db
+
+## rs.status() attempt
+Command: railway ssh --service mongo-staging -- mongosh (authenticated as MONGO_INITDB_ROOT_*)
+Result: MongoServerError: not running with --replSet
+
+## Interpretation
+mongo-staging is running as standalone MongoDB, not a replica set member.
+API connectivity is OK (GET /gototrack/merchants returns Shopee from test.gogosense_merchants).
+Withdraw/replica-set-dependent features may behave differently than dev E2E (gogocash-mongo-e2e RS).
+
+## Owner optional follow-up
+If RS is required for staging parity:
+  1. Configure replSet in mongo-staging start command / Railway service config
+  2. Re-init or migrate data per docs/railway-execution-runbook.md
+Otherwise document staging as standalone Mongo (acceptable for beta if no RS-only code paths).
+
+Status: verified standalone (no RS); PRIMARY not applicable

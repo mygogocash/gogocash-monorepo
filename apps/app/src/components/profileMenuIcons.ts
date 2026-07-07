@@ -27,6 +27,7 @@ const PROFILE_MENU_ICONS: Record<string, ProfileMenuIcon> = {
   "Consent Preferences": ShieldCheckIcon,
   "Favorite Brands": HeartIcon,
   "GoGoQuest History": QuestIcon,
+  GoGoTrack: ShieldCheckIcon,
   "Help Center": HelpIcon,
   GoGoPass: GoGoPassIcon,
   "Invite your Friends": InviteIcon,

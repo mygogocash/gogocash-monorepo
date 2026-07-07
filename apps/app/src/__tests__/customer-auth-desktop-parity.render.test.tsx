@@ -10,6 +10,7 @@ vi.mock("expo-router", () => ({
   Link: ({ children }: { children: ReactNode }) => children,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), navigate: vi.fn() }),
   usePathname: () => "/login",
+  useLocalSearchParams: () => ({}),
 }));
 
 import { ToastProvider } from "@mobile/components/Toast";

@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
+import { NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { OfferService } from './offer.service';
 import { Offer } from './schemas/offer.schema';
@@ -55,6 +56,7 @@ describe('OfferService', () => {
     offerModel = {
       find: jest.fn().mockReturnValue(makeQuery([])),
       findById: jest.fn(),
+      findByIdAndDelete: jest.fn(),
       findOne: jest.fn(),
       create: jest.fn().mockResolvedValue({ _id: 'created-offer' }),
       countDocuments: jest.fn().mockResolvedValue(0),
@@ -75,11 +77,15 @@ describe('OfferService', () => {
     favoriteOfferModel = {
       findOne: jest.fn(),
       deleteOne: jest.fn().mockResolvedValue({ deletedCount: 1 }),
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 0 }),
       find: jest.fn().mockReturnValue(makeQuery([])),
       countDocuments: jest.fn().mockResolvedValue(0),
     };
     bannerModel = { findOne: jest.fn() };
-    topBrandConfigModel = { findOne: jest.fn() };
+    topBrandConfigModel = {
+      findOne: jest.fn(),
+      updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+    };
     // missionOrderModel is used BOTH as a constructor (`new this.missionOrderModel(...)`)
     // and as a static query holder (`this.missionOrderModel.find(...)`), so the
     // mock must be a callable with static query methods attached.
@@ -98,6 +104,7 @@ describe('OfferService', () => {
       find: jest
         .fn()
         .mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 0 }),
     };
     searchBlacklistModel = {
       find: jest
@@ -176,9 +183,18 @@ describe('OfferService', () => {
         { offer_name: { $regex: 'shopee', $options: 'i' } },
         { offer_name_display: { $regex: 'shopee', $options: 'i' } },
         { categories: { $regex: 'shopee', $options: 'i' } },
+        { lookup_value: { $regex: 'shopee', $options: 'i' } },
+        { countries: { $regex: 'shopee', $options: 'i' } },
       ]);
       expect(filter.categories).toEqual({ $regex: 'fashion', $options: 'i' });
       expect(filter.countries).toEqual({ $regex: 'Thailand', $options: 'i' });
+    });
+
+    it('findAll > given a numeric offer id search > then matches offer_id', async () => {
+      await service.findAll(1, 10, '803', '', '', true);
+
+      const filter = offerModel.find.mock.calls[0][0];
+      expect(filter.$or).toEqual(expect.arrayContaining([{ offer_id: 803 }]));
     });
 
     it('findAll > given regex metacharacters in filters > then user input is escaped literally', async () => {
@@ -189,6 +205,8 @@ describe('OfferService', () => {
         { offer_name: { $regex: 'a\\.\\*', $options: 'i' } },
         { offer_name_display: { $regex: 'a\\.\\*', $options: 'i' } },
         { categories: { $regex: 'a\\.\\*', $options: 'i' } },
+        { lookup_value: { $regex: 'a\\.\\*', $options: 'i' } },
+        { countries: { $regex: 'a\\.\\*', $options: 'i' } },
       ]);
       expect(filter.categories).toEqual({
         $regex: 'fashion\\+',
@@ -281,6 +299,11 @@ describe('OfferService', () => {
       const filter = offerModel.find.mock.calls[0][0];
       expect(filter.disabled).toBeUndefined();
       expect(filter.status).toBeUndefined();
+      expect(offerModel.find.mock.results[0].value.sort).toHaveBeenCalledWith({
+        datetime_created: -1,
+        offer_name_display: 1,
+        offer_name: 1,
+      });
     });
 
     it('findAll > given admin filters > then status and source narrow the query', async () => {
@@ -357,6 +380,44 @@ describe('OfferService', () => {
       await expect(service.findOne('not-an-objectid')).resolves.toBeNull();
 
       expect(offerModel.findOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removeOffer', () => {
+    it('removeOffer > given a valid id > then permanently deletes the offer', async () => {
+      const id = new Types.ObjectId().toHexString();
+      const offerDoc = { _id: id };
+      offerModel.findById.mockResolvedValue(offerDoc);
+      offerModel.findByIdAndDelete.mockResolvedValue(offerDoc);
+
+      await expect(service.removeOffer(id)).resolves.toEqual({
+        message: 'Offer deleted successfully',
+      });
+
+      expect(offerModel.findById).toHaveBeenCalledWith(id);
+      expect(favoriteOfferModel.deleteMany).toHaveBeenCalledWith({
+        offer_id: new Types.ObjectId(id),
+      });
+      expect(topBrandConfigModel.updateOne).toHaveBeenCalledWith(
+        {},
+        { $pull: { brands: { offerId: id } } },
+      );
+      expect(searchBoostModel.deleteMany).toHaveBeenCalledWith({
+        offer_id: id,
+      });
+      expect(offerModel.findByIdAndDelete).toHaveBeenCalledWith(id);
+    });
+
+    it('removeOffer > given a missing offer > then throws NotFoundException', async () => {
+      const id = new Types.ObjectId().toHexString();
+      offerModel.findById.mockResolvedValue(null);
+
+      await expect(service.removeOffer(id)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+
+      expect(offerModel.findByIdAndDelete).not.toHaveBeenCalled();
+      expect(favoriteOfferModel.deleteMany).not.toHaveBeenCalled();
     });
   });
 
@@ -796,6 +857,96 @@ describe('OfferService', () => {
           },
         ],
       });
+    });
+
+    it('getDisplayTopBrands > given saved Up to cashback labels > then compacts labels for cards', async () => {
+      topBrandConfigModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          brands: [{ offerId: 'id1', cashback: 'Up to 2.02%' }],
+        }),
+      });
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          { _id: 'id1', offer_id: 1, offer_name: 'Lazada', logo: 'a.png' },
+        ]),
+      );
+
+      await expect(service.getDisplayTopBrands()).resolves.toEqual({
+        data: [
+          {
+            _id: 'id1',
+            offer_id: 1,
+            brand: 'Lazada',
+            logo: 'a.png',
+            cashback: '2.02%',
+          },
+        ],
+      });
+    });
+
+    it('getDisplayTopBrands > given admin desktop logo > then prefers it over circle and legacy logo', async () => {
+      topBrandConfigModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          brands: [{ offerId: 'id1', cashback: '5%' }],
+        }),
+      });
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: 'id1',
+            offer_id: 5031,
+            offer_name: 'Shopee TH - CPS',
+            offer_name_display: 'Shopee',
+            logo: 'https://involve/legacy.png',
+            logo_desktop: 'https://media-staging.gogocash.co/shopee-square.png',
+            logo_circle: 'https://media-staging.gogocash.co/shopee-circle.png',
+          },
+        ]),
+      );
+
+      const result = await service.getDisplayTopBrands();
+
+      expect(result.data).toEqual([
+        {
+          _id: 'id1',
+          offer_id: 5031,
+          brand: 'Shopee',
+          logo: 'https://media-staging.gogocash.co/shopee-square.png',
+          cashback: '5%',
+        },
+      ]);
+    });
+
+    it('getDisplayTopBrands > given circle logo without desktop > then falls back to circle then legacy', async () => {
+      topBrandConfigModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          brands: [{ offerId: 'id1', cashback: '5%' }],
+        }),
+      });
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: 'id1',
+            offer_id: 5031,
+            offer_name: 'Shopee TH - CPS',
+            offer_name_display: 'Shopee',
+            logo: 'https://involve/legacy.png',
+            logo_circle: 'https://media-staging.gogocash.co/shopee-circle.png',
+          },
+        ]),
+      );
+
+      const result = await service.getDisplayTopBrands();
+
+      expect(result.data).toEqual([
+        {
+          _id: 'id1',
+          offer_id: 5031,
+          brand: 'Shopee',
+          logo: 'https://media-staging.gogocash.co/shopee-circle.png',
+          cashback: '5%',
+        },
+      ]);
     });
 
     it('getDisplayTopBrands > given a saved id with no matching offer > then drops that entry', async () => {

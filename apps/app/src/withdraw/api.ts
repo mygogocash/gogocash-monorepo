@@ -9,6 +9,20 @@ export type WithdrawMethodRecord = {
   is_default?: boolean;
 };
 
+export type CreateWithdrawMethodRequest = {
+  account_no: number;
+  account_name: string;
+  bank_name: string;
+  bank_code: string;
+  is_default: boolean;
+};
+
+export type CreateWithdrawMethodResponse = {
+  message: string;
+  data: WithdrawMethodRecord;
+  status: string;
+};
+
 export type WithdrawBankTransferRequest = {
   accountName: string;
   accountNumber: string;
@@ -24,6 +38,11 @@ export type WithdrawBankTransferResponse = {
 
 export type WithdrawBaseClient = {
   get<TResponse = unknown>(path: string): Promise<TResponse>;
+  patch<TResponse = unknown>(
+    path: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+  ): Promise<TResponse>;
   post<TResponse = unknown>(
     path: string,
     body?: unknown,
@@ -40,6 +59,12 @@ export function createWithdrawApi(client: WithdrawBaseClient) {
     },
     listMethods() {
       return client.get<WithdrawMethodRecord[]>("/withdraw/methods-list");
+    },
+    createMethod(body: CreateWithdrawMethodRequest) {
+      return client.post<CreateWithdrawMethodResponse>("/withdraw/methods", body);
+    },
+    updateMethod(id: string, body: Partial<CreateWithdrawMethodRequest>) {
+      return client.patch<CreateWithdrawMethodResponse>(`/withdraw/methods/${id}`, body);
     },
     async submitBankTransfer(request: WithdrawBankTransferRequest, idempotencyKey: string) {
       if (!idempotencyKey) {

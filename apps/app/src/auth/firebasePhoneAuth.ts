@@ -1,14 +1,16 @@
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
-import type { ConfirmationResult } from "firebase/auth";
+import type { ApplicationVerifier, ConfirmationResult } from "firebase/auth";
 import { Platform } from "react-native";
 
 import { FIREBASE_NOT_CONFIGURED_CODE } from "@mobile/auth/authSendErrorKind";
 import { getClientAuth, isFirebaseConfigured } from "@mobile/auth/firebaseClient";
 
+export const FIREBASE_NATIVE_RECAPTCHA_REQUIRED_MESSAGE =
+  "Firebase phone sign-in on native requires a reCAPTCHA application verifier.";
+
 // Phone OTP via Firebase — the only sign-in provider enabled on gogocash-staging.
-// Mirrors the web's src/features/profile/firebase/fc.ts: invisible reCAPTCHA +
-// signInWithPhoneNumber. RecaptchaVerifier needs a DOM, so this path is Expo-web only;
-// native needs expo-firebase-recaptcha or a dev-client build (future work).
+// Web uses the invisible DOM RecaptchaVerifier (parity with the Next.js client).
+// Native uses expo-firebase-recaptcha's ApplicationVerifier from the auth screen.
 const RECAPTCHA_CONTAINER_ID = "gogocash-recaptcha-container";
 
 let cachedVerifier: RecaptchaVerifier | null = null;
@@ -27,22 +29,43 @@ function getInvisibleRecaptcha(): RecaptchaVerifier {
   return cachedVerifier;
 }
 
-/** Sends the OTP SMS. Returns the confirmation handle `confirmPhoneOtp` consumes. */
-export async function sendPhoneOtp(phoneE164: string): Promise<ConfirmationResult> {
-  if (Platform.OS !== "web" || typeof document === "undefined") {
-    throw new Error("Firebase phone sign-in currently supports Expo web only.");
+function isWebPhoneAuthEnvironment(): boolean {
+  return Platform.OS === "web" && typeof document !== "undefined";
+}
+
+function resolveApplicationVerifier(
+  applicationVerifier?: ApplicationVerifier
+): ApplicationVerifier {
+  if (isWebPhoneAuthEnvironment()) {
+    return getInvisibleRecaptcha();
   }
+  if (!applicationVerifier) {
+    throw new Error(FIREBASE_NATIVE_RECAPTCHA_REQUIRED_MESSAGE);
+  }
+  return applicationVerifier;
+}
+
+/** Sends the OTP SMS. Returns the confirmation handle `confirmPhoneOtp` consumes. */
+export async function sendPhoneOtp(
+  phoneE164: string,
+  applicationVerifier?: ApplicationVerifier
+): Promise<ConfirmationResult> {
   if (!isFirebaseConfigured()) {
     throw Object.assign(new Error("Firebase is not configured"), {
       code: FIREBASE_NOT_CONFIGURED_CODE,
     });
   }
+
+  const verifier = resolveApplicationVerifier(applicationVerifier);
+
   try {
-    return await signInWithPhoneNumber(getClientAuth(), phoneE164, getInvisibleRecaptcha());
+    return await signInWithPhoneNumber(getClientAuth(), phoneE164, verifier);
   } catch (error) {
     // A consumed/expired verifier cannot be reused — drop it so the next try recreates it.
-    cachedVerifier?.clear();
-    cachedVerifier = null;
+    if (isWebPhoneAuthEnvironment()) {
+      cachedVerifier?.clear();
+      cachedVerifier = null;
+    }
     throw error;
   }
 }

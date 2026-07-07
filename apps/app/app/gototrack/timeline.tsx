@@ -1,6 +1,5 @@
-import { CustomerGoGoTrackScreen } from "@mobile/screens/CustomerGoGoTrackScreen";
-import { gototrackDetector } from "@mobile/gototrack/detectorInstance";
+import { Redirect } from "expo-router";
 
-export default function GoGoTrackTimelineRoute() {
-  return <CustomerGoGoTrackScreen mode="timeline" detector={gototrackDetector} />;
+export default function GoGoTrackTimelineRedirect() {
+  return <Redirect href="/gototrack" />;
 }

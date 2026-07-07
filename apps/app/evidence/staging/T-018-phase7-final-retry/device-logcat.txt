@@ -1,0 +1,308 @@
+command=adb logcat -d -t 300
+ok=true
+status=0
+--- stdout ---
+--------- beginning of main
+07-02 19:56:29.586  7667 10013 I bsnq    : #createWrappedClickIntent: Account is missing
+07-02 19:56:29.587  7667 10013 I A       : (REDACTED) #TNG createSmartspaceCard enable_reminder: %b, enable_forecast: %b, showTimelyReminderForPrecipitationType presents: %b
+07-02 19:56:29.588  7667 10013 I bshm    : Create TNG weather or weather daily forecast or weather timely reminder wrapped click intent.
+07-02 19:56:29.589  7667 10013 I bsnq    : #createWrappedClickIntent: Put account
+07-02 19:56:29.589  7667 10013 I bshm    : Create TNG weather or weather daily forecast or weather timely reminder wrapped click intent.
+07-02 19:56:29.590  7667 10013 I bsnq    : #createWrappedClickIntent: Put account
+07-02 19:56:29.590  7667 10013 I A       : (REDACTED) #TNG high temperature: %s, low temperature: %s, show weather daily forecast: %b in AAG widget.
+07-02 19:56:29.591  7667 10013 I bshm    : Create card explanation intent
+07-02 19:56:29.592  7667 10013 I bsnq    : #createWrappedClickIntent: Account is missing
+07-02 19:56:29.593  7667 10013 I A       : (REDACTED) #TNG createSmartspaceCard enable_reminder: %b, enable_forecast: %b, showTimelyReminderForPrecipitationType presents: %b
+07-02 19:56:29.594  7667 10013 I bshm    : Create TNG weather or weather daily forecast or weather timely reminder wrapped click intent.
+07-02 19:56:29.594  7667 10013 I bsnq    : #createWrappedClickIntent: Put account
+07-02 19:56:29.595  7667 10013 I bshm    : Create TNG weather or weather daily forecast or weather timely reminder wrapped click intent.
+07-02 19:56:29.595  7667 10013 I bsnq    : #createWrappedClickIntent: Put account
+07-02 19:56:29.595  7667 10013 I A       : (REDACTED) #TNG high temperature: %s, low temperature: %s, show weather daily forecast: %b in AAG widget.
+07-02 19:56:29.597  7667 10013 I bshm    : Create card explanation intent
+07-02 19:56:29.598  7667 10013 I bsnq    : #createWrappedClickIntent: Account is missing
+07-02 19:56:29.599  7667 10013 I A       : (REDACTED) #TNG createSmartspaceCard enable_reminder: %b, enable_forecast: %b, showTimelyReminderForPrecipitationType presents: %b
+07-02 19:56:29.600  7667 10013 I bshm    : Create TNG weather or weather daily forecast or weather timely reminder wrapped click intent.
+07-02 19:56:29.600  7667 10013 I bsnq    : #createWrappedClickIntent: Put account
+07-02 19:56:29.601  7667 10013 I bshm    : Create TNG weather or weather daily forecast or weather timely reminder wrapped click intent.
+07-02 19:56:29.601  7667 10013 I bsnq    : #createWrappedClickIntent: Put account
+07-02 19:56:29.601  7667 10013 I A       : (REDACTED) #TNG high temperature: %s, low temperature: %s, show weather daily forecast: %b in AAG widget.
+07-02 19:56:29.603  7667 10013 I bshm    : Create card explanation intent
+07-02 19:56:29.603  7667 10013 I bsnq    : #createWrappedClickIntent: Account is missing
+07-02 19:56:29.604  7667 10013 I A       : (REDACTED) #TNG createSmartspaceCard enable_reminder: %b, enable_forecast: %b, showTimelyReminderForPrecipitationType presents: %b
+07-02 19:56:29.604  7667 10013 I bshm    : Create TNG weather or weather daily forecast or weather timely reminder wrapped click intent.
+07-02 19:56:29.605  7667 10013 I bsnq    : #createWrappedClickIntent: Put account
+07-02 19:56:29.605  7667 10013 I bshm    : Create TNG weather or weather daily forecast or weather timely reminder wrapped click intent.
+07-02 19:56:29.605  7667 10013 I bsnq    : #createWrappedClickIntent: Put account
+07-02 19:56:29.606  7667 10013 I A       : (REDACTED) #TNG high temperature: %s, low temperature: %s, show weather daily forecast: %b in AAG widget.
+07-02 19:56:29.606  7667 10013 I bshl    : (REDACTED) #getIconFromCard: %s
+07-02 19:56:29.607  7667 10013 W bshl    : (REDACTED) cardType: %s has no icon.
+07-02 19:56:29.608  7667  7702 I bshl    : load card icon from url
+07-02 19:56:29.608  7667 10013 I bshl    : (REDACTED) #getIconFromCard: %s
+07-02 19:56:29.608  7667 10013 W bshl    : (REDACTED) cardType: %s has no icon.
+07-02 19:56:29.609  7667 10013 I bshl    : (REDACTED) #getIconFromCard: %s
+07-02 19:56:29.609  7667  7709 I bshl    : load card icon from url
+07-02 19:56:29.609  7667 10013 W bshl    : (REDACTED) cardType: %s has no icon.
+07-02 19:56:29.610  7667 10013 I bshl    : (REDACTED) #getIconFromCard: %s
+07-02 19:56:29.610  7667  7695 I bshl    : load card icon from url
+07-02 19:56:29.610  7667 10013 W bshl    : (REDACTED) cardType: %s has no icon.
+07-02 19:56:29.611  7667 10013 I bshl    : (REDACTED) #getIconFromCard: %s
+07-02 19:56:29.611  7667  7708 I bshl    : load card icon from url
+07-02 19:56:29.611  7667 10013 W bshl    : (REDACTED) cardType: %s has no icon.
+07-02 19:56:29.612  7667 10013 I bshl    : (REDACTED) #getIconFromCard: %s
+07-02 19:56:29.612  7667 10013 W bshl    : (REDACTED) cardType: %s has no icon.
+07-02 19:56:29.613  7667 10013 I bshl    : (REDACTED) #getIconFromCard: %s
+07-02 19:56:29.613  7667 10013 W bshl    : (REDACTED) cardType: %s has no icon.
+07-02 19:56:29.614  7667 10013 I A       : Generate weather tomorrow forecast data.
+07-02 19:56:29.616  7667  7713 E A       : UI template failed to generate weather tomorrow forecast card
+07-02 19:56:29.621  1407  1449 I mtkpower@impl: [powerd_req] TIMER_MSG_PERF_LOCK_TIMEOUT hdl:1847
+07-02 19:56:29.621  1407  1449 I libPowerHal: [perfLockRel] hdl:1847, idx:0
+07-02 19:56:29.621  1407  1449 I libPowerHal: [PD] MTKPOWER_HINT_EXT_LAUNCH update cmd:1408300 param:0
+07-02 19:56:29.623  1407  1449 I libPowerHal: [PD] MTKPOWER_HINT_EXT_LAUNCH update cmd:1000000 param:-1
+07-02 19:56:29.630  7667  7709 I bshl    : load card icon from url
+07-02 19:56:29.630  7667  7702 I bshl    : load card icon from url
+07-02 19:56:29.631  7667  7708 I bshl    : load card icon from url
+07-02 19:56:29.647  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:29.719  7667 10013 I WeatherTempParser: (REDACTED) #getParsedCard: UI template weather card, cardId: %s
+07-02 19:56:29.719  7667  7713 I WeatherTempParser: (REDACTED) #getParsedCard: UI template weather card, cardId: %s
+07-02 19:56:29.720  7667 10013 I WeatherTempParser: (REDACTED) #getParsedCard: UI template weather card, cardId: %s
+07-02 19:56:29.723  7667 10071 I WeatherTempParser: (REDACTED) #getParsedCard: UI template weather card, cardId: %s
+07-02 19:56:29.723  7667  7713 I WeatherTempParser: (REDACTED) #getParsedCard: UI template weather card, cardId: %s
+07-02 19:56:29.724  7667 10013 I WeatherTempParser: (REDACTED) #getParsedCard: UI template weather card, cardId: %s
+07-02 19:56:29.725  7667  7714 I WeatherTempParser: (REDACTED) #getParsedCard: UI template weather card, cardId: %s
+07-02 19:56:29.730  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:29.734  7667  7714 I bsew    : #filterNoMapsConsentCards: Flag is off. Return UnfilteredCards
+07-02 19:56:29.750  7667 10071 I absl    : TNG:MA eligibility is used in AssistantEligibilityCheckerTNGImpl.
+07-02 19:56:29.751  7667  7714 I absl    : TNG:MA eligibility is used in AssistantEligibilityCheckerTNGImpl.
+07-02 19:56:29.752  7667  7714 I absl    : TNG:MA eligibility is used in AssistantEligibilityCheckerTNGImpl.
+07-02 19:56:29.753  7667  7712 I absl    : TNG:MA eligibility is used in AssistantEligibilityCheckerTNGImpl.
+07-02 19:56:29.755  7667  7713 I ajks    : (REDACTED) #FCF: Managed profile check status : %s
+07-02 19:56:29.755  7667  7714 I ajks    : (REDACTED) #FCF: Managed profile check status : %s
+07-02 19:56:29.755  7667  7713 I absl    : TNG:MA eligibility is used in AssistantEligibilityCheckerTNGImpl.
+07-02 19:56:29.756  7667 10013 I absl    : TNG:MA eligibility is used in AssistantEligibilityCheckerTNGImpl.
+07-02 19:56:29.756  7667  7714 I absl    : TNG:MA eligibility is used in AssistantEligibilityCheckerTNGImpl.
+07-02 19:56:29.756  7667  7716 I ajks    : (REDACTED) #FCF: Managed profile check status : %s
+07-02 19:56:29.757  7667  7714 I ajks    : (REDACTED) #FCF: Managed profile check status : %s
+07-02 19:56:29.757  7667 10071 I ajkn    : (REDACTED) #FCF: Demo mode check status : %s
+07-02 19:56:29.759  7667  7714 I ajks    : (REDACTED) #FCF: Managed profile check status : %s
+07-02 19:56:29.759  7667  7716 I ajkn    : (REDACTED) #FCF: Demo mode check status : %s
+07-02 19:56:29.760  7667  7714 I ajks    : (REDACTED) #FCF: Managed profile check status : %s
+07-02 19:56:29.761  7667  7714 I ajks    : (REDACTED) #FCF: Managed profile check status : %s
+07-02 19:56:29.762  7667  7713 I TngSSWidgetRndr: Send AAG widget update.
+07-02 19:56:29.764  7667  7716 I ajkn    : (REDACTED) #FCF: Demo mode check status : %s
+07-02 19:56:29.765  7667 10013 I ajkn    : (REDACTED) #FCF: Demo mode check status : %s
+07-02 19:56:29.765  7667  7712 I ajkn    : (REDACTED) #FCF: Demo mode check status : %s
+07-02 19:56:29.767  7667  7714 I ajkn    : (REDACTED) #FCF: Demo mode check status : %s
+07-02 19:56:29.769  7667 10071 I ajkn    : (REDACTED) #FCF: Demo mode check status : %s
+07-02 19:56:29.770  7667  7712 I ajnl    : (REDACTED) #FCF evaluate: %s
+07-02 19:56:29.770  7667 10013 I ajnl    : (REDACTED) #FCF evaluate: %s
+07-02 19:56:29.770  7667  7712 I ajnl    : (REDACTED) TngMaStatusChecker#evaluateInternal completed in %s millis
+07-02 19:56:29.770  7667 10013 I ajnl    : (REDACTED) TngMaStatusChecker#evaluateInternal completed in %s millis
+07-02 19:56:29.771  7667 10013 I ajnl    : (REDACTED) #FCF evaluate: %s
+07-02 19:56:29.771  7667 10013 I ajnl    : (REDACTED) TngMaStatusChecker#evaluateInternal completed in %s millis
+07-02 19:56:29.771  7667  7713 I abtd    : (REDACTED) tngMaFeatureEnabled: %s
+07-02 19:56:29.772  7667 10013 I abtd    : (REDACTED) tngMaFeatureEnabled: %s
+07-02 19:56:29.772  7667  7714 I ajnl    : (REDACTED) #FCF evaluate: %s
+07-02 19:56:29.772  7667  7713 I abvd    : (REDACTED) #shouldMigrate(): allowMobileLocaleSettingsDataMigration = %b,
+07-02 19:56:29.772  7667 10013 I abtd    : (REDACTED) tngMaFeatureEnabled: %s
+07-02 19:56:29.773  7667  7714 I ajnl    : (REDACTED) TngMaStatusChecker#evaluateInternal completed in %s millis
+07-02 19:56:29.773  7667 10071 I ajnl    : (REDACTED) #FCF evaluate: %s
+07-02 19:56:29.773  7667  7712 I ajnl    : (REDACTED) #FCF evaluate: %s
+07-02 19:56:29.773  7667  7714 I abtd    : (REDACTED) tngMaFeatureEnabled: %s
+07-02 19:56:29.773  7667 10071 I ajnl    : (REDACTED) TngMaStatusChecker#evaluateInternal completed in %s millis
+07-02 19:56:29.773  7667  7712 I ajnl    : (REDACTED) TngMaStatusChecker#evaluateInternal completed in %s millis
+07-02 19:56:29.774  7667 10071 I abtd    : (REDACTED) tngMaFeatureEnabled: %s
+07-02 19:56:29.774  7667  7712 I abtd    : (REDACTED) tngMaFeatureEnabled: %s
+07-02 19:56:29.775  7667  7716 I ajnl    : (REDACTED) #FCF evaluate: %s
+07-02 19:56:29.775  7667  7716 I ajnl    : (REDACTED) TngMaStatusChecker#evaluateInternal completed in %s millis
+07-02 19:56:29.776  7667 10013 I abtd    : (REDACTED) tngMaFeatureEnabled: %s
+07-02 19:56:29.777  7667  7708 I bspn    : (REDACTED) update normal widget [%s] started.
+07-02 19:56:29.778  7667 10013 I SS3PSurfacesSuggestAggr: (REDACTED) Smartspace card update to %s successfully.
+07-02 19:56:29.778  7667  7716 I bssf    : (REDACTED) %s Success.
+07-02 19:56:29.780  7667  7708 I bspn    : (REDACTED) #AAG update widget [%s] with widget data
+07-02 19:56:29.784  1428  1428 I BufferQueueProducer: [com.shopee.th/com.shopee.app.ui.home.HomeActivity_#2166](this:0xb400007c840d4d58,id:-1,api:0,p:-1,c:1428) queueBuffer: fps=34.28 dur=1020.90 max=107.72 min=7.91
+07-02 19:56:29.787  7667 10013 I SS3PSurfacesSuggestAggr: (REDACTED) For %s:
+07-02 19:56:29.789  7667 10013 I SS3PSurfacesSuggestAggr: (REDACTED) cardId: %d, card type: %s, pre event title: %s, event start time: %s, update time: %s, expireTime: %s, is from work profile: %b
+07-02 19:56:29.790  7667 10013 I SS3PSurfacesSuggestAggr: (REDACTED) cardId: %d, card type: %s, pre event title: %s, event start time: %s, update time: %s, expireTime: %s, is from work profile: %b
+07-02 19:56:29.792  7667 10013 I SS3PSurfacesSuggestAggr: (REDACTED) cardId: %d, card type: %s, pre event title: %s, event start time: %s, update time: %s, expireTime: %s, is from work profile: %b
+07-02 19:56:29.793  7667 10013 I SS3PSurfacesSuggestAggr: (REDACTED) cardId: %d, card type: %s, pre event title: %s, event start time: %s, update time: %s, expireTime: %s, is from work profile: %b
+07-02 19:56:29.796  7667 10013 I SS3PSurfacesSuggestAggr: (REDACTED) cardId: %d, card type: %s, pre event title: %s, event start time: %s, update time: %s, expireTime: %s, is from work profile: %b
+07-02 19:56:29.797  7667 10013 I SS3PSurfacesSuggestAggr: (REDACTED) cardId: %d, card type: %s, pre event title: %s, event start time: %s, update time: %s, expireTime: %s, is from work profile: %b
+07-02 19:56:29.799  7667  7713 I absx    : (REDACTED) LocaleAssistantEligibilityCheckerImpl#isLocationAssistantEligible completed in %s millis
+07-02 19:56:29.799  7667  7713 I abtd    : (REDACTED) locationAssistantEligible: %s
+07-02 19:56:29.800  7667  7716 I absx    : (REDACTED) LocaleAssistantEligibilityCheckerImpl#isLocationAssistantEligible completed in %s millis
+07-02 19:56:29.800  7667  7716 I abtd    : (REDACTED) locationAssistantEligible: %s
+07-02 19:56:29.801  7667  7713 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceInstalled completed in %s millis
+07-02 19:56:29.802  7667  7713 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceActive completed in %s millis
+07-02 19:56:29.802  7667  7713 I abtd    : (REDACTED) googleKidsSpaceActive: %s
+07-02 19:56:29.802  7667 10071 I absx    : (REDACTED) LocaleAssistantEligibilityCheckerImpl#isLocationAssistantEligible completed in %s millis
+07-02 19:56:29.802  7667  7716 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceInstalled completed in %s millis
+07-02 19:56:29.802  7667 10071 I abtd    : (REDACTED) locationAssistantEligible: %s
+07-02 19:56:29.803  7667  7716 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceActive completed in %s millis
+07-02 19:56:29.803  7667  7716 I abtd    : (REDACTED) googleKidsSpaceActive: %s
+07-02 19:56:29.803  7667  7716 I abtd    : (REDACTED) isTngMaEligible: %s
+07-02 19:56:29.803  7667  7716 I abtd    : (REDACTED) TngMaEligibilityCheckerImpl#isEligible completed in %s millis
+07-02 19:56:29.804  7667  7714 I absx    : (REDACTED) LocaleAssistantEligibilityCheckerImpl#isLocationAssistantEligible completed in %s millis
+07-02 19:56:29.804  7667  7714 I abtd    : (REDACTED) locationAssistantEligible: %s
+07-02 19:56:29.804  7667 10071 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceInstalled completed in %s millis
+07-02 19:56:29.805  7667 10071 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceActive completed in %s millis
+07-02 19:56:29.805  7667  7714 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceInstalled completed in %s millis
+07-02 19:56:29.805  7667  7713 I abtd    : (REDACTED) isTngMaEligible: %s
+07-02 19:56:29.806  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:29.808  7667  7713 I abtd    : (REDACTED) TngMaEligibilityCheckerImpl#isEligible completed in %s millis
+07-02 19:56:29.808  7667  7714 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceActive completed in %s millis
+07-02 19:56:29.808  7667  7714 I abtd    : (REDACTED) googleKidsSpaceActive: %s
+07-02 19:56:29.808  7667  7714 I abtd    : (REDACTED) isTngMaEligible: %s
+07-02 19:56:29.809  1950  1962 I system_server: Background young concurrent mark compact GC freed 83MB AllocSpace bytes, 131(4056KB) LOS objects, 53% free, 76MB/164MB, paused 718us,2.599ms total 180.209ms
+07-02 19:56:29.809  7667  7714 I abtd    : (REDACTED) TngMaEligibilityCheckerImpl#isEligible completed in %s millis
+07-02 19:56:29.809  7667 10013 I SS3PSurfacesSuggestAggr: (REDACTED) cardId: %d, card type: %s, pre event title: %s, event start time: %s, update time: %s, expireTime: %s, is from work profile: %b
+07-02 19:56:29.810  7667  7714 I absx    : (REDACTED) LocaleAssistantEligibilityCheckerImpl#isLocationAssistantEligible completed in %s millis
+07-02 19:56:29.810  7667  7714 I abtd    : (REDACTED) locationAssistantEligible: %s
+07-02 19:56:29.810  7667  7716 I absx    : (REDACTED) LocaleAssistantEligibilityCheckerImpl#isLocationAssistantEligible completed in %s millis
+07-02 19:56:29.811  7667  7716 I abtd    : (REDACTED) locationAssistantEligible: %s
+07-02 19:56:29.812  7667  7712 I absx    : (REDACTED) LocaleAssistantEligibilityCheckerImpl#isLocationAssistantEligible completed in %s millis
+07-02 19:56:29.812  7667 10071 I abtd    : (REDACTED) googleKidsSpaceActive: %s
+07-02 19:56:29.812  7667  7712 I abtd    : (REDACTED) locationAssistantEligible: %s
+07-02 19:56:29.812  7667 10071 I abtd    : (REDACTED) isTngMaEligible: %s
+07-02 19:56:29.812  7667 10071 I abtd    : (REDACTED) TngMaEligibilityCheckerImpl#isEligible completed in %s millis
+07-02 19:56:29.813  7667  7714 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceInstalled completed in %s millis
+07-02 19:56:29.813  7667  7714 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceActive completed in %s millis
+07-02 19:56:29.813  7667  7714 I abtd    : (REDACTED) googleKidsSpaceActive: %s
+07-02 19:56:29.814  7667  7714 I abtd    : (REDACTED) isTngMaEligible: %s
+07-02 19:56:29.814  7667  7714 I abtd    : (REDACTED) TngMaEligibilityCheckerImpl#isEligible completed in %s millis
+07-02 19:56:29.815  7667  7716 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceInstalled completed in %s millis
+07-02 19:56:29.815  7667  7716 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceActive completed in %s millis
+07-02 19:56:29.815  7667  7716 I abtd    : (REDACTED) googleKidsSpaceActive: %s
+07-02 19:56:29.815  7667  7712 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceInstalled completed in %s millis
+07-02 19:56:29.816  7667  7716 I abtd    : (REDACTED) isTngMaEligible: %s
+07-02 19:56:29.816  7667  7712 I absv    : (REDACTED) GoogleKidsSpaceCheckerImpl#isGoogleKidsSpaceActive completed in %s millis
+07-02 19:56:29.816  7667  7716 I abtd    : (REDACTED) TngMaEligibilityCheckerImpl#isEligible completed in %s millis
+07-02 19:56:29.816  7667  7712 I abtd    : (REDACTED) googleKidsSpaceActive: %s
+07-02 19:56:29.816  7667  7712 I abtd    : (REDACTED) isTngMaEligible: %s
+07-02 19:56:29.816  7667  7712 I abtd    : (REDACTED) TngMaEligibilityCheckerImpl#isEligible completed in %s millis
+07-02 19:56:29.820  1950  1964 W System  : A resource failed to call release. 
+07-02 19:56:29.823  7667  7702 I brxt    : Successfully logged card impression and maybe settings
+07-02 19:56:29.823  7667  7702 I brxt    : Successfully logged card impression and maybe settings
+07-02 19:56:29.823  7667  7709 I brxt    : Successfully logged card impression and maybe settings
+07-02 19:56:29.824  7667  7695 I brxt    : Successfully logged card impression and maybe settings
+07-02 19:56:29.825  7667  7708 I brxt    : Successfully logged card impression and maybe settings
+07-02 19:56:29.825  7667  7708 I brxt    : Successfully logged card impression and maybe settings
+07-02 19:56:29.825  7667  7709 I brxt    : Successfully logged card impression and maybe settings
+07-02 19:56:29.827  1950  1964 W System  : A resource failed to call release. 
+07-02 19:56:29.843  7667  7716 I asmc    : #getOobeStatus: OptedIn [CONTEXT ratelimit_period="10 SECONDS" ]
+07-02 19:56:29.844  7667 10013 I asmc    : #getOobeStatus: OptedIn [CONTEXT ratelimit_period="10 SECONDS" ]
+07-02 19:56:29.850  1368  1445 E rt_extamp: apply_amp_ctl: Left I2S Mux not invalid ctl name
+07-02 19:56:29.851  1368  1445 E rt_extamp: apply_amp_ctl: Right I2S Mux not invalid ctl name
+07-02 19:56:29.888  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:29.889  7667  9900 I ddbg    : (REDACTED) Writing data of size=%d bytes with N=%d keys to Geller corpus %s at ts=%d
+07-02 19:56:29.891  1563  1661 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 0
+07-02 19:56:29.891  1563  1661 E mtk_storageproxyd: mtk.ufs.trustonic.ta: ipc connect failed (-12)
+07-02 19:56:29.912  1368  1445 E sixth_if_gift: sixth_timer_loop_stop, timer not start
+07-02 19:56:29.923  7667  7695 W JobInfo : Requested important-while-foreground flag for job38826 is ignored and takes no effect
+07-02 19:56:29.932  1348  1362 I netd    : tetherGetStats() -> {[]} <1.15ms>
+07-02 19:56:30.013  1379  1379 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:65.913406,dur:1001.31,max:43.67,min:6.61  
+07-02 19:56:30.016  7667 10113 I CrossProfileSender: Attempting to bind
+07-02 19:56:30.016  7667 10113 I CrossProfileSender: Binding attempt failed: Not trying to bind
+07-02 19:56:30.017  7667 10113 I CrossProfileSender: Unbind
+07-02 19:56:30.024  1401  1444 I libPerfCtl: xgfGetFPS pid:2660 fps:120
+07-02 19:56:30.024  1401  1444 I libPerfCtl: xgfGetFPS pid:3065 fps:-1
+07-02 19:56:30.024  1401  1444 I libPerfCtl: xgfGetFPS pid:4312 fps:-1
+07-02 19:56:30.024  1401  1444 I libPerfCtl: xgfGetFPS pid:8654 fps:-1
+07-02 19:56:30.048  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:30.135  1407  1418 I mtkpower@impl: [setMode] type:6, enabled:0
+07-02 19:56:30.135  1407  1418 E mtkpower@impl: [setMode] unknown type
+07-02 19:56:30.141  1428  1428 I BufferQueueProducer: [b04bb65 SurfaceView[com.shopee.th/com.shopee.app.ui.home.HomeActivity_](BLAST)#2207](this:0xb400007c8414c6f8,id:-1,api:0,p:-1,c:1428) queueBuffer: fps=28.16 dur=1029.96 max=92.28 min=0.01
+07-02 19:56:30.143  1407  1418 I mtkpower@impl: [setMode] type:6, enabled:1
+07-02 19:56:30.143  1407  1418 E mtkpower@impl: [setMode] unknown type
+07-02 19:56:30.190  7667  7667 W HWUI    : Image decoding logging dropped!
+07-02 19:56:30.195  7667  7667 W HWUI    : Image decoding logging dropped!
+07-02 19:56:30.205  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:30.227  1428  1428 I BufferQueueProducer: [FramebufferSurface](this:0xb400007bf3e70b10,id:-1,api:1,p:1428,c:1428) queueBuffer: fps=71.48 dur=1007.27 max=34.53 min=6.23
+07-02 19:56:30.257  1428  1428 I BufferQueueProducer: [94bdf2e SurfaceView[com.shopee.th/com.shopee.app.ui.home.HomeActivity_](BLAST)#2204](this:0xb400007c84074038,id:-1,api:0,p:-1,c:1428) queueBuffer: fps=29.67 dur=1044.69 max=74.63 min=0.02
+07-02 19:56:30.266  9775  9775 W libc    : Access denied finding property "qemu.sf.lcd_density"
+07-02 19:56:30.262  9775  9775 W uiautomator: type=1400 audit(0.0:12785): avc:  denied  { read } for  name="u:object_r:qemu_sf_lcd_density_prop:s0" dev="tmpfs" ino=417 scontext=u:r:shell:s0 tcontext=u:object_r:qemu_sf_lcd_density_prop:s0 tclass=file permissive=0
+07-02 19:56:30.262  9775  9775 W uiautomator: type=1400 audit(0.0:12786): avc:  denied  { read } for  name="u:object_r:qemu_sf_lcd_density_prop:s0" dev="tmpfs" ino=417 scontext=u:r:shell:s0 tcontext=u:object_r:qemu_sf_lcd_density_prop:s0 tclass=file permissive=0
+07-02 19:56:30.266  9775  9775 W libc    : Access denied finding property "qemu.sf.lcd_density"
+07-02 19:56:30.315  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@11b338; boundsInParent: Rect(0, 0 - 600, 0); boundsInScreen: Rect(0, 743 - 600, 743); boundsInWindow: Rect(0, 743 - 600, 743); packageName: com.shopee.th; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.322  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@12369b; boundsInParent: Rect(0, 0 - 261, 354); boundsInScreen: Rect(42, 875 - 303, 1229); boundsInWindow: Rect(42, 875 - 303, 1229); packageName: com.shopee.th; className: android.widget.ImageView; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.329  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:30.347  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@126768; boundsInParent: Rect(0, 0 - 261, 354); boundsInScreen: Rect(315, 875 - 573, 1229); boundsInWindow: Rect(315, 875 - 573, 1229); packageName: com.shopee.th; className: android.widget.ImageView; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.355  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@11ef48; boundsInParent: Rect(0, 0 - 600, 0); boundsInScreen: Rect(600, 743 - 1200, 743); boundsInWindow: Rect(600, 743 - 1200, 743); packageName: com.shopee.th; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.361  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@129bf6; boundsInParent: Rect(0, 0 - 261, 354); boundsInScreen: Rect(627, 875 - 888, 1229); boundsInWindow: Rect(627, 875 - 888, 1229); packageName: com.shopee.th; className: android.widget.ImageView; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.368  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@12d806; boundsInParent: Rect(0, 0 - 1200, 0); boundsInScreen: Rect(0, 1265 - 1200, 1265); boundsInWindow: Rect(0, 1265 - 1200, 1265); packageName: com.shopee.th; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: com.shopee.th:id/TANGRAM_VIEW_CONTAINER_ID; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: true; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.371  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@12ee8c; boundsInParent: Rect(0, 0 - 564, 864); boundsInScreen: Rect(24, 1319 - 24, 2183); boundsInWindow: Rect(24, 1319 - 24, 2183); packageName: com.shopee.th; className: android.widget.FrameLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.371  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@130c94; boundsInParent: Rect(0, 0 - 564, 864); boundsInScreen: Rect(588, 1319 - 588, 2183); boundsInWindow: Rect(588, 1319 - 588, 2183); packageName: com.shopee.th; className: android.widget.FrameLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.379  1348  1362 I netd    : tetherGetStats() -> {[]} <0.49ms>
+07-02 19:56:30.386  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@1366ac; boundsInParent: Rect(0, 0 - 0, 0); boundsInScreen: Rect(624, 1331 - 624, 1331); boundsInWindow: Rect(624, 1331 - 624, 1331); packageName: com.shopee.th; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.386  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@138875; boundsInParent: Rect(0, 0 - 0, 0); boundsInScreen: Rect(1164, 1871 - 1164, 1871); boundsInWindow: Rect(1164, 1871 - 1164, 1871); packageName: com.shopee.th; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.386  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@138c36; boundsInParent: Rect(0, 0 - 564, 0); boundsInScreen: Rect(612, 1883 - 1176, 1883); boundsInWindow: Rect(612, 1883 - 1176, 1883); packageName: com.shopee.th; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.391  1348  1362 I netd    : bandwidthSetGlobalAlert(2097152) <2.72ms>
+07-02 19:56:30.394  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@151de1; boundsInParent: Rect(0, 0 - 0, 0); boundsInScreen: Rect(36, 2219 - 36, 2219); boundsInWindow: Rect(36, 2219 - 36, 2219); packageName: com.shopee.th; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.394  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@153faa; boundsInParent: Rect(0, 0 - 0, 0); boundsInScreen: Rect(576, 2759 - 576, 2448); boundsInWindow: Rect(576, 2759 - 576, 2448); packageName: com.shopee.th; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.394  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@15436b; boundsInParent: Rect(0, 0 - 564, 0); boundsInScreen: Rect(24, 2771 - 588, 2448); boundsInWindow: Rect(24, 2771 - 588, 2448); packageName: com.shopee.th; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.395  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@15472c; boundsInParent: Rect(0, 0 - 564, 264); boundsInScreen: Rect(24, 2771 - 588, 2448); boundsInWindow: Rect(24, 2771 - 588, 2448); packageName: com.shopee.th; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.397  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@148f3b; boundsInParent: Rect(0, 0 - 0, 0); boundsInScreen: Rect(1176, 2231 - 1176, 2231); boundsInWindow: Rect(1176, 2231 - 1176, 2231); packageName: com.shopee.th; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.397  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@1492fc; boundsInParent: Rect(0, 0 - 564, 204); boundsInScreen: Rect(612, 2870 - 1176, 2448); boundsInWindow: Rect(612, 2870 - 1176, 2448); packageName: com.shopee.th; className: android.view.ViewGroup; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.397  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@147c76; boundsInParent: Rect(0, 0 - 564, 97); boundsInScreen: Rect(612, 2977 - 1176, 2448); boundsInWindow: Rect(612, 2977 - 1176, 2448); packageName: com.shopee.th; className: android.widget.ImageView; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.402  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@c98dc; boundsInParent: Rect(0, 0 - 1200, 2448); boundsInScreen: Rect(1200, 0 - 1200, 2448); boundsInWindow: Rect(1200, 0 - 1200, 2448); packageName: com.shopee.th; className: android.widget.LinearLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.402  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@ca05e; boundsInParent: Rect(0, 0 - 1200, 2448); boundsInScreen: Rect(3600, 0 - 1200, 2448); boundsInWindow: Rect(3600, 0 - 1200, 2448); packageName: com.shopee.th; className: android.widget.LinearLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.403  9775  9775 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@ca41f; boundsInParent: Rect(0, 0 - 1200, 2448); boundsInScreen: Rect(4800, 0 - 1200, 2448); boundsInWindow: Rect(4800, 0 - 1200, 2448); packageName: com.shopee.th; className: android.widget.LinearLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+07-02 19:56:30.406  8654  8675 W chromium: [WARNING:net/cert/ev_root_ca_metadata.cc:118] Not implemented
+07-02 19:56:30.442  9775  9775 W AccessibilityNodeInfoDumper: Fetch time: 173ms
+07-02 19:56:30.446  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+--------- beginning of system
+07-02 19:56:30.449  1950  4874 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+07-02 19:56:30.452  9775  9927 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+07-02 19:56:30.452  9775  9822 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+07-02 19:56:30.452  9775 10189 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+07-02 19:56:30.453  9775  9823 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+07-02 19:56:30.457  1428  1428 I SurfaceFlinger: onHandleDestroyed: layerId=2160, name=WindowToken{c3f78 type=2032 android.os.Binder@d47d8db}#2160
+07-02 19:56:30.556  4312  4596 I MMCAVPlayer: [, , 0]:[AntiJitterBuffer.cpp:293] [0x7ce79e70b0]scan startPTS last_startPTS_scanned_:2.367
+07-02 19:56:30.570  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:30.663  4312  4596 I MMCAVPlayer: [, , 0]:[android_global_config.cc:195] enable_show_time_use_event_timestamp: 1
+07-02 19:56:30.665  4312  4596 E TransformUtil: [, , 0]:guest time: 1782996990665 local timezone: Asia/Bangkok
+07-02 19:56:30.666  4312  4596 E TransformUtil: [, , 0]:guest time: 1782996990665 local timezone: Asia/Bangkok
+07-02 19:56:30.666  4312  4596 E TransformUtil: [, , 0]:guest time: 1782996990666 local timezone: Asia/Bangkok
+07-02 19:56:30.728  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:30.797  1428  1428 I BufferQueueProducer: [com.shopee.th/com.shopee.app.ui.home.HomeActivity_#2166](this:0xb400007c840d4d58,id:-1,api:0,p:-1,c:1428) queueBuffer: fps=37.50 dur=1013.33 max=58.03 min=8.20
+07-02 19:56:30.890  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:31.013  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:31.017  1348 10191 I resolv  : GetAddrInfoHandler::run: {100 100 100 983140 10223 0}
+07-02 19:56:31.017  1379  1379 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:65.724213,dur:1004.20,max:41.79,min:5.45  
+07-02 19:56:31.019  1348 10192 I resolv  : res_nmkquery: (QUERY, IN, A)
+07-02 19:56:31.019  1348 10192 I resolv  : resolv_cache_lookup: FOUND IN CACHE entry=0xb400006d9cc4cf50
+07-02 19:56:31.019  1348 10192 I resolv  : doQuery: rcode=0, ancount=7, return value=264
+07-02 19:56:31.024  1401  1444 I libPerfCtl: xgfGetFPS pid:2660 fps:-1
+07-02 19:56:31.024  1401  1444 I libPerfCtl: xgfGetFPS pid:3065 fps:-1
+07-02 19:56:31.024  1401  1444 I libPerfCtl: xgfGetFPS pid:4312 fps:-1
+07-02 19:56:31.056  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:31.091  4312  4596 I MMCAVPlayer: [, , 0]:[android_global_config.cc:195] enable_show_time_use_event_timestamp: 1
+07-02 19:56:31.127  4312  4596 I MMCAVPlayer: [, , 0]:[AntiJitterBuffer.cpp:293] [0x7ce79e70b0]scan startPTS last_startPTS_scanned_:2.567
+07-02 19:56:31.151  2628  2636 I WifiHAL : LLS RSP: data=0xb4000072120b7c00, len=4716
+07-02 19:56:31.151  2628  2636 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=43
+07-02 19:56:31.151  2628  2636 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=16
+07-02 19:56:31.151  2628  2636 I WifiHAL : LLS check_data_sanity: confirmed_size=4716, len=4716
+07-02 19:56:31.159  2628  2636 I WifiHAL : feature_set=0x8489341a
+07-02 19:56:31.179  1428  1428 I BufferQueueProducer: [b04bb65 SurfaceView[com.shopee.th/com.shopee.app.ui.home.HomeActivity_](BLAST)#2207](this:0xb400007c8414c6f8,id:-1,api:0,p:-1,c:1428) queueBuffer: fps=24.09 dur=1037.75 max=66.28 min=16.56
+07-02 19:56:31.210  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:31.240  1428  1428 I BufferQueueProducer: [FramebufferSurface](this:0xb400007bf3e70b10,id:-1,api:1,p:1428,c:1428) queueBuffer: fps=63.21 dur=1012.42 max=41.82 min=5.55
+07-02 19:56:31.270  1428  1428 I BufferQueueProducer: [94bdf2e SurfaceView[com.shopee.th/com.shopee.app.ui.home.HomeActivity_](BLAST)#2204](this:0xb400007c84074038,id:-1,api:0,p:-1,c:1428) queueBuffer: fps=24.68 dur=1013.12 max=75.07 min=16.54
+07-02 19:56:31.294  4312  4312 W HWUI    : Image decoding logging dropped!
+07-02 19:56:31.303  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:31.307  9775  9775 W RefBase : RefBase: Explicit destruction, weak count = 0 (in 0x7b5cbc6848). Use sp<> to manage this object. Note - if weak count is 0, this leaks mRefs (weakref_impl).
+07-02 19:56:31.319  2987  4170 I IPCThreadState: oneway function results for code 1 on binder at 0xb400007de7913b80 will be dropped but finished with status UNKNOWN_TRANSACTION and reply parcel size 80
+07-02 19:56:31.326  4312  4596 I MMCAVPlayer: [, , 0]:[AntiJitterBuffer.cpp:293] [0x7ce7a3bf20]scan startPTS last_startPTS_scanned_:1.834
+07-02 19:56:31.366  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+07-02 19:56:31.380  1348 10194 I resolv  : GetAddrInfoHandler::run: {100 100 100 983140 10223 0}
+07-02 19:56:31.380  1348 10195 I resolv  : res_nmkquery: (QUERY, IN, A)
+07-02 19:56:31.381  1348 10195 I resolv  : resolv_cache_lookup: FOUND IN CACHE entry=0xb400006eacc3eb70
+07-02 19:56:31.381  1348 10195 I resolv  : doQuery: rcode=0, ancount=2, return value=77
+07-02 19:56:31.415 10196 10196 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: window
+07-02 19:56:31.417  1950  3758 I system_server: AssetManager2(0xb400007cc78c8038) locale list changing from [] to [en-US]
+07-02 19:56:31.432  1950  3758 I system_server: AssetManager2(0xb400007cc7876f58) locale list changing from [] to [en-US]
+07-02 19:56:31.443  1950  3758 I system_server: AssetManager2(0xb400007cc792b3b8) locale list changing from [] to [en-US]
+07-02 19:56:31.450  1950  3758 I system_server: AssetManager2(0xb400007cc79414d8) locale list changing from [] to [en-US]
+07-02 19:56:31.453  1950  3758 I system_server: AssetManager2(0xb400007cc78c3e98) locale list changing from [] to [en-US]
+07-02 19:56:31.454  1950  3758 I system_server: AssetManager2(0xb400007cc7953138) locale list changing from [] to [en-US]
+07-02 19:56:31.491  1381 10163 W C2MtkBufferManager: [0xB40000714C912C80] fetchNewBlock: wait fence 0x0xb40000717c91c130 failed. ret 110
+--- stderr ---
+

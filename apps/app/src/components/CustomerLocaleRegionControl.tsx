@@ -3,8 +3,8 @@ import { Animated, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
-import { Globe } from "@mobile/theme/icons";
 import { webLocaleRegionPanel } from "@mobile/design/webDesignParity";
+import { Globe } from "@mobile/theme/icons";
 import { resolveLocaleGlobeColor } from "@mobile/theme/localeGlobeColor";
 import { motion } from "@mobile/theme/motion";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
@@ -12,8 +12,6 @@ import { useTheme } from "@mobile/theme/ThemeProvider";
 import { getThemeSurfaces, type ThemeSurfaces } from "@mobile/theme/themeSurfaces";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, typography } from "@mobile/theme/tokens";
-
-type LocaleRegionCode = (typeof webLocaleRegionPanel.regions)[number]["code"];
 
 type CustomerLocaleRegionControlProps = {
   readonly onExpandedChange?: (expanded: boolean) => void;
@@ -32,10 +30,7 @@ export function CustomerLocaleRegionControl({
   const styles = useLocaleRegionControlStyles();
   const [localePanelOpen, setLocalePanelOpen] = useState(false);
   const [localePanelMounted, setLocalePanelMounted] = useState(false);
-  const { locale, setLocale } = useLocale();
-  const [selectedRegion, setSelectedRegion] = useState<LocaleRegionCode>(
-    webLocaleRegionPanel.defaultRegion
-  );
+  const { locale, region, setLocale, setRegion } = useLocale();
   const localePanelProgress = useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
@@ -154,13 +149,13 @@ export function CustomerLocaleRegionControl({
             showsVerticalScrollIndicator
             style={styles.desktopLocaleRegionScroller}
           >
-            {webLocaleRegionPanel.regions.map((region) => (
+            {webLocaleRegionPanel.regions.map((regionOption) => (
               <LocaleOption
-                flag={region.flag}
-                key={region.code}
-                label={region.label}
-                selected={selectedRegion === region.code}
-                onPress={() => setSelectedRegion(region.code)}
+                flag={regionOption.flag}
+                key={regionOption.code}
+                label={regionOption.label}
+                selected={region === regionOption.code}
+                onPress={() => setRegion(regionOption.code)}
               />
             ))}
           </ScrollView>
@@ -279,7 +274,7 @@ function createLocaleRegionControlStyles(colors: ThemeColors, surfaces: ThemeSur
     color: colors.ink,
     fontFamily: typography.family,
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: typography.bodyWeight,
     lineHeight: 20,
   },
   desktopLocaleOptionLabelSelected: {

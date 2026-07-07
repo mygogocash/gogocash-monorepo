@@ -12,12 +12,20 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { mobileShellLayout, webWithdrawMethodPage } from "@mobile/design/webDesignParity";
+import { maskAccountNumber } from "@mobile/withdraw/payoutMethodModel";
+import { usePayoutMethods } from "@mobile/withdraw/usePayoutMethods";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
-type WithdrawMethod = (typeof webWithdrawMethodPage.methods)[number];
+type WithdrawMethodListItem = {
+  id: string;
+  accountName: string;
+  bankName: string;
+  maskedAccount: string;
+  isDefault: boolean;
+};
 
 export function CustomerWithdrawMethodScreen() {
   const styles = useThemedStyles(createWithdrawMethodScreenStyles);
@@ -84,13 +92,20 @@ function WithdrawMethodGrid() {
   const styles = useThemedStyles(createWithdrawMethodScreenStyles);
   const { width } = useWindowDimensions();
   const twoColumn = width >= mobileShellLayout.desktopBreakpoint;
+  const { methods } = usePayoutMethods();
 
   return (
     <View style={styles.methodGrid}>
-      {webWithdrawMethodPage.methods.map((method) => (
+      {methods.map((method) => (
         <WithdrawMethodBankCard
           key={method.id}
-          method={method}
+          method={{
+            id: method.id,
+            accountName: method.accountName,
+            bankName: method.bankName,
+            maskedAccount: method.maskedAccount ?? maskAccountNumber(method.accountNo),
+            isDefault: method.isDefault,
+          }}
           style={twoColumn ? styles.methodCardDesktop : styles.methodCardMobile}
         />
       ))}
@@ -102,7 +117,7 @@ function WithdrawMethodBankCard({
   method,
   style,
 }: {
-  method: WithdrawMethod;
+  method: WithdrawMethodListItem;
   style: object;
 }) {
   const styles = useThemedStyles(createWithdrawMethodScreenStyles);

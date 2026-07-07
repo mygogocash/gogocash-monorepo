@@ -8,9 +8,10 @@
 # The single root package-lock.json drives the npm workspace install; the admin
 # app no longer carries its own lockfile.
 #
-# NEXT_PUBLIC_API_URL is inlined by Next at build time. It defaults to the
-# STAGING API so the admin talks to the real staging backend instead of the
-# in-process mock. For other environments pass `--build-arg NEXT_PUBLIC_API_URL=...`.
+# NEXT_PUBLIC_API_URL is inlined by Next at build time. Pass it explicitly at
+# build time — there is no Dockerfile default (avoids silently pointing prod
+# builds at the staging API). Example:
+#   docker build -f apps/admin/Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co .
 
 FROM node:22-slim AS builder
 WORKDIR /app
@@ -19,6 +20,8 @@ WORKDIR /app
 #    Copy only the manifests needed to resolve the workspace tree. The admin
 #    postinstall (scripts/patch-apexcharts-border-radius.mjs) runs during
 #    `npm ci`, so the admin package.json + scripts must be present.
+#    Root postinstall must stay admin-only — do not reference apps/app paths
+#    (this image copies only apps/admin before npm ci).
 COPY package.json package-lock.json .npmrc ./
 COPY apps/admin/package.json ./apps/admin/package.json
 COPY apps/admin/.npmrc ./apps/admin/.npmrc
@@ -29,7 +32,8 @@ RUN npm ci --legacy-peer-deps
 
 # 2) Copy the admin source and build the standalone bundle.
 COPY apps/admin ./apps/admin
-ARG NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co
+ARG NEXT_PUBLIC_API_URL
+RUN test -n "$NEXT_PUBLIC_API_URL" || (echo "ERROR: NEXT_PUBLIC_API_URL build-arg is required" >&2 && exit 1)
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV STANDALONE=1
 ENV NEXT_TELEMETRY_DISABLED=1

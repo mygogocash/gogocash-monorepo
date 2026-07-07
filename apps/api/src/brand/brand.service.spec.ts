@@ -62,6 +62,40 @@ describe('BrandService', () => {
     });
   });
 
+  describe('list', () => {
+    it('list > given regex metacharacters in search > then brand_name filter escapes literals', async () => {
+      const brandQuery = makeLeanQuery([]);
+      brandModel.find.mockReturnValue(brandQuery);
+      brandModel.countDocuments.mockResolvedValue(0);
+      offerModel.find.mockReturnValue(makeLeanQuery([]));
+
+      await service.list({ search: 'a.*', page: 1, limit: 20 } as never);
+
+      expect(brandModel.find).toHaveBeenCalledWith({
+        disabled: false,
+        brand_name: { $regex: 'a\\.\\*', $options: 'i' },
+      });
+    });
+
+    it('list > given regex metacharacters in country > then countries filter escapes literals', async () => {
+      const brandId = new Types.ObjectId();
+      const brandQuery = makeLeanQuery([
+        { _id: brandId, brand_name: 'Klook', disabled: false },
+      ]);
+      brandModel.find.mockReturnValue(brandQuery);
+      brandModel.countDocuments.mockResolvedValue(1);
+      offerModel.find.mockReturnValue(makeLeanQuery([]));
+
+      await service.list({ country: 'TH(+', page: 1, limit: 20 } as never);
+
+      expect(offerModel.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          countries: { $regex: 'TH\\(\\+', $options: 'i' },
+        }),
+      );
+    });
+  });
+
   describe('resolveVariant', () => {
     it('resolveVariant > given pending and rejected variants > then it queries only active approved variants', async () => {
       const brandId = new Types.ObjectId();

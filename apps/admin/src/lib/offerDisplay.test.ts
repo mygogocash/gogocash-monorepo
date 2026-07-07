@@ -3,6 +3,7 @@ import {
   brandSearchOptionLabel,
   formatOfferCountries,
   getOfferDisplayName,
+  resolveAdminOfferLogoPath,
 } from "./offerDisplay";
 
 describe("offerDisplay", () => {
@@ -33,5 +34,15 @@ describe("offerDisplay", () => {
         countries: "TH",
       }),
     ).toBe("Banana IT (TH) · TH · #5");
+  });
+
+  it("resolveAdminOfferLogoPath > prefers logo_desktop over logo_circle cover", () => {
+    expect(
+      resolveAdminOfferLogoPath({
+        logo_desktop: "https://cdn.example/square.png",
+        logo_mobile: "",
+        logo: "https://cdn.example/legacy.png",
+      }),
+    ).toBe("https://cdn.example/square.png");
   });
 });

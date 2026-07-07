@@ -1,6 +1,6 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { CreateAdminDto } from './create-admin.dto';
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateAdminDto extends PartialType(CreateAdminDto) {}
 
@@ -94,9 +94,22 @@ export class UpdateOfferAdminDto {
   offer_name_display: string;
 
   @ApiProperty()
-  @IsBoolean()
   @IsOptional()
-  disabled: boolean;
+  disabled: boolean | string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  lookup_value?: string;
+
+  @ApiProperty({
+    required: false,
+    description:
+      'JSON string of admin merchandising tags (multipart FormData).',
+  })
+  @IsString()
+  @IsOptional()
+  offer_display_tags?: string;
 
   @ApiProperty()
   @IsOptional()

@@ -76,6 +76,11 @@ function makeService() {
     findOne: jest.fn().mockReturnValue(makeQueryResult(null)),
     create: jest.fn(async (doc) => ({ _id: 'activation-1', ...doc })),
     find: jest.fn().mockReturnValue(makeQueryResult([])),
+    findByIdAndUpdate: jest.fn(async (id, update) => ({
+      _id: id,
+      ...update,
+    })),
+    deleteOne: jest.fn(async () => ({ deletedCount: 1 })),
   };
   const screenshotJobModel = {
     create: jest.fn(async (doc) => ({
@@ -386,9 +391,18 @@ describe('GototrackService detection and activation', () => {
         user_id: '507f1f77bcf86cd799439011',
         detection_event_id: '507f1f77bcf86cd799439012',
         merchant_id: 'merchant-shopee',
-        deeplink: 'https://track.gogocash.co/shopee',
+        deeplink: '',
       }),
     );
+    expect(activationEventModel.findByIdAndUpdate).toHaveBeenCalledWith(
+      'activation-1',
+      { deeplink: 'https://track.gogocash.co/shopee' },
+      { new: true },
+    );
+    const createOrder = activationEventModel.create.mock.invocationCallOrder[0];
+    const involveOrder =
+      involveService.createAffiliate.mock.invocationCallOrder[0];
+    expect(createOrder).toBeLessThan(involveOrder);
   });
 
   it('activation > given affiliate network rejects merchant mapping > then surfaces a clear 422 without recording activation', async () => {
@@ -431,7 +445,11 @@ describe('GototrackService detection and activation', () => {
       network_merchant_id: 201,
       matched: true,
     });
-    expect(activationEventModel.create).not.toHaveBeenCalled();
+    expect(activationEventModel.create).toHaveBeenCalled();
+    expect(activationEventModel.deleteOne).toHaveBeenCalledWith({
+      _id: 'activation-1',
+    });
+    expect(activationEventModel.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 
   it('activation > given detection event was already activated > rejects before deeplink creation', async () => {
@@ -460,6 +478,27 @@ describe('GototrackService detection and activation', () => {
     });
     expect(involveService.createAffiliate).not.toHaveBeenCalled();
     expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
+
+  it('activation > given duplicate key on create > then rejects as already activated', async () => {
+    const { activationEventModel, involveService, service } = makeService();
+    const duplicateKeyError = Object.assign(new Error('duplicate key'), {
+      code: 11000,
+    });
+    activationEventModel.create.mockRejectedValueOnce(duplicateKeyError);
+
+    await expect(
+      service.activate('507f1f77bcf86cd799439011', {
+        detectionEventId: '507f1f77bcf86cd799439012',
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gototrack',
+      }),
+    ).rejects.toThrow('GoGoTrack detection event has already been activated');
+
+    expect(involveService.createAffiliate).not.toHaveBeenCalled();
+    expect(activationEventModel.create).toHaveBeenCalled();
   });
 
   it('activation > given disabled GoGoTrack setting > then rejects gototrack activation', async () => {
@@ -604,6 +643,26 @@ describe('GototrackService settings and timeline', () => {
       { user_id: '507f1f77bcf86cd799439011' },
       {
         $set: {
+          enabled: true,
+        },
+      },
+      { new: true, upsert: true },
+    );
+  });
+
+  it('settings > given background prompts enabled > then also enables master tracking', async () => {
+    const { service } = makeService();
+    const userSettingsModel = (service as any).userSettingsModel;
+
+    await service.updateSettings('507f1f77bcf86cd799439011', {
+      backgroundPromptsEnabled: true,
+    });
+
+    expect(userSettingsModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { user_id: '507f1f77bcf86cd799439011' },
+      {
+        $set: {
+          background_prompts_enabled: true,
           enabled: true,
         },
       },

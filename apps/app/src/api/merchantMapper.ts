@@ -1,5 +1,10 @@
 import type { MerchantOfferResponse } from "@mobile/api/merchantTypes";
-import { resolveRemoteImageUri } from "@mobile/api/mediaUrl";
+import { resolveOfferMediaUrl } from "@mobile/api/mediaUrl";
+import { getMobileEnv } from "@mobile/config/env";
+import {
+  resolvePublicOfferLogo,
+  resolveShopPageBannerUri,
+} from "@mobile/api/offerLogo";
 
 type ShopDetailIdentity = {
   brand: string;
@@ -61,9 +66,9 @@ function initialsFromBrand(brand: string): string {
     .join("");
 }
 
-function firstImageUri(...values: unknown[]): string | undefined {
+function firstImageUri(apiBaseUrl: string, ...values: unknown[]): string | undefined {
   for (const value of values) {
-    const uri = resolveRemoteImageUri(value);
+    const uri = resolveOfferMediaUrl(value, apiBaseUrl);
     if (uri) {
       return uri;
     }
@@ -75,12 +80,14 @@ export function mapMerchantOfferToShopDetail<TShop extends ShopDetailIdentity>(
   offer: MerchantOfferResponse,
   fixtureShop: TShop
 ): Omit<TShop, keyof ShopDetailIdentity> & ShopDetailIdentity & LiveShopDetailFields {
-  const brand = offer.offer_name_display?.trim() || offer.offer_name.trim() || fixtureShop.brand;
+  const brand =
+    offer.offer_name_display?.trim() || offer.offer_name?.trim() || fixtureShop.brand;
   const cashback = formatCashback(offer) ?? fixtureShop.cashback;
+  const apiBaseUrl = getMobileEnv().apiUrl;
 
   return {
     ...fixtureShop,
-    bannerUri: firstImageUri(offer.banner),
+    bannerUri: firstImageUri(apiBaseUrl, resolveShopPageBannerUri(offer)),
     brand,
     cashback,
     category: offer.categories?.trim() || fixtureShop.category,
@@ -91,7 +98,7 @@ export function mapMerchantOfferToShopDetail<TShop extends ShopDetailIdentity>(
     extraCashback: cashback,
     id: offer._id,
     logoText: initialsFromBrand(brand),
-    logoUri: firstImageUri(offer.logo_circle, offer.logo, offer.logo_desktop, offer.logo_mobile),
+    logoUri: firstImageUri(apiBaseUrl, resolvePublicOfferLogo(offer)),
     note:
       offer.note_to_user?.trim() ||
       `${brand} cashback is tracked through GoGoCash after you open the merchant link and complete an eligible order.`,
