@@ -1,6 +1,6 @@
 name: gogocash-codeql
-# Local mongo sanitizer model pack is wired in codeql.yml via CODEQL_ACTION_EXTRA_OPTIONS
-# (--additional-packs + --extension-packs). packs: here only accepts published GHCR packs.
+# Local mongo sanitizer pack is wired in codeql.yml via CODEQL_ACTION_EXTRA_OPTIONS
+# on the javascript-typescript job — do not list packs here (init pulls from GHCR).
 paths-ignore:
   - '**/node_modules/**'
   - '**/*.test.ts'

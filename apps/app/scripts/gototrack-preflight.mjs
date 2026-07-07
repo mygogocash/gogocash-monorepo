@@ -114,14 +114,6 @@ function dismissCookieBannerFromXml(adb, deviceOptions, uiXml = "") {
   return false;
 }
 
-function dismissCookieBannerIfPresent(adb, deviceOptions) {
-  const uiDump = run(adb, adbArgs(deviceOptions, ["exec-out", "uiautomator", "dump", "/dev/tty"]), {
-    timeoutMs: 15000,
-  });
-  const uiXml = uiDump.status === 0 ? uiDump.stdout : "";
-  return dismissCookieBannerFromXml(adb, deviceOptions, uiXml);
-}
-
 function buildDevClientLaunchUrl(metroPort = defaultMetroPort, host = "127.0.0.1") {
   const metroUrl = `http://${host}:${metroPort}`;
   return `${devClientExpoScheme}://expo-development-client/?url=${encodeURIComponent(metroUrl)}`;
