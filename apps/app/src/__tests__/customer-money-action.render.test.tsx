@@ -18,6 +18,7 @@ import {
   CustomerMoneyActionScreen,
   evaluateWithdraw,
   parseWithdrawAmount,
+  resolveWithdrawAvailableBalance,
 } from "@mobile/screens/CustomerMoneyActionScreen";
 
 // Bug-hunt fixes for CustomerMoneyActionScreen:
@@ -73,6 +74,31 @@ describe("parseWithdrawAmount", () => {
   });
 });
 
+describe("resolveWithdrawAvailableBalance", () => {
+  it("backend mode > given wallet query netAmountTHB > then returns that balance (not a hardcoded seed)", () => {
+    expect(
+      resolveWithdrawAvailableBalance("backend", {
+        netAmount: 1250.5,
+        netAmountTHB: 1250.5,
+        totalPayoutTHB: 0,
+        totalPayoutUSD: 0,
+      }),
+    ).toBe(1250.5);
+  });
+
+  it("backend mode > given wallet query not ready > then returns zero instead of fixture seed", () => {
+    expect(resolveWithdrawAvailableBalance("backend", null)).toBe(0);
+  });
+
+  it("fixtures mode > given no local deduction > then returns fixture net amount", () => {
+    expect(resolveWithdrawAvailableBalance("fixtures", null, 0, 3180.24)).toBe(3180.24);
+  });
+
+  it("fixtures mode > given local deduction after submit > then subtracts from fixture only", () => {
+    expect(resolveWithdrawAvailableBalance("fixtures", null, 500, 3180.24)).toBe(2680.24);
+  });
+});
+
 describe("evaluateWithdraw", () => {
   it("approves a valid amount within balance with a selected method", () => {
     expect(evaluateWithdraw("500.00", 3180.24, true, false)).toEqual({ ok: true, amount: 500 });
@@ -114,6 +140,22 @@ describe("evaluateWithdraw", () => {
 describe("withdraw confirm button is guarded after success (source)", () => {
   it("disables the Confirm & Dispatch action once a withdrawal has succeeded", () => {
     expect(moneyActionSource).toContain("disabled={!!successMsg || withdrawing}");
+  });
+});
+
+describe("withdraw success refreshes shared wallet cache (source)", () => {
+  it("invalidates wallet queries after a successful backend bank transfer", () => {
+    expect(moneyActionSource).toContain("invalidateCustomerWalletQueries");
+  });
+
+  it("does not keep a parallel balance useState seeded at 3180.24", () => {
+    expect(moneyActionSource).not.toContain("useState(3180.24)");
+    expect(moneyActionSource).toContain("resolveWithdrawAvailableBalance");
+    expect(moneyActionSource).not.toMatch(/setBalance\(\s*walletResource/);
+  });
+
+  it("backend withdraw success does not locally decrement balance (wallet query is source of truth)", () => {
+    expect(moneyActionSource).not.toContain("setBalance((current) => Math.max(0, current - decision.amount))");
   });
 });
 

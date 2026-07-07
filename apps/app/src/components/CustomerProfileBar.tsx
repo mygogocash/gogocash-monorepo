@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, type ViewStyle } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
+import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import type { MobileSession } from "@mobile/auth/session";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
 import { GoGoPassMark } from "@mobile/components/GoGoPassMark";
@@ -45,14 +46,11 @@ function ProfileChevron({ open }: { open?: boolean }) {
 export function CustomerProfileBar({ open, session }: { open?: boolean; session: MobileSession }) {
   const styles = useThemedStyles(createProfileBarStyles);
   const { colors } = useTheme();
+  const { amount } = useProfileWalletAmount();
   const username =
     typeof session.username === "string" && session.username
       ? session.username
       : webProfileWalletSummary.username;
-  const amount =
-    typeof session.wallet === "string" && session.wallet
-      ? session.wallet
-      : webProfileWalletSummary.amount;
   const tier = readMembershipTier(session.membership_tier);
   const avatarUrl =
     typeof session.avatar_url === "string" && session.avatar_url.trim()

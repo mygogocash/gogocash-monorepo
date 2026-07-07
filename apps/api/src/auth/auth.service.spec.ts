@@ -256,6 +256,87 @@ describe('AuthService', () => {
         } as any),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
+
+    it("signInFirebase > given a new user and referral_id is the string 'null' > then it registers without attempting referral credit", async () => {
+      const created = makeUser({ id_firebase: 'fb-new' });
+      const { service, userService, jwtService } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(null),
+          createFromFirebase: jest.fn().mockResolvedValue(created),
+        },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'fb-new',
+        email: 'new@gogocash.co',
+        firebase: { sign_in_provider: 'password' },
+      });
+
+      const result = await service.signInFirebase('id-token', {
+        address: '',
+        referral_id: 'null',
+      } as any);
+
+      expect(result.is_new_user).toBe(true);
+      expect(result.auth_flow).toBe('register');
+      expect(result.token).toBe('signed.jwt.token');
+      expect(userService.createFromFirebase).toHaveBeenCalledTimes(1);
+      expect(userService.findOne).toHaveBeenCalledTimes(2);
+      expect(jwtService.sign).toHaveBeenCalledTimes(1);
+    });
+
+    it('signInFirebase > given a new user and referral_id is not a valid ObjectId > then it registers without attempting referral credit', async () => {
+      const created = makeUser({ id_firebase: 'fb-new' });
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(null),
+          createFromFirebase: jest.fn().mockResolvedValue(created),
+        },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'fb-new',
+        email: 'new@gogocash.co',
+        firebase: { sign_in_provider: 'password' },
+      });
+
+      const result = await service.signInFirebase('id-token', {
+        address: '',
+        referral_id: 'not-an-object-id',
+      } as any);
+
+      expect(result.is_new_user).toBe(true);
+      expect(result.auth_flow).toBe('register');
+      expect(userService.findOne).toHaveBeenCalledTimes(2);
+    });
+
+    it('signInFirebase > given referral award throws > then registration still succeeds', async () => {
+      const created = makeUser({ id_firebase: 'fb-new' });
+      const referrer = makeUser({ _id: { toString: () => REF_ID } });
+      const { service, userService, pointModel } = makeService({
+        userService: {
+          findOne: jest
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(referrer),
+          createFromFirebase: jest.fn().mockResolvedValue(created),
+        },
+      });
+      pointModel.findOne.mockRejectedValue(new Error('db down'));
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'fb-new',
+        email: 'new@gogocash.co',
+        firebase: { sign_in_provider: 'password' },
+      });
+
+      const result = await service.signInFirebase('id-token', {
+        address: '',
+        referral_id: REF_ID,
+      } as any);
+
+      expect(result.is_new_user).toBe(true);
+      expect(result.auth_flow).toBe('register');
+      expect(result.token).toBe('signed.jwt.token');
+    });
   });
 
   // --- signInTelegram -------------------------------------------------------

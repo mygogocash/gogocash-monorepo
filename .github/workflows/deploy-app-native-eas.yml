@@ -16,8 +16,11 @@
 #
 #   • eas.json profiles (apps/app/eas.json): `development` targets api.dev.gogocash.co
 #       (Android dev-client + GoGoTrack device QA). `preview` stays on staging API.
-#       Firebase client secrets for EAS build are read from the GitHub `staging`
-#       environment (same gogocash-staging Firebase project) until a `dev` env exists.
+#       EXPO_PUBLIC_EAS_PROJECT_ID is inlined per profile so native builds get OTA URL.
+#       EXPO_PUBLIC_FIREBASE_* is NOT in eas.json — eas.json does not expand $VAR.
+#       Native builds read Firebase from EAS secrets on expo.dev (see
+#       docs/firebase-native-eas.md). OTA/update steps on this runner use GitHub
+#       `staging` environment secrets (same pattern as app-ota-staging.yml).
 #
 # Monorepo note: EAS auto-detects the workspace; the working-directory is
 # apps/app and `eas build` resolves the root lockfile. No app-source changes here.
@@ -120,11 +123,6 @@ jobs:
       - name: EAS Build
         id: eas-build
         if: ${{ inputs.action == 'build' }}
-        env:
-          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
-          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
         run: |
           eas build \
             --non-interactive \

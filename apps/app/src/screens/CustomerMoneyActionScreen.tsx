@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -28,9 +29,12 @@ import {
 } from "@mobile/api/backendIntegrationScope";
 import { isCheckWithdrawResponse } from "@mobile/api/walletTypes";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { invalidateCustomerWalletQueries } from "@mobile/account/invalidateCustomerWalletQueries";
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
+import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import { getMobileEnv } from "@mobile/config/env";
 import { createWithdrawApi } from "@mobile/withdraw/api";
+import { usePayoutMethods, type PayoutMethodDraft } from "@mobile/withdraw/usePayoutMethods";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { haptics } from "@mobile/lib/haptics";
@@ -85,40 +89,25 @@ export function evaluateWithdraw(
   return { ok: true, amount };
 }
 
-// Initial local payout methods state
-type PayoutMethod = {
-  id: string;
-  type: "promptpay" | "bank" | "crypto";
-  bankName: string;
-  accountNo: string;
-  accountName: string;
-  isDefault: boolean;
-};
-
-const INITIAL_METHODS: PayoutMethod[] = [
-  {
-    id: "1",
-    type: "promptpay",
-    bankName: "PromptPay (Phone)",
-    accountNo: "0891234567",
-    accountName: "Kunanon Jarat",
-    isDefault: true,
-  },
-  {
-    id: "2",
-    type: "bank",
-    bankName: "Kasikorn Bank",
-    accountNo: "123-4-56789-0",
-    accountName: "Kunanon Jarat",
-    isDefault: false,
-  },
-];
-
 // Web Withdraw page parity (src/features/wallet/component/MyWalletWithdraw.tsx): the flat fee and
 // minimum the form validates against, plus the copy. Kept local to the screen (the shared
 // webDesignParity fixture is under active parallel edits) so this redesign stays self-contained.
 const WITHDRAW_FEE = 20;
 const MIN_WITHDRAW = 300;
+const WITHDRAW_WALLET_FIXTURE_NET_AMOUNT_THB = 3180.24;
+
+/** Single source of truth for the withdraw form's available balance. */
+export function resolveWithdrawAvailableBalance(
+  accountDataSource: AccountDataSource,
+  walletData: unknown,
+  fixturesDeduction = 0,
+  fixtureNetAmountTHB = WITHDRAW_WALLET_FIXTURE_NET_AMOUNT_THB,
+): number {
+  if (accountDataSource === "backend") {
+    return isCheckWithdrawResponse(walletData) ? walletData.netAmountTHB : 0;
+  }
+  return Math.max(0, fixtureNetAmountTHB - fixturesDeduction);
+}
 
 const withdrawCopy = {
   screenTitle: "Withdraw",
@@ -240,43 +229,40 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const env = getMobileEnv();
+  const queryClient = useQueryClient();
   const payoutMethodTabs = useMemo(
     () => resolvePayoutMethodTabs(env.accountDataSource),
     [env.accountDataSource],
   );
   const showCryptoPayoutTab = payoutMethodTabs.includes("crypto");
-  // Edit mode: the /method list links here as /method/create?id=<id>. Look the method up in the shared
-  // withdraw-method fixture (display-only mock) to prefill the form + switch to "edit" copy.
+  const { methods, saveMethod, findMethodById } = usePayoutMethods();
   const { id: editMethodId } = useLocalSearchParams<{ id?: string }>();
-  const editMethod = editMethodId
-    ? webWithdrawMethodPage.methods.find((m) => m.id === editMethodId)
-    : undefined;
+  const editMethod = editMethodId ? findMethodById(editMethodId) : undefined;
   const isEditingMethod = Boolean(editMethod);
 
-  // Local state for interactive flows
-  const [methods, setMethods] = useState<PayoutMethod[]>(INITIAL_METHODS);
+  const [selectedMethodId, setSelectedMethodId] = useState("");
   // Web parity: the bank starts unselected (the "Select your bank" red empty state) so the
   // Withdraw button stays disabled until a payout target is chosen.
-  const [selectedMethodId, setSelectedMethodId] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawMethod, setWithdrawMethod] = useState("bank_transfer");
   const [helpOpen, setHelpOpen] = useState(false);
-  const [balance, setBalance] = useState(3180.24);
+  const [fixturesWithdrawn, setFixturesWithdrawn] = useState(0);
   const [withdrawing, setWithdrawing] = useState(false);
   const walletResource = useCustomerAccountResource({
-    fixtureData: { netAmountTHB: 3180.24 },
+    fixtureData: { netAmountTHB: WITHDRAW_WALLET_FIXTURE_NET_AMOUNT_THB },
     resourceId: "wallet",
     enabled: mode === "withdraw" && env.accountDataSource === "backend",
   });
-
-  useEffect(() => {
-    if (env.accountDataSource !== "backend") {
-      return;
-    }
-    if (isCheckWithdrawResponse(walletResource.data)) {
-      setBalance(walletResource.data.netAmountTHB);
-    }
-  }, [env.accountDataSource, walletResource.data]);
+  const balance = useMemo(
+    () =>
+      resolveWithdrawAvailableBalance(
+        env.accountDataSource,
+        walletResource.data,
+        fixturesWithdrawn,
+        WITHDRAW_WALLET_FIXTURE_NET_AMOUNT_THB,
+      ),
+    [env.accountDataSource, fixturesWithdrawn, walletResource.data],
+  );
 
   // Form states (methodCreate)
   const [createTab, setCreateTab] = useState<PayoutMethodTab>("bank");
@@ -325,7 +311,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     setCreateTab("bank");
     setBankName(editMethod.bankName);
     setBankAccountName(editMethod.accountName);
-    setBankAccountNo(editMethod.maskedAccount);
+    setBankAccountNo(editMethod.maskedAccount ?? editMethod.accountNo);
     setBankIsDefault(editMethod.isDefault);
   }, [editMethod]);
 
@@ -333,7 +319,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     const errs: string[] = [];
     setSuccessMsg("");
 
-    let newMethod: PayoutMethod | null = null;
+    let draft: PayoutMethodDraft | null = null;
 
     if (createTab === "promptpay") {
       if (!ppCode.trim()) errs.push(tc("PromptPay phone/ID is required."));
@@ -348,8 +334,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       }
 
       if (errs.length === 0) {
-        newMethod = {
-          id: Math.random().toString(),
+        draft = {
           type: "promptpay",
           bankName: `PromptPay (${ppIdType === "phone" ? "Phone" : "Citizen ID"})`,
           accountNo: ppCode.trim(),
@@ -363,8 +348,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       if (!bankAccountName.trim()) errs.push(tc("Account name is required."));
 
       if (errs.length === 0) {
-        newMethod = {
-          id: Math.random().toString(),
+        draft = {
           type: "bank",
           bankName,
           accountNo: bankAccountNo.trim(),
@@ -381,8 +365,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       }
 
       if (errs.length === 0) {
-        newMethod = {
-          id: Math.random().toString(),
+        draft = {
           type: "crypto",
           bankName: "Crypto Wallet",
           accountNo: cryptoAddress.trim(),
@@ -397,32 +380,35 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       return;
     }
 
-    if (newMethod) {
-      // Adjust defaults
-      let updatedMethods = [...methods];
-      if (newMethod.isDefault) {
-        updatedMethods = updatedMethods.map((m) => ({ ...m, isDefault: false }));
-      }
-      updatedMethods.push(newMethod);
-      setMethods(updatedMethods);
-      setSuccessMsg(
-        tc(isEditingMethod ? "Payout method updated successfully!" : "Payout method saved successfully!"),
-      );
-      setErrors([]);
-
-      // Clear form
-      setPpCode("");
-      setPpThaiName("");
-      setPpEnglishName("");
-      setBankName("");
-      setBankAccountNo("");
-      setBankAccountName("");
-      setCryptoAddress("");
-
-      setTimeout(() => {
-        router.push("/method");
-      }, 1000);
+    if (!draft) {
+      return;
     }
+
+    void (async () => {
+      try {
+        await saveMethod(draft, isEditingMethod ? editMethodId : undefined);
+        setSuccessMsg(
+          tc(isEditingMethod ? "Payout method updated successfully!" : "Payout method saved successfully!"),
+        );
+        setErrors([]);
+
+        setPpCode("");
+        setPpThaiName("");
+        setPpEnglishName("");
+        setBankName("");
+        setBankAccountNo("");
+        setBankAccountName("");
+        setCryptoAddress("");
+
+        setTimeout(() => {
+          router.push("/method");
+        }, 1000);
+      } catch (error) {
+        haptics.error();
+        captureHandledException(error, { surface: "CustomerMoneyActionScreen.saveMethod" });
+        setErrors([tc(userErrorMessageFromUnknown(error, toastErrorMessages.saveWithdrawalMethodFailed))]);
+      }
+    })();
   };
 
   const handleWithdraw = () => {
@@ -466,7 +452,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           );
           haptics.success();
           setErrors([]);
-          setBalance((current) => Math.max(0, current - decision.amount));
+          await invalidateCustomerWalletQueries(queryClient);
           setSuccessMsg(
             `Cashback withdrawal of ${decision.amount.toFixed(2)} THB to ${selectedMethod.bankName} submitted successfully!`,
           );
@@ -484,7 +470,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     // Success haptic on a confirmed withdrawal, then commit the deduction + receipt.
     haptics.success();
     setErrors([]);
-    setBalance(balance - decision.amount);
+    setFixturesWithdrawn((current) => current + decision.amount);
     setSuccessMsg(
       `Cashback withdrawal of ${decision.amount.toFixed(2)} THB to ${selectedMethod.bankName} submitted successfully!`
     );

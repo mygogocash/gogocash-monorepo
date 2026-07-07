@@ -19,6 +19,12 @@ describe("FavoriteBrandsProvider auth gating", () => {
     expect(favoriteProviderSource).toContain("if (!isAuthed)");
     expect(favoriteProviderSource).toContain("env.accountDataSource === \"backend\" && env.apiUrl && isAuthed");
   });
+
+  it("FavoriteBrandsProvider > given an in-flight favorites fetch > then ignores superseded resolutions", () => {
+    expect(favoriteProviderSource).toContain("let cancelled = false");
+    expect(favoriteProviderSource).toContain("if (cancelled || fetchEpoch !== favoritesFetchEpochRef.current)");
+    expect(favoriteProviderSource).toContain("favoritesFetchEpochRef.current += 1");
+  });
 });
 
 describe("fetchFavoriteOfferIds auth gating", () => {

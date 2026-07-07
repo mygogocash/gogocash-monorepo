@@ -73,6 +73,36 @@ describe("GoGoTrackPromptCoordinator", () => {
     expect(coordinator.showNativePrompt(samplePayload)).toBe(true);
   });
 
+  it("activateFromNative > given cooldown suppressed showNativePrompt > then still activates from payload", async () => {
+    let nowMs = 0;
+    const activate = vi.fn(async () => ({
+      activationEventId: "act-2",
+      deeplink: "https://track.gogocash.co/shopee",
+    }));
+    const openUrl = vi.fn(async () => undefined);
+    const coordinator = createGoGoTrackPromptCoordinator({
+      api: { activate },
+      cooldownMs: 5 * 60 * 1000,
+      now: () => new Date(nowMs),
+      openUrl,
+    });
+
+    expect(coordinator.showNativePrompt(samplePayload)).toBe(true);
+    await coordinator.activateFromNative(samplePayload);
+    expect(coordinator.getState().nativePromptActive).toBe(false);
+
+    nowMs = 60_000;
+    expect(coordinator.showNativePrompt(samplePayload)).toBe(false);
+    expect(coordinator.getState().nativePromptActive).toBe(false);
+
+    await expect(coordinator.activateFromNative(samplePayload)).resolves.toEqual({
+      deeplink: "https://track.gogocash.co/shopee",
+    });
+
+    expect(activate).toHaveBeenCalledTimes(2);
+    expect(openUrl).toHaveBeenCalledTimes(2);
+  });
+
   it("shouldSuppressBanner > given active native prompt > then hides hub banner for same match", () => {
     const coordinator = createGoGoTrackPromptCoordinator({
       api: { activate: vi.fn() },
@@ -85,5 +115,24 @@ describe("GoGoTrackPromptCoordinator", () => {
     ).toBe(true);
     expect(coordinator.shouldSuppressBanner("com.lazada.android:other")).toBe(true);
     expect(coordinator.shouldSuppressBanner(null)).toBe(true);
+  });
+
+  it("subscribe > given showNativePrompt or dismissFromNative > then notifies listeners", () => {
+    const listener = vi.fn();
+    const coordinator = createGoGoTrackPromptCoordinator({
+      api: { activate: vi.fn() },
+    });
+
+    const unsubscribe = coordinator.subscribe(listener);
+    coordinator.showNativePrompt(samplePayload);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    coordinator.dismissFromNative(samplePayload);
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    listener.mockClear();
+    unsubscribe();
+    coordinator.showNativePrompt(samplePayload);
+    expect(listener).not.toHaveBeenCalled();
   });
 });

@@ -11,6 +11,7 @@ import {
 import { useState } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
+import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { AccountPageShell, AccountWalletHeroCard } from "@mobile/components/AccountPageShell";
@@ -45,9 +46,13 @@ export function CustomerProfileScreen() {
   const { colors } = useTheme();
   const tc = useCopy();
   const session = useMobileSessionSnapshot();
+  const { amount: profileWalletAmount } = useProfileWalletAmount();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
-  const sessionWalletSummary = getSessionWalletSummary(session);
+  const sessionWalletSummary = {
+    ...getSessionWalletSummary(session),
+    amount: profileWalletAmount,
+  };
   const [profileSubNavOpen, setProfileSubNavOpen] = useState(true);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const { logout: handleLogout, pending: logoutPending } = useMobileLogout();
@@ -295,7 +300,6 @@ function getSessionWalletSummary(session: ReturnType<typeof useMobileSessionSnap
 
   return {
     ...webProfileWalletSummary,
-    amount: typeof session?.wallet === "string" && session.wallet ? session.wallet : webProfileWalletSummary.amount,
     maskedId: sessionId ? maskSessionId(sessionId) ?? webProfileWalletSummary.maskedId : webProfileWalletSummary.maskedId,
     userId: sessionId ?? webProfileWalletSummary.userId,
     username:

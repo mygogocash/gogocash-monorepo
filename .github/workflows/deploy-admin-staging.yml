@@ -22,10 +22,9 @@
 #   GCP_SERVICE_ACCOUNT   github-actions-api@gogocash-staging.iam.gserviceaccount.com
 #       (reuses the same WIF service account as the API lane.)
 #
-# ─── No Secret Manager secrets needed at build OR deploy ───
-#   NEXT_PUBLIC_API_URL is baked into the image at build time (defaults to
-#   https://api-staging.gogocash.co, see apps/admin/Dockerfile). The deploy does
-#   not pass --set-secrets, so the existing service's NextAuth env is retained.
+# ─── No Secret Manager secrets needed at deploy ───
+#   NEXT_PUBLIC_API_URL must be passed at build time (see apps/admin/Dockerfile).
+#   Deploy does not pass --set-secrets, so the existing service's NextAuth env is retained.
 #
 # Health check: `/` returns 307 (auth redirect) once live.
 
@@ -69,10 +68,11 @@ jobs:
 
       - name: Build Docker image (monorepo context, in-runner)
         # MONOREPO build context: `-f apps/admin/Dockerfile .` from the repo root.
-        # NEXT_PUBLIC_API_URL defaults to the staging API in the Dockerfile.
+        # NEXT_PUBLIC_API_URL is required at build time (no Dockerfile default).
         run: |
           docker build \
             -f apps/admin/Dockerfile \
+            --build-arg NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co \
             --tag ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             --tag ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.IMAGE_NAME }}:latest \
             --cache-from ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.IMAGE_NAME }}:latest \

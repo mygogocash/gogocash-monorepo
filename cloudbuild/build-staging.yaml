@@ -17,6 +17,8 @@ steps:
       - build
       - --file
       - apps/admin/Dockerfile
+      - --build-arg
+      - NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co
       - --tag
       - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-admin:$COMMIT_SHA
       - --tag

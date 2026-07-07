@@ -236,7 +236,7 @@ describe("Account hub route parity", () => {
     expect(profileFile).toContain("webProfileWalletSummary");
     expect(profileFile).toContain("useMobileSessionSnapshot");
     expect(profileFile).toContain("getSessionWalletSummary");
-    expect(profileFile).toContain("session?.wallet");
+    expect(profileFile).toContain("useProfileWalletAmount");
     expect(profileFile).toContain("ProfilePanelHeader");
     expect(profileFile).toContain("InviteFriendsRow");
     expect(profileFile).toContain("copyInviteLink");

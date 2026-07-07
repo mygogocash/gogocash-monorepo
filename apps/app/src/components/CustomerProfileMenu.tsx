@@ -22,6 +22,7 @@ import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/profileMenuIcons";
+import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import { clearMobileAppSession, type MobileSession } from "@mobile/auth/session";
 import { webProfileWalletHeroSurface, webProfileWalletSummary } from "@mobile/design/webDesignParity";
 import { profileHubMenuItems } from "@mobile/design/webDesignParity";
@@ -37,7 +38,6 @@ function deriveSummary(session: MobileSession) {
   const region = str(session.region);
   return {
     title: str(session.username) ?? webProfileWalletSummary.username,
-    amount: str(session.wallet) ?? webProfileWalletSummary.amount,
     tier: str(session.membership_tier) ?? webProfileWalletSummary.membershipTier,
     avatarUrl: str(session.avatar_url),
     maskedId: webProfileWalletSummary.maskedId,
@@ -241,6 +241,7 @@ export function CustomerProfileMenu({
   const styles = useThemedStyles(createProfileMenuStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const { amount: walletAmount } = useProfileWalletAmount();
   const summary = deriveSummary(session);
 
   return (
@@ -250,7 +251,7 @@ export function CustomerProfileMenu({
       style={styles.scroller}
     >
       <PopoverWalletHeroCard
-        amount={summary.amount}
+        amount={walletAmount}
         avatarUrl={summary.avatarUrl}
         currency={summary.currency}
         lastUpdated={summary.lastUpdated}

@@ -235,4 +235,114 @@ describe('UserService', () => {
       });
     });
   });
+
+  describe('getBalanceMyCashback', () => {
+    const userId = new Types.ObjectId().toString();
+
+    function buildService({
+      user,
+      myCashbackFind,
+    }: {
+      user: Record<string, unknown>;
+      myCashbackFind: jest.Mock;
+    }) {
+      const userModel = {
+        findOne: jest.fn().mockResolvedValue(user),
+        findById,
+        findByIdAndUpdate,
+      };
+      const myCashbackModel = {
+        find: myCashbackFind,
+      };
+      return Test.createTestingModule({
+        providers: [
+          UserService,
+          { provide: getModelToken(User.name), useValue: userModel },
+          { provide: getModelToken(UserMyCashback.name), useValue: myCashbackModel },
+          { provide: StoredMediaService, useValue: storedMediaService },
+        ],
+      }).compile();
+    }
+
+    it('getBalanceMyCashback > given phone miss and email fallback > then uses anchored escaped email regex', async () => {
+      const myCashbackFind = jest
+        .fn()
+        .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue([]) })
+        .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue([]) });
+      const moduleRef = await buildService({
+        user: {
+          _id: new Types.ObjectId(userId),
+          email: 'a+b@x.com',
+          mobile: '+66812345678',
+        },
+        myCashbackFind,
+      });
+      const scoped = moduleRef.get<UserService>(UserService);
+
+      await scoped.getBalanceMyCashback(userId);
+
+      expect(myCashbackFind).toHaveBeenLastCalledWith({
+        email: { $regex: '^a\\+b@x\\.com$', $options: 'i' },
+      });
+    });
+
+    it('getBalanceMyCashback > given malformed +66 mobile with no digits > then skips phoneNumber 0 query', async () => {
+      const myCashbackFind = jest
+        .fn()
+        .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue([]) })
+        .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue([]) });
+      const moduleRef = await buildService({
+        user: {
+          _id: new Types.ObjectId(userId),
+          email: 'user@example.com',
+          mobile: '+66',
+        },
+        myCashbackFind,
+      });
+      const scoped = moduleRef.get<UserService>(UserService);
+
+      await scoped.getBalanceMyCashback(userId);
+
+      expect(myCashbackFind).toHaveBeenNthCalledWith(1, {
+        $or: [{ phoneNumber: '+66' }],
+      });
+      expect(myCashbackFind).not.toHaveBeenCalledWith({
+        $or: [{ phoneNumber: '+66' }, { phoneNumber: '0' }],
+      });
+    });
+
+    it('getBalanceMyCashback > given email lookup returns an unrelated row first > then excludes it from sumBalance', async () => {
+      const myCashbackFind = jest
+        .fn()
+        .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue([]) })
+        .mockReturnValueOnce({
+          lean: jest.fn().mockResolvedValue([
+            {
+              email: 'xa@b.com',
+              balance: [{ amount: 999, currency: 'THB' }],
+            },
+            {
+              email: 'a@b.com',
+              balance: [{ amount: 100, currency: 'THB' }],
+            },
+          ]),
+        });
+      const moduleRef = await buildService({
+        user: {
+          _id: new Types.ObjectId(userId),
+          email: 'a@b.com',
+          mobile: '+66812345678',
+        },
+        myCashbackFind,
+      });
+      const scoped = moduleRef.get<UserService>(UserService);
+
+      const result = await scoped.getBalanceMyCashback(userId);
+
+      expect(result.userMyCashback).toHaveLength(1);
+      expect(result.sumBalance).toEqual({
+        THB: { amount: 100, currency: 'THB' },
+      });
+    });
+  });
 });

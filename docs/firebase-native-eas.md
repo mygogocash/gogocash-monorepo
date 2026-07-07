@@ -1,6 +1,6 @@
 # Firebase on EAS native builds
 
-`EXPO_PUBLIC_FIREBASE_*` values are **inlined at native build time** via `eas.json` profile `env` blocks and EAS secrets.
+`EXPO_PUBLIC_FIREBASE_*` values are **inlined at native build time** from **EAS secrets / environment variables on expo.dev** — not from GitHub Actions runner env (remote `eas build` workers do not receive runner exports) and not from `$VAR` placeholders in `eas.json` (those are passed literally).
 
 ## Required keys
 
@@ -11,15 +11,17 @@
 | `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | Same |
 | `EXPO_PUBLIC_FIREBASE_APP_ID` | Same |
 
-Set in EAS:
+Set in EAS (required before native store builds):
 
 ```bash
 cd apps/app
 eas secret:create --name EXPO_PUBLIC_FIREBASE_API_KEY --value ... --type string
-# repeat for each key, or use eas.json env with EAS environment variables in dashboard
+# repeat for AUTH_DOMAIN, PROJECT_ID, APP_ID
 ```
 
-Profiles `preview` and `production` include empty Firebase keys in `eas.json` — **replace via EAS env/secrets before store builds**.
+`eas.json` profiles do **not** embed Firebase keys.
+
+For **OTA updates** (`eas update`), GitHub Actions inlines Firebase from the `staging` environment — see `.github/workflows/app-ota-staging.yml` and the `update` step in `deploy-app-native-eas.yml`.
 
 ## Authorized domains
 

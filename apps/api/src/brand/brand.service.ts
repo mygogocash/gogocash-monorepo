@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { QueryFilter, Model, Types } from 'mongoose';
-import { requireObjectId, mongoSetUpdate } from 'src/common/mongo-query';
+import { requireObjectId, mongoSetUpdate, mongoCaseInsensitiveRegex } from 'src/common/mongo-query';
 import { Brand, BrandDocument } from './schemas/brand.schema';
 import { Offer, OfferDocument } from '../offer/schemas/offer.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -102,7 +102,7 @@ export class BrandService {
     const limit = Math.min(dto.limit ?? 20, 200);
     const filter: QueryFilter<Brand> = { disabled: false };
     if (dto.search) {
-      filter.brand_name = { $regex: dto.search.trim(), $options: 'i' };
+      filter.brand_name = mongoCaseInsensitiveRegex(dto.search);
     }
     if (dto.is_global === 'true') filter.is_global = true;
     if (dto.is_global === 'false') filter.is_global = false;
@@ -121,7 +121,7 @@ export class BrandService {
     const ids = brandsRaw.map((b) => b._id);
     const variantFilter: QueryFilter<Offer> = { brand_id: { $in: ids } };
     if (dto.country)
-      variantFilter.countries = { $regex: dto.country, $options: 'i' };
+      variantFilter.countries = mongoCaseInsensitiveRegex(dto.country);
     const variants = await this.offerModel
       .find(variantFilter)
       .select(

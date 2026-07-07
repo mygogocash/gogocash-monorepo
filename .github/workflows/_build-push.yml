@@ -107,6 +107,7 @@ jobs:
         run: |
           docker build \
             -f "${{ inputs.dockerfile }}" \
+            --build-arg NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co \
             --tag "$IMAGE:${{ github.sha }}" \
             --tag "$IMAGE:staging-candidate" \
             --cache-from "$IMAGE:staging-candidate" \

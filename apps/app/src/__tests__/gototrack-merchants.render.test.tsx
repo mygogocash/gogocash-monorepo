@@ -1,8 +1,18 @@
+import { createElement, type ReactNode } from "react";
 import { renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useGoGoTrackMerchants } from "@mobile/gototrack/useGoGoTrackMerchants";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("useGoGoTrackMerchants (render)", () => {
+  let queryClient: QueryClient;
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: queryClient }, children);
+
+  beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  });
+
   it("loads the live catalog and selects a merchant by route slug", async () => {
     const api = {
       getMerchants: vi.fn(async () => [
@@ -15,7 +25,7 @@ describe("useGoGoTrackMerchants (render)", () => {
       ]),
     };
 
-    const { result } = renderHook(() => useGoGoTrackMerchants("grocery-galaxy", api));
+    const { result } = renderHook(() => useGoGoTrackMerchants("grocery-galaxy", api), { wrapper });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(api.getMerchants).toHaveBeenCalledTimes(1);
@@ -27,7 +37,7 @@ describe("useGoGoTrackMerchants (render)", () => {
   });
 
   it("stays empty when the app is off-device or unauthenticated", () => {
-    const { result } = renderHook(() => useGoGoTrackMerchants("grocery-galaxy", null));
+    const { result } = renderHook(() => useGoGoTrackMerchants("grocery-galaxy", null), { wrapper });
 
     expect(result.current.loading).toBe(false);
     expect(result.current.merchant).toBeNull();
@@ -44,11 +54,42 @@ describe("useGoGoTrackMerchants (render)", () => {
       ]),
     };
 
-    const { result } = renderHook(() => useGoGoTrackMerchants("grocery-galaxy", api, false));
+    const { result } = renderHook(() => useGoGoTrackMerchants("grocery-galaxy", api, false), {
+      wrapper,
+    });
 
     expect(result.current.loading).toBe(false);
     expect(result.current.merchant).toBeNull();
     expect(result.current.merchants).toEqual([]);
     expect(api.getMerchants).not.toHaveBeenCalled();
+  });
+
+  it("shares the merchant catalog across hook instances via React Query", async () => {
+    const api = {
+      getMerchants: vi.fn(async () => [
+        {
+          android_packages: ["com.grocery.galaxy"],
+          enabled: true,
+          merchant_id: "merchant-grocery-galaxy",
+          merchant_name: "Grocery Galaxy",
+        },
+      ]),
+    };
+
+    const { result: first } = renderHook(() => useGoGoTrackMerchants("grocery-galaxy", api), {
+      wrapper,
+    });
+    await waitFor(() => expect(first.current.loading).toBe(false));
+    expect(api.getMerchants).toHaveBeenCalledTimes(1);
+
+    const { result: second } = renderHook(() => useGoGoTrackMerchants("grocery-galaxy", api), {
+      wrapper,
+    });
+    await waitFor(() => expect(second.current.loading).toBe(false));
+    expect(api.getMerchants).toHaveBeenCalledTimes(1);
+    expect(second.current.merchant).toMatchObject({
+      id: "merchant-grocery-galaxy",
+      name: "Grocery Galaxy",
+    });
   });
 });

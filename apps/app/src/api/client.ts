@@ -24,7 +24,7 @@ export function createMobileApiClient(options: MobileApiClientOptions) {
   const baseUrl = normalizeBaseUrl(options.baseUrl);
 
   async function request<TResponse>(
-    method: "GET" | "POST",
+    method: "GET" | "PATCH" | "POST",
     path: string,
     body?: unknown,
     customHeaders: Record<string, string> = {}
@@ -64,7 +64,7 @@ export function createMobileApiClient(options: MobileApiClientOptions) {
     body?: unknown;
     customHeaders: Record<string, string>;
     isAuthRetry: boolean;
-    method: "GET" | "POST";
+    method: "GET" | "PATCH" | "POST";
     path: string;
     preferredUsed: boolean;
     sessionToken: string;
@@ -144,6 +144,9 @@ export function createMobileApiClient(options: MobileApiClientOptions) {
     },
     post<TResponse = unknown>(path: string, body?: unknown, headers?: Record<string, string>) {
       return request<TResponse>("POST", path, body, headers);
+    },
+    patch<TResponse = unknown>(path: string, body?: unknown, headers?: Record<string, string>) {
+      return request<TResponse>("PATCH", path, body, headers);
     },
     postFormData<TResponse = unknown>(path: string, formData: FormData) {
       return requestFormData<TResponse>(path, formData, options);

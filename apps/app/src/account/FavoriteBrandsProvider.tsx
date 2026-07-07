@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren,
 } from "react";
@@ -33,24 +34,42 @@ export function FavoriteBrandsProvider({ children }: PropsWithChildren) {
   const [favoriteIds, setFavoriteIds] = useState<readonly string[]>(() =>
     env.accountDataSource === "backend" ? [] : [...INITIAL_FAVORITE_OFFER_IDS],
   );
+  const favoritesFetchEpochRef = useRef(0);
 
   useEffect(() => {
+    let cancelled = false;
+    const fetchEpoch = ++favoritesFetchEpochRef.current;
+
     if (env.accountDataSource !== "backend" || !env.apiUrl) {
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     if (!isAuthed) {
       setFavoriteIds([]);
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     void fetchFavoriteOfferIds({ apiUrl: env.apiUrl })
       .then((ids) => {
+        if (cancelled || fetchEpoch !== favoritesFetchEpochRef.current) {
+          return;
+        }
         setFavoriteIds(ids);
       })
       .catch(() => {
+        if (cancelled || fetchEpoch !== favoritesFetchEpochRef.current) {
+          return;
+        }
         setFavoriteIds([]);
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [env.accountDataSource, env.apiUrl, isAuthed]);
 
   const isFavorite = useCallback(
@@ -60,6 +79,7 @@ export function FavoriteBrandsProvider({ children }: PropsWithChildren) {
 
   const toggleFavorite = useCallback(
     (id: string) => {
+      favoritesFetchEpochRef.current += 1;
       setFavoriteIds((previous) =>
         previous.includes(id) ? previous.filter((entry) => entry !== id) : [...previous, id],
       );

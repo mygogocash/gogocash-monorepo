@@ -19,7 +19,7 @@ export function useGoGoTrackBackgroundPrompts(
   detector: GoGoTrackDetector,
 ): void {
   const api = useGoGoTrackApi();
-  const { settings } = useGoGoTrackSettings();
+  const { isSettingsReady, settings } = useGoGoTrackSettings();
 
   useEffect(() => {
     if (Platform.OS === "ios") {
@@ -32,6 +32,10 @@ export function useGoGoTrackBackgroundPrompts(
   }, [api]);
 
   useEffect(() => {
+    if (!isSettingsReady) {
+      return;
+    }
+
     let active = true;
 
     const sync = () => {
@@ -57,5 +61,5 @@ export function useGoGoTrackBackgroundPrompts(
       unsubscribeSession();
       appStateSubscription.remove();
     };
-  }, [detector, settings.backgroundPromptsEnabled]);
+  }, [detector, isSettingsReady, settings.backgroundPromptsEnabled]);
 }

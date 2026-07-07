@@ -239,9 +239,9 @@ export class UserService {
 
    
     const mobileData = user?.mobile?.includes('+66')
-      ? user?.mobile?.slice(3)
-      : user?.mobile;
-    const mobile = '0' + mobileData;
+      ? user?.mobile?.slice(3)?.trim() ?? ''
+      : user?.mobile?.trim() ?? '';
+    const normalizedMobile = mobileData.length > 0 ? `0${mobileData}` : null;
 
     // const myCashbackDataList = await this.userMyCashbackModel
     //   .find({
@@ -251,9 +251,15 @@ export class UserService {
 
     let myCashbackDataList = [];
     if (user?.mobile) {
+      const phoneOr: Array<{ phoneNumber: string }> = [
+        { phoneNumber: user.mobile },
+      ];
+      if (normalizedMobile) {
+        phoneOr.push({ phoneNumber: normalizedMobile });
+      }
       myCashbackDataList = await this.userMyCashbacksModel
         .find({
-          $or: [{ phoneNumber: user.mobile }, { phoneNumber: mobile }],
+          $or: phoneOr,
         })
         .lean();
     }
@@ -261,32 +267,28 @@ export class UserService {
     if (myCashbackDataList?.length < 1) {
       myCashbackDataList = await this.userMyCashbacksModel
         .find({
-            email: { $regex: user.email }, 
-          // email: { $regex: user.email, $options: 'i' }, // Use $regex for case-insensitive search on user.email
-          // $or: [{ email: user.email }, { phoneNumber: user.mobile }, { phoneNumber: mobile }],
+          email: {
+            $regex: `^${escapeRegexLiteral(user.email)}$`,
+            $options: 'i',
+          },
         })
         .lean();
     }
-    
 
-    if (
-      myCashbackDataList[0]?.email === user.email ||
-      myCashbackDataList[0]?.phoneNumber === user.mobile ||
-      myCashbackDataList[0]?.phoneNumber === mobile
-    ) {
-      // const balanceByCurrency = userMyCashback?.reduce((acc, cashback) => {
-      //   cashback.balance?.forEach((balance) => {
-      //     const currency = balance.currency || 'THB'; // Default to THB if no currency specified
-      //     acc[currency] = {
-      //       ...balance,
-      //       amount: (acc[currency]?.amount || 0) + (balance.amount || 0),
-      //     };
-      //   });
-      //   return acc;
-      // }, {});
-      // console.log('balanceByCurrency', balanceByCurrency);
+    myCashbackDataList = myCashbackDataList.filter((row) =>
+      this.isOwnedMyCashbackRecord(
+        row,
+        user.email,
+        user.mobile,
+        normalizedMobile,
+      ),
+    );
 
-      const myCashbackDataGroupCurrency = myCashbackDataList?.reduce(
+    if (myCashbackDataList.length < 1) {
+      return { userMyCashback: null, user };
+    }
+
+    const myCashbackDataGroupCurrency = myCashbackDataList.reduce(
       (acc, cashback) => {
         cashback.balance?.forEach((balance) => {
           const currency = balance.currency || 'THB'; // Default to THB if no currency specified
@@ -299,8 +301,28 @@ export class UserService {
       },
       {},
     );
-      return { userMyCashback: myCashbackDataList, sumBalance: myCashbackDataGroupCurrency, user };
+    return { userMyCashback: myCashbackDataList, sumBalance: myCashbackDataGroupCurrency, user };
+  }
+
+  private isOwnedMyCashbackRecord(
+    row: { email?: string; phoneNumber?: string },
+    userEmail: string,
+    userMobile: string,
+    normalizedMobile: string | null,
+  ): boolean {
+    if (
+      typeof row.email === 'string' &&
+      row.email.toLowerCase() === userEmail.toLowerCase()
+    ) {
+      return true;
     }
-    return { userMyCashback: null, user };
+
+    if (row.phoneNumber === userMobile) {
+      return true;
+    }
+
+    return (
+      normalizedMobile != null && row.phoneNumber === normalizedMobile
+    );
   }
 }

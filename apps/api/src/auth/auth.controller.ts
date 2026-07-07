@@ -18,7 +18,6 @@ import {
   TelegramAuthDto,
   VerifyOtpDto,
 } from './dto/auth.dto';
-import { CrossmintAuthGuard } from './jwt-auth.guard';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { OtpService } from './otp.service';
@@ -58,7 +57,6 @@ export class AuthController {
   ) {}
 
   @Post('sign-in')
-  @UseGuards(CrossmintAuthGuard)
   @ApiBody({ type: SignInDto })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication

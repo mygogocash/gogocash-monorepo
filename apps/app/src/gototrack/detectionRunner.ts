@@ -72,25 +72,30 @@ export function createGoGoTrackDetectionRunner(options: DetectionRunnerOptions) 
       }
 
       const observedAt = now();
+      const observedAtMs = observedAt.getTime();
       const lastDetectionAt = lastDetectionByPackage.get(packageName);
       if (
         lastDetectionAt !== undefined &&
-        observedAt.getTime() - lastDetectionAt < cooldownMs
+        observedAtMs - lastDetectionAt < cooldownMs
       ) {
         return { detected: false, packageName, suppressed: true };
       }
 
-      const response = await options.api.detect({
-        appVersion: options.appVersion,
-        method: "android_package",
-        observedAt: observedAt.toISOString(),
-        packageName,
-        platform: "android",
-      });
-      lastDetectionByPackage.set(packageName, observedAt.getTime());
-      options.onDetection?.({ packageName, response });
-
-      return { detected: true, packageName, suppressed: false };
+      lastDetectionByPackage.set(packageName, observedAtMs);
+      try {
+        const response = await options.api.detect({
+          appVersion: options.appVersion,
+          method: "android_package",
+          observedAt: observedAt.toISOString(),
+          packageName,
+          platform: "android",
+        });
+        options.onDetection?.({ packageName, response });
+        return { detected: true, packageName, suppressed: false };
+      } catch (error) {
+        lastDetectionByPackage.delete(packageName);
+        throw error;
+      }
     },
   };
 }

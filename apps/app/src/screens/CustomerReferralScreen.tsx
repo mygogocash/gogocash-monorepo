@@ -22,6 +22,7 @@ import {
 } from "react-native";
 
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
+import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { mapReferralPointsToInviteRows, type ReferralInviteRow } from "@mobile/api/referralMapper";
 import { isReferralPointList } from "@mobile/api/referralTypes";
@@ -584,7 +585,8 @@ function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: Explor
   const styles = useThemedStyles(createReferralScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { isFavorite: isBrandFavorite, toggleFavorite } = useFavoriteBrands();
+  const isFavorite = isBrandFavorite(shop.id);
   return (
     <View style={[styles.exploreCard, isDesktop ? styles.exploreCardDesktop : styles.exploreCardMobile]}>
       {/* Brand-color art + monogram — the same card language as the app's brand cards
@@ -629,7 +631,7 @@ function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: Explor
           accessibilityRole="button"
           accessibilityState={{ selected: isFavorite }}
           hitSlop={8}
-          onPress={() => setIsFavorite((previous) => !previous)}
+          onPress={() => toggleFavorite(shop.id)}
           style={styles.exploreFavoriteButton}
         >
           <HeartIcon

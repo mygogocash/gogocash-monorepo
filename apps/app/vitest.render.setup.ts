@@ -63,6 +63,7 @@ vi.stubGlobal("fetch", renderFetch);
 
 vi.mock("@testing-library/react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@testing-library/react")>();
+  const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
   const { ThemeProvider } = await import("@mobile/theme/ThemeProvider");
   const { LocaleProvider } = await import("@mobile/i18n/LocaleProvider");
   const { FavoriteBrandsProvider } = await import("@mobile/account/FavoriteBrandsProvider");
@@ -72,11 +73,13 @@ vi.mock("@testing-library/react", async (importOriginal) => {
     options?: Parameters<typeof actual.render>[1]
   ): ReturnType<typeof actual.render> {
     const UserWrapper = options?.wrapper;
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const Wrapper = ({ children }: PropsWithChildren) => {
       const favorites = createElement(FavoriteBrandsProvider, {}, children);
       const localized = createElement(LocaleProvider, {}, favorites);
       const themed = createElement(ThemeProvider, {}, localized);
-      return UserWrapper ? createElement(UserWrapper, {}, themed) : themed;
+      const queried = createElement(QueryClientProvider, { client: queryClient }, themed);
+      return UserWrapper ? createElement(UserWrapper, {}, queried) : queried;
     };
     return actual.render(ui, { ...options, wrapper: Wrapper });
   }
@@ -89,8 +92,11 @@ vi.mock("@testing-library/react", async (importOriginal) => {
 
 import { cleanup } from "@testing-library/react";
 
+import { resetOfflineGoGoTrackSettingsForTests } from "@mobile/gototrack/useGoGoTrackSettings";
+
 // Unmount React trees between render tests so happy-dom state never leaks.
 afterEach(() => {
   renderFetch.mockClear();
+  resetOfflineGoGoTrackSettingsForTests();
   cleanup();
 });

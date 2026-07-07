@@ -24,9 +24,48 @@ Most P0/P1 mobile bugs are **one class**: server state held in per-component `us
 - **Production OTA channel mapped to staging env** — `deploy-app-native-eas.yml` (commit `14dfb08`).
 - Earlier: OTA fixtures-env, expo-image blank tiles, GoGoTrack toggle sync, white simpleicons, directory-card onError fallback, wallet metric alignment.
 
+### Phase 1 backlog — all 23 findings fixed (local, uncommitted)
+
+| # | Sev | Summary | Key files |
+|---|-----|---------|-----------|
+| 1 | P0 | Payout methods → shared React Query cache | `usePayoutMethods.ts`, `CustomerMoneyActionScreen.tsx`, `CustomerWithdrawMethodScreen.tsx` |
+| 2 | P1 | MyCashback email `$regex` anchored + escaped | `withdraw.service.ts` |
+| 3 | P1 | Background-prompts sync waits for settings ready | `useGoGoTrackBackgroundPrompts.ts` |
+| 4 | P1 | Cloud Run workflows + docs wired for R2 (not GCS) | `release-staging.yml`, `deploy-api-staging.yml`, `railway-env-matrix.md` |
+| 5 | P1 | GoGoTrack settings → shared React Query cache | `useGoGoTrackSettings.ts`, `gototrackSettingsQueryKey.ts` |
+| 6 | P1 | GoGoTrack privacy toggles share one cache | same as #5 |
+| 7 | P1 | Wallet invalidated after successful withdraw | `invalidateCustomerWalletQueries.ts`, `CustomerMoneyActionScreen.tsx` |
+| 8 | P2 | MCB auto-withdraw always tags `mycashback_id` | `withdraw-mycashback-auto.ts`, `withdraw.service.ts` |
+| 9 | P2 | `signInFirebase` guards `referral_id: 'null'` | `auth.service.ts` |
+| 10 | P2 | FavoriteBrands fetch stale-guard (epoch + cancel) | `FavoriteBrandsProvider.tsx` |
+| 11 | P2 | detectionRunner cooldown before `await detect` | `detectionRunner.ts` |
+| 12 | P2 | promptCoordinator repeat Accept within cooldown | `promptCoordinator.ts` |
+| 13 | P2 | `EXPO_PUBLIC_EAS_PROJECT_ID` on all eas.json profiles | `eas.json` |
+| 14 | P2 | Removed literal `$EXPO_PUBLIC_FIREBASE_*` from eas.json | `eas.json`, `deploy-app-native-eas.yml`, `firebase-native-eas.md` |
+| 15 | P2 | Referral ExploreShopCard → `useFavoriteBrands()` | `CustomerReferralScreen.tsx` |
+| 16 | P3 | `totalMyCashbackUSD` per-entry conversion | `withdraw.service.ts` |
+| 17 | P3 | Activation unique index + E11000 handling | `gototrack-activation-event.schema.ts`, `gototrack.service.ts` |
+| 18 | P3 | DetectionBanner subscribes to coordinator | `GoGoTrackDetectionBanner.tsx`, `promptCoordinatorInstance.ts` |
+| 19 | P3 | CrossmintAuthGuard fail-closed (no decode) | `jwt-auth.guard.ts` |
+| 20 | P3 | Sentry/PostHog in eas.json + OTA workflow | `eas.json`, `app-ota-staging.yml` |
+| 21 | P3 | Production CORS origins added | `main.ts` |
+| 22 | P3 | Admin Dockerfile requires `NEXT_PUBLIC_API_URL` | `apps/admin/Dockerfile`, deploy workflows |
+| 23 | P3 | Deleted dead `offerActionsApi.ts` | removed |
+
+**Gate evidence (local):** mobile `1087` unit + `388` render + typecheck clean; API changed specs `75` passed (auth, withdraw, gototrack, cors, guard).
+
+**Deploy notes before merge:**
+- Create GCP Secret Manager secrets `gogocash-staging-r2-access-key-id` / `gogocash-staging-r2-secret-access-key` if using Cloud Run rollback lane.
+- GoGoTrack activation unique index syncs on API startup — clean duplicate `(user_id, detection_event_id)` rows first if any exist.
+- Railway admin builds must set `NEXT_PUBLIC_API_URL` explicitly (Dockerfile no longer defaults to staging).
+
 ---
 
 ## Open findings
+
+_None — Phase 1 complete. Next sweep or new findings go here._
+
+<!-- Archived detail for reference — all items below were fixed; kept for audit trail.
 
 ### 1. [P0] Saved payout method exists only in the /method/create screen instance's private useState — invisible to the /method list and the /withdraw selector
 
@@ -188,15 +227,15 @@ Most P0/P1 mobile bugs are **one class**: server state held in per-component `us
 - **Evidence:** offerActionsApi.ts exports a second toggleFavoriteOffer(apiUrl, offerId) hitting the same POST /offer/favorite/:id as account/favoriteResource.ts:6-19 but with a different signature and no connection to FavoriteBrandsProvider's optimistic favoriteIds state. Grep shows zero importers anywhere in apps/app/src — it is currently dead code.
 - **Failure scenario:** A future call site imports this near-identical helper instead of the provider's toggleFavorite: the server flips the favorite but every mounted heart/favorites list (provider consumers) keeps the old state until the provider's next full refetch at auth change — exactly the cross-instance divergence class this sweep targets.
 - **Suggested fix:** Delete apps/app/src/account/offerActionsApi.ts (or re-export from favoriteResource) so the provider's toggleFavorite remains the single mutation path.
+-->
 
 ---
 
 ## Suggested fix order
 
-1. **P0** payout-method shared state (#1) — real money path, users lose entered bank details.
-2. **Structural**: React-Query-ize GoGoTrack settings + wallet + favorites → clears the P1 state-dup cluster.
-3. **P1 API**: unescaped `$regex` email match in withdraw (cross-account over-credit) — security-adjacent, fix with anchored/escaped exact match + a test.
-4. **P1 env-drift**: `release-staging.yml` missing R2 vars (only if Cloud Run lane is still used — confirm it isn't legacy first).
-5. Remaining P2/P3 as a cleanup batch; several GoGoTrack async-race items (#detectionRunner, #promptCoordinator) are low-frequency and can be one PR.
+Phase 1 complete. Suggested next steps:
 
-> The P0 and the withdraw `$regex` finding are UNVERIFIED (verifier agents were cut off) — reconfirm each by reading the cited code before committing a fix.
+1. **Commit + PR** the local diff (61 files) with deploy notes above.
+2. **Smoke on staging:** payout method create → list → withdraw; GoGoTrack toggle + foreground; favorites heart race; referral explore heart.
+3. **Operator:** R2 secrets on GCP; EAS secrets for Firebase/Sentry/PostHog on expo.dev; verify admin Railway `NEXT_PUBLIC_API_URL`.
+4. **Phase 2 sweep** (if desired): re-run adversarial bug hunt on post-fix `staging` for regressions and new surface area.

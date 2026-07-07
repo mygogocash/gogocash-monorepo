@@ -7,7 +7,6 @@ import { OtpService } from './otp.service';
 import { EmailService } from '../email/email.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { RateLimitGuard } from './rate-limit.guard';
-import { CrossmintAuthGuard } from './jwt-auth.guard';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 
@@ -43,8 +42,6 @@ describe('AuthController', () => {
       ],
     })
       .overrideGuard(RateLimitGuard)
-      .useValue(allow)
-      .overrideGuard(CrossmintAuthGuard)
       .useValue(allow)
       .overrideGuard(FirebaseAuthGuard)
       .useValue(allow)

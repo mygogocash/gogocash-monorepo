@@ -34,11 +34,11 @@ jobs:
       memory: 512Mi
       max_instances: "5"
       health_path: "/gototrack/merchants"
-      env_vars: "NODE_ENV=production,WEB_APP_URL=https://app-staging.gogocash.co,API_BASE_URL=https://api-staging.gogocash.co,POSTHOG_HOST=https://us.i.posthog.com,POSTHOG_ENABLED=true,MAIL_FROM=GoGoCash <noreply@gogocash.co>,ADMIN_APP_URL=https://admin-staging.gogocash.co"
+      env_vars: "NODE_ENV=production,WEB_APP_URL=https://app-staging.gogocash.co,API_BASE_URL=https://api-staging.gogocash.co,POSTHOG_HOST=https://us.i.posthog.com,POSTHOG_ENABLED=true,MAIL_FROM=GoGoCash <noreply@gogocash.co>,ADMIN_APP_URL=https://admin-staging.gogocash.co,R2_BUCKET=gogocash-catalog-staging,R2_ENDPOINT=https://187ab61ed9dbc6e616cb23e6b95aa8f1.r2.cloudflarestorage.com,R2_PUBLIC_BASE_URL=https://media-staging.gogocash.co"
       # INVOLVE_AI_API_KEY (V-5 create-affiliate-ai guard) is intentionally NOT
       # set here — create the gogocash-staging-involve-ai-api-key Secret Manager
       # secret first, then add it (the route stays fail-closed until then).
-      secrets_map: "MONGO_URI=gogocash-staging-mongo-uri:latest,JWT_SECRET=gogocash-staging-jwt-secret:latest,JWT_ADMIN_SECRET=gogocash-staging-jwt-admin-secret:latest,FIREBASE_PROJECT_ID=gogocash-staging-firebase-project-id:latest,INVOLVE_SECRET=gogocash-staging-involve-secret:latest,INVOLVE_POSTBACK_SECRET=gogocash-staging-involve-postback-secret:latest,POSTHOG_KEY=gogocash-staging-posthog-key:latest,TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest,CROSSMINT_AUTH_BASE=gogocash-staging-crossmint-auth-base:latest,CROSSMINT_PROJECT_ID=gogocash-staging-crossmint-project-id:latest,CROSSMINT_SECRET=gogocash-staging-crossmint-secret:latest,RESEND_API_KEY=gogocash-staging-resend-api-key:latest"
+      secrets_map: "MONGO_URI=gogocash-staging-mongo-uri:latest,JWT_SECRET=gogocash-staging-jwt-secret:latest,JWT_ADMIN_SECRET=gogocash-staging-jwt-admin-secret:latest,FIREBASE_PROJECT_ID=gogocash-staging-firebase-project-id:latest,INVOLVE_SECRET=gogocash-staging-involve-secret:latest,INVOLVE_POSTBACK_SECRET=gogocash-staging-involve-postback-secret:latest,POSTHOG_KEY=gogocash-staging-posthog-key:latest,TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest,CROSSMINT_AUTH_BASE=gogocash-staging-crossmint-auth-base:latest,CROSSMINT_PROJECT_ID=gogocash-staging-crossmint-project-id:latest,CROSSMINT_SECRET=gogocash-staging-crossmint-secret:latest,RESEND_API_KEY=gogocash-staging-resend-api-key:latest,R2_ACCESS_KEY_ID=gogocash-staging-r2-access-key-id:latest,R2_SECRET_ACCESS_KEY=gogocash-staging-r2-secret-access-key:latest"
 
   release-admin:
     if: ${{ inputs.app == 'admin' }}

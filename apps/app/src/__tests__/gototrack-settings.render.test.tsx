@@ -1,7 +1,18 @@
+import { createElement, type PropsWithChildren } from "react";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { useGoGoTrackSettings } from "@mobile/gototrack/useGoGoTrackSettings";
+
+function createSettingsTestWrapper(queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
+  return function Wrapper({ children }: PropsWithChildren) {
+    return createElement(QueryClientProvider, { client: queryClient }, children);
+  };
+}
 
 describe("useGoGoTrackSettings (render)", () => {
   it("loads settings then optimistically toggles + persists via updateSettings", async () => {
@@ -15,7 +26,9 @@ describe("useGoGoTrackSettings (render)", () => {
       updateSettings: vi.fn(async () => ({})),
     };
 
-    const { result } = renderHook(() => useGoGoTrackSettings(api));
+    const { result } = renderHook(() => useGoGoTrackSettings(api), {
+      wrapper: createSettingsTestWrapper(),
+    });
 
     await waitFor(() => expect(result.current.settings.usageStatsEnabled).toBe(true));
 
@@ -23,8 +36,31 @@ describe("useGoGoTrackSettings (render)", () => {
       result.current.setField("usageStatsEnabled", false);
     });
 
-    expect(result.current.settings.usageStatsEnabled).toBe(false);
+    await waitFor(() => expect(result.current.settings.usageStatsEnabled).toBe(false));
     expect(api.updateSettings).toHaveBeenCalledWith({ usageStatsEnabled: false });
+  });
+
+  it("setField > given a second mounted instance > then both read the same shared cache", async () => {
+    const api = {
+      getSettings: vi.fn(async () => ({
+        enabled: true,
+        usage_stats_enabled: true,
+        notification_listener_enabled: false,
+        screenshot_recovery_enabled: true,
+      })),
+      updateSettings: vi.fn(async () => ({})),
+    };
+    const wrapper = createSettingsTestWrapper();
+
+    const { result: writer } = renderHook(() => useGoGoTrackSettings(api), { wrapper });
+    await waitFor(() => expect(writer.current.settings.usageStatsEnabled).toBe(true));
+
+    act(() => {
+      writer.current.setField("usageStatsEnabled", false);
+    });
+
+    const { result: reader } = renderHook(() => useGoGoTrackSettings(api), { wrapper });
+    await waitFor(() => expect(reader.current.settings.usageStatsEnabled).toBe(false));
   });
 
   it("setField > given background prompts enabled > then also sends enabled true", async () => {
@@ -39,7 +75,9 @@ describe("useGoGoTrackSettings (render)", () => {
       updateSettings: vi.fn(async () => ({})),
     };
 
-    const { result } = renderHook(() => useGoGoTrackSettings(api));
+    const { result } = renderHook(() => useGoGoTrackSettings(api), {
+      wrapper: createSettingsTestWrapper(),
+    });
 
     await waitFor(() =>
       expect(result.current.settings.backgroundPromptsEnabled).toBe(false),
@@ -56,7 +94,9 @@ describe("useGoGoTrackSettings (render)", () => {
   });
 
   it("uses safe defaults off-device (no api)", () => {
-    const { result } = renderHook(() => useGoGoTrackSettings(null));
+    const { result } = renderHook(() => useGoGoTrackSettings(null), {
+      wrapper: createSettingsTestWrapper(),
+    });
 
     expect(result.current.settings.usageStatsEnabled).toBe(false);
     expect(result.current.settings.screenshotRecoveryEnabled).toBe(true);
@@ -69,8 +109,9 @@ describe("useGoGoTrackSettings (render)", () => {
     };
     const syncMonitor = vi.fn();
 
-    const { result } = renderHook(() =>
-      useGoGoTrackSettings(api, { syncMonitor }),
+    const { result } = renderHook(
+      () => useGoGoTrackSettings(api, { syncMonitor }),
+      { wrapper: createSettingsTestWrapper() },
     );
 
     await waitFor(() =>
@@ -93,8 +134,9 @@ describe("useGoGoTrackSettings (render)", () => {
     };
     const syncMonitor = vi.fn();
 
-    const { result } = renderHook(() =>
-      useGoGoTrackSettings(api, { syncMonitor }),
+    const { result } = renderHook(
+      () => useGoGoTrackSettings(api, { syncMonitor }),
+      { wrapper: createSettingsTestWrapper() },
     );
 
     await waitFor(() =>
@@ -119,8 +161,9 @@ describe("useGoGoTrackSettings (render)", () => {
     };
     const syncMonitor = vi.fn();
 
-    const { result } = renderHook(() =>
-      useGoGoTrackSettings(api, { syncMonitor }),
+    const { result } = renderHook(
+      () => useGoGoTrackSettings(api, { syncMonitor }),
+      { wrapper: createSettingsTestWrapper() },
     );
 
     await waitFor(() =>
@@ -132,5 +175,17 @@ describe("useGoGoTrackSettings (render)", () => {
     });
 
     expect(syncMonitor).not.toHaveBeenCalled();
+  });
+});
+
+describe("useGoGoTrackBackgroundPrompts (render)", () => {
+  it("waits for settings readiness before syncing the monitor (source signal)", () => {
+    const source = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), "../gototrack/useGoGoTrackBackgroundPrompts.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain("isSettingsReady");
+    expect(source).toContain("if (!isSettingsReady)");
   });
 });

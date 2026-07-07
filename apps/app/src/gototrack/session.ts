@@ -6,6 +6,10 @@ import type {
 } from "./api";
 import type { GoGoTrackDetector } from "./detector";
 import { createGoGoTrackDetectionRunner } from "./detectionRunner";
+import {
+  resolveGoGoTrackActivationKey,
+  runExclusiveGoGoTrackActivation,
+} from "./activationMutex";
 
 export type GoGoTrackMatch = {
   packageName: string;
@@ -169,14 +173,30 @@ export function createGoGoTrackSession(options: GoGoTrackSessionOptions) {
       ) {
         return null;
       }
-      const result = await options.api.activate({
-        detectionEventId: match.detectionEventId,
-        merchantId: match.merchantId,
-        offerId: match.offerId,
-        networkMerchantId: match.networkMerchantId,
-        source: "gototrack",
-      });
-      return { deeplink: result.deeplink };
+
+      const merchantId = match.merchantId;
+      const offerId = match.offerId;
+      const networkMerchantId = match.networkMerchantId;
+
+      const result = await runExclusiveGoGoTrackActivation(
+        resolveGoGoTrackActivationKey({
+          detectionEventId: match.detectionEventId,
+          merchantId,
+          offerId,
+          networkMerchantId,
+        }),
+        async () => {
+          const activation = await options.api.activate!({
+            detectionEventId: match.detectionEventId,
+            merchantId,
+            offerId,
+            networkMerchantId,
+            source: "gototrack",
+          });
+          return { deeplink: activation.deeplink };
+        },
+      );
+      return result;
     },
   };
 }

@@ -31,6 +31,8 @@ import { FeeRate } from './schemas/feeRate.schema';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { WithdrawMethod } from './schemas/withdrawMethod.schema';
 import { rateCurrencyUSD, thaiBanks } from 'src/utils/helper';
+import { escapeRegexLiteral } from 'src/common/escape-regex';
+import { buildAutoMyCashbackWithdrawFields } from './withdraw-mycashback-auto';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Conversion } from './schemas/conversion.schema';
 import { RewardList } from './schemas/rewardList.schema';
@@ -1358,9 +1360,10 @@ export class WithdrawService {
     if (myCashbackDataList?.length < 1 && user?.email) {
       myCashbackDataList = await this.userMyCashbackModel
         .find({
-          // email: user.email,
-          email: { $regex: user.email }, // Use $regex for case-insensitive search on user.email
-          // $or: [{ email: user.email }, { phoneNumber: user.mobile }, { phoneNumber: mobile }],
+          email: {
+            $regex: `^${escapeRegexLiteral(user.email)}$`,
+            $options: 'i',
+          },
         })
         .lean();
     }
@@ -1402,7 +1405,7 @@ export class WithdrawService {
       if (b.currency === 'USD') {
         return sum + b.amount;
       } else {
-        return (sum + b.amount) / rateTHBtoUSD;
+        return sum + b.amount / rateTHBtoUSD;
       }
     }, 0);
 
@@ -1699,44 +1702,13 @@ export class WithdrawService {
     }
 
     const MCBCashback = await this.checkWithdrawMyCashback(id);
-    let availableMCB = 0;
-
-    if (createWithdrawDto.currency === 'THB') {
-      availableMCB =
-        createWithdrawDto.amount_total <= MCBCashback.availableTHB
-          ? createWithdrawDto.amount_total
-          : MCBCashback && MCBCashback.availableTHB > 0
-            ? MCBCashback.availableTHB
-            : 0;
-    } else {
-      availableMCB =
-        createWithdrawDto.amount_total <= MCBCashback.availableUSD
-          ? createWithdrawDto.amount_total
-          : MCBCashback && MCBCashback.availableUSD > 0
-            ? MCBCashback.availableUSD
-            : 0;
-    }
-    if (availableMCB > 0) {
-      await this.withdrawModel.create({
-        user_id: new Types.ObjectId(user._id),
-        status: 'pending',
-        address: createWithdrawDto.address || '',
-        account_name: createWithdrawDto.account_name || '',
-        bank_name: createWithdrawDto.bank_name || '',
-        account_number: createWithdrawDto.account_number || '',
-        tx_hash: createWithdrawDto.tx_hash || '',
-        tx_hash_record: '',
-        percent_fee: 0,
-        amount_total: availableMCB,
-        amount_net: availableMCB,
-        method: createWithdrawDto.method || '',
-        currency: createWithdrawDto.currency || '',
-        rate: createWithdrawDto?.rate || 0,
-        conversion_id: [],
-        mycashback_id: createWithdrawDto.mycashback_id
-          ? createWithdrawDto.mycashback_id.map((id) => new Types.ObjectId(id))
-          : undefined,
-      });
+    const autoMyCashbackWithdraw = buildAutoMyCashbackWithdrawFields(
+      createWithdrawDto,
+      new Types.ObjectId(user._id),
+      MCBCashback,
+    );
+    if (autoMyCashbackWithdraw) {
+      await this.withdrawModel.create(autoMyCashbackWithdraw);
     }
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
@@ -2040,43 +2012,13 @@ export class WithdrawService {
     });
 
     const MCBCashback = await this.checkWithdrawMyCashback(id);
-    let availableMCB = 0;
-
-    if (createWithdrawDto.currency === 'THB') {
-      availableMCB =
-        createWithdrawDto.amount_total <= MCBCashback.availableTHB
-          ? createWithdrawDto.amount_total
-          : MCBCashback && MCBCashback.availableTHB > 0
-            ? MCBCashback.availableTHB
-            : 0;
-    } else {
-      availableMCB =
-        createWithdrawDto.amount_total <= MCBCashback.availableUSD
-          ? createWithdrawDto.amount_total
-          : MCBCashback && MCBCashback.availableUSD > 0
-            ? MCBCashback.availableUSD
-            : 0;
-    }
-    if (availableMCB > 0) {
-      await this.withdrawModel.create({
-        user_id: new Types.ObjectId(user._id),
-        status: 'pending',
-        address: createWithdrawDto.address || '',
-        account_name: createWithdrawDto.account_name || '',
-        bank_name: createWithdrawDto.bank_name || '',
-        account_number: createWithdrawDto.account_number || '',
-        tx_hash: createWithdrawDto.tx_hash || '',
-        tx_hash_record: '',
-        percent_fee: 0,
-        amount_total: availableMCB,
-        amount_net: availableMCB,
-        method: createWithdrawDto.method || '',
-        currency: createWithdrawDto.currency || '',
-        conversion_id: [],
-        mycashback_id: createWithdrawDto.mycashback_id
-          ? createWithdrawDto.mycashback_id.map((id) => new Types.ObjectId(id))
-          : undefined,
-      });
+    const autoMyCashbackWithdraw = buildAutoMyCashbackWithdrawFields(
+      createWithdrawDto,
+      new Types.ObjectId(user._id),
+      MCBCashback,
+    );
+    if (autoMyCashbackWithdraw) {
+      await this.withdrawModel.create(autoMyCashbackWithdraw);
     }
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }

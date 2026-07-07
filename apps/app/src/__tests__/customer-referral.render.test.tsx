@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // CustomerReferralScreen pulls in AccountPageShell -> CustomerDesktopHeader ->
@@ -17,6 +17,7 @@ vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
 }));
 
+import { FavoriteBrandsProvider } from "@mobile/account/FavoriteBrandsProvider";
 import { ToastProvider } from "@mobile/components/Toast";
 import { CustomerReferralScreen } from "@mobile/screens/CustomerReferralScreen";
 
@@ -56,7 +57,11 @@ function renderScreen() {
     createElement(
       QueryClientProvider,
       { client: queryClient },
-      createElement(ToastProvider, {}, createElement(CustomerReferralScreen)),
+      createElement(
+        FavoriteBrandsProvider,
+        {},
+        createElement(ToastProvider, {}, createElement(CustomerReferralScreen)),
+      ),
     ),
   );
 }
@@ -109,6 +114,14 @@ describe("CustomerReferralScreen (render)", () => {
     expect(referralSource).toContain("exploreCardMonogram");
     expect(referralSource).toContain("shop.tint");
     expect(referralSource).not.toContain("favoritePageAddFavorite");
+  });
+
+  it("explore-shop cards > given heart press > then toggles via FavoriteBrandsProvider", () => {
+    renderScreen();
+    expect(referralSource).toContain("useFavoriteBrands");
+    const saveButton = screen.getByLabelText("Save brand: Orbit Airways");
+    fireEvent.click(saveButton);
+    expect(screen.getByLabelText("Remove from saved brands: Orbit Airways")).toBeTruthy();
   });
 });
 
