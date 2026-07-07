@@ -2,7 +2,7 @@
 
 Phased breakdown for subagent execution. Each task has a stable **ID**, **scope**, **files**, and **acceptance criteria (AC)**.
 
-**Repo:** `gogocash-monorepo` · **App:** `apps/app` (`@gogocash/mobile`) · **Base branch:** `dev`
+**Repo:** `gogocash-monorepo` · **App:** `apps/app` (`@gogocash/mobile`) · **Deploy branch:** `staging` · **GoGoTrack feature branch:** `dev`
 
 **Related docs:** [E2E_QA_PLAN.md](./E2E_QA_PLAN.md), [railway-execution-runbook.md](./railway-execution-runbook.md), [apps/app/MIGRATION_PLAN.md](../apps/app/MIGRATION_PLAN.md), [apps/app/AGENTS.md](../apps/app/AGENTS.md)
 
@@ -118,7 +118,7 @@ flowchart TB
 | **Files** | `apps/app/package.json`, root `package-lock.json` |
 
 **AC:**
-- [ ] `expo-updates` SDK 56-compatible version in `dependencies`
+- [ ] `expo-updates` SDK 57-compatible version in `dependencies`
 - [ ] `npm ci` at root succeeds
 - [ ] Remove `expo-updates` from `knip.json` `ignoreUnresolved` if resolved
 
@@ -343,7 +343,7 @@ flowchart TB
 
 **Environment:** Railway **dev** (`api.dev.gogocash.co`, `mongo-staging`). Full plan: [`docs/gototrack-android-acceptance-plan.md`](gototrack-android-acceptance-plan.md).
 
-**Status (2026-06-29):** Phases 0–4 complete; **Phase 5 core preflight green** on Seeker (`SM02G4061912033`) — merchants seeded, JWT auth, APK SHA verified, evidence bundle at `/tmp/gototrack-acceptance-evidence/`. Full activation path (`--require-nudge --open-deeplink`) blocked until **`INVOLVE_SECRET`** is on Railway dev `gogocash-api`.
+**Status (2026-07-07):** Phases 0–4 complete; **Phase 5 core preflight green** on Seeker. Staging device QA uses `api-staging.gogocash.co` + backend JWT inject (`GOGOTRACK_AUTH_TOKEN`); Railway staging needs `INVOLVE_SECRET` for live activation deeplinks.
 
 ### P5-T01 · Harden `gototrack-preflight.mjs` exit codes
 
@@ -469,7 +469,7 @@ flowchart TB
 | **Files** | `apps/app/app.config.ts`, `apps/app/package.json` |
 
 **AC:**
-- [ ] `@sentry/react-native` config plugin added if compatible with SDK 56
+- [ ] `@sentry/react-native` config plugin added if compatible with SDK 57
 - [ ] Source maps upload documented for EAS build
 - [ ] Vitest stub unchanged or updated
 
@@ -556,8 +556,8 @@ flowchart TB
 
 ```text
 Task ID: <P#-T##>
-Repo: /Users/kunanonjarat/Developer/gogocash-monorepo-migrate-monorepo
-Branch: dev
+Repo: /Users/kunanonjarat/Developer/gogocash-monorepo-staging
+Branch: staging (or dev for GoGoTrack-only tasks)
 Read: docs/mobile-expo-delegation-plan.md § <Task ID>
 Implement only this task. Run AC checkboxes. Do not commit unless asked.
 Return: files changed, AC status table, test commands + output.

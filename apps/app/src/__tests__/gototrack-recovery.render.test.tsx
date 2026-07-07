@@ -1,21 +1,35 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useGoGoTrackRecovery } from "@mobile/gototrack/useGoGoTrackRecovery";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+type RecoveryTestApi = {
+  createScreenshotJob: ReturnType<typeof vi.fn>;
+  getScreenshotJob: ReturnType<typeof vi.fn>;
+};
+
+function createRecoveryTestApi(overrides: Partial<RecoveryTestApi> = {}): RecoveryTestApi {
+  return {
+    createScreenshotJob: vi.fn(async () => ({
+      _id: "screenshot-1",
+      status: "pending",
+    })),
+    getScreenshotJob: vi.fn(async () => ({
+      _id: "screenshot-1",
+      status: "manual_review",
+      upload_url: "https://uploads.gogocash.test/screenshot-1",
+      expires_at: "2026-05-24T09:00:00.000Z",
+    })),
+    ...overrides,
+  };
+}
 
 describe("useGoGoTrackRecovery (render)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("creates and refreshes a manual recovery job", async () => {
-    const api = {
-      createScreenshotJob: vi.fn(async () => ({
-        _id: "screenshot-1",
-        status: "pending",
-      })),
-      getScreenshotJob: vi.fn(async () => ({
-        _id: "screenshot-1",
-        status: "manual_review",
-        upload_url: "https://uploads.gogocash.test/screenshot-1",
-        expires_at: "2026-05-24T09:00:00.000Z",
-      })),
-    };
+    const api = createRecoveryTestApi();
 
     const { result } = renderHook(() => useGoGoTrackRecovery(api));
 
@@ -32,10 +46,11 @@ describe("useGoGoTrackRecovery (render)", () => {
       uploadUrl: "https://uploads.gogocash.test/screenshot-1",
       expiresAt: "2026-05-24T09:00:00.000Z",
     });
+    expect(result.current.error).toBeNull();
   });
 
   it("clears a stale manual recovery job when the next start fails", async () => {
-    const api = {
+    const api = createRecoveryTestApi({
       createScreenshotJob: vi
         .fn()
         .mockResolvedValueOnce({
@@ -48,7 +63,7 @@ describe("useGoGoTrackRecovery (render)", () => {
         status: "manual_review",
         upload_url: "https://uploads.gogocash.test/screenshot-1",
       })),
-    };
+    });
 
     const { result } = renderHook(() => useGoGoTrackRecovery(api));
 
@@ -74,5 +89,6 @@ describe("useGoGoTrackRecovery (render)", () => {
 
     expect(result.current.available).toBe(false);
     expect(result.current.job).toBeNull();
+    expect(result.current.error).toBeNull();
   });
 });
