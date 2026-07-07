@@ -1,5 +1,5 @@
 name: gogocash-codeql-native
-# Expo local modules only — no repo-root Gradle/Xcode project; built via EAS prebuild.
+# Native Expo modules only — no repo-root Gradle/Xcode project; built via expo prebuild in codeql.yml.
 paths:
   - apps/app/modules/gototrack-detector/android
   - apps/app/modules/gototrack-live-activity/ios
