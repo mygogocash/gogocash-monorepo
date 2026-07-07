@@ -46,17 +46,17 @@
     "@sentry/react-native": "~8.17.1",
     "@shopify/flash-list": "2.0.2",
     "@tanstack/react-query": "5.101.2",
-    "expo": "^57.0.2",
+    "expo": "^57.0.4",
     "expo-clipboard": "~57.0.0",
     "expo-constants": "~57.0.2",
     "expo-dev-client": "~57.0.5",
     "expo-font": "~57.0.0",
     "expo-haptics": "~57.0.0",
     "expo-image": "~57.0.0",
-    "expo-linking": "~57.0.1",
+    "expo-linking": "~57.0.2",
     "expo-localization": "~57.0.0",
     "expo-modules-core": "~57.0.1",
-    "expo-router": "~57.0.3",
+    "expo-router": "~57.0.4",
     "expo-secure-store": "~57.0.0",
     "expo-splash-screen": "~57.0.2",
     "expo-status-bar": "~57.0.0",
@@ -83,7 +83,7 @@
     "happy-dom": "^20.9.0",
     "react-test-renderer": "19.2.7",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.10"
   },
   "expo": {
     "install": {

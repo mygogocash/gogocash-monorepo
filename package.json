@@ -38,14 +38,15 @@
     "@playwright/test": "^1.55.0",
     "cache-manager": "^7.2.9",
     "eslint": "^10.6.0",
-    "expo": "^57.0.2",
-    "mongoose": "9.7.3",
+    "happy-dom": "^20.10.6",
+    "expo": "^57.0.4",
+    "mongoose": "9.7.4",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "react-test-renderer": "19.2.7",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
-    "turbo": "^2.10.3"
+    "turbo": "^2.10.4"
   },
   "overrides": {
     "undici": "^6.27.0",
