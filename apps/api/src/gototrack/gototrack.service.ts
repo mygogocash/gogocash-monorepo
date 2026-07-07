@@ -405,10 +405,7 @@ export class GototrackService {
     }
 
     if (request.detectionEventId) {
-      return this.activateWithReservedDetectionEvent(
-        validatedUserId,
-        request,
-      );
+      return this.activateWithReservedDetectionEvent(validatedUserId, request);
     }
 
     const deeplinkDoc = await this.createAffiliateDeeplink(
@@ -475,13 +472,16 @@ export class GototrackService {
         request,
       );
       const deeplink = this.resolveAffiliateDeeplink(deeplinkDoc);
-      const updatedActivation = await this.activationEventModel.findByIdAndUpdate(
-        activation._id,
-        { deeplink },
-        { new: true },
-      );
+      const updatedActivation =
+        await this.activationEventModel.findByIdAndUpdate(
+          activation._id,
+          { deeplink },
+          { new: true },
+        );
       if (!updatedActivation) {
-        throw new BadRequestException('GoGoTrack activation could not be saved');
+        throw new BadRequestException(
+          'GoGoTrack activation could not be saved',
+        );
       }
 
       await this.analytics.capture(

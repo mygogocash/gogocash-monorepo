@@ -311,7 +311,7 @@ describe('AuthService', () => {
     it('signInFirebase > given referral award throws > then registration still succeeds', async () => {
       const created = makeUser({ id_firebase: 'fb-new' });
       const referrer = makeUser({ _id: { toString: () => REF_ID } });
-      const { service, userService, pointModel } = makeService({
+      const { service, pointModel } = makeService({
         userService: {
           findOne: jest
             .fn()

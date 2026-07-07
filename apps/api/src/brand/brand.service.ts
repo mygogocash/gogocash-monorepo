@@ -6,7 +6,11 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { QueryFilter, Model, Types } from 'mongoose';
-import { requireObjectId, mongoSetUpdate, mongoCaseInsensitiveRegex } from 'src/common/mongo-query';
+import {
+  requireObjectId,
+  mongoSetUpdate,
+  mongoCaseInsensitiveRegex,
+} from 'src/common/mongo-query';
 import { Brand, BrandDocument } from './schemas/brand.schema';
 import { Offer, OfferDocument } from '../offer/schemas/offer.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';

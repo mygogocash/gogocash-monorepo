@@ -377,9 +377,7 @@ export class AuthService {
     }
   }
 
-  private isUsableReferralId(
-    referralId?: string,
-  ): referralId is string {
+  private isUsableReferralId(referralId?: string): referralId is string {
     return (
       !!referralId &&
       referralId !== 'undefined' &&

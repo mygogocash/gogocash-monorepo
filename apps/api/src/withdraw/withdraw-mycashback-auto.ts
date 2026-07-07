@@ -18,7 +18,11 @@ export function resolveAutoMyCashbackWithdrawAmount(
     return 0;
   }
 
-  if (typeof amountTotal === 'number' && Number.isFinite(amountTotal) && amountTotal > 0) {
+  if (
+    typeof amountTotal === 'number' &&
+    Number.isFinite(amountTotal) &&
+    amountTotal > 0
+  ) {
     return Math.min(amountTotal, available);
   }
 

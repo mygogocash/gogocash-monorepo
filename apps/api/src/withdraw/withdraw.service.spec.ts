@@ -451,7 +451,9 @@ describe('WithdrawService', () => {
       jest
         .spyOn(mocks.service, 'checkWithdraw')
         .mockResolvedValue({ netAmount: 1000, netAmountTHB: 1000 } as never);
-      jest.spyOn(mocks.service, 'createRecordOnChain').mockResolvedValue('0xrecord' as never);
+      jest
+        .spyOn(mocks.service, 'createRecordOnChain')
+        .mockResolvedValue('0xrecord' as never);
       jest.spyOn(mocks.service, 'checkWithdrawMyCashback').mockResolvedValue({
         availableTHB: 0,
         availableUSD: 30,

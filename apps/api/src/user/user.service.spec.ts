@@ -258,7 +258,10 @@ describe('UserService', () => {
         providers: [
           UserService,
           { provide: getModelToken(User.name), useValue: userModel },
-          { provide: getModelToken(UserMyCashback.name), useValue: myCashbackModel },
+          {
+            provide: getModelToken(UserMyCashback.name),
+            useValue: myCashbackModel,
+          },
           { provide: StoredMediaService, useValue: storedMediaService },
         ],
       }).compile();
