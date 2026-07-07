@@ -6,6 +6,11 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
+import {
+  resolveGoGoTrackApiUrl,
+  resolveGoGoTrackAuthToken,
+} from "./gototrackEnv.mjs";
+
 const defaultApiUrl = "https://api.dev.gogocash.co";
 const defaultAppPackage = "co.gogocash.app";
 const defaultMetroPort = 8081;
@@ -343,7 +348,7 @@ function devClientLaunchArgs(appPackage, metroPort = defaultMetroPort) {
 }
 
 function resolveAuthToken(env) {
-  return env.GOGOTRACK_AUTH_TOKEN || env.GOTOTRACK_AUTH_TOKEN || env.GOGOSENSE_AUTH_TOKEN || "";
+  return resolveGoGoTrackAuthToken(env);
 }
 
 function preflightExitCode(report) {
@@ -380,12 +385,7 @@ function findDefaultAdb() {
 function parseArgs(argv = process.argv.slice(2), env = process.env) {
   const options = {
     adb: env.ADB_PATH || findDefaultAdb(),
-    apiUrl:
-      env.GOGOTRACK_API_URL ||
-      env.GOTOTRACK_API_URL ||
-      env.GOGOSENSE_API_URL ||
-      env.EXPO_PUBLIC_API_URL ||
-      defaultApiUrl,
+    apiUrl: resolveGoGoTrackApiUrl(env, defaultApiUrl),
     appPackage: env.GOGOCASH_ANDROID_PACKAGE || defaultAppPackage,
     activate: env.GOGOSENSE_ACTIVATE === "1",
     authToken: resolveAuthToken(env),
