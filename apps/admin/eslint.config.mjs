@@ -14,6 +14,7 @@ const config = [
       "**/coverage/**",
       "**/.turbo/**",
       "**/out/**",
+      "e2e/**",
     ],
   },
   {

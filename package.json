@@ -38,6 +38,7 @@
     "@playwright/test": "^1.55.0",
     "cache-manager": "^7.2.9",
     "eslint": "^10.6.0",
+    "happy-dom": "^20.10.6",
     "expo": "^57.0.4",
     "mongoose": "9.7.4",
     "react": "19.2.7",
