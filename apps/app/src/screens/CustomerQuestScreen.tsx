@@ -89,7 +89,7 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
   }
 
   return (
-    <AccountPageShell activeRouteId="quest" tabletContentMode="fluid" title={history ? tc("Quest History") : tc("Quest")}>
+    <AccountPageShell activeRouteId="quest" tabletContentMode="fluid" title={tc("Quest")}>
       <Image
         alt={tc("GoGoQuest bonus banner")}
         resizeMode="cover"

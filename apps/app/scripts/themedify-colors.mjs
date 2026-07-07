@@ -56,7 +56,6 @@ const BG = {
   '"#E8F5EF"': "PT:colors.primarySoft",
   '"#EAF8F1"': "PT:colors.primarySoft",
   '"#E6F7ED"': "PT:colors.primarySoft",
-  '"#E8FBF5"': "PT:colors.primarySoft",
   '"#F1FFF9"': "PT:colors.primarySoft",
   // warning tints
   '"#FFF7E6"': "PT:colors.warningSoft",
