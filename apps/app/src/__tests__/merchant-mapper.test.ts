@@ -79,10 +79,13 @@ describe("mapMerchantOfferToShopDetail", () => {
     expect(shop.shopNowLabel).toBe("Shop Now");
   });
 
-  it("given missing commission info > then the fixture cashback stands", () => {
+  it("given missing commission info > then does not leak fixture cashback onto the live merchant", () => {
     const shop = mapMerchantOfferToShopDetail({ ...liveOffer, commissions: [] }, fixtureShop);
 
-    expect(shop.cashback).toBe("26.5%");
+    expect(shop.cashback).toBe("—");
+    expect(shop.extraCashback).toBe("—");
+    expect(shop.productRates).toEqual([{ name: "Lazada TH", rate: "—" }]);
+    expect(shop.cashback).not.toBe(fixtureShop.cashback);
   });
 
   it("given a numeric commission without a percent sign > then formats it", () => {

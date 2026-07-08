@@ -321,6 +321,9 @@ function ShopHero({
 }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const [bannerFailed, setBannerFailed] = useState(false);
+  useEffect(() => {
+    setBannerFailed(false);
+  }, [shop.bannerUri]);
   const bannerSource = shop.bannerUri && !bannerFailed
     ? { uri: shop.bannerUri }
     : shopBannerAssets[shop.bannerAsset];
@@ -364,9 +367,24 @@ function ShopHeroSummaryCard({
 }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
+  const router = useRouter();
+  const { isAuthed, ready: authReady } = useAuthGuardSession();
   const { isFavorite, toggleFavorite } = useFavoriteBrands();
   const favorited = isFavorite(shop.id);
   const [logoFailed, setLogoFailed] = useState(false);
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [shop.logoUri]);
+  const handleToggleFavorite = () => {
+    if (!authReady) {
+      return;
+    }
+    if (!isAuthed) {
+      router.push(buildLoginRedirectWithCallback(`/shop/${shop.id}`) as never);
+      return;
+    }
+    toggleFavorite(shop.id);
+  };
   const brandTitle = (
     <Text
       numberOfLines={isDesktop ? 1 : 2}
@@ -416,7 +434,7 @@ function ShopHeroSummaryCard({
       }
       accessibilityRole="button"
       accessibilityState={{ selected: favorited }}
-      onPress={() => toggleFavorite(shop.id)}
+      onPress={handleToggleFavorite}
       pressScale={0.96}
       style={styles.favoriteButton}
     >

@@ -223,6 +223,21 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("ShopRedirectOverlay");
   });
 
+  it("shop detail parity > given an unsigned user taps favorite > then login redirect is required", () => {
+    const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+
+    expect(shopFile).toContain("handleToggleFavorite");
+    expect(shopFile).toMatch(/handleToggleFavorite[\s\S]*?buildLoginRedirectWithCallback/);
+    expect(shopFile).toContain("onPress={handleToggleFavorite}");
+  });
+
+  it("shop detail parity > given shop media URI changes > then logo and banner failure state resets", () => {
+    const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+
+    expect(shopFile).toMatch(/setBannerFailed\(false\)[\s\S]*?\[shop\.bannerUri\]/);
+    expect(shopFile).toMatch(/setLogoFailed\(false\)[\s\S]*?\[shop\.logoUri\]/);
+  });
+
   it("shop detail parity > given hero summary card > then mobile stacks brand identity above actions", () => {
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 

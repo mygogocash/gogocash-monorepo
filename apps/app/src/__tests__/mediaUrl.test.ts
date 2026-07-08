@@ -3,12 +3,10 @@ import { describe, expect, it } from "vitest";
 import { resolveOfferMediaUrl, resolveRemoteImageUri } from "@mobile/api/mediaUrl";
 
 describe("resolveOfferMediaUrl", () => {
-  it("given a local-media ref > then builds the admin stored-media stream URL", () => {
+  it("given a local-media ref > then returns undefined (admin stream is not customer-fetchable)", () => {
     expect(
       resolveOfferMediaUrl("local-media:brands/logo.png", "https://api-staging.gogocash.co"),
-    ).toBe(
-      "https://api-staging.gogocash.co/admin/stored-media/stream?ref=local-media%3Abrands%2Flogo.png",
-    );
+    ).toBeUndefined();
   });
 
   it("given an absolute https logo > then returns it unchanged", () => {

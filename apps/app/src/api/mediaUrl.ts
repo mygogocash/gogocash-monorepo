@@ -19,12 +19,11 @@ export function resolveOfferMediaUrl(
     return undefined;
   }
 
+  // Customer apps cannot call /admin/stored-media/stream (AuthAdminGuard). Treat
+  // local-media refs as unresolved so UI falls back to initials instead of a
+  // guaranteed 401 blank tile. Public HTTPS / relative paths still resolve below.
   if (trimmed.startsWith(LOCAL_MEDIA_PREFIX)) {
-    const base = apiBaseUrl?.trim().replace(/\/+$/, "");
-    if (!base) {
-      return undefined;
-    }
-    return `${base}/admin/stored-media/stream?ref=${encodeURIComponent(trimmed)}`;
+    return undefined;
   }
 
   return resolveRemoteImageUri(trimmed, apiBaseUrl);
