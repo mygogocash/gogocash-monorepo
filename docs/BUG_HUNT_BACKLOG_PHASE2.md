@@ -92,6 +92,14 @@ Code fixes shipped on `staging` (`9369694c`, `69d18414`). CI green. Items below 
 - **Stack:** Cloudflare R2 (not GCP). Day-to-day vars on Railway `gogocash-api`: `R2_BUCKET`, `R2_ENDPOINT`, `R2_PUBLIC_BASE_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. See `docs/railway-env-matrix.md`.
 - **Not re-checked:** fresh admin logo upload (needs admin JWT); GCP Secret Manager R2 secrets (only if using Cloud Run rollback lane).
 
+### 0. [P0] Android device bug hunt (2026-07-09) — resume after APK 39
+
+- **Handoff:** [`docs/android-bug-hunt-2026-07-09.md`](./android-bug-hunt-2026-07-09.md) (full findings, commands, EAS build link).
+- **Shipped on staging:** `30630397` — logged-out Wallet/Profile bottom-nav + Profile blank-tab fix + Maestro cookie `appId`.
+- **OTA published** (channel `staging`, runtime `0.1.0`) but **APK 38 cannot apply it** — `expo-updates` explicitly disabled (no `updates.url` / `ENABLED=false`).
+- **Next:** install EAS preview build `d263dfc2-9e93-4b72-9cef-34d96dfb43f1` (versionCode 39), then re-run Maestro + wallet inject + GoGoTrack Phase 5/7 from the handoff doc.
+- **Still open on device until APK 39 verified:** auth-guard Maestro, wallet zero-balance dashboard UI, warm deep link, Phase 7 with `--return-to-gototrack`.
+
 ### 1. [P1] Staging manual smoke — bug-hunt regression paths
 
 - **Why:** Automated CI passed; user-visible paths below were not exercised on hosted staging after push.
@@ -109,13 +117,16 @@ Code fixes shipped on `staging` (`9369694c`, `69d18414`). CI green. Items below 
 - **Why:** `eas.json` no longer inlines `$EXPO_PUBLIC_FIREBASE_*` / Sentry / PostHog — native builds and OTA need EAS project secrets or GitHub staging env.
 - **Verify:** `docs/firebase-native-eas.md`, `docs/sentry-native-eas.md`, `docs/posthog-native-verification.md`
 - **Smoke:** crash/event appears in Sentry/PostHog after staging preview build or OTA.
+- **2026-07-09 note:** preview builds must keep `EXPO_PUBLIC_EAS_PROJECT_ID` so `expo.modules.updates.ENABLED` is true — APK 38 was a counterexample (OTA published but never applied).
 
 ### 3. [P2] GoGoTrack device acceptance (Phase 7)
 
 - **Why:** Native monitor + background prompts need physical Android + EAS rebuild; not covered by unit/render tests.
-- **Runbook:** `docs/gototrack-android-acceptance-plan.md`, `npm run gototrack:preflight -- --require-background-prompt`
+- **Runbook:** `docs/gototrack-android-acceptance-plan.md`, handoff `docs/android-bug-hunt-2026-07-09.md` §4
 - **Needs:** `EXPO_TOKEN`, `GOGOTRACK_AUTH_TOKEN` (backend JWT), Usage Access, `com.shopee.th`
+- **Flags:** `--require-background-prompt` **and** `--return-to-gototrack` (prompt dump is gated on return-to-hub)
 - **Pre:** dedupe `gogosense_activation_events` `(user_id, detection_event_id)` before unique index sync on API boot.
+- **2026-07-09:** auth+detect+Shopee foreground PASS on staging; full Phase 5/7 deferred until APK 39.
 
 ### 4. [P3] Railway admin `NEXT_PUBLIC_API_URL` build-time confirm
 
@@ -129,11 +140,12 @@ Code fixes shipped on `staging` (`9369694c`, `69d18414`). CI green. Items below 
 
 ### Suggested order
 
-1. **#1 Staging smoke** (highest leverage, ~30 min)
-2. **#3 GoGoTrack device** (if demo/device QA is next milestone)
-3. **#2 EAS secrets** (before next native EAS build)
-4. **#4 admin build arg** (one-time Railway check)
-5. **#5 Phase 3 sweep** (when smoke is green)
+1. **#0 Android APK 39 install + re-verify** (blocks device QA — see handoff)
+2. **#1 Staging smoke** (highest leverage, ~30 min)
+3. **#3 GoGoTrack device** (Phase 5/7 with `--return-to-gototrack`)
+4. **#2 EAS secrets** (before next native EAS build)
+5. **#4 admin build arg** (one-time Railway check)
+6. **#5 Phase 3 sweep** (when smoke is green)
 
 ---
 
