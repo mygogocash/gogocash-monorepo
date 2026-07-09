@@ -10,8 +10,8 @@ import {
 } from "@mobile/theme/icons";
 
 import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
-import { buildProtectedLoginRedirect } from "@mobile/auth/routeGuard";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
+import { queueProtectedBottomNavWhileSessionHydrates } from "@mobile/auth/protectedBottomNavPress";
 import { mobileShellLayout, webMobileBottomNavItems } from "@mobile/design/webDesignParity";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -37,8 +37,6 @@ const bottomNavIcons: Record<string, BottomNavIconComponent> = {
   wallet: WalletIcon,
 };
 
-const protectedBottomNavHrefs = new Set(["/profile", "/wallet"]);
-
 export function CustomerMobileBottomNav({
   activeRouteId,
   bottomInset,
@@ -59,10 +57,6 @@ export function CustomerMobileBottomNav({
   const styles = useThemedStyles(createBottomNavStyles);
 
   function handleBottomNavPress(href: string) {
-    if (!ready) {
-      return;
-    }
-
     if (href === "/golink") {
       if (onGoLinkPress) {
         onGoLinkPress();
@@ -72,8 +66,12 @@ export function CustomerMobileBottomNav({
       return;
     }
 
-    if (!isAuthed && protectedBottomNavHrefs.has(href)) {
-      router.push((buildProtectedLoginRedirect(href) ?? "/login") as never);
+    const protectedTarget = queueProtectedBottomNavWhileSessionHydrates(href, {
+      isAuthed,
+      ready,
+    });
+    if (protectedTarget) {
+      router.push(protectedTarget as never);
       return;
     }
 

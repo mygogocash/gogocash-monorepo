@@ -4,6 +4,7 @@ import { InteractionManager } from "react-native";
 
 import { buildProtectedLoginRedirect } from "@mobile/auth/routeGuard";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
+import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import { CustomerProfileScreen } from "@mobile/screens/CustomerProfileScreen";
 
 export default function ProfileRoute() {
@@ -27,7 +28,19 @@ export default function ProfileRoute() {
   }, [ready, isAuthed, loginHref, router]);
 
   if (!ready || !isAuthed) {
-    return null;
+    // Never paint a blank tab while the root login redirect settles — that was
+    // the Android logged-out Profile bottom-nav failure mode.
+    return (
+      <CustomerRouteState
+        action={{
+          href: loginHref,
+          label: "Sign in",
+        }}
+        testID="profile-auth-guard"
+        title="Sign in required"
+        variant="unauthenticated"
+      />
+    );
   }
 
   return <CustomerProfileScreen />;

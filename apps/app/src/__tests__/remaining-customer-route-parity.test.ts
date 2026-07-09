@@ -104,17 +104,22 @@ describe("Remaining customer route parity", () => {
     expect(walletRoute).toContain("if (!ready)");
 
     const bottomNav = readMobileFile("src/components/CustomerMobileBottomNav.tsx");
-    expect(bottomNav).toContain("protectedBottomNavHrefs");
-    expect(bottomNav).toContain("buildProtectedLoginRedirect");
+    expect(bottomNav).toContain("queueProtectedBottomNavWhileSessionHydrates");
     expect(bottomNav).toContain("handleBottomNavPress");
+    // Native session hydrate is async (`ready: false`). Swallowing the press leaves Wallet/Profile
+    // dead until the next tap — push the protected href so the route self-guard can run.
+    expect(bottomNav).not.toMatch(/if\s*\(\s*!ready\s*\)\s*\{\s*return;\s*\}/);
 
     // Home uses its own bottom nav chrome; it must intercept wallet/profile the same way
     // as AccountPageShell — `<Link href="/profile">` mounts the tab and leaves a blank scene.
     const homeBottomNav = readMobileFile("src/screens/home/CustomerMobileBottomNav.tsx");
-    expect(homeBottomNav).toContain("protectedBottomNavHrefs");
-    expect(homeBottomNav).toContain("buildProtectedLoginRedirect");
+    expect(homeBottomNav).toContain("queueProtectedBottomNavWhileSessionHydrates");
     expect(homeBottomNav).toContain("handleBottomNavPress");
     expect(homeBottomNav).not.toMatch(/<Link[^>]+href=\{item\.href/);
+    expect(homeBottomNav).not.toMatch(/if\s*\(\s*!ready\s*\)\s*\{\s*return;\s*\}/);
+    // Profile tab must not paint a blank scene while the login redirect settles.
+    expect(profileRoute).toContain('variant="unauthenticated"');
+    expect(profileRoute).toContain("Sign in required");
 
     // The guard signal is synchronous-correct on web (localStorage) and async on native.
     expect(guardSession).toContain("createAvailableSessionStore");
