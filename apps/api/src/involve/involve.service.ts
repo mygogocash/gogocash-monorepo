@@ -1,4 +1,10 @@
-import { HttpException, Inject, Injectable } from '@nestjs/common';
+import {
+  HttpException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
 import {
   CreateAffiliateAiDto,
   CreateAffiliateDto,
@@ -20,6 +26,9 @@ import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
 import { buildUserConversionScopeFilter } from 'src/withdraw/conversion-user-id.util';
 
+/** Stable error code: Involve /authenticate rejected our credentials. */
+export const GOGOSENSE_UPSTREAM_AUTH_FAILED = 'GOGOSENSE_UPSTREAM_AUTH_FAILED';
+
 @Injectable()
 export class InvolveService {
   private endpoint: string;
@@ -35,10 +44,31 @@ export class InvolveService {
     this.endpoint = `https://api.involve.asia/api`;
   }
   async signIn() {
-    const res = await axios.post(`${this.endpoint}/authenticate`, {
-      secret: process.env.INVOLVE_SECRET,
-      key: 'general',
-    });
+    let res: { data: { data: { token: string } } };
+    try {
+      res = await axios.post(`${this.endpoint}/authenticate`, {
+        secret: process.env.INVOLVE_SECRET,
+        key: 'general',
+      });
+    } catch (error) {
+      // Staging incident 2026-07-10: a rejected INVOLVE_SECRET rethrew the raw
+      // axios error (which embeds the request body — i.e. the secret) and Nest
+      // rendered a bare 500 from /gototrack/activate. Map to a 502 with a
+      // stable code, built as a FRESH object so the secret can never leak.
+      const response = (
+        error as {
+          response?: { status?: number; data?: { status_code?: number } };
+        }
+      ).response;
+      throw new HttpException(
+        {
+          message: 'GoGoTrack affiliate network sign-in failed.',
+          code: GOGOSENSE_UPSTREAM_AUTH_FAILED,
+          upstreamStatusCode: response?.data?.status_code ?? response?.status,
+        },
+        502,
+      );
+    }
 
     await this.cacheManager.set('access_token_involve', res.data.data.token);
 
@@ -70,11 +100,11 @@ export class InvolveService {
   }
   async createAffiliate(createInvolveDto: CreateAffiliateDto, id: string) {
     if (!isValidObjectId(id)) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
     const user = await this.userModel.findOne({ _id: new Types.ObjectId(id) });
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
     const deeplink = await this.deeplinkModel.findOne({
@@ -118,7 +148,7 @@ export class InvolveService {
   ) {
     const user = await this.userModel.findOne({ email: email });
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
     const deeplink = await this.deeplinkModel.findOne({

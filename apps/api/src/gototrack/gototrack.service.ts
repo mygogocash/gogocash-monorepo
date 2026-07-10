@@ -143,6 +143,8 @@ type AffiliateNetworkError = {
 };
 
 const GOGOSENSE_DEEPLINK_UNAVAILABLE = 'GOGOSENSE_DEEPLINK_UNAVAILABLE';
+/** Stable error code: Involve failed outside the mapped 400/404/422 band. */
+const GOGOSENSE_UPSTREAM_UNAVAILABLE = 'GOGOSENSE_UPSTREAM_UNAVAILABLE';
 
 const GOTOTRACK_DETECTION_REQUIRED_SOURCES = new Set([
   'gototrack',
@@ -519,6 +521,12 @@ export class GototrackService {
         validatedUserId,
       );
     } catch (error) {
+      // Already-shaped errors (e.g. InvolveService.signIn's 502
+      // GOGOSENSE_UPSTREAM_AUTH_FAILED) pass through unwrapped.
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
       const upstreamStatusCode = getAffiliateNetworkStatusCode(error);
       if ([400, 404, 422].includes(upstreamStatusCode ?? 0)) {
         throw new HttpException(
@@ -532,7 +540,17 @@ export class GototrackService {
         );
       }
 
-      throw error;
+      // Staging incident 2026-07-10: everything else (upstream 5xx/401/429,
+      // network failures) rethrew raw and Nest rendered a bare 500. An
+      // affiliate-network failure is a gateway problem — surface it as 502.
+      throw new HttpException(
+        {
+          message: 'GoGoTrack affiliate network is unavailable.',
+          code: GOGOSENSE_UPSTREAM_UNAVAILABLE,
+          upstreamStatusCode,
+        },
+        502,
+      );
     }
   }
 
