@@ -411,7 +411,9 @@ function createGrantSectionStyles(colors: ThemeColors) {
       backgroundColor: colors.primaryDark,
     },
     toggleThumb: {
-      backgroundColor: pickThemed(colors, colors.white, colors.field),
+      // White in BOTH themes — the knob must contrast with the track, not
+      // recede into the card (dark-mode colors.field made it invisible).
+      backgroundColor: colors.white,
       borderRadius: radii.chip,
       boxShadow: pickThemed(colors, "0 1px 4px rgba(16, 37, 63, 0.2)", "none"),
       height: 28,

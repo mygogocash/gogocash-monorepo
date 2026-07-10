@@ -40,7 +40,22 @@ describe("customer privacy center dark mode surfaces", () => {
     expect(source).not.toMatch(/toggleTrack:[\s\S]*backgroundColor: "#E4E4E4"/);
     expect(source).toMatch(/requiredBadge:[\s\S]*backgroundColor: pickThemed\(/);
     expect(source).toMatch(/acceptButtonDisabled:[\s\S]*backgroundColor: pickThemed\(/);
-    expect(source).toMatch(/toggleThumb:[\s\S]*backgroundColor: pickThemed\(colors, colors\.white, colors\.field\)/);
+  });
+
+  it("toggle thumbs > given dark theme > then stay white against the track (privacy + GoGoTrack)", () => {
+    // Regression (user report 2026-07-10): the thumb used colors.field in dark
+    // mode — a recessed dark surface — so the knob was invisible on the dark
+    // off-track and read black on the mint on-track. A switch knob must
+    // contrast with its TRACK, not recede into the card: it stays white in
+    // both themes (matching the RN <Switch thumbColor={colors.white}> on the
+    // account settings screen).
+    for (const file of [privacyCenterFile, "src/gototrack/GoGoTrackPermissionGrantSection.tsx"]) {
+      const source = readMobileFile(file);
+      expect(source).toMatch(/toggleThumb:[\s\S]*?backgroundColor: colors\.white/);
+      expect(source).not.toMatch(
+        /toggleThumb:[\s\S]*?backgroundColor: pickThemed\(colors, colors\.white, colors\.field\)/,
+      );
+    }
   });
 
   it("consent preferences top bar > given dark theme > then uses themed divider border", () => {
