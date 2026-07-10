@@ -54,8 +54,17 @@ function ensureLocalStorage() {
 (globalThis as { __DEV__?: boolean }).__DEV__ = true;
 ensureLocalStorage();
 
+// Overridable device locale: tests that exercise device-region detection set
+// `globalThis.__mockDeviceLocale.regionCode` (see region-hydration.render.test).
+// A per-file vi.mock cannot override this setup-level factory, so the mock
+// reads mutable state instead.
+type MockDeviceLocale = { languageTag: string; languageCode: string; regionCode?: string };
+const mockDeviceLocale: MockDeviceLocale = { languageTag: "en-US", languageCode: "en" };
+(globalThis as { __mockDeviceLocale?: MockDeviceLocale }).__mockDeviceLocale = mockDeviceLocale;
 vi.mock("expo-localization", () => ({
-  getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
+  getLocales: () => [
+    (globalThis as { __mockDeviceLocale?: MockDeviceLocale }).__mockDeviceLocale,
+  ],
 }));
 
 const renderFetch = vi.fn(async () => new Response(null, { status: 204 }));
