@@ -99,7 +99,11 @@ Use when Railway is unavailable or during production migration.
 
 Legacy one-shot workflows (same behavior, duplicated logic):
 
-- `deploy-api-staging.yml`
+- `deploy-api-staging.yml` — ⚠️ **paused / known-broken** (2026-07-10): the
+  Secret Manager secrets `gogocash-staging-r2-access-key-id` and
+  `gogocash-staging-r2-secret-access-key` were never created, so every run
+  fails at Cloud Run revision creation. Live staging is Railway and is NOT
+  affected. Revival steps are in the workflow's header comment.
 - `deploy-admin-staging.yml`
 - `deploy-app-web-staging.yml`
 
