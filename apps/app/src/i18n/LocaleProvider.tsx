@@ -10,19 +10,21 @@ import {
 import { Platform } from "react-native";
 import { IntlProvider } from "react-intl";
 
+import { detectDeviceRegion } from "@mobile/i18n/detectDeviceRegion";
 import { DEFAULT_LOCALE, isSupportedLocale, type Locale, resolveLocale } from "@mobile/i18n/locales";
 import { readStoredLocale, readStoredLocaleSync, writeStoredLocale } from "@mobile/i18n/localeStorage";
 import { MESSAGES } from "@mobile/i18n/messages";
 import { readStoredRegion, readStoredRegionSync, writeStoredRegion } from "@mobile/i18n/regionStorage";
 import {
-  DEFAULT_REGION,
   isSupportedRegion,
   type RegionCode,
+  type RegionSource,
 } from "@mobile/i18n/regionTypes";
 
 type LocaleContextValue = {
   readonly locale: Locale;
   readonly region: RegionCode;
+  readonly regionSource: RegionSource;
   readonly setLocale: (next: Locale) => void;
   readonly setRegion: (next: RegionCode) => void;
 };
@@ -37,9 +39,9 @@ export function useLocale(): LocaleContextValue {
   return ctx;
 }
 
-export function useRegion(): Pick<LocaleContextValue, "region" | "setRegion"> {
-  const { region, setRegion } = useLocale();
-  return { region, setRegion };
+export function useRegion(): Pick<LocaleContextValue, "region" | "regionSource" | "setRegion"> {
+  const { region, regionSource, setRegion } = useLocale();
+  return { region, regionSource, setRegion };
 }
 
 function detectDeviceLocale(): Locale {
@@ -63,17 +65,27 @@ function resolveInitialLocale(): Locale | null {
   return null;
 }
 
-function resolveInitialRegion(): RegionCode | null {
+// A stored region is an explicit past pick ("user" — persisted only by
+// setRegion); otherwise fall back to the device's OS region ("detected",
+// never persisted, so it stays re-detectable and confirmable later).
+type RegionState = { readonly code: RegionCode; readonly source: RegionSource };
+
+function regionStateFromStored(stored: string | null): RegionState {
+  return isSupportedRegion(stored)
+    ? { code: stored, source: "user" }
+    : { code: detectDeviceRegion(), source: "detected" };
+}
+
+function resolveInitialRegion(): RegionState | null {
   if (Platform.OS === "web") {
-    const stored = readStoredRegionSync();
-    return isSupportedRegion(stored) ? stored : DEFAULT_REGION;
+    return regionStateFromStored(readStoredRegionSync());
   }
   return null;
 }
 
 export function LocaleProvider({ children }: PropsWithChildren) {
   const [locale, setLocaleState] = useState<Locale | null>(resolveInitialLocale);
-  const [region, setRegionState] = useState<RegionCode | null>(resolveInitialRegion);
+  const [region, setRegionState] = useState<RegionState | null>(resolveInitialRegion);
 
   // Native: resolve the persisted choice (or device locale) asynchronously, then
   // commit it. Web is already seeded synchronously, so this is a no-op there.
@@ -95,8 +107,7 @@ export function LocaleProvider({ children }: PropsWithChildren) {
         setLocaleState(nextLocale);
       }
       if (region === null) {
-        const nextRegion = isSupportedRegion(storedRegion) ? storedRegion : DEFAULT_REGION;
-        setRegionState(nextRegion);
+        setRegionState(regionStateFromStored(storedRegion));
       }
     })();
     return () => {
@@ -112,13 +123,14 @@ export function LocaleProvider({ children }: PropsWithChildren) {
         ? null
         : {
             locale,
-            region,
+            region: region.code,
+            regionSource: region.source,
             setLocale: (next: Locale) => {
               setLocaleState(next);
               void writeStoredLocale(next);
             },
             setRegion: (next: RegionCode) => {
-              setRegionState(next);
+              setRegionState({ code: next, source: "user" });
               void writeStoredRegion(next);
             },
           },
