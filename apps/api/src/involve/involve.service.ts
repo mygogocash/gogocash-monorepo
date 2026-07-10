@@ -27,7 +27,7 @@ import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
 import { buildUserConversionScopeFilter } from 'src/withdraw/conversion-user-id.util';
 
 /** Stable error code: Involve /authenticate rejected our credentials. */
-export const GOGOSENSE_UPSTREAM_AUTH_FAILED = 'GOGOSENSE_UPSTREAM_AUTH_FAILED';
+const GOGOSENSE_UPSTREAM_AUTH_FAILED = 'GOGOSENSE_UPSTREAM_AUTH_FAILED';
 
 @Injectable()
 export class InvolveService {
