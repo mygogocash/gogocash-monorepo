@@ -31,12 +31,7 @@ export function useProfileWalletAmount(): { amount: string; isLoading: boolean }
 
   const sessionWallet = typeof session?.wallet === "string" ? session.wallet : undefined;
 
-  const amount = resolveProfileWalletAmount(
-    env.accountDataSource,
-    sessionWallet,
-    walletResource.data,
-    walletLoading,
-  );
+  const amount = resolveProfileWalletAmount(env.accountDataSource, sessionWallet, walletResource.data);
 
   return {
     amount,

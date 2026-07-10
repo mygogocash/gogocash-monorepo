@@ -24,24 +24,32 @@ export function resolveProfileWalletAmount(
   accountDataSource: AccountDataSource,
   sessionWallet: string | null | undefined,
   walletData: unknown,
-  walletLoading: boolean,
 ): string {
-  const sessionAmount = readSessionWalletAmount(sessionWallet);
-  if (sessionAmount) {
-    return sessionAmount;
-  }
-
   if (accountDataSource === "backend") {
-    if (walletLoading) {
-      return PROFILE_WALLET_AMOUNT_PLACEHOLDER;
-    }
-
+    // The live wallet-check resource is the same authoritative source the
+    // Wallet screen renders from — it must win over `session.wallet`, which
+    // is synced from GET /user/profile and can lag behind or hold an
+    // unrelated cached value (e.g. a stale "0.00").
     if (isCheckWithdrawResponse(walletData)) {
       return formatProfileWalletAmountTHB(walletData.netAmountTHB);
     }
 
-    return PROFILE_WALLET_AMOUNT_PLACEHOLDER;
+    return readSessionWalletAmount(sessionWallet) ?? PROFILE_WALLET_AMOUNT_PLACEHOLDER;
   }
 
-  return webProfileWalletSummary.amount;
+  return readSessionWalletAmount(sessionWallet) ?? webProfileWalletSummary.amount;
+}
+
+/**
+ * Resolve the currency label shown next to the profile wallet amount.
+ * `session.region` is the backend's canonicalized ISO-3166-1 alpha-2 country
+ * code (see apps/api/src/utils/country.ts toIso2Server), e.g. "TH" — never
+ * the English display name "Thailand".
+ */
+export function resolveProfileCurrency(region: unknown): string {
+  if (typeof region !== "string" || !region.trim()) {
+    return webProfileWalletSummary.currency;
+  }
+
+  return region.trim().toUpperCase() === "TH" ? webProfileWalletSummary.currency : "USD";
 }

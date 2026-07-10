@@ -469,7 +469,7 @@ function WalletCashbackSummary({
         </View>
         <HelpCircleIcon color="#7089A5" size={28} strokeWidth={2.4} />
       </View>
-      <View style={styles.walletMetricRow}>
+      <View style={compact ? styles.walletMetricColumn : styles.walletMetricRow}>
         {(liveMetrics ?? webWalletCashbackSummary.metrics).map((metric) => (
           <WalletMetricCard compact={compact} key={metric.label} metric={metric} />
         ))}
@@ -498,7 +498,7 @@ function WalletMetricCard({ compact, metric }: { compact: boolean; metric: Walle
         compact ? styles.metricCardCompact : null,
       ]}
     >
-      <View style={compact ? styles.metricTopColumn : styles.metricTopRow}>
+      <View style={[styles.metricTopRow, compact ? styles.metricTopRowCompact : null]}>
         <View
           style={[
             styles.metricIcon,
@@ -522,7 +522,7 @@ function WalletMetricCard({ compact, metric }: { compact: boolean; metric: Walle
           {compact ? null : <Text style={styles.metricHint}>{tc(metric.hint)}</Text>}
         </View>
       </View>
-      <View style={styles.metricAmountRow}>
+      <View style={compact ? styles.metricAmountRowCompact : styles.metricAmountRow}>
         <Text
           adjustsFontSizeToFit
           numberOfLines={1}
@@ -687,11 +687,17 @@ function createWalletScreenStyles(colors: ThemeColors) {
     fontSize: typography.body,
     lineHeight: 24,
   },
-  // One row, three equal cards; stretch + marginTop:auto on the amount row keep
-  // the amounts baseline-aligned even when hint copy lengths differ.
+  // Desktop: one row, three equal cards; stretch + marginTop:auto on the amount
+  // row keep the amounts baseline-aligned even when hint copy lengths differ.
   walletMetricRow: {
     alignItems: "stretch",
     flexDirection: "row",
+    gap: spacing.sm,
+  },
+  // Mobile (compact): the three cards stack one per row — three columns at
+  // phone width wrapped the Thai labels and clipped the amounts.
+  walletMetricColumn: {
+    flexDirection: "column",
     gap: spacing.sm,
   },
   metricCard: {
@@ -703,13 +709,20 @@ function createWalletScreenStyles(colors: ThemeColors) {
     gap: spacing.md,
     padding: spacing.md,
   },
+  // Compact card is itself a row: [icon | label] … [amount currency]. Tight
+  // paddings + the original compact type scale — the amount block is fixed
+  // content, so every point saved here goes to the label column.
   metricCardCompact: {
+    alignItems: "center",
+    flexDirection: "row",
     gap: spacing.sm,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
   },
-  metricTopColumn: {
-    alignItems: "flex-start",
-    gap: spacing.xs,
+  metricTopRowCompact: {
+    alignItems: "center",
+    flex: 1,
+    gap: spacing.sm,
   },
   metricIconCompact: {
     borderRadius: radii.sm,
@@ -719,7 +732,13 @@ function createWalletScreenStyles(colors: ThemeColors) {
   metricLabelCompact: {
     fontSize: 13,
     lineHeight: 17,
-    minHeight: 34,
+  },
+  metricAmountRowCompact: {
+    alignItems: "baseline",
+    flexDirection: "row",
+    flexShrink: 0,
+    gap: spacing.xs,
+    marginLeft: "auto",
   },
   metricAmountCompact: {
     fontSize: 18,
