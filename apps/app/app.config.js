@@ -122,6 +122,11 @@ const mobileExpoConfig = ({ config }) => ({
     shortName: appIdentity.displayName,
   },
   plugins: [
+    // firebase-ios-sdk pods (pulled by autolinking from package.json even when
+    // the RNFB plugin below is omitted) cannot integrate as static LIBRARIES —
+    // their ObjC deps define no modules — so every iOS build needs static
+    // FRAMEWORKS. Unconditional on purpose.
+    ["expo-build-properties", { ios: { useFrameworks: "static" } }],
     // Native Firebase default-app init (phone OTP) — only when a google
     // services file is available (see nativeFirebaseEnabled above).
     ...(nativeFirebaseEnabled ? ["@react-native-firebase/app"] : []),

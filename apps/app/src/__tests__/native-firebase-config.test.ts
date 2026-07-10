@@ -42,4 +42,19 @@ describe("native firebase config > app.config.js", () => {
     expect(config.android.googleServicesFile).toBeUndefined();
     expect(config.plugins).not.toContain("@react-native-firebase/app");
   });
+
+  it("always builds iOS with static frameworks — the RNFB pods install via autolinking regardless", () => {
+    // pod install fails outright without this: FirebaseAuth's ObjC deps
+    // (GoogleUtilities et al.) define no modules, so Swift pods cannot
+    // integrate as static libraries (CodeQL swift run 29081966292). The
+    // firebase-ios-sdk requirement on Expo is useFrameworks: "static", and it
+    // must be UNCONDITIONAL because autolinking pulls the pods from
+    // package.json even when the @react-native-firebase/app plugin is omitted.
+    const config = loadConfig()({ config: {} });
+
+    expect(config.plugins).toContainEqual([
+      "expo-build-properties",
+      { ios: { useFrameworks: "static" } },
+    ]);
+  });
 });
