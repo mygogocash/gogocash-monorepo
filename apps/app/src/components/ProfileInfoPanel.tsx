@@ -10,8 +10,11 @@ import {
 } from "@mobile/theme/icons";
 import { Link } from "expo-router";
 
+import { resolveProfileCashbackBreakdownRows } from "@mobile/account/resolveProfileWalletAmount";
+import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import { BirthDateField } from "@mobile/components/BirthDateField";
 import { ProfileHeroCard } from "@mobile/components/ProfileHeroCard";
+import { getMobileEnv } from "@mobile/config/env";
 import {
   ProfileSocialBrandIcon,
   type ProfileSocialBrand,
@@ -269,6 +272,20 @@ function ProfileCashbackSummaryCard() {
   const { width } = useWindowDimensions();
   const isCompact = width < 560;
 
+  // Field bug 2026-07-10: this card rendered the fixture "3,180.24 THB
+  // AVAILABLE TO WITHDRAW" (and a fixture source breakdown) on a LIVE account
+  // whose real balance was 0.00. Backend mode renders the same live wallet
+  // resource the header/Wallet screen use; the breakdown hides until a real
+  // per-source endpoint exists. Fixtures mode keeps design parity untouched.
+  const accountDataSource = getMobileEnv().accountDataSource;
+  const { amount: liveAmount } = useProfileWalletAmount();
+  const availableAmount =
+    accountDataSource === "backend" ? liveAmount : webProfileInfoCashbackCard.amount;
+  const breakdownRows = resolveProfileCashbackBreakdownRows(
+    accountDataSource,
+    webProfileInfoCashbackCard.rows,
+  );
+
   const withdrawButton = (
     <Link asChild href="/withdraw">
       <Pressable
@@ -329,7 +346,7 @@ function ProfileCashbackSummaryCard() {
                 isCompact ? styles.profileCashbackAvailableAmountCompact : null,
               ]}
             >
-              {webProfileInfoCashbackCard.amount}
+              {availableAmount}
             </Text>
             <Text style={styles.profileCashbackCurrencyPill}>
               {webProfileInfoCashbackCard.currency}
@@ -337,11 +354,12 @@ function ProfileCashbackSummaryCard() {
           </View>
         </View>
       </View>
+      {breakdownRows.length === 0 ? null : (
       <View style={styles.profileCashbackBreakdown}>
         <Text style={styles.profileCashbackBreakdownTitle}>
           {tc(webProfileInfoCashbackCard.breakdownTitle)}
         </Text>
-        {webProfileInfoCashbackCard.rows.map((row) => (
+        {breakdownRows.map((row) => (
           <View key={row.label} style={styles.profileCashbackBreakdownRow}>
             <View style={styles.profileCashbackBreakdownCopy}>
               <Text style={styles.profileCashbackBreakdownLabel}>{tc(row.label)}</Text>
@@ -356,6 +374,7 @@ function ProfileCashbackSummaryCard() {
           </View>
         ))}
       </View>
+      )}
     </View>
   );
 }

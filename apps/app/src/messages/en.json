@@ -1443,5 +1443,12 @@
     "streak_expiredBody": "Your voucher wasn't redeemed in time. Earn it again!",
     "streak_reset": "Streak reset — start again this month!"
   },
-  "categoryPolicyTermsTitle": "Terms & conditions"
+  "categoryPolicyTermsTitle": "Terms & conditions",
+  "authEmailEntry": "Sign in with email",
+  "authEmailAddressPlaceholder": "Email address",
+  "authEmailPasswordPlaceholder": "Password",
+  "authEmailCreateAccount": "Create account",
+  "authEmailToggleSignup": "New to GoGoCash? Create an account",
+  "authEmailToggleSignin": "Already have an account? Sign in",
+  "authEmailUsePhone": "Use phone number instead"
 }

@@ -2,10 +2,30 @@ import { describe, expect, it } from "vitest";
 
 import {
   PROFILE_WALLET_AMOUNT_PLACEHOLDER,
+  resolveProfileCashbackBreakdownRows,
   resolveProfileCurrency,
   resolveProfileWalletAmount,
 } from "@mobile/account/resolveProfileWalletAmount";
 import { webProfileWalletSummary } from "@mobile/design/webDesignParity";
+
+describe("resolveProfileCashbackBreakdownRows", () => {
+  const fixtureRows = [
+    { amount: "675.00", label: "Linked My Cashback" },
+    { amount: "2,505.24", label: "GoGoCash balance" },
+  ];
+
+  it("resolveProfileCashbackBreakdownRows > given backend mode > then hides the fixture rows — no per-source data exists", () => {
+    // Field bug 2026-07-10: the live /profile panel rendered fixture
+    // "675.00" + "2,505.24" as a BALANCE BREAKDOWN next to a real 0.00
+    // balance. The backend exposes no per-source split, so the section
+    // hides rather than fakes one (money rule: backend-derived or nothing).
+    expect(resolveProfileCashbackBreakdownRows("backend", fixtureRows)).toEqual([]);
+  });
+
+  it("resolveProfileCashbackBreakdownRows > given fixtures mode > then keeps the design-parity rows", () => {
+    expect(resolveProfileCashbackBreakdownRows("fixtures", fixtureRows)).toEqual(fixtureRows);
+  });
+});
 
 describe("resolveProfileWalletAmount", () => {
   it("resolveProfileWalletAmount > given backend mode and session wallet > then prefers session string", () => {

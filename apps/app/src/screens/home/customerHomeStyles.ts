@@ -114,6 +114,13 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     height: 40,
     width: 40,
   },
+  mobileHeaderRegionFlagBadge: {
+    bottom: -2,
+    fontSize: 12,
+    lineHeight: 14,
+    position: "absolute",
+    right: -2,
+  },
   mobileTabletHeaderSearchBox: {
     alignItems: "center",
     backgroundColor: colors.card,

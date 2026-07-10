@@ -365,5 +365,14 @@
   "mobileProfileAvatarAltShort": "Avatar",
   "mobileProfileAvatarUploading": "Uploading…",
   "mobileProfileAvatarChangePhoto": "Change photo",
-  "mobileProfileAvatarWebOnly": "Profile photo upload is available on web for now."
+  "mobileProfileAvatarWebOnly": "Profile photo upload is available on web for now.",
+  "mobileRegionBannerShowingDealsFor": "Showing deals for",
+  "mobileRegionBannerChange": "Change",
+  "mobileRegionBannerDismissAria": "Dismiss region notice",
+  "mobileSettingsLanguageCountryTitle": "Language & Country",
+  "mobileSettingsLanguageCountryHelper": "Choose your language and the country you shop in.",
+  "mobileSettingsChangeCountryAria": "Change country",
+  "mobileLocaleRegionButtonAria": "Language and region",
+  "mobileLocaleRegionSheetCloseAria": "Close language and region",
+  "mobileLocaleRegionSheetAria": "Choose language and region"
 }

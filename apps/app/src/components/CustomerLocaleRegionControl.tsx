@@ -165,12 +165,14 @@ export function CustomerLocaleRegionControl({
   );
 }
 
-function LocaleSectionTitle({ children }: { children: string }) {
+// Exported for the mobile bottom-sheet edition (CustomerLocaleRegionSheet) so
+// both presentations share one option row and section-title implementation.
+export function LocaleSectionTitle({ children }: { children: string }) {
   const styles = useLocaleRegionControlStyles();
   return <Text style={styles.desktopLocaleSectionTitle}>{children}</Text>;
 }
 
-function LocaleOption({
+export function LocaleOption({
   flag,
   label,
   onPress,

@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // CustomerAccountSettingsScreen renders through AccountPageShell ->
@@ -128,5 +128,40 @@ describe("CustomerAccountSettingsScreen — Wave B foundations deliberately not 
     // The old flat-color + letter-glyph approach is gone.
     expect(settingsSource).not.toContain("communityBrandStyles");
     expect(settingsSource).not.toContain("communityGlyph");
+  });
+
+  // Country selector (2026-07-10): the screen lives at the /language route yet
+  // carried no language or region UI — the only picker was the desktop header
+  // globe. This section gives settings muscle-memory a home for both.
+  describe("language & country section", () => {
+    it("renders both languages and the active country", () => {
+      globalThis.localStorage?.clear();
+      renderScreen();
+
+      expect(screen.getByText("Language & Country")).toBeTruthy();
+      expect(screen.getByText("English")).toBeTruthy();
+      expect(screen.getByText("ไทย")).toBeTruthy();
+      expect(screen.getByLabelText("Change country").textContent).toContain("Thailand");
+    });
+
+    it("given a tap on ไทย > then the Thai locale persists", () => {
+      globalThis.localStorage?.clear();
+      renderScreen();
+
+      fireEvent.click(screen.getByText("ไทย"));
+
+      expect(globalThis.localStorage.getItem("gogocash.locale")).toBe("th");
+    });
+
+    it("given a country pick via the row > then the region sheet opens and the choice persists", () => {
+      globalThis.localStorage?.clear();
+      renderScreen();
+
+      fireEvent.click(screen.getByLabelText("Change country"));
+      fireEvent.click(screen.getByText("Singapore"));
+
+      expect(globalThis.localStorage.getItem("gogocash.region")).toBe("SG");
+      expect(screen.getByLabelText("Change country").textContent).toContain("Singapore");
+    });
   });
 });

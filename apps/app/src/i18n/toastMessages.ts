@@ -31,6 +31,16 @@ export const authSendErrorMessages = {
   generic: toastErrorMessages.requestFailed,
 } as const;
 
+/** Email/password sign-in failures — see emailPasswordAuth.toEmailAuthErrorKind. */
+export const authEmailErrorMessages = {
+  // One message for wrong-password AND unknown-user: distinct copy would let
+  // an attacker probe which emails have accounts.
+  invalidCredentials: "Email or password is incorrect. Check them and try again.",
+  emailInUse: "That email already has an account. Sign in instead.",
+  weakPassword: "Password must be at least 6 characters.",
+  invalidEmail: "That email doesn't look valid. Check it and try again.",
+} as const;
+
 /** Approved messages that intentionally break the "Could not … Please try again." pattern. */
 export const approvedNonStandardErrorMessages = [
   authSendErrorMessages.rateLimit,
@@ -38,6 +48,10 @@ export const approvedNonStandardErrorMessages = [
   authSendErrorMessages.invalidPhone,
   authSendErrorMessages.notConfigured,
   authSendErrorMessages.webOnly,
+  authEmailErrorMessages.invalidCredentials,
+  authEmailErrorMessages.emailInUse,
+  authEmailErrorMessages.weakPassword,
+  authEmailErrorMessages.invalidEmail,
 ] as const;
 
 /** Validates a user-facing error string follows the house pattern. */

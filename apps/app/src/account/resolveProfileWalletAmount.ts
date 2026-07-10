@@ -20,6 +20,18 @@ export function formatProfileWalletAmountTHB(amount: number): string {
   });
 }
 
+/**
+ * The profile "BALANCE BREAKDOWN" rows are design fixtures; the backend has no
+ * per-source split endpoint. In live mode the section hides rather than fakes
+ * one — fixture demo numbers must never render as a real balance.
+ */
+export function resolveProfileCashbackBreakdownRows<T>(
+  accountDataSource: AccountDataSource,
+  fixtureRows: ReadonlyArray<T>,
+): ReadonlyArray<T> {
+  return accountDataSource === "backend" ? [] : fixtureRows;
+}
+
 export function resolveProfileWalletAmount(
   accountDataSource: AccountDataSource,
   sessionWallet: string | null | undefined,

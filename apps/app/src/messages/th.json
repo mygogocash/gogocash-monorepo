@@ -1443,5 +1443,12 @@
     "streak_expiredBody": "คุณยังไม่ได้แลกรับทันเวลา สะสมใหม่ได้อีกครั้ง!",
     "streak_reset": "สตรีคถูกรีเซ็ต — เริ่มใหม่ในเดือนนี้"
   },
-  "categoryPolicyTermsTitle": "ข้อกำหนดและเงื่อนไข"
+  "categoryPolicyTermsTitle": "ข้อกำหนดและเงื่อนไข",
+  "authEmailEntry": "เข้าสู่ระบบด้วยอีเมล",
+  "authEmailAddressPlaceholder": "อีเมล",
+  "authEmailPasswordPlaceholder": "รหัสผ่าน",
+  "authEmailCreateAccount": "สร้างบัญชี",
+  "authEmailToggleSignup": "ยังไม่มีบัญชี GoGoCash? สร้างบัญชี",
+  "authEmailToggleSignin": "มีบัญชีอยู่แล้ว? เข้าสู่ระบบ",
+  "authEmailUsePhone": "ใช้หมายเลขโทรศัพท์แทน"
 }

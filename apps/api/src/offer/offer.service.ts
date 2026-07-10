@@ -30,6 +30,7 @@ import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schem
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
 import { SearchBlacklist } from 'src/admin/search/schemas/blacklist.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
+import { countryFilterRegex } from 'src/utils/country';
 import { normalizeCustomerCashbackLabel } from 'src/common/normalize-customer-cashback-label';
 import { requireObjectId, mongoSetUpdate } from 'src/common/mongo-query';
 
@@ -249,9 +250,12 @@ export class OfferService implements OnApplicationBootstrap {
         $options: 'i',
       };
     }
-    if (country) {
+    const countryRegex = countryFilterRegex(country);
+    if (countryRegex) {
+      // Token-anchored ISO-2/full-name match — the app sends ISO-2 codes while
+      // Involve offers store full names (see countryFilterRegex).
       filter['countries'] = {
-        $regex: escapeRegexLiteral(country),
+        $regex: countryRegex,
         $options: 'i',
       };
     }

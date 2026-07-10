@@ -187,7 +187,35 @@ describe('OfferService', () => {
         { countries: { $regex: 'shopee', $options: 'i' } },
       ]);
       expect(filter.categories).toEqual({ $regex: 'fashion', $options: 'i' });
-      expect(filter.countries).toEqual({ $regex: 'Thailand', $options: 'i' });
+      // Country becomes a token-anchored alternation (ISO-2 + full names) —
+      // assert behaviorally rather than pinning the source string.
+      const countryRegex = new RegExp(
+        filter.countries.$regex,
+        filter.countries.$options,
+      );
+      expect(countryRegex.test('Thailand')).toBe(true);
+      expect(countryRegex.test('Singapore, TH, Vietnam')).toBe(true);
+      expect(countryRegex.test('Singapore')).toBe(false);
+    });
+
+    it('findAll > given the ISO-2 country the app sends > then matches offers listing the full country name', async () => {
+      // Field bug 2026-07-10: the customer app sends `country=MY` but Involve
+      // offers store "Australia, Malaysia, Singapore, ..." — the old substring
+      // regex matched nothing for MY/SG/JP/VN/TW/CN (only TH/PH by accident).
+      await service.findAll(1, 10, '', '', 'MY');
+
+      const filter = offerModel.find.mock.calls[0][0];
+      const regex = new RegExp(
+        filter.countries.$regex,
+        filter.countries.$options,
+      );
+      expect(
+        regex.test(
+          'Australia, Malaysia, Singapore, Thailand, United States of America',
+        ),
+      ).toBe(true);
+      expect(regex.test('Thailand')).toBe(false);
+      expect(regex.test('Myanmar')).toBe(false);
     });
 
     it('findAll > given a numeric offer id search > then matches offer_id', async () => {
@@ -212,10 +240,12 @@ describe('OfferService', () => {
         $regex: 'fashion\\+',
         $options: 'i',
       });
-      expect(filter.countries).toEqual({
-        $regex: 'Thailand\\?',
-        $options: 'i',
-      });
+      const countryRegex = new RegExp(
+        filter.countries.$regex,
+        filter.countries.$options,
+      );
+      expect(countryRegex.test('Thailand?')).toBe(true);
+      expect(countryRegex.test('Thailand')).toBe(false);
     });
 
     it('findAll > given a blacklisted search query > then returns no ranked results', async () => {
