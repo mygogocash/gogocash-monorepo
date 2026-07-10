@@ -261,6 +261,19 @@ describe("Shop detail parity", () => {
     expect(shopFile).toMatch(/shopNowButton:[\s\S]*?flexShrink: 0/);
   });
 
+  it("shop detail parity > given rate breakdown rows > then they read as quiet secondary info", () => {
+    // Design feedback 2026-07-10: "Cashback starting from X / up to Y" and the
+    // per-product rate rows rendered in bright 16-20px ink — louder than the
+    // disclaimers around them and competing with the mint hero rate above.
+    // They are secondary detail: muted 14px labels, 16px values.
+    const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+    expect(shopFile).toMatch(/rateSummaryText: \{[^}]*color: colors\.muted/);
+    expect(shopFile).toMatch(/rateSummaryText: \{[^}]*fontSize: 14/);
+    expect(shopFile).toMatch(/productRateName: \{[^}]*color: colors\.muted/);
+    expect(shopFile).toMatch(/productRateName: \{[^}]*fontSize: 14/);
+    expect(shopFile).toMatch(/productRateValue: \{[^}]*fontSize: 16/);
+  });
+
   it("shop detail parity > given cashback headline row > then label and value align on baseline", () => {
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 

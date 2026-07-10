@@ -1080,12 +1080,15 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     gap: 16,
     justifyContent: "space-between",
   },
+  // Quiet secondary info — bright 16px ink competed with the mint hero rate
+  // above and out-shouted the surrounding disclaimers (design feedback
+  // 2026-07-10).
   rateSummaryText: {
-    color: colors.ink,
+    color: colors.muted,
     fontFamily: typography.family,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: typography.bodyWeight,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   productRateList: {
     borderTopColor: colors.border,
@@ -1101,15 +1104,15 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     paddingVertical: 11,
   },
   productRateName: {
-    color: colors.ink,
+    color: colors.muted,
     fontFamily: typography.family,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: typography.bodyWeight,
   },
   productRateValue: {
     color: colors.ink,
     fontFamily: typography.family,
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "600",
   },
   noteBox: {
