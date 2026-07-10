@@ -365,5 +365,8 @@
   "mobileProfileAvatarAltShort": "รูปโปรไฟล์",
   "mobileProfileAvatarUploading": "กำลังอัปโหลด…",
   "mobileProfileAvatarChangePhoto": "เปลี่ยนรูป",
-  "mobileProfileAvatarWebOnly": "อัปโหลดรูปโปรไฟล์ใช้ได้บนเว็บในขณะนี้"
+  "mobileProfileAvatarWebOnly": "อัปโหลดรูปโปรไฟล์ใช้ได้บนเว็บในขณะนี้",
+  "mobileRegionBannerShowingDealsFor": "แสดงดีลสำหรับ",
+  "mobileRegionBannerChange": "เปลี่ยน",
+  "mobileRegionBannerDismissAria": "ปิดการแจ้งเตือนประเทศ"
 }
