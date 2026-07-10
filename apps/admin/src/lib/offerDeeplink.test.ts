@@ -38,7 +38,7 @@ describe("bestPercentFromPartnerRates", () => {
 
 describe("formatOfferCashbackLabel", () => {
   it("given commission_store > then formats as percent", () => {
-    expect(formatOfferCashbackLabel({ commission_store: 7 })).toBe("7%");
+    expect(formatOfferCashbackLabel({ commission_store: 7, commissions: [] })).toBe("7%");
   });
 
   it("given Involve commissions without commission_store > then uses max percent after 30% fee", () => {
@@ -63,19 +63,19 @@ describe("formatOfferCashbackLabel", () => {
 describe("resolveTopBrandCashbackLabel", () => {
   it("given saved cashback > then prefers the saved label", () => {
     expect(
-      resolveTopBrandCashbackLabel({ commission_store: 7 }, "Custom copy"),
+      resolveTopBrandCashbackLabel({ commission_store: 7, commissions: [] }, "Custom copy"),
     ).toBe("Custom copy");
   });
 
   it("given empty saved cashback > then falls back to offer commission", () => {
     expect(
-      resolveTopBrandCashbackLabel({ commission_store: 7 }, ""),
+      resolveTopBrandCashbackLabel({ commission_store: 7, commissions: [] }, ""),
     ).toBe("7%");
   });
 
   it("given saved Up to label > then compacts for card layout", () => {
     expect(
-      resolveTopBrandCashbackLabel({ commission_store: 7 }, "Up to 2.02%"),
+      resolveTopBrandCashbackLabel({ commission_store: 7, commissions: [] }, "Up to 2.02%"),
     ).toBe("2.02%");
   });
 });

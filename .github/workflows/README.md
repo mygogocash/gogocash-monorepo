@@ -45,7 +45,7 @@ Shared setup: **`.github/actions/setup-node-monorepo`** (Node 22, `npm ci`).
 
 | Job | When | Gate? |
 |-----|------|-------|
-| `admin` | `apps/admin/**` | test + build **yes**; lint informational (#45) |
+| `admin` | `apps/admin/**` | typecheck + test + build **yes**; lint informational (#45) |
 | `app` | `apps/app/**` | typecheck, unit, render, web export **yes** |
 | `api-lint` | `apps/api/**` | **yes** |
 | `api-test` | `apps/api/**` | **yes** (includes Involve postback integration specs) |

@@ -525,7 +525,9 @@ export interface Offer {
   __v: number;
   categories: string;
   commission_tracking: string;
-  commissions: string[];
+  // Involve-style partner rows ({ Commission: "2.80%" }) or legacy plain strings —
+  // collectPercentsFromPartnerRates handles both shapes.
+  commissions: Array<string | Record<string, string>>;
   countries: string;
   currency: string;
   datetime_created: Date;
