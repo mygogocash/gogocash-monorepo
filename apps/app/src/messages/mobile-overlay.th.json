@@ -368,5 +368,8 @@
   "mobileProfileAvatarWebOnly": "อัปโหลดรูปโปรไฟล์ใช้ได้บนเว็บในขณะนี้",
   "mobileRegionBannerShowingDealsFor": "แสดงดีลสำหรับ",
   "mobileRegionBannerChange": "เปลี่ยน",
-  "mobileRegionBannerDismissAria": "ปิดการแจ้งเตือนประเทศ"
+  "mobileRegionBannerDismissAria": "ปิดการแจ้งเตือนประเทศ",
+  "mobileSettingsLanguageCountryTitle": "ภาษาและประเทศ",
+  "mobileSettingsLanguageCountryHelper": "เลือกภาษาและประเทศที่คุณช้อปปิ้ง",
+  "mobileSettingsChangeCountryAria": "เปลี่ยนประเทศ"
 }

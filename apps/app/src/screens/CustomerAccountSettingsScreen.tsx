@@ -20,6 +20,7 @@ import {
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { AppearanceSection } from "@mobile/components/AppearanceSection";
+import { LanguageRegionSection } from "@mobile/components/LanguageRegionSection";
 import { LineAppIcon } from "@mobile/components/LineAppIcon";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -77,6 +78,7 @@ export function CustomerAccountSettingsScreen() {
           (web parity: the SubPage topbar is md:hidden). */}
       {isDesktop ? null : <AccountSettingsTopBar />}
       <View style={styles.content}>
+        <LanguageRegionSection />
         <AppearanceSection />
         <SubscriptionSection />
         <NotificationSection />

@@ -368,5 +368,8 @@
   "mobileProfileAvatarWebOnly": "Profile photo upload is available on web for now.",
   "mobileRegionBannerShowingDealsFor": "Showing deals for",
   "mobileRegionBannerChange": "Change",
-  "mobileRegionBannerDismissAria": "Dismiss region notice"
+  "mobileRegionBannerDismissAria": "Dismiss region notice",
+  "mobileSettingsLanguageCountryTitle": "Language & Country",
+  "mobileSettingsLanguageCountryHelper": "Choose your language and the country you shop in.",
+  "mobileSettingsChangeCountryAria": "Change country"
 }
