@@ -167,7 +167,11 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     width: "100%",
   },
   mobileTabletSheetToggleButton: {
+    // alignSelf centers the absolute child on BOTH platforms — a percentage
+    // left offset plus a negative margin mis-centers on native Yoga (Android
+    // report 2026-07-10).
     alignItems: "center",
+    alignSelf: "center",
     backgroundColor: pickThemed(colors, colors.card, colors.borderStrong),
     borderColor: pickThemed(colors, "rgba(15, 23, 42, 0.08)", colors.border),
     borderRadius: 12,
@@ -179,8 +183,6 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     ),
     height: 24,
     justifyContent: "center",
-    left: "50%",
-    marginLeft: -12,
     position: "absolute",
     top: -12,
     width: 24,
