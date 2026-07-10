@@ -37,7 +37,6 @@
     "@nestjs/platform-express": "11.1.27",
     "@playwright/test": "^1.55.0",
     "cache-manager": "^7.2.9",
-    "eslint": "^10.6.0",
     "expo": "^57.0.0",
     "mongoose": "9.7.3",
     "react": "19.2.7",

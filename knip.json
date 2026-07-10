@@ -13,7 +13,7 @@
     "type": true
   },
   "ignoreBinaries": ["eas", "knip", "maestro", "gcloud"],
-  "ignoreUnresolved": ["dotenv/config", "expo-system-ui"],
+  "ignoreUnresolved": ["dotenv/config"],
   "ignoreDependencies": [
     "@nestjs/common",
     "@nestjs/core",
@@ -44,15 +44,14 @@
     "@types/react-transition-group",
     "tailwindcss",
     "source-map-support",
-    "ts-loader",
+
     "babel-preset-expo",
     "react-test-renderer",
     "@nestjs/platform-express",
     "mongoose",
     "@mui/material",
     "@mui/system",
-    "cache-manager",
-    "eslint"
+    "cache-manager"
   ],
   "ignoreIssues": {
     "apps/admin/src/lib/api.ts": ["duplicates"],
@@ -67,7 +66,7 @@
     "apps/api/src/**/schemas/*.schema.ts": ["exports", "types"],
     "apps/api/src/**/dto/**": ["exports", "types"],
     "apps/api/scripts/**": ["unlisted"],
-    "apps/app/app.config.ts": ["unlisted"],
+    "apps/app/app.config.js": ["unlisted"],
     "apps/admin/src/lib/policyPayload.ts": ["types"],
     "apps/api/src/media/local-object-storage.ts": ["exports"]
   },
