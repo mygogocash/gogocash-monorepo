@@ -101,6 +101,13 @@ describe("CustomerQuestScreen (render)", () => {
 });
 
 describe("CustomerQuestScreen — Wave B (B5) foundations adopted (source signals)", () => {
+  it("tab labels read normal weight — the active underline carries the emphasis", () => {
+    // Design feedback 2026-07-10: วิธีชนะ!/ภารกิจ/ตารางอันดับ carried a 600
+    // weight on every tab; the mint underline + color already mark the active
+    // one.
+    expect(questSource).toMatch(/tabText:[\s\S]*?fontWeight: "400"/);
+  });
+
   it("imports haptics and fires impact() on the quest CTAs", () => {
     // Wired onto the EXISTING tab-select + View Points handlers (selection/confirm cue),
     // not a new path.

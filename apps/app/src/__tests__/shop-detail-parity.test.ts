@@ -238,20 +238,40 @@ describe("Shop detail parity", () => {
     expect(shopFile).toMatch(/setLogoFailed\(false\)[\s\S]*?\[shop\.logoUri\]/);
   });
 
-  it("shop detail parity > given hero summary card > then mobile stacks brand identity above actions", () => {
+  it("shop detail parity > given hero summary card > then mobile lays identity and actions on one row", () => {
+    // Design feedback 2026-07-10: the stacked mobile layout (identity row, then
+    // a right-aligned actions row) left a dead zone bottom-left for short brand
+    // names like "Shopee". Mobile now renders one row: name (flex) → heart →
+    // Shop Now. The logo circle is DESKTOP-only — on mobile the banner above
+    // already carries the brand, so the pill drops the redundant logo and the
+    // name keeps the room.
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 
     expect(shopFile).toContain('testID="shop-detail-brand-name"');
     expect(shopFile).toContain('testID="shop-detail-brand-logo"');
+    expect((shopFile.match(/\{brandLogo\}/g) ?? []).length).toBe(1);
     expect(shopFile).toContain("styles.summaryTitleMobile");
-    expect(shopFile).toContain("styles.summaryIdentityRow");
-    expect(shopFile).toContain("styles.summaryActionsRow");
-    expect(shopFile).toMatch(/summaryCard:[\s\S]*?flexDirection: "column"/);
+    expect(shopFile).toContain("styles.summaryMobileRow");
+    expect(shopFile).not.toContain("styles.summaryActionsRow");
+    expect(shopFile).toMatch(/summaryMobileRow:[\s\S]*?flexDirection: "row"/);
     expect(shopFile).toMatch(/summaryCardDesktop:[\s\S]*?flexDirection: "row"/);
     expect(shopFile).toMatch(/summaryTitleWrap:[\s\S]*?flex: 1/);
     expect(shopFile).toMatch(/summaryTitleWrap:[\s\S]*?minWidth: 0/);
     expect(shopFile).toMatch(/favoriteButton:[\s\S]*?flexShrink: 0/);
     expect(shopFile).toMatch(/shopNowButton:[\s\S]*?flexShrink: 0/);
+  });
+
+  it("shop detail parity > given rate breakdown rows > then they read as quiet secondary info", () => {
+    // Design feedback 2026-07-10: "Cashback starting from X / up to Y" and the
+    // per-product rate rows rendered in bright 16-20px ink — louder than the
+    // disclaimers around them and competing with the mint hero rate above.
+    // They are secondary detail: muted 14px labels, 16px values.
+    const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+    expect(shopFile).toMatch(/rateSummaryText: \{[^}]*color: colors\.muted/);
+    expect(shopFile).toMatch(/rateSummaryText: \{[^}]*fontSize: 14/);
+    expect(shopFile).toMatch(/productRateName: \{[^}]*color: colors\.muted/);
+    expect(shopFile).toMatch(/productRateName: \{[^}]*fontSize: 14/);
+    expect(shopFile).toMatch(/productRateValue: \{[^}]*fontSize: 16/);
   });
 
   it("shop detail parity > given cashback headline row > then label and value align on baseline", () => {

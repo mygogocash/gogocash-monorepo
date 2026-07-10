@@ -105,6 +105,15 @@ describe("CustomerAccountSettingsScreen — Wave B foundations deliberately not 
     expect(settingsSource).not.toContain("setIsEmailEnabled");
   });
 
+  it("renders the disabled switches at reduced opacity so they READ as disabled", () => {
+    // User report 2026-07-10: the coming-soon switches are functionally
+    // disabled but rendered at full strength (dark mode even showed a live
+    // mint on-track), inviting taps that do nothing. A dimmed control is the
+    // platform convention for disabled.
+    expect(settingsSource).toMatch(/switchDisabled:[\s\S]*?opacity: 0\.5/);
+    expect(settingsSource).toMatch(/<Switch[\s\S]*?style=\{styles\.switchDisabled\}/);
+  });
+
   it("uses the web LINE brand logo for the Line notification row (not a generic chat bubble)", () => {
     // Web parity: the Line row uses the ported LineAppIcon SVG, not the phosphor MessageCircle bubble.
     expect(settingsSource).toContain("LineAppIcon");
