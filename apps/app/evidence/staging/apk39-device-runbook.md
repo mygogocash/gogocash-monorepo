@@ -167,4 +167,17 @@ the mapped `[400,404,422]` upstream band in `gototrack.service.createAffiliateDe
 missing/invalid on the staging api deployment**. Ops action: set/verify `INVOLVE_SECRET`
 on the staging api service, re-run §5. (User doc exists; detection, settings, catalog all 200.)
 
-Remaining manual (§7): dark-mode sweep, shop-detail visual checks, warm deep link, local-API lane.
+Remaining manual (§7): shop-detail visual checks, local-API lane.
+
+### Full-suite sweep — 2026-07-10 (all 8 flows + manual checks)
+
+| Check | Result |
+| --- | --- |
+| home / auth-guard / wallet-profile-auth-guard / profile-bottom-nav-auth-guard | ✅ 4/4 |
+| profile-auth-guard (cold `gogocash://profile`, logged out) | ⚠️ FAILS on the **embedded** bundle (blank screen — clearState wipes the OTA, pinning the flow to pre-fix JS). **Verified correct on OTA JS** (screenshot: full Sign-in screen). Self-heals in the next native build; until then this flow cannot pass. |
+| wallet-authenticated | ✅ dashboard + no login screen (OTA proof) |
+| wallet | ✅ after two flow fixes: `extendedWaitUntil` for the resource skeleton + settle-on-Home before `openLink` |
+| gototrack-nudge | ✅ (vacuous — asserts nothing; audit P3 stands) |
+| Warm `gogocash://wallet` deep link (A4) | ✅ **fixed in OTA JS** — settled app navigates to My Wallet |
+| 🔴 NEW: deep link during startup hydration | **Dropped** — `launchApp` + immediate `openLink` lands on Home. Same class as the bottom-nav press fix; needs a queue-until-ready for incoming links. |
+| Dark/light theme sweep | ✅ light wallet + dark quest both clean, live-switching, no leaks |

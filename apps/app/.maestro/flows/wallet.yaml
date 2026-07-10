@@ -5,7 +5,19 @@
 appId: co.gogocash.app
 ---
 - launchApp
+# Let the app settle on Home before firing the link: a deep link that arrives
+# during startup hydration is dropped (known issue — the warm path is what
+# this flow verifies; the hydrate-window drop is tracked separately).
+- extendedWaitUntil:
+    visible: "Hi!"
+    timeout: 30000
 - openLink: gogocash://wallet
+# Wait out the wallet resource skeleton — the dashboard testID only renders
+# once POST /withdraw/check resolves (mirrors wallet-authenticated.yaml).
+- extendedWaitUntil:
+    visible:
+      id: "wallet-dashboard"
+    timeout: 30000
 - assertVisible:
     id: "wallet-dashboard"
 - assertNotVisible:
