@@ -16,7 +16,9 @@ import { MEDIA_FOLDER } from 'src/media/media-folders.config';
  * (returns a new object — never mutates the input). Defence-in-depth: even if
  * a caller forgets to canonicalise upstream, persisted documents stay clean.
  */
-function withCanonicalCountry<T extends { country?: string | null }>(dto: T): T {
+function withCanonicalCountry<T extends { country?: string | null }>(
+  dto: T,
+): T {
   if (dto?.country === undefined) return dto;
   return { ...dto, country: toIso2Server(dto.country) };
 }
@@ -47,7 +49,9 @@ const SELF_EDITABLE_PROFILE_FIELDS = [
 ] as const;
 
 /** Copy only allowlisted keys from an arbitrary (untrusted) body. */
-function pickSelfEditableFields(dto: Record<string, unknown>): Record<string, unknown> {
+function pickSelfEditableFields(
+  dto: Record<string, unknown>,
+): Record<string, unknown> {
   const safe: Record<string, unknown> = {};
   for (const key of SELF_EDITABLE_PROFILE_FIELDS) {
     if (Object.prototype.hasOwnProperty.call(dto, key)) {
@@ -173,11 +177,7 @@ export class UserService {
       user.avatar_url,
     );
 
-    return this.userModel.findByIdAndUpdate(
-      id,
-      { avatar_url },
-      { new: true },
-    );
+    return this.userModel.findByIdAndUpdate(id, { avatar_url }, { new: true });
   }
 
   async streamProfileAvatar(id: Types.ObjectId, ref: string) {
@@ -237,10 +237,9 @@ export class UserService {
     //     .lean();
     // }
 
-   
     const mobileData = user?.mobile?.includes('+66')
-      ? user?.mobile?.slice(3)?.trim() ?? ''
-      : user?.mobile?.trim() ?? '';
+      ? (user?.mobile?.slice(3)?.trim() ?? '')
+      : (user?.mobile?.trim() ?? '');
     const normalizedMobile = mobileData.length > 0 ? `0${mobileData}` : null;
 
     // const myCashbackDataList = await this.userMyCashbackModel
@@ -301,7 +300,11 @@ export class UserService {
       },
       {},
     );
-    return { userMyCashback: myCashbackDataList, sumBalance: myCashbackDataGroupCurrency, user };
+    return {
+      userMyCashback: myCashbackDataList,
+      sumBalance: myCashbackDataGroupCurrency,
+      user,
+    };
   }
 
   private isOwnedMyCashbackRecord(
@@ -321,8 +324,6 @@ export class UserService {
       return true;
     }
 
-    return (
-      normalizedMobile != null && row.phoneNumber === normalizedMobile
-    );
+    return normalizedMobile != null && row.phoneNumber === normalizedMobile;
   }
 }

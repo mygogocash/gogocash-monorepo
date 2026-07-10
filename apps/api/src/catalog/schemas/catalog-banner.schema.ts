@@ -42,7 +42,11 @@ export class CatalogBanner {
   })
   device!: CatalogBannerDevice;
 
-  @Prop({ type: String, default: 'none', enum: ['none', 'shop', 'product', 'offer', 'url'] })
+  @Prop({
+    type: String,
+    default: 'none',
+    enum: ['none', 'shop', 'product', 'offer', 'url'],
+  })
   cta_type!: CatalogBannerCtaType;
 
   @Prop({ trim: true })

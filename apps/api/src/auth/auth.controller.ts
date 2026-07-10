@@ -1,5 +1,14 @@
 /* eslint-disable prettier/prettier */
-import { Body, Controller, Get, Post, Req, UnauthorizedException, UseGuards, ValidationPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+  ValidationPipe,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ApiBearerAuth,
@@ -23,10 +32,7 @@ import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { OtpService } from './otp.service';
 // VerifyOtpDto exists in BOTH auth.dto (email-OTP) and otp.dto (legacy) —
 // alias the legacy one to disambiguate.
-import {
-  SendOtpDto,
-  VerifyOtpDto as LegacyVerifyOtpDto,
-} from './dto/otp.dto';
+import { SendOtpDto, VerifyOtpDto as LegacyVerifyOtpDto } from './dto/otp.dto';
 import { RateLimitGuard } from './rate-limit.guard';
 import { RateLimit } from './rate-limit.decorator';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
@@ -73,14 +79,16 @@ export class AuthController {
   @ApiBody({ type: SignInFirebaseDto })
   @ApiResponse({ status: 201, description: 'User login successfully' })
   async loginFirebase(@Req() req: Request, @Body() body: SignInFirebaseDto) {
-    const authHeader = req.headers.authorization ?? "";
+    const authHeader = req.headers.authorization ?? '';
     // Prefer token from Authorization header, fallback to body.token for compatibility
-    const token = authHeader.startsWith("Bearer ")
+    const token = authHeader.startsWith('Bearer ')
       ? authHeader.slice(7)
       : body.token || null;
 
     if (!token) {
-      throw new UnauthorizedException('Firebase token is required in Authorization header or body');
+      throw new UnauthorizedException(
+        'Firebase token is required in Authorization header or body',
+      );
     }
 
     // Sign in the user
@@ -93,25 +101,20 @@ export class AuthController {
         region: body.country,
       });
 
-      void this.analytics.capture(
-        'user_login',
-        analyticsCtx,
-        {
-          method: 'firebase',
-          provider: user.user.provider || 'unknown',
-          is_new_user: user.is_new_user || false,
-          pathname: body.pathname,
-          $set: {
-            email: user.user.email,
-            username: user.user.username,
-          },
+      void this.analytics.capture('user_login', analyticsCtx, {
+        method: 'firebase',
+        provider: user.user.provider || 'unknown',
+        is_new_user: user.is_new_user || false,
+        pathname: body.pathname,
+        $set: {
+          email: user.user.email,
+          username: user.user.username,
         },
-      );
+      });
     }
 
     return { message: 'Login successful!', ...user };
   }
-
 
   @Post('register')
   @UseGuards(RateLimitGuard)
@@ -119,14 +122,16 @@ export class AuthController {
   @ApiBody({ type: SignInFirebaseDto })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   async register(@Req() req: Request, @Body() body: SignInFirebaseDto) {
-    const authHeader = req.headers.authorization ?? "";
+    const authHeader = req.headers.authorization ?? '';
     // Prefer token from Authorization header, fallback to body.token for compatibility
-    const token = authHeader.startsWith("Bearer ")
+    const token = authHeader.startsWith('Bearer ')
       ? authHeader.slice(7)
       : body.token || null;
 
     if (!token) {
-      throw new UnauthorizedException('Firebase token is required in Authorization header or body');
+      throw new UnauthorizedException(
+        'Firebase token is required in Authorization header or body',
+      );
     }
 
     // Register/sign in the user
@@ -139,20 +144,16 @@ export class AuthController {
         region: body.country,
       });
 
-      void this.analytics.capture(
-        'user_registered',
-        analyticsCtx,
-        {
-          method: 'firebase',
-          provider: user.user.provider || 'unknown',
-          pathname: body.pathname,
-          referral_id: body.referral_id,
-          $set: {
-            email: user.user.email,
-            username: user.user.username,
-          },
+      void this.analytics.capture('user_registered', analyticsCtx, {
+        method: 'firebase',
+        provider: user.user.provider || 'unknown',
+        pathname: body.pathname,
+        referral_id: body.referral_id,
+        $set: {
+          email: user.user.email,
+          username: user.user.username,
         },
-      );
+      });
     }
 
     return { message: 'Registration successful!', ...user };
@@ -213,17 +214,20 @@ export class AuthController {
     return Boolean(user);
   }
 
-  @Post("firebase")
+  @Post('firebase')
   @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
-  async authWithFirebase(@Req() req: Request, @Body() body: {idToken: string}) {
+  async authWithFirebase(
+    @Req() req: Request,
+    @Body() body: { idToken: string },
+  ) {
     const user = req['user'] as any;
     const id = user?.sub;
     // const authHeader = req.headers.authorization ?? "";
     // const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const token = body.idToken ? body.idToken : null;
-    if (!token) throw new UnauthorizedException("Missing token");
+    if (!token) throw new UnauthorizedException('Missing token');
     return this.auth.verifyPhone(token, id);
   }
 
@@ -251,7 +255,9 @@ export class AuthController {
   async loginLine(@Req() req: Request, @Body() body: LineAuthDto) {
     // Extract LINE access token from Authorization header for verification
     const authHeader = req.headers.authorization ?? '';
-    const accessToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const accessToken = authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : undefined;
 
     // Extract temporary OTP token from custom header (set after email OTP verification)
     const tempToken = req.headers['x-otp-token'] as string | undefined;
@@ -272,9 +278,12 @@ export class AuthController {
     return {
       exists: !!user,
       // Only return email hint if account exists (for UX - show which account to use)
-      user: user ? {
-        hasEmail: !!user.email && user.email !== '' && user.email !== 'undefined',
-      } : null,
+      user: user
+        ? {
+            hasEmail:
+              !!user.email && user.email !== '' && user.email !== 'undefined',
+          }
+        : null,
     };
   }
 
@@ -283,7 +292,10 @@ export class AuthController {
   @RateLimit({ windowMs: 60_000, max: 5 })
   @ApiBody({ type: RequestOtpDto })
   @ApiResponse({ status: 201, description: 'OTP sent to email successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid email or rate limit exceeded' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid email or rate limit exceeded',
+  })
   async requestOtp(@Body(otpBodyValidation) body: RequestOtpDto) {
     // Generate and send OTP via email
     const otp = await this.otpService.createOtp(body.email);
@@ -299,7 +311,10 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ windowMs: 60_000, max: 10 })
   @ApiBody({ type: VerifyOtpDto })
-  @ApiResponse({ status: 200, description: 'OTP verified, temporary token issued' })
+  @ApiResponse({
+    status: 200,
+    description: 'OTP verified, temporary token issued',
+  })
   @ApiResponse({ status: 401, description: 'Invalid or expired OTP' })
   async verifyOtp(@Body(otpBodyValidation) body: VerifyOtpDto) {
     // STEP 1: Verify OTP code (business logic in OtpService)

@@ -42,7 +42,11 @@ export class Brand {
   @Prop({ trim: true, lowercase: true })
   shop_slug?: string;
 
-  @Prop({ type: String, default: 'draft', enum: ['draft', 'published', 'archived'] })
+  @Prop({
+    type: String,
+    default: 'draft',
+    enum: ['draft', 'published', 'archived'],
+  })
   shop_status?: 'draft' | 'published' | 'archived';
 
   @Prop({ default: false })

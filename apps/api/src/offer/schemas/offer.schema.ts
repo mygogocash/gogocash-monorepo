@@ -128,7 +128,11 @@ export class Offer {
    * Affiliate network of origin. `'involve'` default keeps every pre-existing
    * document valid without a backfill migration.
    */
-  @Prop({ type: String, default: 'involve', enum: ['involve', 'optimise', 'manual'] })
+  @Prop({
+    type: String,
+    default: 'involve',
+    enum: ['involve', 'optimise', 'manual'],
+  })
   source: OfferSource;
 
   /**

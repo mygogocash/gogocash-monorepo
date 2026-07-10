@@ -9,13 +9,19 @@ import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Point } from 'src/point/entities/point.entity';
 import { PointSchema } from 'src/point/schemas/point.schema';
-import { UserMyCashback, UserMyCashbackSchema } from 'src/user/schemas/user-my-cashback.schema';
+import {
+  UserMyCashback,
+  UserMyCashbackSchema,
+} from 'src/user/schemas/user-my-cashback.schema';
 import { EmailModule } from 'src/email/email.module';
 import { OtpService } from './otp.service';
 import { UserOtp, UserOtpSchema } from 'src/user/schemas/user-otp.schema';
 import { SiweNonce, SiweNonceSchema } from './schemas/siwe-nonce.schema';
 import { RateLimitGuard } from './rate-limit.guard';
-import { EmailOtpVerification, EmailOtpVerificationSchema } from './schemas/email-otp.schema';
+import {
+  EmailOtpVerification,
+  EmailOtpVerificationSchema,
+} from './schemas/email-otp.schema';
 import { AnalyticsModule } from 'src/analytics/analytics.module';
 
 @Module({

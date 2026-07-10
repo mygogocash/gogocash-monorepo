@@ -142,4 +142,5 @@ export class UserMyCashback {
   withdrawalPassword: string;
 }
 
-export const UserMyCashbackSchema = SchemaFactory.createForClass(UserMyCashback);
+export const UserMyCashbackSchema =
+  SchemaFactory.createForClass(UserMyCashback);
