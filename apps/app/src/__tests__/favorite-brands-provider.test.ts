@@ -20,10 +20,14 @@ describe("FavoriteBrandsProvider auth gating", () => {
     expect(favoriteProviderSource).toContain("env.accountDataSource === \"backend\" && env.apiUrl && isAuthed");
   });
 
-  it("FavoriteBrandsProvider > given an in-flight favorites fetch > then ignores superseded resolutions", () => {
+  it("FavoriteBrandsProvider > given an in-flight favorites fetch > then ignores superseded resolutions and merges optimistic toggles", () => {
     expect(favoriteProviderSource).toContain("let cancelled = false");
     expect(favoriteProviderSource).toContain("if (cancelled || fetchEpoch !== favoritesFetchEpochRef.current)");
-    expect(favoriteProviderSource).toContain("favoritesFetchEpochRef.current += 1");
+    // A toggle during the initial fetch is merged onto the resolved server favorites
+    // instead of dropping them by bumping the fetch epoch (the previous regression).
+    expect(favoriteProviderSource).toContain("mergePendingFavoriteToggles");
+    expect(favoriteProviderSource).toContain("initialFetchInFlightRef");
+    expect(favoriteProviderSource).not.toContain("favoritesFetchEpochRef.current += 1");
   });
 });
 

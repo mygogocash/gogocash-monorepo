@@ -159,6 +159,8 @@ npm run gototrack:preflight -- \
 
 ## Related docs
 
+- [android-bug-hunt-audit-2026-07-09.md](./android-bug-hunt-audit-2026-07-09.md) — **post-ship code audit** (verified findings, test evidence; read before the device pass)
+- [apps/app/evidence/staging/apk39-device-runbook.md](../apps/app/evidence/staging/apk39-device-runbook.md) — **turnkey APK 39 device runbook** (one pass, flags cross-checked against the scripts)
 - [BUG_HUNT_BACKLOG_PHASE2.md](./BUG_HUNT_BACKLOG_PHASE2.md) — post-deploy smoke
 - [gototrack-android-acceptance-plan.md](./gototrack-android-acceptance-plan.md) — Phase 5/7
 - [ota-smoke.md](./ota-smoke.md) — OTA enablement

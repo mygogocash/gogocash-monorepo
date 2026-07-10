@@ -1,20 +1,42 @@
-#!/usr/bin/env node
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const scriptPath = resolve("scripts/inject-staging-auth-wallet.mjs");
+import {
+  parseInjectArgs,
+  resolveInjectAuthToken,
+} from "../../scripts/inject-staging-auth-wallet.mjs";
 
-describe("inject-staging-auth-wallet", () => {
-  it("inject script > given token sources > then prefers CLI and env before evidence", () => {
-    const source = readFileSync(scriptPath, "utf8");
+describe("inject-staging-auth-wallet token resolution", () => {
+  it("prefers the --auth-token CLI flag over the environment", () => {
+    expect(
+      resolveInjectAuthToken({ cliToken: "cli-token", env: { GOGOTRACK_AUTH_TOKEN: "env-token" } }),
+    ).toBe("cli-token");
+  });
 
-    expect(source).toContain("--auth-token");
-    expect(source).toContain("GOGOTRACK_AUTH_TOKEN");
-    expect(source).toContain("GOGOSENSE_AUTH_TOKEN");
-    expect(source).toContain("readTokenFromEvidence");
-    expect(source.indexOf("GOGOTRACK_AUTH_TOKEN")).toBeLessThan(
-      source.indexOf("readTokenFromEvidence()"),
-    );
+  it("uses GOGOTRACK_AUTH_TOKEN, then GOGOSENSE_AUTH_TOKEN", () => {
+    expect(
+      resolveInjectAuthToken({ env: { GOGOTRACK_AUTH_TOKEN: "t1", GOGOSENSE_AUTH_TOKEN: "t2" } }),
+    ).toBe("t1");
+    expect(resolveInjectAuthToken({ env: { GOGOSENSE_AUTH_TOKEN: "t2" } })).toBe("t2");
+  });
+
+  it("returns null when no token is supplied — never falls back to a committed evidence token", () => {
+    // Regression: the script used to fall back to readTokenFromEvidence() (a committed,
+    // expired preflight-report.json token), so `adb am start` reported success while the
+    // wallet stayed logged out. An unset token must now fail fast, not inject a stale JWT.
+    expect(resolveInjectAuthToken({ env: {} })).toBeNull();
+  });
+
+  it("trims whitespace and treats blank tokens as absent", () => {
+    expect(
+      resolveInjectAuthToken({ cliToken: "   ", env: { GOGOTRACK_AUTH_TOKEN: "  real  " } }),
+    ).toBe("real");
+  });
+
+  it("parses --auth-token and a positional callback url, defaulting to /wallet", () => {
+    expect(parseInjectArgs(["--auth-token", "abc", "/wallet"])).toEqual({
+      authToken: "abc",
+      callbackUrl: "/wallet",
+    });
+    expect(parseInjectArgs([])).toEqual({ authToken: null, callbackUrl: "/wallet" });
   });
 });

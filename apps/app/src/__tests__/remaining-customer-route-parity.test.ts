@@ -100,8 +100,16 @@ describe("Remaining customer route parity", () => {
     expect(tabsLayout).toContain('name="profile"');
     expect(profileRoute).toContain("buildProtectedLoginRedirect");
     expect(profileRoute).toContain("router.replace");
-    expect(profileRoute).toContain("if (!ready || !isAuthed)");
+    // Profile splits the hydrate window (!ready -> neutral loading) from logged-out
+    // (ready && !isAuthed -> "Sign in required") so an authed user never sees a Sign-in
+    // flash on cold start. The combined `!ready || !isAuthed` guard is the regression.
+    expect(profileRoute).toContain("if (!ready)");
+    expect(profileRoute).toContain("if (!isAuthed)");
+    expect(profileRoute).toContain('variant="loading"');
+    expect(profileRoute).not.toContain("if (!ready || !isAuthed)");
+    // Wallet mirrors the loading treatment instead of a blank screen while hydrating.
     expect(walletRoute).toContain("if (!ready)");
+    expect(walletRoute).toContain('variant="loading"');
 
     const bottomNav = readMobileFile("src/components/CustomerMobileBottomNav.tsx");
     expect(bottomNav).toContain("queueProtectedBottomNavWhileSessionHydrates");

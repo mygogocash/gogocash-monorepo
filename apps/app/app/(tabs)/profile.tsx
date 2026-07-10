@@ -27,9 +27,14 @@ export default function ProfileRoute() {
     return () => task.cancel();
   }, [ready, isAuthed, loginHref, router]);
 
-  if (!ready || !isAuthed) {
-    // Never paint a blank tab while the root login redirect settles — that was
-    // the Android logged-out Profile bottom-nav failure mode.
+  // While the native session is still hydrating, show a neutral loading state — never the
+  // "Sign in required" card (a logged-in user would see a false auth-failure flash on cold
+  // start) and never a blank tab (the original Android logged-out bottom-nav dead end).
+  if (!ready) {
+    return <CustomerRouteState testID="profile-loading" variant="loading" />;
+  }
+
+  if (!isAuthed) {
     return (
       <CustomerRouteState
         action={{

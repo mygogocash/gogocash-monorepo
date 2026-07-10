@@ -457,7 +457,11 @@ function WalletCashbackSummary({
   const styles = useThemedStyles(createWalletScreenStyles);
   const tc = useCopy();
   return (
-    <View accessibilityLabel={webWalletAccessibleSummary} style={styles.cashbackSummaryCard}>
+    <View
+      accessibilityLabel={webWalletAccessibleSummary}
+      style={styles.cashbackSummaryCard}
+      testID="wallet-dashboard"
+    >
       <View style={styles.cashbackHeader}>
         <View style={styles.cashbackHeaderCopy}>
           <Text style={styles.cashbackTitle}>{tc(webWalletCashbackSummary.title)}</Text>
