@@ -70,9 +70,10 @@ function escapeRegexToken(value: string): string {
 /**
  * Every lowercase spelling a user-supplied country may appear as inside the
  * comma-separated `offer.countries` field: the raw input, its ISO-2 code, and
- * all known full English names. Empty array for blank input.
+ * all known full English names. Empty array for blank input. Internal —
+ * callers match through `countryFilterRegex` so every path shares one matcher.
  */
-export function countryMatchTokens(
+function countryMatchTokens(
   value: string | null | undefined,
 ): readonly string[] {
   const trimmed = value?.trim();

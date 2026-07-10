@@ -11,7 +11,7 @@ import {
   mongoSetUpdate,
   mongoCaseInsensitiveRegex,
 } from 'src/common/mongo-query';
-import { countryFilterRegex, countryMatchTokens } from 'src/utils/country';
+import { countryFilterRegex } from 'src/utils/country';
 import { Brand, BrandDocument } from './schemas/brand.schema';
 import { Offer, OfferDocument } from '../offer/schemas/offer.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -148,16 +148,18 @@ export class BrandService {
         ...(b as BrandLean),
         variants: (variantsByBrand.get(String(b._id)) ?? []) as VariantLean[],
       }))
-      .filter((b) => (dto.country ? b.variants.length > 0 : true));
+      .filter((b) => (variantCountryRegex ? b.variants.length > 0 : true));
 
+    // Country mode is defined by the APPLIED filter (null for blank/whitespace
+    // input), so the zero-variant drop and totals can't diverge from it.
     return {
       data: brands,
       page,
       limit,
-      total: dto.country ? brands.length : totalAll,
+      total: variantCountryRegex ? brands.length : totalAll,
       totalPages: Math.max(
         1,
-        Math.ceil((dto.country ? brands.length : totalAll) / limit),
+        Math.ceil((variantCountryRegex ? brands.length : totalAll) / limit),
       ),
     };
   }
@@ -196,24 +198,22 @@ export class BrandService {
       throw new NotFoundException('Brand has no active variants.');
     }
     // Reproduces lib/offer/offerVisibility.ts pickBrandVariant priority on the
-    // server. The requested/default country expands to every known spelling
-    // (ISO-2 + full names) so `country=TH` matches a "Thailand" variant.
-    const requested = countryMatchTokens(userCountry);
-    const matches = (v: Offer, tokens: readonly string[]) =>
-      (v.countries ?? '')
-        .split(',')
-        .map((c) => c.trim().toLowerCase())
-        .filter(Boolean)
-        .some((c) => tokens.includes(c));
+    // server. Variant matching reuses the SAME regex as the list filter so the
+    // two paths cannot disagree (review find: a token-split matcher could
+    // never match the comma-containing "Korea, Republic of" spelling that the
+    // regex path matches).
+    const matches = (v: Offer, regexSource: string) =>
+      new RegExp(regexSource, 'i').test(v.countries ?? '');
 
     const brandLean = brand as BrandLean;
-    if (requested.length > 0) {
-      const variant = variants.find((v) => matches(v as Offer, requested));
+    const requestedRegex = countryFilterRegex(userCountry);
+    if (requestedRegex) {
+      const variant = variants.find((v) => matches(v as Offer, requestedRegex));
       if (variant) return { brand: brandLean, variant: variant as VariantLean };
     }
-    const def = countryMatchTokens(brand.default_country);
-    if (def.length > 0) {
-      const variant = variants.find((v) => matches(v as Offer, def));
+    const defaultRegex = countryFilterRegex(brand.default_country);
+    if (defaultRegex) {
+      const variant = variants.find((v) => matches(v as Offer, defaultRegex));
       if (variant) return { brand: brandLean, variant: variant as VariantLean };
     }
     return { brand: brandLean, variant: variants[0] as VariantLean };
