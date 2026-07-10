@@ -410,6 +410,9 @@ function ShopHeroSummaryCard({
       <Text style={styles.summaryLogoFallbackText}>{shop.logoText}</Text>
     </View>
   );
+  // Mobile drops the logo circle — the banner directly above already carries
+  // the brand, so the pill keeps the room for the name (design feedback
+  // 2026-07-10). Desktop keeps logo + name.
   const brandIdentity = isDesktop ? (
     <View style={styles.summaryTitleWrap}>
       <View style={styles.summaryIdentityRow}>
@@ -418,10 +421,7 @@ function ShopHeroSummaryCard({
       </View>
     </View>
   ) : (
-    <>
-      {brandLogo}
-      <View style={styles.summaryTitleWrap}>{brandTitle}</View>
-    </>
+    <View style={styles.summaryTitleWrap}>{brandTitle}</View>
   );
   const favoriteButton = (
     <MotionPressable

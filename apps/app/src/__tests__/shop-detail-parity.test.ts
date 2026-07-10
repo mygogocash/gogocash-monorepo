@@ -241,12 +241,15 @@ describe("Shop detail parity", () => {
   it("shop detail parity > given hero summary card > then mobile lays identity and actions on one row", () => {
     // Design feedback 2026-07-10: the stacked mobile layout (identity row, then
     // a right-aligned actions row) left a dead zone bottom-left for short brand
-    // names like "Shopee". Mobile now renders one row: logo → name (flex) →
-    // heart → Shop Now.
+    // names like "Shopee". Mobile now renders one row: name (flex) → heart →
+    // Shop Now. The logo circle is DESKTOP-only — on mobile the banner above
+    // already carries the brand, so the pill drops the redundant logo and the
+    // name keeps the room.
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 
     expect(shopFile).toContain('testID="shop-detail-brand-name"');
     expect(shopFile).toContain('testID="shop-detail-brand-logo"');
+    expect((shopFile.match(/\{brandLogo\}/g) ?? []).length).toBe(1);
     expect(shopFile).toContain("styles.summaryTitleMobile");
     expect(shopFile).toContain("styles.summaryMobileRow");
     expect(shopFile).not.toContain("styles.summaryActionsRow");
