@@ -72,6 +72,24 @@ describe("CustomerWalletScreen (render)", () => {
     expect(screen.getByText("Glow Theory")).toBeTruthy();
   });
 
+  it("help icon toggles an explanation panel for the three cashback metrics", () => {
+    // The "?" on the Cashback Summary card was a bare icon — tapping it did
+    // nothing (user report 2026-07-10). It now toggles a help panel, mirroring
+    // the withdraw screen's pattern, using the withdrawHelpTooltipLine1-3 copy
+    // that already ships Thai translations.
+    renderScreen();
+    const helpButton = screen.getByLabelText("Explain total, pending, and withdrawn cashback");
+    expect(screen.queryByText(/Total cashback you've earned/)).toBeNull();
+    fireEvent.click(helpButton);
+    expect(screen.getByText(/Total cashback you've earned from all transactions/)).toBeTruthy();
+    expect(screen.getByText(/Cashback waiting for approval before you can use it/)).toBeTruthy();
+    expect(
+      screen.getByText(/Cashback you've already withdrawn to your wallet or bank/),
+    ).toBeTruthy();
+    fireEvent.click(helpButton);
+    expect(screen.queryByText(/Total cashback you've earned/)).toBeNull();
+  });
+
   it("tabs are functional: switching to Earning filters out withdraw rows", () => {
     renderScreen();
     // All tab at mount shows a withdraw row.
@@ -216,6 +234,27 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     expect(walletSource).toMatch(
       /compact \? styles\.metricAmountRowCompact : styles\.metricAmountRow/,
     );
+    // Row hierarchy: the label reads normal-weight; only the amount + currency
+    // stay bold (design feedback 2026-07-10). Desktop labels keep their 700.
+    expect(walletSource).toMatch(/metricLabelCompact:[\s\S]*?fontWeight: "400"/);
+  });
+
+  it("transaction status pill labels read normal weight", () => {
+    // Design feedback 2026-07-10: สำเร็จ / รอดำเนินการ pills carried a 600
+    // weight that competed with the amounts; the pill's tinted background
+    // already provides the emphasis.
+    expect(walletSource).toMatch(/txStatusText:[\s\S]*?fontWeight: "400"/);
+  });
+
+  it("compacts the LINE support contact card on mobile so the title fits one line", () => {
+    // At phone width the desktop-sized card (48px badge, 18px bold title,
+    // 72px min-height, 16px gaps) squeezed the Thai title
+    // "ติดต่อฝ่ายสนับสนุน" onto two lines. Mobile gets a compact variant —
+    // smaller badge/type/gaps — so the title fits on one line.
+    expect(walletSource).toMatch(/WalletSupportBanner compact=\{!isDesktop\}/);
+    expect(walletSource).toMatch(/supportContactCardCompact:[\s\S]*?minHeight: 60/);
+    expect(walletSource).toMatch(/lineBadgeCompact:[\s\S]*?height: 40/);
+    expect(walletSource).toMatch(/supportContactTitleCompact:[\s\S]*?fontSize: 15/);
   });
 
   it("has state-driven transaction tabs + mock rows (all cases) + working Search/Status/Date filters", () => {
