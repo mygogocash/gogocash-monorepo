@@ -1,13 +1,13 @@
 import { StyleSheet, Text, View, type ViewStyle } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
+import { resolveProfileDisplayName } from "@mobile/account/profileIdentity";
 import { resolveProfileCurrency } from "@mobile/account/resolveProfileWalletAmount";
 import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import type { MobileSession } from "@mobile/auth/session";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
 import { GoGoPassMark } from "@mobile/components/GoGoPassMark";
 import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
-import { webProfileWalletSummary } from "@mobile/design/webDesignParity";
 import { isGoGoPassSubscriber, readMembershipTier } from "@mobile/lib/membershipTier";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -48,10 +48,7 @@ export function CustomerProfileBar({ open, session }: { open?: boolean; session:
   const styles = useThemedStyles(createProfileBarStyles);
   const { colors } = useTheme();
   const { amount } = useProfileWalletAmount();
-  const username =
-    typeof session.username === "string" && session.username
-      ? session.username
-      : webProfileWalletSummary.username;
+  const username = resolveProfileDisplayName(session);
   const tier = readMembershipTier(session.membership_tier);
   const avatarUrl =
     typeof session.avatar_url === "string" && session.avatar_url.trim()

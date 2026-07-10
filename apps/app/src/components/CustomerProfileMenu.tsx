@@ -22,6 +22,11 @@ import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/profileMenuIcons";
+import {
+  resolveProfileDisplayName,
+  resolveProfileLastUpdated,
+  resolveProfileMaskedId,
+} from "@mobile/account/profileIdentity";
 import { resolveProfileCurrency } from "@mobile/account/resolveProfileWalletAmount";
 import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import { clearMobileAppSession, type MobileSession } from "@mobile/auth/session";
@@ -37,11 +42,11 @@ import { typography } from "@mobile/theme/tokens";
 function deriveSummary(session: MobileSession) {
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
   return {
-    title: str(session.username) ?? webProfileWalletSummary.username,
+    title: resolveProfileDisplayName(session),
     tier: str(session.membership_tier) ?? webProfileWalletSummary.membershipTier,
     avatarUrl: str(session.avatar_url),
-    maskedId: webProfileWalletSummary.maskedId,
-    lastUpdated: webProfileWalletSummary.lastUpdated,
+    maskedId: resolveProfileMaskedId(session),
+    lastUpdated: resolveProfileLastUpdated(),
     currency: resolveProfileCurrency(session.region),
   };
 }
@@ -99,7 +104,7 @@ function PopoverWalletHeroCard({
   amount: string;
   avatarUrl: string | null;
   currency: string;
-  lastUpdated: string;
+  lastUpdated: string | null;
   maskedId: string;
   onWithdraw: () => void;
   tier?: string;
@@ -142,7 +147,7 @@ function PopoverWalletHeroCard({
           <Text style={styles.heroAmount}>{amount}</Text>
           <Text style={styles.heroCurrency}>{currency}</Text>
         </View>
-        <Text style={styles.heroUpdated}>{lastUpdated}</Text>
+        {lastUpdated ? <Text style={styles.heroUpdated}>{lastUpdated}</Text> : null}
         <Link asChild href="/withdraw" onPress={onWithdraw}>
           <MotionPressable
             accessibilityLabel={tc("Withdraw")}
