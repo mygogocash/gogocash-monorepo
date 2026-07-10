@@ -145,6 +145,11 @@ jobs:
           config-file: ./.github/codeql/codeql-native-config.yml
 
       - name: Build Expo iOS project for CodeQL
+        env:
+          # Analysis-only build: @sentry/react-native's Xcode build phase must
+          # not upload source maps/symbols (no SENTRY_ORG/auth here — the full
+          # compile previously succeeded and then failed in this phase).
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
         run: bash .github/codeql/build-native-ios.sh
 
       - name: Perform CodeQL Analysis
