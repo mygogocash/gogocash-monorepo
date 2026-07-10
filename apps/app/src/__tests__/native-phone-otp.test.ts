@@ -78,3 +78,22 @@ describe("useFirebasePhoneRecaptcha (native)", () => {
     expect(result.current.recaptchaModal).toBeNull();
   });
 });
+
+describe("platform file resolution (Metro extension-order pitfall)", () => {
+  it("the native hook uses .native.ts — a .native.tsx variant loses to the base .ts on Android", async () => {
+    // Metro tries platform variants PER EXTENSION in sourceExts order
+    // (ts before tsx): for ".ts" it checks .android.ts → .native.ts → .ts.
+    // A base .ts therefore beats a .native.tsx sibling, and Android silently
+    // bundles the WEB hook — exactly the APK 40 field failure (the web path
+    // threw 'Firebase is not configured' on device, 2026-07-10).
+    const { existsSync } = await import("node:fs");
+    const { resolve, dirname } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const authDir = resolve(dirname(fileURLToPath(import.meta.url)), "../auth");
+
+    expect(existsSync(`${authDir}/useFirebasePhoneRecaptcha.native.ts`)).toBe(true);
+    expect(existsSync(`${authDir}/useFirebasePhoneRecaptcha.native.tsx`)).toBe(false);
+    expect(existsSync(`${authDir}/useFirebasePhoneRecaptcha.web.ts`)).toBe(true);
+    expect(existsSync(`${authDir}/useFirebasePhoneRecaptcha.ts`)).toBe(true);
+  });
+});
