@@ -140,7 +140,10 @@ describe("CustomerShopDetailScreen (render)", () => {
     expect(screen.getAllByText("Shopee").length).toBeGreaterThan(0);
     expect(screen.getAllByText("2.02%").length).toBeGreaterThan(0);
     expect(screen.getByTestId("shop-detail-brand-name")).toBeTruthy();
-    expect(screen.getByTestId("shop-detail-brand-logo")).toBeTruthy();
+    // The logo circle is desktop-only since 2026-07-10 — on the mobile layout
+    // this test renders, the banner above the pill carries the brand instead.
+    expect(screen.queryByTestId("shop-detail-brand-logo")).toBeNull();
+    expect(screen.queryByTestId("shop-detail-brand-logo-fallback")).toBeNull();
     expect(screen.queryByText("Grocery Galaxy")).toBeNull();
   });
 });

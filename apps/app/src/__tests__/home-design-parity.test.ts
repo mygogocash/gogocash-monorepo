@@ -542,6 +542,16 @@ describe("Expo home design parity", () => {
     expect(homeFile).not.toContain("minWidth: 122");
   });
 
+  it("mounts the GoLink guideline + result dialogs on the MOBILE branch too", () => {
+    // User report 2026-07-10: tapping the GoLink banner's (i) on a phone did
+    // nothing. The handler set desktopGoLinkGuidelineOpen, but the dialogs
+    // were only mounted in the desktop return branch — the mobile tree never
+    // rendered them. Both dialogs must appear in BOTH return branches.
+    const homeScreenSource = readHomeFile();
+    expect((homeScreenSource.match(/<GoLinkGuidelineDialog/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect((homeScreenSource.match(/<GoLinkResultDialog/g) ?? []).length).toBeGreaterThanOrEqual(2);
+  });
+
   it("centers the GoLink sheet toggle with alignSelf — left:50% mis-centers on native Yoga", () => {
     // The collapse caret sat off-center on the Android app: RN resolves
     // `left: "50%"` + negative margin differently from web. `alignSelf:

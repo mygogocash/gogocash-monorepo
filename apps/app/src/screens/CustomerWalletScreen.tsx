@@ -925,11 +925,13 @@ function createWalletScreenStyles(colors: ThemeColors) {
     backgroundColor: colors.card,
     borderBottomColor: colors.primary,
   },
+  // Normal weight — the mint underline + color already mark the active tab
+  // (design feedback 2026-07-10, same treatment as the quest tab strip).
   tabButtonText: {
     color: colors.muted,
     fontFamily: typography.family,
     fontSize: typography.caption,
-    fontWeight: "600",
+    fontWeight: "400",
     textAlign: "center",
   },
   tabButtonTextActive: {

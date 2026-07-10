@@ -100,9 +100,28 @@ describe("firebasePhoneAuth > confirmPhoneOtp", () => {
 
     const { confirmPhoneOtp } = await import("@mobile/auth/firebasePhoneAuth");
 
-    await expect(
-      confirmPhoneOtp({ confirm } as never, "123456")
-    ).resolves.toEqual({ idToken: "firebase-id-token" });
+    // No cast: confirmPhoneOtp accepts the minimal PhoneOtpConfirmation shape,
+    // which both firebase/auth (web) and @react-native-firebase/auth (native)
+    // confirmations satisfy structurally.
+    await expect(confirmPhoneOtp({ confirm }, "123456")).resolves.toEqual({
+      idToken: "firebase-id-token",
+    });
     expect(confirm).toHaveBeenCalledWith("123456");
+  });
+
+  it("given confirm resolves null (RNFB contract) > then throws a clear error, not a null crash", async () => {
+    // @react-native-firebase/auth types confirm() as Promise<UserCredential | null>.
+    const confirm = vi.fn().mockResolvedValue(null);
+
+    const { confirmPhoneOtp, PHONE_OTP_NO_CREDENTIAL_MESSAGE } = await import(
+      "@mobile/auth/firebasePhoneAuth"
+    );
+
+    expect(PHONE_OTP_NO_CREDENTIAL_MESSAGE).toBe(
+      "Phone sign-in did not return a credential."
+    );
+    await expect(confirmPhoneOtp({ confirm }, "123456")).rejects.toThrow(
+      "Phone sign-in did not return a credential."
+    );
   });
 });

@@ -191,6 +191,7 @@ function NotificationRow({
         accessibilityLabel={tc(row.label)}
         disabled
         ios_backgroundColor={colors.border}
+        style={styles.switchDisabled}
         thumbColor={colors.white}
         trackColor={{ false: colors.border, true: colors.primary }}
         value={enabled}
@@ -395,6 +396,11 @@ function createAccountSettingsScreenStyles(colors: ThemeColors) {
   },
   notificationStack: {
     gap: 8,
+  },
+  // Coming-soon switches are functionally disabled; dim them so they READ as
+  // disabled instead of inviting taps (user report 2026-07-10).
+  switchDisabled: {
+    opacity: 0.5,
   },
   notificationRow: {
     alignItems: "center",

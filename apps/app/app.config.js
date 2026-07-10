@@ -17,6 +17,22 @@ const appIdentity = {
 
 const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd().replace(/\/apps\/app$/, "");
 
+// Native Firebase (phone OTP via @react-native-firebase/auth) needs the
+// platform config files at prebuild. They come from an EAS file secret
+// (GOOGLE_SERVICES_JSON / GOOGLE_SERVICE_INFO_PLIST) or a local file next to
+// this config; when neither exists the plugin + field are omitted so prebuild
+// keeps working — that binary then reports native phone sign-in unavailable.
+const nodeFs = typeof require === "function" ? require("node:fs") : null;
+const localConfigFile = (name) =>
+  typeof __dirname === "string" && nodeFs?.existsSync(`${__dirname}/${name}`)
+    ? `./${name}`
+    : null;
+const googleServicesAndroid =
+  process.env.GOOGLE_SERVICES_JSON ?? localConfigFile("google-services.json");
+const googleServicesIos =
+  process.env.GOOGLE_SERVICE_INFO_PLIST ?? localConfigFile("GoogleService-Info.plist");
+const nativeFirebaseEnabled = Boolean(googleServicesAndroid || googleServicesIos);
+
 // Preserves the original app.config.ts semantics: use a global require if the
 // eval context provides one, else fall back to root-hoisted node_modules paths.
 /** @type {{ resolve: (specifier: string) => string }} */
@@ -63,7 +79,9 @@ const mobileExpoConfig = ({ config }) => ({
   name: appIdentity.displayName,
   slug: "gogocash-mobile",
   scheme: appIdentity.scheme,
-  version: "0.1.0",
+  // 0.2.0: adds the @react-native-firebase native module (phone OTP) — a new
+  // runtime; 0.1.0 binaries must not receive this JS.
+  version: "0.2.0",
   // OTA: native builds with the same app version receive eas update bundles.
   // Bump `version` when native code or config plugins change.
   runtimeVersion: {
@@ -84,6 +102,7 @@ const mobileExpoConfig = ({ config }) => ({
   ios: {
     bundleIdentifier: appIdentity.iosBundleIdentifier,
     supportsTablet: false,
+    ...(googleServicesIos ? { googleServicesFile: googleServicesIos } : {}),
     associatedDomains: ["applinks:app.gogocash.co", "applinks:app-staging.gogocash.co"],
   },
   android: {
@@ -93,6 +112,7 @@ const mobileExpoConfig = ({ config }) => ({
       foregroundImage: "./assets/adaptive-icon.png",
     },
     package: appIdentity.androidPackage,
+    ...(googleServicesAndroid ? { googleServicesFile: googleServicesAndroid } : {}),
   },
   web: {
     bundler: "metro",
@@ -102,6 +122,14 @@ const mobileExpoConfig = ({ config }) => ({
     shortName: appIdentity.displayName,
   },
   plugins: [
+    // firebase-ios-sdk pods (pulled by autolinking from package.json even when
+    // the RNFB plugin below is omitted) cannot integrate as static LIBRARIES —
+    // their ObjC deps define no modules — so every iOS build needs static
+    // FRAMEWORKS. Unconditional on purpose.
+    ["expo-build-properties", { ios: { useFrameworks: "static" } }],
+    // Native Firebase default-app init (phone OTP) — only when a google
+    // services file is available (see nativeFirebaseEnabled above).
+    ...(nativeFirebaseEnabled ? ["@react-native-firebase/app"] : []),
     // Native OTA: wires updates.url + runtimeVersion into Android/iOS manifests at prebuild.
     // Also applied automatically by EAS prebuild (versionedExpoSDKPackages); explicit entry
     // keeps OTA intent visible and ensures config survives custom prebuild flows.

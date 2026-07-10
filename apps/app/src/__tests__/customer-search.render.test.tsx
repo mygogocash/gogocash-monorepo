@@ -89,3 +89,20 @@ describe("CustomerSearchScreen (render)", () => {
     expect(screen.queryByTestId("mobile-search-input")).toBeNull();
   });
 });
+
+describe("CustomerSearchScreen — design feedback (source signals)", () => {
+  it("'See all' reads normal weight — it is a link, not a heading", () => {
+    // Design feedback 2026-07-10.
+    const { readFileSync } = require("node:fs") as typeof import("node:fs");
+    const { resolve, dirname } = require("node:path") as typeof import("node:path");
+    const { fileURLToPath } = require("node:url") as typeof import("node:url");
+    const stylesSource = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        "../screens/search/createSearchScreenStyles.ts",
+      ),
+      "utf8",
+    );
+    expect(stylesSource).toMatch(/seeAllLabel:[\s\S]*?fontWeight: "400"/);
+  });
+});

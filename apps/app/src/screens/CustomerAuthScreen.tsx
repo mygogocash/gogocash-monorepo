@@ -36,7 +36,7 @@ import { buildDemoMobileSession, persistMobileSession, type MobileSession } from
 import { sanitizeCallbackPath } from "@mobile/auth/routeGuard";
 import { resolveAuthSocialProviders } from "@mobile/api/backendIntegrationScope";
 import { getMobileEnv } from "@mobile/config/env";
-import type { ConfirmationResult } from "firebase/auth";
+import type { PhoneOtpConfirmation } from "@mobile/auth/firebasePhoneAuth";
 import {
   getDesktopFooterHorizontalPadding,
   getDesktopShellHorizontalPadding,
@@ -127,11 +127,11 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const [countryMenuOpen, setCountryMenuOpen] = useState(false);
   const [socialBusyProviderId, setSocialBusyProviderId] = useState<string | null>(null);
   const countryWrapRef = useRef<View>(null);
-  // Live (backend-mode) phone auth: the Firebase ConfirmationResult is a live,
+  // Live (backend-mode) phone auth: the SDK confirmation handle is a live,
   // non-serializable object — held in a ref between OTP send and confirm.
   const liveAuth = getMobileEnv().accountDataSource === "backend";
   const { sendPhoneOtpWithRecaptcha, recaptchaModal } = useFirebasePhoneRecaptcha();
-  const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const confirmationRef = useRef<PhoneOtpConfirmation | null>(null);
   const consentCheckProgress = useMemo(() => new Animated.Value(0), []);
   useEffect(() => {
     Animated.timing(consentCheckProgress, {

@@ -8,6 +8,19 @@ import { getClientAuth, isFirebaseConfigured } from "@mobile/auth/firebaseClient
 export const FIREBASE_NATIVE_RECAPTCHA_REQUIRED_MESSAGE =
   "Firebase phone sign-in on native requires a reCAPTCHA application verifier.";
 
+export const PHONE_OTP_NO_CREDENTIAL_MESSAGE =
+  "Phone sign-in did not return a credential.";
+
+/**
+ * Minimal structural contract shared by BOTH phone-auth SDKs: firebase/auth's
+ * ConfirmationResult (web) and @react-native-firebase/auth's ConfirmationResult
+ * (native, whose confirm() may resolve null). The auth screen and confirmPhoneOtp
+ * depend on this shape, not on either SDK's concrete type.
+ */
+export type PhoneOtpConfirmation = {
+  confirm(code: string): Promise<{ user: { getIdToken(): Promise<string> } } | null>;
+};
+
 // Phone OTP via Firebase — the only sign-in provider enabled on gogocash-staging.
 // Web uses the invisible DOM RecaptchaVerifier (parity with the Next.js client).
 // Native uses expo-firebase-recaptcha's ApplicationVerifier from the auth screen.
@@ -72,10 +85,13 @@ export async function sendPhoneOtp(
 
 /** Confirms the user's code and returns the auto-refreshing Firebase ID token. */
 export async function confirmPhoneOtp(
-  confirmation: ConfirmationResult,
+  confirmation: PhoneOtpConfirmation,
   code: string
 ): Promise<{ idToken: string }> {
   const credential = await confirmation.confirm(code);
+  if (!credential) {
+    throw new Error(PHONE_OTP_NO_CREDENTIAL_MESSAGE);
+  }
   const idToken = await credential.user.getIdToken();
   return { idToken };
 }
