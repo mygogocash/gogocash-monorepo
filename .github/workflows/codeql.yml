@@ -114,16 +114,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
-      - name: Select Xcode >= 16.1
-        # Pin explicitly instead of trusting the image default, and fail here
-        # (not deep inside pod install) if no suitable Xcode exists.
+      - name: Select newest Xcode (>= 16.1)
+        # RN 0.86 needs Xcode >= 16.1, and the precompile tooling's SwiftPM
+        # manifests need Swift tools 6.2 — Xcode 16.4 ships Swift 6.1, which
+        # fails package resolution ("package 'apple' is using Swift tools
+        # version 6.2.0 but the installed version is 6.1.0", exit 65). Select
+        # the NEWEST Xcode on the image instead of pinning a major, and print
+        # the inventory unconditionally so future bumps are diagnosable.
         run: |
-          XCODE_APP=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          ls -d /Applications/Xcode*.app
+          XCODE_APP=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
           if [ -z "$XCODE_APP" ]; then
-            echo "::error::No Xcode 16.x found on runner image"; ls -d /Applications/Xcode*.app; exit 1
+            echo "::error::No versioned Xcode found on runner image"; exit 1
           fi
           sudo xcode-select -s "$XCODE_APP/Contents/Developer"
           xcodebuild -version
+          swift --version
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -139,6 +145,11 @@ jobs:
           config-file: ./.github/codeql/codeql-native-config.yml
 
       - name: Build Expo iOS project for CodeQL
+        env:
+          # Analysis-only build: @sentry/react-native's Xcode build phase must
+          # not upload source maps/symbols (no SENTRY_ORG/auth here — the full
+          # compile previously succeeded and then failed in this phase).
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
         run: bash .github/codeql/build-native-ios.sh
 
       - name: Perform CodeQL Analysis
