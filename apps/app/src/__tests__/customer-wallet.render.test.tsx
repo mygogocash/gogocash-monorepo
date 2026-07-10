@@ -246,6 +246,12 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     expect(walletSource).toMatch(/txStatusText:[\s\S]*?fontWeight: "400"/);
   });
 
+  it("transaction tab labels read normal weight — the underline carries the emphasis", () => {
+    // Design feedback 2026-07-10, same treatment as the quest tab strip.
+    // Block-scoped ([^}]*) so the assertion cannot skip into a later style.
+    expect(walletSource).toMatch(/tabButtonText: \{[^}]*fontWeight: "400"/);
+  });
+
   it("compacts the LINE support contact card on mobile so the title fits one line", () => {
     // At phone width the desktop-sized card (48px badge, 18px bold title,
     // 72px min-height, 16px gaps) squeezed the Thai title
