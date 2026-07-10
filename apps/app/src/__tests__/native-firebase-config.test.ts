@@ -35,12 +35,16 @@ describe("native firebase config > app.config.js", () => {
     expect(config.plugins).toContain("@react-native-firebase/app");
   });
 
-  it("given no google services file exists > then omits the field and plugin so prebuild still works", () => {
-    // No env and no committed apps/app/google-services.json (owner supplies it).
+  it("given the committed google-services.json > then wires the local file and the RNFB plugin", () => {
+    // apps/app/google-services.json is committed (generated 2026-07-10 via
+    // `firebase apps:sdkconfig` for co.gogocash.app in gogocash-staging), so
+    // the default state is native-Firebase-enabled. The config still degrades
+    // gracefully if the file is removed — the env-override test above pins the
+    // precedence, and the omission branch stays in app.config.js as a guard.
     const config = loadConfig()({ config: {} });
 
-    expect(config.android.googleServicesFile).toBeUndefined();
-    expect(config.plugins).not.toContain("@react-native-firebase/app");
+    expect(config.android.googleServicesFile).toBe("./google-services.json");
+    expect(config.plugins).toContain("@react-native-firebase/app");
   });
 
   it("always builds iOS with static frameworks — the RNFB pods install via autolinking regardless", () => {
