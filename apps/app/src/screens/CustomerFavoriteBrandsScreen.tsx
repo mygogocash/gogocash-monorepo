@@ -270,11 +270,12 @@ function FavoriteBrandsVirtualizedGrid({
     (brand: FavoriteBrand) => (
       <FavoriteBrandCard
         brand={brand}
+        compact={!isDesktop}
         isFavorite={favoriteIds.includes(brand.id)}
         onToggleFavorite={onToggleFavorite}
       />
     ),
-    [favoriteIds, onToggleFavorite]
+    [favoriteIds, isDesktop, onToggleFavorite]
   );
 
   if (brands.length === 0) {
@@ -305,10 +306,12 @@ function FavoriteBrandsVirtualizedGrid({
 
 const FavoriteBrandCard = memo(function FavoriteBrandCard({
   brand,
+  compact = false,
   isFavorite = false,
   onToggleFavorite,
 }: {
   brand: FavoriteBrand;
+  compact?: boolean;
   isFavorite?: boolean;
   onToggleFavorite: (id: string) => void;
 }) {
@@ -361,16 +364,21 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
                 {tc(brand.category)}
               </Text>
             </View>
-            <View style={styles.brandNameRow}>
+            <View style={[styles.brandNameRow, compact ? styles.brandNameRowCompact : null]}>
               <View style={styles.brandCopy}>
-                <Text numberOfLines={2} style={styles.brandName}>
+                <Text
+                  numberOfLines={2}
+                  style={[styles.brandName, compact ? styles.brandNameCompact : null]}
+                >
                   {brand.name}
                 </Text>
                 <Text style={styles.cashbackCaption}>
                   {tc(webFavoriteBrandsPage.cashbackLabel)}
                 </Text>
               </View>
-              <Text style={styles.cashbackValue}>{brand.cashback}</Text>
+              <Text style={[styles.cashbackValue, compact ? styles.cashbackValueCompact : null]}>
+                {brand.cashback}
+              </Text>
             </View>
           </View>
         </MotionPressable>
@@ -641,6 +649,13 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     fontWeight: "600",
     lineHeight: 22,
   },
+  // Compact (2-column phone grid, ~169px cards): scale the name/value down so
+  // the name column fits whole words — at desktop sizes "Grocery Galaxy"
+  // broke mid-word next to the 27px value (design feedback 2026-07-10).
+  brandNameCompact: {
+    fontSize: 14,
+    lineHeight: 18,
+  },
   cashbackCaption: {
     color: colors.muted,
     fontFamily: typography.family,
@@ -656,6 +671,13 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     fontWeight: "700",
     lineHeight: 31,
     textAlign: "right",
+  },
+  cashbackValueCompact: {
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  brandNameRowCompact: {
+    minHeight: 44,
   },
   favoriteListHeader: {
     gap: 12,

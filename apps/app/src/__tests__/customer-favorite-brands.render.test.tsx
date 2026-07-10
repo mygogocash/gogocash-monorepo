@@ -130,4 +130,14 @@ describe("CustomerFavoriteBrandsScreen — Wave B treatments (source signals)", 
     // the brand-card names that already truncate.
     expect(screenSource).toMatch(/numberOfLines=\{1\}[\s\S]*?style=\{styles\.heroTitle\}/);
   });
+
+  it("scales brand-card name/value type down on mobile so names break at word boundaries", () => {
+    // Design feedback 2026-07-10: at 2-column phone width (~169px cards) the
+    // 18px name shared its row with the 27px cashback value, leaving ~75px —
+    // "Grocery Galaxy" broke mid-word ("Grocer / y…"). Compact cards scale the
+    // name to 14 and the value to 20 so the name column fits whole words.
+    expect(screenSource).toMatch(/compact=\{!isDesktop\}/);
+    expect(screenSource).toMatch(/brandNameCompact:[\s\S]*?fontSize: 14/);
+    expect(screenSource).toMatch(/cashbackValueCompact:[\s\S]*?fontSize: 20/);
+  });
 });
