@@ -13,7 +13,7 @@
 # builds at the staging API). Example:
 #   docker build -f apps/admin/Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co .
 
-FROM node:22-slim AS builder
+FROM node:24-slim AS builder
 WORKDIR /app
 
 # 1) Install dependencies from the lockfile first, for layer caching.
@@ -39,7 +39,7 @@ ENV STANDALONE=1
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build:standalone -w gogocash-admin
 
-FROM node:22-slim AS runner
+FROM node:24-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

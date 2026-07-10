@@ -143,13 +143,28 @@ npm run gototrack:preflight -- \
 - Local API lane: `adb reverse tcp:8080 tcp:8080` + money/auth recheck.
 - P1 staging smoke: [`bug-hunt-p1-checklist.md`](./bug-hunt-p1-checklist.md) + [`BUG_HUNT_BACKLOG_PHASE2.md`](../../../docs/BUG_HUNT_BACKLOG_PHASE2.md) §1.
 
-## Pass/fail log
+## Pass/fail log — executed 2026-07-10 (Seeker, APK 39)
 
 | Step | Gate | Result | Evidence |
 | --- | --- | --- | --- |
-| 1 | versionCode ≥ 39, updates not disabled | ☐ | |
-| 2 | `/user/profile` → 200 | ☐ | |
-| 3 | home + auth-guard + wallet-profile-auth-guard PASS | ☐ | |
-| 4 | wallet-authenticated PASS (dashboard) | ☐ | |
-| 5 | Phase 5 activation nudge + deep link | ☐ | `evidence/staging/T-apk39/phase5` |
-| 6 | Phase 7 background prompt | ☐ | `evidence/staging/T-apk39/phase7` |
+| 1 | versionCode ≥ 39, updates not disabled | ✅ versionCode=39; expo-updates state machine active, no "explicitly disabled" | logcat |
+| 2 | `/user/profile` → 200 | ✅ 200 with real user doc | curl |
+| 3 | home + auth-guard + wallet-profile-auth-guard PASS | ✅ 3/3 in 1m9s (all FAILED on APK 38) | Maestro |
+| 4 | wallet-authenticated PASS (dashboard) | ✅ `wallet-dashboard` visible + `login-screen` absent — proves the staging **OTA applied** (testID exists only in OTA JS) and A3 empty-state fixed | Maestro |
+| 5 | Phase 5 activation nudge + deep link | ⚠️ 15 pass / 4 fail — **all four blocked by `POST /gototrack/activate` → 500 on staging** (see below). Nudge itself renders when Shopee is truly foregrounded (proven in §6). | `evidence/staging/T-apk39/phase5` |
+| 6 | Phase 7 background prompt | ✅ **16/16** incl. detection, foreground, hub return, activation nudge visible | `evidence/staging/T-apk39/phase7` |
+
+### 🔴 New P0 ops finding: staging `/gototrack/activate` returns 500
+
+Deterministic repro (86ms — not a timeout):
+`POST /gototrack/detect` (android_package, com.shopee.th) → 201 matched, then
+`POST /gototrack/activate` with the returned ids → **500 Internal server error**.
+
+Code-path analysis: `InvolveService.signIn()` posts `process.env.INVOLVE_SECRET` to
+`api.involve.asia/api/authenticate`; a rejected secret throws a raw axios error **outside**
+the mapped `[400,404,422]` upstream band in `gototrack.service.createAffiliateDeeplink`
+→ Nest 500. `docs/railway-env-matrix.md` lists `INVOLVE_SECRET=<SET_ME>` — **suspected
+missing/invalid on the staging api deployment**. Ops action: set/verify `INVOLVE_SECRET`
+on the staging api service, re-run §5. (User doc exists; detection, settings, catalog all 200.)
+
+Remaining manual (§7): dark-mode sweep, shop-detail visual checks, warm deep link, local-API lane.

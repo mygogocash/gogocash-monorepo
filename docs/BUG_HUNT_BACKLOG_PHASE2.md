@@ -92,13 +92,20 @@ Code fixes shipped on `staging` (`9369694c`, `69d18414`). CI green. Items below 
 - **Stack:** Cloudflare R2 (not GCP). Day-to-day vars on Railway `gogocash-api`: `R2_BUCKET`, `R2_ENDPOINT`, `R2_PUBLIC_BASE_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. See `docs/railway-env-matrix.md`.
 - **Not re-checked:** fresh admin logo upload (needs admin JWT); GCP Secret Manager R2 secrets (only if using Cloud Run rollback lane).
 
-### 0. [P0] Android device bug hunt (2026-07-09) — resume after APK 39
+### 0a. [P0] Staging `INVOLVE_SECRET` — `/gototrack/activate` returns 500 (found 2026-07-10)
+
+- **Repro (deterministic, 86ms):** `POST /gototrack/detect` (com.shopee.th) → 201 matched → `POST /gototrack/activate` with returned ids → **500**. Full analysis + evidence: [`apps/app/evidence/staging/apk39-device-runbook.md`](../apps/app/evidence/staging/apk39-device-runbook.md) §Pass/fail log.
+- **Suspected cause:** `INVOLVE_SECRET` missing/invalid on the staging api (`railway-env-matrix.md` lists it `<SET_ME>`); Involve auth failure rethrows raw (outside the mapped 400/404/422 band) → 500.
+- **Ops action:** set/verify `INVOLVE_SECRET` on staging api → re-run runbook §5.
+- **Blocks:** GoGoTrack activation end-to-end (nudge tap → deeplink). Detection/prompts unaffected (Phase 7 = 16/16 PASS).
+
+### ~~0. [P0] Android device bug hunt (2026-07-09) — resume after APK 39~~ ✅ Device pass done 2026-07-10
 
 - **Handoff:** [`docs/android-bug-hunt-2026-07-09.md`](./android-bug-hunt-2026-07-09.md) (full findings, commands, EAS build link).
 - **Shipped on staging:** `30630397` — logged-out Wallet/Profile bottom-nav + Profile blank-tab fix + Maestro cookie `appId`.
 - **OTA published** (channel `staging`, runtime `0.1.0`) but **APK 38 cannot apply it** — `expo-updates` explicitly disabled (no `updates.url` / `ENABLED=false`).
 - **Next:** install EAS preview build `d263dfc2-9e93-4b72-9cef-34d96dfb43f1` (versionCode 39), then re-run Maestro + wallet inject + GoGoTrack Phase 5/7 from the handoff doc.
-- **Still open on device until APK 39 verified:** auth-guard Maestro, wallet zero-balance dashboard UI, warm deep link, Phase 7 with `--return-to-gototrack`.
+- **2026-07-10 result (APK 39 + staging OTA):** install ✅, updates enabled ✅, auth-guard Maestro **3/3 PASS**, wallet zero-balance dashboard ✅ (`wallet-dashboard` testID — OTA applied), Phase 7 **16/16 PASS**. Phase 5 activation blocked only by the staging `/gototrack/activate` 500 (item 0a). Remaining manual: dark mode, warm deep link, local-API lane.
 
 ### 1. [P1] Staging manual smoke — bug-hunt regression paths
 

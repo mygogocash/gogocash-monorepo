@@ -1,0 +1,308 @@
+command=adb logcat -d -t 300
+ok=true
+status=0
+--- stdout ---
+--------- beginning of main
+07-10 08:55:51.508  2245  2267 W System  : A resource failed to call release. 
+07-10 08:55:51.509  2245  2267 W System  : A resource failed to call release. 
+07-10 08:55:51.509  2245  2267 W System  : A resource failed to call release. 
+07-10 08:55:51.911  1319  1357 I libPerfCtl: xgfGetFPS pid:2245 fps:120
+07-10 08:55:51.911  1319  1357 I libPerfCtl: xgfGetFPS pid:13207 fps:-1
+07-10 08:55:52.149  2152  2159 I WifiHAL : LLS RSP: data=0xb400007c6393f3a0, len=5220
+07-10 08:55:52.149  2152  2159 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=53
+07-10 08:55:52.149  2152  2159 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=27
+07-10 08:55:52.149  2152  2159 I WifiHAL : LLS check_data_sanity: confirmed_size=5220, len=5220
+07-10 08:55:52.167  2152  2159 I WifiHAL : feature_set=0x8489341a
+07-10 08:55:52.344  1321  1321 I android.hardware.thermal-service.mediatek: getTemperaturesWithType TemperatureType: 3
+07-10 08:55:52.344  1321  1321 W android.hardware.thermal-service.mediatek: i=0 tz_data[i].tz_idx[0]=7
+07-10 08:55:52.345  1321  1321 W android.hardware.thermal-service.mediatek: i=1 tz_data[i].tz_idx[0]=7
+07-10 08:55:52.345  1321  1321 W android.hardware.thermal-service.mediatek: i=2 tz_data[i].tz_idx[0]=6
+07-10 08:55:52.345  1321  1321 W android.hardware.thermal-service.mediatek: i=3 tz_data[i].tz_idx[0]=44
+07-10 08:55:52.354  1321  1321 I android.hardware.thermal-service.mediatek: fill_temperatures filterType1 name: SKIN type: SKIN throttlingStatus: NONE value: 36.871 ret_temps size 0
+07-10 08:55:52.355  1321  1321 W android.hardware.thermal-service.mediatek: i=4 tz_data[i].tz_idx[0]=0
+07-10 08:55:52.355  1321  1321 W android.hardware.thermal-service.mediatek: i=5 tz_data[i].tz_idx[0]=42
+07-10 08:55:52.355  1321  1321 W android.hardware.thermal-service.mediatek: i=6 tz_data[i].tz_idx[0]=-1
+07-10 08:55:52.355  1321  1321 W android.hardware.thermal-service.mediatek: i=7 tz_data[i].tz_idx[0]=-1
+07-10 08:55:52.356  1321  1321 W android.hardware.thermal-service.mediatek: i=8 tz_data[i].tz_idx[0]=-1
+07-10 08:55:52.356  1321  1321 W android.hardware.thermal-service.mediatek: i=9 tz_data[i].tz_idx[0]=7
+07-10 08:55:52.356  1321  1321 W android.hardware.thermal-service.mediatek: i=10 tz_data[i].tz_idx[0]=7
+07-10 08:55:52.356  1321  1321 W android.hardware.thermal-service.mediatek: i=11 tz_data[i].tz_idx[0]=-1
+07-10 08:55:52.357  1321  1321 W android.hardware.thermal-service.mediatek: i=12 tz_data[i].tz_idx[0]=-1
+07-10 08:55:52.357  1321  1321 W android.hardware.thermal-service.mediatek: i=13 tz_data[i].tz_idx[0]=7
+07-10 08:55:52.558  1425  1425 I adbd    : adbd service requested 'shell,v2,raw:input keyevent 224'
+07-10 08:55:52.629  1425  1425 I adbd    : adbd service requested 'shell,v2,raw:wm dismiss-keyguard'
+07-10 08:55:52.687  1425  1425 I adbd    : adbd service requested 'shell,v2,raw:cmd statusbar collapse'
+07-10 08:55:52.732  1425  1425 I adbd    : adbd service requested 'shell,v2,raw:am start -a android.intent.action.VIEW -d 'gogocash://gototrack' co.gogocash.app'
+--------- beginning of system
+07-10 08:55:52.772  1852  4029 W ActivityTaskManager: callingPackage for (uid=2000, pid=15599) has no WPC
+07-10 08:55:52.772  1852  4029 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES
+07-10 08:55:52.773  1852  4029 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE
+07-10 08:55:52.773  1852  1875 W BoostModuleDispatcher: Not found identify scenario.
+07-10 08:55:52.774  1852  4029 I ActivityTaskManager: START u0 {act=android.intent.action.VIEW dat=gogocash://gototrack/... flg=0x10000000 xflg=0x4 pkg=co.gogocash.app cmp=co.gogocash.app/.MainActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=3
+07-10 08:55:52.776 13207 13207 W unknown:BridgelessReact: ReactHost{0}.onHostPause(activity)
+07-10 08:55:52.776 13207 13207 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostPause()
+07-10 08:55:52.778  1349  1964 I BpBinder: onLastStrongRef automatically unlinking death recipients: 
+07-10 08:55:52.781 13207 13207 W unknown:BridgelessReact: ReactHost{0}.onHostResume(activity)
+07-10 08:55:52.781 13207 13207 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostResume()
+07-10 08:55:52.793  1852  4029 I PowerHalWrapper: amsBoostStop AMS_BOOST_PACK_SWITCH:false, AMS_BOOST_ACT_SWITCH:false, AMS_BOOST_PROCESS_CREATE:false, AMS_BOOST_PROCESS_CREATE_FOR_GAME:false, AMS_BOOST_HOT_LAUNCH:false 
+07-10 08:55:52.801  1349  1349 I BufferQueueProducer: [co.gogocash.app/co.gogocash.app.MainActivity#2121](this:0xb4000079efcdf2a8,id:-1,api:0,p:-1,c:1349) queueBuffer: fps=1.47 dur=2041.87 max=1876.05 min=7.90
+07-10 08:55:52.803  1284  1284 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:23.528019,dur:1445.09,max:1112.43,min:5.18  
+07-10 08:55:52.911  1319  1357 I libPerfCtl: xgfGetFPS pid:2245 fps:-1
+07-10 08:55:52.911  1319  1357 I libPerfCtl: xgfGetFPS pid:13207 fps:-1
+07-10 08:55:52.981 13207 13249 W unknown:ReactNative: StatusBarModule: Ignored status bar change, current activity is edge-to-edge.
+07-10 08:55:53.003 13207 13306 W HWUI    : Image decoding logging dropped!
+07-10 08:55:53.166 13207 13306 W HWUI    : Image decoding logging dropped!
+07-10 08:55:53.308  1321  1339 W android.hardware.thermal-service.mediatek: parseMsg: Get from client TYPE=thermal_hal_notify NAME=SKIN
+07-10 08:55:53.308  1321  1339 W android.hardware.thermal-service.mediatek: parseMsg:name.c_str():SKIN
+07-10 08:55:53.308  1321  1339 W android.hardware.thermal-service.mediatek: parseMsg:tz notify:SKIN
+07-10 08:55:53.308  1321  1339 I android.hardware.thermal-service.mediatek: Wait to accept a connection
+07-10 08:55:53.309  1321  1339 I android.hardware.thermal-service.mediatek: Sending notification:  Type: SKIN Name: SKIN CurrentValue: 36.923 ThrottlingStatus: NONE
+07-10 08:55:53.309  1321  1339 I android.hardware.thermal-service.mediatek: sendThermalChangedCallback
+07-10 08:55:53.323  1349  1349 I BufferQueueProducer: [NotificationShade#2133](this:0xb4000079efd45ae8,id:-1,api:0,p:-1,c:1349) queueBuffer: fps=18.93 dur=2007.62 max=1634.81 min=6.62
+07-10 08:55:53.345  1321  1321 I android.hardware.thermal-service.mediatek: getTemperaturesWithType TemperatureType: 3
+07-10 08:55:53.345  1321  1321 W android.hardware.thermal-service.mediatek: i=0 tz_data[i].tz_idx[0]=7
+07-10 08:55:53.345  1321  1321 W android.hardware.thermal-service.mediatek: i=1 tz_data[i].tz_idx[0]=7
+07-10 08:55:53.345  1321  1321 W android.hardware.thermal-service.mediatek: i=2 tz_data[i].tz_idx[0]=6
+07-10 08:55:53.345  1321  1321 W android.hardware.thermal-service.mediatek: i=3 tz_data[i].tz_idx[0]=44
+07-10 08:55:53.346  1321  1321 I android.hardware.thermal-service.mediatek: fill_temperatures filterType1 name: SKIN type: SKIN throttlingStatus: NONE value: 36.918 ret_temps size 0
+07-10 08:55:53.346  1321  1321 W android.hardware.thermal-service.mediatek: i=4 tz_data[i].tz_idx[0]=0
+07-10 08:55:53.346  1321  1321 W android.hardware.thermal-service.mediatek: i=5 tz_data[i].tz_idx[0]=42
+07-10 08:55:53.346  1321  1321 W android.hardware.thermal-service.mediatek: i=6 tz_data[i].tz_idx[0]=-1
+07-10 08:55:53.346  1321  1321 W android.hardware.thermal-service.mediatek: i=7 tz_data[i].tz_idx[0]=-1
+07-10 08:55:53.346  1321  1321 W android.hardware.thermal-service.mediatek: i=8 tz_data[i].tz_idx[0]=-1
+07-10 08:55:53.346  1321  1321 W android.hardware.thermal-service.mediatek: i=9 tz_data[i].tz_idx[0]=7
+07-10 08:55:53.346  1321  1321 W android.hardware.thermal-service.mediatek: i=10 tz_data[i].tz_idx[0]=7
+07-10 08:55:53.346  1321  1321 W android.hardware.thermal-service.mediatek: i=11 tz_data[i].tz_idx[0]=-1
+07-10 08:55:53.346  1321  1321 W android.hardware.thermal-service.mediatek: i=12 tz_data[i].tz_idx[0]=-1
+07-10 08:55:53.346  1321  1321 W android.hardware.thermal-service.mediatek: i=13 tz_data[i].tz_idx[0]=7
+07-10 08:55:53.346 13207 13306 W HWUI    : Image decoding logging dropped!
+07-10 08:55:53.680 13207 13306 W HWUI    : Image decoding logging dropped!
+07-10 08:55:53.682 13207 13306 W HWUI    : Image decoding logging dropped!
+07-10 08:55:53.720  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-10 08:55:53.807  1284  1284 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:91.662453,dur:1003.68,max:207.85,min:6.37  
+07-10 08:55:53.911  1319  1357 I libPerfCtl: xgfGetFPS pid:2245 fps:120
+07-10 08:55:53.911  1319  1357 I libPerfCtl: xgfGetFPS pid:13207 fps:-1
+07-10 08:55:54.328  1349  1349 I BufferQueueProducer: [NotificationShade#2133](this:0xb4000079efd45ae8,id:-1,api:0,p:-1,c:1349) queueBuffer: fps=120.45 dur=1004.54 max=9.20 min=6.87
+07-10 08:55:54.349  1321  1321 I android.hardware.thermal-service.mediatek: getTemperaturesWithType TemperatureType: 3
+07-10 08:55:54.349  1321  1321 W android.hardware.thermal-service.mediatek: i=0 tz_data[i].tz_idx[0]=7
+07-10 08:55:54.349  1321  1321 W android.hardware.thermal-service.mediatek: i=1 tz_data[i].tz_idx[0]=7
+07-10 08:55:54.349  1321  1321 W android.hardware.thermal-service.mediatek: i=2 tz_data[i].tz_idx[0]=6
+07-10 08:55:54.349  1321  1321 W android.hardware.thermal-service.mediatek: i=3 tz_data[i].tz_idx[0]=44
+07-10 08:55:54.359  1321  1321 I android.hardware.thermal-service.mediatek: fill_temperatures filterType1 name: SKIN type: SKIN throttlingStatus: NONE value: 36.899 ret_temps size 0
+07-10 08:55:54.359  1321  1321 W android.hardware.thermal-service.mediatek: i=4 tz_data[i].tz_idx[0]=0
+07-10 08:55:54.359  1321  1321 W android.hardware.thermal-service.mediatek: i=5 tz_data[i].tz_idx[0]=42
+07-10 08:55:54.359  1321  1321 W android.hardware.thermal-service.mediatek: i=6 tz_data[i].tz_idx[0]=-1
+07-10 08:55:54.360  1321  1321 W android.hardware.thermal-service.mediatek: i=7 tz_data[i].tz_idx[0]=-1
+07-10 08:55:54.360  1321  1321 W android.hardware.thermal-service.mediatek: i=8 tz_data[i].tz_idx[0]=-1
+07-10 08:55:54.360  1321  1321 W android.hardware.thermal-service.mediatek: i=9 tz_data[i].tz_idx[0]=7
+07-10 08:55:54.360  1321  1321 W android.hardware.thermal-service.mediatek: i=10 tz_data[i].tz_idx[0]=7
+07-10 08:55:54.360  1321  1321 W android.hardware.thermal-service.mediatek: i=11 tz_data[i].tz_idx[0]=-1
+07-10 08:55:54.360  1321  1321 W android.hardware.thermal-service.mediatek: i=12 tz_data[i].tz_idx[0]=-1
+07-10 08:55:54.361  1321  1321 W android.hardware.thermal-service.mediatek: i=13 tz_data[i].tz_idx[0]=7
+07-10 08:55:54.720  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 9
+07-10 08:55:54.722  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-10 08:55:54.810  1284  1284 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:120.639023,dur:1002.99,max:9.90,min:5.47  
+07-10 08:55:54.912  1319  1357 I libPerfCtl: xgfGetFPS pid:2245 fps:120
+07-10 08:55:54.912  1319  1357 I libPerfCtl: xgfGetFPS pid:13207 fps:-1
+07-10 08:55:55.188  2152  2159 I WifiHAL : LLS RSP: data=0xb400007c6393f3a0, len=5220
+07-10 08:55:55.188  2152  2159 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=53
+07-10 08:55:55.188  2152  2159 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=27
+07-10 08:55:55.188  2152  2159 I WifiHAL : LLS check_data_sanity: confirmed_size=5220, len=5220
+07-10 08:55:55.197  2152  2159 I WifiHAL : feature_set=0x8489341a
+07-10 08:55:55.207 13207 13306 W HWUI    : Image decoding logging dropped!
+07-10 08:55:55.331  1349  1349 I BufferQueueProducer: [NotificationShade#2133](this:0xb4000079efd45ae8,id:-1,api:0,p:-1,c:1349) queueBuffer: fps=120.60 dur=1003.34 max=9.10 min=7.20
+07-10 08:55:55.351  1321  1321 I android.hardware.thermal-service.mediatek: getTemperaturesWithType TemperatureType: 3
+07-10 08:55:55.352  1321  1321 W android.hardware.thermal-service.mediatek: i=0 tz_data[i].tz_idx[0]=7
+07-10 08:55:55.352  1321  1321 W android.hardware.thermal-service.mediatek: i=1 tz_data[i].tz_idx[0]=7
+07-10 08:55:55.352  1321  1321 W android.hardware.thermal-service.mediatek: i=2 tz_data[i].tz_idx[0]=6
+07-10 08:55:55.352  1321  1321 W android.hardware.thermal-service.mediatek: i=3 tz_data[i].tz_idx[0]=44
+07-10 08:55:55.360  1321  1321 I android.hardware.thermal-service.mediatek: fill_temperatures filterType1 name: SKIN type: SKIN throttlingStatus: NONE value: 36.944 ret_temps size 0
+07-10 08:55:55.360  1321  1321 W android.hardware.thermal-service.mediatek: i=4 tz_data[i].tz_idx[0]=0
+07-10 08:55:55.360  1321  1321 W android.hardware.thermal-service.mediatek: i=5 tz_data[i].tz_idx[0]=42
+07-10 08:55:55.360  1321  1321 W android.hardware.thermal-service.mediatek: i=6 tz_data[i].tz_idx[0]=-1
+07-10 08:55:55.360  1321  1321 W android.hardware.thermal-service.mediatek: i=7 tz_data[i].tz_idx[0]=-1
+07-10 08:55:55.360  1321  1321 W android.hardware.thermal-service.mediatek: i=8 tz_data[i].tz_idx[0]=-1
+07-10 08:55:55.360  1321  1321 W android.hardware.thermal-service.mediatek: i=9 tz_data[i].tz_idx[0]=7
+07-10 08:55:55.360  1321  1321 W android.hardware.thermal-service.mediatek: i=10 tz_data[i].tz_idx[0]=7
+07-10 08:55:55.361  1321  1321 W android.hardware.thermal-service.mediatek: i=11 tz_data[i].tz_idx[0]=-1
+07-10 08:55:55.361  1321  1321 W android.hardware.thermal-service.mediatek: i=12 tz_data[i].tz_idx[0]=-1
+07-10 08:55:55.361  1321  1321 W android.hardware.thermal-service.mediatek: i=13 tz_data[i].tz_idx[0]=7
+07-10 08:55:55.366 13207 13306 W HWUI    : Image decoding logging dropped!
+07-10 08:55:55.547 13207 13306 W HWUI    : Image decoding logging dropped!
+07-10 08:55:55.723  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 8
+07-10 08:55:55.725  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-10 08:55:55.814  1284  1284 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:120.463585,dur:1004.45,max:10.55,min:5.87  
+07-10 08:55:55.914  1319  1357 I libPerfCtl: xgfGetFPS pid:2245 fps:120
+07-10 08:55:55.914  1319  1357 I libPerfCtl: xgfGetFPS pid:13207 fps:-1
+07-10 08:55:56.310  1321  1339 W android.hardware.thermal-service.mediatek: parseMsg: Get from client TYPE=thermal_hal_notify NAME=SKIN
+07-10 08:55:56.310  1321  1339 W android.hardware.thermal-service.mediatek: parseMsg:name.c_str():SKIN
+07-10 08:55:56.310  1321  1339 W android.hardware.thermal-service.mediatek: parseMsg:tz notify:SKIN
+07-10 08:55:56.310  1321  1339 I android.hardware.thermal-service.mediatek: Wait to accept a connection
+07-10 08:55:56.311  1321  1339 I android.hardware.thermal-service.mediatek: Sending notification:  Type: SKIN Name: SKIN CurrentValue: 36.96 ThrottlingStatus: NONE
+07-10 08:55:56.311  1321  1339 I android.hardware.thermal-service.mediatek: sendThermalChangedCallback
+07-10 08:55:56.336  1349  1349 I BufferQueueProducer: [NotificationShade#2133](this:0xb4000079efd45ae8,id:-1,api:0,p:-1,c:1349) queueBuffer: fps=120.47 dur=1004.42 max=9.15 min=7.47
+07-10 08:55:56.358  1321  1321 I android.hardware.thermal-service.mediatek: getTemperaturesWithType TemperatureType: 3
+07-10 08:55:56.359  1321  1321 W android.hardware.thermal-service.mediatek: i=0 tz_data[i].tz_idx[0]=7
+07-10 08:55:56.359  1321  1321 W android.hardware.thermal-service.mediatek: i=1 tz_data[i].tz_idx[0]=7
+07-10 08:55:56.359  1321  1321 W android.hardware.thermal-service.mediatek: i=2 tz_data[i].tz_idx[0]=6
+07-10 08:55:56.359  1321  1321 W android.hardware.thermal-service.mediatek: i=3 tz_data[i].tz_idx[0]=44
+07-10 08:55:56.372  1321  1321 I android.hardware.thermal-service.mediatek: fill_temperatures filterType1 name: SKIN type: SKIN throttlingStatus: NONE value: 36.96 ret_temps size 0
+07-10 08:55:56.372  1321  1321 W android.hardware.thermal-service.mediatek: i=4 tz_data[i].tz_idx[0]=0
+07-10 08:55:56.373  1321  1321 W android.hardware.thermal-service.mediatek: i=5 tz_data[i].tz_idx[0]=42
+07-10 08:55:56.374  1321  1321 W android.hardware.thermal-service.mediatek: i=6 tz_data[i].tz_idx[0]=-1
+07-10 08:55:56.374  1321  1321 W android.hardware.thermal-service.mediatek: i=7 tz_data[i].tz_idx[0]=-1
+07-10 08:55:56.374  1321  1321 W android.hardware.thermal-service.mediatek: i=8 tz_data[i].tz_idx[0]=-1
+07-10 08:55:56.374  1321  1321 W android.hardware.thermal-service.mediatek: i=9 tz_data[i].tz_idx[0]=7
+07-10 08:55:56.374  1321  1321 W android.hardware.thermal-service.mediatek: i=10 tz_data[i].tz_idx[0]=7
+07-10 08:55:56.374  1321  1321 W android.hardware.thermal-service.mediatek: i=11 tz_data[i].tz_idx[0]=-1
+07-10 08:55:56.374  1321  1321 W android.hardware.thermal-service.mediatek: i=12 tz_data[i].tz_idx[0]=-1
+07-10 08:55:56.375  1321  1321 W android.hardware.thermal-service.mediatek: i=13 tz_data[i].tz_idx[0]=7
+07-10 08:55:56.727  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 7
+07-10 08:55:56.730  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-10 08:55:56.818  1284  1284 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:120.532104,dur:1003.88,max:10.06,min:6.62  
+07-10 08:55:56.850  1262  1307 I netd    : tetherGetStats() -> {[]} <2.00ms>
+07-10 08:55:56.862 18290 18290 I Finsky  : [2] Memory trim requested to level 40
+07-10 08:55:56.862 15797 15797 I Finsky:background: [2] Memory trim requested to level 40
+07-10 08:55:56.873 18290 18290 I Finsky  : [2] Flushing in-memory image cache
+07-10 08:55:56.912  1319  1357 I libPerfCtl: xgfGetFPS pid:2245 fps:120
+07-10 08:55:56.912  1319  1357 I libPerfCtl: xgfGetFPS pid:13207 fps:-1
+07-10 08:55:56.975  2245  2245 W TouchableRegionManager: onHeadsUpPinnedModeChanged
+07-10 08:55:57.008  1349  1349 I BufferQueueProducer: [StatusBar#86](this:0xb4000079efcaec18,id:-1,api:0,p:-1,c:1349) queueBuffer: fps=9.50 dur=6000.06 max=5451.68 min=6.87
+07-10 08:55:57.220  1852  1852 I AS.AudioService: shouldNotificationSoundPlay false: muted stream:5 attr:AudioAttributes: usage=USAGE_NOTIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null
+07-10 08:55:57.221  1852  1852 I FlashNotifController: startFlashNotification: type=1, tag=android
+07-10 08:55:57.226  1852  1852 W NotificationHistory: Attempted to add notif for locked/gone/disabled user 0
+07-10 08:55:57.239  2652  2652 I NotificationListener: received notification posted event - co.gogocash.app#UserHandle{0},category=-1
+07-10 08:55:57.257  2245  2747 W HWUI    : Image decoding logging dropped!
+07-10 08:55:57.262  2245  2747 W HWUI    : Image decoding logging dropped!
+07-10 08:55:57.266  2245  2747 W HWUI    : Image decoding logging dropped!
+07-10 08:55:57.280  2245  2245 W TouchableRegionManager: onHeadsUpPinnedModeChanged
+07-10 08:55:57.307  1349  1349 I SurfaceFlinger: onHandleDestroyed: layerId=2133, name=NotificationShade#2133
+07-10 08:55:57.313  1321  1339 W android.hardware.thermal-service.mediatek: parseMsg: Get from client TYPE=thermal_hal_notify NAME=SKIN
+07-10 08:55:57.313  1321  1339 W android.hardware.thermal-service.mediatek: parseMsg:name.c_str():SKIN
+07-10 08:55:57.313  1321  1339 W android.hardware.thermal-service.mediatek: parseMsg:tz notify:SKIN
+07-10 08:55:57.313  1321  1339 I android.hardware.thermal-service.mediatek: Wait to accept a connection
+07-10 08:55:57.313  1321  1339 I android.hardware.thermal-service.mediatek: Sending notification:  Type: SKIN Name: SKIN CurrentValue: 37.004 ThrottlingStatus: NONE
+07-10 08:55:57.314  1321  1339 I android.hardware.thermal-service.mediatek: sendThermalChangedCallback
+07-10 08:55:57.315  1852  3839 I WindowManager: Relayout Window{2e3994a u0 NotificationShade}: oldVis=4 newVis=0 focusMayChange = true requestedWidth = 1200 requestedHeight = 2670 outFrames = ClientWindowFrames{frame=[0,0][1200,2670] display=[0,0][1200,2670] parentFrame=[0,0][0,0]} outSurfaceControl = Surface(name=NotificationShade)/@0x9c0ed97
+07-10 08:55:57.360  1321  1321 I android.hardware.thermal-service.mediatek: getTemperaturesWithType TemperatureType: 3
+07-10 08:55:57.360  1321  1321 W android.hardware.thermal-service.mediatek: i=0 tz_data[i].tz_idx[0]=7
+07-10 08:55:57.360  1321  1321 W android.hardware.thermal-service.mediatek: i=1 tz_data[i].tz_idx[0]=7
+07-10 08:55:57.360  1321  1321 W android.hardware.thermal-service.mediatek: i=2 tz_data[i].tz_idx[0]=6
+07-10 08:55:57.360  1321  1321 W android.hardware.thermal-service.mediatek: i=3 tz_data[i].tz_idx[0]=44
+07-10 08:55:57.368  2516  9924 W HWUI    : Image decoding logging dropped!
+07-10 08:55:57.369  1321  1321 I android.hardware.thermal-service.mediatek: fill_temperatures filterType1 name: SKIN type: SKIN throttlingStatus: NONE value: 37.003 ret_temps size 0
+07-10 08:55:57.369  1321  1321 W android.hardware.thermal-service.mediatek: i=4 tz_data[i].tz_idx[0]=0
+07-10 08:55:57.369  1321  1321 W android.hardware.thermal-service.mediatek: i=5 tz_data[i].tz_idx[0]=42
+07-10 08:55:57.369  1321  1321 W android.hardware.thermal-service.mediatek: i=6 tz_data[i].tz_idx[0]=-1
+07-10 08:55:57.369  1321  1321 W android.hardware.thermal-service.mediatek: i=7 tz_data[i].tz_idx[0]=-1
+07-10 08:55:57.369  1321  1321 W android.hardware.thermal-service.mediatek: i=8 tz_data[i].tz_idx[0]=-1
+07-10 08:55:57.369  1321  1321 W android.hardware.thermal-service.mediatek: i=9 tz_data[i].tz_idx[0]=7
+07-10 08:55:57.369  1321  1321 W android.hardware.thermal-service.mediatek: i=10 tz_data[i].tz_idx[0]=7
+07-10 08:55:57.369  1321  1321 W android.hardware.thermal-service.mediatek: i=11 tz_data[i].tz_idx[0]=-1
+07-10 08:55:57.370  1321  1321 W android.hardware.thermal-service.mediatek: i=12 tz_data[i].tz_idx[0]=-1
+07-10 08:55:57.370  1321  1321 W android.hardware.thermal-service.mediatek: i=13 tz_data[i].tz_idx[0]=7
+07-10 08:55:57.373  2516  2017 W HWUI    : Image decoding logging dropped!
+07-10 08:55:57.373  2516  2018 W HWUI    : Image decoding logging dropped!
+07-10 08:55:57.518  2516  2018 I NearbyMediums: No BLE Fast/GATT advertisements found in the latest cycle.
+07-10 08:55:57.518  2516  2018 I NearbyMediums: Current Tracked Scanning Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing}
+07-10 08:55:57.727  1326  1326 I Vibrator: Vibrator on for timeoutMs: 350
+07-10 08:55:57.733  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 6
+07-10 08:55:57.735  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-10 08:55:57.912  1319  1357 I libPerfCtl: xgfGetFPS pid:2245 fps:120
+07-10 08:55:58.152 14781 14981 W chromium: [WARNING:third_party/webrtc/media/engine/webrtc_voice_engine.cc:804] Attempting to stop aecdump when no audio processing module is present
+07-10 08:55:58.221  2152  2159 I WifiHAL : LLS RSP: data=0xb400007c6393f3a0, len=5220
+07-10 08:55:58.221  2152  2159 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=53
+07-10 08:55:58.221  2152  2159 I WifiHAL : LLS check_data_sanity: 1821: current_radio_stat->num_channels=27
+07-10 08:55:58.221  2152  2159 I WifiHAL : LLS check_data_sanity: confirmed_size=5220, len=5220
+07-10 08:55:58.237  2152  2159 I WifiHAL : feature_set=0x8489341a
+07-10 08:55:58.316  1321  1339 W android.hardware.thermal-service.mediatek: parseMsg: Get from client TYPE=thermal_hal_notify NAME=SKIN
+07-10 08:55:58.316  1321  1339 W android.hardware.thermal-service.mediatek: parseMsg:name.c_str():SKIN
+07-10 08:55:58.316  1321  1339 W android.hardware.thermal-service.mediatek: parseMsg:tz notify:SKIN
+07-10 08:55:58.316  1321  1339 I android.hardware.thermal-service.mediatek: Wait to accept a connection
+07-10 08:55:58.317  1321  1339 I android.hardware.thermal-service.mediatek: Sending notification:  Type: SKIN Name: SKIN CurrentValue: 37.046 ThrottlingStatus: NONE
+07-10 08:55:58.318  1321  1339 I android.hardware.thermal-service.mediatek: sendThermalChangedCallback
+07-10 08:55:58.328  1326  1326 I Vibrator: Vibrator on for timeoutMs: 350
+07-10 08:55:58.364  1321  1321 I android.hardware.thermal-service.mediatek: getTemperaturesWithType TemperatureType: 3
+07-10 08:55:58.365  1321  1321 W android.hardware.thermal-service.mediatek: i=0 tz_data[i].tz_idx[0]=7
+07-10 08:55:58.365  1321  1321 W android.hardware.thermal-service.mediatek: i=1 tz_data[i].tz_idx[0]=7
+07-10 08:55:58.365  1321  1321 W android.hardware.thermal-service.mediatek: i=2 tz_data[i].tz_idx[0]=6
+07-10 08:55:58.365  1321  1321 W android.hardware.thermal-service.mediatek: i=3 tz_data[i].tz_idx[0]=44
+07-10 08:55:58.373  1321  1321 I android.hardware.thermal-service.mediatek: fill_temperatures filterType1 name: SKIN type: SKIN throttlingStatus: NONE value: 37.047 ret_temps size 0
+07-10 08:55:58.374  1321  1321 W android.hardware.thermal-service.mediatek: i=4 tz_data[i].tz_idx[0]=0
+07-10 08:55:58.374  1321  1321 W android.hardware.thermal-service.mediatek: i=5 tz_data[i].tz_idx[0]=42
+07-10 08:55:58.374  1321  1321 W android.hardware.thermal-service.mediatek: i=6 tz_data[i].tz_idx[0]=-1
+07-10 08:55:58.374  1321  1321 W android.hardware.thermal-service.mediatek: i=7 tz_data[i].tz_idx[0]=-1
+07-10 08:55:58.375  1321  1321 W android.hardware.thermal-service.mediatek: i=8 tz_data[i].tz_idx[0]=-1
+07-10 08:55:58.375  1321  1321 W android.hardware.thermal-service.mediatek: i=9 tz_data[i].tz_idx[0]=7
+07-10 08:55:58.375  1321  1321 W android.hardware.thermal-service.mediatek: i=10 tz_data[i].tz_idx[0]=7
+07-10 08:55:58.376  1321  1321 W android.hardware.thermal-service.mediatek: i=11 tz_data[i].tz_idx[0]=-1
+07-10 08:55:58.376  1321  1321 W android.hardware.thermal-service.mediatek: i=12 tz_data[i].tz_idx[0]=-1
+07-10 08:55:58.376  1321  1321 W android.hardware.thermal-service.mediatek: i=13 tz_data[i].tz_idx[0]=7
+07-10 08:55:58.736  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 5
+07-10 08:55:58.737  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-10 08:55:58.903  1453  1470 E md_thermal: interval=40 temp: 42800 39900 38000 37800
+07-10 08:55:58.912  1319  1357 I libPerfCtl: xgfGetFPS pid:2245 fps:-1
+07-10 08:55:59.332  1349  1349 I BufferQueueProducer: [NotificationShade#2134](this:0xb4000079efd8fb88,id:-1,api:0,p:-1,c:1349) queueBuffer: fps=18.49 dur=2000.91 max=1685.42 min=7.81
+07-10 08:55:59.335  1284  1284 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:38.531662,dur:2517.41,max:1686.37,min:5.77  
+07-10 08:55:59.371  1321  1321 I android.hardware.thermal-service.mediatek: getTemperaturesWithType TemperatureType: 3
+07-10 08:55:59.372  1321  1321 W android.hardware.thermal-service.mediatek: i=0 tz_data[i].tz_idx[0]=7
+07-10 08:55:59.372  1321  1321 W android.hardware.thermal-service.mediatek: i=1 tz_data[i].tz_idx[0]=7
+07-10 08:55:59.372  1321  1321 W android.hardware.thermal-service.mediatek: i=2 tz_data[i].tz_idx[0]=6
+07-10 08:55:59.372  1321  1321 W android.hardware.thermal-service.mediatek: i=3 tz_data[i].tz_idx[0]=44
+07-10 08:55:59.381  1321  1321 I android.hardware.thermal-service.mediatek: fill_temperatures filterType1 name: SKIN type: SKIN throttlingStatus: NONE value: 37.099 ret_temps size 0
+07-10 08:55:59.382  1321  1321 W android.hardware.thermal-service.mediatek: i=4 tz_data[i].tz_idx[0]=0
+07-10 08:55:59.382  1321  1321 W android.hardware.thermal-service.mediatek: i=5 tz_data[i].tz_idx[0]=42
+07-10 08:55:59.382  1321  1321 W android.hardware.thermal-service.mediatek: i=6 tz_data[i].tz_idx[0]=-1
+07-10 08:55:59.382  1321  1321 W android.hardware.thermal-service.mediatek: i=7 tz_data[i].tz_idx[0]=-1
+07-10 08:55:59.382  1321  1321 W android.hardware.thermal-service.mediatek: i=8 tz_data[i].tz_idx[0]=-1
+07-10 08:55:59.382  1321  1321 W android.hardware.thermal-service.mediatek: i=9 tz_data[i].tz_idx[0]=7
+07-10 08:55:59.382  1321  1321 W android.hardware.thermal-service.mediatek: i=10 tz_data[i].tz_idx[0]=7
+07-10 08:55:59.382  1321  1321 W android.hardware.thermal-service.mediatek: i=11 tz_data[i].tz_idx[0]=-1
+07-10 08:55:59.382  1321  1321 W android.hardware.thermal-service.mediatek: i=12 tz_data[i].tz_idx[0]=-1
+07-10 08:55:59.382  1321  1321 W android.hardware.thermal-service.mediatek: i=13 tz_data[i].tz_idx[0]=7
+07-10 08:55:59.737  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 4
+07-10 08:55:59.739  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-10 08:55:59.913  1319  1357 I libPerfCtl: xgfGetFPS pid:2245 fps:120
+07-10 08:56:00.194 13207 13306 W HWUI    : Image decoding logging dropped!
+07-10 08:56:00.335  1349  1349 I BufferQueueProducer: [NotificationShade#2134](this:0xb4000079efd8fb88,id:-1,api:0,p:-1,c:1349) queueBuffer: fps=116.64 dur=1003.05 max=42.02 min=7.47
+07-10 08:56:00.337  1284  1284 I hwcomposer: [HWCDisplay] [Display_0 (type:1, mode:2)] fps:116.847847,dur:1001.30,max:42.84,min:4.69  
+07-10 08:56:00.353 13207 13306 W HWUI    : Image decoding logging dropped!
+07-10 08:56:00.374  1321  1321 I android.hardware.thermal-service.mediatek: getTemperaturesWithType TemperatureType: 3
+07-10 08:56:00.374  1321  1321 W android.hardware.thermal-service.mediatek: i=0 tz_data[i].tz_idx[0]=7
+07-10 08:56:00.374  1321  1321 W android.hardware.thermal-service.mediatek: i=1 tz_data[i].tz_idx[0]=7
+07-10 08:56:00.374  1321  1321 W android.hardware.thermal-service.mediatek: i=2 tz_data[i].tz_idx[0]=6
+07-10 08:56:00.374  1321  1321 W android.hardware.thermal-service.mediatek: i=3 tz_data[i].tz_idx[0]=44
+07-10 08:56:00.385  1321  1321 I android.hardware.thermal-service.mediatek: fill_temperatures filterType1 name: SKIN type: SKIN throttlingStatus: NONE value: 37.128 ret_temps size 0
+07-10 08:56:00.385  1321  1321 W android.hardware.thermal-service.mediatek: i=4 tz_data[i].tz_idx[0]=0
+07-10 08:56:00.385  1321  1321 W android.hardware.thermal-service.mediatek: i=5 tz_data[i].tz_idx[0]=42
+07-10 08:56:00.385  1321  1321 W android.hardware.thermal-service.mediatek: i=6 tz_data[i].tz_idx[0]=-1
+07-10 08:56:00.385  1321  1321 W android.hardware.thermal-service.mediatek: i=7 tz_data[i].tz_idx[0]=-1
+07-10 08:56:00.385  1321  1321 W android.hardware.thermal-service.mediatek: i=8 tz_data[i].tz_idx[0]=-1
+07-10 08:56:00.385  1321  1321 W android.hardware.thermal-service.mediatek: i=9 tz_data[i].tz_idx[0]=7
+07-10 08:56:00.385  1321  1321 W android.hardware.thermal-service.mediatek: i=10 tz_data[i].tz_idx[0]=7
+07-10 08:56:00.385  1321  1321 W android.hardware.thermal-service.mediatek: i=11 tz_data[i].tz_idx[0]=-1
+07-10 08:56:00.385  1321  1321 W android.hardware.thermal-service.mediatek: i=12 tz_data[i].tz_idx[0]=-1
+07-10 08:56:00.385  1321  1321 W android.hardware.thermal-service.mediatek: i=13 tz_data[i].tz_idx[0]=7
+07-10 08:56:00.668 13207 13306 W HWUI    : Image decoding logging dropped!
+07-10 08:56:00.671 13207 13306 W HWUI    : Image decoding logging dropped!
+07-10 08:56:00.741  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: retry left 3
+07-10 08:56:00.742  1513  1612 E mtk_storageproxyd: ipc-trustonic: ipc_trustonic_connect: Unable to resolve family name (-12)
+07-10 08:56:00.807  1425  1425 I adbd    : adbd service requested 'shell,v2,raw:dumpsys notification --noredact'
+07-10 08:56:00.837 15608 15608 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: notification
+07-10 08:56:00.913  1319  1357 I libPerfCtl: xgfGetFPS pid:2245 fps:120
+07-10 08:56:00.968  1425  1425 I adbd    : adbd service requested 'shell,v2,raw:dumpsys activity services co.gogocash.app'
+07-10 08:56:00.988 15611 15611 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: activity
+07-10 08:56:01.007  1852  1862 I system_server: Background young concurrent mark compact GC freed 100MB AllocSpace bytes, 143(3276KB) LOS objects, 54% free, 79MB/173MB, paused 777us,2.790ms total 105.450ms
+07-10 08:56:01.022  1852  1864 W System  : A resource failed to call release. 
+07-10 08:56:01.023  1425  1425 I adbd    : adbd service requested 'reverse:list-forward'
+07-10 08:56:01.039  1425  1425 I adbd    : adbd service requested 'shell,v2,raw:dumpsys window'
+07-10 08:56:01.072 15619 15619 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: window
+07-10 08:56:01.095  1852  4029 I system_server: AssetManager2(0xb400006f21f66578) locale list changing from [] to [en-US]
+07-10 08:56:01.103  1852  4029 I system_server: AssetManager2(0xb400006f21f0c7f8) locale list changing from [] to [en-US]
+07-10 08:56:01.112  1852  4029 I system_server: AssetManager2(0xb400006f21f6cc98) locale list changing from [] to [en-US]
+07-10 08:56:01.123  1852  4029 I system_server: AssetManager2(0xb400006f21faa1d8) locale list changing from [] to [en-US]
+07-10 08:56:01.137  1852  4029 I system_server: AssetManager2(0xb400006f21f8aab8) locale list changing from [] to [en-US]
+07-10 08:56:01.147  1852  4029 I system_server: AssetManager2(0xb400006f21fdce58) locale list changing from [] to [en-US]
+07-10 08:56:01.200  1425  1425 I adbd    : adbd service requested 'shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-t' '300''
+--- stderr ---
+
