@@ -22,6 +22,7 @@ import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/profileMenuIcons";
+import { resolveProfileCurrency } from "@mobile/account/resolveProfileWalletAmount";
 import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import { clearMobileAppSession, type MobileSession } from "@mobile/auth/session";
 import { webProfileWalletHeroSurface, webProfileWalletSummary } from "@mobile/design/webDesignParity";
@@ -35,14 +36,13 @@ import { typography } from "@mobile/theme/tokens";
 
 function deriveSummary(session: MobileSession) {
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
-  const region = str(session.region);
   return {
     title: str(session.username) ?? webProfileWalletSummary.username,
     tier: str(session.membership_tier) ?? webProfileWalletSummary.membershipTier,
     avatarUrl: str(session.avatar_url),
     maskedId: webProfileWalletSummary.maskedId,
     lastUpdated: webProfileWalletSummary.lastUpdated,
-    currency: region && region !== "Thailand" ? "USD" : webProfileWalletSummary.currency,
+    currency: resolveProfileCurrency(session.region),
   };
 }
 

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, type ViewStyle } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
+import { resolveProfileCurrency } from "@mobile/account/resolveProfileWalletAmount";
 import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import type { MobileSession } from "@mobile/auth/session";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
@@ -56,10 +57,7 @@ export function CustomerProfileBar({ open, session }: { open?: boolean; session:
     typeof session.avatar_url === "string" && session.avatar_url.trim()
       ? session.avatar_url.trim()
       : null;
-  const currency =
-    typeof session.region === "string" && session.region && session.region !== "Thailand"
-      ? "USD"
-      : webProfileWalletSummary.currency;
+  const currency = resolveProfileCurrency(session.region);
   const premium = isGoGoPassSubscriber(tier);
 
   return (
