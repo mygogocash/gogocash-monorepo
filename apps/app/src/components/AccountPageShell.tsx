@@ -354,7 +354,7 @@ export function AccountWalletHeroCard({
   amount = "0.00",
   avatarUrl,
   currency = "USD",
-  lastUpdated = "Last Updated: -",
+  lastUpdated = null,
   maskedId = "****",
   tier,
   title = "USER",
@@ -363,7 +363,7 @@ export function AccountWalletHeroCard({
   amount?: string;
   avatarUrl?: string | null;
   currency?: string;
-  lastUpdated?: string;
+  lastUpdated?: string | null;
   maskedId?: string;
   tier?: string;
   title?: string;
@@ -441,7 +441,7 @@ export function AccountWalletHeroCard({
               {currency}
             </Text>
           </View>
-          <Text style={styles.walletUpdated}>{lastUpdated}</Text>
+          {lastUpdated ? <Text style={styles.walletUpdated}>{lastUpdated}</Text> : null}
           <Link asChild href="/withdraw">
             <MotionPressable
               pressScale={0.98}

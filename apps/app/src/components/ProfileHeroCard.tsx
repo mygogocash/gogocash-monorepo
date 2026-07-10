@@ -1,11 +1,14 @@
+import { resolveProfileDisplayName, resolveProfileUserId } from "@mobile/account/profileIdentity";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View, type ViewStyle } from "react-native";
 import { Copy as CopyIcon } from "@mobile/theme/icons";
 
+import { resolveReferralInviteLink } from "@mobile/auth/referralInviteUrl";
 import type { MobileSession } from "@mobile/auth/session";
+import { getMobileEnv } from "@mobile/config/env";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
-import { mobileShellLayout, webProfileHeroCard, webProfileWalletSummary } from "@mobile/design/webDesignParity";
+import { mobileShellLayout, webProfileHeroCard } from "@mobile/design/webDesignParity";
 import { useProfileAvatarUpload } from "@mobile/hooks/useProfileAvatarUpload";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { copyToClipboard } from "@mobile/lib/clipboard";
@@ -36,10 +39,14 @@ export function ProfileHeroCard({ session }: { session: MobileSession }) {
   const isCompact = width < COMPACT_LAYOUT_MAX_WIDTH;
   const avatarSize = isCompact ? COMPACT_AVATAR_SIZE : DESKTOP_AVATAR_SIZE;
 
-  const username =
-    typeof session.username === "string" && session.username
-      ? session.username
-      : webProfileWalletSummary.username;
+  const username = resolveProfileDisplayName(session);
+  const userId = resolveProfileUserId(session);
+  const mobileEnv = getMobileEnv();
+  const invite = resolveReferralInviteLink({
+    frontendUrl: mobileEnv.frontendUrl,
+    userId,
+    useFixtures: mobileEnv.accountDataSource === "fixtures",
+  });
   const tier = readMembershipTier(session.membership_tier);
   const avatarUrl =
     typeof session.avatar_url === "string" && session.avatar_url.trim()
@@ -98,14 +105,12 @@ export function ProfileHeroCard({ session }: { session: MobileSession }) {
           <Text style={styles.userIdLabel}>{tc(webProfileHeroCard.userIdLabel)}</Text>
           <View style={styles.userIdValueRow}>
             <Text numberOfLines={1} style={styles.userIdValue}>
-              {webProfileHeroCard.userId}
+              {userId}
             </Text>
             <Pressable
               accessibilityLabel={tc(webProfileHeroCard.userIdCopyAria)}
               accessibilityRole="button"
-              onPress={() =>
-                void copyValue(webProfileHeroCard.userId, webProfileHeroCard.userIdCopiedToast)
-              }
+              onPress={() => void copyValue(userId, webProfileHeroCard.userIdCopiedToast)}
               style={styles.iconButton}
             >
               <CopyIcon color={iconColor} size={16} strokeWidth={typography.iconStrokeWidth} />
@@ -116,9 +121,7 @@ export function ProfileHeroCard({ session }: { session: MobileSession }) {
         <Pressable
           accessibilityLabel={tc(webProfileHeroCard.inviteLinkCopyAria)}
           accessibilityRole="button"
-          onPress={() =>
-            void copyValue(webProfileHeroCard.inviteLink, webProfileHeroCard.inviteLinkCopiedToast)
-          }
+          onPress={() => void copyValue(invite.inviteUrl, webProfileHeroCard.inviteLinkCopiedToast)}
           style={styles.inviteRow}
         >
           <Text numberOfLines={1} style={styles.inviteLabel}>
@@ -126,7 +129,7 @@ export function ProfileHeroCard({ session }: { session: MobileSession }) {
           </Text>
           <View style={styles.inviteLinkRow}>
             <Text ellipsizeMode="middle" numberOfLines={1} style={styles.inviteValue}>
-              {webProfileHeroCard.inviteLink}
+              {invite.displayLink}
             </Text>
             <View style={styles.inviteCopyIcon}>
               <CopyIcon color={iconColor} size={16} strokeWidth={typography.iconStrokeWidth} />

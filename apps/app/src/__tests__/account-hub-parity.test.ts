@@ -240,7 +240,7 @@ describe("Account hub route parity", () => {
     expect(shellFile).toContain("CustomerMobileBottomNav");
     expect(shellFile).toContain("bottomInset={insets.bottom}");
     expect(shellFile).toContain("showTitle = true");
-    expect(shellFile).toContain('lastUpdated = "Last Updated: -"');
+    expect(shellFile).toContain('lastUpdated = null');
     expect(profileFile).toContain('activeRouteId="profile"');
     expect(profileFile).toContain("showTitle={false}");
     expect(profileFile).toContain("AccountPageShell");
@@ -432,10 +432,12 @@ describe("Account hub route parity", () => {
     expect(panelFile).toContain("Personal Information");
     expect(panelFile).toContain("AVAILABLE TO WITHDRAW");
     // The new hero replaces the generic AccountWalletHeroCard on this surface; the
-    // panel composes ProfileHeroCard, which carries the wallet-summary fallback.
+    // panel composes ProfileHeroCard. Its display name comes from the shared
+    // identity resolver (fixture fallback lives inside it, fixtures-mode only —
+    // live sessions must never render "Mock User"; field bug 2026-07-10).
     expect(panelFile).toContain("ProfileHeroCard");
     const heroFile = readMobileFile("src/components/ProfileHeroCard.tsx");
-    expect(heroFile).toContain("webProfileWalletSummary");
+    expect(heroFile).toContain("resolveProfileDisplayName");
   });
 
   it("profile desktop panel > given web responsive /profile > then CustomerProfileScreen renders ProfileInfoPanel on desktop and the hub otherwise", () => {

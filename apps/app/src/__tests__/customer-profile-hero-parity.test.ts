@@ -43,9 +43,13 @@ describe("Customer profile hero parity (web CardProfile)", () => {
     // Reuses the shared constant rather than re-declaring copy.
     expect(heroFile).toContain("webProfileHeroCard");
     expect(heroFile).toContain('from "@mobile/design/webDesignParity"');
-    // User ID label + value rendered from the constant.
+    // User ID label from the constant; the VALUE comes from the identity
+    // resolver — live sessions render the real account id, never the fixture
+    // (field bug 2026-07-10: fixture "204815963" showed and copied on live).
     expect(heroFile).toContain("webProfileHeroCard.userIdLabel");
-    expect(heroFile).toContain("webProfileHeroCard.userId");
+    expect(heroFile).toContain("resolveProfileUserId(session)");
+    expect(heroFile).not.toContain("{webProfileHeroCard.userId}");
+    expect(heroFile).toContain("copyValue(userId,");
     expect(heroFile).toContain("userIdValueRow");
     // A copy button with the a11y label, calling the cross-platform clipboard helper.
     expect(heroFile).toContain("webProfileHeroCard.userIdCopyAria");
@@ -60,7 +64,12 @@ describe("Customer profile hero parity (web CardProfile)", () => {
     const heroFile = readMobileFile("src/components/ProfileHeroCard.tsx");
 
     expect(heroFile).toContain("webProfileHeroCard.inviteLinkLabel");
-    expect(heroFile).toContain("webProfileHeroCard.inviteLink");
+    // Invite link comes from the shared referral resolver (real referral URL in
+    // backend mode, fixture in fixtures mode) — same seam as the referral page.
+    expect(heroFile).toContain("resolveReferralInviteLink(");
+    expect(heroFile).toContain("invite.displayLink");
+    expect(heroFile).toContain("copyValue(invite.inviteUrl,");
+    expect(heroFile).not.toContain("{webProfileHeroCard.inviteLink}");
     expect(heroFile).toContain("webProfileHeroCard.inviteLinkCopyAria");
     expect(heroFile).toContain("webProfileHeroCard.inviteLinkCopiedToast");
     expect(heroFile).toContain("inviteLinkRow");

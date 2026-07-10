@@ -11,6 +11,11 @@ import {
 import { useState } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
+import {
+  resolveProfileDisplayName,
+  resolveProfileLastUpdated,
+  resolveProfileMaskedId,
+} from "@mobile/account/profileIdentity";
 import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
@@ -300,25 +305,16 @@ function getSessionWalletSummary(session: ReturnType<typeof useMobileSessionSnap
 
   return {
     ...webProfileWalletSummary,
-    maskedId: sessionId ? maskSessionId(sessionId) ?? webProfileWalletSummary.maskedId : webProfileWalletSummary.maskedId,
+    // Live sessions must never leak fixture identity strings — the resolvers
+    // fall back to masked session data in backend mode (fixtures keep parity).
+    lastUpdated: resolveProfileLastUpdated(),
+    maskedId: resolveProfileMaskedId(session ?? null),
     userId: sessionId ?? webProfileWalletSummary.userId,
-    username:
-      typeof session?.username === "string" && session.username
-        ? session.username
-        : webProfileWalletSummary.username,
+    username: resolveProfileDisplayName(session ?? null),
     tier: readMembershipTier(session?.membership_tier) ?? "",
   };
 }
 
-function maskSessionId(value: string | boolean | null | undefined): string | null {
-  if (typeof value !== "string" || !value) {
-    return null;
-  }
-
-  const suffix = value.slice(-4).padStart(4, "*");
-
-  return `***${suffix}`;
-}
 
 function createProfileScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
