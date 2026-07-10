@@ -4,6 +4,8 @@
  * Usage: node scripts/figma-brand-logos/parse-metadata-xml.mjs <metadata.xml> > entries.json
  */
 import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const CATEGORY_FRAMES = {
   "default-shop-card": {
@@ -37,13 +39,28 @@ function slugifyBrand(brandLabel) {
     .replace(/_+/g, "_");
 }
 
-function parseXmlNodes(xml) {
+/** Unescape XML attribute entities; meta-character (&amp;) is decoded last. */
+export function decodeXmlAttributeValue(value) {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+export function parseXmlNodes(xml) {
   const tagRe =
     /<(symbol|instance|frame|component|component-set)\s+id="([^"]+)"\s+name="([^"]*)"/g;
   const nodes = [];
   let match;
   while ((match = tagRe.exec(xml)) !== null) {
-    nodes.push({ type: match[1], id: match[2], name: match[3].replace(/&amp;/g, "&").replace(/&#39;/g, "'") });
+    nodes.push({
+      type: match[1],
+      id: match[2],
+      name: decodeXmlAttributeValue(match[3]),
+    });
   }
   return nodes;
 }
@@ -89,12 +106,18 @@ function buildEntries(nodes) {
   return entries;
 }
 
-const xmlPath = process.argv[2];
-if (!xmlPath) {
-  console.error("Usage: node parse-metadata-xml.mjs <metadata.xml>");
-  process.exit(1);
-}
+const isMain =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
-const xml = await fs.readFile(xmlPath, "utf8");
-const entries = buildEntries(parseXmlNodes(xml));
-process.stdout.write(`${JSON.stringify(entries, null, 2)}\n`);
+if (isMain) {
+  const xmlPath = process.argv[2];
+  if (!xmlPath) {
+    console.error("Usage: node parse-metadata-xml.mjs <metadata.xml>");
+    process.exit(1);
+  }
+
+  const xml = await fs.readFile(xmlPath, "utf8");
+  const entries = buildEntries(parseXmlNodes(xml));
+  process.stdout.write(`${JSON.stringify(entries, null, 2)}\n`);
+}
