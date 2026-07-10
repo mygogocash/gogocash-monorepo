@@ -370,7 +370,7 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
               // caption + value (design alignment 2026-07-10).
               <View style={styles.brandCopy}>
                 <Text
-                  numberOfLines={compact ? 1 : 2}
+                  numberOfLines={1}
                   style={[styles.brandName, styles.brandNameCompact]}
                 >
                   {brand.name}

@@ -143,7 +143,10 @@ describe("CustomerFavoriteBrandsScreen — Wave B treatments (source signals)", 
     expect(screenSource).toMatch(/cashbackCaptionCompact: \{[^}]*fontSize: 10/);
     expect(screenSource).toMatch(/cashbackValueCompact: \{[^}]*fontSize: 16/);
     expect(screenSource).toMatch(/cashbackValueCompact: \{[^}]*fontWeight: "700"/);
-    // Compact names are single-line like every other brand card.
-    expect(screenSource).toMatch(/numberOfLines=\{compact \? 1 : 2\}/);
+    // Compact names are single-line like every other brand card (plain
+    // constant — the block is already compact-only, so no ternary).
+    expect(screenSource).toMatch(
+      /numberOfLines=\{1\}\s+style=\{\[styles\.brandName, styles\.brandNameCompact\]\}/,
+    );
   });
 });
