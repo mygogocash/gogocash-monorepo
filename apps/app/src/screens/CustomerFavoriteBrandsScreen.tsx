@@ -364,22 +364,39 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
                 {tc(brand.category)}
               </Text>
             </View>
-            <View style={[styles.brandNameRow, compact ? styles.brandNameRowCompact : null]}>
+            {compact ? (
+              // Compact anatomy matches the shared BrandCard S used on
+              // home/directory: single-line name, then a baseline row of
+              // caption + value (design alignment 2026-07-10).
               <View style={styles.brandCopy}>
                 <Text
-                  numberOfLines={2}
-                  style={[styles.brandName, compact ? styles.brandNameCompact : null]}
+                  numberOfLines={compact ? 1 : 2}
+                  style={[styles.brandName, styles.brandNameCompact]}
                 >
                   {brand.name}
                 </Text>
-                <Text style={styles.cashbackCaption}>
-                  {tc(webFavoriteBrandsPage.cashbackLabel)}
-                </Text>
+                <View style={styles.compactCashbackRow}>
+                  <Text numberOfLines={1} style={styles.cashbackCaptionCompact}>
+                    {tc(webFavoriteBrandsPage.cashbackLabel)}
+                  </Text>
+                  <Text style={[styles.cashbackValue, styles.cashbackValueCompact]}>
+                    {brand.cashback}
+                  </Text>
+                </View>
               </View>
-              <Text style={[styles.cashbackValue, compact ? styles.cashbackValueCompact : null]}>
-                {brand.cashback}
-              </Text>
-            </View>
+            ) : (
+              <View style={styles.brandNameRow}>
+                <View style={styles.brandCopy}>
+                  <Text numberOfLines={2} style={styles.brandName}>
+                    {brand.name}
+                  </Text>
+                  <Text style={styles.cashbackCaption}>
+                    {tc(webFavoriteBrandsPage.cashbackLabel)}
+                  </Text>
+                </View>
+                <Text style={styles.cashbackValue}>{brand.cashback}</Text>
+              </View>
+            )}
           </View>
         </MotionPressable>
       </Link>
@@ -649,12 +666,15 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     fontWeight: "600",
     lineHeight: 22,
   },
-  // Compact (2-column phone grid, ~169px cards): scale the name/value down so
-  // the name column fits whole words — at desktop sizes "Grocery Galaxy"
-  // broke mid-word next to the 27px value (design feedback 2026-07-10).
+  // Compact metrics mirror the shared BrandCard S (components/BrandCard.tsx)
+  // so favorites cards align with every other brand card (design feedback
+  // 2026-07-10): single-line 14/500 name; 10px caption + 16/700 value on a
+  // baseline row below.
   brandNameCompact: {
     fontSize: 14,
-    lineHeight: 18,
+    fontWeight: typography.labelWeight,
+    lineHeight: 17.5,
+    marginTop: 2,
   },
   cashbackCaption: {
     color: colors.muted,
@@ -672,12 +692,25 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     lineHeight: 31,
     textAlign: "right",
   },
-  cashbackValueCompact: {
-    fontSize: 20,
-    lineHeight: 24,
+  compactCashbackRow: {
+    alignItems: "baseline",
+    flexDirection: "row",
+    gap: spacing.xs,
+    justifyContent: "space-between",
+    marginTop: 4,
   },
-  brandNameRowCompact: {
-    minHeight: 44,
+  cashbackCaptionCompact: {
+    color: colors.muted,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 10,
+    fontWeight: typography.bodyWeight,
+    lineHeight: 10,
+  },
+  cashbackValueCompact: {
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 16,
   },
   favoriteListHeader: {
     gap: 12,
