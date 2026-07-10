@@ -44,6 +44,10 @@ describe("native firebase config > app.config.js", () => {
     const config = loadConfig()({ config: {} });
 
     expect(config.android.googleServicesFile).toBe("./google-services.json");
+    // The RNFB plugin runs BOTH platform mods when enabled — its iOS mod hard-
+    // fails prebuild without a plist (CodeQL swift run on PR #192), so the iOS
+    // file must ship alongside the android one.
+    expect(config.ios.googleServicesFile).toBe("./GoogleService-Info.plist");
     expect(config.plugins).toContain("@react-native-firebase/app");
   });
 
