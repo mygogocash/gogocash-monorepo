@@ -23,7 +23,7 @@
 | T-019 | iOS TestFlight smoke (manual) | **owner** | Depends on T-009 + T-008 + T-010. Install TestFlight build → Firebase login → GoGoTrack hub → activate → deeplink. Evidence → `evidence/staging/T-019-ios/`. | 2026-07-01 |
 | T-020 | Admin ↔ beta app cross-check | **owner** | [`evidence/staging/T-020-admin-endpoints-prep.txt`](../evidence/staging/T-020-admin-endpoints-prep.txt) — endpoints documented (`PATCH /admin/update-offer/:id`, etc.). Blocked: T-013 env fix + admin login + T-017 or T-009 build on device. | 2026-07-02 |
 | T-021 | Beta tester invites | **owner** | Depends on T-018 + T-019. Add TestFlight + Play internal testers; send onboarding doc. | 2026-07-01 |
-| T-022 | Launch sign-off | **partial** | Automation pass 2026-07-02 — see **Sign-off summary** below. [PR #166](https://github.com/mygogocash/gogocash-monorepo/pull/166) merged; mobile CI green ([`T-022-pr166-ci.txt`](../evidence/staging/T-022-pr166-ci.txt)). Beta blocked on T-013 + T-014 + T-017. | 2026-07-02 |
+| T-022 | Launch sign-off | **partial** | Automation pass 2026-07-02 — see **Sign-off summary** below. [PR #166](https://github.com/mygogocash/gogocash-monorepo/pull/166) merged; mobile CI green ([`T-022-pr166-ci.txt`](../evidence/staging/T-022-pr166-ci.txt)). Beta blocked on T-013 + T-014 + T-017. Code Quality **Excellent** on `main` after [PR #172](https://github.com/mygogocash/gogocash-monorepo/pull/172) (2026-07-07). | 2026-07-02 |
 
 ## Wave summaries
 
@@ -43,7 +43,7 @@
 | Task | Result |
 |------|--------|
 | T-005 | **pass** (recovered ~14:52 UTC) |
-| T-006 | owner — RS verify optional |
+| T-006 | **pass** (standalone — see T-006 row) |
 | T-007 | **pass** |
 | T-012 | partial pass |
 | T-013 | owner — login + real-API verify |
@@ -52,10 +52,10 @@
 
 | Task | Result |
 |------|--------|
-| T-008 | **owner** — Railway Shell seed |
+| T-008 | **pass** — Shopee seeded on staging Mongo (see T-008 in task table) |
 | T-014 | **fail** — iOS internal distribution creds |
-| T-015 | **in progress** — [GH run 28523687143](https://github.com/mygogocash/gogocash-monorepo/actions/runs/28523687143) |
-| T-016 | **owner** — JWT + T-008 |
+| T-015 | **pass** — [GH run 28559422060](https://github.com/mygogocash/gogocash-monorepo/actions/runs/28559422060) |
+| T-016 | **pass** — JWT activate smoke (see T-016 in task table) |
 
 ### Wave 3–4 (T-009, T-017–T-021)
 

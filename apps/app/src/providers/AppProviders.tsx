@@ -12,6 +12,8 @@ import { ToastProvider } from "@mobile/components/Toast";
 import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
 import { getObservabilityConfig, initObservability } from "@mobile/observability/client";
 import { FavoriteBrandsProvider } from "@mobile/account/FavoriteBrandsProvider";
+import { DeepLinkReplay } from "@mobile/navigation/DeepLinkReplay";
+import { subscribeEarlyDeepLinkCapture } from "@mobile/navigation/pendingDeepLink";
 import { AccountResourceWarmup } from "@mobile/providers/AccountResourceWarmup";
 import { PublicCatalogRefetchOnFocus } from "@mobile/providers/PublicCatalogRefetchOnFocus";
 import { customerQueryDefaults } from "@mobile/query/queryDefaults";
@@ -37,6 +39,11 @@ const noOpPostHogClient = {
   optIn: () => undefined,
   optOut: () => undefined,
 } as unknown as PostHog;
+
+// Subscribe at module scope — the earliest JS moment — so a deep link that
+// arrives while the bootstrap gate below still withholds the router Stack is
+// buffered instead of dropped (DeepLinkReplay replays it once the Stack mounts).
+subscribeEarlyDeepLinkCapture();
 
 export function AppProviders({ children }: PropsWithChildren) {
   useOtaUpdateOnLaunch();
@@ -67,6 +74,7 @@ export function AppProviders({ children }: PropsWithChildren) {
 
   const routedContent = appReady ? (
     <>
+      <DeepLinkReplay />
       <RouteAnalyticsTracker />
       <AccountResourceWarmup />
       <PublicCatalogRefetchOnFocus />

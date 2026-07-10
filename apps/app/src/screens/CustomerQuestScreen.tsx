@@ -1,6 +1,7 @@
 import { Image as ExpoImage } from "expo-image";
 import { Link } from "expo-router";
 import {
+  ChevronUp as ChevronUpIcon,
   CircleDollarSign as CoinIcon,
   DeviceMobile as DeviceMobileIcon,
   MousePointerClick as MousePointerClickIcon,
@@ -9,7 +10,6 @@ import {
   Storefront as StorefrontIcon,
   Trophy as TrophyIcon,
 } from "@mobile/theme/icons";
-import { ChevronUp as ChevronUpIcon } from "@mobile/theme/icons";
 import type { IconComponent } from "@mobile/theme/icons";
 import { useState } from "react";
 import { Image, Modal, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -67,9 +67,26 @@ type QuestExploreShopCard = {
 };
 
 export function CustomerQuestScreen({ history = false }: { history?: boolean }) {
+  if (history) {
+    return <CustomerQuestHistoryScreen />;
+  }
+  return <CustomerQuestMainScreen />;
+}
+
+function CustomerQuestHistoryScreen() {
+  const tc = useCopy();
+
+  return (
+    <AccountPageShell activeRouteId="quest" tabletContentMode="fluid" title={tc("Quest History")}>
+      <QuestHistoryView />
+    </AccountPageShell>
+  );
+}
+
+function CustomerQuestMainScreen() {
   const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
-  const [activeTab, setActiveTab] = useState<QuestTabId>(history ? "leaderboard" : "how-to-win");
+  const [activeTab, setActiveTab] = useState<QuestTabId>("how-to-win");
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const shellWidth = Math.min(
@@ -84,14 +101,6 @@ export function CustomerQuestScreen({ history = false }: { history?: boolean }) 
   const heroHeight = contentWidth / (1200 / 675);
   const mediaColumnWidth = isDesktop ? (contentWidth - spacing.lg) / 2 : contentWidth;
   const exploreLayout = getQuestExploreLayout(width, contentWidth);
-
-  if (history) {
-    return (
-      <AccountPageShell activeRouteId="quest" tabletContentMode="fluid" title={tc("Quest History")}>
-        <QuestHistoryView />
-      </AccountPageShell>
-    );
-  }
 
   return (
     <AccountPageShell activeRouteId="quest" tabletContentMode="fluid" title={tc("Quest")}>

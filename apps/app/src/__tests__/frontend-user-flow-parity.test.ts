@@ -396,7 +396,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   {
     appFile: "app/quest/history.tsx",
     expectedLinks: ["/quest/history"],
-    landmarks: ['history ? "leaderboard" : "how-to-win"', "QuestLeaderboardPanel", "Quest History"],
+    landmarks: ["CustomerQuestHistoryScreen", "QuestHistoryView", "Quest History"],
     routeId: "questHistory",
     routeMarkers: ["CustomerQuestScreen", "history"],
     screenFiles: ["src/screens/CustomerQuestScreen.tsx"],

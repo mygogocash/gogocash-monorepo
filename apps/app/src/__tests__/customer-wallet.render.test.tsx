@@ -201,6 +201,23 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     expect(walletSource).toMatch(/metricAmountRow:[\s\S]*width: "100%"/);
   });
 
+  it("stacks cashback metrics one per row on mobile with an inline right-aligned amount", () => {
+    // Mobile (compact) previously squeezed the three metric cards into one
+    // 3-column row — Thai labels wrapped to two lines and the amounts clipped
+    // ("0…" THB at 400px). Compact now stacks the cards vertically; each card
+    // is a single row of icon → label → amount, so amounts always fit. Desktop
+    // keeps the three-up row.
+    expect(walletSource).toMatch(/compact \? styles\.walletMetricColumn : styles\.walletMetricRow/);
+    expect(walletSource).toMatch(/walletMetricColumn:[\s\S]*?flexDirection: "column"/);
+    expect(walletSource).toMatch(/metricCardCompact:[\s\S]*?flexDirection: "row"/);
+    expect(walletSource).toMatch(/metricAmountRowCompact:[\s\S]*?marginLeft: "auto"/);
+    // The compact card must not reuse the bottom-anchored amount row (marginTop:
+    // "auto" + width 100% belong to the desktop stacked card only).
+    expect(walletSource).toMatch(
+      /compact \? styles\.metricAmountRowCompact : styles\.metricAmountRow/,
+    );
+  });
+
   it("has state-driven transaction tabs + mock rows (all cases) + working Search/Status/Date filters", () => {
     // Tabs switch via state (not hardcoded index 0) and filter the mock rows by kind.
     expect(walletSource).toContain("setActiveTab");
