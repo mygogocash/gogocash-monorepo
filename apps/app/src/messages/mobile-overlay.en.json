@@ -371,5 +371,8 @@
   "mobileRegionBannerDismissAria": "Dismiss region notice",
   "mobileSettingsLanguageCountryTitle": "Language & Country",
   "mobileSettingsLanguageCountryHelper": "Choose your language and the country you shop in.",
-  "mobileSettingsChangeCountryAria": "Change country"
+  "mobileSettingsChangeCountryAria": "Change country",
+  "mobileLocaleRegionButtonAria": "Language and region",
+  "mobileLocaleRegionSheetCloseAria": "Close language and region",
+  "mobileLocaleRegionSheetAria": "Choose language and region"
 }

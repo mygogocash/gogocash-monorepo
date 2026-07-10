@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { useMemo } from "react";
@@ -132,9 +132,14 @@ describe("Detected-region confirm banner", () => {
     expect(screen.getByText("Change")).toBeTruthy();
   });
 
-  it("given an explicitly chosen region > then no banner shows", () => {
+  it("given an explicitly chosen region > then no banner shows", async () => {
     globalThis.localStorage.setItem(REGION_STORAGE_KEY, "TH");
     renderHeader();
+
+    // Flush the banner's async dismissed-state read first — asserting
+    // synchronously passes even with the regionSource guard deleted
+    // (mutation-tested false green: the banner simply hadn't rendered YET).
+    await act(async () => {});
 
     expect(screen.queryByText(/Showing deals for/)).toBeNull();
   });
@@ -154,6 +159,10 @@ describe("Detected-region confirm banner", () => {
     first.unmount();
 
     renderHeader();
+    // Flush the fresh mount's async dismissed-state read before asserting —
+    // without this the test passed even with persistence disabled
+    // (mutation-tested false green: the banner simply hadn't rendered YET).
+    await act(async () => {});
     expect(screen.queryByText(/Showing deals for/)).toBeNull();
   });
 });

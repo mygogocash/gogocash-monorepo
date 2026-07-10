@@ -371,5 +371,8 @@
   "mobileRegionBannerDismissAria": "ปิดการแจ้งเตือนประเทศ",
   "mobileSettingsLanguageCountryTitle": "ภาษาและประเทศ",
   "mobileSettingsLanguageCountryHelper": "เลือกภาษาและประเทศที่คุณช้อปปิ้ง",
-  "mobileSettingsChangeCountryAria": "เปลี่ยนประเทศ"
+  "mobileSettingsChangeCountryAria": "เปลี่ยนประเทศ",
+  "mobileLocaleRegionButtonAria": "ภาษาและภูมิภาค",
+  "mobileLocaleRegionSheetCloseAria": "ปิดตัวเลือกภาษาและภูมิภาค",
+  "mobileLocaleRegionSheetAria": "เลือกภาษาและภูมิภาค"
 }

@@ -1,4 +1,5 @@
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   LocaleOption,
@@ -6,6 +7,7 @@ import {
 } from "@mobile/components/CustomerLocaleRegionControl";
 import { webLocaleRegionPanel } from "@mobile/design/webDesignParity";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing } from "@mobile/theme/tokens";
@@ -19,21 +21,32 @@ import { radii, spacing } from "@mobile/theme/tokens";
  */
 export function CustomerLocaleRegionSheet({ onClose }: { onClose: () => void }) {
   const styles = useThemedStyles(createLocaleRegionSheetStyles);
+  const tc = useCopy();
+  const insets = useSafeAreaInsets();
   const { locale, region, setLocale, setRegion } = useLocale();
 
   return (
-    <Modal animationType="none" statusBarTranslucent transparent visible>
+    // onRequestClose: Android routes hardware/gesture back exclusively here
+    // while a Modal is visible — without it, back dead-ends (repo convention:
+    // every other Modal passes it).
+    <Modal
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      transparent
+      visible
+    >
       <View style={styles.sheetRoot}>
         <Pressable
-          accessibilityLabel="Close language and region"
+          accessibilityLabel={tc("Close language and region")}
           accessibilityRole="button"
           onPress={onClose}
           style={styles.sheetScrim}
         />
         <View
           {...({ role: "dialog" } as const)}
-          accessibilityLabel={webLocaleRegionPanel.ariaLabel}
-          style={styles.sheetCard}
+          accessibilityLabel={tc(webLocaleRegionPanel.ariaLabel)}
+          style={[styles.sheetCard, { paddingBottom: spacing.xl + insets.bottom }]}
         >
           <View style={styles.sheetGrabber} />
           <LocaleSectionTitle>{webLocaleRegionPanel.sections.language}</LocaleSectionTitle>
@@ -95,7 +108,6 @@ function createLocaleRegionSheetStyles(colors: ThemeColors) {
       borderTopRightRadius: radii.lg,
       borderWidth: 1,
       maxHeight: "78%",
-      paddingBottom: spacing.xl,
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.sm,
     },

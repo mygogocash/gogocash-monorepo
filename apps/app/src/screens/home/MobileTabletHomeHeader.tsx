@@ -54,7 +54,7 @@ export function MobileTabletHomeHeader({
         </View>
         <View style={styles.mobileTabletHeaderActions}>
           <MotionPressable
-            accessibilityLabel="Language and region"
+            accessibilityLabel={tc("Language and region")}
             accessibilityRole="button"
             onPress={() => setRegionSheetOpen(true)}
             pressScale={motion.scale.subtlePress}
