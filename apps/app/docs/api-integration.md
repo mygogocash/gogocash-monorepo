@@ -90,7 +90,7 @@ To bring another resource live: write the DTO from a real response → TDD a map
 | Module | Exports |
 | --- | --- |
 | `src/auth/firebaseClient.ts` | `getClientAuth()` (lazy init, local persistence on web), `getFirebaseIdToken(forceRefresh)`, `isFirebaseConfigured()` |
-| `src/auth/firebasePhoneAuth.ts` | `sendPhoneOtp(phoneE164)` (invisible reCAPTCHA — **Expo-web only**; native needs expo-firebase-recaptcha later), `confirmPhoneOtp(confirmation, code)` → `{ idToken }` |
+| `src/auth/firebasePhoneAuth.ts` | `sendPhoneOtp(phoneE164)` (web: invisible reCAPTCHA; native uses `nativePhoneAuth.ts` via `@react-native-firebase/auth` + Play Integrity since app 0.2.0), `confirmPhoneOtp(confirmation, code)` → `{ idToken }` |
 | `src/auth/firebaseLogin.ts` | `exchangeFirebaseIdToken({ apiUrl, idToken })` → `POST /auth/log-in` (Bearer + body, never in URL) → `mapLoginResponseToMobileSession` (emits **only** the 15 pinned session fields; `country`→`region`; `provider: "firebase"`) |
 
 **The remaining wiring** (in `CustomerAuthScreen.tsx`, where `buildDemoMobileSession()` is called today):
