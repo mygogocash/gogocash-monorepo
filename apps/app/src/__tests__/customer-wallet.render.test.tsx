@@ -216,6 +216,9 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     expect(walletSource).toMatch(
       /compact \? styles\.metricAmountRowCompact : styles\.metricAmountRow/,
     );
+    // Row hierarchy: the label reads normal-weight; only the amount + currency
+    // stay bold (design feedback 2026-07-10). Desktop labels keep their 700.
+    expect(walletSource).toMatch(/metricLabelCompact:[\s\S]*?fontWeight: "400"/);
   });
 
   it("has state-driven transaction tabs + mock rows (all cases) + working Search/Status/Date filters", () => {

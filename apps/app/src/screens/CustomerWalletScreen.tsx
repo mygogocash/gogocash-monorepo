@@ -729,8 +729,11 @@ function createWalletScreenStyles(colors: ThemeColors) {
     height: 30,
     width: 30,
   },
+  // Normal-weight label — in the compact row only the amount + currency carry
+  // the bold emphasis (design feedback 2026-07-10).
   metricLabelCompact: {
     fontSize: 13,
+    fontWeight: "400",
     lineHeight: 17,
   },
   metricAmountRowCompact: {
