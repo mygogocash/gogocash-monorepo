@@ -88,15 +88,105 @@ describe('BrandService', () => {
 
       await service.list({ country: 'TH(+', page: 1, limit: 20 } as never);
 
-      expect(offerModel.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          countries: { $regex: 'TH\\(\\+', $options: 'i' },
-        }),
+      const variantFilter = offerModel.find.mock.calls[0][0];
+      const regex = new RegExp(
+        variantFilter.countries.$regex,
+        variantFilter.countries.$options,
       );
+      expect(regex.test('TH(+')).toBe(true);
+      expect(regex.test('Thailand')).toBe(false);
+    });
+
+    it('list > given the ISO-2 country the app sends > then variant filter matches full country names', async () => {
+      // Field bug 2026-07-10: same ISO-2 vs full-name mismatch as GET /offer —
+      // country=MY matched no Involve variants ("Malaysia" has no "my" substring).
+      const brandId = new Types.ObjectId();
+      brandModel.find.mockReturnValue(
+        makeLeanQuery([{ _id: brandId, brand_name: 'Klook', disabled: false }]),
+      );
+      brandModel.countDocuments.mockResolvedValue(1);
+      offerModel.find.mockReturnValue(makeLeanQuery([]));
+
+      await service.list({ country: 'MY', page: 1, limit: 20 } as never);
+
+      const variantFilter = offerModel.find.mock.calls[0][0];
+      const regex = new RegExp(
+        variantFilter.countries.$regex,
+        variantFilter.countries.$options,
+      );
+      expect(regex.test('Australia, Malaysia, Singapore, Thailand')).toBe(true);
+      expect(regex.test('Thailand')).toBe(false);
+      expect(regex.test('Myanmar')).toBe(false);
     });
   });
 
   describe('resolveVariant', () => {
+    it('resolveVariant > given the ISO-2 country the app sends > then picks the matching full-name variant, not the fallback', async () => {
+      // Field bug 2026-07-10: variant selection compared the raw request
+      // country against lowercased full-name tokens, so `country=TH` never
+      // matched "Thailand" and silently fell through to the first variant.
+      const brandId = new Types.ObjectId();
+      brandModel.findOne.mockReturnValue(
+        makeLeanQuery({
+          _id: brandId,
+          brand_name: 'Expedia',
+          brand_slug: 'expedia',
+          disabled: false,
+        }),
+      );
+      const sgVariant = {
+        _id: new Types.ObjectId(),
+        brand_id: brandId,
+        countries: 'Singapore',
+        disabled: false,
+        status: 'approved',
+      };
+      const thVariant = {
+        _id: new Types.ObjectId(),
+        brand_id: brandId,
+        countries: 'Australia, Malaysia, Thailand',
+        disabled: false,
+        status: 'approved',
+      };
+      offerModel.find.mockReturnValue(makeLeanQuery([sgVariant, thVariant]));
+
+      const resolved = await service.resolveVariant('expedia', 'TH');
+
+      expect(resolved.variant._id).toEqual(thVariant._id);
+    });
+
+    it('resolveVariant > given an ISO-2 default_country on the brand > then the default fallback still matches full-name variants', async () => {
+      const brandId = new Types.ObjectId();
+      brandModel.findOne.mockReturnValue(
+        makeLeanQuery({
+          _id: brandId,
+          brand_name: 'Expedia',
+          brand_slug: 'expedia',
+          default_country: 'TH',
+          disabled: false,
+        }),
+      );
+      const sgVariant = {
+        _id: new Types.ObjectId(),
+        brand_id: brandId,
+        countries: 'Singapore',
+        disabled: false,
+        status: 'approved',
+      };
+      const thVariant = {
+        _id: new Types.ObjectId(),
+        brand_id: brandId,
+        countries: 'Thailand',
+        disabled: false,
+        status: 'approved',
+      };
+      offerModel.find.mockReturnValue(makeLeanQuery([sgVariant, thVariant]));
+
+      const resolved = await service.resolveVariant('expedia', null);
+
+      expect(resolved.variant._id).toEqual(thVariant._id);
+    });
+
     it('resolveVariant > given pending and rejected variants > then it queries only active approved variants', async () => {
       const brandId = new Types.ObjectId();
       brandModel.findOne.mockReturnValue(

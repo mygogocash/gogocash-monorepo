@@ -11,6 +11,7 @@ import {
   mongoSetUpdate,
   mongoCaseInsensitiveRegex,
 } from 'src/common/mongo-query';
+import { countryFilterRegex, countryMatchTokens } from 'src/utils/country';
 import { Brand, BrandDocument } from './schemas/brand.schema';
 import { Offer, OfferDocument } from '../offer/schemas/offer.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -124,8 +125,9 @@ export class BrandService {
 
     const ids = brandsRaw.map((b) => b._id);
     const variantFilter: QueryFilter<Offer> = { brand_id: { $in: ids } };
-    if (dto.country)
-      variantFilter.countries = mongoCaseInsensitiveRegex(dto.country);
+    const variantCountryRegex = countryFilterRegex(dto.country);
+    if (variantCountryRegex)
+      variantFilter.countries = { $regex: variantCountryRegex, $options: 'i' };
     const variants = await this.offerModel
       .find(variantFilter)
       .select(
@@ -193,22 +195,24 @@ export class BrandService {
     if (variants.length === 0) {
       throw new NotFoundException('Brand has no active variants.');
     }
-    // Reproduces lib/offer/offerVisibility.ts pickBrandVariant priority on the server.
-    const normalized = (userCountry ?? '').trim().toLowerCase();
-    const matches = (v: Offer, country: string) =>
+    // Reproduces lib/offer/offerVisibility.ts pickBrandVariant priority on the
+    // server. The requested/default country expands to every known spelling
+    // (ISO-2 + full names) so `country=TH` matches a "Thailand" variant.
+    const requested = countryMatchTokens(userCountry);
+    const matches = (v: Offer, tokens: readonly string[]) =>
       (v.countries ?? '')
         .split(',')
         .map((c) => c.trim().toLowerCase())
         .filter(Boolean)
-        .includes(country);
+        .some((c) => tokens.includes(c));
 
     const brandLean = brand as BrandLean;
-    if (normalized) {
-      const variant = variants.find((v) => matches(v as Offer, normalized));
+    if (requested.length > 0) {
+      const variant = variants.find((v) => matches(v as Offer, requested));
       if (variant) return { brand: brandLean, variant: variant as VariantLean };
     }
-    const def = (brand.default_country ?? '').trim().toLowerCase();
-    if (def) {
+    const def = countryMatchTokens(brand.default_country);
+    if (def.length > 0) {
       const variant = variants.find((v) => matches(v as Offer, def));
       if (variant) return { brand: brandLean, variant: variant as VariantLean };
     }
