@@ -42,13 +42,17 @@ export class Brand {
   @Prop({ trim: true, lowercase: true })
   shop_slug?: string;
 
-  @Prop({ default: 'draft', enum: ['draft', 'published', 'archived'] })
+  @Prop({
+    type: String,
+    default: 'draft',
+    enum: ['draft', 'published', 'archived'],
+  })
   shop_status?: 'draft' | 'published' | 'archived';
 
   @Prop({ default: false })
   shop_visible?: boolean;
 
-  @Prop({ default: 'gogocash', enum: ['gogocash'] })
+  @Prop({ type: String, default: 'gogocash', enum: ['gogocash'] })
   fulfillment_owner?: 'gogocash';
 
   @Prop({ trim: true })

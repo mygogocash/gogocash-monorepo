@@ -10,6 +10,7 @@ import {
 
 describe("questTaskWording", () => {
   const offer = {
+    _id: "offer-1",
     offer_name: "Poplook #85",
     offer_name_display: "Poplook (MY)",
   };

@@ -60,8 +60,12 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
         run: npm run test -w gogocash-api
 
-      - name: Build (type-check)
-        # nest build (tsc) exceeds Node's 2GB default heap on runners (exit 134)
+      - name: Typecheck (native tsc — gate)
+        # Standalone gate: the swc build below is transpile-only.
+        run: npm run typecheck -w gogocash-api
+
+      - name: Build (swc)
+        # Transpile-only emit; decorators/paths via apps/api/.swcrc.
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: npm run build -w gogocash-api

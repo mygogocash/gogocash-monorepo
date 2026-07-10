@@ -58,10 +58,10 @@ describe("Expo typography parity", () => {
     // retired. The font contract now lives entirely in the Expo app: the runtime
     // font registry (appFonts.ts) is the native source of truth, the locale
     // mechanism moved to the html lang attribute, and the web/native families are
-    // still pinned by the shared tokens, the web index.html, and app.config.ts.
+    // still pinned by the shared tokens, the web index.html, and app.config.js.
     const appFonts = readMobileFile("src/theme/appFonts.ts");
     const mobileHtml = readMobileFile("public/index.html");
-    const mobileConfig = readMobileFile("app.config.ts");
+    const mobileConfig = readMobileFile("app.config.js");
     const providers = readMobileFile("src/providers/AppProviders.tsx");
     const packageJson = readMobileFile("package.json");
 

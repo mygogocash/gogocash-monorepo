@@ -55,6 +55,14 @@ describe("CustomerWalletScreen (render)", () => {
     expect(() => renderScreen()).not.toThrow();
   });
 
+  it("exposes a locale-invariant wallet-dashboard testID (Maestro anchor that empty-state / login redirect lack)", () => {
+    // The authenticated dashboard is the only branch that renders WalletCashbackSummary.
+    // Maestro flows must key on this structural id, not the word "Wallet" (which also shows
+    // on the empty-state screen and on the /wallet->/login "Connect Wallet" redirect).
+    renderScreen();
+    expect(screen.getByTestId("wallet-dashboard")).toBeTruthy();
+  });
+
   it("renders the cashback summary header + the transactions area", () => {
     renderScreen();
     // The screen header title appears (WalletHeader + AccountPageShell title both use it).

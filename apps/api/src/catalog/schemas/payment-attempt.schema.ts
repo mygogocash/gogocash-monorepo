@@ -45,6 +45,7 @@ export class PaymentAttempt {
   currency!: string;
 
   @Prop({
+    type: String,
     default: 'created',
     enum: PAYMENT_ATTEMPT_STATUSES,
     index: true,

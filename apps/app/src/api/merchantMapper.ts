@@ -82,7 +82,9 @@ export function mapMerchantOfferToShopDetail<TShop extends ShopDetailIdentity>(
 ): Omit<TShop, keyof ShopDetailIdentity> & ShopDetailIdentity & LiveShopDetailFields {
   const brand =
     offer.offer_name_display?.trim() || offer.offer_name?.trim() || fixtureShop.brand;
-  const cashback = formatCashback(offer) ?? fixtureShop.cashback;
+  // Never fall back to fixture cashback on a live offer — that leaks Grocery Galaxy
+  // rates (e.g. 26.5%) onto merchants whose commission fields are empty.
+  const cashback = formatCashback(offer) ?? "—";
   const apiBaseUrl = getMobileEnv().apiUrl;
 
   return {

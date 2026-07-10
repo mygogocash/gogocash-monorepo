@@ -68,7 +68,10 @@ describe("FavoriteBrandsProvider stale fetch guard", () => {
     vi.resetModules();
   });
 
-  it("FavoriteBrandsProvider > given a slow favorites fetch > when user toggles optimistically > then ignores the stale snapshot", async () => {
+  it("FavoriteBrandsProvider > given a slow favorites fetch > when user toggles optimistically > then merges the toggle onto the fetched favorites (keeps existing)", async () => {
+    // Regression: toggling during the initial fetch used to bump the fetch epoch, so the
+    // resolving server favorites were dropped and the user's existing favorites vanished.
+    // The optimistic toggle must be MERGED onto the fetched set, not replace it.
     let resolveFetch: ((ids: string[]) => void) | null = null;
     fetchFavoriteOfferIds.mockImplementation(
       () =>
@@ -84,6 +87,7 @@ describe("FavoriteBrandsProvider stale fetch guard", () => {
       await Promise.resolve();
     });
 
+    // Optimistic state before the fetch resolves: only the just-toggled id.
     expect(getByTestId("favorite-ids").textContent).toBe("offer-b");
 
     await act(async () => {
@@ -91,7 +95,8 @@ describe("FavoriteBrandsProvider stale fetch guard", () => {
       await Promise.resolve();
     });
 
-    expect(getByTestId("favorite-ids").textContent).toBe("offer-b");
+    // The user's existing server favorite (offer-a) is preserved alongside the optimistic toggle.
+    expect(getByTestId("favorite-ids").textContent).toBe("offer-a,offer-b");
   });
 
   it("FavoriteBrandsProvider > given a slow favorites fetch > when session logs out > then ignores the stale snapshot", async () => {

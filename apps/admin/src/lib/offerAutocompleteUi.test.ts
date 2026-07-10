@@ -16,7 +16,7 @@ describe("offerAutocompleteUi", () => {
     };
 
     const merged = mergeAutocompleteTextFieldSlotProps(
-      params as Parameters<typeof mergeAutocompleteTextFieldSlotProps>[0],
+      params as unknown as Parameters<typeof mergeAutocompleteTextFieldSlotProps>[0],
       "Search offers",
     );
 

@@ -1,4 +1,4 @@
-import { HttpException } from '@nestjs/common';
+import { HttpException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -98,6 +98,40 @@ describe('InvolveService', () => {
       expect(result).toEqual({ data: { token: 'tok-new' } });
     });
 
+    // Staging incident 2026-07-10: a rejected INVOLVE_SECRET surfaced as a bare
+    // 500 from /gototrack/activate. Auth failures against Involve must map to a
+    // 502 with a stable code — and the thrown payload must never carry the
+    // secret (the raw axios error embeds the request body).
+    it('signIn > given Involve rejects the secret > then throws 502 GOGOSENSE_UPSTREAM_AUTH_FAILED without leaking the secret', async () => {
+      const upstreamError = new Error(
+        'Request failed with status code 401',
+      ) as Error & {
+        response?: unknown;
+        config?: unknown;
+      };
+      upstreamError.response = { status: 401, data: { status_code: 401 } };
+      upstreamError.config = {
+        data: JSON.stringify({ secret: 'secret-new', key: 'general' }),
+      };
+      mockedAxios.post.mockRejectedValue(upstreamError);
+
+      let caught: unknown;
+      try {
+        await service.signIn();
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(HttpException);
+      expect((caught as HttpException).getStatus()).toBe(502);
+      const body = (caught as HttpException).getResponse();
+      expect(body).toMatchObject({
+        code: 'GOGOSENSE_UPSTREAM_AUTH_FAILED',
+        upstreamStatusCode: 401,
+      });
+      expect(JSON.stringify(body)).not.toContain('secret-new');
+    });
+
     it('signInOld > given valid credentials > then caches the token under access_token_involve_old', async () => {
       mockedAxios.post.mockResolvedValue({
         data: { data: { token: 'tok-old' } },
@@ -141,7 +175,9 @@ describe('InvolveService', () => {
   });
 
   describe('createAffiliate', () => {
-    it('createAffiliate > given an unknown user id > then throws User not found', async () => {
+    // A missing user is a client-state problem, not a server fault: it must be
+    // a 404 NotFoundException, not a plain Error that Nest renders as a 500.
+    it('createAffiliate > given an unknown user id > then throws NotFoundException (404), not a 500', async () => {
       userModel.findOne.mockResolvedValue(null);
 
       await expect(
@@ -149,19 +185,30 @@ describe('InvolveService', () => {
           { offer_id: 1, merchant_id: 2, deeplink: '' } as never,
           new Types.ObjectId().toString(),
         ),
-      ).rejects.toThrow('User not found');
+      ).rejects.toThrow(NotFoundException);
     });
 
     // A malformed (non-24-hex) id must take the not-found path, not throw a raw
     // BSON cast error — new Types.ObjectId(id) was constructed before the lookup.
-    it('createAffiliate > given a malformed (non-24-hex) id > then throws User not found, not a BSON cast error', async () => {
+    it('createAffiliate > given a malformed (non-24-hex) id > then throws NotFoundException, not a BSON cast error', async () => {
       await expect(
         service.createAffiliate(
           { offer_id: 1, merchant_id: 2, deeplink: '' } as never,
           'not-a-valid-object-id',
         ),
-      ).rejects.toThrow('User not found');
+      ).rejects.toThrow(NotFoundException);
       expect(userModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('createAffiliateAi > given an unknown email > then throws NotFoundException (404)', async () => {
+      userModel.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.createAffiliateAi(
+          { offer_id: 1, merchant_id: 2 } as never,
+          'nobody@example.com',
+        ),
+      ).rejects.toThrow(NotFoundException);
     });
 
     // An already-generated deeplink must NOT trigger another Involve API call;

@@ -13,7 +13,7 @@ describe("offerToEditForm", () => {
       disabled: true,
       extra_store: true,
       product_types: [],
-    } as Offer;
+    } as unknown as Offer;
 
     const form = offerToEditForm(offer);
     expect(form.id).toBe("offer-1");

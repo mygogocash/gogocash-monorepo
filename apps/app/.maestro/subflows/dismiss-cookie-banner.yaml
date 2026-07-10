@@ -1,3 +1,4 @@
+appId: co.gogocash.app
 ---
 - extendedWaitUntil:
     visible: "Accept all cookies"

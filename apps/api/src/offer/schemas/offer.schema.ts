@@ -128,7 +128,11 @@ export class Offer {
    * Affiliate network of origin. `'involve'` default keeps every pre-existing
    * document valid without a backfill migration.
    */
-  @Prop({ default: 'involve', enum: ['involve', 'optimise', 'manual'] })
+  @Prop({
+    type: String,
+    default: 'involve',
+    enum: ['involve', 'optimise', 'manual'],
+  })
   source: OfferSource;
 
   /**
@@ -137,6 +141,7 @@ export class Offer {
    * Optimise sync writes `'pending_review'` on newly-seen offers.
    */
   @Prop({
+    type: String,
     default: 'approved',
     enum: ['pending_review', 'approved', 'rejected'],
   })

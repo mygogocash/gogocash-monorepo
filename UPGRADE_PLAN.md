@@ -12,8 +12,10 @@
 > `apexcharts ^5.15.0` + `react-apexcharts ^2.1.0`, `swiper ^12.2.0`,
 > `react-dropzone ^15.0.0`, `tailwind-merge ^3.6.0`, `vitest ^4.1.8`; api small
 > majors `customerio-node ^5.0.1`, `jwks-rsa ^4.0.1`, `eslint-config-prettier ^10`.
-> **Tier 2 (Expo SDK) is the only outstanding track** — the app is still on
-> `expo ^56.0.0` / `react-native 0.85.3`.
+> **Update (2026-07-10):** the app is on **Expo SDK 57 / react-native 0.86** — the note
+> below predates that move. The recurring SDK-train item (next: SDK 58, which also
+> unlocks zod 4 and `@sentry/react-native` 8 per the Tier 3 notes) remains the only
+> outstanding track.
 
 | Tier / item | Status | PR |
 |---|---|---|
@@ -28,7 +30,22 @@
 | **Tier 1 #8** — recharts 2→3, apexcharts 4→5, swiper 11→12, react-dropzone 14→15, tailwind-merge 2→3 (admin) | ✅ done | — |
 | **Tier 1 #9** — vitest 3→4 (admin) | ✅ done | — |
 | **Tier 1 #10** — customerio-node 4→5, jwks-rsa 3→4, eslint-config-prettier 9→10 (api) | ✅ done | — |
-| **Tier 2** — Expo SDK (app) | ⬜ pending | — |
+| **Tier 2** — Expo SDK (app): 56 → **57** landed; recurs per SDK release (next: 58) | ✅ done | — |
+| **Tier 3** — TypeScript 6.0 → **7.0.2 (native compiler)**, all workspaces | ✅ done | — |
+
+**Tier 3 notes (TS 7 native):** TS 7 ships no JS compiler API, so every consumer was
+replaced: api build is `swc src -d dist` (~100ms vs the old 2GB-heap nest build; @nestjs/cli
+removed), ts-jest → `@swc/jest`, ts-node scripts → `@swc-node/register`, typescript-eslint →
+**oxlint** (no type-aware rules until typescript-eslint ports — recorded degradation), and 16
+union-typed `@Prop` fields gained explicit `type:` (SWC metadata limitation). tsconfigs
+migrated off removed `baseUrl`/`ignoreDeprecations` (api → `node16` + relative `paths`).
+**One forced deviation:** `apps/admin` keeps `typescript ~6.0.3` as Next 16's internal
+library (Next hard-requires the JS API; its build-time type-check stays alive as the admin
+type gate). The 128 pre-existing standalone `tsc --noEmit` errors were cleared 2026-07-10
+(jest-dom type augmentation via the `/vitest` entrypoint, the `Offer.commissions` type
+corrected to the real API's object rows — which exposed and fixed an `[object Object]`
+render on pending-offer review — and fixture typing) and admin typecheck is now a CI gate.
+New CI gates: `gototrack-mcp` (was uncovered) + admin typecheck.
 
 **Knock-on wins landed alongside:** all three api CI jobs (`api lint`, `api unit tests`, `api build + boot smoke`) are now **required gates** (lint repaired in #3, tests repaired in #7); the api test suite went from 13 failing scaffold stubs to **30 suites / 385 behavior tests green**; a real `addPointsToUser` idempotency bug was fixed (TDD) during the test repair.
 

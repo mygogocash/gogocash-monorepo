@@ -1,0 +1,123 @@
+{
+  "context": {
+    "adb": "/Users/kunanonjarat/Library/Android/sdk/platform-tools/adb",
+    "apiUrl": "https://api-staging.gogocash.co",
+    "activationDeeplink": "",
+    "appPackage": "co.gogocash.app",
+    "authTokenPresent": true,
+    "installApk": "",
+    "installApkSha256": "",
+    "detectPackage": "com.shopee.th",
+    "device": "SM02G4061912033",
+    "foregroundPackage": "co.gogocash.app",
+    "activationDeeplinkForegroundPackage": "",
+    "installedMerchantPackages": [
+      "com.shopee.th"
+    ],
+    "merchantPackages": [
+      "com.shopee.th"
+    ]
+  },
+  "results": [
+    {
+      "status": "pass",
+      "name": "staging merchant catalog",
+      "detail": "1 merchant(s) returned"
+    },
+    {
+      "status": "pass",
+      "name": "merchant Android package list",
+      "detail": "1 package(s)"
+    },
+    {
+      "status": "pass",
+      "name": "authenticated GoGoTrack API",
+      "detail": "GET /gototrack/settings accepted token"
+    },
+    {
+      "status": "pass",
+      "name": "protected detection probe",
+      "detail": "matched Shopee"
+    },
+    {
+      "status": "fail",
+      "name": "protected activation probe",
+      "detail": "POST /gototrack/activate returned 500: {\"statusCode\":500,\"message\":\"Internal server error\",\"timestamp\":\"2026-07-10T01:48:47.838Z\",\"path\":\"/gototrack/activate\"}"
+    },
+    {
+      "status": "pass",
+      "name": "adb available",
+      "detail": "Android Debug Bridge version 1.0.41"
+    },
+    {
+      "status": "pass",
+      "name": "android device connected",
+      "detail": "SM02G4061912033"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash app installed",
+      "detail": "co.gogocash.app"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash usage access grant",
+      "detail": "co.gogocash.app GET_USAGE_STATS set to allow"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash POST_NOTIFICATIONS grant",
+      "detail": "co.gogocash.app android.permission.POST_NOTIFICATIONS granted"
+    },
+    {
+      "status": "pass",
+      "name": "Usage Access grant",
+      "detail": "GET_USAGE_STATS: allow; time=+3d12h12m47s616ms ago"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash dev-client launch",
+      "detail": "exp+gogocash-mobile://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081 opened in co.gogocash.app"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoCash auth token inject",
+      "detail": "gogocash://auth/callback?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTQ2NjM5M2NlMmUwZGE4MWQ2ZGMyMGUiLCJmaXJlYmFzZUlkIjoiZTJlLWZpcmViYXNlLWN1c3RvbWVyLTAwMSIsImlhdCI6MTc4MzYwNDc2NywiZXhwIjoxNzgzNjkxMTY3fQ.zsDU39c4MsejUF3IDKl0tKsWkwkoJifKoz-saSsaz1k&callbackUrl=%2F opened in co.gogocash.app"
+    },
+    {
+      "status": "pass",
+      "name": "supported merchant app installed",
+      "detail": "com.shopee.th"
+    },
+    {
+      "status": "warn",
+      "name": "foreground merchant app",
+      "detail": "co.gogocash.app is foreground; use --require-foreground during final acceptance"
+    },
+    {
+      "status": "pass",
+      "name": "GoGoTrack hub return",
+      "detail": "gogocash://gototrack opened in co.gogocash.app"
+    },
+    {
+      "status": "fail",
+      "name": "GoGoTrack activation nudge visible",
+      "detail": "evidence/staging/T-apk39/phase5/gototrack-hub-ui.xml does not contain activation nudge markers (Activate cashback, gototrack-activate-cashback-button, gototrack-activation-nudge, …)"
+    },
+    {
+      "status": "fail",
+      "name": "GoGoTrack activation nudge tap",
+      "detail": "evidence/staging/T-apk39/phase5/gototrack-hub-ui.xml does not contain activation nudge bounds"
+    },
+    {
+      "status": "fail",
+      "name": "activation deeplink open",
+      "detail": "activation did not return a deeplink"
+    },
+    {
+      "status": "pass",
+      "name": "device evidence captured",
+      "detail": "device-evidence.txt, device-adb-reverse.txt, device-window.txt, device-logcat.txt, device-screenshot.png"
+    }
+  ]
+}

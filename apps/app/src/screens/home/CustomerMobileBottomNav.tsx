@@ -2,14 +2,12 @@ import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { webMobileBottomNavItems } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
-import { buildProtectedLoginRedirect } from "@mobile/auth/routeGuard";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
+import { queueProtectedBottomNavWhileSessionHydrates } from "@mobile/auth/protectedBottomNavPress";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
 import { BottomNavIcon } from "./BottomNavIcon";
 import { useHomeScreenStyles } from "./homeScreenHooks";
-
-const protectedBottomNavHrefs = new Set(["/profile", "/wallet"]);
 
 export function CustomerMobileBottomNav({
   bottomInset,
@@ -24,12 +22,12 @@ export function CustomerMobileBottomNav({
   const { isAuthed, ready } = useAuthGuardSession();
 
   function handleBottomNavPress(href: string) {
-    if (!ready) {
-      return;
-    }
-
-    if (!isAuthed && protectedBottomNavHrefs.has(href)) {
-      router.push((buildProtectedLoginRedirect(href) ?? "/login") as never);
+    const protectedTarget = queueProtectedBottomNavWhileSessionHydrates(href, {
+      isAuthed,
+      ready,
+    });
+    if (protectedTarget) {
+      router.push(protectedTarget as never);
       return;
     }
 

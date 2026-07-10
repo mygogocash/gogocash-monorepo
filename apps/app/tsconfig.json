@@ -1,8 +1,6 @@
 {
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
     "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "Bundler",
@@ -12,13 +10,14 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "noUnusedLocals": true,
     "target": "ES2022",
     "types": ["vitest/globals"],
+    // TS 7 removed `baseUrl` (and the 6.0 `ignoreDeprecations` bridge with it);
+    // paths entries are now relative to this tsconfig.
     "paths": {
-      "@mobile/*": ["src/*"]
+      "@mobile/*": ["./src/*"]
     }
   },
-  "include": ["app", "src", "app.config.ts", "vitest.config.ts"],
+  "include": ["app", "src", "app.config.js", "vitest.config.ts"],
   "extends": "expo/tsconfig.base"
 }

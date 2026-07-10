@@ -20,7 +20,7 @@ export class AdminToken {
   @Prop({ required: true, unique: true })
   tokenHash: string;
 
-  @Prop({ required: true, enum: ['invite', 'reset'] })
+  @Prop({ type: String, required: true, enum: ['invite', 'reset'] })
   purpose: AdminTokenPurpose;
 
   /** Role to assign when an invite is accepted (invite tokens only). */
@@ -31,7 +31,7 @@ export class AdminToken {
   expiresAt: Date;
 
   /** Set once the token is consumed; a used token is rejected. */
-  @Prop({ required: false, default: null })
+  @Prop({ type: Date, required: false, default: null })
   usedAt?: Date | null;
 }
 

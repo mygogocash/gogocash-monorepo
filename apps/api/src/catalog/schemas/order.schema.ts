@@ -67,6 +67,7 @@ export class CommerceOrder {
   total_amount!: number;
 
   @Prop({
+    type: String,
     default: 'pending_payment',
     enum: [
       'pending_payment',
@@ -81,6 +82,7 @@ export class CommerceOrder {
   status!: CommerceOrderStatus;
 
   @Prop({
+    type: String,
     default: 'unpaid',
     enum: ['unpaid', 'pending', 'paid', 'failed', 'refunded'],
     index: true,

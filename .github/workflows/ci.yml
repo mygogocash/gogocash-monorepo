@@ -65,6 +65,7 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       app: ${{ steps.filter.outputs.app }}
       knip: ${{ steps.filter.outputs.knip }}
+      mcp: ${{ steps.filter.outputs.mcp }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4
@@ -93,6 +94,9 @@ jobs:
               - *root
               - 'apps/**'
               - 'scripts/**'
+            mcp:
+              - *root
+              - 'packages/gototrack-mcp/**'
 
   # ── admin (gogocash-admin) — Next.js dashboard ────────────────────────────
   admin:
@@ -112,6 +116,10 @@ jobs:
       # Test + Build are GATES (P2-CI: admin unit suite verified green). LINT
       # stays informational for now — admin ESLint is clean (0 warnings as of
       # PR #138); keep continue-on-error until lint is promoted to a gate.
+      - name: Typecheck (gate)
+        # Promoted once the 128 pre-existing errors were cleared (2026-07-10).
+        # Runs the workspace tsc (6.0.3 while Next pins it; 7.x when unpinned).
+        run: npx turbo run typecheck --filter=gogocash-admin
       - name: Lint (informational — promote to gate when ready)
         continue-on-error: true
         run: npx turbo run lint --filter=gogocash-admin
@@ -223,8 +231,15 @@ jobs:
         with:
           node-options: --max-old-space-size=4096
 
-      - name: Build (type-check)
-        # nest build (tsc) exceeds Node's 2GB default heap on runners (exit 134).
+      - name: Typecheck (native tsc — gate)
+        # Type checking is a standalone gate since the swc build (below) is
+        # transpile-only. TS 7's native tsc replaces the old in-build tsc that
+        # exceeded Node's 2GB heap on runners (exit 134).
+        run: npm run typecheck -w gogocash-api
+
+      - name: Build (swc)
+        # Transpile-only emit (`swc src -d dist`); decorator metadata + src/*
+        # path rewriting come from apps/api/.swcrc. Types are gated above.
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: npm run build -w gogocash-api
@@ -303,6 +318,22 @@ jobs:
       - name: Mobile GoGoTrack specs
         if: ${{ needs.changes.outputs.app == 'true' }}
         run: npm run test:gototrack -w @gogocash/mobile
+
+  # ── gototrack-mcp package (gate — previously had no CI coverage) ──────────
+  gototrack-mcp:
+    name: gototrack-mcp (typecheck + build + test)
+    needs: changes
+    if: ${{ needs.changes.outputs.mcp == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: ./.github/actions/setup-node-monorepo
+      - name: Typecheck (native tsc — gate)
+        run: npm run typecheck -w @gogocash/gototrack-mcp
+      - name: Build (gate)
+        run: npm run build -w @gogocash/gototrack-mcp
+      - name: Test (gate)
+        run: npm run test -w @gogocash/gototrack-mcp
 
   # ── dead-code scan (gate, path-filtered) ──────────────────────────────────
   knip:
