@@ -240,11 +240,12 @@ export function createSearchScreenStyles(colors: ThemeColors) {
       paddingHorizontal: spacing.xs,
       paddingVertical: spacing.xs,
     },
+    // Normal weight — it is a link, not a heading (design feedback 2026-07-10).
     seeAllLabel: {
       color: colors.primaryDark,
       fontFamily: typography.family,
       fontSize: 14,
-      fontWeight: "700",
+      fontWeight: "400",
     },
     resultsSection: {
       gap: spacing.sm,

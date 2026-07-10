@@ -94,6 +94,18 @@ describe("Account hub route parity", () => {
     expect(walletFile).not.toContain("Available cashback appears here after partner validation.");
   });
 
+  it("wallet hero compact overrides actually collapse the desktop min-heights", () => {
+    // User report 2026-07-10: the profile wallet hero showed a 72px dead gap
+    // under the name and 71px of empty gradient below the Withdraw button on
+    // mobile. Root cause: the compact overrides used `minHeight: undefined`,
+    // which RN style merging SKIPS — the desktop minHeight (86 header /
+    // 260 glass) silently survived. Overrides must use 0, not undefined.
+    const shellFile = readMobileFile("src/components/AccountPageShell.tsx");
+    expect(shellFile).not.toContain("minHeight: undefined");
+    expect(shellFile).toMatch(/walletHeroHeaderCompact:[\s\S]*?minHeight: 0/);
+    expect(shellFile).toMatch(/walletHeroGlassPanelCompact:[\s\S]*?minHeight: 0/);
+  });
+
   it("quest page > given migrated account screen > then it renders quest tabs, task detail, and bottom nav", () => {
     const questFile = readMobileFile("src/screens/CustomerQuestScreen.tsx");
     const shellFile = readMobileFile("src/components/AccountPageShell.tsx");

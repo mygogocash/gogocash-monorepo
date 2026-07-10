@@ -705,7 +705,9 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     paddingBottom: spacing.sm,
   },
   walletHeroHeaderCompact: {
-    minHeight: undefined,
+    // 0, not undefined — RN style merging SKIPS undefined, so the desktop
+    // minHeight (86) silently survived and forced a dead gap under the name.
+    minHeight: 0,
     paddingBottom: spacing.xs,
   },
   walletAvatar: {
@@ -778,7 +780,10 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
   walletHeroGlassPanelCompact: {
     marginHorizontal: -14,
     marginTop: -6,
-    minHeight: undefined,
+    // 0, not undefined — same skip-merge pitfall as the header: the desktop
+    // minHeight (260) survived and left ~70px of empty gradient below the
+    // Withdraw button on phones.
+    minHeight: 0,
     paddingBottom: 20,
     paddingHorizontal: 16,
     paddingTop: 18,

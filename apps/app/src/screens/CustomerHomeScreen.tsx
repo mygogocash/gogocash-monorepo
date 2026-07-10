@@ -335,6 +335,19 @@ export function CustomerHomeScreen() {
               presentation="homeSheet"
             />
           ) : null}
+          {/* The mobile header's GoLink banner shares the desktop handlers —
+              the dialogs must be mounted in THIS branch too, or the (i) and
+              link-submit taps set state that nothing renders. */}
+          {desktopGoLinkGuidelineOpen ? (
+            <GoLinkGuidelineDialog onClose={() => setDesktopGoLinkGuidelineOpen(false)} />
+          ) : null}
+          {desktopGoLinkResultHref ? (
+            <GoLinkResultDialog
+              href={desktopGoLinkResultHref}
+              onClose={() => setDesktopGoLinkResultHref("")}
+              onShopNow={handleDesktopGoLinkShopNow}
+            />
+          ) : null}
         </View>
         <IntroAfterLoginModal />
         <CustomerCookieConsentBanner isDesktop={false} />
