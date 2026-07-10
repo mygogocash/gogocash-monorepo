@@ -221,6 +221,17 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     expect(walletSource).toMatch(/metricLabelCompact:[\s\S]*?fontWeight: "400"/);
   });
 
+  it("compacts the LINE support contact card on mobile so the title fits one line", () => {
+    // At phone width the desktop-sized card (48px badge, 18px bold title,
+    // 72px min-height, 16px gaps) squeezed the Thai title
+    // "ติดต่อฝ่ายสนับสนุน" onto two lines. Mobile gets a compact variant —
+    // smaller badge/type/gaps — so the title fits on one line.
+    expect(walletSource).toMatch(/WalletSupportBanner compact=\{!isDesktop\}/);
+    expect(walletSource).toMatch(/supportContactCardCompact:[\s\S]*?minHeight: 60/);
+    expect(walletSource).toMatch(/lineBadgeCompact:[\s\S]*?height: 40/);
+    expect(walletSource).toMatch(/supportContactTitleCompact:[\s\S]*?fontSize: 15/);
+  });
+
   it("has state-driven transaction tabs + mock rows (all cases) + working Search/Status/Date filters", () => {
     // Tabs switch via state (not hardcoded index 0) and filter the mock rows by kind.
     expect(walletSource).toContain("setActiveTab");

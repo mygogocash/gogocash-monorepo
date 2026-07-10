@@ -91,7 +91,7 @@ export function CustomerWalletScreen() {
     return (
       <AccountPageShell activeRouteId="wallet" showProfileRail showTitle={false} title={tc("My Wallet")}>
         {isDesktop ? null : <WalletHeader />}
-        <WalletSupportBanner />
+        <WalletSupportBanner compact={!isDesktop} />
         <WalletSkeleton />
       </AccountPageShell>
     );
@@ -101,7 +101,7 @@ export function CustomerWalletScreen() {
     <AccountPageShell activeRouteId="wallet" showProfileRail showTitle={false} title={tc("My Wallet")}>
       {/* Mobile-only back link + title — on desktop the persistent sidebar replaces it (web parity). */}
       {isDesktop ? null : <WalletHeader />}
-      <WalletSupportBanner />
+      <WalletSupportBanner compact={!isDesktop} />
       <WalletCashbackSummary compact={!isDesktop} liveMetrics={liveMetrics} />
       <WalletTransactions onRefresh={walletResource.retry} />
     </AccountPageShell>
@@ -420,7 +420,7 @@ function WalletHeader() {
   );
 }
 
-function WalletSupportBanner() {
+function WalletSupportBanner({ compact }: { compact: boolean }) {
   const styles = useThemedStyles(createWalletScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
@@ -432,15 +432,40 @@ function WalletSupportBanner() {
         <Text style={styles.supportLine}>{tc(webWalletSupportBanner.line2)}</Text>
       </View>
       <Link asChild href="https://lin.ee/7om5sAr">
-        <MotionPressable pressScale={0.98} style={styles.supportContactCard}>
-          <View style={styles.lineBadge}>
+        <MotionPressable
+          pressScale={0.98}
+          style={StyleSheet.flatten([
+            styles.supportContactCard,
+            compact ? styles.supportContactCardCompact : null,
+          ])}
+        >
+          <View style={[styles.lineBadge, compact ? styles.lineBadgeCompact : null]}>
             <Text style={styles.lineBadgeText}>LINE</Text>
           </View>
           <View style={styles.supportContactCopy}>
-            <Text style={styles.supportContactTitle}>{tc(webWalletSupportBanner.title)}</Text>
-            <Text style={styles.supportContactSubtitle}>{tc(webWalletSupportBanner.subtitle)}</Text>
+            <Text
+              numberOfLines={compact ? 1 : undefined}
+              style={[
+                styles.supportContactTitle,
+                compact ? styles.supportContactTitleCompact : null,
+              ]}
+            >
+              {tc(webWalletSupportBanner.title)}
+            </Text>
+            <Text
+              style={[
+                styles.supportContactSubtitle,
+                compact ? styles.supportContactSubtitleCompact : null,
+              ]}
+            >
+              {tc(webWalletSupportBanner.subtitle)}
+            </Text>
           </View>
-          <ExternalLinkIcon color="#7EA3CA" size={20} strokeWidth={typography.iconStrokeWidth} />
+          <ExternalLinkIcon
+            color="#7EA3CA"
+            size={compact ? 18 : 20}
+            strokeWidth={typography.iconStrokeWidth}
+          />
         </MotionPressable>
       </Link>
     </View>
@@ -628,6 +653,13 @@ function createWalletScreenStyles(colors: ThemeColors) {
     minHeight: 72,
     paddingHorizontal: spacing.md,
   },
+  // Mobile: tighter badge/type/gaps so the Thai title fits on one line.
+  supportContactCardCompact: {
+    gap: spacing.sm,
+    minHeight: 60,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
   lineBadge: {
     alignItems: "center",
     backgroundColor: pickThemed(colors, "#D5F4EF", colors.primarySoft),
@@ -635,6 +667,11 @@ function createWalletScreenStyles(colors: ThemeColors) {
     height: 48,
     justifyContent: "center",
     width: 48,
+  },
+  lineBadgeCompact: {
+    flexShrink: 0,
+    height: 40,
+    width: 40,
   },
   lineBadgeText: {
     color: "#06C755",
@@ -652,10 +689,18 @@ function createWalletScreenStyles(colors: ThemeColors) {
     fontSize: 18,
     fontWeight: "700",
   },
+  supportContactTitleCompact: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
   supportContactSubtitle: {
     color: pickThemed(colors, "#6E88A5", colors.muted),
     fontFamily: typography.family,
     fontSize: typography.body,
+  },
+  supportContactSubtitleCompact: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   cashbackSummaryCard: {
     backgroundColor: colors.card,
