@@ -91,7 +91,7 @@ export function CustomerWalletScreen() {
     return (
       <AccountPageShell activeRouteId="wallet" showProfileRail showTitle={false} title={tc("My Wallet")}>
         {isDesktop ? null : <WalletHeader />}
-        <WalletSupportBanner />
+        <WalletSupportBanner compact={!isDesktop} />
         <WalletSkeleton />
       </AccountPageShell>
     );
@@ -101,7 +101,7 @@ export function CustomerWalletScreen() {
     <AccountPageShell activeRouteId="wallet" showProfileRail showTitle={false} title={tc("My Wallet")}>
       {/* Mobile-only back link + title — on desktop the persistent sidebar replaces it (web parity). */}
       {isDesktop ? null : <WalletHeader />}
-      <WalletSupportBanner />
+      <WalletSupportBanner compact={!isDesktop} />
       <WalletCashbackSummary compact={!isDesktop} liveMetrics={liveMetrics} />
       <WalletTransactions onRefresh={walletResource.retry} />
     </AccountPageShell>
@@ -420,7 +420,7 @@ function WalletHeader() {
   );
 }
 
-function WalletSupportBanner() {
+function WalletSupportBanner({ compact }: { compact: boolean }) {
   const styles = useThemedStyles(createWalletScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
@@ -432,20 +432,53 @@ function WalletSupportBanner() {
         <Text style={styles.supportLine}>{tc(webWalletSupportBanner.line2)}</Text>
       </View>
       <Link asChild href="https://lin.ee/7om5sAr">
-        <MotionPressable pressScale={0.98} style={styles.supportContactCard}>
-          <View style={styles.lineBadge}>
+        <MotionPressable
+          pressScale={0.98}
+          style={StyleSheet.flatten([
+            styles.supportContactCard,
+            compact ? styles.supportContactCardCompact : null,
+          ])}
+        >
+          <View style={[styles.lineBadge, compact ? styles.lineBadgeCompact : null]}>
             <Text style={styles.lineBadgeText}>LINE</Text>
           </View>
           <View style={styles.supportContactCopy}>
-            <Text style={styles.supportContactTitle}>{tc(webWalletSupportBanner.title)}</Text>
-            <Text style={styles.supportContactSubtitle}>{tc(webWalletSupportBanner.subtitle)}</Text>
+            <Text
+              numberOfLines={compact ? 1 : undefined}
+              style={[
+                styles.supportContactTitle,
+                compact ? styles.supportContactTitleCompact : null,
+              ]}
+            >
+              {tc(webWalletSupportBanner.title)}
+            </Text>
+            <Text
+              style={[
+                styles.supportContactSubtitle,
+                compact ? styles.supportContactSubtitleCompact : null,
+              ]}
+            >
+              {tc(webWalletSupportBanner.subtitle)}
+            </Text>
           </View>
-          <ExternalLinkIcon color="#7EA3CA" size={20} strokeWidth={typography.iconStrokeWidth} />
+          <ExternalLinkIcon
+            color="#7EA3CA"
+            size={compact ? 18 : 20}
+            strokeWidth={typography.iconStrokeWidth}
+          />
         </MotionPressable>
       </Link>
     </View>
   );
 }
+
+// Same explanation copy as the withdraw screen's help panel — these English
+// values are en.json keys (withdrawHelpTooltipLine1-3) with Thai translations.
+const cashbackHelpLines = [
+  "Total cashback you've earned from all transactions.",
+  "Cashback waiting for approval before you can use it.",
+  "Cashback you've already withdrawn to your wallet or bank.",
+] as const;
 
 function WalletCashbackSummary({
   compact,
@@ -456,6 +489,7 @@ function WalletCashbackSummary({
 }) {
   const styles = useThemedStyles(createWalletScreenStyles);
   const tc = useCopy();
+  const [helpOpen, setHelpOpen] = useState(false);
   return (
     <View
       accessibilityLabel={webWalletAccessibleSummary}
@@ -467,8 +501,25 @@ function WalletCashbackSummary({
           <Text style={styles.cashbackTitle}>{tc(webWalletCashbackSummary.title)}</Text>
           <Text style={styles.cashbackSubtitle}>{tc(webWalletCashbackSummary.subtitle)}</Text>
         </View>
-        <HelpCircleIcon color="#7089A5" size={28} strokeWidth={2.4} />
+        <MotionPressable
+          accessibilityLabel={tc("Explain total, pending, and withdrawn cashback")}
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={() => setHelpOpen((isOpen) => !isOpen)}
+          pressScale={0.96}
+        >
+          <HelpCircleIcon color="#7089A5" size={28} strokeWidth={2.4} />
+        </MotionPressable>
       </View>
+      {helpOpen ? (
+        <View style={styles.cashbackHelpPanel}>
+          {cashbackHelpLines.map((line) => (
+            <Text key={line} style={styles.cashbackHelpLine}>
+              • {tc(line)}
+            </Text>
+          ))}
+        </View>
+      ) : null}
       <View style={compact ? styles.walletMetricColumn : styles.walletMetricRow}>
         {(liveMetrics ?? webWalletCashbackSummary.metrics).map((metric) => (
           <WalletMetricCard compact={compact} key={metric.label} metric={metric} />
@@ -628,6 +679,13 @@ function createWalletScreenStyles(colors: ThemeColors) {
     minHeight: 72,
     paddingHorizontal: spacing.md,
   },
+  // Mobile: tighter badge/type/gaps so the Thai title fits on one line.
+  supportContactCardCompact: {
+    gap: spacing.sm,
+    minHeight: 60,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
   lineBadge: {
     alignItems: "center",
     backgroundColor: pickThemed(colors, "#D5F4EF", colors.primarySoft),
@@ -635,6 +693,11 @@ function createWalletScreenStyles(colors: ThemeColors) {
     height: 48,
     justifyContent: "center",
     width: 48,
+  },
+  lineBadgeCompact: {
+    flexShrink: 0,
+    height: 40,
+    width: 40,
   },
   lineBadgeText: {
     color: "#06C755",
@@ -652,10 +715,18 @@ function createWalletScreenStyles(colors: ThemeColors) {
     fontSize: 18,
     fontWeight: "700",
   },
+  supportContactTitleCompact: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
   supportContactSubtitle: {
     color: pickThemed(colors, "#6E88A5", colors.muted),
     fontFamily: typography.family,
     fontSize: typography.body,
+  },
+  supportContactSubtitleCompact: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   cashbackSummaryCard: {
     backgroundColor: colors.card,
@@ -686,6 +757,21 @@ function createWalletScreenStyles(colors: ThemeColors) {
     fontFamily: typography.family,
     fontSize: typography.body,
     lineHeight: 24,
+  },
+  // Help panel mirrors the withdraw screen's helpPanel/helpLine treatment.
+  cashbackHelpPanel: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    gap: 6,
+    padding: spacing.md,
+  },
+  cashbackHelpLine: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 13,
+    lineHeight: 19,
   },
   // Desktop: one row, three equal cards; stretch + marginTop:auto on the amount
   // row keep the amounts baseline-aligned even when hint copy lengths differ.
@@ -729,8 +815,11 @@ function createWalletScreenStyles(colors: ThemeColors) {
     height: 30,
     width: 30,
   },
+  // Normal-weight label — in the compact row only the amount + currency carry
+  // the bold emphasis (design feedback 2026-07-10).
   metricLabelCompact: {
     fontSize: 13,
+    fontWeight: "400",
     lineHeight: 17,
   },
   metricAmountRowCompact: {
@@ -996,10 +1085,12 @@ function createWalletScreenStyles(colors: ThemeColors) {
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
+  // Normal weight — the pill's tinted background already carries the emphasis
+  // (design feedback 2026-07-10).
   txStatusText: {
     fontFamily: typography.family,
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "400",
   },
   txStatusPillSuccess: {
     backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),

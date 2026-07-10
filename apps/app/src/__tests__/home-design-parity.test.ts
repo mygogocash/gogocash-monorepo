@@ -542,6 +542,18 @@ describe("Expo home design parity", () => {
     expect(homeFile).not.toContain("minWidth: 122");
   });
 
+  it("centers the GoLink sheet toggle with alignSelf — left:50% mis-centers on native Yoga", () => {
+    // The collapse caret sat off-center on the Android app: RN resolves
+    // `left: "50%"` + negative margin differently from web. `alignSelf:
+    // "center"` on the absolutely-positioned child centers on both platforms.
+    const styles = readMobileFile("src/screens/home/customerHomeStyles.ts");
+    const toggleBlock =
+      styles.match(/mobileTabletSheetToggleButton:\s*\{[\s\S]*?\n\s*\}/)?.[0] ?? "";
+    expect(toggleBlock).toContain('alignSelf: "center"');
+    expect(toggleBlock).not.toContain('left: "50%"');
+    expect(toggleBlock).not.toContain("marginLeft");
+  });
+
   it("home search popover typography > given secondary copy and actions > then uses normal weight", () => {
     const styles = readMobileFile("src/screens/home/customerHomeStyles.ts");
     const subtitleBlock =
