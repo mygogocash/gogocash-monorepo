@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "729804769570",
+    "project_id": "gogocash-staging",
+    "storage_bucket": "gogocash-staging.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:729804769570:android:0a72c806295c3e8aac7d7b",
+        "android_client_info": {
+          "package_name": "co.gogocash.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFuiezLRHKhM2T6-UBB9i2l6EMUTM4FCY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
