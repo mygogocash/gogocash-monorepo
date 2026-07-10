@@ -103,7 +103,9 @@ jobs:
 
   analyze-swift:
     name: Analyze (swift)
-    runs-on: macos-14
+    # macos-15: React Native 0.86 requires Xcode >= 16.1; the macos-14 image
+    # defaults to 15.4 and `pod install` hard-fails ("Please upgrade XCode").
+    runs-on: macos-15
     permissions:
       actions: read
       contents: read
@@ -112,10 +114,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
+      - name: Select Xcode >= 16.1
+        # Pin explicitly instead of trusting the image default, and fail here
+        # (not deep inside pod install) if no suitable Xcode exists.
+        run: |
+          XCODE_APP=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE_APP" ]; then
+            echo "::error::No Xcode 16.x found on runner image"; ls -d /Applications/Xcode*.app; exit 1
+          fi
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
 
       - name: Initialize CodeQL
