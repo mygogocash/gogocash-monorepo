@@ -1,5 +1,6 @@
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { sendErrorCopy, toSendErrorKind, type SendErrorKind } from "@mobile/auth/authSendErrorKind";
+import { emailAuthErrorCopy, type EmailAuthErrorKind } from "@mobile/auth/emailAuthErrorKind";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { Check, ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -89,7 +90,7 @@ const webCountryMenuShadowStyle = {
   boxShadow: "0 16px 40px rgba(16, 24, 40, 0.18)",
 } as unknown as ViewStyle;
 
-type AuthPhase = "phone" | "otp";
+type AuthPhase = "phone" | "otp" | "email";
 type SocialProvider = (typeof webAuthPage.socialProviders)[number];
 type AuthCountry = (typeof webAuthPage.countries)[number];
 
@@ -117,6 +118,11 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const [authPhase, setAuthPhase] = useState<AuthPhase>("phone");
   const [otpError, setOtpError] = useState(false);
   const [sendError, setSendError] = useState<SendErrorKind | null>(null);
+  const [emailInput, setEmailInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [emailMode, setEmailMode] = useState<"signin" | "signup">("signin");
+  const [emailError, setEmailError] = useState<EmailAuthErrorKind | null>(null);
+  const [emailBusy, setEmailBusy] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [resendSecondsRemaining, setResendSecondsRemaining] =
     useState(otpResendDurationSeconds);
@@ -394,6 +400,48 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     router.replace(postLoginPath as never);
   };
 
+  const canSubmitEmail =
+    emailInput.trim().length > 0 && passwordInput.length > 0 && privacyAccepted && !emailBusy;
+
+  const handleEmailSubmit = () => {
+    if (!canSubmitEmail) {
+      return;
+    }
+    if (!liveAuth) {
+      toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+      return;
+    }
+    setEmailBusy(true);
+    setEmailError(null);
+    void (async () => {
+      try {
+        // Dynamic import mirrors the phone/social flows: the firebase package
+        // stays out of fixtures-mode bundles and the render-test transform path.
+        const { registerWithEmail, signInWithEmail } = await import(
+          "@mobile/auth/emailPasswordAuth"
+        );
+        const { idToken } =
+          emailMode === "signup"
+            ? await registerWithEmail(emailInput.trim(), passwordInput)
+            : await signInWithEmail(emailInput.trim(), passwordInput);
+        const { exchangeFirebaseIdToken } = await import("@mobile/auth/firebaseLogin");
+        const session = await exchangeFirebaseIdToken({
+          apiUrl: env.apiUrl,
+          country: selectedCountry.code,
+          idToken,
+        });
+        await completeSocialSession(session);
+      } catch (error) {
+        // Never include the email or provider internals in the notice.
+        const { toEmailAuthErrorKind } = await import("@mobile/auth/emailAuthErrorKind");
+        setEmailError(toEmailAuthErrorKind(error));
+        haptics.error();
+      } finally {
+        setEmailBusy(false);
+      }
+    })();
+  };
+
   const handleSocialSignIn = (provider: SocialProvider) => {
     if (socialBusyProviderId) {
       return;
@@ -442,6 +490,43 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   };
 
   const socialSignInDisabled = socialBusyProviderId !== null;
+
+  // Shared by the phone and email forms — consent is one screen-level state.
+  const privacyConsentRow = (
+                    <MotionPressable
+                      accessibilityLabel={webAuthPage.privacyLead}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: privacyAccepted }}
+                      hoverLift={false}
+                      onPress={() => setPrivacyAccepted((accepted) => !accepted)}
+                      pressScale={motion.scale.subtlePress}
+                      style={[
+                        styles.privacyWrap,
+                        usesMobileFormLayout ? styles.privacyWrapMobile : null,
+                      ]}
+                    >
+                      <View style={styles.checkboxHitArea}>
+                        <View
+                          style={[
+                            styles.checkbox,
+                            webConsentCheckboxMotionStyle,
+                            privacyAccepted ? styles.checkboxChecked : null,
+                            privacyAccepted ? webConsentCheckboxGlowStyle : null,
+                          ]}
+                        >
+                          <Animated.View style={consentCheckmarkMotion}>
+                            <Check color={colors.white} size={14} weight="bold" />
+                          </Animated.View>
+                        </View>
+                      </View>
+                      <Text style={styles.privacyText}>{tc(webAuthPage.privacyLead)} </Text>
+                      <Link asChild href="/privacy-policy">
+                        <Pressable onPress={(event) => event.stopPropagation()}>
+                          <Text style={styles.privacyLink}>{tc(webAuthPage.privacyPolicyLabel)}</Text>
+                        </Pressable>
+                      </Link>
+                    </MotionPressable>
+  );
 
   return (
     <View style={styles.viewport} testID={mode === "login" ? "login-screen" : "register-screen"}>
@@ -644,39 +729,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       ) : null}
                     </View>
 
-                    <MotionPressable
-                      accessibilityLabel={webAuthPage.privacyLead}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: privacyAccepted }}
-                      hoverLift={false}
-                      onPress={() => setPrivacyAccepted((accepted) => !accepted)}
-                      pressScale={motion.scale.subtlePress}
-                      style={[
-                        styles.privacyWrap,
-                        usesMobileFormLayout ? styles.privacyWrapMobile : null,
-                      ]}
-                    >
-                      <View style={styles.checkboxHitArea}>
-                        <View
-                          style={[
-                            styles.checkbox,
-                            webConsentCheckboxMotionStyle,
-                            privacyAccepted ? styles.checkboxChecked : null,
-                            privacyAccepted ? webConsentCheckboxGlowStyle : null,
-                          ]}
-                        >
-                          <Animated.View style={consentCheckmarkMotion}>
-                            <Check color={colors.white} size={14} weight="bold" />
-                          </Animated.View>
-                        </View>
-                      </View>
-                      <Text style={styles.privacyText}>{tc(webAuthPage.privacyLead)} </Text>
-                      <Link asChild href="/privacy-policy">
-                        <Pressable onPress={(event) => event.stopPropagation()}>
-                          <Text style={styles.privacyLink}>{tc(webAuthPage.privacyPolicyLabel)}</Text>
-                        </Pressable>
-                      </Link>
-                    </MotionPressable>
+                    {privacyConsentRow}
 
                     <MotionPressable
                       accessibilityRole="button"
@@ -699,6 +752,120 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       >
                         {title}
                       </Text>
+                    </MotionPressable>
+
+                    <MotionPressable
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      hoverLift={false}
+                      onPress={() => {
+                        setEmailError(null);
+                        setAuthPhase("email");
+                      }}
+                      pressScale={motion.scale.subtlePress}
+                      style={styles.changePhoneButton}
+                    >
+                      <Text style={styles.changePhoneText}>{tc("Sign in with email")}</Text>
+                    </MotionPressable>
+                  </View>
+                ) : authPhase === "email" ? (
+                  <View
+                    style={[
+                      styles.formStack,
+                      usesMobileFormLayout ? styles.formStackMobile : null,
+                    ]}
+                  >
+                    <View style={styles.emailStack}>
+                      <Text style={styles.fieldLabel}>
+                        {tc(emailMode === "signup" ? "Create account" : "Sign in with email")}
+                      </Text>
+                      <TextInput
+                        accessibilityLabel={tc("Email address")}
+                        autoCapitalize="none"
+                        autoComplete="email"
+                        inputMode="email"
+                        keyboardType="email-address"
+                        onChangeText={setEmailInput}
+                        placeholder={tc("Email address")}
+                        placeholderTextColor={colors.muted}
+                        style={styles.emailField}
+                        value={emailInput}
+                      />
+                      <TextInput
+                        accessibilityLabel={tc("Password")}
+                        autoCapitalize="none"
+                        autoComplete={emailMode === "signup" ? "new-password" : "current-password"}
+                        onChangeText={setPasswordInput}
+                        placeholder={tc("Password")}
+                        placeholderTextColor={colors.muted}
+                        secureTextEntry
+                        style={styles.emailField}
+                        value={passwordInput}
+                      />
+                      {emailError ? (
+                        <Text accessibilityRole="alert" style={styles.otpError}>
+                          {tc(emailAuthErrorCopy[emailError])}
+                        </Text>
+                      ) : null}
+                    </View>
+
+                    {privacyConsentRow}
+
+                    <MotionPressable
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: !canSubmitEmail }}
+                      disabled={!canSubmitEmail}
+                      hoverLift={false}
+                      onPress={handleEmailSubmit}
+                      pressScale={motion.scale.subtlePress}
+                      style={[
+                        styles.primaryAction,
+                        usesFullWidthPrimaryAction ? styles.primaryActionMobile : null,
+                        !canSubmitEmail ? styles.primaryActionDisabled : null,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.primaryActionText,
+                          !canSubmitEmail ? styles.primaryActionTextDisabled : null,
+                        ]}
+                      >
+                        {tc(emailMode === "signup" ? "Create account" : "Sign in")}
+                      </Text>
+                    </MotionPressable>
+
+                    <MotionPressable
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      hoverLift={false}
+                      onPress={() => {
+                        setEmailMode((current) => (current === "signin" ? "signup" : "signin"));
+                        setEmailError(null);
+                      }}
+                      pressScale={motion.scale.subtlePress}
+                      style={styles.changePhoneButton}
+                    >
+                      <Text style={styles.changePhoneText}>
+                        {tc(
+                          emailMode === "signin"
+                            ? "New to GoGoCash? Create an account"
+                            : "Already have an account? Sign in"
+                        )}
+                      </Text>
+                    </MotionPressable>
+
+                    <MotionPressable
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      hoverLift={false}
+                      onPress={() => {
+                        setEmailError(null);
+                        setAuthPhase("phone");
+                      }}
+                      pressScale={motion.scale.subtlePress}
+                      style={styles.changePhoneButton}
+                    >
+                      <Text style={styles.changePhoneText}>{tc("Use phone number instead")}</Text>
                     </MotionPressable>
                   </View>
                 ) : (
@@ -1397,6 +1564,23 @@ function createAuthScreenStyles(colors: ThemeColors) {
     fontSize: 16,
     fontWeight: "400",
     lineHeight: 23,
+  },
+  emailStack: {
+    gap: 12,
+    width: "100%",
+  },
+  emailField: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    color: colors.ink,
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: "400",
+    height: 48,
+    paddingHorizontal: 16,
+    width: "100%",
   },
   phoneInput: {
     backgroundColor: colors.card,
