@@ -1,6 +1,11 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    // TS 7 removed node10 resolution (the old commonjs default). node16 is the
+    // faithful replacement for this CJS Nest app: no package.json "type" field →
+    // every file stays CJS, emit is unchanged, and dependency types resolve via
+    // the "require" exports condition — matching what Node does at runtime.
+    "module": "node16",
+    "moduleResolution": "node16",
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -16,11 +21,19 @@
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
-    // TS 6.0 flipped several defaults; the next three preserve the TS 5.9
-    // behavior this project was written under (see UPGRADE_PLAN Tier 1 #2):
+    // TS 7 removed `baseUrl`; the bare `src/...` specifiers used across the app
+    // now resolve via an explicit paths mapping (values must be relative).
+    // Runtime/emit resolution of the same alias: .swcrc (build + jest) and the
+    // jest moduleNameMapper — keep the three in sync.
+    "paths": {
+      "src/*": ["./src/*"]
+    },
+    // TS 6.0 flipped several defaults; TS 7.0 then hard-removed `baseUrl` and
+    // the `ignoreDeprecations:"6.0"` bridge (both deleted above). The remaining
+    // pins preserve the TS 5.9 behavior this project was written under (see
+    // UPGRADE_PLAN Tier 1 #2):
     //  - strict:false  — 6.0 defaults strict:true, which would newly enable
     //    strictPropertyInitialization (breaks Mongoose @Prop fields) and
     //    useUnknownInCatchVariables (breaks every catch(e)). Keep it off here;
@@ -31,12 +44,8 @@
     //    global Express namespace), multer (Express.Multer.File — used in the
     //    upload controllers), passport (Express.Request.user). Modules that are
     //    imported by name don't need listing; only globals do.
-    //  - ignoreDeprecations:"6.0" — bridges baseUrl + the node10
-    //    moduleResolution default, both deprecated-to-error in 6.0 (hard
-    //    removal in 7.0). Matches apps/app.
     "strict": false,
     "types": ["node", "jest", "express", "multer", "passport"],
-    "ignoreDeprecations": "6.0",
     "strictNullChecks": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,

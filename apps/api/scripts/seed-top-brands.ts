@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import mongoose, { Model } from 'mongoose';
 
-import { Offer, OfferSchema } from '../src/offer/schemas/offer.schema';
+import { Offer, OfferSchema, type OfferStatus } from '../src/offer/schemas/offer.schema';
 import {
   TopBrandConfig,
   TopBrandConfigSchema,
@@ -11,7 +11,9 @@ import { assertLocalMongoUri } from './seed-local-admin';
 
 const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
-  status: { $nin: ['pending_review', 'rejected'] },
+  // Literal array must stay narrowed to OfferStatus — mongoose 9's strict
+  // QueryFilter rejects a widened string[] against the schema's status union.
+  status: { $nin: ['pending_review', 'rejected'] satisfies OfferStatus[] },
 };
 
 export type SeedTopBrandsOptions = {
@@ -85,14 +87,18 @@ export async function seedTopBrands(
     mongoose.model(TopBrandConfig.name, TopBrandConfigSchema)) as Model<TopBrandConfig>;
 
   try {
-    const offers = await OfferModel.find({
+    // Explicit QueryFilter annotation (mongoose 9 name — FilterQuery was removed):
+    // without it, overload resolution matches the spread+`$or` literal against the
+    // wrong `find` signature and rejects `$or`.
+    const activeWithLogoFilter: mongoose.QueryFilter<Offer> = {
       ...ACTIVE_OFFER_FILTER,
       $or: [
         { logo: { $exists: true, $nin: [null, ''] } },
         { logo_desktop: { $exists: true, $nin: [null, ''] } },
         { logo_circle: { $exists: true, $nin: [null, ''] } },
       ],
-    })
+    };
+    const offers = await OfferModel.find(activeWithLogoFilter)
       .sort({ offer_id: 1 })
       .limit(options.limit)
       .select('_id offer_id offer_name offer_name_display commission_store logo logo_desktop logo_circle')
