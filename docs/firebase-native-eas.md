@@ -41,3 +41,33 @@ Railway `app-web` uses the same `EXPO_PUBLIC_FIREBASE_*` build args — see `doc
 
 - [store-release-checklist.md](./store-release-checklist.md)
 - [apps/app/docs/api-integration.md](../apps/app/docs/api-integration.md)
+
+## Native phone OTP (@react-native-firebase/auth)
+
+Since app version **0.2.0**, native builds sign in with phone OTP through
+`@react-native-firebase/auth` (Play Integrity handles app verification — no
+reCAPTCHA). Web keeps the Firebase JS SDK + invisible reCAPTCHA; both feed the
+same `POST /auth/log-in` exchange.
+
+**Owner setup (one-time, Firebase console → gogocash-staging):**
+
+1. Add an **Android app** with package `co.gogocash.app` (Project settings →
+   Your apps). Add the app's SHA-256 fingerprint (EAS: `eas credentials` →
+   Android → keystore fingerprints) so Play Integrity verification works.
+2. Download `google-services.json` and provide it to builds either as an EAS
+   file secret — `eas secret:create --name GOOGLE_SERVICES_JSON --type file
+   --value ./google-services.json` (the config reads the env path) — or commit
+   it at `apps/app/google-services.json` (it contains no private keys).
+3. iOS later: same flow with `GoogleService-Info.plist` /
+   `GOOGLE_SERVICE_INFO_PLIST`.
+
+Until the file is present, prebuild deliberately omits the
+`@react-native-firebase/app` plugin (see `app.config.js`) and that binary
+reports "Native phone sign-in is unavailable in this build." — nothing breaks.
+
+**Test numbers:** Firebase console → Authentication → Sign-in method → Phone →
+"Phone numbers for testing". `+66 999999999` / `654321` is registered; test
+numbers skip real SMS and work on native once the Android app is registered.
+
+**Runtime note:** 0.1.0 binaries (APK ≤ 39) lack the native module and stay on
+the 0.1.0 OTA runtime — this JS never reaches them.
