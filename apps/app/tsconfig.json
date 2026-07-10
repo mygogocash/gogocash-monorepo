@@ -18,6 +18,6 @@
       "@mobile/*": ["./src/*"]
     }
   },
-  "include": ["app", "src", "app.config.ts", "vitest.config.ts"],
+  "include": ["app", "src", "app.config.js", "vitest.config.ts"],
   "extends": "expo/tsconfig.base"
 }

@@ -1,32 +1,43 @@
-import type { ConfigContext, ExpoConfig } from "expo/config";
+// Plain-JS dynamic Expo config (was app.config.ts). TypeScript 7 ships no JS
+// compiler API, and @expo/require-utils prefers `require("typescript")` for
+// .ts configs — under TS7 that resolves a version stub and crashes on
+// `ts.ModuleKind`. A .js config skips the TS transpile path entirely.
+// (Expo's native stripTypeScriptTypes fallback only engages when the
+// typescript package is absent, which it never is here.)
+
+/** @typedef {import("expo/config").ConfigContext} ConfigContext */
+/** @typedef {import("expo/config").ExpoConfig} ExpoConfig */
 
 const appIdentity = {
   displayName: "GoGoCash",
   scheme: "gogocash",
   iosBundleIdentifier: "co.gogocash.app",
   androidPackage: "co.gogocash.app",
-} as const;
-
-type ConfigRequire = { resolve: (specifier: string) => string };
+};
 
 const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd().replace(/\/apps\/app$/, "");
-var require: ConfigRequire =
-  (globalThis as typeof globalThis & { require?: ConfigRequire }).require ??
-  { resolve: (specifier: string) => `${workspaceRoot}/node_modules/${specifier}` };
+
+// Preserves the original app.config.ts semantics: use a global require if the
+// eval context provides one, else fall back to root-hoisted node_modules paths.
+/** @type {{ resolve: (specifier: string) => string }} */
+const requireShim = globalThis.require ?? {
+  resolve: (specifier) => `${workspaceRoot}/node_modules/${specifier}`,
+};
 
 const envDefaults = {
   accountDataSource: "fixtures",
   apiUrl: "https://api-staging.gogocash.co",
   appEnv: "staging",
   frontendUrl: "https://app-staging.gogocash.co",
-} as const;
+};
 
 // Resolve font assets via Node module resolution rather than a hardcoded
 // "./node_modules/..." relative path. In the npm-workspaces monorepo the
 // @expo-google-fonts/* packages hoist to the ROOT node_modules, so the old
 // app-relative paths pointed at files that do not exist and the expo-font
 // config plugin would embed zero fonts at native build time.
-const fontPath = (specifier: string): string => require.resolve(specifier);
+/** @param {string} specifier @returns {string} */
+const fontPath = (specifier) => requireShim.resolve(specifier);
 
 const dmSansFonts = {
   regular: fontPath("@expo-google-fonts/dm-sans/400Regular/DMSans_400Regular.ttf"),
@@ -35,18 +46,19 @@ const dmSansFonts = {
   bold: fontPath("@expo-google-fonts/dm-sans/700Bold/DMSans_700Bold.ttf"),
   extraBold: fontPath("@expo-google-fonts/dm-sans/800ExtraBold/DMSans_800ExtraBold.ttf"),
   black: fontPath("@expo-google-fonts/dm-sans/900Black/DMSans_900Black.ttf"),
-} as const;
+};
 
 const anuphanFonts = {
   regular: fontPath("@expo-google-fonts/anuphan/400Regular/Anuphan_400Regular.ttf"),
   medium: fontPath("@expo-google-fonts/anuphan/500Medium/Anuphan_500Medium.ttf"),
   semiBold: fontPath("@expo-google-fonts/anuphan/600SemiBold/Anuphan_600SemiBold.ttf"),
   bold: fontPath("@expo-google-fonts/anuphan/700Bold/Anuphan_700Bold.ttf"),
-} as const;
+};
 
 const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
 
-const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
+/** @param {ConfigContext} context @returns {ExpoConfig} */
+const mobileExpoConfig = ({ config }) => ({
   ...config,
   name: appIdentity.displayName,
   slug: "gogocash-mobile",
@@ -158,4 +170,4 @@ const mobileExpoConfig = ({ config }: ConfigContext): ExpoConfig => ({
   },
 });
 
-export default mobileExpoConfig;
+module.exports = mobileExpoConfig;

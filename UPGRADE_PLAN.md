@@ -29,6 +29,18 @@
 | **Tier 1 #9** — vitest 3→4 (admin) | ✅ done | — |
 | **Tier 1 #10** — customerio-node 4→5, jwks-rsa 3→4, eslint-config-prettier 9→10 (api) | ✅ done | — |
 | **Tier 2** — Expo SDK (app) | ⬜ pending | — |
+| **Tier 3** — TypeScript 6.0 → **7.0.2 (native compiler)**, all workspaces | ✅ done | — |
+
+**Tier 3 notes (TS 7 native):** TS 7 ships no JS compiler API, so every consumer was
+replaced: api build is `swc src -d dist` (~100ms vs the old 2GB-heap nest build; @nestjs/cli
+removed), ts-jest → `@swc/jest`, ts-node scripts → `@swc-node/register`, typescript-eslint →
+**oxlint** (no type-aware rules until typescript-eslint ports — recorded degradation), and 16
+union-typed `@Prop` fields gained explicit `type:` (SWC metadata limitation). tsconfigs
+migrated off removed `baseUrl`/`ignoreDeprecations` (api → `node16` + relative `paths`).
+**One forced deviation:** `apps/admin` keeps `typescript ~6.0.3` as Next 16's internal
+library (Next hard-requires the JS API; its build-time type-check stays alive as the admin
+type gate). Admin standalone `tsc --noEmit` has 128 pre-existing errors (identical on 6.0.3)
+— follow-up, not a TS7 regression. New CI gate: `gototrack-mcp` (was uncovered).
 
 **Knock-on wins landed alongside:** all three api CI jobs (`api lint`, `api unit tests`, `api build + boot smoke`) are now **required gates** (lint repaired in #3, tests repaired in #7); the api test suite went from 13 failing scaffold stubs to **30 suites / 385 behavior tests green**; a real `addPointsToUser` idempotency bug was fixed (TDD) during the test repair.
 

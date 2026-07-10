@@ -263,7 +263,7 @@ describe("GoGoCash mobile launch contract", () => {
   });
 
   it("gototrack config > given Android UsageStats MVP > then declares Usage Access and FGS monitor permissions", () => {
-    const appConfigSource = fs.readFileSync(path.join(mobileRoot, "app.config.ts"), "utf8");
+    const appConfigSource = fs.readFileSync(path.join(mobileRoot, "app.config.js"), "utf8");
     const pluginSource = fs.readFileSync(
       path.join(mobileRoot, "plugins/withGototrackUsageAccess.js"),
       "utf8",

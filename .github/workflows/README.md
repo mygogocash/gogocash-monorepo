@@ -49,8 +49,9 @@ Shared setup: **`.github/actions/setup-node-monorepo`** (Node 22, `npm ci`).
 | `app` | `apps/app/**` | typecheck, unit, render, web export **yes** |
 | `api-lint` | `apps/api/**` | **yes** |
 | `api-test` | `apps/api/**` | **yes** (includes Involve postback integration specs) |
-| `api-build-smoke` | `apps/api/**` | **required** — nest build, boot vs Mongo **8.0.4**, withdraw integration |
+| `api-build-smoke` | `apps/api/**` | **required** — native `tsc --noEmit` + swc build, boot vs Mongo **8.0.4**, withdraw integration |
 | `gototrack` | api or app | **yes** — `test:gototrack` / `test:gototrack:api` |
+| `gototrack-mcp` | `packages/gototrack-mcp/**` | **yes** — typecheck + build + `node --test` |
 | `knip` | apps/scripts/root | **yes** (path-filtered) |
 | `e2e-local` | manual dispatch only | optional |
 
