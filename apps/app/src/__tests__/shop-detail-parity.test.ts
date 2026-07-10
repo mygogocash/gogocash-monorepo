@@ -238,15 +238,19 @@ describe("Shop detail parity", () => {
     expect(shopFile).toMatch(/setLogoFailed\(false\)[\s\S]*?\[shop\.logoUri\]/);
   });
 
-  it("shop detail parity > given hero summary card > then mobile stacks brand identity above actions", () => {
+  it("shop detail parity > given hero summary card > then mobile lays identity and actions on one row", () => {
+    // Design feedback 2026-07-10: the stacked mobile layout (identity row, then
+    // a right-aligned actions row) left a dead zone bottom-left for short brand
+    // names like "Shopee". Mobile now renders one row: logo → name (flex) →
+    // heart → Shop Now.
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 
     expect(shopFile).toContain('testID="shop-detail-brand-name"');
     expect(shopFile).toContain('testID="shop-detail-brand-logo"');
     expect(shopFile).toContain("styles.summaryTitleMobile");
-    expect(shopFile).toContain("styles.summaryIdentityRow");
-    expect(shopFile).toContain("styles.summaryActionsRow");
-    expect(shopFile).toMatch(/summaryCard:[\s\S]*?flexDirection: "column"/);
+    expect(shopFile).toContain("styles.summaryMobileRow");
+    expect(shopFile).not.toContain("styles.summaryActionsRow");
+    expect(shopFile).toMatch(/summaryMobileRow:[\s\S]*?flexDirection: "row"/);
     expect(shopFile).toMatch(/summaryCardDesktop:[\s\S]*?flexDirection: "row"/);
     expect(shopFile).toMatch(/summaryTitleWrap:[\s\S]*?flex: 1/);
     expect(shopFile).toMatch(/summaryTitleWrap:[\s\S]*?minWidth: 0/);

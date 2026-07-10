@@ -418,12 +418,10 @@ function ShopHeroSummaryCard({
       </View>
     </View>
   ) : (
-    <View style={styles.summaryIdentityBlock}>
-      <View style={styles.summaryIdentityRow}>
-        {brandLogo}
-        <View style={styles.summaryTitleWrap}>{brandTitle}</View>
-      </View>
-    </View>
+    <>
+      {brandLogo}
+      <View style={styles.summaryTitleWrap}>{brandTitle}</View>
+    </>
   );
   const favoriteButton = (
     <MotionPressable
@@ -436,7 +434,10 @@ function ShopHeroSummaryCard({
       accessibilityState={{ selected: favorited }}
       onPress={handleToggleFavorite}
       pressScale={0.96}
-      style={styles.favoriteButton}
+      style={StyleSheet.flatten([
+        styles.favoriteButton,
+        isDesktop ? null : styles.favoriteButtonCompact,
+      ])}
     >
       <HeartIcon
         color={favorited ? colors.primary : colors.primaryDark}
@@ -452,22 +453,29 @@ function ShopHeroSummaryCard({
       accessibilityRole="button"
       onPress={onShopNow}
       pressScale={0.98}
-      style={styles.shopNowButton}
+      style={StyleSheet.flatten([
+        styles.shopNowButton,
+        isDesktop ? null : styles.shopNowButtonCompact,
+      ])}
     >
       <Text style={styles.shopNowText}>{shop.shopNowLabel}</Text>
     </MotionPressable>
   );
 
+  // Mobile is ONE row — logo → name (flex) → heart → Shop Now. The previous
+  // stacked layout (identity row above a right-aligned actions row) left a
+  // dead zone bottom-left for short brand names (design feedback 2026-07-10).
   return (
     <View style={[styles.summaryCard, isDesktop ? styles.summaryCardDesktop : null]}>
-      {brandIdentity}
       {isDesktop ? (
         <>
+          {brandIdentity}
           {favoriteButton}
           {shopNowButton}
         </>
       ) : (
-        <View style={styles.summaryActionsRow}>
+        <View style={styles.summaryMobileRow}>
+          {brandIdentity}
           {favoriteButton}
           {shopNowButton}
         </View>
@@ -868,9 +876,6 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     minHeight: 48,
     minWidth: 0,
   },
-  summaryIdentityBlock: {
-    width: "100%",
-  },
   summaryIdentityRow: {
     alignItems: "center",
     flexDirection: "row",
@@ -903,17 +908,27 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     lineHeight: 20,
   },
   summaryTitleMobile: {
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 17,
+    lineHeight: 22,
     width: "100%",
   },
-  summaryActionsRow: {
+  summaryMobileRow: {
     alignItems: "center",
     flexDirection: "row",
-    flexShrink: 0,
     gap: 10,
-    justifyContent: "flex-end",
     width: "100%",
+  },
+  // Mobile row is tight (295px inner at 400px viewport): slim the heart and
+  // Shop Now so the flexed brand-name column keeps ~80px and short names
+  // stay on one line instead of breaking mid-word.
+  favoriteButtonCompact: {
+    height: 40,
+    width: 40,
+  },
+  shopNowButtonCompact: {
+    height: 40,
+    minWidth: 0,
+    paddingHorizontal: 16,
   },
   summaryTitle: {
     color: colors.ink,
