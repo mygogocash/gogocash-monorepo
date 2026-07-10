@@ -90,6 +90,7 @@ export class CatalogProduct {
   tags!: string[];
 
   @Prop({
+    type: String,
     default: 'draft',
     enum: ['draft', 'published', 'archived'],
     index: true,

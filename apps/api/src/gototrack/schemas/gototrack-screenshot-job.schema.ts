@@ -9,7 +9,7 @@ export class GototrackScreenshotJob {
   @Prop({ required: true, index: true })
   user_id: string;
 
-  @Prop({ default: 'pending' })
+  @Prop({ type: String, default: 'pending' })
   status: 'pending' | 'processing' | 'matched' | 'manual_review' | 'failed';
 
   @Prop({ required: false })

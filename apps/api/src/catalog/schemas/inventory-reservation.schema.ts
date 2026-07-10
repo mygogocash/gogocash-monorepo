@@ -33,6 +33,7 @@ export class InventoryReservation {
   quantity!: number;
 
   @Prop({
+    type: String,
     default: 'active',
     enum: ['active', 'committed', 'released'],
     index: true,

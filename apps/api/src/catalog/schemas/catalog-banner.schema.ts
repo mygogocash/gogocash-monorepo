@@ -24,6 +24,7 @@ export class CatalogBanner {
   image_alt?: string;
 
   @Prop({
+    type: String,
     required: true,
     enum: ['home_hero', 'home_grid', 'shop_list', 'product_detail', 'modal'],
     index: true,
@@ -34,13 +35,14 @@ export class CatalogBanner {
   locale!: string;
 
   @Prop({
+    type: String,
     default: 'all',
     enum: ['all', 'mobile', 'tablet', 'desktop'],
     index: true,
   })
   device!: CatalogBannerDevice;
 
-  @Prop({ default: 'none', enum: ['none', 'shop', 'product', 'offer', 'url'] })
+  @Prop({ type: String, default: 'none', enum: ['none', 'shop', 'product', 'offer', 'url'] })
   cta_type!: CatalogBannerCtaType;
 
   @Prop({ trim: true })
@@ -50,6 +52,7 @@ export class CatalogBanner {
   priority!: number;
 
   @Prop({
+    type: String,
     default: 'draft',
     enum: ['draft', 'published', 'archived'],
     index: true,

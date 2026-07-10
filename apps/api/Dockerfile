@@ -9,7 +9,8 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
-# nest build (tsc) exceeds Node's default container heap
+# Build is `swc src -d dist` (native, ~100ms) since the TS 7 upgrade — the old
+# nest-build heap ceiling no longer applies, but keep headroom for npm ci.
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Install deps from the root lockfile. .npmrc carries legacy-peer-deps=true
@@ -21,8 +22,8 @@ COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json ./apps/api/package.json
 RUN npm ci --legacy-peer-deps --ignore-scripts
 
-# Copy the api source and build only its workspace (@nestjs/cli is a devDep,
-# already installed above).
+# Copy the api source and build only its workspace (@swc/cli + .swcrc drive the
+# build; type-checking is a separate native `tsc --noEmit` gate in CI).
 COPY apps/api ./apps/api
 RUN npm run build -w gogocash-api
 

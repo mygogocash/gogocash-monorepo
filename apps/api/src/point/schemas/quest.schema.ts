@@ -74,13 +74,13 @@ export class Quest {
   @Prop({ required: true, default: false })
   reward_status: boolean;
 
-  @Prop({ required: true, default: 'campaign_end' })
+  @Prop({ type: String, required: true, default: 'campaign_end' })
   reward_distribution_mode: QuestRewardDistributionMode;
 
   @Prop({ required: true, default: 0 })
   reward_distribution_delay_days: number;
 
-  @Prop({ required: false, default: null })
+  @Prop({ type: Date, required: false, default: null })
   reward_distribution_scheduled_at: Date | null;
 
   @Prop({ required: false })

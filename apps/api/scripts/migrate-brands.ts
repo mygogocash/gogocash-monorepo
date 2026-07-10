@@ -25,8 +25,8 @@
  *
  * Run
  * ───
- *   npx ts-node scripts/migrate-brands.ts --dry-run
- *   npx ts-node scripts/migrate-brands.ts             # apply
+ *   npm run migrate:brands --  --dry-run
+ *   npm run migrate:brands --              # apply
  *
  * Reads `MONGO_URI` from the environment (same as the NestJS app does).
  */
