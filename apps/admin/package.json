@@ -55,7 +55,7 @@
     "firebase": "^12.15.0",
     "flatpickr": "^4.6.13",
     "libphonenumber-js": "^1.13.7",
-    "next": "16.2.9",
+    "next": "^16.2.10",
     "next-auth": "^4.24.13",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "react": "19.2.7",
@@ -70,7 +70,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
-    "@next/bundle-analyzer": "^16.2.1",
+    "@next/bundle-analyzer": "^16.2.10",
     "@playwright/test": "^1.55.0",
     "@svgr/webpack": "^8.1.0",
     "@testing-library/dom": "^10.4.1",
