@@ -43,38 +43,31 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(dotsSource).not.toContain("outputRange: [size, expandedWidth, size]");
   });
 
-  it("BrandCard > given partner logos > then expo-image is used with contentFit contain", () => {
-    const brandCard = readMobileFile("src/components/BrandCard.tsx");
+  it("BrandLogoTile > given partner logos > then expo-image is used with contentFit contain", () => {
+    // 2026-07-11 tile convergence: the expo-image usage every brand card
+    // shares lives once, in BrandLogoTile.
+    const tile = readMobileFile("src/components/BrandLogoTile.tsx");
 
-    expect(brandCard).toContain('from "expo-image"');
-    expect(brandCard).toContain('contentFit="contain"');
-    expect(brandCard).toContain("brandLogoImage:");
-    expect(brandCard).toMatch(/brandLogoImage:[\s\S]*width:\s*"100%"/);
-    expect(brandCard).toMatch(/brandLogoImage:[\s\S]*height:\s*"100%"/);
-    expect(brandCard).toMatch(/compactBrandLogoImage:[\s\S]*height: "100%"/);
-    expect(brandCard).toMatch(/brandVisual:[\s\S]*width:\s*"100%"/);
-    expect(brandCard).toMatch(/compactBrandVisual:[\s\S]*width:\s*"100%"/);
-    expect(brandCard).not.toContain('height: "62%"');
-    expect(brandCard).not.toContain("brandLogoFill");
-    expect(brandCard).toContain("recyclingKey=");
-    expect(brandCard).toContain('cachePolicy="memory-disk"');
-    expect(brandCard).not.toMatch(
+    expect(tile).toContain('from "expo-image"');
+    expect(tile).toContain('contentFit="contain"');
+    expect(tile).toMatch(/logoImage: \{[\s\S]*?height: "100%"/);
+    expect(tile).toContain("recyclingKey=");
+    expect(tile).toContain('cachePolicy="memory-disk"');
+    expect(tile).not.toMatch(
       /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/
     );
+
+    const brandCard = readMobileFile("src/components/BrandCard.tsx");
+    expect(brandCard).toContain("<BrandLogoTile");
+    expect(brandCard).not.toContain('height: "62%"');
+    expect(brandCard).not.toContain("brandLogoFill");
   });
 
-  it("BrandCard > given remote logoUri > then large and compact visuals use card background not tint", () => {
-    const brandCard = readMobileFile("src/components/BrandCard.tsx");
+  it("BrandLogoTile > given a remote logo > then the tile uses card background not tint", () => {
+    const tile = readMobileFile("src/components/BrandLogoTile.tsx");
 
-    expect(brandCard).toContain("const brandVisualBackground =");
-    expect(brandCard).toMatch(
-      /brandVisual[\s\S]*backgroundColor: brandVisualBackground/,
-    );
-    expect(brandCard).toMatch(
-      /compactBrandVisual[\s\S]*backgroundColor: brandVisualBackground/,
-    );
-    expect(brandCard).not.toMatch(
-      /compactBrandVisual[\s\S]*backgroundColor: tint/,
+    expect(tile).toContain(
+      "showImage ? styles.tileCardBackground.backgroundColor : tint",
     );
   });
 
@@ -162,21 +155,18 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     );
   });
 
-  it("favorite brand cards > given remote logos > then expo-image fills tile on card background", () => {
+  it("favorite brand cards > given remote logos > then the shared tile renders the logo", () => {
     const favorites = readMobileFile("src/screens/CustomerFavoriteBrandsScreen.tsx");
 
-    expect(favorites).toContain("brandVisualBackground");
-    expect(favorites).toMatch(/brandLogoImage:[\s\S]*height: "100%"/);
+    expect(favorites).toContain("<BrandLogoTile");
     expect(favorites).toMatch(/cashbackValue:[\s\S]*flexShrink:\s*0/);
   });
 
-  it("quest explore shop cards > given remote logos > then expo-image uses contain fill", () => {
+  it("quest explore shop cards > given remote logos > then the shared BrandCard renders them", () => {
     const quest = readMobileFile("src/screens/CustomerQuestScreen.tsx");
 
-    expect(quest).toContain('from "expo-image"');
-    expect(quest).toContain("ExpoImage");
-    expect(quest).toContain('contentFit="contain"');
-    expect(quest).toContain("brandVisualBackground");
+    expect(quest).toContain("<BrandCard");
+    expect(quest).not.toContain("ExpoImage");
   });
 
   it("AppProviders > given startup gate > then QueryClientProvider wraps the loading shell", () => {

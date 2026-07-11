@@ -1,4 +1,3 @@
-import { Image as ExpoImage } from "expo-image";
 import { Link } from "expo-router";
 import {
   ChevronUp as ChevronUpIcon,
@@ -27,6 +26,7 @@ import questRank6to10 from "../../assets/quest-rank/rank6_10.png";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
+import { BrandCard } from "@mobile/components/BrandCard";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { QuestCoinIcon } from "@mobile/components/QuestCoinIcon";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -38,7 +38,6 @@ import {
   getResponsiveHomeLayoutMetrics,
   getScaledCompactBrandCardMetrics,
   getShopDirectoryGridMetrics,
-  getTopBrandHref,
   mobileShellLayout,
   webAccountPageSurface,
   webHomePromoSections,
@@ -51,21 +50,12 @@ import { chunkDirectoryGridRows } from "@mobile/screens/discovery/directoryVirtu
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
-import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 type QuestTabId = (typeof webQuestTabs)[number]["id"];
 
 const exploreOtherShops = webHomePromoSections.find((section) => section.id === "travel");
 type HomeLayoutMetrics = ReturnType<typeof getResponsiveHomeLayoutMetrics>;
-type QuestExploreShopCard = {
-  readonly brand: string;
-  readonly cashback: string;
-  readonly href?: string;
-  readonly logoFallbackText?: string;
-  readonly logoUri?: string;
-  readonly tint: string;
-};
-
 export function CustomerQuestScreen({ history = false }: { history?: boolean }) {
   if (history) {
     return <CustomerQuestHistoryScreen />;
@@ -445,90 +435,19 @@ function ExploreOtherShops({ layout }: { layout: HomeLayoutMetrics }) {
         {shopRows.map((row, rowIndex) => (
           <View key={`quest-shop-row-${rowIndex}`} style={[styles.shopGridRow, { gap: gridMetrics.gap }]}>
             {row.map((card) => (
-              <CompactExploreShopCard
-                card={card}
+              <BrandCard
                 cardHeight={scaledCard.cardHeight}
                 cardWidth={gridMetrics.cardWidth}
                 key={card.brand}
                 logoVisualHeight={scaledCard.logoVisualHeight}
+                {...card}
+                size="S"
               />
             ))}
           </View>
         ))}
       </View>
     </View>
-  );
-}
-
-function CompactExploreShopCard({
-  card,
-  cardHeight,
-  cardWidth,
-  logoVisualHeight,
-}: {
-  card: QuestExploreShopCard;
-  cardHeight: number;
-  cardWidth: number;
-  logoVisualHeight: number;
-}) {
-  const styles = useThemedStyles(createQuestScreenStyles);
-  const { colors } = useTheme();
-  const tc = useCopy();
-  const [logoFailed, setLogoFailed] = useState(false);
-  const logoSource = "logoUri" in card && card.logoUri ? { uri: card.logoUri } : null;
-  const logoFallback =
-    "logoFallbackText" in card &&
-    typeof card.logoFallbackText === "string" &&
-    card.logoFallbackText
-      ? card.logoFallbackText
-      : card.brand.slice(0, 2).toUpperCase();
-  const brandVisualBackground = logoSource && !logoFailed ? colors.card : card.tint;
-
-  return (
-    <Link asChild href={(card.href ?? getTopBrandHref(card.brand)) as never}>
-      <MotionPressable
-        pressScale={0.98}
-        style={StyleSheet.flatten([
-          styles.shopCard,
-          {
-            height: cardHeight,
-            width: cardWidth,
-          },
-        ])}
-      >
-        <View
-          style={[
-            styles.shopLogo,
-            { backgroundColor: brandVisualBackground, height: logoVisualHeight },
-          ]}
-        >
-          {logoSource && !logoFailed ? (
-            <ExpoImage
-              accessibilityLabel={`${card.brand} ${tc("logo")}`}
-              cachePolicy="memory-disk"
-              contentFit="contain"
-              onError={() => setLogoFailed(true)}
-              recyclingKey={logoSource.uri}
-              source={logoSource}
-              style={styles.shopLogoImageFill}
-            />
-          ) : (
-            <Text numberOfLines={2} style={styles.shopLogoFallback}>
-              {logoFallback}
-            </Text>
-          )}
-        </View>
-        <Text numberOfLines={1} style={styles.shopName}>
-          {card.brand}
-        </Text>
-        <View style={styles.shopCashbackRow}>
-          <Text numberOfLines={1} style={styles.shopCashbackLabel}>
-            {tc("Cashback upto")}
-          </Text>
-          <Text style={styles.shopCashback}>{card.cashback}</Text>
-        </View>
-      </MotionPressable>
-    </Link>
   );
 }
 
@@ -1708,63 +1627,6 @@ function createQuestScreenStyles(colors: ThemeColors) {
   },
   shopGridRow: {
     flexDirection: "row",
-  },
-  shopCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    boxShadow: shadows.cardCss,
-    gap: 4,
-    overflow: "hidden",
-    padding: 8,
-  },
-  shopLogo: {
-    alignItems: "center",
-    borderRadius: radii.sm,
-    justifyContent: "center",
-    overflow: "hidden",
-    width: "100%",
-  },
-  shopLogoImageFill: {
-    ...StyleSheet.absoluteFill,
-  },
-  shopLogoFallback: {
-    color: colors.accent,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 24,
-    width: "72%",
-  },
-  shopName: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: typography.labelWeight,
-    lineHeight: 15,
-  },
-  shopCashbackRow: {
-    alignItems: "baseline",
-    flexDirection: "row",
-    gap: spacing.xs,
-    justifyContent: "space-between",
-  },
-  shopCashbackLabel: {
-    color: colors.muted,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 10,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 10,
-  },
-  shopCashback: {
-    color: colors.primaryDark,
-    flexShrink: 0,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 16,
   },
 });
 }

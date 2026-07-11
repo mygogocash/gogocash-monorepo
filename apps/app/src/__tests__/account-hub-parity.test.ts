@@ -130,9 +130,10 @@ describe("Account hub route parity", () => {
     expect(questFile).toContain("getShopDirectoryGridMetrics");
     expect(questFile).toContain("getScaledCompactBrandCardMetrics");
     expect(questFile).toContain("chunkDirectoryGridRows");
-    expect(questFile).toContain("CompactExploreShopCard");
-    expect(questFile).toContain("brandVisualBackground");
-    expect(questFile).toContain("getTopBrandHref(card.brand)");
+    // Explore-other-Shops renders the SHARED BrandCard (2026-07-11 tile
+    // convergence) — the local clone card is gone for good.
+    expect(questFile).toContain("<BrandCard");
+    expect(questFile).not.toContain("CompactExploreShopCard");
     expect(questFile).toContain('resourceId: "brandCatalog"');
     expect(questFile).toContain("resolveLiveBrandCards");
     expect(questFile).not.toContain("exploreOtherShops.cards.slice(0, 4)");

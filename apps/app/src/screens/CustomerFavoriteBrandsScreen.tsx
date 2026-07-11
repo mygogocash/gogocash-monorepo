@@ -6,11 +6,13 @@ import {
   ShoppingCart as ShoppingCartIcon,
 } from "@mobile/theme/icons";
 import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
-import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
+import { Image } from "expo-image";
+
+import { BrandLogoTile } from "@mobile/components/BrandLogoTile";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
@@ -270,12 +272,13 @@ function FavoriteBrandsVirtualizedGrid({
     (brand: FavoriteBrand) => (
       <FavoriteBrandCard
         brand={brand}
+        cardWidth={metrics.cardWidth}
         compact={!isDesktop}
         isFavorite={favoriteIds.includes(brand.id)}
         onToggleFavorite={onToggleFavorite}
       />
     ),
-    [favoriteIds, isDesktop, onToggleFavorite]
+    [favoriteIds, isDesktop, metrics.cardWidth, onToggleFavorite]
   );
 
   if (brands.length === 0) {
@@ -306,11 +309,13 @@ function FavoriteBrandsVirtualizedGrid({
 
 const FavoriteBrandCard = memo(function FavoriteBrandCard({
   brand,
+  cardWidth,
   compact = false,
   isFavorite = false,
   onToggleFavorite,
 }: {
   brand: FavoriteBrand;
+  cardWidth: number;
   compact?: boolean;
   isFavorite?: boolean;
   onToggleFavorite: (id: string) => void;
@@ -319,8 +324,9 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
   const { colors } = useTheme();
   const tc = useCopy();
   const tint = brand.tint ?? FAVORITE_BRAND_TINTS[brand.id] ?? FAVORITE_BRAND_FALLBACK_TINT;
-  const [logoFailed, setLogoFailed] = useState(false);
-  const brandVisualBackground = brand.logo && !logoFailed ? colors.card : tint;
+  // The tile is a wide 272:153 banner; the image renders as a centered square
+  // (side = tile height) so square bitmaps fill it edge-to-edge and clip.
+  const visualHeight = Math.round(((cardWidth - 16) * 153) / 272);
   return (
     <View style={styles.brandCard}>
       <Link asChild href={brand.href as never}>
@@ -330,7 +336,16 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
           pressScale={0.985}
           style={styles.brandCardLink}
         >
-          <View style={[styles.brandVisual, { backgroundColor: brandVisualBackground }]}>
+          <BrandLogoTile
+            brand={brand.name}
+            containerStyle={styles.brandVisual}
+            fallbackText={brand.name.charAt(0)}
+            fallbackTextStyle={styles.brandMonogram}
+            imageSquare={visualHeight}
+            source={brand.logo ? { uri: brand.logo } : null}
+            sourceKey={brand.logo}
+            tint={tint}
+          >
             {brand.showGrabCoupon ? (
               <View style={styles.couponBadge}>
                 <Text style={styles.couponEmoji}>🧧</Text>
@@ -339,20 +354,7 @@ const FavoriteBrandCard = memo(function FavoriteBrandCard({
                 </Text>
               </View>
             ) : null}
-            {brand.logo && !logoFailed ? (
-              <Image
-                accessibilityLabel={`${brand.name} logo`}
-                cachePolicy="memory-disk"
-                contentFit="contain"
-                onError={() => setLogoFailed(true)}
-                recyclingKey={brand.logo}
-                source={{ uri: brand.logo }}
-                style={styles.brandLogoImage}
-              />
-            ) : (
-              <Text style={styles.brandMonogram}>{brand.name.charAt(0)}</Text>
-            )}
-          </View>
+          </BrandLogoTile>
           <View style={styles.brandMeta}>
             <View style={styles.categoryChip}>
               <ShoppingCartIcon
@@ -581,13 +583,8 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     padding: 8,
   },
   brandVisual: {
-    alignItems: "center",
     aspectRatio: 272 / 153,
     borderRadius: 10,
-    justifyContent: "center",
-    overflow: "hidden",
-    position: "relative",
-    width: "100%",
   },
   brandMonogram: {
     color: colors.white,
@@ -595,11 +592,6 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     fontSize: 46,
     fontWeight: "800",
     opacity: 0.96,
-  },
-  brandLogoImage: {
-    // expo-image gets no size from absolute-fill alone on Android new arch.
-    height: "100%",
-    width: "100%",
   },
   couponBadge: {
     alignItems: "center",
