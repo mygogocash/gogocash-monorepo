@@ -91,18 +91,36 @@ web export with a **placeholder fingerprint**. After the first Play upload:
   `EXPO_PUBLIC_FIREBASE_*` production values before the first production OTA);
   the channel input is a dropdown; production artifacts are archived as `.aab`.
 
-## 7. Play Console mechanics
+## 7. Play Console mechanics (updated 2026-07-11 from the live console)
 
-1. Use (or create) the Play developer account. **Org accounts skip** the
-   personal-account requirement of 12 testers × 14 days of closed testing.
-2. Create the app (`GoGoCash`, App, Free, Shopping category).
-3. Build: `eas build --profile production --platform android` (or dispatch the
-   workflow with profile=production) → download the AAB.
-4. **The first AAB must be uploaded manually** in Play Console (API uploads only
-   work after the app exists). Use Internal testing first.
-5. After that, `eas submit` works once a Google Play **service-account JSON** is
-   attached via `eas credentials` (submit track is `internal` in eas.json —
-   promote to production in the console).
+Console reality check (founder screenshots):
+- The developer account is a **personal account** (ID 7809578781158392361) →
+  Google requires a **closed test with ≥12 testers running continuously for
+  14 days** before production access can even be requested. **This is the
+  longest lead-time item on the whole launch — start the clock first.**
+- The one existing Play app is **`co.gogocash.app.staging`** (Draft, internal
+  testing since May 2026). The store app must be a **new app entry** for the
+  production package **`co.gogocash.app`** — package names are permanent, and
+  the staging entry stays as the internal-distribution channel.
+- Android developer verification: already complete ✅.
+
+Critical path to start the 14-day clock:
+1. §1 first: production Firebase (30 min of console work) — note the staging
+   Firebase project already registers `co.gogocash.app`, but a mixed build
+   (production API + staging Firebase tokens) won't authenticate; keep the
+   closed-test build coherent on full production config.
+2. Build the AAB: `eas build --profile production --platform android` (or
+   dispatch the workflow, profile=production).
+3. Play Console → **Create app** (`GoGoCash`, App, Free, Shopping) for
+   `co.gogocash.app` → **the first AAB upload is manual**.
+4. Closed testing → create track → select countries (TH at minimum) → add a
+   12+ tester email list → roll out → get testers to opt in and install.
+   The 14 days count while the test stays live with 12+ testers.
+5. Store listing + Data safety + content rating (§8–§9) can be completed in
+   parallel during the 14 days; production access application comes after.
+6. `eas submit` works after the app exists + a Google Play **service-account
+   JSON** is attached via `eas credentials` (submit track is `internal` in
+   eas.json — promote in the console).
 
 ## 8. Store listing
 
