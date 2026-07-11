@@ -784,7 +784,10 @@ describe("Account hub route parity", () => {
     expect(favoriteFile).toContain("FavoriteBrandsSubPage");
     expect(favoriteFile).toContain("FavoriteBrandsTopBar");
     expect(favoriteFile).toContain("RecentlyVisitedBrandsGrid");
-    expect(favoriteFile).toContain("FavoriteBrandCard");
+    // Final-form alignment 2026-07-11: the grid renders the shared BrandCard
+    // (category chip + heart are BrandCard options), no local clone.
+    expect(favoriteFile).toContain("<BrandCard");
+    expect(favoriteFile).not.toContain("FavoriteBrandCard");
     // Hero redesign 2026-07-11: the hero lives in its own component (the old
     // inline hero + illustration filled a whole phone screen before any
     // brands appeared), and the 32pt page title renders on DESKTOP only —

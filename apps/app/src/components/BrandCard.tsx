@@ -19,7 +19,7 @@ import { BrandLogoTile, brandInitials } from "@mobile/components/BrandLogoTile";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { getTopBrandHref, mobileShellLayout } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { Heart as HeartIcon } from "@mobile/theme/icons";
+import { Heart as HeartIcon, ShoppingCart as ShoppingCartIcon } from "@mobile/theme/icons";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -56,7 +56,13 @@ export type BrandCardProps =
       readonly cardWidth: number;
       readonly logoVisualHeight: number;
       readonly accessibilityLabel?: string;
+      /** Category chip between the tile and the name (favorites grids). */
+      readonly categoryLabel?: string;
+      /** Stable offer id for the favorite heart (falls back to href/brand). */
+      readonly id?: string;
       readonly onPress?: () => void;
+      /** Render the same favorite heart the L card carries. */
+      readonly showFavoriteHeart?: boolean;
       readonly testID?: string;
     });
 
@@ -78,6 +84,9 @@ function resolveCompactLogoSource(
   return null;
 }
 
+/** Extra card height when the compact category chip renders (chip + gap). */
+export const BRAND_CARD_CATEGORY_CHIP_HEIGHT = 33;
+
 export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
   const styles = useThemedStyles(createBrandCardStyles);
   const { colors } = useTheme();
@@ -85,15 +94,16 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
   const { brand, cashback, href, tint } = props;
   const wide = props.size === "L" && props.cardWidth >= 200;
   const { isFavorite: isBrandFavorite, toggleFavorite } = useFavoriteBrands();
-  const favoriteOfferId =
-    props.size === "L"
-      ? resolveFavoriteOfferId({
-          id: props.id,
-          href: href ?? brandHref(brand),
-          brand,
-        })
-      : "";
-  const isFavorite = props.size === "L" ? isBrandFavorite(favoriteOfferId) : false;
+  const wantsFavoriteHeart =
+    props.size === "L" || (props.size === "S" && props.showFavoriteHeart === true);
+  const favoriteOfferId = wantsFavoriteHeart
+    ? resolveFavoriteOfferId({
+        id: props.id,
+        href: href ?? brandHref(brand),
+        brand,
+      })
+    : "";
+  const isFavorite = wantsFavoriteHeart ? isBrandFavorite(favoriteOfferId) : false;
   const logoSourceKey =
     props.size === "L"
       ? props.logoUri
@@ -101,7 +111,7 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
   const onToggleFavorite = (event: GestureResponderEvent) => {
     event.stopPropagation?.();
     event.preventDefault?.();
-    if (props.size === "L") {
+    if (wantsFavoriteHeart) {
       toggleFavorite(favoriteOfferId);
     }
   };
@@ -165,8 +175,42 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
             source={props.logoFallbackText ? null : compactLogoSource}
             sourceKey={logoSourceKey}
             tint={tint}
-          />
+          >
+            {props.showFavoriteHeart ? (
+              <Pressable
+                accessibilityLabel={
+                  isFavorite
+                    ? `${tc("Remove from saved brands")}: ${brand}`
+                    : `${tc("Save brand")}: ${brand}`
+                }
+                accessibilityRole="button"
+                accessibilityState={{ selected: isFavorite }}
+                hitSlop={8}
+                onPress={onToggleFavorite}
+                style={styles.heartCircle}
+              >
+                <HeartIcon
+                  color={isFavorite ? colors.primary : colors.primaryDark}
+                  fill={isFavorite ? colors.primary : undefined}
+                  size={18}
+                  strokeWidth={isFavorite ? 0 : 2}
+                />
+              </Pressable>
+            ) : null}
+          </BrandLogoTile>
         )}
+        {props.size === "S" && props.categoryLabel ? (
+          <View style={styles.compactCategoryChip}>
+            <ShoppingCartIcon
+              color={colors.primaryDark}
+              size={13}
+              strokeWidth={typography.iconStrokeWidth}
+            />
+            <Text numberOfLines={1} style={styles.compactCategoryText}>
+              {tc(props.categoryLabel)}
+            </Text>
+          </View>
+        ) : null}
         <Text
           numberOfLines={1}
           style={props.size === "L" ? styles.lShopCardTitle : styles.compactBrandName}
@@ -302,6 +346,26 @@ function createBrandCardStyles(colors: ThemeColors) {
     },
     compactBrandVisual: {
       height: mobileShellLayout.compactBrandLogoVisualHeight,
+    },
+    compactCategoryChip: {
+      alignItems: "center",
+      alignSelf: "flex-start",
+      backgroundColor: colors.primarySoft,
+      borderColor: "rgba(0, 170, 128, 0.22)",
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 5,
+      marginTop: 6,
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+    },
+    compactCategoryText: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 12,
+      fontWeight: "600",
+      lineHeight: 15,
     },
     compactBrandLogoFallback: {
       color: colors.accent,

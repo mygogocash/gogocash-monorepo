@@ -136,22 +136,12 @@ describe("CustomerFavoriteBrandsScreen — Wave B treatments (source signals)", 
     expect(heroSource).toMatch(/numberOfLines=\{1\}[\s\S]*?styles\.heroTitle/);
   });
 
-  it("compact cards match the shared BrandCard S anatomy (design alignment)", () => {
-    // Design feedback 2026-07-10 (round 2): the compact favorites card must
-    // ALIGN with the shared BrandCard compact design used on home/directory —
-    // single-line 14px/500 name, then a baseline row of 10px muted caption +
-    // 16px/700 value — instead of its own 2-line-name layout.
-    expect(screenSource).toMatch(/compact=\{!isDesktop\}/);
-    expect(screenSource).toMatch(/brandNameCompact: \{[^}]*fontSize: 14/);
-    expect(screenSource).toMatch(/brandNameCompact: \{[^}]*fontWeight: typography\.labelWeight/);
-    expect(screenSource).toMatch(/compactCashbackRow: \{[^}]*alignItems: "baseline"/);
-    expect(screenSource).toMatch(/cashbackCaptionCompact: \{[^}]*fontSize: 10/);
-    expect(screenSource).toMatch(/cashbackValueCompact: \{[^}]*fontSize: 16/);
-    expect(screenSource).toMatch(/cashbackValueCompact: \{[^}]*fontWeight: "700"/);
-    // Compact names are single-line like every other brand card (plain
-    // constant — the block is already compact-only, so no ternary).
-    expect(screenSource).toMatch(
-      /numberOfLines=\{1\}\s+style=\{\[styles\.brandName, styles\.brandNameCompact\]\}/,
-    );
+  it("cards ARE the shared BrandCard (design alignment, final form)", () => {
+    // Design feedback 2026-07-10/11: after two rounds of mirroring the shared
+    // card by hand, the favorites grid now renders the real BrandCard — the
+    // anatomy can no longer drift because there is nothing to mirror.
+    expect(screenSource).toContain("<BrandCard");
+    expect(screenSource).toContain("getScaledCompactBrandCardMetrics");
+    expect(screenSource).not.toContain("FavoriteBrandCard");
   });
 });
