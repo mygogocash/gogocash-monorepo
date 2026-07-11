@@ -30,6 +30,11 @@ export class EmailService {
     subject: string;
     html?: string;
     text?: string;
+    attachments?: Array<{
+      filename: string;
+      content: Buffer | string;
+      contentType?: string;
+    }>;
   }): Promise<void> {
     const { error } = await this.resend.emails.send({
       from: this.from,
@@ -37,6 +42,7 @@ export class EmailService {
       subject: opts.subject,
       html: opts.html,
       text: opts.text,
+      attachments: opts.attachments,
     });
     if (error) {
       throw new Error(`Email delivery failed: ${error.message}`);

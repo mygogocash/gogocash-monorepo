@@ -18,6 +18,11 @@ export interface ResendLike {
       subject: string;
       html?: string;
       text?: string;
+      attachments?: Array<{
+        filename: string;
+        content: Buffer | string;
+        contentType?: string;
+      }>;
     }) => Promise<{ data: unknown; error: { message: string } | null }>;
   };
 }

@@ -6,7 +6,7 @@ import {
   Trash as TrashIcon,
 } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Image,
   type ImageSourcePropType,
@@ -23,11 +23,15 @@ import { AppearanceSection } from "@mobile/components/AppearanceSection";
 import { LanguageRegionSection } from "@mobile/components/LanguageRegionSection";
 import { LineAppIcon } from "@mobile/components/LineAppIcon";
 import { MotionPressable } from "@mobile/components/MotionPressable";
-import { useCopy } from "@mobile/i18n/useCopy";
-import { useToast } from "@mobile/hooks/useToast";
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
+import { getSharedSessionStore } from "@mobile/auth/sharedSessionStore";
 import { getMobileEnv } from "@mobile/config/env";
+import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
+import { toastErrorMessages, userErrorMessageFromUnknown } from "@mobile/i18n/toastMessages";
+import { useToast } from "@mobile/hooks/useToast";
 import { useMobileLogout } from "@mobile/auth/useMobileLogout";
+import { createPdpaApi } from "@mobile/pdpa/api";
 import { mobileShellLayout, webAccountSettingsPage } from "@mobile/design/webDesignParity";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -256,21 +260,63 @@ function CommunityCard({
 // Web parity accent for PDPA delete actions (web: text-[#c45c00]).
 const PDPA_DANGER = "#C45C00";
 
+function maskEmailForDisplay(email: string): string {
+  const trimmed = email.trim();
+  const atIndex = trimmed.indexOf("@");
+  if (atIndex <= 0) {
+    return "****";
+  }
+  return `${trimmed.slice(0, 1)}***${trimmed.slice(atIndex)}`;
+}
+
 // PDPA data portability + erasure (web parity: PdpaDataRightsSection).
-// Deletion is REAL (Google Play policy, 2026-07-11): a two-tap confirm POSTs
-// /user/account-deletion — the backend schedules a 30-day anonymizing purge
-// (cancellable by support within the window) — then the session signs out.
-// The export card still records intent via toast only (backend follow-up).
+// Export posts to Nest POST /pdpa/data-export. Deletion is REAL (Google Play
+// policy, 2026-07-11): a two-tap confirm POSTs /user/account-deletion — the
+// backend schedules a 30-day anonymizing purge (cancellable by support within
+// the window) — then the session signs out.
 function PdpaDataRightsSection() {
   const styles = useThemedStyles(createAccountSettingsScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const { locale } = useLocale();
   const toast = useToast();
   const { logout } = useMobileLogout();
   const [confirmingDeletion, setConfirmingDeletion] = useState(false);
   const [deletionPending, setDeletionPending] = useState(false);
+  const [exportPending, setExportPending] = useState(false);
+  const exportPendingRef = useRef(false);
 
-  const submitRequest = () => toast.show(tc("Request submitted"));
+  const submitExportRequest = async () => {
+    if (exportPendingRef.current) {
+      return;
+    }
+    exportPendingRef.current = true;
+    setExportPending(true);
+    try {
+      const env = getMobileEnv();
+      const client = await getSharedMobileApiClient(env.apiUrl);
+      if (!client) {
+        toast.show(tc(toastErrorMessages.submitRequestFailed));
+        return;
+      }
+      await createPdpaApi(client).requestDataExport({ locale });
+      const sessionStore = await getSharedSessionStore();
+      const session = await sessionStore?.getSession();
+      const email =
+        typeof session?.email === "string" ? session.email.trim() : "";
+      const masked = email ? maskEmailForDisplay(email) : null;
+      toast.show(
+        masked
+          ? `${tc("Request submitted")} — we'll email ${masked}`
+          : tc("Request submitted")
+      );
+    } catch (error) {
+      toast.show(tc(userErrorMessageFromUnknown(error, toastErrorMessages.submitRequestFailed)));
+    } finally {
+      exportPendingRef.current = false;
+      setExportPending(false);
+    }
+  };
 
   const requestAccountDeletion = async () => {
     if (!confirmingDeletion) {
@@ -313,7 +359,15 @@ function PdpaDataRightsSection() {
               "We’ll send your data export to the email address you provided. This may take a little time depending on how much data we store.",
             )}
           </Text>
-          <Pressable accessibilityRole="button" onPress={submitRequest} style={styles.pdpaPrimaryButton}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: exportPending }}
+            disabled={exportPending}
+            onPress={() => {
+              void submitExportRequest();
+            }}
+            style={styles.pdpaPrimaryButton}
+          >
             <Text style={styles.pdpaPrimaryButtonText}>{tc("Request data export")}</Text>
           </Pressable>
           <Text style={styles.pdpaFootnote}>
