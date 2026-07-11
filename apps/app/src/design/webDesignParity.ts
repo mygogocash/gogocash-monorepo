@@ -243,7 +243,15 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
   const designFrame = homeDesignVersions[designVersion];
   const contentMaxWidth = mobileShellLayout.contentMaxWidth;
   const contentWidth = getProfileContentFrameWidth(viewportWidth, designVersion);
-  const contentHorizontalPadding = getProfileHorizontalPadding(viewportWidth, contentWidth);
+  // The content sections render inside a `maxWidth: contentMaxWidth` cap that is
+  // already centered in the viewport. This padding centers `contentWidth` *within*
+  // that cap, so it must be measured against the cap's rendered width — not the raw
+  // viewport. Past the cap, the raw viewport would over-pad and collapse the content
+  // to a thin center strip on wide desktops.
+  const contentHorizontalPadding = getProfileHorizontalPadding(
+    Math.min(viewportWidth, contentMaxWidth),
+    contentWidth
+  );
   const brandSectionFrameWidth = isDesktop
     ? contentWidth
     : roundLayoutValue(
