@@ -74,6 +74,10 @@ const anuphanFonts = {
 const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
 
 /** @param {ConfigContext} context @returns {ExpoConfig} */
+const enableGototrack =
+  (process.env.EXPO_PUBLIC_ENABLE_GOTOTRACK ??
+    ((process.env.EXPO_PUBLIC_APP_ENV ?? envDefaults.appEnv) === "production" ? "0" : "1")) === "1";
+
 const mobileExpoConfig = ({ config }) => ({
   ...config,
   name: appIdentity.displayName,
@@ -111,6 +115,20 @@ const mobileExpoConfig = ({ config }) => ({
       backgroundImage: "./assets/adaptive-icon-bg.png",
       foregroundImage: "./assets/adaptive-icon.png",
     },
+    // Android App Links: opens https://app.gogocash.co links in the app.
+    // autoVerify requires /.well-known/assetlinks.json on each host carrying
+    // the Play App Signing SHA-256 (see docs/PLAYSTORE_LAUNCH.md §App Links).
+    intentFilters: [
+      {
+        action: "VIEW",
+        autoVerify: true,
+        category: ["BROWSABLE", "DEFAULT"],
+        data: [
+          { scheme: "https", host: "app.gogocash.co" },
+          { scheme: "https", host: "app-staging.gogocash.co" },
+        ],
+      },
+    ],
     package: appIdentity.androidPackage,
     ...(googleServicesAndroid ? { googleServicesFile: googleServicesAndroid } : {}),
   },
@@ -126,7 +144,15 @@ const mobileExpoConfig = ({ config }) => ({
     // the RNFB plugin below is omitted) cannot integrate as static LIBRARIES —
     // their ObjC deps define no modules — so every iOS build needs static
     // FRAMEWORKS. Unconditional on purpose.
-    ["expo-build-properties", { ios: { useFrameworks: "static" } }],
+    [
+      "expo-build-properties",
+      {
+        // Pin Play's target-API compliance explicitly (Play requires 35+;
+        // SDK 57's template already targets 36 — this makes it auditable).
+        android: { compileSdkVersion: 36, targetSdkVersion: 36 },
+        ios: { useFrameworks: "static" },
+      },
+    ],
     // Native Firebase default-app init (phone OTP) — only when a google
     // services file is available (see nativeFirebaseEnabled above).
     ...(nativeFirebaseEnabled ? ["@react-native-firebase/app"] : []),
@@ -181,8 +207,11 @@ const mobileExpoConfig = ({ config }) => ({
         resizeMode: "contain",
       },
     ],
-    // GoGoTrack: declares PACKAGE_USAGE_STATS for the Android UsageStats detector.
-    "./plugins/withGototrackUsageAccess",
+    // GoGoTrack declares PACKAGE_USAGE_STATS — a Play RESTRICTED permission
+    // (declaration form + high rejection risk). Store builds ship WITHOUT it
+    // until the Play declaration is approved; EXPO_PUBLIC_ENABLE_GOTOTRACK=1
+    // (default for non-production envs) keeps it in dev/staging builds.
+    ...(enableGototrack ? ["./plugins/withGototrackUsageAccess"] : []),
   ],
   extra: {
     accountDataSource: process.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE ?? envDefaults.accountDataSource,
