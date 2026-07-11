@@ -164,9 +164,11 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
 
   it("quest explore shop cards > given remote logos > then the shared BrandCard renders them", () => {
     const quest = readMobileFile("src/screens/CustomerQuestScreen.tsx");
-
-    expect(quest).toContain("<BrandCard");
+    expect(quest).toContain("<ExploreOtherShopsSection");
     expect(quest).not.toContain("ExpoImage");
+
+    const section = readMobileFile("src/screens/ExploreOtherShopsSection.tsx");
+    expect(section).toContain("<BrandCard");
   });
 
   it("AppProviders > given startup gate > then QueryClientProvider wraps the loading shell", () => {

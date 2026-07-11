@@ -124,19 +124,22 @@ describe("Account hub route parity", () => {
     expect(questFile).toContain("questHowToEarnImage");
     expect(questFile).toContain("questPromoImage");
     expect(questFile).toContain("webQuestTabs");
-    expect(questFile).toContain("Explore other Shops");
-    expect(questFile).toContain("getResponsiveHomeLayoutMetrics");
-    expect(questFile).toContain("compactBrandCardsPerPage");
-    expect(questFile).toContain("getShopDirectoryGridMetrics");
-    expect(questFile).toContain("getScaledCompactBrandCardMetrics");
-    expect(questFile).toContain("chunkDirectoryGridRows");
-    // Explore-other-Shops renders the SHARED BrandCard (2026-07-11 tile
-    // convergence) — the local clone card is gone for good.
-    expect(questFile).toContain("<BrandCard");
+    // Explore-other-Shops is the SHARED section (2026-07-11, extracted after
+    // a third clone appeared on Referral) — grid metrics, BrandCard rows, and
+    // the live-catalog upgrade are pinned once, at the section.
+    expect(questFile).toContain("<ExploreOtherShopsSection");
     expect(questFile).not.toContain("CompactExploreShopCard");
-    expect(questFile).toContain('resourceId: "brandCatalog"');
-    expect(questFile).toContain("resolveLiveBrandCards");
-    expect(questFile).not.toContain("exploreOtherShops.cards.slice(0, 4)");
+    const exploreSection = readMobileFile("src/screens/ExploreOtherShopsSection.tsx");
+    expect(exploreSection).toContain("Explore other Shops");
+    expect(exploreSection).toContain("getResponsiveHomeLayoutMetrics");
+    expect(exploreSection).toContain("compactBrandCardsPerPage");
+    expect(exploreSection).toContain("getShopDirectoryGridMetrics");
+    expect(exploreSection).toContain("getScaledCompactBrandCardMetrics");
+    expect(exploreSection).toContain("chunkDirectoryGridRows");
+    expect(exploreSection).toContain("<BrandCard");
+    expect(exploreSection).toContain('resourceId: "brandCatalog"');
+    expect(exploreSection).toContain("resolveLiveBrandCards");
+    expect(exploreSection).not.toContain("cards.slice(0, 4)");
     expect(questFile).toContain("Let’s Got the Tasks Done!");
     expect(questFile).not.toContain("Earn extra rewards.");
   });

@@ -26,7 +26,9 @@ describe("customer quest dark mode surfaces", () => {
     // BrandLogoTile switches card background vs tint and renders expo-image
     // with contentFit=contain — pinned at the tile, once, for every surface.
     const source = readMobileFile(questFile);
-    expect(source).toContain("<BrandCard");
+    expect(source).toContain("<ExploreOtherShopsSection");
+    const section = readMobileFile("src/screens/ExploreOtherShopsSection.tsx");
+    expect(section).toContain("<BrandCard");
 
     const tile = readMobileFile("src/components/BrandLogoTile.tsx");
     expect(tile).toContain("showImage ? styles.tileCardBackground.backgroundColor : tint");

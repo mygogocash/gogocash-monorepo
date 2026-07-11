@@ -390,7 +390,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/(tabs)/quest.tsx",
-    expectedLinks: ["/quest/history", "/brand", "<BrandCard"],
+    expectedLinks: ["/quest/history", "/brand", "<ExploreOtherShopsSection"],
     landmarks: ["webQuestTabs", "QuestTaskPanel", "QuestLeaderboardPanel"],
     routeId: "quest",
     routeMarkers: ["CustomerQuestScreen"],

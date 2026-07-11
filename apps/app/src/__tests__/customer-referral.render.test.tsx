@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // CustomerReferralScreen pulls in AccountPageShell -> CustomerDesktopHeader ->
@@ -105,23 +105,15 @@ describe("CustomerReferralScreen (render)", () => {
     expect(screen.queryByText(/localhost/i)).toBeNull();
   });
 
-  it("explore-shop cards: brand-tint monogram art + human favorite labels (no raw i18n key)", () => {
+  it("explore-shop cards > given the shared section > then standard BrandCards render (no clone)", () => {
     renderScreen();
-    // The heart's accessible name is real copy, not the leaked "favoritePageAddFavorite" key.
-    expect(screen.queryByLabelText("favoritePageAddFavorite")).toBeNull();
-    expect(screen.getByLabelText("Save brand: Orbit Airways")).toBeTruthy();
-    // The banner carries a brand monogram instead of rendering as an empty gray box.
-    expect(referralSource).toContain("exploreCardMonogram");
-    expect(referralSource).toContain("shop.tint");
+    // Founder feedback 2026-07-11: the referral-local clone (single-letter
+    // monogram banner, heart beside the name, wrapping cashback caption) is
+    // replaced by the shared ExploreOtherShopsSection -> BrandCard rows.
+    expect(screen.getByText("Explore other Shops")).toBeTruthy();
+    expect(screen.getAllByText("Cashback upto").length).toBeGreaterThanOrEqual(4);
+    expect(referralSource).not.toContain("exploreCardMonogram");
     expect(referralSource).not.toContain("favoritePageAddFavorite");
-  });
-
-  it("explore-shop cards > given heart press > then toggles via FavoriteBrandsProvider", () => {
-    renderScreen();
-    expect(referralSource).toContain("useFavoriteBrands");
-    const saveButton = screen.getByLabelText("Save brand: Orbit Airways");
-    fireEvent.click(saveButton);
-    expect(screen.getByLabelText("Remove from saved brands: Orbit Airways")).toBeTruthy();
   });
 });
 
@@ -168,6 +160,14 @@ describe("CustomerReferralScreen — Wave B foundations adopted (source signals)
     expect(referralSource).not.toContain('tc("referralEmptyInvitesSubtitle")');
     expect(referralSource).toContain("It's been a while since your last invite.");
     expect(referralSource).toContain("Share with friends and earn rewards together!");
+  });
+
+  it("explore shops > given the shared section > then the local mock shops are gone", () => {
+    // The referral-only fake shops (Orbit Airways et al.) rendered a bespoke
+    // card no other screen used; the shared section shows the real promo
+    // fixture / live catalog instead.
+    expect(referralSource).not.toContain("Orbit Airways");
+    expect(referralSource).not.toContain("exploreCardMonogram");
   });
 
   it("invitation tabs > given three labels on a phone > then normal weight and no ellipsis truncation", () => {
