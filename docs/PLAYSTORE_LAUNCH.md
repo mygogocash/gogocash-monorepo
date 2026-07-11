@@ -202,6 +202,12 @@ key, add `EXPO_PUBLIC_SENTRY_DSN` / `EXPO_PUBLIC_POSTHOG_KEY` /
 `SENTRY_DISABLE_AUTO_UPLOAD` and add `SENTRY_AUTH_TOKEN` so source maps upload.
 Launching blind on crashes is how store ratings die.
 
+## Post-launch roadmap
+
+- **Play Integrity API** (withdraw fraud protection, activates the 7 console
+  integrity services): full phased plan in [PLAY_INTEGRITY_PLAN.md](PLAY_INTEGRITY_PLAN.md).
+  Start after production access; founder Phase 0 (GCP linkage) can happen any time.
+
 ## Suggested order
 
 1. §1 Firebase prod + §2 deletion decision (unblock the two hard blockers)
