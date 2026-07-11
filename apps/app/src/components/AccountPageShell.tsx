@@ -406,9 +406,11 @@ export function AccountWalletHeroCard({
                   <Text style={styles.walletHeroName}>{title}</Text>
                 </View>
                 <MaskedUserIdRow
-                  iconColor="rgba(255,255,255,0.82)"
+                  iconColor="rgba(255,255,255,0.95)"
+                  label={tc("User ID")}
+                  labelStyle={styles.walletHeroIdLabel}
                   maskedId={maskedId}
-                  rowStyle={styles.walletHeroIdRow}
+                  rowStyle={[styles.walletHeroIdChip, styles.walletHeroIdRow]}
                   textStyle={styles.walletHeroId}
                   userId={userId}
                 />
@@ -418,9 +420,11 @@ export function AccountWalletHeroCard({
         </View>
         {isCompact ? (
           <MaskedUserIdRow
-            iconColor="rgba(255,255,255,0.82)"
+            iconColor="rgba(255,255,255,0.95)"
+            label={tc("User ID")}
+            labelStyle={styles.walletHeroIdLabel}
             maskedId={maskedId}
-            rowStyle={styles.walletHeroIdRowCompact}
+            rowStyle={[styles.walletHeroIdChip, styles.walletHeroIdRowCompact]}
             textStyle={styles.walletHeroId}
             userId={userId}
           />
@@ -743,11 +747,31 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     fontSize: 18,
     lineHeight: 24,
   },
+  // Redesign 2026-07-11 (founder): the ID was 58%-alpha text lost on the green
+  // band — now a labeled chip with solid-white value so it reads at a glance.
   walletHeroId: {
-    color: "rgba(255,255,255,0.58)",
+    color: colors.white,
     fontFamily: typography.family,
     fontSize: 15,
     fontVariant: ["tabular-nums"],
+    fontWeight: typography.labelWeight,
+  },
+  walletHeroIdChip: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderColor: "rgba(255,255,255,0.30)",
+    borderRadius: radii.chip,
+    borderWidth: 1,
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  walletHeroIdLabel: {
+    color: "rgba(255,255,255,0.80)",
+    fontFamily: typography.family,
+    fontSize: 12,
+    fontWeight: typography.labelWeight,
+    letterSpacing: 0.4,
   },
   walletHeroIdRow: {
     marginTop: spacing.sm,
