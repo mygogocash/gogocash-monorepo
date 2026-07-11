@@ -50,9 +50,12 @@ describe("brand logo tile convergence", () => {
     expect(favorites).not.toContain("logoFailed");
   });
 
-  it("given the compact BrandCard > then it offers the category chip and favorite heart favorites needs", () => {
+  it("given the compact BrandCard > then it offers the favorite heart but no category chip", () => {
+    // Founder feedback 2026-07-11 (round 3): drop the category chip (Others,
+    // Finance, ...) from favorites cards — cards match the standard BrandCard
+    // exactly, with only the heart as the favorites-specific option.
     const brandCard = read("src/components/BrandCard.tsx");
-    expect(brandCard).toContain("categoryLabel");
+    expect(brandCard).not.toContain("categoryLabel");
     expect(brandCard).toContain("showFavoriteHeart");
   });
 });
