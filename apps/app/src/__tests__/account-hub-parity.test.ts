@@ -783,26 +783,34 @@ describe("Account hub route parity", () => {
 
     expect(favoriteFile).toContain("FavoriteBrandsSubPage");
     expect(favoriteFile).toContain("FavoriteBrandsTopBar");
-    expect(favoriteFile).toContain("FavoriteBrandsHero");
     expect(favoriteFile).toContain("RecentlyVisitedBrandsGrid");
     expect(favoriteFile).toContain("FavoriteBrandCard");
-    expect(favoriteFile).toContain("favoriteHeroLogoImage");
-    expect(favoriteFile).toContain("favoriteHeroBagImage");
+    // Hero redesign 2026-07-11: the hero lives in its own component (the old
+    // inline hero + illustration filled a whole phone screen before any
+    // brands appeared), and the 32pt page title renders on DESKTOP only —
+    // mobile already shows the title in the top bar.
+    expect(favoriteFile).toContain('from "@mobile/components/FavoriteBrandsHero"');
+    expect(favoriteFile).toMatch(/\{isDesktop \? \(\s*<Text style=\{styles\.pageTitle\}/);
     expect(favoriteFile).toMatch(/pageTitle:[\s\S]*fontSize: 32,[\s\S]*lineHeight: 40/);
-    expect(favoriteFile).toMatch(/heroLogo:[\s\S]*height: 60,[\s\S]*width: 60/);
-    expect(favoriteFile).toMatch(/heroTitle:[\s\S]*fontSize: 24,[\s\S]*lineHeight: 31/);
-    expect(favoriteFile).toMatch(/heroDescription:[\s\S]*fontSize: 15,[\s\S]*lineHeight: 24/);
-    expect(favoriteFile).toMatch(/heroButton:[\s\S]*minHeight: 48/);
-    expect(favoriteFile).toMatch(/heroBag:[\s\S]*height: 200/);
     expect(favoriteFile).toContain("favoriteBrandsSurfaceBleed");
-    // Web parity: mint/white hero on a white surface (not the old blue placeholder) + desktop row layout.
     expect(favoriteFile).toContain("favoriteShell");
-    expect(favoriteFile).toContain("heroCardDesktop");
+
+    const heroFile = readMobileFile("src/components/FavoriteBrandsHero.tsx");
+    // Compact mobile banner: text + small illustration in ONE ROW (~ a third
+    // of the old height); desktop keeps the generous web-parity hero.
+    expect(heroFile).toContain("favoriteHeroLogoImage");
+    expect(heroFile).toContain("favoriteHeroBagImage");
+    expect(heroFile).toContain("heroCardDesktop");
+    expect(heroFile).toMatch(/heroCard: \{[\s\S]*?flexDirection: "row"/);
+    expect(heroFile).toMatch(/heroBag:[\s\S]*height: 96/);
+    expect(heroFile).toMatch(/heroBagDesktop:[\s\S]*height: 200/);
+    // The GO logo is desktop-only chrome; mobile spends the space on content.
+    expect(heroFile).toMatch(/\{isDesktop \? \(\s*<Image[\s\S]*?favoriteHeroLogoImage/);
     expect(favoriteFile).not.toContain('"#DCEEFF"');
     expect(favoriteFile).not.toContain("favoriteBlueShell");
     expect(favoriteFile).toContain('activeRouteId="profile"');
     expect(favoriteFile).toContain('href="/profile"');
-    expect(favoriteFile).toContain('href="/shops"');
+    expect(heroFile).toContain('href="/shops"');
     expect(favoriteFile).not.toContain("No favorite brands yet");
     expect(favoriteFile).not.toContain("Browse partners");
   });

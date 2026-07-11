@@ -62,6 +62,10 @@ const screenSource = readFileSync(
   resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerFavoriteBrandsScreen.tsx"),
   "utf8",
 );
+const heroSource = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), "../components/FavoriteBrandsHero.tsx"),
+  "utf8",
+);
 
 describe("CustomerFavoriteBrandsScreen (render)", () => {
   it("mounts without throwing", () => {
@@ -70,8 +74,9 @@ describe("CustomerFavoriteBrandsScreen (render)", () => {
 
   it("renders the page + hero copy from the fixture", () => {
     renderScreen();
-    // "Favorite Brands" is the shell topbar title AND the page title -> appears multiple times.
-    expect(screen.getAllByText("Favorite Brands").length).toBeGreaterThanOrEqual(2);
+    // Hero redesign 2026-07-11: the title renders exactly ONCE — top bar on
+    // mobile, 32pt page title on desktop — never both (the old duplicate). -> appears multiple times.
+    expect(screen.getAllByText("Favorite Brands").length).toBe(1);
     expect(screen.getByText("Find Your Brands")).toBeTruthy();
     expect(screen.getByText("Recently Visited Brands")).toBeTruthy();
   });
@@ -127,8 +132,8 @@ describe("CustomerFavoriteBrandsScreen — Wave B treatments (source signals)", 
 
   it("truncates the hero title with numberOfLines so Thai copy does not overflow", () => {
     // Anchor the assertion to the hero title style so it tracks the real element, not just
-    // the brand-card names that already truncate.
-    expect(screenSource).toMatch(/numberOfLines=\{1\}[\s\S]*?style=\{styles\.heroTitle\}/);
+    // the brand-card names that already truncate. (Hero extracted 2026-07-11.)
+    expect(heroSource).toMatch(/numberOfLines=\{1\}[\s\S]*?styles\.heroTitle/);
   });
 
   it("compact cards match the shared BrandCard S anatomy (design alignment)", () => {
