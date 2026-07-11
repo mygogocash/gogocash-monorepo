@@ -6,6 +6,13 @@ Assets in this folder are console-ready (specs verified):
 - `screenshot-1..5-*.png` — 1080×1920 (9:16) phone screenshots, captured from a
   real device on staging (status bar removed). Recapture on production data
   before the production-track release if the catalog differs.
+- `tablet-7in/` (1620×2880) and `tablet-10in/` (2034×3616) — 9:16 tablet
+  screenshots captured against staging at the app's real Tablet breakpoint
+  (768–1023px CSS width; see mobileShellLayout in webDesignParity.ts) via
+  Playwright, so they show the actual tablet layout, not a stretched phone
+  view. Same three screens as the phone set (Home, Shopee brand detail,
+  Favorite Brands). Recapture on production data before the production-track
+  release.
 
 ## en-US
 
