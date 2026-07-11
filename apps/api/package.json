@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1080.0",
+    "@aws-sdk/s3-request-presigner": "^3.1085.0",
     "@crossmint/server-sdk": "^1.2.76",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.1.28",
@@ -58,6 +59,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/multer": "^2.2.0",
     "@types/passport-jwt": "^4.0.1",
+    "archiver": "^5.3.2",
     "axios": "^1.18.1",
     "bcrypt": "^6.0.0",
     "cache-manager": "^7.2.9",
@@ -92,6 +94,7 @@
     "@swc/cli": "^0.8.1",
     "@swc/core": "^1.15.43",
     "@swc/jest": "^0.2.39",
+    "@types/archiver": "^5.3.4",
     "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",

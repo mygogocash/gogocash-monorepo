@@ -5,6 +5,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Readable } from 'stream';
 import { readMulterUploadBuffer } from 'src/common/multer-upload-buffer';
 
@@ -169,6 +170,62 @@ export class R2ObjectStorageService {
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
+  }
+
+  /**
+   * Upload a generated buffer (e.g. PDPA zip) at an explicit object key.
+   * Always stored private — callers must use getSignedDownloadUrl for access.
+   */
+  async uploadBuffer(
+    objectKey: string,
+    buffer: Buffer,
+    contentType: string,
+  ): Promise<R2UploadedObject> {
+    this.assertUploadConfigured();
+    const bucket = this.getBucketName();
+    const startedAt = Date.now();
+    try {
+      await this.getClient().send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: objectKey,
+          Body: buffer,
+          ContentType: contentType || 'application/octet-stream',
+          CacheControl: 'private, max-age=0',
+        }),
+      );
+      const publicUrl = buildR2PublicUrl(this.getPublicBaseUrl(), objectKey);
+      this.logger.log(
+        `R2 uploadBuffer ok key=${objectKey} bytes=${buffer.length} ms=${Date.now() - startedAt}`,
+      );
+      return { publicUrl, objectKey, bucket, access: 'private' };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown R2 upload error';
+      this.logger.error(
+        `R2 uploadBuffer failed key=${objectKey} ms=${Date.now() - startedAt}: ${message}`,
+      );
+      throw new HttpException(
+        `Media upload failed (${message}). Check the R2_* configuration.`,
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  /** Presigned GET URL for a private object (default ~24h). */
+  async getSignedDownloadUrl(
+    objectKey: string,
+    ttlSeconds: number,
+  ): Promise<string> {
+    this.assertUploadConfigured();
+    return getSignedUrl(
+      this.getClient(),
+      new GetObjectCommand({
+        Bucket: this.getBucketName(),
+        Key: objectKey,
+      }),
+      { expiresIn: ttlSeconds },
+    );
   }
 
   async deletePublicUrl(publicUrl: string): Promise<void> {

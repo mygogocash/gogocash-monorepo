@@ -55,6 +55,23 @@ describe('EmailService (Resend)', () => {
     );
   });
 
+  it('sendEmail > given attachments > forwards filename+content to Resend', async () => {
+    const content = Buffer.from('zip-bytes');
+    await service.sendEmail({
+      to: 'a@b.co',
+      subject: 'Your data export',
+      html: '<p>export</p>',
+      attachments: [{ filename: 'gogocash-data-export.zip', content }],
+    });
+
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'a@b.co',
+        attachments: [{ filename: 'gogocash-data-export.zip', content }],
+      }),
+    );
+  });
+
   it('sendOtp > when Resend returns an error > throws (does not swallow)', async () => {
     send.mockResolvedValueOnce({
       data: null,

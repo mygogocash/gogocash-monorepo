@@ -3,8 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // CustomerAccountSettingsScreen renders through AccountPageShell ->
 // CustomerDesktopHeader -> CustomerLocaleRegionControl -> i18n/LocaleProvider, which
@@ -27,9 +27,16 @@ vi.mock("@mobile/auth/useMobileLogout", () => ({
   useMobileLogout: () => ({ logout: mockLogout, pending: false }),
 }));
 
+const getSession = vi.fn(async () => ({ email: "seeker@example.com" }));
+vi.mock("@mobile/auth/sharedSessionStore", () => ({
+  getSharedSessionStore: async () => ({ getSession }),
+  resetSharedSessionStoreForTests: () => {},
+}));
+
 import { CustomerAccountSettingsScreen } from "@mobile/screens/CustomerAccountSettingsScreen";
 import { ToastProvider } from "@mobile/components/Toast";
 import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
+import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 import { ThemeProvider } from "@mobile/theme/ThemeProvider";
 
 // Wave B (B2) per-screen UX pass for the account-settings screen. RENDER suite: it
@@ -73,6 +80,17 @@ const renderScreen = () =>
   );
 
 describe("CustomerAccountSettingsScreen (render)", () => {
+  beforeEach(() => {
+    clientPost.mockReset();
+    mockLogout.mockClear();
+    getSession.mockReset();
+    getSession.mockResolvedValue({ email: "seeker@example.com" });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("mounts without throwing", () => {
     expect(() => renderScreen()).not.toThrow();
   });
@@ -98,6 +116,40 @@ describe("CustomerAccountSettingsScreen (render)", () => {
     expect(screen.getByText("Notifications via Line")).toBeTruthy();
     expect(screen.getByText("Notifications via Email")).toBeTruthy();
     expect(screen.getAllByText("Coming soon").length).toBe(2);
+  });
+
+  it("pdpa export > given a successful POST /pdpa/data-export > then toasts with masked session email", async () => {
+    clientPost.mockResolvedValue({
+      requestId: "req-1",
+      status: "sent",
+      delivery: "attachment",
+    });
+
+    renderScreen();
+    fireEvent.click(screen.getByText("Request data export"));
+
+    await waitFor(() => {
+      expect(clientPost).toHaveBeenCalledWith("/pdpa/data-export", { locale: "en" });
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/Request submitted/)).toBeTruthy();
+      expect(screen.getByText(/s\*\*\*@example\.com/)).toBeTruthy();
+    });
+  });
+
+  it("pdpa export > given API failure > then keeps the user and shows an error toast", async () => {
+    clientPost.mockRejectedValue(new Error("upstream failed"));
+
+    renderScreen();
+    fireEvent.click(screen.getByText("Request data export"));
+
+    await waitFor(() => {
+      expect(clientPost).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText(toastErrorMessages.submitRequestFailed)).toBeTruthy();
+    });
+    expect(screen.getByText("Request data export")).toBeTruthy();
   });
 });
 

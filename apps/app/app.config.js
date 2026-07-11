@@ -73,6 +73,30 @@ const anuphanFonts = {
 
 const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
 
+/** Google iOS OAuth client id → reversed URL scheme for the Sign-In config plugin. */
+const toGoogleIosUrlScheme = (iosClientId) => {
+  const trimmed = iosClientId.trim();
+  const suffix = ".apps.googleusercontent.com";
+  if (trimmed.startsWith("com.googleusercontent.apps.")) {
+    return trimmed;
+  }
+  if (trimmed.endsWith(suffix)) {
+    return `com.googleusercontent.apps.${trimmed.slice(0, -suffix.length)}`;
+  }
+  return `com.googleusercontent.apps.${trimmed}`;
+};
+
+const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? "";
+const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? "";
+const googleIosUrlScheme = googleIosClientId
+  ? toGoogleIosUrlScheme(googleIosClientId)
+  : undefined;
+
+/** @type {string | [string, { iosUrlScheme: string }]} */
+const googleSignInPlugin = googleIosUrlScheme
+  ? ["@react-native-google-signin/google-signin", { iosUrlScheme: googleIosUrlScheme }]
+  : "@react-native-google-signin/google-signin";
+
 /** @param {ConfigContext} context @returns {ExpoConfig} */
 const enableGototrack =
   (process.env.EXPO_PUBLIC_ENABLE_GOTOTRACK ??
@@ -83,9 +107,10 @@ const mobileExpoConfig = ({ config }) => ({
   name: appIdentity.displayName,
   slug: "gogocash-mobile",
   scheme: appIdentity.scheme,
+  // 0.3.0: adds Google Sign-In native module (dormant until EXPO_PUBLIC_GOOGLE_*_CLIENT_ID).
   // 0.2.0: adds the @react-native-firebase native module (phone OTP) — a new
   // runtime; 0.1.0 binaries must not receive this JS.
-  version: "0.2.0",
+  version: "0.3.0",
   // OTA: native builds with the same app version receive eas update bundles.
   // Bump `version` when native code or config plugins change.
   runtimeVersion: {
@@ -215,12 +240,17 @@ const mobileExpoConfig = ({ config }) => ({
     // gototrack-detector module's library manifest would otherwise merge in
     // at Gradle time (Play FGS-declaration trigger, found on the vc42 AAB).
     ["./plugins/withGototrackUsageAccess", { enabled: enableGototrack }],
+    // Native Google Sign-In (dormant until EXPO_PUBLIC_GOOGLE_*_CLIENT_ID are set).
+    // Always registered so the native module ships; iosUrlScheme only when iOS client id is set.
+    googleSignInPlugin,
   ],
   extra: {
     accountDataSource: process.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE ?? envDefaults.accountDataSource,
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? envDefaults.apiUrl,
     appEnv: process.env.EXPO_PUBLIC_APP_ENV ?? envDefaults.appEnv,
     frontendUrl: process.env.EXPO_PUBLIC_FRONTEND_URL ?? envDefaults.frontendUrl,
+    googleWebClientId,
+    googleIosClientId,
     posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST ?? "",
     posthogKey: process.env.EXPO_PUBLIC_POSTHOG_KEY ?? "",
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? "",

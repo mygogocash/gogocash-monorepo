@@ -7,10 +7,11 @@ export type PdpaDataExportRequest = {
   locale?: "en" | "th";
 };
 
+/** Sync-send contract from POST /pdpa/data-export. */
 export type PdpaDataExportResponse = {
   requestId: string;
-  status: "pending" | "ready" | "failed";
-  downloadUrl?: string;
+  status: "sent" | "failed";
+  delivery: "attachment" | "link";
 };
 
 export type PdpaBaseClient = {
@@ -22,9 +23,6 @@ export function createPdpaApi(client: PdpaBaseClient) {
   return {
     requestDataExport(request: PdpaDataExportRequest = {}) {
       return client.post<PdpaDataExportResponse>("/pdpa/data-export", request);
-    },
-    getDataExportStatus() {
-      return client.get<PdpaDataExportResponse>("/pdpa/data-export/status");
     },
   };
 }

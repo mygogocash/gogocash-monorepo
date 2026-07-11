@@ -8,6 +8,10 @@ import {
 
 import { R2ObjectStorageService } from './r2-object-storage.service';
 
+jest.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: jest.fn(),
+}));
+
 const file = (
   originalname: string,
   mimetype = 'image/png',
@@ -114,6 +118,52 @@ describe('R2ObjectStorageService', () => {
         'https://storage.googleapis.com/bucket/brands/x.png',
       );
       expect(send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('uploadBuffer', () => {
+    it('PUTs the buffer under the given object key as private', async () => {
+      const buffer = Buffer.from('export-zip');
+      const result = await service.uploadBuffer(
+        'pdpa-exports/user-1/export.zip',
+        buffer,
+        'application/zip',
+      );
+
+      expect(send).toHaveBeenCalledTimes(1);
+      const command = send.mock.calls[0][0];
+      expect(command).toBeInstanceOf(PutObjectCommand);
+      expect(command.input.Bucket).toBe(ENV.R2_BUCKET);
+      expect(command.input.Key).toBe('pdpa-exports/user-1/export.zip');
+      expect(command.input.Body).toBe(buffer);
+      expect(command.input.ContentType).toBe('application/zip');
+      expect(command.input.CacheControl).toBe('private, max-age=0');
+      expect(result.objectKey).toBe('pdpa-exports/user-1/export.zip');
+      expect(result.bucket).toBe(ENV.R2_BUCKET);
+      expect(result.access).toBe('private');
+    });
+  });
+
+  describe('getSignedDownloadUrl', () => {
+    it('returns a presigned GET URL for the object key', async () => {
+      const { getSignedUrl } = jest.requireMock(
+        '@aws-sdk/s3-request-presigner',
+      ) as { getSignedUrl: jest.Mock };
+      getSignedUrl.mockResolvedValueOnce(
+        'https://acct.r2.cloudflarestorage.com/bucket/pdpa-exports/x.zip?X-Amz-Signature=abc',
+      );
+
+      const url = await service.getSignedDownloadUrl(
+        'pdpa-exports/x.zip',
+        24 * 60 * 60,
+      );
+
+      expect(getSignedUrl).toHaveBeenCalledWith(
+        expect.any(S3Client),
+        expect.any(GetObjectCommand),
+        { expiresIn: 24 * 60 * 60 },
+      );
+      expect(url).toContain('X-Amz-Signature=abc');
     });
   });
 

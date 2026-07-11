@@ -452,7 +452,8 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
       return;
     }
 
-    if (Platform.OS !== "web") {
+    const isNativeGoogle = Platform.OS !== "web" && provider.id === "google";
+    if (Platform.OS !== "web" && !isNativeGoogle) {
       toastCtx?.show(tc(authSendErrorMessages.webOnly));
       return;
     }
@@ -460,15 +461,35 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     setSocialBusyProviderId(provider.id);
     void (async () => {
       try {
-        const { isFirebaseSocialProviderId, signInWithSocialProvider } = await import(
-          "@mobile/auth/firebaseSocialAuth"
-        );
-        if (!isFirebaseSocialProviderId(provider.id)) {
-          toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
-          return;
+        let idToken: string;
+
+        if (isNativeGoogle) {
+          const { GoogleSignInNotConfiguredError, signInWithNativeGoogle } = await import(
+            "@mobile/auth/nativeGoogleAuth"
+          );
+          try {
+            ({ idToken } = await signInWithNativeGoogle());
+          } catch (error) {
+            if (
+              error instanceof GoogleSignInNotConfiguredError ||
+              (error instanceof Error && error.name === "GoogleSignInNotConfiguredError")
+            ) {
+              toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+              return;
+            }
+            throw error;
+          }
+        } else {
+          const { isFirebaseSocialProviderId, signInWithSocialProvider } = await import(
+            "@mobile/auth/firebaseSocialAuth"
+          );
+          if (!isFirebaseSocialProviderId(provider.id)) {
+            toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+            return;
+          }
+          ({ idToken } = await signInWithSocialProvider(provider.id));
         }
 
-        const { idToken } = await signInWithSocialProvider(provider.id);
         const { exchangeFirebaseIdToken } = await import("@mobile/auth/firebaseLogin");
         const session = await exchangeFirebaseIdToken({
           apiUrl: env.apiUrl,

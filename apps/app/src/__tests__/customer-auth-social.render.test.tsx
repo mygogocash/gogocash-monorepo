@@ -6,6 +6,17 @@ vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
 }));
 
+const platformState = { OS: "web" as "web" | "android" | "ios" };
+vi.mock("react-native", async () => {
+  const actual = await vi.importActual<typeof import("react-native")>("react-native");
+  return {
+    ...actual,
+    get Platform() {
+      return { ...actual.Platform, OS: platformState.OS };
+    },
+  };
+});
+
 const routerPush = vi.fn();
 const routerReplace = vi.fn();
 vi.mock("expo-router", () => ({
@@ -27,27 +38,49 @@ vi.mock("@mobile/auth/firebaseSocialAuth", () => ({
   signInWithSocialProvider: (...args: unknown[]) => signInWithSocialProvider(...args),
 }));
 
+const signInWithNativeGoogle = vi.fn();
+class GoogleSignInNotConfiguredError extends Error {
+  constructor(message = "Google Sign-In is not configured") {
+    super(message);
+    this.name = "GoogleSignInNotConfiguredError";
+  }
+}
+vi.mock("@mobile/auth/nativeGoogleAuth", () => ({
+  GoogleSignInNotConfiguredError,
+  signInWithNativeGoogle: (...args: unknown[]) => signInWithNativeGoogle(...args),
+}));
+
 const exchangeFirebaseIdToken = vi.fn();
 vi.mock("@mobile/auth/firebaseLogin", () => ({
   exchangeFirebaseIdToken: (...args: unknown[]) => exchangeFirebaseIdToken(...args),
 }));
 
+import { ToastProvider } from "@mobile/components/Toast";
 import { CustomerAuthScreen } from "@mobile/screens/CustomerAuthScreen";
 import { mobileSessionStorageKey } from "@mobile/auth/session";
+import { authSendErrorMessages } from "@mobile/i18n/toastMessages";
 
 function readStoredSession(): Record<string, unknown> | null {
   const raw = window.localStorage.getItem(mobileSessionStorageKey);
   return raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
 }
 
+function renderLogin() {
+  return render(
+    createElement(ToastProvider, {}, createElement(CustomerAuthScreen, { mode: "login" }))
+  );
+}
+
 describe("CustomerAuthScreen — backend mode social sign-in", () => {
   beforeEach(() => {
+    platformState.OS = "web";
     vi.stubEnv("EXPO_PUBLIC_ACCOUNT_DATA_SOURCE", "backend");
     vi.stubEnv("EXPO_PUBLIC_API_URL", "https://api.dev.gogocash.co");
     window.localStorage.clear();
     routerPush.mockClear();
     routerReplace.mockClear();
     signInWithSocialProvider.mockReset();
+    signInWithNativeGoogle.mockReset();
     exchangeFirebaseIdToken.mockReset();
     signInWithSocialProvider.mockResolvedValue({ idToken: "google-id-token" });
     exchangeFirebaseIdToken.mockResolvedValue({
@@ -59,10 +92,11 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     window.localStorage.clear();
+    platformState.OS = "web";
   });
 
   it("backend mode > tapping Google > exchanges the Firebase token and persists the session", async () => {
-    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    renderLogin();
 
     fireEvent.click(screen.getByRole("button", { name: "Gmail" }));
 
@@ -80,5 +114,57 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
       expect(readStoredSession()?.access_token).toBe("backend-access-token");
     });
     expect(routerReplace).toHaveBeenCalledWith("/link-mycashback");
+  });
+
+  it("native Google > given configured client > uses nativeGoogleAuth and exchanges the token", async () => {
+    platformState.OS = "android";
+    signInWithNativeGoogle.mockResolvedValue({ idToken: "native-google-id-token" });
+
+    renderLogin();
+    fireEvent.click(screen.getByRole("button", { name: "Gmail" }));
+
+    await waitFor(() => {
+      expect(signInWithNativeGoogle).toHaveBeenCalled();
+    });
+    expect(signInWithSocialProvider).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(exchangeFirebaseIdToken).toHaveBeenCalledWith({
+        apiUrl: "https://api.dev.gogocash.co",
+        country: "TH",
+        idToken: "native-google-id-token",
+      });
+    });
+    await waitFor(() => {
+      expect(readStoredSession()?.access_token).toBe("backend-access-token");
+    });
+  });
+
+  it("native Google > given not configured > shows Coming soon toast", async () => {
+    platformState.OS = "android";
+    signInWithNativeGoogle.mockRejectedValue(new GoogleSignInNotConfiguredError());
+
+    renderLogin();
+    fireEvent.click(screen.getByRole("button", { name: "Gmail" }));
+
+    await waitFor(() => {
+      expect(signInWithNativeGoogle).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Coming soon")).toBeTruthy();
+    });
+    expect(exchangeFirebaseIdToken).not.toHaveBeenCalled();
+  });
+
+  it("native non-Google social > keeps the web-only toast", async () => {
+    platformState.OS = "android";
+
+    renderLogin();
+    fireEvent.click(screen.getByRole("button", { name: "Facebook" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(authSendErrorMessages.webOnly)).toBeTruthy();
+    });
+    expect(signInWithNativeGoogle).not.toHaveBeenCalled();
+    expect(signInWithSocialProvider).not.toHaveBeenCalled();
   });
 });
