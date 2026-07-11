@@ -48,8 +48,10 @@ on:
           - submit
       platform:
         description: "Target platform (for build/submit)"
+        # Android-first (2026-07-11): default to android so a habitual dispatch
+        # doesn't queue an iOS build nobody ships; pick ios/all explicitly.
         required: true
-        default: "all"
+        default: "android"
         type: choice
         options:
           - all

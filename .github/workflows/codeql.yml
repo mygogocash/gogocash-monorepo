@@ -103,6 +103,11 @@ jobs:
 
   analyze-swift:
     name: Analyze (swift)
+    # Android-focus (founder decision 2026-07-11): the iOS build + analysis
+    # takes ~100 min on a macOS runner (10x billing) and the product ships
+    # Android-first — run it on the weekly schedule + manual dispatch only,
+    # not per push/PR. The java-kotlin (Android) lane stays on every PR.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     # macos-15: React Native 0.86 requires Xcode >= 16.1; the macos-14 image
     # defaults to 15.4 and `pod install` hard-fails ("Please upgrade XCode").
     runs-on: macos-15
