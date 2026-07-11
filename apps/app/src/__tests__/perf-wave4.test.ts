@@ -110,13 +110,15 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(discoveryStyles).not.toContain('height: "62%"');
   });
 
-  it("shop detail related cards > given remote logos > then expo-image uses contain on card background", () => {
+  it("shop detail related cards > given remote logos > then the shared BrandCard renders them", () => {
     const shopDetail = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+    expect(shopDetail).toContain("<BrandCard");
 
-    expect(shopDetail).toContain('from "expo-image"');
-    expect(shopDetail).toContain('contentFit="contain"');
-    expect(shopDetail).toContain("store.logoUri ? colors.card : store.tint");
-    expect(shopDetail).toContain('cachePolicy="memory-disk"');
+    // contain + cache + card-vs-tint background live in the ONE shared tile.
+    const tile = readMobileFile("src/components/BrandLogoTile.tsx");
+    expect(tile).toContain('contentFit="contain"');
+    expect(tile).toContain('cachePolicy="memory-disk"');
+    expect(tile).toContain("showImage ? styles.tileCardBackground.backgroundColor : tint");
   });
 
   it("BrandCard > given custom onPress > then it skips Link so search suggestions stay on-screen", () => {

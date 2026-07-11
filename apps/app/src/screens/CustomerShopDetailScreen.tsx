@@ -47,6 +47,7 @@ import {
   setPendingShopNowIntent,
 } from "@mobile/auth/shopNowIntent";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
+import { BrandCard } from "@mobile/components/BrandCard";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
@@ -62,6 +63,7 @@ import {
   getResponsiveHomeLayoutMetrics,
   mobileShellLayout,
   webShopDetailGroceryGalaxy,
+  getScaledCompactBrandCardMetrics,
 } from "@mobile/design/webDesignParity";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
@@ -677,9 +679,13 @@ function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
   );
 }
 
+// Rail cards are the fixed-size compact BrandCard (144pt — the same card the
+// home carousels scroll), so the related rail inherits tile retry + corners.
+const FIXED_RELATED_CARD_WIDTH = 144;
+const relatedCardMetrics = getScaledCompactBrandCardMetrics(FIXED_RELATED_CARD_WIDTH);
+
 function ShopExploreRelated({ excludeShopId }: { excludeShopId: string }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
-  const { colors } = useTheme();
   const { region } = useLocale();
   const catalogResource = useCustomerAccountResource<OfferListResponse, OfferListResponse>({
     fixtureData: { data: [], limit: 80, page: 1, total: 0, totalPages: 0 },
@@ -707,54 +713,22 @@ function ShopExploreRelated({ excludeShopId }: { excludeShopId: string }) {
         horizontal
         showsHorizontalScrollIndicator={false}
       >
-        {related.map((store) => {
-          const logoTileBackground = store.logoUri ? colors.card : store.tint;
-
-          return (
-            <Link asChild href={`/shop/${store.id}` as never} key={store.id}>
-              <MotionPressable pressScale={0.98} style={styles.relatedCard}>
-                <View style={[styles.relatedVisual, { backgroundColor: logoTileBackground }]}>
-                  {store.logoUri ? (
-                    <ExpoImage
-                      accessibilityLabel={`${store.brand} logo`}
-                      cachePolicy="memory-disk"
-                      contentFit="contain"
-                      recyclingKey={store.logoUri}
-                      source={{ uri: store.logoUri }}
-                      style={styles.relatedLogoImage}
-                    />
-                  ) : null}
-                  {store.showGrabCoupon ? (
-                    <View style={styles.relatedCouponBadge}>
-                      <Text style={styles.relatedCouponIcon}>🧧</Text>
-                      <Text numberOfLines={1} style={styles.relatedCouponText}>
-                        {store.label}
-                      </Text>
-                    </View>
-                  ) : null}
-                  <View accessibilityLabel="Add to favorites" style={styles.relatedFavoriteButton}>
-                    <HeartIcon
-                      color={colors.primaryDark}
-                      size={16}
-                      strokeWidth={typography.iconStrokeWidth}
-                    />
-                  </View>
-                </View>
-                <Text numberOfLines={1} style={styles.relatedName}>
-                  {store.brand}
-                </Text>
-                <View style={styles.relatedCashbackRow}>
-                  <Text numberOfLines={1} style={styles.relatedCashbackCaption}>
-                    Cashback upto
-                  </Text>
-                  <Text numberOfLines={1} style={styles.relatedCashbackValue}>
-                    {store.cashback}
-                  </Text>
-                </View>
-              </MotionPressable>
-            </Link>
-          );
-        })}
+        {related.map((store) => (
+          <BrandCard
+            brand={store.brand}
+            cardHeight={relatedCardMetrics.cardHeight}
+            cardWidth={FIXED_RELATED_CARD_WIDTH}
+            cashback={store.cashback}
+            href={`/shop/${store.id}`}
+            id={store.id}
+            key={store.id}
+            logoUri={store.logoUri}
+            logoVisualHeight={relatedCardMetrics.logoVisualHeight}
+            showFavoriteHeart
+            size="S"
+            tint={store.tint}
+          />
+        ))}
       </ScrollView>
     </View>
   );
@@ -1337,93 +1311,6 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   relatedRow: {
     gap: 12,
     paddingRight: spacing.md,
-  },
-  relatedCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 8,
-    padding: 10,
-    width: 168,
-    boxShadow: shadows.cardCss,
-  },
-  relatedVisual: {
-    alignItems: "center",
-    borderRadius: 12,
-    height: 112,
-    justifyContent: "center",
-    overflow: "hidden",
-    padding: 12,
-    position: "relative",
-    width: "100%",
-  },
-  relatedLogoImage: {
-    height: 56,
-    width: 96,
-  },
-  relatedCouponBadge: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 4,
-    left: 8,
-    maxWidth: 120,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    position: "absolute",
-    top: 8,
-  },
-  relatedCouponIcon: {
-    fontSize: 11,
-    lineHeight: 13,
-  },
-  relatedCouponText: {
-    color: colors.ink,
-    flexShrink: 1,
-    fontFamily: typography.family,
-    fontSize: 10,
-  },
-  relatedFavoriteButton: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 28,
-    justifyContent: "center",
-    position: "absolute",
-    right: 8,
-    top: 8,
-    width: 28,
-  },
-  relatedName: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  relatedCashbackRow: {
-    alignItems: "baseline",
-    flexDirection: "row",
-    gap: 6,
-    justifyContent: "space-between",
-  },
-  relatedCashbackCaption: {
-    color: colors.muted,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 11,
-  },
-  relatedCashbackValue: {
-    color: colors.primaryDark,
-    flexShrink: 0,
-    fontFamily: typography.family,
-    fontSize: 18,
-    fontWeight: "700",
   },
 });
 }
