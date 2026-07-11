@@ -254,7 +254,7 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
                   props.logoUri ?? props.logoAsset ?? props.logoFallbackText ?? `${brand}-logo`
                 }
                 source={compactLogoSource}
-                style={styles.compactBrandLogoImage}
+                style={[styles.compactBrandLogoImage, { width: props.logoVisualHeight }]}
               />
             ) : (
               <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
@@ -359,6 +359,9 @@ function createBrandCardStyles(colors: ThemeColors) {
       zIndex: 2,
     },
     brandLogoImage: {
+      // Radius on the image itself — Android's new architecture does not
+      // reliably clip a child image to the parent's rounded overflow.
+      borderRadius: radii.sm,
       height: "100%",
       width: "100%",
     },
@@ -417,8 +420,15 @@ function createBrandCardStyles(colors: ThemeColors) {
     },
     compactBrandLogoImage: {
       // expo-image gets no size from absolute-fill alone on Android new arch.
+      // Radius lives on the image AND the image is a centered SQUARE (width
+      // set inline to logoVisualHeight): the visual is wider than tall, so a
+      // square bitmap `contain`-insets with bare strips either side and its
+      // sharp corners float INSIDE the viewport where no viewport radius can
+      // touch them. The square viewport makes bitmaps fill edge-to-edge — the
+      // same geometry that makes the L tile (aspectRatio 1) clip correctly.
+      // Device-verified 2026-07-11 (King Power 288x288 in a 128x117 visual).
+      borderRadius: radii.sm,
       height: "100%",
-      width: "100%",
     },
     compactBrandLogoFallback: {
       color: colors.accent,
