@@ -203,8 +203,9 @@ describe("CustomerShopDetailScreen — Wave B foundations adopted (source signal
     expect(shopSource).toContain("encodeURIComponent(shop.category)");
   });
 
-  it("related store captions > given dark mode > then secondary cashback copy uses muted ink", () => {
-    expect(shopSource).toMatch(/relatedCashbackCaption:[\s\S]*?color: colors\.muted/);
-    expect(shopSource).not.toMatch(/relatedCashbackCaption:[\s\S]*?color: colors\.textSoft/);
+  it("related store cards > given the shared BrandCard > then no bespoke caption styles remain", () => {
+    // Caption/ink treatment now comes from the shared compact BrandCard.
+    expect(shopSource).toContain("<BrandCard");
+    expect(shopSource).not.toContain("relatedCashbackCaption");
   });
 });
