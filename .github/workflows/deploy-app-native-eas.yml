@@ -65,6 +65,7 @@ on:
         options:
           - development
           - preview
+          - closedtest
           - production
       channel:
         description: "EAS Update channel (for the update action)"
@@ -92,7 +93,7 @@ jobs:
     environment: ${{ inputs.profile == 'production' && 'production' || 'staging' }}
     env:
       # Production Android builds are AABs (Play upload); others are APKs.
-      ANDROID_ARTIFACT_EXT: ${{ inputs.profile == 'production' && 'aab' || 'apk' }}
+      ANDROID_ARTIFACT_EXT: ${{ (inputs.profile == 'production' || inputs.profile == 'closedtest') && 'aab' || 'apk' }}
       EXPO_PUBLIC_EAS_PROJECT_ID: 0039c25f-f88e-491d-8da9-85b8d6e66558
       NODE_PATH: ${{ github.workspace }}/node_modules:${{ github.workspace }}/apps/app/node_modules
     defaults:

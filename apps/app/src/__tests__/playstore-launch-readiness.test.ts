@@ -27,6 +27,19 @@ describe("Play Store launch readiness", () => {
     expect(prod.EXPO_PUBLIC_API_URL).toBe("https://api.gogocash.co");
   });
 
+  it("closedtest profile > given the 14-day closed-test clock > then it builds a store AAB on staging config", () => {
+    // Personal Play accounts must run a 12-tester/14-day closed test before
+    // production. This profile lets the clock start before the production
+    // Firebase project exists: store-uploadable AAB, coherent staging config.
+    const ct = easJson.build.closedtest;
+    expect(ct.channel).toBe("staging");
+    expect(ct.distribution).toBeUndefined(); // AAB, not internal APK
+    expect(ct.env.EXPO_PUBLIC_API_URL).toBe("https://api-staging.gogocash.co");
+    expect(ct.env.EXPO_PUBLIC_APP_ENV).toBe("staging");
+    expect(ct.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE).toBe("backend");
+    expect(ct.env.SENTRY_DISABLE_AUTO_UPLOAD).toBe("true");
+  });
+
   it("android app links > given app.gogocash.co URLs > then autoVerify intent filters exist", () => {
     expect(appConfig).toContain("intentFilters");
     expect(appConfig).toContain("autoVerify: true");
