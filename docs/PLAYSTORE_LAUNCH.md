@@ -9,7 +9,7 @@ what remains, who owns it, and in what order. Update it as items close.
 | # | Item | Owner | Severity | Status |
 |---|------|-------|----------|--------|
 | 1 | Production Firebase project + google-services secret | Founder (console) | **Blocker** | ☐ |
-| 2 | Account deletion is a no-op — real backend flow + web URL | Repo (next PR) | **Blocker** | ☐ |
+| 2 | Account deletion — real backend flow + web URL | Repo | **Blocker** | ✅ (30-day soft delete) |
 | 3 | GoGoTrack `PACKAGE_USAGE_STATS` gated out of store builds | Repo | **Blocker** | ✅ this PR |
 | 4 | Android App Links (intentFilters + assetlinks.json) | Repo + Founder (SHA) | Required | ✅ config in this PR / ☐ SHA |
 | 5 | Production profile: backend data + Sentry upload off | Repo | Required | ✅ this PR |
@@ -44,17 +44,22 @@ and a **public web deletion URL**. Today the "Request account deletion" button
 (`CustomerAccountSettingsScreen.tsx`) shows a success toast and does nothing,
 and `apps/api` has no user-facing deletion endpoint.
 
-Planned implementation (next PR, TDD):
-- `apps/api`: session-bound deletion endpoint (`DELETE /user` or a PDPA
-  data-subject-request flow) — needs the founder's call on **semantics**:
-  hard-delete vs. deactivate + retention window (Thai PDPA + financial-record
-  retention for paid cashback favor a 30-day soft-delete with anonymization).
-- `apps/app`: wire the existing button; surface the flow under Profile →
-  Account Setting (it is currently buried at the `/language` route).
-- Web: a public page (e.g. `app.gogocash.co/account-deletion`) for the Data
-  safety form's deletion URL.
+**Implemented 2026-07-11** (founder chose the 30-day soft delete):
+- `apps/api`: `POST /user/account-deletion` schedules an anonymizing purge 30
+  days out (idempotent — repeat requests keep the original clock);
+  `POST /user/account-deletion/cancel` clears it inside the grace window; a
+  daily 03:00 cron deletes the Firebase credential then blanks all PII fields
+  (financial records keyed on `_id` survive — PDPA/financial retention).
+  Firebase-delete failures skip the user and retry the next run so a live
+  credential is never orphaned against an anonymized record.
+- `apps/app`: the Account Setting deletion button is real — two-tap confirm →
+  POST → toast → sign-out. Localized (en+th).
+- **Data safety form deletion URL: `https://app.gogocash.co/account-deletion`**
+  (public route, no sign-in required; live after the next production web deploy).
 
-**Founder decision needed:** deletion semantics (above) before the API PR.
+Follow-ups (not blockers): the "Request data export" card still only records
+intent via toast (needs a PDPA export backend); consider surfacing a
+"deletion pending — cancel?" banner for users who sign back in mid-window.
 
 ## 3. GoGoTrack usage-access (blocker — handled)
 
