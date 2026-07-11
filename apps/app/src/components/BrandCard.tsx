@@ -1,5 +1,4 @@
-import { Image } from "expo-image";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo } from "react";
 import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { resolveFavoriteOfferId } from "@mobile/account/resolveFavoriteOfferId";
 import { Link } from "expo-router";
@@ -16,10 +15,7 @@ import lazadaLogo from "../../assets/partner-lazada.png";
 import sheinLogo from "../../assets/partner-shein.png";
 import shopeeLogo from "../../assets/partner-shopee.png";
 import type { TopBrandCard } from "@mobile/account/topBrandResource";
-import {
-  LOGO_RETRY_DELAY_MS,
-  shouldScheduleLogoRetry,
-} from "@mobile/components/logoRetryPolicy";
+import { BrandLogoTile, brandInitials } from "@mobile/components/BrandLogoTile";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { getTopBrandHref, mobileShellLayout } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -68,31 +64,9 @@ function brandHref(brand: string) {
   return getTopBrandHref(brand);
 }
 
-function brandInitials(brand: string): string {
-  const parts = brand
-    .replace(/&/g, " ")
-    .split(/[^A-Za-z0-9]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (parts.length === 0) {
-    return "GO";
-  }
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
 function resolveCompactLogoSource(
-  props: Extract<BrandCardProps, { size: "S" }>,
-  logoFailed: boolean
+  props: Extract<BrandCardProps, { size: "S" }>
 ): ImageSourcePropType | null {
-  if (logoFailed) {
-    return null;
-  }
-
   if (props.logoUri) {
     return { uri: props.logoUri };
   }
@@ -120,25 +94,10 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
         })
       : "";
   const isFavorite = props.size === "L" ? isBrandFavorite(favoriteOfferId) : false;
-  const [logoFailed, setLogoFailed] = useState(false);
-  // Bounded transient-failure recovery (field bug 2026-07-11): one flaky
-  // response used to pin the initials placeholder for the whole session.
-  const logoAttemptsRef = useRef(0);
-  const logoRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logoSourceKey =
     props.size === "L"
       ? props.logoUri
       : props.logoUri ?? props.logoAsset ?? props.logoFallbackText;
-  useEffect(() => {
-    logoAttemptsRef.current = 0;
-    setLogoFailed(false);
-    return () => {
-      if (logoRetryTimerRef.current) {
-        clearTimeout(logoRetryTimerRef.current);
-        logoRetryTimerRef.current = null;
-      }
-    };
-  }, [logoSourceKey]);
   const onToggleFavorite = (event: GestureResponderEvent) => {
     event.stopPropagation?.();
     event.preventDefault?.();
@@ -146,28 +105,8 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
       toggleFavorite(favoriteOfferId);
     }
   };
-  const onLogoError = () => {
-    logoAttemptsRef.current += 1;
-    setLogoFailed(true);
-    if (shouldScheduleLogoRetry(logoAttemptsRef.current)) {
-      logoRetryTimerRef.current = setTimeout(() => {
-        logoRetryTimerRef.current = null;
-        setLogoFailed(false);
-      }, LOGO_RETRY_DELAY_MS);
-    }
-  };
   const compactLogoSource =
-    props.size === "S" ? resolveCompactLogoSource(props, logoFailed) : null;
-  const hasCompactLogoSource =
-    props.size === "S" && Boolean(props.logoUri || props.logoAsset) && !logoFailed;
-  const brandVisualBackground =
-    props.size === "L"
-      ? props.logoUri && !logoFailed
-        ? colors.card
-        : tint
-      : hasCompactLogoSource
-        ? colors.card
-        : tint;
+    props.size === "S" ? resolveCompactLogoSource(props) : null;
 
   const card = (
     <MotionPressable
@@ -181,11 +120,12 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
       testID={props.testID}
     >
         {props.size === "L" ? (
-          <View
-            style={[
-              styles.brandVisual,
-              { backgroundColor: brandVisualBackground },
-            ]}
+          <BrandLogoTile
+            brand={brand}
+            containerStyle={styles.brandVisual}
+            source={props.logoUri ? { uri: props.logoUri } : null}
+            sourceKey={logoSourceKey}
+            tint={tint}
           >
             {props.showGrabCoupon ? (
               <View style={styles.couponChip}>
@@ -214,54 +154,18 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
                 strokeWidth={isFavorite ? 0 : 2}
               />
             </Pressable>
-            {props.logoUri && !logoFailed ? (
-              <Image
-                accessibilityLabel={`${brand} logo`}
-                cachePolicy="memory-disk"
-                contentFit="contain"
-                onError={onLogoError}
-                recyclingKey={props.logoUri ?? `${brand}-logo`}
-                source={{ uri: props.logoUri }}
-                style={styles.brandLogoImage}
-              />
-            ) : (
-              <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
-                {brandInitials(brand)}
-              </Text>
-            )}
-          </View>
+          </BrandLogoTile>
         ) : (
-          <View
-            style={[
-              styles.compactBrandVisual,
-              {
-                backgroundColor: brandVisualBackground,
-                height: props.logoVisualHeight,
-              },
-            ]}
-          >
-            {props.logoFallbackText ? (
-              <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
-                {props.logoFallbackText}
-              </Text>
-            ) : compactLogoSource ? (
-              <Image
-                accessibilityLabel={`${brand} logo`}
-                cachePolicy="memory-disk"
-                contentFit="contain"
-                onError={onLogoError}
-                recyclingKey={
-                  props.logoUri ?? props.logoAsset ?? props.logoFallbackText ?? `${brand}-logo`
-                }
-                source={compactLogoSource}
-                style={[styles.compactBrandLogoImage, { width: props.logoVisualHeight }]}
-              />
-            ) : (
-              <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
-                {brandInitials(brand)}
-              </Text>
-            )}
-          </View>
+          <BrandLogoTile
+            brand={brand}
+            containerStyle={[styles.compactBrandVisual, { height: props.logoVisualHeight }]}
+            fallbackText={props.logoFallbackText ?? brandInitials(brand)}
+            fallbackTextStyle={styles.compactBrandLogoFallback}
+            imageSquare={props.logoVisualHeight}
+            source={props.logoFallbackText ? null : compactLogoSource}
+            sourceKey={logoSourceKey}
+            tint={tint}
+          />
         )}
         <Text
           numberOfLines={1}
@@ -312,13 +216,7 @@ function createBrandCardStyles(colors: ThemeColors) {
       boxShadow: shadows.cardCss,
     },
     brandVisual: {
-      alignItems: "center",
       aspectRatio: 1,
-      borderRadius: radii.sm,
-      justifyContent: "center",
-      overflow: "hidden",
-      position: "relative",
-      width: "100%",
     },
     couponChip: {
       alignItems: "center",
@@ -357,13 +255,6 @@ function createBrandCardStyles(colors: ThemeColors) {
       right: 8,
       width: 28,
       zIndex: 2,
-    },
-    brandLogoImage: {
-      // Radius on the image itself — Android's new architecture does not
-      // reliably clip a child image to the parent's rounded overflow.
-      borderRadius: radii.sm,
-      height: "100%",
-      width: "100%",
     },
     lShopCardTitle: {
       color: colors.ink,
@@ -410,25 +301,7 @@ function createBrandCardStyles(colors: ThemeColors) {
       boxShadow: shadows.cardCss,
     },
     compactBrandVisual: {
-      alignItems: "center",
-      borderRadius: radii.sm,
       height: mobileShellLayout.compactBrandLogoVisualHeight,
-      justifyContent: "center",
-      overflow: "hidden",
-      position: "relative",
-      width: "100%",
-    },
-    compactBrandLogoImage: {
-      // expo-image gets no size from absolute-fill alone on Android new arch.
-      // Radius lives on the image AND the image is a centered SQUARE (width
-      // set inline to logoVisualHeight): the visual is wider than tall, so a
-      // square bitmap `contain`-insets with bare strips either side and its
-      // sharp corners float INSIDE the viewport where no viewport radius can
-      // touch them. The square viewport makes bitmaps fill edge-to-edge — the
-      // same geometry that makes the L tile (aspectRatio 1) clip correctly.
-      // Device-verified 2026-07-11 (King Power 288x288 in a 128x117 visual).
-      borderRadius: radii.sm,
-      height: "100%",
     },
     compactBrandLogoFallback: {
       color: colors.accent,
