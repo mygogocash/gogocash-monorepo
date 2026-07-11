@@ -113,7 +113,10 @@ Critical path to start the 14-day clock:
 1. Fastest clock start: the **`closedtest` EAS profile** builds a
    store-uploadable AAB on coherent staging config (staging API + the
    committed staging Firebase, which already registers `co.gogocash.app`) —
-   no production Firebase needed. Dispatch deploy-app-native-eas.yml with
+   no production Firebase needed, and GoGoTrack is gated OFF so the
+   permission surface matches production (no PACKAGE_USAGE_STATS /
+   foreground-service → no closed-test review friction). Dispatch
+   deploy-app-native-eas.yml with
    profile=closedtest. Swap in a production-config AAB before the
    production-track release; the 14-day clock counts testers, not builds.
 2. Or the full-production path: §1 Firebase first, then

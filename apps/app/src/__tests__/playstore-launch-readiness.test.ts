@@ -38,6 +38,12 @@ describe("Play Store launch readiness", () => {
     expect(ct.env.EXPO_PUBLIC_APP_ENV).toBe("staging");
     expect(ct.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE).toBe("backend");
     expect(ct.env.SENTRY_DISABLE_AUTO_UPLOAD).toBe("true");
+    // The closed-test build is store-distributed, so it must ship the SAME
+    // permission surface as production — GoGoTrack (PACKAGE_USAGE_STATS +
+    // foreground-service) gated OFF. Otherwise the closed-test review hits
+    // the usage-access rejection risk and testers exercise a flow production
+    // won't have. GoGoTrack dogfooding → a separate internal-testing build.
+    expect(ct.env.EXPO_PUBLIC_ENABLE_GOTOTRACK).toBe("0");
   });
 
   it("android app links > given app.gogocash.co URLs > then autoVerify intent filters exist", () => {
