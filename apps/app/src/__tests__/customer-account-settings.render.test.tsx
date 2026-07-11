@@ -16,6 +16,17 @@ vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
 }));
 
+const clientPost = vi.fn();
+vi.mock("@mobile/api/sharedClient", () => ({
+  getSharedMobileApiClient: async () => ({ get: vi.fn(), post: clientPost }),
+  resetSharedMobileApiClientForTests: () => {},
+}));
+
+const mockLogout = vi.fn().mockResolvedValue(undefined);
+vi.mock("@mobile/auth/useMobileLogout", () => ({
+  useMobileLogout: () => ({ logout: mockLogout, pending: false }),
+}));
+
 import { CustomerAccountSettingsScreen } from "@mobile/screens/CustomerAccountSettingsScreen";
 import { ToastProvider } from "@mobile/components/Toast";
 import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
@@ -163,5 +174,55 @@ describe("CustomerAccountSettingsScreen — Wave B foundations deliberately not 
       expect(globalThis.localStorage.getItem("gogocash.region")).toBe("SG");
       expect(screen.getByLabelText("Change country").textContent).toContain("Singapore");
     });
+  });
+});
+
+// Google Play launch blocker (2026-07-11): the deletion button was a no-op
+// toast. Founder-decided semantics: 30-day soft delete via the real backend.
+describe("account deletion (Play policy)", () => {
+  it("given a single tap > then it arms a confirm step and fires no request", async () => {
+    clientPost.mockClear();
+    renderScreen();
+
+    fireEvent.click(screen.getByText("Request account deletion"));
+
+    expect(await screen.findByText("Tap again to permanently delete")).toBeTruthy();
+    expect(clientPost).not.toHaveBeenCalled();
+  });
+
+  it("given tap + confirm > then POSTs /user/account-deletion and signs out", async () => {
+    clientPost.mockClear();
+    mockLogout.mockClear();
+    clientPost.mockResolvedValue({ deletionScheduledFor: "2026-08-10T00:00:00.000Z" });
+    renderScreen();
+
+    fireEvent.click(screen.getByText("Request account deletion"));
+    fireEvent.click(await screen.findByText("Tap again to permanently delete"));
+
+    expect(await screen.findByText(/Deletion scheduled/)).toBeTruthy();
+    expect(clientPost).toHaveBeenCalledWith("/user/account-deletion");
+    expect(mockLogout).toHaveBeenCalled();
+  });
+
+  it("given the backend rejects > then shows the shared error toast and stays signed in", async () => {
+    clientPost.mockClear();
+    mockLogout.mockClear();
+    clientPost.mockRejectedValue(new Error("boom"));
+    renderScreen();
+
+    fireEvent.click(screen.getByText("Request account deletion"));
+    fireEvent.click(await screen.findByText("Tap again to permanently delete"));
+
+    expect(await screen.findByText("Could not complete your request. Please try again.")).toBeTruthy();
+    expect(mockLogout).not.toHaveBeenCalled();
+  });
+
+  it("public deletion URL > given Play's Data safety form > then the /account-deletion route exists", () => {
+    const route = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), "../../app/account-deletion.tsx"),
+      "utf8"
+    );
+    expect(route).toContain("account");
+    expect(settingsSource).not.toContain("this build has no backend wired here");
   });
 });

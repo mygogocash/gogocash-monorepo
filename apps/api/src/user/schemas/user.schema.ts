@@ -136,6 +136,18 @@ export class User {
 
   @Prop()
   consent?: ConsentData;
+
+  // ── Account deletion (Google Play policy, 2026-07-11) ──
+  // 30-day soft delete: request schedules an anonymizing purge, cancellable
+  // during the grace window. Financial records survive anonymization.
+  @Prop({ type: Date, required: false, default: null })
+  deletion_requested_at: Date | null;
+
+  @Prop({ type: Date, required: false, default: null })
+  deletion_scheduled_for: Date | null;
+
+  @Prop({ type: Date, required: false, default: null })
+  anonymized_at: Date | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

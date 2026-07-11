@@ -374,5 +374,7 @@
   "mobileSettingsChangeCountryAria": "เปลี่ยนประเทศ",
   "mobileLocaleRegionButtonAria": "ภาษาและภูมิภาค",
   "mobileLocaleRegionSheetCloseAria": "ปิดตัวเลือกภาษาและภูมิภาค",
-  "mobileLocaleRegionSheetAria": "เลือกภาษาและภูมิภาค"
+  "mobileLocaleRegionSheetAria": "เลือกภาษาและภูมิภาค",
+  "mobileDeletionScheduledToast": "กำหนดการลบเรียบร้อย บัญชีของคุณจะถูกลบถาวรภายใน 30 วัน",
+  "mobileDeletionConfirmTap": "แตะอีกครั้งเพื่อลบถาวร"
 }
