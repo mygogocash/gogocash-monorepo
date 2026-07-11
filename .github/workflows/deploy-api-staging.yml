@@ -1,3 +1,15 @@
+# ⚠️ PAUSED / KNOWN-BROKEN (2026-07-10, founder decision): every run of this
+# workflow has failed because two Secret Manager secrets were never created in
+# project gogocash-staging:
+#   gogocash-staging-r2-access-key-id
+#   gogocash-staging-r2-secret-access-key
+# Live staging (api-staging.gogocash.co) is served by Railway auto-deploy and
+# is NOT affected — a red run here does not mean staging is broken. To revive
+# this Cloud Run rehearsal lane: mint an R2 S3 API token (Cloudflare → R2 →
+# Manage R2 API Tokens, bucket gogocash-catalog-staging), create both secrets
+# (`gcloud secrets create <name> --data-file=- --project gogocash-staging`),
+# then dispatch this workflow.
+#
 # LEGACY GCP one-shot deploy — prefer build-staging.yml + release-staging.yml.
 # Staging primary path is Railway (push to staging branch).
 #

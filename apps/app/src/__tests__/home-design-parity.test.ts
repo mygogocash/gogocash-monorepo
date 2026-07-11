@@ -426,17 +426,23 @@ describe("Expo home design parity", () => {
     expect(homeFile).not.toContain("contentContainerStyle={styles.brandCardRow}");
   });
 
-  it("home design parity > given staging Top Brands mobile carousel > then Expo pages horizontally through card grids", () => {
+  it("home design parity > given staging Top Brands carousel > then desktop pages while mobile free-scrolls column flow", () => {
+    // Founder feedback 2026-07-11: mobile snapping by a whole 8-column group
+    // felt broken. Desktop keeps the paged group (snap props gated on isPager);
+    // mobile flows columns and scrolls freely with natural momentum.
     const homeFile = readHomeFile();
 
     expect(homeFile).toContain("horizontal");
-    expect(homeFile).toContain("pagingEnabled");
-    expect(homeFile).toContain("snapToInterval={homeLayout.topBrandGroupWidth}");
-    expect(homeFile).toContain('decelerationRate="fast"');
-    expect(homeFile).toContain("disableIntervalMomentum");
+    expect(homeFile).toContain("getPromoSectionLayoutMode(homeLayout.isDesktop, topBrands.length)");
+    expect(homeFile).toContain("pagingEnabled={isPager}");
+    expect(homeFile).toContain("snapToInterval={isPager ? homeLayout.topBrandGroupWidth : undefined}");
+    expect(homeFile).toContain('decelerationRate={isPager ? "fast" : "normal"}');
+    expect(homeFile).toContain("disableIntervalMomentum={isPager}");
     expect(homeFile).toContain("styles.topBrandScroll");
     expect(homeFile).toContain("styles.topBrandPage");
     expect(homeFile).toContain("topBrandPages.map");
+    expect(homeFile).toContain("topBrandColumns.map");
+    expect(homeFile).toContain("chunkTopBrandCards(topBrands, homeLayout.topBrandRowsPerPage)");
     expect(homeFile).not.toContain("webTopBrandCards.slice(0, 6)");
   });
 
@@ -807,7 +813,13 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("styles.promoScroll");
     expect(homeFile).toContain("styles.promoPage");
     expect(homeFile).toContain("styles.promoPagerContent");
-    expect(homeFile).toContain("snapToInterval={homeLayout.compactBrandGroupWidth}");
+    // Founder feedback 2026-07-11: snap props gate on the desktop pager; mobile
+    // free-scrolls a column flow, and few-card sections render a fit-all grid.
+    expect(homeFile).toContain("snapToInterval={isPager ? homeLayout.compactBrandGroupWidth : undefined}");
+    expect(homeFile).toContain("getPromoSectionLayoutMode(homeLayout.isDesktop, sectionCards.length)");
+    expect(homeFile).toContain('layoutMode === "grid"');
+    expect(homeFile).toContain("getPromoGridCardWidth(");
+    expect(homeFile).toContain("promoColumns.map");
     expect(homeFile).not.toContain("<View style={styles.compactBrandGrid}>");
   });
 
