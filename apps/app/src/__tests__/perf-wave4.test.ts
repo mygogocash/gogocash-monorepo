@@ -155,11 +155,11 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     );
   });
 
-  it("favorite brand cards > given remote logos > then the shared tile renders the logo", () => {
+  it("favorite brand cards > given remote logos > then the shared BrandCard renders them", () => {
     const favorites = readMobileFile("src/screens/CustomerFavoriteBrandsScreen.tsx");
 
-    expect(favorites).toContain("<BrandLogoTile");
-    expect(favorites).toMatch(/cashbackValue:[\s\S]*flexShrink:\s*0/);
+    expect(favorites).toContain("<BrandCard");
+    expect(favorites).toContain("logoUri={brand.logo}");
   });
 
   it("quest explore shop cards > given remote logos > then the shared BrandCard renders them", () => {

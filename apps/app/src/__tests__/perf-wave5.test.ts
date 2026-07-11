@@ -3,10 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import {
-  getFavoriteBrandCardHeight,
-  getFavoriteBrandGridMetrics,
-} from "../screens/favoriteBrandGrid";
+import { getFavoriteBrandGridMetrics } from "../screens/favoriteBrandGrid";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
@@ -48,8 +45,10 @@ describe("favorite brands grid virtualization", () => {
 
     expect(favoriteSource).toContain("FavoriteBrandsVirtualizedGrid");
     expect(favoriteSource).toContain("DirectoryVirtualizedGrid");
-    expect(favoriteSource).toMatch(/const FavoriteBrandCard = memo\(/);
-    expect(favoriteSource).not.toMatch(/brands\.map\(\(brand\) =>[\s\S]*?<FavoriteBrandCard/);
+    // Final-form alignment 2026-07-11: cards are the shared (already-memoized)
+    // BrandCard rendered through the virtualized grid — never a plain map.
+    expect(favoriteSource).toContain("<BrandCard");
+    expect(favoriteSource).not.toMatch(/brands\.map\(\(brand\) =>[\s\S]*?<BrandCard/);
   });
 
   it("favoriteBrandGrid > given content width > then derives column metrics", () => {
@@ -59,7 +58,6 @@ describe("favorite brands grid virtualization", () => {
 
     const desktop = getFavoriteBrandGridMetrics(1200, true);
     expect(desktop.columns).toBeGreaterThanOrEqual(2);
-    expect(getFavoriteBrandCardHeight(mobile.cardWidth)).toBeGreaterThan(180);
   });
 });
 
