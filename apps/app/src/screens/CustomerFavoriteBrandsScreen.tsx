@@ -10,9 +10,8 @@ import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-na
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
-import { Image } from "expo-image";
-
 import { BrandLogoTile } from "@mobile/components/BrandLogoTile";
+import { FavoriteBrandsHero } from "@mobile/components/FavoriteBrandsHero";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
@@ -28,12 +27,10 @@ import {
   getFavoriteBrandCardHeight,
   getFavoriteBrandGridMetrics,
 } from "@mobile/screens/favoriteBrandGrid";
-import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
-import favoriteHeroBagImage from "../../assets/favorite-hero-bag.png";
-import favoriteHeroLogoImage from "../../assets/favorite-hero-logo.png";
 
 // One row shape for both sources: the static fixture rows and the live catalog
 // rows mapped from GET /offer (which add an optional logo URL + derived tint).
@@ -84,7 +81,9 @@ export function CustomerFavoriteBrandsScreen() {
       <View style={styles.favoriteShell}>
         {isDesktop ? null : <FavoriteBrandsTopBar />}
         <View style={styles.content}>
-          <Text style={styles.pageTitle}>{tc(webFavoriteBrandsPage.title)}</Text>
+          {isDesktop ? (
+            <Text style={styles.pageTitle}>{tc(webFavoriteBrandsPage.title)}</Text>
+          ) : null}
           <FavoriteBrandsHero />
           {catalogResource.status !== "ready" ? (
             <CustomerAccountResourceState
@@ -134,44 +133,6 @@ function FavoriteBrandsTopBar() {
         <Text style={styles.topBarTitle}>{tc(webFavoriteBrandsPage.title)}</Text>
       </Pressable>
     </Link>
-  );
-}
-
-function FavoriteBrandsHero() {
-  const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
-  const tc = useCopy();
-  const { width } = useWindowDimensions();
-  const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
-  // Web parity: on desktop the hero is a row (text block left, illustration right); on mobile it
-  // stacks centered with the illustration below.
-  return (
-    <View style={[styles.heroCard, isDesktop ? styles.heroCardDesktop : null]}>
-      <View style={[styles.heroTextColumn, isDesktop ? styles.heroTextColumnDesktop : null]}>
-        <Image
-          alt={webFavoriteBrandsPage.hero.logoAlt}
-          source={favoriteHeroLogoImage}
-          style={styles.heroLogo}
-        />
-        <Text numberOfLines={1} style={styles.heroTitle}>{tc(webFavoriteBrandsPage.hero.title)}</Text>
-        <Text style={[styles.heroDescription, isDesktop ? styles.heroDescriptionDesktop : null]}>
-          {tc(webFavoriteBrandsPage.hero.description)}
-        </Text>
-        <Link asChild href="/shops">
-          {/* Single style object (not an array): expo-router's asChild Slot merges the child's
-              style and breaks on an array. Desktop left-alignment comes from the parent column's
-              alignItems instead of a per-button override. */}
-          <MotionPressable accessibilityRole="link" pressScale={0.98} style={styles.heroButton}>
-            <Text style={styles.heroButtonText}>{tc(webFavoriteBrandsPage.hero.actionLabel)}</Text>
-          </MotionPressable>
-        </Link>
-      </View>
-      <Image
-        alt={tc(webFavoriteBrandsPage.hero.illustrationAlt)}
-        resizeMode="contain"
-        source={favoriteHeroBagImage}
-        style={[styles.heroBag, isDesktop ? styles.heroBagDesktop : null]}
-      />
-    </View>
   );
 }
 
@@ -469,87 +430,6 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     fontSize: 32,
     fontWeight: "700",
     lineHeight: 40,
-  },
-  heroCard: {
-    alignItems: "center",
-    backgroundColor: pickThemed(colors, "#F2FBF8", colors.fieldMuted),
-    borderColor: pickThemed(colors, "#D8F0E8", colors.border),
-    borderRadius: 24,
-    borderWidth: 1,
-    boxShadow: "0 4px 16px rgba(16, 53, 34, 0.10)",
-    gap: 12,
-    overflow: "hidden",
-    paddingHorizontal: 22,
-    paddingTop: 34,
-  },
-  heroCardDesktop: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 40,
-    justifyContent: "space-between",
-    paddingBottom: 40,
-    paddingHorizontal: 40,
-    paddingTop: 40,
-  },
-  heroTextColumn: {
-    alignItems: "center",
-    gap: 12,
-  },
-  heroTextColumnDesktop: {
-    alignItems: "flex-start",
-    flex: 1,
-  },
-  heroLogo: {
-    height: 60,
-    width: 60,
-  },
-  heroTitle: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 24,
-    fontWeight: "700",
-    lineHeight: 31,
-    textAlign: "center",
-  },
-  heroDescription: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 15,
-    lineHeight: 24,
-    maxWidth: 360,
-    textAlign: "center",
-  },
-  heroDescriptionDesktop: {
-    maxWidth: 400,
-    textAlign: "left",
-  },
-  heroButton: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radii.chip,
-    justifyContent: "center",
-    marginTop: 8,
-    minHeight: 48,
-    minWidth: 154,
-    paddingHorizontal: 28,
-  },
-  heroButtonText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: 18,
-    fontWeight: "700",
-    lineHeight: 24,
-  },
-  heroBag: {
-    height: 200,
-    marginTop: 20,
-    width: "100%",
-  },
-  heroBagDesktop: {
-    flexShrink: 0,
-    height: 240,
-    marginTop: 0,
-    width: 320,
   },
   section: {
     gap: 16,
