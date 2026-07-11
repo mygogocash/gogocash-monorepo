@@ -21,11 +21,15 @@ describe("customer quest dark mode surfaces", () => {
     expect(source).not.toMatch(/rankViewText:[\s\S]*color: "#00AA80"/);
   });
 
-  it("quest explore shops > given remote logos > then uses card background and expo-image contain", () => {
+  it("quest explore shops > given remote logos > then the shared tile owns the card-background + contain behavior", () => {
+    // 2026-07-11 tile convergence: quest renders the shared BrandCard, whose
+    // BrandLogoTile switches card background vs tint and renders expo-image
+    // with contentFit=contain — pinned at the tile, once, for every surface.
     const source = readMobileFile(questFile);
+    expect(source).toContain("<BrandCard");
 
-    expect(source).toContain("brandVisualBackground");
-    expect(source).toContain('contentFit="contain"');
-    expect(source).toContain("ExpoImage");
+    const tile = readMobileFile("src/components/BrandLogoTile.tsx");
+    expect(tile).toContain("showImage ? styles.tileCardBackground.backgroundColor : tint");
+    expect(tile).toContain('contentFit="contain"');
   });
 });

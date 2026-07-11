@@ -11,7 +11,7 @@ import {
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const brandCardSource = fs.readFileSync(
-  path.resolve(testDir, "../components/BrandCard.tsx"),
+  path.resolve(testDir, "../components/BrandLogoTile.tsx"),
   "utf8",
 );
 
@@ -39,8 +39,8 @@ describe("logo retry policy", () => {
   });
 });
 
-describe("BrandCard logo retry wiring (source parity)", () => {
-  it("given a logo error > then BrandCard schedules a bounded retry and cleans the timer up", () => {
+describe("BrandLogoTile logo retry wiring (source parity)", () => {
+  it("given a logo error > then the tile schedules a bounded retry and cleans the timer up", () => {
     expect(brandCardSource).toContain("shouldScheduleLogoRetry(");
     expect(brandCardSource).toContain("LOGO_RETRY_DELAY_MS");
     expect(brandCardSource).toContain("setLogoFailed(false)");
