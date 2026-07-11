@@ -40,14 +40,19 @@ describe("brand logo tile convergence", () => {
     expect(quest).not.toContain('from "expo-image"');
   });
 
-  it("given the Favorite Brands card > then its logo visual is the shared tile", () => {
+  it("given the Favorite Brands grid > then it renders the shared BrandCard, not a clone", () => {
+    // Founder feedback 2026-07-11 (round 2): the favorites cards must BE the
+    // standard BrandCard — same tile, spacing, and typography — with the
+    // category chip and favorite heart as BrandCard options.
     const favorites = read("src/screens/CustomerFavoriteBrandsScreen.tsx");
-    expect(favorites).toContain("<BrandLogoTile");
-    // No hand-rolled logo failure handling — the tile owns retry/fallback.
-    // (expo-image stays imported for the hero illustrations only.)
+    expect(favorites).toContain("<BrandCard");
+    expect(favorites).not.toContain("FavoriteBrandCard");
     expect(favorites).not.toContain("logoFailed");
-    // Wide 272:153 tile: the image must be a centered square or square
-    // bitmaps keep their sharp corners inside the viewport.
-    expect(favorites).toContain("imageSquare=");
+  });
+
+  it("given the compact BrandCard > then it offers the category chip and favorite heart favorites needs", () => {
+    const brandCard = read("src/components/BrandCard.tsx");
+    expect(brandCard).toContain("categoryLabel");
+    expect(brandCard).toContain("showFavoriteHeart");
   });
 });

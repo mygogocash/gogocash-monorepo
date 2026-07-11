@@ -3,34 +3,33 @@ import {
   ChevronLeft as ChevronLeftIcon,
   Heart as HeartIcon,
   Search as SearchIcon,
-  ShoppingCart as ShoppingCartIcon,
 } from "@mobile/theme/icons";
-import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
-import { BrandLogoTile } from "@mobile/components/BrandLogoTile";
+import { BRAND_CARD_CATEGORY_CHIP_HEIGHT, BrandCard } from "@mobile/components/BrandCard";
 import { FavoriteBrandsHero } from "@mobile/components/FavoriteBrandsHero";
-import { MotionPressable } from "@mobile/components/MotionPressable";
 import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
 import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
-import { mobileShellLayout, webFavoriteBrandsPage } from "@mobile/design/webDesignParity";
+import {
+  getScaledCompactBrandCardMetrics,
+  mobileShellLayout,
+  webFavoriteBrandsPage,
+} from "@mobile/design/webDesignParity";
 import {
   DirectoryVirtualizedGrid,
 } from "@mobile/screens/discovery/directoryVirtualizedGrid";
-import {
-  getFavoriteBrandCardHeight,
-  getFavoriteBrandGridMetrics,
-} from "@mobile/screens/favoriteBrandGrid";
+import { getFavoriteBrandGridMetrics } from "@mobile/screens/favoriteBrandGrid";
 import { type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
-import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
+import { shadows, spacing, typography } from "@mobile/theme/tokens";
 
 // One row shape for both sources: the static fixture rows and the live catalog
 // rows mapped from GET /offer (which add an optional logo URL + derived tint).
@@ -61,7 +60,7 @@ export function CustomerFavoriteBrandsScreen() {
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
-  const { favoriteIds, toggleFavorite } = useFavoriteBrands();
+  const { favoriteIds } = useFavoriteBrands();
 
   // Fixtures mode (default) renders the parity rows synchronously; backend mode
   // pulls the live public catalog (GET /offer) and maps it into the same row shape —
@@ -94,16 +93,8 @@ export function CustomerFavoriteBrandsScreen() {
             />
           ) : (
             <>
-              <RecentlyVisitedBrandsGrid
-                brands={brands}
-                favoriteIds={favoriteIds}
-                onToggleFavorite={toggleFavorite}
-              />
-              <FavoriteBrandsListPreview
-                brands={brands}
-                favoriteIds={favoriteIds}
-                onToggleFavorite={toggleFavorite}
-              />
+              <RecentlyVisitedBrandsGrid brands={brands} />
+              <FavoriteBrandsListPreview brands={brands} favoriteIds={favoriteIds} />
             </>
           )}
         </View>
@@ -136,15 +127,7 @@ function FavoriteBrandsTopBar() {
   );
 }
 
-function RecentlyVisitedBrandsGrid({
-  brands,
-  favoriteIds,
-  onToggleFavorite,
-}: {
-  brands: readonly FavoriteBrand[];
-  favoriteIds: readonly string[];
-  onToggleFavorite: (id: string) => void;
-}) {
+function RecentlyVisitedBrandsGrid({ brands }: { brands: readonly FavoriteBrand[] }) {
   const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
   const tc = useCopy();
   const { width } = useWindowDimensions();
@@ -153,12 +136,7 @@ function RecentlyVisitedBrandsGrid({
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{tc(webFavoriteBrandsPage.recentTitle)}</Text>
-      <FavoriteBrandsVirtualizedGrid
-        brands={brands}
-        favoriteIds={favoriteIds}
-        isDesktop={isDesktop}
-        onToggleFavorite={onToggleFavorite}
-      />
+      <FavoriteBrandsVirtualizedGrid brands={brands} isDesktop={isDesktop} />
     </View>
   );
 }
@@ -166,11 +144,9 @@ function RecentlyVisitedBrandsGrid({
 function FavoriteBrandsListPreview({
   brands,
   favoriteIds,
-  onToggleFavorite,
 }: {
   brands: readonly FavoriteBrand[];
   favoriteIds: readonly string[];
-  onToggleFavorite: (id: string) => void;
 }) {
   const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
   const { colors } = useTheme();
@@ -199,12 +175,7 @@ function FavoriteBrandsListPreview({
           </Text>
         </View>
       ) : (
-        <FavoriteBrandsVirtualizedGrid
-          brands={savedBrands}
-          favoriteIds={favoriteIds}
-          isDesktop={isDesktop}
-          onToggleFavorite={onToggleFavorite}
-        />
+        <FavoriteBrandsVirtualizedGrid brands={savedBrands} isDesktop={isDesktop} />
       )}
     </View>
   );
@@ -212,14 +183,10 @@ function FavoriteBrandsListPreview({
 
 function FavoriteBrandsVirtualizedGrid({
   brands,
-  favoriteIds,
   isDesktop,
-  onToggleFavorite,
 }: {
   brands: readonly FavoriteBrand[];
-  favoriteIds: readonly string[];
   isDesktop: boolean;
-  onToggleFavorite: (id: string) => void;
 }) {
   const { width } = useWindowDimensions();
   const [gridWidth, setGridWidth] = useState(0);
@@ -228,18 +195,30 @@ function FavoriteBrandsVirtualizedGrid({
     () => getFavoriteBrandGridMetrics(layoutWidth, isDesktop),
     [isDesktop, layoutWidth]
   );
-  const estimatedRowHeight = getFavoriteBrandCardHeight(metrics.cardWidth);
+  // Favorites cards ARE the shared BrandCard (design alignment 2026-07-11,
+  // final form): same scaled tile/typography as home + Quest grids, plus the
+  // BrandCard category-chip and favorite-heart options.
+  const scaledCard = getScaledCompactBrandCardMetrics(metrics.cardWidth);
+  const cardHeight = scaledCard.cardHeight + BRAND_CARD_CATEGORY_CHIP_HEIGHT;
+  const estimatedRowHeight = cardHeight;
   const renderBrandCard = useCallback(
     (brand: FavoriteBrand) => (
-      <FavoriteBrandCard
-        brand={brand}
+      <BrandCard
+        brand={brand.name}
+        cardHeight={cardHeight}
         cardWidth={metrics.cardWidth}
-        compact={!isDesktop}
-        isFavorite={favoriteIds.includes(brand.id)}
-        onToggleFavorite={onToggleFavorite}
+        cashback={brand.cashback}
+        categoryLabel={brand.category}
+        href={brand.href}
+        id={brand.id}
+        logoUri={brand.logo}
+        logoVisualHeight={scaledCard.logoVisualHeight}
+        showFavoriteHeart
+        size="S"
+        tint={brand.tint ?? FAVORITE_BRAND_TINTS[brand.id] ?? FAVORITE_BRAND_FALLBACK_TINT}
       />
     ),
-    [favoriteIds, isDesktop, metrics.cardWidth, onToggleFavorite]
+    [cardHeight, metrics.cardWidth, scaledCard.logoVisualHeight]
   );
 
   if (brands.length === 0) {
@@ -267,119 +246,6 @@ function FavoriteBrandsVirtualizedGrid({
     </View>
   );
 }
-
-const FavoriteBrandCard = memo(function FavoriteBrandCard({
-  brand,
-  cardWidth,
-  compact = false,
-  isFavorite = false,
-  onToggleFavorite,
-}: {
-  brand: FavoriteBrand;
-  cardWidth: number;
-  compact?: boolean;
-  isFavorite?: boolean;
-  onToggleFavorite: (id: string) => void;
-}) {
-  const styles = useThemedStyles(createFavoriteBrandsScreenStyles);
-  const { colors } = useTheme();
-  const tc = useCopy();
-  const tint = brand.tint ?? FAVORITE_BRAND_TINTS[brand.id] ?? FAVORITE_BRAND_FALLBACK_TINT;
-  // The tile is a wide 272:153 banner; the image renders as a centered square
-  // (side = tile height) so square bitmaps fill it edge-to-edge and clip.
-  const visualHeight = Math.round(((cardWidth - 16) * 153) / 272);
-  return (
-    <View style={styles.brandCard}>
-      <Link asChild href={brand.href as never}>
-        <MotionPressable
-          accessibilityLabel={`${brand.name} ${tc(webFavoriteBrandsPage.cashbackLabel)} ${brand.cashback}`}
-          accessibilityRole="link"
-          pressScale={0.985}
-          style={styles.brandCardLink}
-        >
-          <BrandLogoTile
-            brand={brand.name}
-            containerStyle={styles.brandVisual}
-            fallbackText={brand.name.charAt(0)}
-            fallbackTextStyle={styles.brandMonogram}
-            imageSquare={visualHeight}
-            source={brand.logo ? { uri: brand.logo } : null}
-            sourceKey={brand.logo}
-            tint={tint}
-          >
-            {brand.showGrabCoupon ? (
-              <View style={styles.couponBadge}>
-                <Text style={styles.couponEmoji}>🧧</Text>
-                <Text numberOfLines={1} style={styles.couponText}>
-                  {tc(webFavoriteBrandsPage.grabCouponLabel)}
-                </Text>
-              </View>
-            ) : null}
-          </BrandLogoTile>
-          <View style={styles.brandMeta}>
-            <View style={styles.categoryChip}>
-              <ShoppingCartIcon
-                color={colors.primaryDark}
-                size={13}
-                strokeWidth={typography.iconStrokeWidth}
-              />
-              <Text numberOfLines={1} style={styles.categoryText}>
-                {tc(brand.category)}
-              </Text>
-            </View>
-            {compact ? (
-              // Compact anatomy matches the shared BrandCard S used on
-              // home/directory: single-line name, then a baseline row of
-              // caption + value (design alignment 2026-07-10).
-              <View style={styles.brandCopy}>
-                <Text
-                  numberOfLines={1}
-                  style={[styles.brandName, styles.brandNameCompact]}
-                >
-                  {brand.name}
-                </Text>
-                <View style={styles.compactCashbackRow}>
-                  <Text numberOfLines={1} style={styles.cashbackCaptionCompact}>
-                    {tc(webFavoriteBrandsPage.cashbackLabel)}
-                  </Text>
-                  <Text style={[styles.cashbackValue, styles.cashbackValueCompact]}>
-                    {brand.cashback}
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.brandNameRow}>
-                <View style={styles.brandCopy}>
-                  <Text numberOfLines={2} style={styles.brandName}>
-                    {brand.name}
-                  </Text>
-                  <Text style={styles.cashbackCaption}>
-                    {tc(webFavoriteBrandsPage.cashbackLabel)}
-                  </Text>
-                </View>
-                <Text style={styles.cashbackValue}>{brand.cashback}</Text>
-              </View>
-            )}
-          </View>
-        </MotionPressable>
-      </Link>
-      <MotionPressable
-        accessibilityLabel={
-          isFavorite
-            ? `${tc("Remove from saved brands")}: ${brand.name}`
-            : `${tc("Save brand")}: ${brand.name}`
-        }
-        accessibilityRole="button"
-        hitSlop={8}
-        onPress={() => onToggleFavorite(brand.id)}
-        pressScale={0.9}
-        style={[styles.heartButton, isFavorite ? styles.heartButtonActive : null]}
-      >
-        <HeartIcon color={isFavorite ? colors.white : colors.muted} size={18} strokeWidth={2.2} />
-      </MotionPressable>
-    </View>
-  );
-});
 
 function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
@@ -449,141 +315,6 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
   brandGridDesktop: {
     gap: 18,
   },
-  brandCard: {
-    position: "relative",
-    width: "100%",
-  },
-  brandCardLink: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    boxShadow: "0 3px 8px rgba(16, 53, 34, 0.06)",
-    overflow: "hidden",
-    padding: 8,
-  },
-  brandVisual: {
-    aspectRatio: 272 / 153,
-    borderRadius: 10,
-  },
-  brandMonogram: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: 46,
-    fontWeight: "800",
-    opacity: 0.96,
-  },
-  couponBadge: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 4,
-    left: 8,
-    maxWidth: "88%",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    position: "absolute",
-    top: 7,
-  },
-  couponText: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 12,
-    lineHeight: 15,
-  },
-  couponEmoji: {
-    fontSize: 12,
-  },
-  brandMeta: {
-    gap: 7,
-    paddingTop: 8,
-  },
-  categoryChip: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: colors.primarySoft,
-    borderColor: "rgba(0, 170, 128, 0.22)",
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 5,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-  },
-  categoryText: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 13,
-    fontWeight: "600",
-    lineHeight: 16,
-  },
-  brandNameRow: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    gap: 8,
-    justifyContent: "space-between",
-    minHeight: 54,
-  },
-  brandCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  brandName: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 18,
-    fontWeight: "600",
-    lineHeight: 22,
-  },
-  // Compact metrics mirror the shared BrandCard S (components/BrandCard.tsx)
-  // so favorites cards align with every other brand card (design feedback
-  // 2026-07-10): single-line 14/500 name; 10px caption + 16/700 value on a
-  // baseline row below.
-  brandNameCompact: {
-    fontSize: 14,
-    fontWeight: typography.labelWeight,
-    lineHeight: 17.5,
-    marginTop: 2,
-  },
-  cashbackCaption: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 12,
-    lineHeight: 16,
-    marginTop: 2,
-  },
-  cashbackValue: {
-    color: colors.primaryDark,
-    flexShrink: 0,
-    fontFamily: typography.family,
-    fontSize: 27,
-    fontWeight: "700",
-    lineHeight: 31,
-    textAlign: "right",
-  },
-  compactCashbackRow: {
-    alignItems: "baseline",
-    flexDirection: "row",
-    gap: spacing.xs,
-    justifyContent: "space-between",
-    marginTop: 4,
-  },
-  cashbackCaptionCompact: {
-    color: colors.muted,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 10,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 10,
-  },
-  cashbackValueCompact: {
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 16,
-  },
   favoriteListHeader: {
     gap: 12,
   },
@@ -603,24 +334,6 @@ function createFavoriteBrandsScreenStyles(colors: ThemeColors) {
     fontFamily: typography.family,
     fontSize: 15,
     lineHeight: 20,
-  },
-  heartButton: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    boxShadow: "0 2px 6px rgba(16, 53, 34, 0.16)",
-    height: 32,
-    justifyContent: "center",
-    outlineColor: "transparent",
-    outlineWidth: 0,
-    position: "absolute",
-    right: 16,
-    top: 16,
-    width: 32,
-    zIndex: 2,
-  },
-  heartButtonActive: {
-    backgroundColor: colors.primary,
   },
   favoritesEmpty: {
     alignItems: "center",
