@@ -698,6 +698,29 @@ describe("Expo home design parity", () => {
     expect(Math.ceil(travelCards.length / desktopLayout.compactBrandCardsPerPage)).toBe(2);
   });
 
+  it("desktop content cap > given a viewport wider than the content cap > then side padding never squeezes the capped frame below its content width", () => {
+    // The content sections render inside a `maxWidth: contentMaxWidth` cap that is
+    // centered in the viewport. `contentHorizontalPadding` is applied *inside* that
+    // cap, so it must be measured against the cap width — not the raw viewport.
+    // Regression: padding computed from the raw viewport grows unbounded past the
+    // cap, collapsing brand/banner content to a thin center strip on wide desktops
+    // (e.g. 2560px squeezed the 1440 cap down to ~80px of content).
+    for (const viewportWidth of [1440, 1512, 1920, 2560, 3440]) {
+      const layout = getResponsiveHomeLayoutMetrics(viewportWidth);
+      const contentAreaWithinCap =
+        layout.contentMaxWidth - layout.contentHorizontalPadding * 2;
+
+      expect(contentAreaWithinCap).toBe(layout.contentWidth);
+    }
+  });
+
+  it("desktop content cap > given a 2560px viewport > then content stays 1200 wide with symmetric 120px side padding", () => {
+    const layout = getResponsiveHomeLayoutMetrics(2560);
+
+    expect(layout.contentWidth).toBe(1200);
+    expect(layout.contentHorizontalPadding).toBe(120);
+  });
+
   it("mobile brand sections > given the padded white sheet > then the brand groups overflow and scroll", () => {
     const mobileLayout = getResponsiveHomeLayoutMetrics(389);
 
