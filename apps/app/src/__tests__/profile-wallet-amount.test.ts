@@ -2,11 +2,33 @@ import { describe, expect, it } from "vitest";
 
 import {
   PROFILE_WALLET_AMOUNT_PLACEHOLDER,
+  formatProfileWalletAmountTHB,
   resolveProfileCashbackBreakdownRows,
   resolveProfileCurrency,
   resolveProfileWalletAmount,
 } from "@mobile/account/resolveProfileWalletAmount";
 import { webProfileWalletSummary } from "@mobile/design/webDesignParity";
+
+describe("formatProfileWalletAmountTHB", () => {
+  it("given a zero balance > then shows a bare 0 (founder feedback 2026-07-11: not 0.00)", () => {
+    expect(formatProfileWalletAmountTHB(0)).toBe("0");
+  });
+
+  it("given a whole-baht balance > then drops the .00", () => {
+    expect(formatProfileWalletAmountTHB(1250)).toBe("1,250");
+  });
+
+  it("given satang precision > then keeps two decimals", () => {
+    expect(formatProfileWalletAmountTHB(3180.24)).toBe("3,180.24");
+    expect(formatProfileWalletAmountTHB(12.5)).toBe("12.50");
+  });
+
+  it("given a stale session wallet string of 0.00 > then normalizes to 0", () => {
+    expect(resolveProfileWalletAmount("backend", "0.00", undefined)).toBe("0");
+    expect(resolveProfileWalletAmount("backend", "125.00", undefined)).toBe("125");
+    expect(resolveProfileWalletAmount("backend", "125.40", undefined)).toBe("125.40");
+  });
+});
 
 describe("resolveProfileCashbackBreakdownRows", () => {
   const fixtureRows = [
@@ -46,7 +68,7 @@ describe("resolveProfileWalletAmount", () => {
         totalPayoutTHB: 1000,
         totalPayoutUSD: 1000,
       }),
-    ).toBe("1,000.00");
+    ).toBe("1,000");
   });
 
   it("resolveProfileWalletAmount > given a stale zero session wallet and a ready live wallet query > then prefers the live wallet balance", () => {

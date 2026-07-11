@@ -233,7 +233,7 @@ function InviteFriendsRow({ href }: { href: string }) {
       >
         <InviteIcon color={colors.primaryDark} size={24} strokeWidth={typography.iconStrokeWidth} />
         <View style={styles.inviteCopy}>
-          <Text numberOfLines={1} style={styles.inviteTitle}>
+          <Text numberOfLines={2} style={styles.inviteTitle}>
             {tc("Invite your Friends")}
           </Text>
           <Text style={styles.inviteSubtitle}>{tc("Invited : 2")}</Text>
@@ -395,10 +395,10 @@ function createProfileScreenStyles(colors: ThemeColors) {
     borderRadius: 18,
     flexDirection: "row",
     gap: spacing.md,
-    maxHeight: 52,
-    minHeight: 52,
+    minHeight: 64,
     overflow: "hidden",
     paddingHorizontal: 16,
+    paddingVertical: 10,
     width: "100%",
   },
   inviteRowHovered: {
@@ -420,10 +420,9 @@ function createProfileScreenStyles(colors: ThemeColors) {
   },
   inviteTitle: {
     color: colors.ink,
-    flex: 1,
     fontFamily: typography.family,
     fontSize: 16,
-    fontWeight: typography.bodyWeight,
+    fontWeight: typography.labelWeight,
     lineHeight: 20,
   },
   inviteSubtitle: {
@@ -437,11 +436,11 @@ function createProfileScreenStyles(colors: ThemeColors) {
     backgroundColor: colors.primary,
     borderRadius: radii.chip,
     flexDirection: "row",
-    gap: spacing.sm,
-    height: 24,
+    flexShrink: 0,
+    gap: spacing.xs,
+    height: 32,
     justifyContent: "center",
-    minWidth: 102,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
   },
   copyButtonText: {
     color: colors.white,

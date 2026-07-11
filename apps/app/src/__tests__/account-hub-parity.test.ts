@@ -302,8 +302,7 @@ describe("Account hub route parity", () => {
     expect(profileFile).toContain("pickThemed(colors, \"#DCEBFF\", colors.primarySoft)");
     expect(profileFile).toContain("minHeight: 52");
     expect(profileFile).toContain("borderRadius: 18");
-    expect(profileFile).toContain("minWidth: 102");
-    expect(profileFile).toContain("height: 24");
+    expect(profileFile).toContain("height: 32");
     expect(profileFile).toContain("copyButtonIcon");
     expect(profileFile).toContain("fontWeight: typography.labelWeight");
   });
@@ -354,6 +353,13 @@ describe("Account hub route parity", () => {
     expect(shellFile).toContain("DESKTOP_WALLET_AVATAR_SIZE");
     expect(shellFile).toContain("walletHeroGlassPanelCompact");
     expect(shellFile).toContain("walletHeroIdRowCompact");
+    // Redesign 2026-07-11 (founder): the masked USER ID was 58%-alpha text
+    // floating on the green band — now a labeled high-contrast chip.
+    expect(shellFile).toContain("walletHeroIdChip");
+    expect(shellFile).toMatch(/walletHeroId:[\s\S]*?color: colors\.white/);
+    expect(shellFile).toContain('label={tc("User ID")}');
+    const maskedRow = readMobileFile("src/components/MaskedUserIdRow.tsx");
+    expect(maskedRow).toContain("label");
     expect(shellFile).toContain("profileContentMobile");
     expect(shellFile).toContain("profileContentDesktop");
     expect(shellFile).toContain("webProfileWalletHeroSurface.headerColor");
@@ -387,10 +393,14 @@ describe("Account hub route parity", () => {
     expect(profileFile).toContain("fontSize: 14");
     expect(profileFile).toContain("paddingHorizontal: 16");
     expect(profileFile).toMatch(/<InviteIcon[\s\S]{0,120}size=\{24\}/);
+    // Redesign 2026-07-11 (founder): the 52pt cap truncated "Invite your
+    // Frie…" — the card breathes now and the title may wrap to two lines.
     expect(profileFile).toMatch(
-      /inviteRow:[\s\S]*backgroundColor: pickThemed\(colors, "#DCEBFF", colors\.primarySoft\)[\s\S]*maxHeight: 52,[\s\S]*minHeight: 52/
+      /inviteRow:[\s\S]*backgroundColor: pickThemed\(colors, "#DCEBFF", colors\.primarySoft\)[\s\S]*minHeight: 64/
     );
-    expect(profileFile).toMatch(/copyButton:[\s\S]*height: 24,[\s\S]*minWidth: 102/);
+    expect(profileFile).not.toMatch(/inviteRow: \{[^}]*maxHeight/);
+    expect(profileFile).toMatch(/<Text numberOfLines=\{2\} style=\{styles\.inviteTitle\}/);
+    expect(profileFile).toMatch(/copyButton:[\s\S]*height: 32,/);
     expect(profileFile).toContain("height: 14");
     expect(bottomNavFile).toContain("ProfileAvatarImage");
     expect(bottomNavFile).toContain("bottomNavProfileAvatar");

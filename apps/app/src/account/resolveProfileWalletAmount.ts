@@ -10,12 +10,14 @@ function readSessionWalletAmount(sessionWallet: string | null | undefined): stri
   }
 
   const trimmed = sessionWallet.trim();
-  return trimmed ? trimmed : null;
+  // Whole-baht session strings ("0.00", "125.00") drop the noise decimals —
+  // founder feedback 2026-07-11: a zero balance reads "0", not "0.00".
+  return trimmed ? trimmed.replace(/\.0+$/, "") : null;
 }
 
 export function formatProfileWalletAmountTHB(amount: number): string {
   return amount.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
     maximumFractionDigits: 2,
   });
 }
