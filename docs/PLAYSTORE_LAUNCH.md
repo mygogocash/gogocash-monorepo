@@ -15,7 +15,7 @@ what remains, who owns it, and in what order. Update it as items close.
 | 5 | Production profile: backend data + Sentry upload off | Repo | Required | ✅ this PR |
 | 6 | CI: production env separation, AAB artifacts, channel dropdown | Repo | Required | ✅ this PR |
 | 7 | Play Console account, first manual AAB upload, submit creds | Founder (console) | Required | ☐ |
-| 8 | Store listing: copy, screenshots, feature graphic, icon | Founder (+ drafts below) | Required | ☐ |
+| 8 | Store listing: copy, screenshots, feature graphic, icon | ✅ drafted in `apps/app/store/play/` — founder review | Required | ◐ |
 | 9 | Data safety form + Financial features declaration | Founder (inventory below) | Required | ☐ |
 | 10 | Reviewer login credentials (App access) | Founder | Required | ☐ |
 | 11 | Legal URLs live check (privacy/terms) | Founder | Required | ☐ |
@@ -105,12 +105,14 @@ Console reality check (founder screenshots):
 - Android developer verification: already complete ✅.
 
 Critical path to start the 14-day clock:
-1. §1 first: production Firebase (30 min of console work) — note the staging
-   Firebase project already registers `co.gogocash.app`, but a mixed build
-   (production API + staging Firebase tokens) won't authenticate; keep the
-   closed-test build coherent on full production config.
-2. Build the AAB: `eas build --profile production --platform android` (or
-   dispatch the workflow, profile=production).
+1. Fastest clock start: the **`closedtest` EAS profile** builds a
+   store-uploadable AAB on coherent staging config (staging API + the
+   committed staging Firebase, which already registers `co.gogocash.app`) —
+   no production Firebase needed. Dispatch deploy-app-native-eas.yml with
+   profile=closedtest. Swap in a production-config AAB before the
+   production-track release; the 14-day clock counts testers, not builds.
+2. Or the full-production path: §1 Firebase first, then
+   `eas build --profile production --platform android`.
 3. Play Console → **Create app** (`GoGoCash`, App, Free, Shopping) for
    `co.gogocash.app` → **the first AAB upload is manual**.
 4. Closed testing → create track → select countries (TH at minimum) → add a
@@ -124,13 +126,11 @@ Critical path to start the 14-day clock:
 
 ## 8. Store listing
 
-Required assets:
-- **App icon 512×512** — export from `assets/icon.png` (verify it's ≥512).
-- **Feature graphic 1024×500** — does not exist; design one (logo on #00CC99).
-- **Phone screenshots** — min 2, max 8 (16:9–9:16, 320–3840px). Suggested set
-  (capture from the Seeker, both en + th): Home (Top Brands), Brand detail with
-  cashback, GoGoLink paste-and-go, Wallet/withdraw, Favorites.
-- Splash is 240×240 — fine for the listing but consider a ≥1024px source asset.
+**Console-ready assets now live in `apps/app/store/play/`** (2026-07-11):
+512×512 icon, 1024×500 feature graphic, five 1080×1920 screenshots captured
+from the device, and `LISTING.md` with en-US + th-TH copy ready to paste.
+Review/replace with designed versions any time — specs are already correct.
+Splash remains 240×240 — consider a ≥1024px source asset eventually.
 
 Copy drafts (edit freely):
 - **Short (≤30 chars)** en: `Cashback on every purchase` · th: `เงินคืนทุกการช้อป`
