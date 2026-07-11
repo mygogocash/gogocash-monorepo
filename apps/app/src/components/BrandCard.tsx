@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { resolveFavoriteOfferId } from "@mobile/account/resolveFavoriteOfferId";
 import { Link } from "expo-router";
@@ -16,6 +16,10 @@ import lazadaLogo from "../../assets/partner-lazada.png";
 import sheinLogo from "../../assets/partner-shein.png";
 import shopeeLogo from "../../assets/partner-shopee.png";
 import type { TopBrandCard } from "@mobile/account/topBrandResource";
+import {
+  LOGO_RETRY_DELAY_MS,
+  shouldScheduleLogoRetry,
+} from "@mobile/components/logoRetryPolicy";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { getTopBrandHref, mobileShellLayout } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -117,12 +121,23 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
       : "";
   const isFavorite = props.size === "L" ? isBrandFavorite(favoriteOfferId) : false;
   const [logoFailed, setLogoFailed] = useState(false);
+  // Bounded transient-failure recovery (field bug 2026-07-11): one flaky
+  // response used to pin the initials placeholder for the whole session.
+  const logoAttemptsRef = useRef(0);
+  const logoRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logoSourceKey =
     props.size === "L"
       ? props.logoUri
       : props.logoUri ?? props.logoAsset ?? props.logoFallbackText;
   useEffect(() => {
+    logoAttemptsRef.current = 0;
     setLogoFailed(false);
+    return () => {
+      if (logoRetryTimerRef.current) {
+        clearTimeout(logoRetryTimerRef.current);
+        logoRetryTimerRef.current = null;
+      }
+    };
   }, [logoSourceKey]);
   const onToggleFavorite = (event: GestureResponderEvent) => {
     event.stopPropagation?.();
@@ -132,7 +147,14 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
     }
   };
   const onLogoError = () => {
+    logoAttemptsRef.current += 1;
     setLogoFailed(true);
+    if (shouldScheduleLogoRetry(logoAttemptsRef.current)) {
+      logoRetryTimerRef.current = setTimeout(() => {
+        logoRetryTimerRef.current = null;
+        setLogoFailed(false);
+      }, LOGO_RETRY_DELAY_MS);
+    }
   };
   const compactLogoSource =
     props.size === "S" ? resolveCompactLogoSource(props, logoFailed) : null;
