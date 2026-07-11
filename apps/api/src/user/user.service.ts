@@ -1,5 +1,7 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { getAdminAuth } from 'src/auth/firebase-admin.provider';
 import { CreateUserDto, UpdateCountryDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -187,6 +189,114 @@ export class UserService {
     }
 
     return this.storedMediaService.getReadableStream(ref);
+  }
+
+  private readonly deletionLogger = new Logger('AccountDeletion');
+
+  /** 30-day grace window before the anonymizing purge (Play soft-delete). */
+  static readonly DELETION_GRACE_DAYS = 30;
+
+  async requestAccountDeletion(id: string, now: Date = new Date()) {
+    const scheduledFor = new Date(
+      now.getTime() + UserService.DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000,
+    );
+    const updated = await this.userModel.findOneAndUpdate(
+      // Only untouched accounts transition; a repeat request must not push
+      // the purge date out indefinitely.
+      { _id: new Types.ObjectId(id), deletion_requested_at: null },
+      { deletion_requested_at: now, deletion_scheduled_for: scheduledFor },
+      { new: true },
+    );
+    if (updated) {
+      return { deletionScheduledFor: updated.deletion_scheduled_for ?? scheduledFor };
+    }
+
+    // Already pending (or unknown id) — surface the existing schedule.
+    const existing = await this.userModel
+      .find({ _id: new Types.ObjectId(id) })
+      .limit(1)
+      .exec();
+    const pending = existing[0];
+    if (!pending?.deletion_scheduled_for) {
+      throw new UnauthorizedException('User not found');
+    }
+    return { deletionScheduledFor: pending.deletion_scheduled_for };
+  }
+
+  async cancelAccountDeletion(id: string) {
+    await this.userModel.findOneAndUpdate(
+      // Once purged there is nothing to restore.
+      { _id: new Types.ObjectId(id), anonymized_at: null },
+      { deletion_requested_at: null, deletion_scheduled_for: null },
+      { new: true },
+    );
+    return { cancelled: true };
+  }
+
+  /**
+   * Daily anonymizing purge. Deletes the Firebase credential first — if that
+   * fails (transient), the user is skipped and retried on the next run so we
+   * never orphan a live credential against an anonymized record. PII fields
+   * are blanked; the doc (and financial history keyed on _id) survives.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async purgeDueAccountDeletionsCron() {
+    const purged = await this.purgeDueAccountDeletions(new Date());
+    if (purged > 0) {
+      this.deletionLogger.log(`Anonymized ${purged} account(s) past the grace window`);
+    }
+  }
+
+  async purgeDueAccountDeletions(now: Date): Promise<number> {
+    const due = await this.userModel
+      .find({ deletion_scheduled_for: { $lte: now, $ne: null }, anonymized_at: null })
+      .exec();
+
+    let purged = 0;
+    for (const user of due) {
+      try {
+        await getAdminAuth().deleteUser(user.id_firebase);
+      } catch (error) {
+        const code = (error as { code?: string })?.code;
+        if (code !== 'auth/user-not-found') {
+          this.deletionLogger.error(
+            `Firebase delete failed for user ${String(user._id)} — retrying next run`,
+            error instanceof Error ? error.stack : String(error),
+          );
+          continue;
+        }
+      }
+
+      await this.userModel.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            anonymized_at: now,
+            disabled: true,
+            address: '',
+            avatar_url: '',
+            birthdate: '',
+            city: '',
+            email: '',
+            email_mcb: '',
+            gender: '',
+            id_card: '',
+            id_firebase: `deleted:${String(user._id)}`,
+            id_line: '',
+            id_telegram: '',
+            id_twitter: '',
+            legal_address: '',
+            mobile: '',
+            passport: '',
+            state: '',
+            username: '',
+            zip: '',
+          },
+        },
+      );
+      purged += 1;
+    }
+    return purged;
   }
 
   updateCountry(updateCountryDto: UpdateCountryDto, id: string) {

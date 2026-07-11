@@ -374,5 +374,7 @@
   "mobileSettingsChangeCountryAria": "Change country",
   "mobileLocaleRegionButtonAria": "Language and region",
   "mobileLocaleRegionSheetCloseAria": "Close language and region",
-  "mobileLocaleRegionSheetAria": "Choose language and region"
+  "mobileLocaleRegionSheetAria": "Choose language and region",
+  "mobileDeletionScheduledToast": "Deletion scheduled. Your account will be permanently removed in 30 days.",
+  "mobileDeletionConfirmTap": "Tap again to permanently delete"
 }

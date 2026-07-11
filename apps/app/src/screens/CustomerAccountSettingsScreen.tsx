@@ -25,6 +25,9 @@ import { LineAppIcon } from "@mobile/components/LineAppIcon";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useToast } from "@mobile/hooks/useToast";
+import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
+import { getMobileEnv } from "@mobile/config/env";
+import { useMobileLogout } from "@mobile/auth/useMobileLogout";
 import { mobileShellLayout, webAccountSettingsPage } from "@mobile/design/webDesignParity";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -253,16 +256,46 @@ function CommunityCard({
 // Web parity accent for PDPA delete actions (web: text-[#c45c00]).
 const PDPA_DANGER = "#C45C00";
 
-// PDPA data portability + erasure (web parity: PdpaDataRightsSection). Copy comes from the synced
-// i18n catalog via tc(). The web POSTs to /api/pdpa/data-subject-requests then toasts on success;
-// this build has no backend wired here, so both actions confirm via the same success toast.
+// PDPA data portability + erasure (web parity: PdpaDataRightsSection).
+// Deletion is REAL (Google Play policy, 2026-07-11): a two-tap confirm POSTs
+// /user/account-deletion — the backend schedules a 30-day anonymizing purge
+// (cancellable by support within the window) — then the session signs out.
+// The export card still records intent via toast only (backend follow-up).
 function PdpaDataRightsSection() {
   const styles = useThemedStyles(createAccountSettingsScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
   const toast = useToast();
+  const { logout } = useMobileLogout();
+  const [confirmingDeletion, setConfirmingDeletion] = useState(false);
+  const [deletionPending, setDeletionPending] = useState(false);
 
   const submitRequest = () => toast.show(tc("Request submitted"));
+
+  const requestAccountDeletion = async () => {
+    if (!confirmingDeletion) {
+      setConfirmingDeletion(true);
+      return;
+    }
+    if (deletionPending) {
+      return;
+    }
+    setDeletionPending(true);
+    try {
+      const client = await getSharedMobileApiClient(getMobileEnv().apiUrl);
+      if (!client) {
+        throw new Error("No session client");
+      }
+      await client.post("/user/account-deletion");
+      toast.show(tc("Deletion scheduled. Your account will be permanently removed in 30 days."));
+      await logout();
+    } catch {
+      toast.show(tc("Could not complete your request. Please try again."));
+    } finally {
+      setDeletionPending(false);
+      setConfirmingDeletion(false);
+    }
+  };
 
   return (
     <View style={styles.pdpaSection}>
@@ -298,8 +331,15 @@ function PdpaDataRightsSection() {
               "Deletion is permanent for data we are allowed to erase. Some records must be kept or anonymized where the law requires (for example tax or fraud rules).",
             )}
           </Text>
-          <Pressable accessibilityRole="button" onPress={submitRequest} style={styles.pdpaDangerButton}>
-            <Text style={styles.pdpaDangerButtonText}>{tc("Request account deletion")}</Text>
+          <Pressable
+            accessibilityRole="button"
+            disabled={deletionPending}
+            onPress={() => void requestAccountDeletion()}
+            style={styles.pdpaDangerButton}
+          >
+            <Text style={styles.pdpaDangerButtonText}>
+              {tc(confirmingDeletion ? "Tap again to permanently delete" : "Request account deletion")}
+            </Text>
           </Pressable>
           <Text style={styles.pdpaFootnote}>
             {tc("Some records may be anonymized instead of deleted where the law requires retention.")}
