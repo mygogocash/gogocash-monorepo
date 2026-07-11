@@ -287,7 +287,11 @@ const frontendFlowContracts: FrontendFlowContract[] = [
     landmarks: ["webFavoriteBrandsPage", "RecentlyVisitedBrandsGrid", "FavoriteBrandsListPreview"],
     routeId: "favorite",
     routeMarkers: ["CustomerFavoriteBrandsScreen"],
-    screenFiles: ["src/screens/CustomerFavoriteBrandsScreen.tsx"],
+    screenFiles: [
+      "src/screens/CustomerFavoriteBrandsScreen.tsx",
+      // Hero extracted 2026-07-11 — its See More CTA carries the /shops link.
+      "src/components/FavoriteBrandsHero.tsx",
+    ],
     userFlow: "Customer views recent/favorite brands, searches favorites, and opens shop cards.",
   },
   {

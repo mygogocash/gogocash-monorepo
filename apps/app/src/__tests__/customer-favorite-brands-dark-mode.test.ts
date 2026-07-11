@@ -35,10 +35,12 @@ describe("customer favorite brands dark mode surfaces", () => {
   it("hero and nested controls > given dark theme > then use themed surfaces and muted body copy", () => {
     const source = readMobileFile(favoriteBrandsFile);
 
-    expect(source).toMatch(/heroCard:[\s\S]*backgroundColor: pickThemed\(/);
-    expect(source).toMatch(/heroCard:[\s\S]*borderColor: pickThemed\(/);
-    expect(source).toMatch(/heroDescription:[\s\S]*color: colors\.muted/);
-    expect(source).not.toMatch(/heroDescription:[\s\S]*color: "#3A4B61"/);
+    // Hero extracted 2026-07-11 — its themed surfaces live in the component.
+    const heroSource = readMobileFile("src/components/FavoriteBrandsHero.tsx");
+    expect(heroSource).toMatch(/heroCard: \{[\s\S]*?backgroundColor: pickThemed\(/);
+    expect(heroSource).toMatch(/heroCard: \{[\s\S]*?borderColor: pickThemed\(/);
+    expect(heroSource).toMatch(/heroDescription: \{[\s\S]*?color: colors\.muted/);
+    expect(heroSource).not.toMatch(/heroDescription:[\s\S]*color: "#3A4B61"/);
     expect(source).toMatch(/searchPill:[\s\S]*backgroundColor: colors\.field/);
     expect(source).toMatch(/favoritesEmpty:[\s\S]*backgroundColor: colors\.fieldMuted/);
   });
