@@ -56,6 +56,29 @@ export function getPromoSectionCards(
     : cards;
 }
 
+export type HomeCarouselLayoutMode = "pager" | "scroll" | "grid";
+
+// Founder feedback 2026-07-11: mobile rails snapped by a whole 8-column group
+// (~4 screens wide) and a 4-card section hid half its cards behind a swipe.
+// Mobile sections whose cards all fit render a static 2-column grid; longer
+// rails free-scroll with natural momentum. Desktop keeps the web-parity pager.
+const PROMO_GRID_MAX_CARDS = 4;
+
+export function getPromoSectionLayoutMode(
+  isDesktop: boolean,
+  cardCount: number,
+): HomeCarouselLayoutMode {
+  if (isDesktop) {
+    return "pager";
+  }
+  return cardCount <= PROMO_GRID_MAX_CARDS ? "grid" : "scroll";
+}
+
+/** Fit-all grid: two columns filling the section frame exactly. */
+export function getPromoGridCardWidth(frameWidth: number, gap: number): number {
+  return Math.floor((frameWidth - gap) / 2);
+}
+
 export function getPromoSectionPageSize(homeLayout: HomeLayoutMetrics) {
   // Every promo rail is a fixed 8-column x 2-row group (compactBrandCardsPerPage), matching
   // Top Brands; the group slides as one unit and overflows narrow screens with a peek card.
