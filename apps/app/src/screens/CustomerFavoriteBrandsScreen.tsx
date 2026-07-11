@@ -9,7 +9,7 @@ import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-na
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
-import { BRAND_CARD_CATEGORY_CHIP_HEIGHT, BrandCard } from "@mobile/components/BrandCard";
+import { BrandCard } from "@mobile/components/BrandCard";
 import { FavoriteBrandsHero } from "@mobile/components/FavoriteBrandsHero";
 import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
@@ -197,9 +197,9 @@ function FavoriteBrandsVirtualizedGrid({
   );
   // Favorites cards ARE the shared BrandCard (design alignment 2026-07-11,
   // final form): same scaled tile/typography as home + Quest grids, plus the
-  // BrandCard category-chip and favorite-heart options.
+  // favorite-heart option. (Category chip dropped same day on founder review.)
   const scaledCard = getScaledCompactBrandCardMetrics(metrics.cardWidth);
-  const cardHeight = scaledCard.cardHeight + BRAND_CARD_CATEGORY_CHIP_HEIGHT;
+  const cardHeight = scaledCard.cardHeight;
   const estimatedRowHeight = cardHeight;
   const renderBrandCard = useCallback(
     (brand: FavoriteBrand) => (
@@ -208,7 +208,6 @@ function FavoriteBrandsVirtualizedGrid({
         cardHeight={cardHeight}
         cardWidth={metrics.cardWidth}
         cashback={brand.cashback}
-        categoryLabel={brand.category}
         href={brand.href}
         id={brand.id}
         logoUri={brand.logo}
