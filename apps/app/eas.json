@@ -40,7 +40,8 @@
         "EXPO_PUBLIC_APP_ENV": "staging",
         "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "backend",
         "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_ENABLE_GOTOTRACK": "0"
       }
     },
     "production": {

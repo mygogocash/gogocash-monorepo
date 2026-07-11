@@ -208,10 +208,13 @@ const mobileExpoConfig = ({ config }) => ({
       },
     ],
     // GoGoTrack declares PACKAGE_USAGE_STATS — a Play RESTRICTED permission
-    // (declaration form + high rejection risk). Store builds ship WITHOUT it
-    // until the Play declaration is approved; EXPO_PUBLIC_ENABLE_GOTOTRACK=1
-    // (default for non-production envs) keeps it in dev/staging builds.
-    ...(enableGototrack ? ["./plugins/withGototrackUsageAccess"] : []),
+    // (declaration form + high rejection risk). Store builds ship WITHOUT it;
+    // EXPO_PUBLIC_ENABLE_GOTOTRACK=1 (default for non-production envs) keeps
+    // it in dev/staging builds. ALWAYS applied: when disabled the plugin
+    // force-strips the permissions + specialUse service that the local
+    // gototrack-detector module's library manifest would otherwise merge in
+    // at Gradle time (Play FGS-declaration trigger, found on the vc42 AAB).
+    ["./plugins/withGototrackUsageAccess", { enabled: enableGototrack }],
   ],
   extra: {
     accountDataSource: process.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE ?? envDefaults.accountDataSource,

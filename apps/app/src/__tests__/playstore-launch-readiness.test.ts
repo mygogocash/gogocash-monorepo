@@ -38,6 +38,12 @@ describe("Play Store launch readiness", () => {
     expect(ct.env.EXPO_PUBLIC_APP_ENV).toBe("staging");
     expect(ct.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE).toBe("backend");
     expect(ct.env.SENTRY_DISABLE_AUTO_UPLOAD).toBe("true");
+    // The closed-test build is store-distributed, so it must ship the SAME
+    // permission surface as production — GoGoTrack (PACKAGE_USAGE_STATS +
+    // foreground-service) gated OFF. Otherwise the closed-test review hits
+    // the usage-access rejection risk and testers exercise a flow production
+    // won't have. GoGoTrack dogfooding → a separate internal-testing build.
+    expect(ct.env.EXPO_PUBLIC_ENABLE_GOTOTRACK).toBe("0");
   });
 
   it("android app links > given app.gogocash.co URLs > then autoVerify intent filters exist", () => {
@@ -53,13 +59,20 @@ describe("Play Store launch readiness", () => {
     expect(Array.isArray(assetlinks[0].target.sha256_cert_fingerprints)).toBe(true);
   });
 
-  it("gototrack usage-access > given a production store build > then the restricted permission is gated out", () => {
-    // PACKAGE_USAGE_STATS is a Play review landmine (restricted permission,
-    // declaration form + rejection risk). First store release ships without
-    // it; EXPO_PUBLIC_ENABLE_GOTOTRACK=1 re-enables for internal builds.
+  it("gototrack usage-access > given a store build > then the plugin actively strips the module-manifest permissions", () => {
+    // PACKAGE_USAGE_STATS is a Play review landmine, and (field bug
+    // 2026-07-11) the gototrack-detector LOCAL MODULE's library manifest
+    // merges FOREGROUND_SERVICE(_SPECIAL_USE) at Gradle time even when the
+    // plugin is skipped — vc42's compiled manifest proved it. The plugin now
+    // ALWAYS runs: additive when enabled, tools:node="remove" when disabled.
     expect(appConfig).toContain("EXPO_PUBLIC_ENABLE_GOTOTRACK");
-    expect(appConfig).not.toMatch(/^\s*"\.\/plugins\/withGototrackUsageAccess",\s*$/m);
-    expect(appConfig).toMatch(/enableGototrack \? \["\.\/plugins\/withGototrackUsageAccess"\] : \[\]/);
+    expect(appConfig).toMatch(
+      /\["\.\/plugins\/withGototrackUsageAccess", \{ enabled: enableGototrack \}\]/,
+    );
+    const plugin = read("plugins/withGototrackUsageAccess.js");
+    expect(plugin).toContain("applyGototrackStripManifest");
+    expect(plugin).toContain('"tools:node": "remove"');
+    expect(plugin).toContain("GototrackMonitorService");
   });
 
   it("target sdk > given Play's 35+ requirement > then the target is pinned explicitly", () => {
