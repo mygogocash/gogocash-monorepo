@@ -70,7 +70,11 @@ on:
         description: "EAS Update channel (for the update action)"
         required: true
         default: "development"
-        type: string
+        type: choice
+        options:
+          - development
+          - staging
+          - production
 
 permissions:
   contents: read
@@ -81,8 +85,14 @@ jobs:
     name: EAS ${{ inputs.action }}
     if: ${{ inputs.confirm_ci_green }}
     runs-on: ubuntu-latest
-    environment: staging
+    # Production dispatches use the `production` GitHub environment so OTA
+    # bundles never inherit staging Firebase/telemetry secrets. Create the
+    # environment + its EXPO_PUBLIC_* secrets before the first production run
+    # (docs/PLAYSTORE_LAUNCH.md §CI).
+    environment: ${{ inputs.profile == 'production' && 'production' || 'staging' }}
     env:
+      # Production Android builds are AABs (Play upload); others are APKs.
+      ANDROID_ARTIFACT_EXT: ${{ inputs.profile == 'production' && 'aab' || 'apk' }}
       EXPO_PUBLIC_EAS_PROJECT_ID: 0039c25f-f88e-491d-8da9-85b8d6e66558
       NODE_PATH: ${{ github.workspace }}/node_modules:${{ github.workspace }}/apps/app/node_modules
     defaults:
@@ -175,14 +185,14 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/eas-artifacts"
           curl --fail --location "$EAS_BUILD_ARTIFACT_URL" \
-            --output "$RUNNER_TEMP/eas-artifacts/gogocash-${{ inputs.profile }}-android.apk"
+            --output "$RUNNER_TEMP/eas-artifacts/gogocash-${{ inputs.profile }}-android.${ANDROID_ARTIFACT_EXT}"
 
       - name: Upload Android build artifact
         if: ${{ inputs.action == 'build' && inputs.platform != 'ios' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: gogocash-${{ inputs.profile }}-android
-          path: ${{ runner.temp }}/eas-artifacts/gogocash-${{ inputs.profile }}-android.apk
+          path: ${{ runner.temp }}/eas-artifacts/gogocash-${{ inputs.profile }}-android.${{ env.ANDROID_ARTIFACT_EXT }}
           if-no-files-found: error
 
       - name: Authenticate to Google Cloud for Android artifact archive
@@ -199,19 +209,19 @@ jobs:
       - name: Archive Android build artifact to GCS
         if: ${{ inputs.action == 'build' && inputs.platform != 'ios' && vars.GCP_EAS_ARTIFACT_BUCKET != '' }}
         env:
-          APK_PATH: ${{ runner.temp }}/eas-artifacts/gogocash-${{ inputs.profile }}-android.apk
+          APK_PATH: ${{ runner.temp }}/eas-artifacts/gogocash-${{ inputs.profile }}-android.${{ env.ANDROID_ARTIFACT_EXT }}
           GCS_BUCKET: ${{ vars.GCP_EAS_ARTIFACT_BUCKET }}
           GCS_PREFIX: eas/android/${{ inputs.profile }}/${{ github.run_id }}
         run: |
           SHA_PATH="${APK_PATH}.sha256"
           sha256sum "$APK_PATH" | tee "$SHA_PATH"
 
-          gcloud storage cp "$APK_PATH" "gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-${{ inputs.profile }}-android.apk"
-          gcloud storage cp "$SHA_PATH" "gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-${{ inputs.profile }}-android.apk.sha256"
+          gcloud storage cp "$APK_PATH" "gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-${{ inputs.profile }}-android.${ANDROID_ARTIFACT_EXT}"
+          gcloud storage cp "$SHA_PATH" "gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-${{ inputs.profile }}-android.${ANDROID_ARTIFACT_EXT}.sha256"
 
           {
-            echo "### Android APK archive"
-            echo "- APK: \`gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-${{ inputs.profile }}-android.apk\`"
+            echo "### Android artifact archive"
+            echo "- Artifact: \`gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-${{ inputs.profile }}-android.${ANDROID_ARTIFACT_EXT}\`"
             echo "- SHA-256: \`$(cut -d ' ' -f1 "$SHA_PATH")\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
