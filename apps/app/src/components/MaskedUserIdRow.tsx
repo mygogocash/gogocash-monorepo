@@ -68,9 +68,9 @@ export function MaskedUserIdRow({
         style={styles.iconButton}
       >
         {revealed ? (
-          <EyeSlashIcon color={iconColor} size={16} strokeWidth={typography.iconStrokeWidth} />
+          <EyeSlashIcon color={iconColor} size={14} strokeWidth={typography.iconStrokeWidth} />
         ) : (
-          <EyeIcon color={iconColor} size={16} strokeWidth={typography.iconStrokeWidth} />
+          <EyeIcon color={iconColor} size={14} strokeWidth={typography.iconStrokeWidth} />
         )}
       </Pressable>
       <Pressable
@@ -79,7 +79,7 @@ export function MaskedUserIdRow({
         onPress={() => void copyUserId()}
         style={styles.iconButton}
       >
-        <CopyIcon color={iconColor} size={16} strokeWidth={typography.iconStrokeWidth} />
+        <CopyIcon color={iconColor} size={14} strokeWidth={typography.iconStrokeWidth} />
       </Pressable>
     </View>
   );
@@ -101,9 +101,9 @@ function createStyles() {
     iconButton: {
       alignItems: "center",
       borderRadius: 6,
-      height: 28,
+      height: 24,
       justifyContent: "center",
-      width: 28,
+      width: 24,
     },
   });
 }

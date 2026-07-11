@@ -358,6 +358,11 @@ describe("Account hub route parity", () => {
     expect(shellFile).toContain("walletHeroIdChip");
     expect(shellFile).toMatch(/walletHeroId:[\s\S]*?color: colors\.white/);
     expect(shellFile).toContain('label={tc("User ID")}');
+    // Round 2 (founder): quieter chip — hugs its content (no full-width
+    // stretch), no border, small 13pt value.
+    expect(shellFile).not.toMatch(/walletHeroIdChip: \{[^}]*borderWidth/);
+    expect(shellFile).toMatch(/walletHeroId:[\s\S]*?fontSize: 13/);
+    expect(shellFile).not.toMatch(/walletHeroIdRowCompact: \{[^}]*width: "100%"/);
     const maskedRow = readMobileFile("src/components/MaskedUserIdRow.tsx");
     expect(maskedRow).toContain("label");
     expect(shellFile).toContain("profileContentMobile");
