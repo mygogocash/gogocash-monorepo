@@ -359,6 +359,9 @@ function createBrandCardStyles(colors: ThemeColors) {
       zIndex: 2,
     },
     brandLogoImage: {
+      // Radius on the image itself — Android's new architecture does not
+      // reliably clip a child image to the parent's rounded overflow.
+      borderRadius: radii.sm,
       height: "100%",
       width: "100%",
     },
@@ -417,6 +420,10 @@ function createBrandCardStyles(colors: ThemeColors) {
     },
     compactBrandLogoImage: {
       // expo-image gets no size from absolute-fill alone on Android new arch.
+      // Radius on the image itself — the parent's rounded overflow does not
+      // reliably clip child images on Android (Trending tiles showed sharp
+      // corners while Top Brands looked right; founder report 2026-07-11).
+      borderRadius: radii.sm,
       height: "100%",
       width: "100%",
     },
