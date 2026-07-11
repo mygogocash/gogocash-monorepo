@@ -33,11 +33,29 @@ describe("brand logo tile convergence", () => {
     expect(brandCard).not.toContain("onLogoError");
   });
 
-  it("given the Quest explore section > then it renders the shared BrandCard, not a clone", () => {
+  it("given the Quest explore section > then it renders the shared section, not a clone", () => {
     const quest = read("src/screens/CustomerQuestScreen.tsx");
-    expect(quest).toContain("<BrandCard");
+    expect(quest).toContain("<ExploreOtherShopsSection");
     expect(quest).not.toContain("CompactExploreShopCard");
     expect(quest).not.toContain('from "expo-image"');
+  });
+
+  it("given the shared Explore other Shops section > then it renders BrandCard rows", () => {
+    // Founder feedback 2026-07-11 (referral screenshot): a THIRD explore-shops
+    // clone (single-letter monogram, heart beside the name, truncating
+    // cashback caption). The section is now ONE component used by Quest and
+    // Referral; new screens must render it, not re-clone it.
+    const section = read("src/screens/ExploreOtherShopsSection.tsx");
+    expect(section).toContain("<BrandCard");
+    expect(section).toContain("getShopDirectoryGridMetrics");
+    expect(section).toContain("resolveLiveBrandCards");
+  });
+
+  it("given the Referral explore section > then it renders the shared section, not a clone", () => {
+    const referral = read("src/screens/CustomerReferralScreen.tsx");
+    expect(referral).toContain("<ExploreOtherShopsSection");
+    expect(referral).not.toContain("ExploreShopCard");
+    expect(referral).not.toContain("charAt(0)");
   });
 
   it("given the Favorite Brands grid > then it renders the shared BrandCard, not a clone", () => {
@@ -48,6 +66,20 @@ describe("brand logo tile convergence", () => {
     expect(favorites).toContain("<BrandCard");
     expect(favorites).not.toContain("FavoriteBrandCard");
     expect(favorites).not.toContain("logoFailed");
+  });
+
+  it("given the shop-detail related rail > then it renders the shared BrandCard, not a clone", () => {
+    // Founder follow-up 2026-07-11: the FOURTH clone — a horizontal rail with
+    // a bespoke card, a direct expo-image (no bounded retry, no Android-safe
+    // radius), and a decorative heart that was a plain View. The rail keeps
+    // its horizontal scroll but the cards are the standard compact BrandCard
+    // with the provider-backed heart.
+    const shopDetail = read("src/screens/CustomerShopDetailScreen.tsx");
+    expect(shopDetail).toContain("<BrandCard");
+    expect(shopDetail).toContain("showFavoriteHeart");
+    expect(shopDetail).not.toContain("relatedLogoImage");
+    expect(shopDetail).not.toContain("relatedFavoriteButton");
+    expect(shopDetail).not.toContain("relatedCouponBadge");
   });
 
   it("given the compact BrandCard > then it offers the favorite heart but no category chip", () => {

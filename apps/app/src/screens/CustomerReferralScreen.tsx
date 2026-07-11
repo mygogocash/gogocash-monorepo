@@ -1,11 +1,9 @@
 import { Link } from "expo-router";
 import {
-  ArrowRight as ArrowRightIcon,
   Check as CheckIcon,
   ChevronDown as ChevronDownIcon,
   ChevronLeft as ChevronLeftIcon,
   Copy as ContentCopyIcon,
-  Heart as HeartIcon,
 } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -22,7 +20,6 @@ import {
 } from "react-native";
 
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
-import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { mapReferralPointsToInviteRows, type ReferralInviteRow } from "@mobile/api/referralMapper";
 import { isReferralPointList } from "@mobile/api/referralTypes";
@@ -44,7 +41,12 @@ import {
 import { WalletSkeleton } from "@mobile/components/Skeleton";
 import { useToast } from "@mobile/hooks/useToast";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { mobileShellLayout, webReferralPage } from "@mobile/design/webDesignParity";
+import {
+  mobileShellLayout,
+  webAccountPageSurface,
+  webReferralPage,
+} from "@mobile/design/webDesignParity";
+import { ExploreOtherShopsSection } from "@mobile/screens/ExploreOtherShopsSection";
 import { getMobileEnv } from "@mobile/config/env";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -70,6 +72,13 @@ export function CustomerReferralScreen() {
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+  // Mirror the shell math the shared explore grid expects: capped shell width
+  // minus this screen's own content padding (16 mobile / 24 desktop).
+  const shellWidth = Math.min(
+    width,
+    isDesktop ? webAccountPageSurface.desktopContentMaxWidth : mobileShellLayout.contentMaxWidth
+  );
+  const contentWidth = shellWidth - (isDesktop ? 24 : spacing.md) * 2;
   const session = useMobileSessionSnapshot();
   const mobileEnv = getMobileEnv();
   const inviteLink = resolveReferralInviteLink({
@@ -125,7 +134,7 @@ export function CustomerReferralScreen() {
           <ReferralInvitationPanel liveRows={liveInviteRows} />
           <ReferralStepsSection />
           <ReferralFaqsSection />
-          <ReferralExploreShopsSection isDesktop={isDesktop} />
+          <ExploreOtherShopsSection contentWidth={contentWidth} />
         </ScrollView>
       </View>
     </ReferralSubPage>
@@ -396,7 +405,7 @@ function ReferralInvitationTabs({
             style={[styles.tabButton, selected ? styles.tabButtonActive : styles.tabButtonInactive]}
           >
             <Text
-              numberOfLines={1}
+              numberOfLines={2}
               style={[styles.tabText, selected ? styles.tabTextActive : styles.tabTextInactive]}
             >
               {tc(tab)}
@@ -434,8 +443,8 @@ function ReferralInvitationTable({
       </View>
       {showEmptyInvites ? (
         <View style={styles.tableEmptyState}>
-          <Text style={styles.tableEmptyTitle}>{tc("referralEmptyInvitesTitle")}</Text>
-          <Text style={styles.tableEmptySubtitle}>{tc("referralEmptyInvitesSubtitle")}</Text>
+          <Text style={styles.tableEmptyTitle}>{tc("It's been a while since your last invite.")}</Text>
+          <Text style={styles.tableEmptySubtitle}>{tc("Share with friends and earn rewards together!")}</Text>
         </View>
       ) : (
         rows.map((row) => (
@@ -531,120 +540,6 @@ function ReferralFaqItem({
   );
 }
 
-// Local mock shops for the "Explore other Shops" parity section. Defined here on
-// purpose: the web pulls these from a live offer list, but this screen has no
-// merchant resource wired in, so we keep the sample data local rather than
-// editing shared design-parity modules.
-type ExploreShop = {
-  readonly id: string;
-  readonly name: string;
-  readonly cashback: string;
-  readonly tint: string;
-};
-
-const exploreShops: readonly ExploreShop[] = [
-  { id: "orbit-airways", name: "Orbit Airways", cashback: "8.5%", tint: "#1D4ED8" },
-  { id: "nova-travel-club", name: "Nova Travel Club", cashback: "9.2%", tint: "#0F766E" },
-  { id: "horizon-escapes", name: "Horizon Escapes", cashback: "8.8%", tint: "#7C3AED" },
-  { id: "cloudline-getaways", name: "Cloudline Getaways", cashback: "7.9%", tint: "#C2410C" },
-];
-
-function ReferralExploreShopsSection({ isDesktop }: { isDesktop: boolean }) {
-  const styles = useThemedStyles(createReferralScreenStyles);
-  const { colors } = useTheme();
-  const tc = useCopy();
-  return (
-    <View style={styles.exploreSection}>
-      <View style={styles.exploreHeader}>
-        <Text style={[styles.exploreTitle, isDesktop ? styles.exploreTitleDesktop : null]}>
-          {tc("Explore other Shops")}
-        </Text>
-        {isDesktop ? (
-          <Link asChild href="/brand">
-            <Pressable accessibilityRole="link" style={styles.exploreViewAll}>
-              <Text style={styles.exploreViewAllText}>{tc("View all")}</Text>
-              <ArrowRightIcon
-                color={colors.accent}
-                size={18}
-                strokeWidth={typography.iconStrokeWidth}
-              />
-            </Pressable>
-          </Link>
-        ) : null}
-      </View>
-      <View style={[styles.exploreGrid, isDesktop ? styles.exploreGridDesktop : null]}>
-        {exploreShops.map((shop) => (
-          <ExploreShopCard isDesktop={isDesktop} key={shop.id} shop={shop} />
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function ExploreShopCard({ isDesktop, shop }: { isDesktop: boolean; shop: ExploreShop }) {
-  const styles = useThemedStyles(createReferralScreenStyles);
-  const { colors } = useTheme();
-  const tc = useCopy();
-  const { isFavorite: isBrandFavorite, toggleFavorite } = useFavoriteBrands();
-  const isFavorite = isBrandFavorite(shop.id);
-  return (
-    <View style={[styles.exploreCard, isDesktop ? styles.exploreCardDesktop : styles.exploreCardMobile]}>
-      {/* Brand-color art + monogram — the same card language as the app's brand cards
-          (the fixture ships no shop logos, so the tint + initial stands in for one). */}
-      <View style={[styles.exploreCardBanner, { backgroundColor: shop.tint }]}>
-        <Text style={styles.exploreCardMonogram}>{shop.name.charAt(0)}</Text>
-      </View>
-      <View style={[styles.exploreCardBody, isDesktop ? styles.exploreCardBodyDesktop : null]}>
-        <View style={styles.exploreCardCopy}>
-          <Text
-            numberOfLines={2}
-            style={[styles.exploreCardName, isDesktop ? styles.exploreCardNameDesktop : null]}
-          >
-            {shop.name}
-          </Text>
-          <View style={styles.exploreCashbackRow}>
-            <Text
-              numberOfLines={2}
-              style={[
-                styles.exploreCashbackLabel,
-                isDesktop ? styles.exploreCashbackLabelDesktop : null,
-              ]}
-            >
-              {tc("Cashback upto")}
-            </Text>
-            <Text
-              style={[
-                styles.exploreCashbackValue,
-                isDesktop ? styles.exploreCashbackValueDesktop : null,
-              ]}
-            >
-              {shop.cashback}
-            </Text>
-          </View>
-        </View>
-        <Pressable
-          accessibilityLabel={
-            isFavorite
-              ? `${tc("Remove from saved brands")}: ${shop.name}`
-              : `${tc("Save brand")}: ${shop.name}`
-          }
-          accessibilityRole="button"
-          accessibilityState={{ selected: isFavorite }}
-          hitSlop={8}
-          onPress={() => toggleFavorite(shop.id)}
-          style={styles.exploreFavoriteButton}
-        >
-          <HeartIcon
-            color={isFavorite ? colors.primary : colors.muted}
-            fill={isFavorite ? colors.primary : undefined}
-            size={22}
-            strokeWidth={isFavorite ? 0 : typography.iconStrokeWidth}
-          />
-        </Pressable>
-      </View>
-    </View>
-  );
-}
 
 function createReferralScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
@@ -888,7 +783,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   tabText: {
     fontFamily: typography.family,
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: typography.bodyWeight,
     lineHeight: 19,
     textAlign: "center",
   },
@@ -1101,149 +996,6 @@ function createReferralScreenStyles(colors: ThemeColors) {
     paddingBottom: 16,
     paddingLeft: 45,
     paddingRight: 16,
-  },
-  exploreSection: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    gap: 24,
-    marginTop: 48,
-    paddingTop: 48,
-    width: "100%",
-  },
-  exploreHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 16,
-    justifyContent: "space-between",
-  },
-  exploreTitle: {
-    color: colors.ink,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 24,
-    fontWeight: "600",
-    lineHeight: 31,
-  },
-  exploreTitleDesktop: {
-    fontSize: 26,
-    lineHeight: 34,
-  },
-  exploreViewAll: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexShrink: 0,
-    gap: 6,
-  },
-  exploreViewAllText: {
-    color: colors.accent,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "600",
-    lineHeight: 22,
-  },
-  exploreGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-  },
-  exploreGridDesktop: {
-    gap: 20,
-  },
-  exploreCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-    flexGrow: 1,
-    overflow: "hidden",
-  },
-  exploreCardMobile: {
-    flexBasis: "47%",
-  },
-  exploreCardDesktop: {
-    flexBasis: "22%",
-  },
-  exploreCardBanner: {
-    alignItems: "center",
-    aspectRatio: 16 / 10,
-    backgroundColor: colors.background,
-    justifyContent: "center",
-    width: "100%",
-  },
-  exploreCardMonogram: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: 44,
-    fontWeight: "800",
-    opacity: 0.96,
-  },
-  exploreCardBody: {
-    alignItems: "flex-start",
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    flexDirection: "row",
-    gap: 8,
-    padding: 12,
-  },
-  exploreCardBodyDesktop: {
-    padding: 16,
-  },
-  exploreCardCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  exploreCardName: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 15,
-    fontWeight: "600",
-    lineHeight: 20,
-  },
-  exploreCardNameDesktop: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  exploreCashbackRow: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    gap: 8,
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
-  exploreCashbackLabel: {
-    color: colors.muted,
-    flexShrink: 1,
-    fontFamily: typography.family,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  exploreCashbackLabelDesktop: {
-    fontSize: 14,
-    lineHeight: 18,
-  },
-  exploreCashbackValue: {
-    color: colors.primary,
-    flexShrink: 0,
-    fontFamily: typography.family,
-    fontSize: 18,
-    fontWeight: "700",
-    lineHeight: 24,
-  },
-  exploreCashbackValueDesktop: {
-    fontSize: 20,
-    lineHeight: 26,
-  },
-  exploreFavoriteButton: {
-    alignItems: "center",
-    backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
-    borderColor: pickThemed(colors, "#E6F7ED", colors.border),
-    borderRadius: 999,
-    borderWidth: 1,
-    flexShrink: 0,
-    height: 40,
-    justifyContent: "center",
-    width: 40,
   },
 });
 }
