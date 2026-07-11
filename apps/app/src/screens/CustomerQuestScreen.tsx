@@ -24,29 +24,21 @@ import questRank4 from "../../assets/quest-rank/rank4.png";
 import questRank5 from "../../assets/quest-rank/rank5.png";
 import questRank6to10 from "../../assets/quest-rank/rank6_10.png";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
-import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
-import { resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
-import { BrandCard } from "@mobile/components/BrandCard";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { QuestCoinIcon } from "@mobile/components/QuestCoinIcon";
+import { ExploreOtherShopsSection } from "@mobile/screens/ExploreOtherShopsSection";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { haptics } from "@mobile/lib/haptics";
 import type { QuestTaskRow } from "@mobile/quest/questTaskResource";
 import { useQuestTaskRows } from "@mobile/quest/questTaskResource";
 import {
-  getResponsiveHomeLayoutMetrics,
-  getScaledCompactBrandCardMetrics,
-  getShopDirectoryGridMetrics,
   mobileShellLayout,
   webAccountPageSurface,
-  webHomePromoSections,
   webQuestHistory,
   webQuestLeaderboardRows,
   webQuestMyRank,
   webQuestTabs,
 } from "@mobile/design/webDesignParity";
-import { chunkDirectoryGridRows } from "@mobile/screens/discovery/directoryVirtualizedGrid";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -54,8 +46,6 @@ import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 type QuestTabId = (typeof webQuestTabs)[number]["id"];
 
-const exploreOtherShops = webHomePromoSections.find((section) => section.id === "travel");
-type HomeLayoutMetrics = ReturnType<typeof getResponsiveHomeLayoutMetrics>;
 export function CustomerQuestScreen({ history = false }: { history?: boolean }) {
   if (history) {
     return <CustomerQuestHistoryScreen />;
@@ -90,7 +80,6 @@ function CustomerQuestMainScreen() {
       : mobileShellLayout.contentHorizontalPadding * 2);
   const heroHeight = contentWidth / (1200 / 675);
   const mediaColumnWidth = isDesktop ? (contentWidth - spacing.lg) / 2 : contentWidth;
-  const exploreLayout = getQuestExploreLayout(width, contentWidth);
 
   return (
     <AccountPageShell activeRouteId="quest" tabletContentMode="fluid" title={tc("Quest")}>
@@ -152,19 +141,9 @@ function CustomerQuestMainScreen() {
           </View>
         ) : null}
       </View>
-      <ExploreOtherShops layout={exploreLayout} />
+      <ExploreOtherShopsSection contentWidth={contentWidth} />
     </AccountPageShell>
   );
-}
-
-function getQuestExploreLayout(viewportWidth: number, contentWidth: number): HomeLayoutMetrics {
-  const homeLayout = getResponsiveHomeLayoutMetrics(viewportWidth);
-  // Brand cards are a fixed size on every display — keep homeLayout's fixed compact-card
-  // dimensions; only the quest content width is screen-specific.
-  return {
-    ...homeLayout,
-    contentWidth,
-  };
 }
 
 function QuestTaskPanel() {
@@ -392,64 +371,6 @@ function RankTrophy({ index }: { index: number }) {
   );
 }
 
-function ExploreOtherShops({ layout }: { layout: HomeLayoutMetrics }) {
-  const styles = useThemedStyles(createQuestScreenStyles);
-  const tc = useCopy();
-  const { region } = useLocale();
-  const { width: viewportWidth } = useWindowDimensions();
-  const fallbackCards = exploreOtherShops?.cards ?? [];
-  const brandCatalogResource = useCustomerAccountResource({
-    fixtureData: fallbackCards,
-    resourceId: "brandCatalog",
-  });
-  const cards = resolveLiveBrandCards(
-    brandCatalogResource.source,
-    brandCatalogResource.data,
-    fallbackCards,
-    region,
-  );
-
-  if (!exploreOtherShops) {
-    return null;
-  }
-
-  const gridMetrics = getShopDirectoryGridMetrics({
-    contentWidth: layout.contentWidth,
-    viewportWidth,
-  });
-  const scaledCard = getScaledCompactBrandCardMetrics(gridMetrics.cardWidth);
-  const visibleCards = cards.slice(0, layout.compactBrandCardsPerPage);
-  const shopRows = chunkDirectoryGridRows(visibleCards, gridMetrics.columns);
-
-  return (
-    <View style={styles.exploreSection}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{tc("Explore other Shops")}</Text>
-        <Link asChild href={exploreOtherShops.link as never}>
-          <MotionPressable pressScale={0.98}>
-            <Text style={styles.viewAll}>{`${tc("View all")} →`}</Text>
-          </MotionPressable>
-        </Link>
-      </View>
-      <View style={[styles.shopGrid, { gap: gridMetrics.gap }]}>
-        {shopRows.map((row, rowIndex) => (
-          <View key={`quest-shop-row-${rowIndex}`} style={[styles.shopGridRow, { gap: gridMetrics.gap }]}>
-            {row.map((card) => (
-              <BrandCard
-                cardHeight={scaledCard.cardHeight}
-                cardWidth={gridMetrics.cardWidth}
-                key={card.brand}
-                logoVisualHeight={scaledCard.logoVisualHeight}
-                {...card}
-                size="S"
-              />
-            ))}
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
 
 const QUEST_HISTORY_LEADERBOARD_PERIODS = [
   "This round",
@@ -1599,34 +1520,6 @@ function createQuestScreenStyles(colors: ThemeColors) {
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: "500",
-  },
-  exploreSection: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    gap: spacing.md,
-    paddingTop: spacing.lg,
-  },
-  sectionHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  sectionTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: typography.title,
-    fontWeight: "600",
-  },
-  viewAll: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-  },
-  shopGrid: {
-    flexDirection: "column",
-  },
-  shopGridRow: {
-    flexDirection: "row",
   },
 });
 }
