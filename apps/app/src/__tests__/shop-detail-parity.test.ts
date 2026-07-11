@@ -280,15 +280,16 @@ describe("Shop detail parity", () => {
     expect(shopFile).toMatch(/cashbackHeader:[\s\S]*?alignItems: "baseline"/);
   });
 
-  it("shop detail parity > given Explore other shops rail > then live catalog logos use expo-image contain", () => {
+  it("shop detail parity > given Explore other shops rail > then it renders shared BrandCards over the live catalog", () => {
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 
-    expect(shopFile).toContain('from "expo-image"');
     expect(shopFile).toContain("resolveLiveDirectoryStores");
     expect(shopFile).toContain("getFixtureShopDirectoryResults");
     expect(shopFile).toContain("<ShopExploreRelated excludeShopId={shop.id} />");
-    expect(shopFile).toContain('contentFit="contain"');
-    expect(shopFile).toContain("store.logoUri ? colors.card : store.tint");
-    expect(shopFile).toMatch(/relatedCashbackValue:[\s\S]*flexShrink: 0/);
+    // Final-form alignment 2026-07-11: rail cards ARE the compact BrandCard
+    // (fixed 144pt like the home carousels); the bespoke card is gone.
+    expect(shopFile).toContain("<BrandCard");
+    expect(shopFile).toContain("getScaledCompactBrandCardMetrics(FIXED_RELATED_CARD_WIDTH)");
+    expect(shopFile).not.toContain("relatedVisual");
   });
 });

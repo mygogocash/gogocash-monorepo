@@ -68,6 +68,20 @@ describe("brand logo tile convergence", () => {
     expect(favorites).not.toContain("logoFailed");
   });
 
+  it("given the shop-detail related rail > then it renders the shared BrandCard, not a clone", () => {
+    // Founder follow-up 2026-07-11: the FOURTH clone — a horizontal rail with
+    // a bespoke card, a direct expo-image (no bounded retry, no Android-safe
+    // radius), and a decorative heart that was a plain View. The rail keeps
+    // its horizontal scroll but the cards are the standard compact BrandCard
+    // with the provider-backed heart.
+    const shopDetail = read("src/screens/CustomerShopDetailScreen.tsx");
+    expect(shopDetail).toContain("<BrandCard");
+    expect(shopDetail).toContain("showFavoriteHeart");
+    expect(shopDetail).not.toContain("relatedLogoImage");
+    expect(shopDetail).not.toContain("relatedFavoriteButton");
+    expect(shopDetail).not.toContain("relatedCouponBadge");
+  });
+
   it("given the compact BrandCard > then it offers the favorite heart but no category chip", () => {
     // Founder feedback 2026-07-11 (round 3): drop the category chip (Others,
     // Finance, ...) from favorites cards — cards match the standard BrandCard
