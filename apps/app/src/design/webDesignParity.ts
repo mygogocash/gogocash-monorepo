@@ -305,6 +305,7 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
   return {
     brandSectionFrameWidth,
     compactBrandCardHeight,
+    compactBrandRowsPerPage,
     compactBrandCardWidth,
     compactBrandCardsPerPage,
     compactBrandColumns: compactBrandColumnsPerRow,
@@ -328,6 +329,7 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
       ? mobileShellLayout.topBrandMobilePageCardCount
       : topBrandColumnsPerRow * topBrandRowsPerPage,
     topBrandColumns: topBrandColumnsPerRow,
+    topBrandRowsPerPage,
     topBrandDotCount: isMobileTopBrandGrid
       ? mobileShellLayout.topBrandMobileDotCount
       : mobileShellLayout.topBrandDesktopDotCount,

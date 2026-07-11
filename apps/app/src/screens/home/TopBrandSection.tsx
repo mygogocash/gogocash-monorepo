@@ -19,6 +19,8 @@ import { viewAllLabel } from "./homeAssets";
 import {
   chunkTopBrandCards,
   getPagedScrollIndex,
+  getPromoGridCardWidth,
+  getPromoSectionLayoutMode,
 } from "./homeHelpers";
 import { useHomeScreenColors, useHomeScreenStyles } from "./homeScreenHooks";
 import { type HomeLayoutMetrics, type TopBrandCardProps } from "./homeTypes";
@@ -48,6 +50,15 @@ export function TopBrandSection({
     apiBaseUrl,
   );
   const topBrandPages = chunkTopBrandCards(topBrands, homeLayout.topBrandCardsPerPage);
+  // Same mobile treatment as the promo rails (founder feedback 2026-07-11):
+  // few cards → static grid; more → free momentum scroll; desktop pager.
+  const layoutMode = getPromoSectionLayoutMode(homeLayout.isDesktop, topBrands.length);
+  const isPager = layoutMode === "pager";
+  const topBrandColumns = chunkTopBrandCards(topBrands, homeLayout.topBrandRowsPerPage);
+  const gridCardWidth = getPromoGridCardWidth(
+    homeLayout.brandSectionFrameWidth,
+    homeLayout.topBrandGap
+  );
   const [activeTopBrandPage, setActiveTopBrandPage] = useState(0);
   const topBrandDotCount = getCarouselDotCount(
     topBrands.length,
@@ -78,11 +89,27 @@ export function TopBrandSection({
       </View>
 
       <View style={styles.topBrandPager}>
+        {layoutMode === "grid" ? (
+          <View style={[styles.brandGrid, { gap: homeLayout.topBrandGap, width: "100%" }]}>
+            {topBrands.map((card) => (
+              <BrandCard
+                cardHeight={homeLayout.topBrandCardHeight}
+                cardWidth={gridCardWidth}
+                key={card.id ?? card.brand}
+                {...card}
+                size="L"
+              />
+            ))}
+          </View>
+        ) : (
         <View style={{ height: homeLayout.topBrandGridHeight, overflow: "hidden", width: "100%" }}>
         <Animated.ScrollView
-          contentContainerStyle={styles.topBrandPagerContent}
-          decelerationRate="fast"
-          disableIntervalMomentum
+          contentContainerStyle={[
+            styles.topBrandPagerContent,
+            isPager ? null : { gap: homeLayout.topBrandGap },
+          ]}
+          decelerationRate={isPager ? "fast" : "normal"}
+          disableIntervalMomentum={isPager}
           horizontal
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { x: topBrandScrollX } } }],
@@ -93,48 +120,68 @@ export function TopBrandSection({
               getPagedScrollIndex(event, homeLayout.topBrandGroupWidth, topBrandMaxPageIndex)
             )
           }
-          pagingEnabled
+          pagingEnabled={isPager}
           scrollEventThrottle={16}
           showsHorizontalScrollIndicator={false}
           snapToAlignment="start"
-          snapToInterval={homeLayout.topBrandGroupWidth}
+          snapToInterval={isPager ? homeLayout.topBrandGroupWidth : undefined}
           style={[styles.topBrandScroll, { height: homeLayout.topBrandGridHeight }]}
         >
-          {topBrandPages.map((pageCards, pageIndex) => (
-            <Animated.View
-              key={`top-brand-page-${pageIndex}`}
-              style={[
-                styles.topBrandPage,
-                styles.brandGrid,
-                {
-                  gap: homeLayout.topBrandGap,
-                  height: homeLayout.topBrandGridHeight,
-                  width: homeLayout.topBrandGroupWidth,
-                },
-              ]}
-            >
-              {pageCards.map((card) => (
-                <BrandCard
-                  cardHeight={homeLayout.topBrandCardHeight}
-                  cardWidth={homeLayout.topBrandCardWidth}
-                  key={card.id ?? card.brand}
-                  {...card}
-                  size="L"
-                />
+          {isPager
+            ? topBrandPages.map((pageCards, pageIndex) => (
+                <Animated.View
+                  key={`top-brand-page-${pageIndex}`}
+                  style={[
+                    styles.topBrandPage,
+                    styles.brandGrid,
+                    {
+                      gap: homeLayout.topBrandGap,
+                      height: homeLayout.topBrandGridHeight,
+                      width: homeLayout.topBrandGroupWidth,
+                    },
+                  ]}
+                >
+                  {pageCards.map((card) => (
+                    <BrandCard
+                      cardHeight={homeLayout.topBrandCardHeight}
+                      cardWidth={homeLayout.topBrandCardWidth}
+                      key={card.id ?? card.brand}
+                      {...card}
+                      size="L"
+                    />
+                  ))}
+                </Animated.View>
+              ))
+            : topBrandColumns.map((columnCards, columnIndex) => (
+                <View
+                  key={`top-brand-column-${columnIndex}`}
+                  style={{ gap: homeLayout.topBrandGap }}
+                >
+                  {columnCards.map((card) => (
+                    <BrandCard
+                      cardHeight={homeLayout.topBrandCardHeight}
+                      cardWidth={homeLayout.topBrandCardWidth}
+                      key={card.id ?? card.brand}
+                      {...card}
+                      size="L"
+                    />
+                  ))}
+                </View>
               ))}
-            </Animated.View>
-          ))}
         </Animated.ScrollView>
         </View>
-        <CarouselDots
-          activeIndex={activeTopBrandDot}
-          color={colors.primary}
-          containerStyle={styles.topBrandDots}
-          count={topBrandDotCount}
-          pageWidth={homeLayout.topBrandGroupWidth}
-          scrollX={topBrandScrollX}
-          size={12}
-        />
+        )}
+        {isPager ? (
+          <CarouselDots
+            activeIndex={activeTopBrandDot}
+            color={colors.primary}
+            containerStyle={styles.topBrandDots}
+            count={topBrandDotCount}
+            pageWidth={homeLayout.topBrandGroupWidth}
+            scrollX={topBrandScrollX}
+            size={12}
+          />
+        ) : null}
       </View>
     </View>
   );
