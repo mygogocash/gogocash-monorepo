@@ -156,8 +156,25 @@ describe("CustomerReferralScreen — Wave B foundations adopted (source signals)
   it("does not replace the whole page when referral activity is empty", () => {
     expect(referralSource).toContain("isReferralResourceBlocking");
     expect(referralSource).toContain('referralResource.status === "empty"');
-    expect(referralSource).toContain("referralEmptyInvitesTitle");
+    expect(referralSource).toContain("styles.tableEmptyState");
     expect(referralSource).not.toContain('emptyTitle={tc("No referral activity yet")');
+  });
+
+  it("empty invites copy > given tc's English-value lookup > then no raw catalog keys leak", () => {
+    // Field bug 2026-07-11: the empty table rendered the literal strings
+    // "referralEmptyInvitesTitle/Subtitle" — tc() translates English VALUES
+    // via the reverse index, not catalog keys.
+    expect(referralSource).not.toContain('tc("referralEmptyInvitesTitle")');
+    expect(referralSource).not.toContain('tc("referralEmptyInvitesSubtitle")');
+    expect(referralSource).toContain("It's been a while since your last invite.");
+    expect(referralSource).toContain("Share with friends and earn rewards together!");
+  });
+
+  it("invitation tabs > given three labels on a phone > then normal weight and no ellipsis truncation", () => {
+    // Founder feedback 2026-07-11: "All Invitatio…"/"Created Ac…" truncated at
+    // bold weight. Tabs are normal weight and may wrap to a second line.
+    expect(referralSource).toMatch(/tabText:[\s\S]*?fontWeight: typography\.bodyWeight/);
+    expect(referralSource).not.toMatch(/accessibilityRole="tab"[\s\S]*?numberOfLines=\{1\}/);
   });
 
   it("passes a loadingSkeleton to the shared resource state guard", () => {

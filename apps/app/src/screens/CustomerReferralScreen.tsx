@@ -396,7 +396,7 @@ function ReferralInvitationTabs({
             style={[styles.tabButton, selected ? styles.tabButtonActive : styles.tabButtonInactive]}
           >
             <Text
-              numberOfLines={1}
+              numberOfLines={2}
               style={[styles.tabText, selected ? styles.tabTextActive : styles.tabTextInactive]}
             >
               {tc(tab)}
@@ -434,8 +434,8 @@ function ReferralInvitationTable({
       </View>
       {showEmptyInvites ? (
         <View style={styles.tableEmptyState}>
-          <Text style={styles.tableEmptyTitle}>{tc("referralEmptyInvitesTitle")}</Text>
-          <Text style={styles.tableEmptySubtitle}>{tc("referralEmptyInvitesSubtitle")}</Text>
+          <Text style={styles.tableEmptyTitle}>{tc("It's been a while since your last invite.")}</Text>
+          <Text style={styles.tableEmptySubtitle}>{tc("Share with friends and earn rewards together!")}</Text>
         </View>
       ) : (
         rows.map((row) => (
@@ -888,7 +888,7 @@ function createReferralScreenStyles(colors: ThemeColors) {
   tabText: {
     fontFamily: typography.family,
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: typography.bodyWeight,
     lineHeight: 19,
     textAlign: "center",
   },
