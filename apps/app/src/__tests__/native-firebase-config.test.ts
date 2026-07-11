@@ -62,7 +62,11 @@ describe("native firebase config > app.config.js", () => {
 
     expect(config.plugins).toContainEqual([
       "expo-build-properties",
-      { ios: { useFrameworks: "static" } },
+      {
+        // Play launch 2026-07-11: target API pinned alongside the iOS flag.
+        android: { compileSdkVersion: 36, targetSdkVersion: 36 },
+        ios: { useFrameworks: "static" },
+      },
     ]);
   });
 });

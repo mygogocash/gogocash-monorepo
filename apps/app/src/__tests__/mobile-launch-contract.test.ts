@@ -151,7 +151,8 @@ describe("GoGoCash mobile launch contract", () => {
     };
 
     expect(easConfig.build.production.env).toMatchObject({
-      EXPO_PUBLIC_ACCOUNT_DATA_SOURCE: "disabled",
+      // Play launch 2026-07-11: production ships live backend account data.
+      EXPO_PUBLIC_ACCOUNT_DATA_SOURCE: "backend",
       EXPO_PUBLIC_API_URL: "https://api.gogocash.co",
       EXPO_PUBLIC_APP_ENV: "production",
       EXPO_PUBLIC_FRONTEND_URL: "https://app.gogocash.co",
