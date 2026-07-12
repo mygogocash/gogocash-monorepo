@@ -3,6 +3,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 
 import { R2ObjectStorageService } from './r2-object-storage.service';
+import { ImageOptimizerService } from './image-optimizer.service';
 import {
   isPrivateMediaFolder,
   MediaFolder,
@@ -22,6 +23,7 @@ export class StoredMediaService {
   constructor(
     private readonly r2ObjectStorage: R2ObjectStorageService,
     private readonly googleDriveService: GoogleDriveService,
+    private readonly imageOptimizer: ImageOptimizerService,
   ) {}
 
   async upload(
@@ -30,8 +32,11 @@ export class StoredMediaService {
   ): Promise<string> {
     const prefix = resolveMediaFolder(folder);
     const access = isPrivateMediaFolder(folder) ? 'private' : 'public';
+    // Resize + re-encode display images before storage (no-op for private
+    // evidence folders, non-images, and anything the optimizer can't decode).
+    const optimized = await this.imageOptimizer.optimizeUpload(file, folder);
     const uploaded = await this.r2ObjectStorage.uploadFile(
-      file,
+      optimized,
       prefix,
       access,
     );
