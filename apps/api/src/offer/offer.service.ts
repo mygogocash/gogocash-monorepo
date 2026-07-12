@@ -105,6 +105,10 @@ const OFFER_DETAIL_DERIVATION_FIELDS = [
   'tracking_days',
   'confirm_days',
 ] as const;
+// Exclusion projection for the public LIST endpoints (which otherwise return
+// whole docs): raw tracking-period config stays admin-only there too.
+const PUBLIC_LIST_EXCLUDED_FIELDS_SELECT =
+  '-tracking_period_mode -tracking_days -confirm_days';
 const PUBLIC_OFFER_DETAIL_SELECT = [
   ...PUBLIC_OFFER_DETAIL_FIELDS,
   ...OFFER_DETAIL_DERIVATION_FIELDS,
@@ -285,6 +289,12 @@ export class OfferService implements OnApplicationBootstrap {
       }
     }
     let listQuery = this.offerModel.find(filter);
+    if (!admin) {
+      // Raw tracking-period config is admin-only (the detail route serves the
+      // derived tracking_period instead) — keep the public list surfaces
+      // consistent with that contract.
+      listQuery = listQuery.select(PUBLIC_LIST_EXCLUDED_FIELDS_SELECT);
+    }
     if (admin) {
       listQuery = listQuery.sort({
         datetime_created: -1,
@@ -388,6 +398,7 @@ export class OfferService implements OnApplicationBootstrap {
 
     const dataExtra = await this.offerModel
       .find(filter)
+      .select(PUBLIC_LIST_EXCLUDED_FIELDS_SELECT)
       .sort({ extra_store_sort: 1 })
       .lean();
 

@@ -4150,12 +4150,15 @@ const FormOffer = ({
             </p>
           )}
           {(() => {
-            const preview = resolveTrackingPeriodPreview({
-              tracking_period_mode: form.tracking_period_mode,
-              tracking_days: form.tracking_days,
-              confirm_days: form.confirm_days,
-              validation_terms: offer?.validation_terms ?? null,
-            });
+            const preview = resolveTrackingPeriodPreview(
+              {
+                tracking_period_mode: form.tracking_period_mode,
+                tracking_days: form.tracking_days,
+                confirm_days: form.confirm_days,
+                validation_terms: offer?.validation_terms ?? null,
+              },
+              offer?.tracking_period ?? null,
+            );
             const sourceLabel =
               preview.source === "manual"
                 ? "Manual — set for this brand"

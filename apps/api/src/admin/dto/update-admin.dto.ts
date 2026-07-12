@@ -1,6 +1,12 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { CreateAdminDto } from './create-admin.dto';
-import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class UpdateAdminDto extends PartialType(CreateAdminDto) {}
 
@@ -148,16 +154,20 @@ export class UpdateOfferAdminDto {
 
   @ApiProperty({ required: false })
   @IsString()
+  @MaxLength(64)
   @IsOptional()
   policy_category_id?: string;
 
+  /** Cap mirrors the policy write path's MAX_TRANSLATION_LENGTH (50k). */
   @ApiProperty({ required: false })
   @IsString()
+  @MaxLength(50_000)
   @IsOptional()
   custom_terms?: string;
 
   @ApiProperty({ required: false })
   @IsString()
+  @MaxLength(2_000)
   @IsOptional()
   note_to_user?: string;
 }

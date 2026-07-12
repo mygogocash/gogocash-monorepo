@@ -550,6 +550,15 @@ export interface Offer {
   tracking_period_mode?: "auto" | "manual";
   tracking_days?: number | null;
   confirm_days?: number | null;
+  /**
+   * API-derived windows (public GET /offer/:id attaches this and STRIPS the
+   * raw fields above — the /brands/[id] route seeds from it instead).
+   */
+  tracking_period?: {
+    tracking_days: number;
+    confirm_days: number;
+    source: "partner" | "manual" | "default";
+  };
   logo_desktop: string;
   logo_mobile: string;
   banner: string;

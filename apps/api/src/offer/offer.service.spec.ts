@@ -175,6 +175,17 @@ describe('OfferService', () => {
       expect(filter.status).toEqual({ $nin: ['pending_review', 'rejected'] });
     });
 
+    it('findAll > given a public call > then raw tracking-period config is excluded from the projection', async () => {
+      const query = makeQuery([]);
+      offerModel.find.mockReturnValue(query);
+
+      await service.findAll(1, 10, '', '');
+
+      expect(query.select).toHaveBeenCalledWith(
+        '-tracking_period_mode -tracking_days -confirm_days',
+      );
+    });
+
     it('findAll > given search/category/country terms > then they become case-insensitive regex filters', async () => {
       await service.findAll(1, 10, 'shopee', 'fashion', 'Thailand');
 

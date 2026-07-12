@@ -427,6 +427,19 @@ describe('AdminController', () => {
       expect(arg.note_to_user).toBe('Flash sale this week only.');
     });
 
+    it('updateOffer > given a non-ObjectId policy_category_id (the form\'s "custom" sentinel) > then it maps to an explicit clear', () => {
+      // Storing "custom" would make every customer shop-detail view fire a
+      // guaranteed-400 GET /policy/category/custom (rate-limit burn).
+      controller.updateOffer(
+        'offer-1',
+        { policy_category_id: 'custom' as never } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.policy_category_id).toBe('');
+    });
+
     // disabled/extra_store arrive as multipart strings; only the exact string
     // "true" enables them. "false" explicitly disables them, while absent stays
     // undefined so partial saves never rewrite existing flags.

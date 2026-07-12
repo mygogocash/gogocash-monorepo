@@ -2285,6 +2285,19 @@ async function handleMockPATCH(
       const t = (b.note_to_user ?? "").trim();
       offer.note_to_user = t.length > 0 ? t : null;
     }
+    // Cashback tracking period (mirrors the real API: absent key = no change).
+    if (b.tracking_period_mode !== undefined) {
+      offer.tracking_period_mode =
+        b.tracking_period_mode === "manual" ? "manual" : "auto";
+    }
+    if (b.tracking_days !== undefined) {
+      const n = Number(b.tracking_days);
+      if (Number.isInteger(n) && n >= 1 && n <= 365) offer.tracking_days = n;
+    }
+    if (b.confirm_days !== undefined) {
+      const n = Number(b.confirm_days);
+      if (Number.isInteger(n) && n >= 1 && n <= 365) offer.confirm_days = n;
+    }
     if (b.affiliate_network_id !== undefined) {
       const id = (b.affiliate_network_id ?? "").trim();
       if (id && AFFILIATE_NETWORKS.some((n) => n.id === id)) {

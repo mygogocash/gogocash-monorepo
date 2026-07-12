@@ -124,4 +124,12 @@ describe('UpdateOfferAdminDto validation (integration)', () => {
     );
     expect(response.body.body.note_to_user).toBe('Flash sale this week only.');
   });
+
+  it('given an oversized note_to_user > then validation rejects with 400 (stored-DoS guard)', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/offer-test/update-offer/offer-1')
+      .field('note_to_user', 'x'.repeat(2_001));
+
+    expect(response.status).toBe(400);
+  });
 });

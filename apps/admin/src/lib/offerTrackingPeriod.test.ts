@@ -36,6 +36,24 @@ describe("offer tracking period (admin preview)", () => {
     }
   });
 
+  it("resolveTrackingPeriodPreview > given stripped validation_terms but a derived partner fallback > then the auto preview shows the partner window", () => {
+    // The /brands/[id] route only has the public detail payload: raw
+    // validation_terms is stripped, but the derived tracking_period survives.
+    expect(
+      resolveTrackingPeriodPreview(
+        { tracking_period_mode: "auto", validation_terms: null },
+        { tracking_days: 30, confirm_days: 60, source: "partner" },
+      ),
+    ).toEqual({ tracking_days: 30, confirm_days: 60, source: "partner" });
+    // A default-source fallback must NOT masquerade as partner data.
+    expect(
+      resolveTrackingPeriodPreview(
+        { tracking_period_mode: "auto", validation_terms: null },
+        { tracking_days: 30, confirm_days: 30, source: "default" },
+      ),
+    ).toEqual({ tracking_days: 30, confirm_days: 30, source: "default" });
+  });
+
   it("formatTrackingDays > mirrors the customer copy exactly", () => {
     // "within 30 day" is the web-parity string the app renders — the admin
     // preview must read identically.

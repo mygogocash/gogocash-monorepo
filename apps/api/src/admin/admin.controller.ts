@@ -22,6 +22,7 @@ import {
   MIN_TRACKING_PERIOD_DAYS,
 } from 'src/offer/tracking-period.util';
 import { Request, Response } from 'express';
+import { Types } from 'mongoose';
 import { AdminService } from './admin.service';
 import {
   CreateAdminDto,
@@ -127,6 +128,21 @@ function coerceOptionalText(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   if (value.trim() === 'undefined') return undefined;
   return value;
+}
+
+/**
+ * policy_category_id must be a real category ObjectId or a clear. The admin
+ * form's "Custom" option sends the literal string "custom" (meaning: no
+ * category, custom terms only) — that and any other non-ObjectId value maps to
+ * '' so garbage ids never persist and the app never fires doomed
+ * /policy/category/<junk> lookups.
+ */
+function coerceOptionalPolicyCategoryId(value: unknown): string | undefined {
+  const text = coerceOptionalText(value);
+  if (text === undefined) return undefined;
+  const trimmed = text.trim();
+  if (!trimmed) return '';
+  return Types.ObjectId.isValid(trimmed) ? trimmed : '';
 }
 
 type AdminRoleDef = {
@@ -533,7 +549,9 @@ export class AdminController {
         updateAdminDto.confirm_days,
         'confirm_days',
       ),
-      policy_category_id: coerceOptionalText(updateAdminDto.policy_category_id),
+      policy_category_id: coerceOptionalPolicyCategoryId(
+        updateAdminDto.policy_category_id,
+      ),
       custom_terms: coerceOptionalText(updateAdminDto.custom_terms),
       note_to_user: coerceOptionalText(updateAdminDto.note_to_user),
     });

@@ -39,6 +39,14 @@ export function isValidTrackingDayCount(value: unknown): value is number {
 
 export function resolveTrackingPeriodPreview(
   offer: TrackingPeriodOfferFields,
+  // The /brands/[id] route loads offers via the public detail endpoint, which
+  // strips raw validation_terms but attaches the API-derived tracking_period —
+  // use it so the auto preview still shows the true partner window there.
+  derivedFallback?: {
+    tracking_days: number;
+    confirm_days: number;
+    source: string;
+  } | null,
 ): TrackingPeriodPreview {
   if (offer.tracking_period_mode === "manual") {
     return {
@@ -54,7 +62,10 @@ export function resolveTrackingPeriodPreview(
 
   const partnerConfirm = isValidTrackingDayCount(offer.validation_terms)
     ? offer.validation_terms
-    : null;
+    : derivedFallback?.source === "partner" &&
+        isValidTrackingDayCount(derivedFallback.confirm_days)
+      ? derivedFallback.confirm_days
+      : null;
   return {
     tracking_days: DEFAULT_TRACKING_DAYS,
     confirm_days: partnerConfirm ?? DEFAULT_CONFIRM_DAYS,
