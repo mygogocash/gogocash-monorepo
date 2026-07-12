@@ -71,6 +71,11 @@ const anuphanFonts = {
   bold: fontPath("@expo-google-fonts/anuphan/700Bold/Anuphan_700Bold.ttf"),
 };
 
+// Canonical EAS project (@gogocash/gogocash-mobile). Pinned so eas-cli commands
+// that don't inject build-profile env — notably `eas submit` — still resolve the
+// org project instead of trying to create a personal one. Same id committed in
+// eas.json's per-profile EXPO_PUBLIC_EAS_PROJECT_ID.
+const EAS_PROJECT_ID = "0039c25f-f88e-491d-8da9-85b8d6e66558";
 const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
 
 /** Google iOS OAuth client id → reversed URL scheme for the Sign-In config plugin. */
@@ -255,7 +260,7 @@ const mobileExpoConfig = ({ config }) => ({
     posthogKey: process.env.EXPO_PUBLIC_POSTHOG_KEY ?? "",
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? "",
     eas: {
-      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
+      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim() || EAS_PROJECT_ID,
     },
   },
 });
