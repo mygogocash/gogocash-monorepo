@@ -23,14 +23,21 @@ describe("native oauth config parity", () => {
     expect(workflow).toContain("EXPO_PUBLIC_NATIVE_OAUTH_PROVIDERS");
   });
 
-  it("eas.json closedtest and preview builds carry the social activation envs", () => {
+  it("eas.json closedtest and preview builds carry the Google web client id", () => {
+    // eas.json's schema REJECTS empty-string env values ("is not allowed to be
+    // empty" — it broke the staging OTA publish), so the dormant
+    // EXPO_PUBLIC_NATIVE_OAUTH_PROVIDERS flag must stay ABSENT here until it
+    // gets a real value (dormancy = unset). Only non-empty envs live in
+    // eas.json; pin both directions.
     const easJson = JSON.parse(readAppFile("eas.json")) as {
       build: Record<string, { env?: Record<string, string> }>;
     };
     for (const profile of ["closedtest", "preview"] as const) {
       const env = easJson.build[profile]?.env ?? {};
-      expect(Object.keys(env)).toContain("EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID");
-      expect(Object.keys(env)).toContain("EXPO_PUBLIC_NATIVE_OAUTH_PROVIDERS");
+      expect(env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID).toBeTruthy();
+      for (const value of Object.values(env)) {
+        expect(value).not.toBe("");
+      }
     }
   });
 
