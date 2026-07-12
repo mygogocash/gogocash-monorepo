@@ -69,7 +69,7 @@
     "closedtest": {
       "android": {
         "track": "GoGoCash Alpha",
-        "releaseStatus": "draft"
+        "releaseStatus": "completed"
       }
     },
     "production": {
