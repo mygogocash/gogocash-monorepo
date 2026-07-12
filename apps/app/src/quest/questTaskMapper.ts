@@ -1,4 +1,6 @@
 import type { Locale } from "@mobile/i18n/locales";
+import { resolveOfferMediaUrl } from "@mobile/api/mediaUrl";
+import { BRAND_LOGO_IMAGE_WIDTH } from "@mobile/api/optimizedImageUrl";
 
 export const questTaskEndpoint = "/offer/extra-point";
 
@@ -68,7 +70,11 @@ function mapBackendQuestTask(
 
   const key = firstText(task._id, task.offer_id) ?? `quest-task-${index}`;
   const offerPathId = firstText(task._id, task.offer_id);
-  const logoUri = firstText(task.logo_circle, task.logo);
+  // Route through the shared media seam: transforms gogocash media to the
+  // sized CDN variant and drops customer-unfetchable local-media refs.
+  const logoUri = resolveOfferMediaUrl(firstText(task.logo_circle, task.logo), undefined, {
+    width: BRAND_LOGO_IMAGE_WIDTH,
+  });
 
   return {
     href: offerPathId ? `/shop/${encodeURIComponent(offerPathId)}` : undefined,

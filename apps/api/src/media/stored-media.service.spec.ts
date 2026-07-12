@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 
 import { R2ObjectStorageService } from './r2-object-storage.service';
+import { ImageOptimizerService } from './image-optimizer.service';
 import { MEDIA_FOLDER } from './media-folders.config';
 import { StoredMediaService } from './stored-media.service';
 
@@ -18,6 +19,7 @@ describe('StoredMediaService', () => {
     deleteFile: jest.Mock;
     getFileStream: jest.Mock;
   };
+  let imageOptimizer: { optimizeUpload: jest.Mock };
 
   beforeEach(async () => {
     r2ObjectStorage = {
@@ -37,12 +39,18 @@ describe('StoredMediaService', () => {
       deleteFile: jest.fn().mockResolvedValue(undefined),
       getFileStream: jest.fn(),
     };
+    imageOptimizer = {
+      optimizeUpload: jest.fn((file: Express.Multer.File) =>
+        Promise.resolve(file),
+      ),
+    };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         StoredMediaService,
         { provide: R2ObjectStorageService, useValue: r2ObjectStorage },
         { provide: GoogleDriveService, useValue: googleDriveService },
+        { provide: ImageOptimizerService, useValue: imageOptimizer },
       ],
     }).compile();
 
@@ -63,6 +71,32 @@ describe('StoredMediaService', () => {
     expect(r2ObjectStorage.uploadFile).toHaveBeenCalledWith(
       expect.any(Object),
       'brands',
+      'public',
+    );
+  });
+
+  it('upload > runs the file through the image optimizer and uploads the optimized result', async () => {
+    const original = {
+      originalname: 'hero.png',
+      mimetype: 'image/png',
+      buffer: Buffer.from('original-bytes'),
+    } as Express.Multer.File;
+    const optimized = {
+      originalname: 'hero.webp',
+      mimetype: 'image/webp',
+      buffer: Buffer.from('tiny'),
+    } as Express.Multer.File;
+    imageOptimizer.optimizeUpload.mockResolvedValueOnce(optimized);
+
+    await service.upload(original, MEDIA_FOLDER.BANNER_HOME);
+
+    expect(imageOptimizer.optimizeUpload).toHaveBeenCalledWith(
+      original,
+      MEDIA_FOLDER.BANNER_HOME,
+    );
+    expect(r2ObjectStorage.uploadFile).toHaveBeenCalledWith(
+      optimized,
+      'banner-home',
       'public',
     );
   });

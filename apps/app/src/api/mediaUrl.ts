@@ -1,3 +1,8 @@
+import {
+  type OptimizedImageOptions,
+  optimizedImageUrl,
+} from "@mobile/api/optimizedImageUrl";
+
 const LOCAL_MEDIA_PREFIX = "local-media:";
 const REMOTE_URI_PREFIXES = ["https://", "http://", "data:", "blob:", "file:"] as const;
 
@@ -9,6 +14,7 @@ function looksLikeGoogleDriveFileId(value: string): boolean {
 export function resolveOfferMediaUrl(
   value: unknown,
   apiBaseUrl?: string,
+  imageOptions?: OptimizedImageOptions,
 ): string | undefined {
   if (typeof value !== "string") {
     return undefined;
@@ -26,12 +32,13 @@ export function resolveOfferMediaUrl(
     return undefined;
   }
 
-  return resolveRemoteImageUri(trimmed, apiBaseUrl);
+  return resolveRemoteImageUri(trimmed, apiBaseUrl, imageOptions);
 }
 
 export function resolveRemoteImageUri(
   value: unknown,
   apiBaseUrl?: string,
+  imageOptions?: OptimizedImageOptions,
 ): string | undefined {
   if (typeof value !== "string") {
     return undefined;
@@ -42,13 +49,18 @@ export function resolveRemoteImageUri(
     return undefined;
   }
 
+  // When a surface declares its render width, route allowlisted gogocash media
+  // through the Cloudflare image transform; every other host is a passthrough.
+  const optimize = (uri: string): string =>
+    imageOptions ? (optimizedImageUrl(uri, imageOptions) ?? uri) : uri;
+
   if (trimmed.startsWith("/")) {
     const base = apiBaseUrl?.trim().replace(/\/+$/, "");
     return base ? `${base}${trimmed}` : trimmed;
   }
 
   if (REMOTE_URI_PREFIXES.some((prefix) => trimmed.startsWith(prefix))) {
-    return trimmed;
+    return optimize(trimmed);
   }
 
   if (looksLikeGoogleDriveFileId(trimmed)) {

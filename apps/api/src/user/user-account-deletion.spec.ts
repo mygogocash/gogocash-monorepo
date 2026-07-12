@@ -37,12 +37,17 @@ describe('UserService account deletion', () => {
     updateOne = jest.fn().mockResolvedValue({ modifiedCount: 1 });
     find = jest.fn();
     deleteFirebaseUser = jest.fn().mockResolvedValue(undefined);
-    (getAdminAuth as jest.Mock).mockReturnValue({ deleteUser: deleteFirebaseUser });
+    (getAdminAuth as jest.Mock).mockReturnValue({
+      deleteUser: deleteFirebaseUser,
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
-        { provide: getModelToken(User.name), useValue: { findOneAndUpdate, find, updateOne } },
+        {
+          provide: getModelToken(User.name),
+          useValue: { findOneAndUpdate, find, updateOne },
+        },
         { provide: getModelToken(UserMyCashback.name), useValue: {} },
         {
           provide: StoredMediaService,
@@ -72,7 +77,9 @@ describe('UserService account deletion', () => {
       }),
       expect.anything(),
     );
-    expect(result.deletionScheduledFor).toEqual(new Date('2026-08-10T00:00:00Z'));
+    expect(result.deletionScheduledFor).toEqual(
+      new Date('2026-08-10T00:00:00Z'),
+    );
   });
 
   it('requestAccountDeletion > given an already-pending request > then returns the existing schedule unchanged', async () => {
@@ -120,7 +127,9 @@ describe('UserService account deletion', () => {
     };
     find.mockReturnValue({ exec: jest.fn().mockResolvedValue([dueUser]) });
 
-    const purged = await service.purgeDueAccountDeletions(new Date('2026-08-11T00:00:00Z'));
+    const purged = await service.purgeDueAccountDeletions(
+      new Date('2026-08-11T00:00:00Z'),
+    );
 
     expect(deleteFirebaseUser).toHaveBeenCalledWith('firebase-uid-1');
     expect(updateOne).toHaveBeenCalledWith(
@@ -143,7 +152,10 @@ describe('UserService account deletion', () => {
   });
 
   it('purgeDueAccountDeletions > given a Firebase delete failure > then skips that user for the next run', async () => {
-    const dueUser = { _id: new Types.ObjectId(), id_firebase: 'firebase-uid-2' };
+    const dueUser = {
+      _id: new Types.ObjectId(),
+      id_firebase: 'firebase-uid-2',
+    };
     find.mockReturnValue({ exec: jest.fn().mockResolvedValue([dueUser]) });
     deleteFirebaseUser.mockRejectedValue(new Error('firebase down'));
 
@@ -154,9 +166,14 @@ describe('UserService account deletion', () => {
   });
 
   it('purgeDueAccountDeletions > given an already-deleted Firebase user > then still anonymizes', async () => {
-    const dueUser = { _id: new Types.ObjectId(), id_firebase: 'firebase-uid-3' };
+    const dueUser = {
+      _id: new Types.ObjectId(),
+      id_firebase: 'firebase-uid-3',
+    };
     find.mockReturnValue({ exec: jest.fn().mockResolvedValue([dueUser]) });
-    const gone = Object.assign(new Error('no user'), { code: 'auth/user-not-found' });
+    const gone = Object.assign(new Error('no user'), {
+      code: 'auth/user-not-found',
+    });
     deleteFirebaseUser.mockRejectedValue(gone);
 
     const purged = await service.purgeDueAccountDeletions(new Date());
