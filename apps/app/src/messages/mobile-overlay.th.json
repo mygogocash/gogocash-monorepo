@@ -376,5 +376,8 @@
   "mobileLocaleRegionSheetCloseAria": "ปิดตัวเลือกภาษาและภูมิภาค",
   "mobileLocaleRegionSheetAria": "เลือกภาษาและภูมิภาค",
   "mobileDeletionScheduledToast": "กำหนดการลบเรียบร้อย บัญชีของคุณจะถูกลบถาวรภายใน 30 วัน",
-  "mobileDeletionConfirmTap": "แตะอีกครั้งเพื่อลบถาวร"
+  "mobileDeletionConfirmTap": "แตะอีกครั้งเพื่อลบถาวร",
+  "mobileGoLinkChecking": "กำลังตรวจสอบร้านค้า…",
+  "mobileGoLinkUnsupportedStore": "GoGoLink ยังไม่รองรับร้านค้านี้",
+  "mobileGoLinkRealRateNote": "อัตราเงินคืนที่แสดงคืออัตราสูงสุดปัจจุบันของร้านค้า การอนุมัติขั้นสุดท้ายขึ้นอยู่กับร้านค้าและเงื่อนไขของข้อเสนอ"
 }

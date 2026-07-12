@@ -376,5 +376,8 @@
   "mobileLocaleRegionSheetCloseAria": "Close language and region",
   "mobileLocaleRegionSheetAria": "Choose language and region",
   "mobileDeletionScheduledToast": "Deletion scheduled. Your account will be permanently removed in 30 days.",
-  "mobileDeletionConfirmTap": "Tap again to permanently delete"
+  "mobileDeletionConfirmTap": "Tap again to permanently delete",
+  "mobileGoLinkChecking": "Checking store…",
+  "mobileGoLinkUnsupportedStore": "This store isn't supported by GoGoLink yet.",
+  "mobileGoLinkRealRateNote": "Cashback rate shown is the store's current maximum. Final approval depends on the store and offer terms."
 }
