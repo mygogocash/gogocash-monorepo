@@ -453,7 +453,11 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     }
 
     const isNativeGoogle = Platform.OS !== "web" && provider.id === "google";
-    if (Platform.OS !== "web" && !isNativeGoogle) {
+    // Facebook/Apple ride Firebase's hosted OAuth via RNFB signInWithPopup —
+    // native-capable without new modules. Microsoft/X stay web-only.
+    const isNativeOAuth =
+      Platform.OS !== "web" && (provider.id === "facebook" || provider.id === "apple");
+    if (Platform.OS !== "web" && !isNativeGoogle && !isNativeOAuth) {
       toastCtx?.show(tc(authSendErrorMessages.webOnly));
       return;
     }
@@ -473,6 +477,22 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
             if (
               error instanceof GoogleSignInNotConfiguredError ||
               (error instanceof Error && error.name === "GoogleSignInNotConfiguredError")
+            ) {
+              toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+              return;
+            }
+            throw error;
+          }
+        } else if (isNativeOAuth) {
+          const { NativeOAuthNotConfiguredError, signInWithNativeOAuth } = await import(
+            "@mobile/auth/nativeOAuthSignIn"
+          );
+          try {
+            ({ idToken } = await signInWithNativeOAuth(provider.id as "facebook" | "apple"));
+          } catch (error) {
+            if (
+              error instanceof NativeOAuthNotConfiguredError ||
+              (error instanceof Error && error.name === "NativeOAuthNotConfiguredError")
             ) {
               toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
               return;
@@ -499,7 +519,15 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
         await completeSocialSession(session);
       } catch (error) {
         const code = (error as { code?: string })?.code;
-        if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        // Web popup cancels + RNFB hosted-flow cancels (Custom Tab dismissed)
+        // are user intent, not errors — stay silent.
+        if (
+          code === "auth/popup-closed-by-user" ||
+          code === "auth/cancelled-popup-request" ||
+          code === "auth/web-context-canceled" ||
+          code === "auth/web-context-cancelled" ||
+          code === "auth/user-cancelled"
+        ) {
           return;
         }
         toastCtx?.show(sendErrorCopy[toSendErrorKind(error)]);
