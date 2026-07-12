@@ -45,6 +45,38 @@ describe("quest task resource", () => {
     ]);
   });
 
+  it("routes staging media logos through the image transform", () => {
+    const rows = mapBackendQuestTasks([
+      {
+        _id: "media-offer-id",
+        offer_id: 900103,
+        offer_name: "Shopee Quest - CPS",
+        extra_point: 25,
+        logo_circle: "https://media-staging.gogocash.co/brands/shopee-circle.png",
+        quest_task_sort_order: 0,
+      },
+    ]);
+
+    expect(rows[0]?.logoUri).toBe(
+      "https://media-staging.gogocash.co/cdn-cgi/image/width=320,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/shopee-circle.png",
+    );
+  });
+
+  it("resolves local-media logo refs to undefined so the glyph fallback renders", () => {
+    const rows = mapBackendQuestTasks([
+      {
+        _id: "local-media-offer",
+        offer_id: 900104,
+        offer_name: "Local Media Quest - CPS",
+        extra_point: 10,
+        logo_circle: "local-media:brands/hidden.png",
+        quest_task_sort_order: 0,
+      },
+    ]);
+
+    expect(rows[0]?.logoUri).toBeUndefined();
+  });
+
   it("uses the public extra point endpoint as the customer quest source", () => {
     expect(questTaskEndpoint).toBe("/offer/extra-point");
   });

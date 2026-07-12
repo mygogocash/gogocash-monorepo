@@ -1,5 +1,9 @@
 import type { MerchantOfferResponse } from "@mobile/api/merchantTypes";
 import { resolveOfferMediaUrl } from "@mobile/api/mediaUrl";
+import {
+  BRAND_LOGO_IMAGE_WIDTH,
+  SHOP_BANNER_IMAGE_WIDTH,
+} from "@mobile/api/optimizedImageUrl";
 import { getMobileEnv } from "@mobile/config/env";
 import {
   resolvePublicOfferLogo,
@@ -66,9 +70,13 @@ function initialsFromBrand(brand: string): string {
     .join("");
 }
 
-function firstImageUri(apiBaseUrl: string, ...values: unknown[]): string | undefined {
+function firstImageUri(
+  apiBaseUrl: string,
+  width: number,
+  ...values: unknown[]
+): string | undefined {
   for (const value of values) {
-    const uri = resolveOfferMediaUrl(value, apiBaseUrl);
+    const uri = resolveOfferMediaUrl(value, apiBaseUrl, { width });
     if (uri) {
       return uri;
     }
@@ -89,7 +97,7 @@ export function mapMerchantOfferToShopDetail<TShop extends ShopDetailIdentity>(
 
   return {
     ...fixtureShop,
-    bannerUri: firstImageUri(apiBaseUrl, resolveShopPageBannerUri(offer)),
+    bannerUri: firstImageUri(apiBaseUrl, SHOP_BANNER_IMAGE_WIDTH, resolveShopPageBannerUri(offer)),
     brand,
     cashback,
     category: offer.categories?.trim() || fixtureShop.category,
@@ -100,7 +108,7 @@ export function mapMerchantOfferToShopDetail<TShop extends ShopDetailIdentity>(
     extraCashback: cashback,
     id: offer._id,
     logoText: initialsFromBrand(brand),
-    logoUri: firstImageUri(apiBaseUrl, resolvePublicOfferLogo(offer)),
+    logoUri: firstImageUri(apiBaseUrl, BRAND_LOGO_IMAGE_WIDTH, resolvePublicOfferLogo(offer)),
     note:
       offer.note_to_user?.trim() ||
       `${brand} cashback is tracked through GoGoCash after you open the merchant link and complete an eligible order.`,

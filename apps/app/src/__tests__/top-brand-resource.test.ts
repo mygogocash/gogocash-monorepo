@@ -24,7 +24,7 @@ describe("mapBackendTopBrands", () => {
     expect(mapBackendTopBrands(null)).toEqual([]);
   });
 
-  it("given admin logo_desktop without resolved logo field > then maps logoUri from desktop upload", () => {
+  it("given admin logo_desktop without resolved logo field > then maps logoUri through the image transform", () => {
     const payload: TopBrandsPayload = {
       data: [
         {
@@ -40,7 +40,8 @@ describe("mapBackendTopBrands", () => {
     expect(mapBackendTopBrands(payload)).toEqual([
       expect.objectContaining({
         brand: "Shopee",
-        logoUri: "https://media-staging.gogocash.co/brands/1783241514085-logo.png",
+        logoUri:
+          "https://media-staging.gogocash.co/cdn-cgi/image/width=320,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/1783241514085-logo.png",
       }),
     ]);
   });
