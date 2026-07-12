@@ -69,6 +69,26 @@ describe("catalog mapper > mapOffersToCatalogBrands", () => {
     expect(brand.logo).toBe("https://cdn.example/desktop.png");
   });
 
+  it("given a staging media logo > then routes it through the image transform", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          _id: "media-offer",
+          offer_name: "Media Brand TH",
+          commission_store: 2,
+          logo: "https://media-staging.gogocash.co/brands/media-logo.png",
+          disabled: false,
+          status: "approved",
+        },
+      ],
+    });
+
+    expect(brand.logo).toBe(
+      "https://media-staging.gogocash.co/cdn-cgi/image/width=320,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/media-logo.png",
+    );
+  });
+
   it("given a sparse record > then falls back to offer_name, Others category, no coupon, no logo", () => {
     const [, brand] = mapOffersToCatalogBrands(sampleResponse);
     expect(brand).toMatchObject({

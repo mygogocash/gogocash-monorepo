@@ -21,10 +21,15 @@ describe("native firebase config > app.config.js", () => {
     delete process.env.GOOGLE_SERVICE_INFO_PLIST;
   });
 
-  it("bumps the app version so the RNFB native module gets its own OTA runtime", () => {
+  it("bumps the app version so new native modules get their own OTA runtime", () => {
     const config = loadConfig()({ config: {} });
-    // APK 39 (0.1.0) has no RNFB native module — this JS must never OTA onto it.
-    expect(config.version).toBe("0.2.0");
+    // Runtime history (policy "appVersion" — version IS the OTA runtime):
+    // 0.1.0 = pre-RNFB APKs; 0.2.0 = RNFB native module (vc40..vc43, incl. the
+    // Play closed-test build); 0.3.0 = @react-native-google-signin native module.
+    // JS built at 0.3.0 must never OTA onto 0.2.0 binaries that lack the
+    // google-signin native module — updating this pin is a deliberate act that
+    // requires shipping a new store/closed-test build at the same version.
+    expect(config.version).toBe("0.3.0");
   });
 
   it("given GOOGLE_SERVICES_JSON is set (EAS file secret) > then wires the android googleServicesFile and the RNFB plugin", () => {

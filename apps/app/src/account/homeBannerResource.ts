@@ -1,5 +1,9 @@
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import { resolveRemoteImageUri } from "@mobile/api/mediaUrl";
+import {
+  HERO_BANNER_IMAGE_WIDTH,
+  SIDE_BANNER_IMAGE_WIDTH,
+} from "@mobile/api/optimizedImageUrl";
 
 /**
  * Maps the backend's wide single-document banner shape
@@ -184,14 +188,19 @@ export function mapBackendHomeBanners(doc: BannerHomeDocument): HomeHeroBanner[]
 
       return true;
     })
-    .map(
-      (slot): HomeHeroBanner => ({
+    .map((slot): HomeHeroBanner => {
+      const placement = slot.n <= 3 ? "main" : "side";
+      return {
         id: `home-banner-${slot.n}`,
         href: slot.link ? slot.link : "/",
-        placement: slot.n <= 3 ? "main" : "side",
-        imageUri: resolveRemoteImageUri(slot.image) ?? String(slot.image),
-      }),
-    );
+        placement,
+        imageUri:
+          resolveRemoteImageUri(slot.image, undefined, {
+            width:
+              placement === "main" ? HERO_BANNER_IMAGE_WIDTH : SIDE_BANNER_IMAGE_WIDTH,
+          }) ?? String(slot.image),
+      };
+    });
 }
 
 /**
