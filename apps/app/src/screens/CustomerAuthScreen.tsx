@@ -36,6 +36,7 @@ import { useFirebasePhoneRecaptcha } from "@mobile/auth/useFirebasePhoneRecaptch
 import { buildDemoMobileSession, persistMobileSession, type MobileSession } from "@mobile/auth/session";
 import { sanitizeCallbackPath } from "@mobile/auth/routeGuard";
 import { resolveAuthSocialProviders } from "@mobile/api/backendIntegrationScope";
+import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { getMobileEnv } from "@mobile/config/env";
 import type { PhoneOtpConfirmation } from "@mobile/auth/firebasePhoneAuth";
 import {
@@ -1075,6 +1076,9 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
             ) : null}
           </KeyboardAwareScreen>
         </View>
+      {/* Signed-out users land here from any bottom-nav tab (auth guard
+          redirect) — keep the bar so they can always navigate away. */}
+      {isMobileShell ? <CustomerMobileBottomNav bottomInset={insets.bottom} /> : null}
       <CustomerCookieConsentBanner isDesktop={isDesktopShell} />
       {liveAuth ? recaptchaModal : null}
     </View>
@@ -1758,6 +1762,8 @@ function createAuthScreenStyles(colors: ThemeColors) {
     fontWeight: "800",
   },
   changePhoneButton: {
+    // Centered like the rest of the auth card — pinned by mobile-nav-coverage.
+    alignSelf: "center",
     minHeight: 28,
     justifyContent: "center",
   },
