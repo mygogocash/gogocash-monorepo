@@ -81,6 +81,9 @@ describe("mapMerchantOfferToShopDetail", () => {
     expect(shop.category).toBe("Fashion");
     expect(shop.cashback).toBe("5.6%");
     expect(shop.trackingUrl).toBe("https://tracking.example/lazada");
+    // Network ids ride through so Shop Now can mint a per-user tracked link.
+    expect(shop.offerId).toBe(1024);
+    expect(shop.merchantId).toBe(2048);
     expect(shop.logoUri).toBe("https://cdn.example/logo.png");
     expect(shop.bannerUri).toBe(
       "https://drive.google.com/uc?export=view&id=backend-banner-file-id"

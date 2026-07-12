@@ -1,6 +1,6 @@
 import { Image as ExpoImage } from "expo-image";
 import { Link, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgePercent as BadgePercentIcon,
   Banknote as BanknoteIcon,
@@ -39,7 +39,10 @@ import {
   type CategoryPolicyPayload,
   type ShopTermsViewModel,
 } from "@mobile/account/policyResource";
+import { mintUserTrackingLink } from "@mobile/api/affiliateDeeplink";
 import { mapMerchantOfferToShopDetail } from "@mobile/api/merchantMapper";
+import { getMobileEnv } from "@mobile/config/env";
+import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { isMerchantOfferResponse } from "@mobile/api/merchantTypes";
 import { buildLoginRedirectWithCallback } from "@mobile/auth/routeGuard";
 import {
@@ -89,7 +92,9 @@ type ShopDetail = Omit<typeof webShopDetailGroceryGalaxy, "brand" | "cashback" |
   customTerms?: string;
   id: string;
   logoUri?: string;
+  merchantId?: number;
   noteToUser?: string;
+  offerId?: number;
   policyCategoryId?: string;
   trackingUrl?: string;
 };
@@ -145,8 +150,31 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
     void haptics.success();
   };
 
+  // Mint the per-user tracked link WHILE the redirect overlay plays (~2.5s):
+  // the raw tracking_link carries no aff_sub, so conversions through it cannot
+  // credit the buyer. Any minting failure falls back to the raw link — losing
+  // attribution is bad, losing the sale is worse.
+  const session = useMobileSessionSnapshot();
+  const mintedLinkRef = useRef<Promise<string | null> | null>(null);
   const beginShopNowRedirect = () => {
+    mintedLinkRef.current = mintUserTrackingLink({
+      accessToken:
+        typeof session?.access_token === "string" ? session.access_token : undefined,
+      apiUrl: getMobileEnv().apiUrl,
+      deeplink: "",
+      merchantId: shop.merchantId,
+      offerId: shop.offerId,
+    });
     setRedirecting(true);
+  };
+
+  const openMerchantUrl = async () => {
+    const minted = await (mintedLinkRef.current ?? Promise.resolve(null));
+    void Linking.openURL(
+      minted ||
+        shop.trackingUrl ||
+        `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
+    ).catch(() => undefined);
   };
 
   const handleShopNow = () => {
@@ -258,10 +286,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
             brand={shop.brand}
             onComplete={() => {
               setRedirecting(false);
-              void Linking.openURL(
-                shop.trackingUrl ||
-                  `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
-              ).catch(() => undefined);
+              void openMerchantUrl();
             }}
           />
         ) : null}
@@ -301,10 +326,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
           brand={shop.brand}
           onComplete={() => {
             setRedirecting(false);
-            void Linking.openURL(
-              shop.trackingUrl ||
-                `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
-            ).catch(() => undefined);
+            void openMerchantUrl();
           }}
         />
       ) : null}
