@@ -55,6 +55,24 @@ describe("isMerchantOfferResponse", () => {
 });
 
 describe("mapMerchantOfferToShopDetail", () => {
+  it("given staging media banner and logo > then both route through the image transform at their widths", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        banner: "https://media-staging.gogocash.co/brands/shop-banner.png",
+        logo: "https://media-staging.gogocash.co/brands/shop-logo.png",
+      },
+      fixtureShop,
+    );
+
+    expect(shop.bannerUri).toBe(
+      "https://media-staging.gogocash.co/cdn-cgi/image/width=1080,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/shop-banner.png",
+    );
+    expect(shop.logoUri).toBe(
+      "https://media-staging.gogocash.co/cdn-cgi/image/width=320,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/shop-logo.png",
+    );
+  });
+
   it("given a live offer > then overlays identity and media without leaking fixture merchant copy", () => {
     const shop = mapMerchantOfferToShopDetail(liveOffer, fixtureShop);
 
