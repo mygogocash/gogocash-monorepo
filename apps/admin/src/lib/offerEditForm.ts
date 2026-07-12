@@ -39,6 +39,9 @@ export function emptyOfferRequestForm(): OfferRequestForm {
     affiliate_network_id: "involve_asia",
     deeplink_store_id: "global",
     offer_display_tags: normalizeOfferDisplayTags(undefined),
+    tracking_period_mode: "auto",
+    tracking_days: null,
+    confirm_days: null,
   };
 }
 
@@ -74,5 +77,8 @@ export function offerToEditForm(offer: Offer): OfferRequestForm {
     affiliate_network_id: resolveAffiliateNetworkIdForOffer(offer),
     deeplink_store_id: resolveDeeplinkStoreId(offer),
     offer_display_tags: normalizeOfferDisplayTags(offer.offer_display_tags),
+    tracking_period_mode: offer.tracking_period_mode === "manual" ? "manual" : "auto",
+    tracking_days: offer.tracking_days ?? null,
+    confirm_days: offer.confirm_days ?? null,
   };
 }

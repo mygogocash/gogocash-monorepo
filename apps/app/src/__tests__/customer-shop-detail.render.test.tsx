@@ -146,6 +146,24 @@ describe("CustomerShopDetailScreen (render)", () => {
     expect(screen.queryByTestId("shop-detail-brand-logo-fallback")).toBeNull();
     expect(screen.queryByText("Grocery Galaxy")).toBeNull();
   });
+
+  it("renders API-derived tracking windows when the live offer carries tracking_period", () => {
+    merchantResourceState.data = {
+      _id: "6a49f3e6ce2e0da81d6dc375",
+      offer_name: "Shopee Affiliate Program",
+      offer_name_display: "Shopee",
+      commissions: [{ Commission: "2.02%" }],
+      tracking_link: "https://tracking.example/shopee",
+      tracking_period: { tracking_days: 7, confirm_days: 45 },
+    };
+    merchantResourceState.source = "backend";
+
+    renderScreen();
+
+    expect(screen.getByText("within 7 day")).toBeTruthy();
+    expect(screen.getByText("within 45 day")).toBeTruthy();
+    expect(screen.queryByText("within 30 day")).toBeNull();
+  });
 });
 
 describe("CustomerShopDetailScreen — Wave B foundations adopted (source signals)", () => {

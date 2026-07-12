@@ -1,6 +1,6 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { CreateAdminDto } from './create-admin.dto';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateAdminDto extends PartialType(CreateAdminDto) {}
 
@@ -131,6 +131,35 @@ export class UpdateOfferAdminDto {
   @ApiProperty({ type: [ProductTypeDto] })
   @IsOptional()
   product_type: ProductTypeDto[];
+
+  @ApiProperty({ required: false, enum: ['auto', 'manual'] })
+  @IsIn(['auto', 'manual'])
+  @IsOptional()
+  tracking_period_mode?: 'auto' | 'manual';
+
+  /** Multipart day counts arrive as strings; the controller coerces + bounds-checks. */
+  @ApiProperty({ required: false })
+  @IsOptional()
+  tracking_days?: number | string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  confirm_days?: number | string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  policy_category_id?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  custom_terms?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  note_to_user?: string;
 }
 
 export class UpdateUserDto {

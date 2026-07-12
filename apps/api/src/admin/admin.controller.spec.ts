@@ -374,6 +374,59 @@ describe('AdminController', () => {
       expect(arg.max_cap).toBe(0);
     });
 
+    it('updateOffer > given tracking_days "21" and confirm_days "45" as multipart strings > then they are forwarded as numbers', () => {
+      controller.updateOffer(
+        'offer-1',
+        {
+          tracking_period_mode: 'manual' as never,
+          tracking_days: '21' as never,
+          confirm_days: '45' as never,
+        } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.tracking_period_mode).toBe('manual');
+      expect(arg.tracking_days).toBe(21);
+      expect(arg.confirm_days).toBe(45);
+    });
+
+    it('updateOffer > given an out-of-range confirm_days "9999" > then it rejects instead of silently dropping', () => {
+      expect(() =>
+        controller.updateOffer(
+          'offer-1',
+          { confirm_days: '9999' as never } as never,
+          {},
+        ),
+      ).toThrow('Invalid confirm_days');
+    });
+
+    it('updateOffer > given no tracking-period fields > then they are forwarded as undefined', () => {
+      controller.updateOffer('offer-1', {} as never, {});
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.tracking_period_mode).toBeUndefined();
+      expect(arg.tracking_days).toBeUndefined();
+      expect(arg.confirm_days).toBeUndefined();
+    });
+
+    it('updateOffer > given terms-and-conditions fields > then policy/custom terms/note are forwarded (regression: admin T&C saves silently no-oped)', () => {
+      controller.updateOffer(
+        'offer-1',
+        {
+          policy_category_id: '68345f00aa11bb22cc33dd99' as never,
+          custom_terms: '1. Custom term' as never,
+          note_to_user: 'Flash sale this week only.' as never,
+        } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.policy_category_id).toBe('68345f00aa11bb22cc33dd99');
+      expect(arg.custom_terms).toBe('1. Custom term');
+      expect(arg.note_to_user).toBe('Flash sale this week only.');
+    });
+
     // disabled/extra_store arrive as multipart strings; only the exact string
     // "true" enables them. "false" explicitly disables them, while absent stays
     // undefined so partial saves never rewrite existing flags.

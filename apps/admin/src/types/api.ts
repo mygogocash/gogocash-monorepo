@@ -546,6 +546,10 @@ export interface Offer {
   tracking_link: string;
   tracking_type: string;
   validation_terms: number;
+  /** Cashback tracking-period config ('auto' derives from validation_terms). */
+  tracking_period_mode?: "auto" | "manual";
+  tracking_days?: number | null;
+  confirm_days?: number | null;
   logo_desktop: string;
   logo_mobile: string;
   banner: string;
@@ -651,6 +655,10 @@ export interface OfferRequestForm {
   /** Advertiser / market for tracking link targeting (see `DEEPLINK_STORE_OPTIONS`). */
   deeplink_store_id: string;
   offer_display_tags: OfferDisplayTags;
+  /** Cashback tracking-period config ('auto' derives from partner validation_terms). */
+  tracking_period_mode: "auto" | "manual";
+  tracking_days: number | null;
+  confirm_days: number | null;
 }
 
 export interface OffersQuery {

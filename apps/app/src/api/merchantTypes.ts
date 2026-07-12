@@ -23,6 +23,8 @@ export type MerchantOfferResponse = {
   offer_name_display?: string;
   policy_category_id?: string;
   tracking_link?: string;
+  /** API-derived tracking windows (GET /offer/:id attaches this; raw config stays admin-only). */
+  tracking_period?: { tracking_days?: number; confirm_days?: number };
 };
 
 /** Narrow an unknown backend payload to a single offer doc. */

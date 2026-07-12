@@ -419,6 +419,12 @@ export class AdminService {
       extra_store?: boolean;
       tracking_link?: string;
       product_type: ProductTypeDto[];
+      tracking_period_mode?: 'auto' | 'manual';
+      tracking_days?: number;
+      confirm_days?: number;
+      policy_category_id?: string;
+      custom_terms?: string;
+      note_to_user?: string;
     },
   ) {
     const offer = await this.offerModel.findById(requireObjectId(id)).exec();
@@ -506,6 +512,28 @@ export class AdminService {
             typeof updateData.product_type === 'string'
               ? JSON.parse(updateData.product_type)
               : updateData.product_type,
+          // Absent key = no change (unlike the ?? fallbacks above): every
+          // FormOffer section PATCHes this endpoint, so these fields must stay
+          // inert on saves that don't carry them. Switching back to auto keeps
+          // stored manual day counts — the resolver keys off the mode.
+          ...(updateData.tracking_period_mode !== undefined
+            ? { tracking_period_mode: updateData.tracking_period_mode }
+            : {}),
+          ...(updateData.tracking_days !== undefined
+            ? { tracking_days: updateData.tracking_days }
+            : {}),
+          ...(updateData.confirm_days !== undefined
+            ? { confirm_days: updateData.confirm_days }
+            : {}),
+          ...(updateData.policy_category_id !== undefined
+            ? { policy_category_id: updateData.policy_category_id }
+            : {}),
+          ...(updateData.custom_terms !== undefined
+            ? { custom_terms: updateData.custom_terms }
+            : {}),
+          ...(updateData.note_to_user !== undefined
+            ? { note_to_user: updateData.note_to_user }
+            : {}),
         }),
         { new: true },
       )

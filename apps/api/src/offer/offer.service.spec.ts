@@ -411,6 +411,61 @@ describe('OfferService', () => {
 
       expect(offerModel.findOne).not.toHaveBeenCalled();
     });
+
+    it('findOne > given a manual tracking-period offer > then the payload carries derived tracking_period and never the raw fields', async () => {
+      const offerId = new Types.ObjectId().toHexString();
+      const query = makeQuery({
+        _id: offerId,
+        offer_name: 'Nike',
+        tracking_period_mode: 'manual',
+        tracking_days: 7,
+        confirm_days: 45,
+        validation_terms: 15,
+      });
+      offerModel.findOne.mockReturnValue(query);
+
+      const result = await service.findOne(offerId);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          tracking_period: {
+            tracking_days: 7,
+            confirm_days: 45,
+            source: 'manual',
+          },
+        }),
+      );
+      // Raw config/partner fields stay private to admin surfaces.
+      expect(result).not.toHaveProperty('tracking_period_mode');
+      expect(result).not.toHaveProperty('tracking_days');
+      expect(result).not.toHaveProperty('confirm_days');
+      expect(result).not.toHaveProperty('validation_terms');
+    });
+
+    it('findOne > given an involve offer in auto mode > then tracking_period.confirm_days mirrors validation_terms', async () => {
+      const offerId = new Types.ObjectId().toHexString();
+      const query = makeQuery({
+        _id: offerId,
+        offer_name: 'Lazada',
+        validation_terms: 60,
+      });
+      offerModel.findOne.mockReturnValue(query);
+
+      const result = await service.findOne(offerId);
+
+      expect(query.select).toHaveBeenCalledWith(
+        expect.stringContaining('validation_terms'),
+      );
+      expect(result).toEqual(
+        expect.objectContaining({
+          tracking_period: {
+            tracking_days: 30,
+            confirm_days: 60,
+            source: 'partner',
+          },
+        }),
+      );
+    });
   });
 
   describe('removeOffer', () => {
