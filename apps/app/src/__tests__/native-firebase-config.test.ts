@@ -10,6 +10,7 @@ function loadConfig(): (ctx: { config: Record<string, unknown> }) => {
   android: { googleServicesFile?: string };
   ios: { googleServicesFile?: string };
   plugins: unknown[];
+  extra: { eas: { projectId?: string } };
 } {
   delete requireCjs.cache[requireCjs.resolve(configPath)];
   return requireCjs(configPath);
@@ -19,6 +20,28 @@ describe("native firebase config > app.config.js", () => {
   afterEach(() => {
     delete process.env.GOOGLE_SERVICES_JSON;
     delete process.env.GOOGLE_SERVICE_INFO_PLIST;
+    delete process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+  });
+
+  it("pins the canonical EAS project id so eas-cli resolves the org project without build-profile env", () => {
+    // eas submit does not inject build-profile env, so extra.eas.projectId must
+    // not depend on EXPO_PUBLIC_EAS_PROJECT_ID — otherwise eas-cli fails to find
+    // @gogocash/gogocash-mobile and tries to create a personal project.
+    delete process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+    const config = loadConfig()({ config: {} });
+    expect(config.extra.eas.projectId).toBe("0039c25f-f88e-491d-8da9-85b8d6e66558");
+  });
+
+  it("honors EXPO_PUBLIC_EAS_PROJECT_ID when the build env provides it", () => {
+    process.env.EXPO_PUBLIC_EAS_PROJECT_ID = "0039c25f-f88e-491d-8da9-85b8d6e66558";
+    const config = loadConfig()({ config: {} });
+    expect(config.extra.eas.projectId).toBe("0039c25f-f88e-491d-8da9-85b8d6e66558");
+  });
+
+  it("falls back to the canonical project id when the env var is present but empty", () => {
+    process.env.EXPO_PUBLIC_EAS_PROJECT_ID = "";
+    const config = loadConfig()({ config: {} });
+    expect(config.extra.eas.projectId).toBe("0039c25f-f88e-491d-8da9-85b8d6e66558");
   });
 
   it("bumps the app version so new native modules get their own OTA runtime", () => {
