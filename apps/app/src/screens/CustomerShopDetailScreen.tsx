@@ -810,10 +810,13 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     paddingBottom: 32,
   },
   heroBanner: {
+    // Follows the 1200x410 banner design ratio at every width — deliberately
+    // no minimum-height override: one used to square the frame on phones,
+    // making contentFit="cover" crop same-ratio banner art (2400x820 uploads)
+    // hard on both sides. Pinned by shop-hero-banner-parity.test.ts.
     aspectRatio: 1200 / 410,
     backgroundColor: "#D9D9D9",
     borderRadius: 24,
-    minHeight: 220,
     overflow: "hidden",
     position: "relative",
     width: "100%",
