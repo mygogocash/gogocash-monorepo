@@ -29,7 +29,6 @@
         "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "backend",
         "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "729804769570-jlg4fpajbbvur587dcv9qpocfhn6aots.apps.googleusercontent.com",
-        "EXPO_PUBLIC_NATIVE_OAUTH_PROVIDERS": "",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
@@ -43,7 +42,6 @@
         "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "backend",
         "EXPO_PUBLIC_FRONTEND_URL": "https://app-staging.gogocash.co",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "729804769570-jlg4fpajbbvur587dcv9qpocfhn6aots.apps.googleusercontent.com",
-        "EXPO_PUBLIC_NATIVE_OAUTH_PROVIDERS": "",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_ENABLE_GOTOTRACK": "0"
       }
