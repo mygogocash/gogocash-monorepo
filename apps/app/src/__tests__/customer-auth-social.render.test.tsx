@@ -50,6 +50,18 @@ vi.mock("@mobile/auth/nativeGoogleAuth", () => ({
   signInWithNativeGoogle: (...args: unknown[]) => signInWithNativeGoogle(...args),
 }));
 
+const signInWithNativeOAuth = vi.fn();
+class NativeOAuthNotConfiguredError extends Error {
+  constructor(message = "Native social sign-in is not configured") {
+    super(message);
+    this.name = "NativeOAuthNotConfiguredError";
+  }
+}
+vi.mock("@mobile/auth/nativeOAuthSignIn", () => ({
+  NativeOAuthNotConfiguredError,
+  signInWithNativeOAuth: (...args: unknown[]) => signInWithNativeOAuth(...args),
+}));
+
 const exchangeFirebaseIdToken = vi.fn();
 vi.mock("@mobile/auth/firebaseLogin", () => ({
   exchangeFirebaseIdToken: (...args: unknown[]) => exchangeFirebaseIdToken(...args),
@@ -81,6 +93,7 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
     routerReplace.mockClear();
     signInWithSocialProvider.mockReset();
     signInWithNativeGoogle.mockReset();
+    signInWithNativeOAuth.mockReset();
     exchangeFirebaseIdToken.mockReset();
     signInWithSocialProvider.mockResolvedValue({ idToken: "google-id-token" });
     exchangeFirebaseIdToken.mockResolvedValue({
@@ -155,16 +168,91 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
     expect(exchangeFirebaseIdToken).not.toHaveBeenCalled();
   });
 
-  it("native non-Google social > keeps the web-only toast", async () => {
+  it("native Facebook > given configured provider > uses the native OAuth seam and exchanges the token", async () => {
     platformState.OS = "android";
+    signInWithNativeOAuth.mockResolvedValue({ idToken: "native-facebook-id-token" });
 
     renderLogin();
     fireEvent.click(screen.getByRole("button", { name: "Facebook" }));
 
     await waitFor(() => {
+      expect(signInWithNativeOAuth).toHaveBeenCalledWith("facebook");
+    });
+    expect(signInWithSocialProvider).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(exchangeFirebaseIdToken).toHaveBeenCalledWith({
+        apiUrl: "https://api.dev.gogocash.co",
+        country: "TH",
+        idToken: "native-facebook-id-token",
+      });
+    });
+    await waitFor(() => {
+      expect(readStoredSession()?.access_token).toBe("backend-access-token");
+    });
+  });
+
+  it("native Apple > given configured provider > uses the native OAuth seam", async () => {
+    platformState.OS = "android";
+    signInWithNativeOAuth.mockResolvedValue({ idToken: "native-apple-id-token" });
+
+    renderLogin();
+    fireEvent.click(screen.getByRole("button", { name: "Apple" }));
+
+    await waitFor(() => {
+      expect(signInWithNativeOAuth).toHaveBeenCalledWith("apple");
+    });
+    await waitFor(() => {
+      expect(exchangeFirebaseIdToken).toHaveBeenCalledWith({
+        apiUrl: "https://api.dev.gogocash.co",
+        country: "TH",
+        idToken: "native-apple-id-token",
+      });
+    });
+  });
+
+  it("native Facebook > given not configured > shows Coming soon toast", async () => {
+    platformState.OS = "android";
+    signInWithNativeOAuth.mockRejectedValue(new NativeOAuthNotConfiguredError());
+
+    renderLogin();
+    fireEvent.click(screen.getByRole("button", { name: "Facebook" }));
+
+    await waitFor(() => {
+      expect(signInWithNativeOAuth).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Coming soon")).toBeTruthy();
+    });
+    expect(exchangeFirebaseIdToken).not.toHaveBeenCalled();
+  });
+
+  it("native Facebook > given the user cancels the hosted flow > stays silent", async () => {
+    platformState.OS = "android";
+    const cancel = new Error("cancelled") as Error & { code?: string };
+    cancel.code = "auth/web-context-canceled";
+    signInWithNativeOAuth.mockRejectedValue(cancel);
+
+    renderLogin();
+    fireEvent.click(screen.getByRole("button", { name: "Facebook" }));
+
+    await waitFor(() => {
+      expect(signInWithNativeOAuth).toHaveBeenCalled();
+    });
+    expect(exchangeFirebaseIdToken).not.toHaveBeenCalled();
+    expect(screen.queryByText("Could not complete your request. Please try again.")).toBeNull();
+  });
+
+  it("native Microsoft/X > keep the web-only toast", async () => {
+    platformState.OS = "android";
+
+    renderLogin();
+    fireEvent.click(screen.getByRole("button", { name: "Microsoft" }));
+
+    await waitFor(() => {
       expect(screen.getByText(authSendErrorMessages.webOnly)).toBeTruthy();
     });
     expect(signInWithNativeGoogle).not.toHaveBeenCalled();
+    expect(signInWithNativeOAuth).not.toHaveBeenCalled();
     expect(signInWithSocialProvider).not.toHaveBeenCalled();
   });
 });
