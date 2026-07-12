@@ -208,7 +208,9 @@ export class UserService {
       { new: true },
     );
     if (updated) {
-      return { deletionScheduledFor: updated.deletion_scheduled_for ?? scheduledFor };
+      return {
+        deletionScheduledFor: updated.deletion_scheduled_for ?? scheduledFor,
+      };
     }
 
     // Already pending (or unknown id) — surface the existing schedule.
@@ -243,13 +245,18 @@ export class UserService {
   async purgeDueAccountDeletionsCron() {
     const purged = await this.purgeDueAccountDeletions(new Date());
     if (purged > 0) {
-      this.deletionLogger.log(`Anonymized ${purged} account(s) past the grace window`);
+      this.deletionLogger.log(
+        `Anonymized ${purged} account(s) past the grace window`,
+      );
     }
   }
 
   async purgeDueAccountDeletions(now: Date): Promise<number> {
     const due = await this.userModel
-      .find({ deletion_scheduled_for: { $lte: now, $ne: null }, anonymized_at: null })
+      .find({
+        deletion_scheduled_for: { $lte: now, $ne: null },
+        anonymized_at: null,
+      })
       .exec();
 
     let purged = 0;
