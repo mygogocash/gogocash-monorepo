@@ -45,7 +45,7 @@ export function DetectedRegionBanner({ onChangePress }: { onChangePress: () => v
   }
 
   const option = webLocaleRegionPanel.regions.find((candidate) => candidate.code === region);
-  const label = option ? `${option.label} ${option.flag}` : region;
+  const label = option ? `${tc(option.label)} ${option.flag}` : region;
 
   return (
     <View style={styles.bannerRow}>
@@ -76,11 +76,13 @@ export function DetectedRegionBanner({ onChangePress }: { onChangePress: () => v
 }
 
 function createDetectedRegionBannerStyles(colors: ThemeColors) {
-  const inkOnHeader = pickThemed(colors, "#303846", "rgba(255, 255, 255, 0.92)");
+  // The banner sits on the always-green header gradient (theme-independent
+  // surface), so its ink is constant white like the sibling header copy
+  // (mobileTabletHeaderSubcopy) — theme-aware dark ink was unreadable there.
   return StyleSheet.create({
     bannerRow: {
       alignItems: "center",
-      backgroundColor: pickThemed(colors, "rgba(255, 255, 255, 0.65)", "rgba(255, 255, 255, 0.12)"),
+      backgroundColor: pickThemed(colors, "rgba(255, 255, 255, 0.16)", "rgba(255, 255, 255, 0.12)"),
       borderRadius: radii.md,
       flexDirection: "row",
       gap: spacing.sm,
@@ -89,7 +91,7 @@ function createDetectedRegionBannerStyles(colors: ThemeColors) {
       paddingVertical: spacing.xs,
     },
     bannerText: {
-      color: inkOnHeader,
+      color: "rgba(255, 255, 255, 0.88)",
       flex: 1,
       fontFamily: typography.family,
       fontSize: 13,
@@ -100,7 +102,7 @@ function createDetectedRegionBannerStyles(colors: ThemeColors) {
       paddingVertical: 4,
     },
     bannerChangeText: {
-      color: pickThemed(colors, colors.primaryDark, colors.primary),
+      color: "#FFFFFF",
       fontFamily: typography.family,
       fontSize: 13,
       fontWeight: "600",
