@@ -8,7 +8,6 @@ import {
   IsOptional,
   IsString,
   Min,
-  ValidateNested,
 } from 'class-validator';
 
 export class DiscoverReorderDto {

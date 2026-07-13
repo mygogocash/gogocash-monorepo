@@ -34,18 +34,12 @@ export class DiscoverController {
   }
 
   @Put('sections/:type/reorder')
-  reorderItems(
-    @Param('type') type: string,
-    @Body() body: DiscoverReorderDto,
-  ) {
+  reorderItems(@Param('type') type: string, @Body() body: DiscoverReorderDto) {
     return this.discoverService.reorderItems(type, body.order);
   }
 
   @Post('sections/:type/items')
-  addItem(
-    @Param('type') type: string,
-    @Body() body: DiscoverAddItemDto,
-  ) {
+  addItem(@Param('type') type: string, @Body() body: DiscoverAddItemDto) {
     return this.discoverService.addItem(type, body);
   }
 

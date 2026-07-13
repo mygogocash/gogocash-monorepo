@@ -92,7 +92,9 @@ describe("CustomerFavoriteBrandsScreen (render)", () => {
     renderScreen();
     // Pocket Pantry is in Recently Visited but NOT pre-saved → appears once.
     expect(screen.getAllByText("Pocket Pantry").length).toBe(1);
-    fireEvent.click(screen.getByLabelText("Save brand: Pocket Pantry"));
+    // The brand appears with a favorite heart in more than one home section
+    // (Top Brands + promo rails since #263) — any heart saves the brand.
+    fireEvent.click(screen.getAllByLabelText("Save brand: Pocket Pantry")[0]);
     // After saving, it also renders in the Favorites section → twice.
     expect(screen.getAllByText("Pocket Pantry").length).toBe(2);
   });
@@ -119,7 +121,9 @@ describe("CustomerFavoriteBrandsScreen (render)", () => {
       );
 
     const { rerender } = render(createElement(CustomerHomeScreen), { wrapper: SharedProviders });
-    fireEvent.click(screen.getByLabelText("Save brand: Pocket Pantry"));
+    // The brand appears with a favorite heart in more than one home section
+    // (Top Brands + promo rails since #263) — any heart saves the brand.
+    fireEvent.click(screen.getAllByLabelText("Save brand: Pocket Pantry")[0]);
     rerender(createElement(CustomerFavoriteBrandsScreen));
     expect(screen.getAllByText("Pocket Pantry").length).toBeGreaterThanOrEqual(2);
   });
