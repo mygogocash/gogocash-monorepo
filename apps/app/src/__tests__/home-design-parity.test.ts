@@ -51,7 +51,7 @@ describe("Expo home design parity", () => {
     expect(homeRouter).toContain("horizontalPadding={desktopFooterHorizontalOffset}");
     expect(homeRouter).not.toContain("topMargin={0}");
     expect(homeFile).toContain("height: homeLayout.topBrandGridHeight");
-    expect(homeFile).toContain("height: homeLayout.compactBrandGridHeight");
+    expect(homeFile).toContain("height: homeLayout.topBrandGridHeight");
     expect(homeFile).toContain("CustomerMobileBottomNav");
     expect(homeFile).not.toContain('webHomeSectionOrder.includes("goLinkBanner")');
   });
@@ -451,8 +451,8 @@ describe("Expo home design parity", () => {
 
     expect(homeFile).toContain("homeLayout.showBottomNav");
     expect(homeFile).toContain("homeLayout.contentMaxWidth");
-    expect(homeFile).toContain("homeLayout.compactBrandCardWidth");
-    expect(homeFile).toContain("homeLayout.compactBrandCardHeight");
+    expect(homeFile).toContain("homeLayout.topBrandCardWidth");
+    expect(homeFile).toContain("homeLayout.topBrandCardHeight");
     expect(homeFile).toContain("homeLayout.pageBottomPadding");
     expect(homeFile).not.toContain('width: "31.4%"');
     expect(homeFile).not.toContain("paddingBottom: mobileShellLayout.bottomNavClearance + 24");
@@ -799,12 +799,13 @@ describe("Expo home design parity", () => {
     expect(getTopBrandHref("Vitaline Spa")).toBe("/shop/brand-vitaline-spa-1068");
   });
 
-  it("home design parity > given lower staging home rails > then Expo uses compact brand logo cards", () => {
+  it("home design parity > given lower staging home rails > then Expo uses Top Brands L cards (issue #253)", () => {
     const homeFile = readHomeFile();
 
-    // Secondary brand rails render the shared BrandCard at its small/compact size.
+    // Travel / Beauty / Trending rails match Top Brands: size="L" full-bleed + heart.
     expect(homeFile).toContain("BrandCard");
-    expect(homeFile).toContain('size="S"');
+    expect(homeFile).toContain('size="L"');
+    expect(homeFile).not.toContain('size="S"');
     expect(homeFile).toContain("activeIndex={activePromoDot}");
     const brandCardFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/BrandCard.tsx"),
@@ -829,7 +830,7 @@ describe("Expo home design parity", () => {
     );
     expect(homeFile).toContain("chunkCompactBrandCards");
     expect(homeFile).toContain("promoPages.map");
-    expect(homeFile).toContain("homeLayout.compactBrandCardsPerPage");
+    expect(homeFile).toContain("homeLayout.topBrandCardsPerPage");
     expect(homeFile).toContain("ONE_ROW_PROMO_MAX_CARDS");
     expect(homeFile).toContain("getPromoSectionPageSize");
     expect(homeFile).toContain("Math.max(promoPages.length, dotCount ?? 0)");
@@ -838,7 +839,7 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("styles.promoPagerContent");
     // Founder feedback 2026-07-11: snap props gate on the desktop pager; mobile
     // free-scrolls a column flow, and few-card sections render a fit-all grid.
-    expect(homeFile).toContain("snapToInterval={isPager ? homeLayout.compactBrandGroupWidth : undefined}");
+    expect(homeFile).toContain("snapToInterval={isPager ? pageWidth : undefined}");
     expect(homeFile).toContain("getPromoSectionLayoutMode(homeLayout.isDesktop, sectionCards.length)");
     expect(homeFile).toContain('layoutMode === "grid"');
     expect(homeFile).toContain("getPromoGridCardWidth(");
@@ -851,8 +852,8 @@ describe("Expo home design parity", () => {
 
     // The rail scroller fills its section (100%) while each page is a fixed-width group that
     // overflows and scrolls with a peek; no per-page slide animation.
-    expect(homeFile).toContain("style={[styles.promoScroll, { height: homeLayout.compactBrandGridHeight }]}");
-    expect(homeFile).toContain("width: homeLayout.compactBrandGroupWidth,");
+    expect(homeFile).toContain("style={[styles.promoScroll, { height: homeLayout.topBrandGridHeight }]}");
+    expect(homeFile).toContain("width: pageWidth,");
     expect(homeFile).not.toContain("getCarouselPageMotionStyle");
   });
 
@@ -1038,7 +1039,7 @@ describe("Expo home design parity", () => {
     expect(contentScrollStyle).toContain("borderTopRightRadius: 34");
     expect(homeScreenSource).toContain("paddingHorizontal: 24");
     expect(homeScreenSource).toContain("paddingTop: 24");
-    expect(homeScreenSource).toContain("homeLayout.compactBrandGroupWidth");
+    expect(homeScreenSource).toContain("homeLayout.topBrandGroupWidth");
     expect(homeScreenSource).not.toContain("styles.mobileTabletSectionFrame");
     expect(contentScrollStyle).not.toContain("marginHorizontal: 40");
     expect(contentScrollStyle).toContain("marginTop: -40");

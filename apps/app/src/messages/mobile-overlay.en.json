@@ -391,7 +391,7 @@
   "mobileAuthEmailInUse": "That email already has an account. Sign in instead.",
   "mobileAuthPasswordTooShort": "Password must be at least 6 characters.",
   "mobileAuthEmailInvalid": "That email doesn't look valid. Check it and try again.",
-  "mobileAuthRateLimited": "Too many attempts. Please wait a few minutes and try again.",
+  "mobileAuthRateLimited": "Too many attempts. Please try again later.",
   "mobileAuthSecurityCheckFailed": "Security check failed. Please refresh the page and try again.",
   "mobileAuthPhoneInvalid": "That phone number doesn't look valid. Check it and try again.",
   "mobileAuthSignInUnavailable": "Sign-in is temporarily unavailable. Please try again later.",
@@ -418,5 +418,12 @@
   "mobileRegionSoutheastAsia": "Southeast Asia",
   "mobileGoLinkChecking": "Checking store…",
   "mobileGoLinkUnsupportedStore": "This store isn't supported by GoGoLink yet.",
-  "mobileGoLinkRealRateNote": "Cashback rate shown is the store's current maximum. Final approval depends on the store and offer terms."
+  "mobileGoLinkRealRateNote": "Cashback rate shown is the store's current maximum. Final approval depends on the store and offer terms.",
+  "mobileSearchIdleHelper": "Start typing to search brands, stores, products, or cashback.",
+  "mobileSearchTrendingHeading": "Trending searches",
+  "mobileSearchSuggestionsHeading": "Search suggestions",
+  "mobileSearchSuggestionsSubtitle": "Tap a brand to search its cashback deals.",
+  "mobileSearchRecentHeading": "Recent searches",
+  "mobileSearchClearAll": "Clear all",
+  "mobileSearchClearRecentA11y": "Clear recent searches"
 }

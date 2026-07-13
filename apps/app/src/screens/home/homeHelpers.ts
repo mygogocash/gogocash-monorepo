@@ -80,9 +80,8 @@ export function getPromoGridCardWidth(frameWidth: number, gap: number): number {
 }
 
 export function getPromoSectionPageSize(homeLayout: HomeLayoutMetrics) {
-  // Every promo rail is a fixed 8-column x 2-row group (compactBrandCardsPerPage), matching
-  // Top Brands; the group slides as one unit and overflows narrow screens with a peek card.
-  return homeLayout.compactBrandCardsPerPage;
+  // Issue #253: promo rails match Top Brands page size (topBrandCardsPerPage).
+  return homeLayout.topBrandCardsPerPage;
 }
 
 export function getPagedScrollIndex(

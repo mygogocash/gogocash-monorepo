@@ -47,6 +47,7 @@ describe("Expo auth design parity", () => {
     expect(webAuthPage.socialProviders.map((provider) => provider.label)).toEqual([
       "Facebook",
       "Gmail",
+      "LINE",
       "Telegram",
       "Apple",
       "X",
@@ -63,6 +64,10 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("authSocialProviders.slice(0, 4)");
     expect(authFile).toContain("authSocialProviders.slice(4)");
     expect(authFile).toContain("PhoneOtpBoxes");
+    expect(authFile).toContain("LineBrandIcon");
+    expect(authFile).toContain("requestLineLogin");
+    expect(authFile).toContain("exchangeLineAuth");
+    expect(authFile).toContain("canAttemptPhoneOtpSend");
     expect(authFile).not.toContain('placeholder="Email"');
     expect(authFile).not.toContain('placeholder="Password"');
   });
@@ -70,7 +75,9 @@ describe("Expo auth design parity", () => {
   it("auth behavior contract > given phone privacy and OTP flow > then state labels and CTA rules are present", () => {
     const authFile = readMobileFile("src/screens/CustomerAuthScreen.tsx");
 
-    expect(authFile).toContain("privacyAccepted && phoneDigits.length >= 9");
+    expect(authFile).toContain("canAttemptPhoneOtpSend");
+    expect(authFile).toContain("privacyAccepted");
+    expect(authFile).toContain("phoneDigits.length");
     expect(authFile).toContain('setAuthPhase("otp")');
     expect(authFile).toContain('setAuthPhase("phone")');
     expect(authFile).toContain('setOtpInput("")');
@@ -86,6 +93,7 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain('from "react-native-svg"');
     expect(authFile).toContain("FacebookBrandIcon");
     expect(authFile).toContain("GoogleBrandIcon");
+    expect(authFile).toContain("LineBrandIcon");
     expect(authFile).toContain("TelegramBrandIcon");
     expect(authFile).toContain("AppleBrandIcon");
     expect(authFile).toContain("XBrandIcon");
@@ -94,6 +102,7 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("WalletConnectBrandIcon");
     expect(authFile).toContain('fill="#1877F2"');
     expect(authFile).toContain('fill="#FBBB00"');
+    expect(authFile).toContain('fill="#00C500"');
     expect(authFile).toContain('stopColor="#2AABEE"');
     expect(authFile).toContain('fill="#3B99FC"');
     expect(authFile).not.toContain('facebook: "f"');

@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { Linking } from "react-native";
 
 import { mintUserTrackingLink } from "@mobile/api/affiliateDeeplink";
+import {
+  fetchGoLinkPreview,
+  type GoLinkProductPreview,
+} from "@mobile/api/golinkPreview";
 import { getMobileEnv } from "@mobile/config/env";
 import {
   buildGoLinkTrackingUrl,
@@ -15,16 +19,27 @@ export type GoLinkResolutionState = {
   status: "loading" | "matched" | "unmatched";
 };
 
+const EMPTY_PRODUCT_PREVIEW: GoLinkProductPreview = {
+  title: null,
+  imageUrl: null,
+  description: null,
+  price: null,
+};
+
 /**
  * Live merchant resolution for a pasted GoGoLink URL — shared by EVERY
  * GoLinkResultDialog caller (the /golink screen, its home-sheet presentation,
  * and the home hero card). Regression note: the home hero originally rendered
  * the dialog without this wiring and silently fell back to the demo product
  * in backend mode.
+ *
+ * Product OG preview (#255/#258) loads in parallel after a merchant match and
+ * degrades silently to merchant-only when the preview endpoint fails.
  */
 export function useGoLinkResolution(open: boolean, href: string): {
   live: boolean;
   match: GoLinkResolutionState;
+  productPreview: GoLinkProductPreview;
 } {
   const env = getMobileEnv();
   const live = env.accountDataSource === "backend";
@@ -33,6 +48,8 @@ export function useGoLinkResolution(open: boolean, href: string): {
     offer: null,
     status: "loading",
   });
+  const [productPreview, setProductPreview] =
+    useState<GoLinkProductPreview>(EMPTY_PRODUCT_PREVIEW);
 
   useEffect(() => {
     if (!open || !href || !live) {
@@ -40,6 +57,7 @@ export function useGoLinkResolution(open: boolean, href: string): {
     }
     let active = true;
     setMatch({ offer: null, status: "loading" });
+    setProductPreview(EMPTY_PRODUCT_PREVIEW);
     (async () => {
       try {
         const params = new URLSearchParams({ limit: "100", page: "1" });
@@ -54,11 +72,21 @@ export function useGoLinkResolution(open: boolean, href: string): {
         if (active) {
           setMatch({ offer, status: offer ? "matched" : "unmatched" });
         }
+        if (offer && active) {
+          const preview = await fetchGoLinkPreview({
+            apiUrl: env.apiUrl,
+            url: href,
+          });
+          if (active) {
+            setProductPreview(preview);
+          }
+        }
       } catch {
         // Resolution failure degrades to the honest "not supported" state —
         // never a fake product.
         if (active) {
           setMatch({ offer: null, status: "unmatched" });
+          setProductPreview(EMPTY_PRODUCT_PREVIEW);
         }
       }
     })();
@@ -67,7 +95,7 @@ export function useGoLinkResolution(open: boolean, href: string): {
     };
   }, [env.apiUrl, href, live, open, region]);
 
-  return { live, match };
+  return { live, match, productPreview };
 }
 
 /**

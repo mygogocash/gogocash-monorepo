@@ -391,7 +391,7 @@
   "mobileAuthEmailInUse": "อีเมลนี้มีบัญชีอยู่แล้ว กรุณาเข้าสู่ระบบแทน",
   "mobileAuthPasswordTooShort": "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร",
   "mobileAuthEmailInvalid": "อีเมลไม่ถูกต้อง กรุณาตรวจสอบแล้วลองใหม่อีกครั้ง",
-  "mobileAuthRateLimited": "พยายามหลายครั้งเกินไป กรุณารอสักครู่แล้วลองใหม่อีกครั้ง",
+  "mobileAuthRateLimited": "พยายามหลายครั้งเกินไป โปรดลองอีกครั้งภายหลัง",
   "mobileAuthSecurityCheckFailed": "การตรวจสอบความปลอดภัยล้มเหลว กรุณารีเฟรชหน้าแล้วลองใหม่อีกครั้ง",
   "mobileAuthPhoneInvalid": "หมายเลขโทรศัพท์ไม่ถูกต้อง กรุณาตรวจสอบแล้วลองใหม่อีกครั้ง",
   "mobileAuthSignInUnavailable": "ไม่สามารถเข้าสู่ระบบได้ชั่วคราว กรุณาลองใหม่ภายหลัง",
@@ -418,5 +418,12 @@
   "mobileRegionSoutheastAsia": "เอเชียตะวันออกเฉียงใต้",
   "mobileGoLinkChecking": "กำลังตรวจสอบร้านค้า…",
   "mobileGoLinkUnsupportedStore": "GoGoLink ยังไม่รองรับร้านค้านี้",
-  "mobileGoLinkRealRateNote": "อัตราเงินคืนที่แสดงคืออัตราสูงสุดปัจจุบันของร้านค้า การอนุมัติขั้นสุดท้ายขึ้นอยู่กับร้านค้าและเงื่อนไขของข้อเสนอ"
+  "mobileGoLinkRealRateNote": "อัตราเงินคืนที่แสดงคืออัตราสูงสุดปัจจุบันของร้านค้า การอนุมัติขั้นสุดท้ายขึ้นอยู่กับร้านค้าและเงื่อนไขของข้อเสนอ",
+  "mobileSearchIdleHelper": "พิมพ์เพื่อค้นหาแบรนด์ ร้านค้า สินค้า หรือเงินคืน",
+  "mobileSearchTrendingHeading": "การค้นหายอดนิยม",
+  "mobileSearchSuggestionsHeading": "ร้านค้าแนะนำ",
+  "mobileSearchSuggestionsSubtitle": "แตะแบรนด์เพื่อค้นหาดีลเงินคืน",
+  "mobileSearchRecentHeading": "การค้นหาล่าสุด",
+  "mobileSearchClearAll": "ล้างทั้งหมด",
+  "mobileSearchClearRecentA11y": "ล้างการค้นหาล่าสุด"
 }
