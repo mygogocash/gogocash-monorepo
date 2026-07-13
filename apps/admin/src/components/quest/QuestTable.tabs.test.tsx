@@ -48,6 +48,7 @@ vi.mock("@/components/form/date-picker", () => ({
     id,
     label,
     onValueChange,
+    required,
     value,
   }: {
     ariaLabel?: string;
@@ -56,14 +57,17 @@ vi.mock("@/components/form/date-picker", () => ({
     id: string;
     label?: string;
     onValueChange?: (value: string) => void;
+    required?: boolean;
     value?: string;
   }) => (
     <label>
       {label}
+      {required ? <span>*</span> : null}
       <input
         aria-label={ariaLabel}
         data-datepicker-component="true"
         data-testid={id}
+        data-required={required ? "true" : "false"}
         disabled={disabled}
         value={value ?? ""}
         onChange={(event) => onValueChange?.(event.currentTarget.value)}
@@ -449,6 +453,41 @@ describe("QuestTable management tabs", () => {
       "data-datepicker-component",
       "true",
     );
+  });
+
+  it("marks the required Start and End date fields (#289)", async () => {
+    renderQuestTable();
+
+    expect(
+      await screen.findByTestId("quest-campaign-start-date"),
+    ).toHaveAttribute("data-required", "true");
+    expect(screen.getByTestId("quest-campaign-end-date")).toHaveAttribute(
+      "data-required",
+      "true",
+    );
+  });
+
+  it("shows a specific campaign error notice, not a bare 'Save failed' (#289)", async () => {
+    const user = userEvent.setup();
+    // A failure with no backend message must fall back to action-specific copy.
+    questQueries.saveQuestCampaign.mockRejectedValue({ status: 500 });
+    renderQuestTable();
+
+    await user.click(await screen.findByRole("button", { name: "New Quest" }));
+    fireEvent.change(screen.getByLabelText("Quest start date and time"), {
+      target: { value: "2026-07-01T09:30" },
+    });
+    fireEvent.change(screen.getByLabelText("Quest end date and time"), {
+      target: { value: "2026-07-31T22:15" },
+    });
+    await user.click(screen.getByRole("button", { name: "Save campaign" }));
+
+    expect(
+      await screen.findByText(
+        "Couldn't save the quest campaign. Please review the fields and try again.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Save failed")).not.toBeInTheDocument();
   });
 
   it("shows a new quest draft and inserts the saved quest into the selector", async () => {

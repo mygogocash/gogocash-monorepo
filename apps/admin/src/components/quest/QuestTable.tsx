@@ -315,10 +315,7 @@ function makeTaskDrafts(quest?: ResponseQuestDate | null): TaskDraft[] {
         offer: getTaskOfferId(task),
         offer_id: Number(task.offer_id),
         merchant_id: Number(task.merchant_id),
-        extra_point: normalizeQuestTaskPoints(
-          Number(task.extra_point),
-          offer,
-        ),
+        extra_point: normalizeQuestTaskPoints(Number(task.extra_point), offer),
         sort_order: index,
         enabled: task.enabled !== false,
         wording_en: wording.wording_en,
@@ -573,7 +570,12 @@ export default function QuestTable() {
       setSaveError(null);
     },
     onError: (error) => {
-      setSaveError(getApiErrorMessage(error, "Save failed"));
+      setSaveError(
+        getApiErrorMessage(
+          error,
+          "Couldn't save the quest campaign. Please review the fields and try again.",
+        ),
+      );
     },
   });
 
@@ -593,7 +595,12 @@ export default function QuestTable() {
       }
     },
     onError: (error) => {
-      setSaveError(getApiErrorMessage(error, "Save failed"));
+      setSaveError(
+        getApiErrorMessage(
+          error,
+          "Couldn't save the quest tasks. Please review them and try again.",
+        ),
+      );
     },
   });
 
@@ -610,7 +617,12 @@ export default function QuestTable() {
       }
     },
     onError: (error) => {
-      setSaveError(getApiErrorMessage(error, "Save failed"));
+      setSaveError(
+        getApiErrorMessage(
+          error,
+          "Couldn't save the quest rewards. Please review them and try again.",
+        ),
+      );
     },
   });
 
@@ -882,6 +894,7 @@ export default function QuestTable() {
                 <DatePicker
                   id="quest-campaign-start-date"
                   label="Start date and time"
+                  required
                   ariaLabel="Quest start date and time"
                   hint={BANGKOK_TIMEZONE_LABEL}
                   enableTime
@@ -903,6 +916,7 @@ export default function QuestTable() {
                 <DatePicker
                   id="quest-campaign-end-date"
                   label="End date and time"
+                  required
                   ariaLabel="Quest end date and time"
                   hint={BANGKOK_TIMEZONE_LABEL}
                   enableTime
