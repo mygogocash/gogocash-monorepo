@@ -15,7 +15,7 @@ describe("FormOffer — configurable platform fee (source signals)", () => {
       'import { useSystemFeePercent } from "@/hooks/useSystemFeePercent"',
     );
     expect(formSource).toContain(
-      "const { feePercent } = useSystemFeePercent()",
+      "const { feePercent, isFallback: feeIsFallback } = useSystemFeePercent()",
     );
   });
 
@@ -34,9 +34,12 @@ describe("FormOffer — configurable platform fee (source signals)", () => {
     expect(formSource).not.toMatch(/netCommissionFromRaw\(\s*[^,()]*\s*\)/);
   });
 
-  it("re-derives the raw inputs from the saved nets when the fee resolves", () => {
+  it("reconciles raw vs stored net when the fee resolves (admin-authored raws win)", () => {
+    // PR #283 review HIGH-2: blindly re-deriving the raw from the stored net
+    // erased evidence of nets baked with the 30% fallback. The reconciliation
+    // recomputes the stored net from an admin-authored raw instead.
     expect(formSource).toMatch(
-      /seededFeePercent !== feePercent[\s\S]{0,600}?reversePlatformFee\(form\.commission_store, feePercent\)/,
+      /seededFeePercent !== feePercent[\s\S]{0,900}?reconcileCommissionOnFeeChange\(\{/,
     );
   });
 
@@ -47,5 +50,22 @@ describe("FormOffer — configurable platform fee (source signals)", () => {
     expect(formSource).not.toContain("Auto apply 30% fee");
     expect(formSource).not.toContain("% after 30% fee");
     expect(formSource).not.toContain("after 30% fee");
+  });
+});
+
+describe("PR #283 review fixes — fee-resolution race (HIGH-2) + fallback notice", () => {
+
+  it("reconciles raw vs stored net when the fee resolves, with admin-authored raws winning", () => {
+    expect(formSource).toContain("reconcileCommissionOnFeeChange({");
+    expect(formSource).toContain("commissionRawEditedRef.current = true");
+    expect(formSource).toContain("upsizeCommissionRawEditedRef.current");
+  });
+
+  it("upsize draft commit recomputes the net with the commit-time fee", () => {
+    expect(formSource).toContain("committedDraft");
+  });
+
+  it("surfaces the fee fallback to the admin", () => {
+    expect(formSource).toContain("Fee Structure rate unavailable");
   });
 });

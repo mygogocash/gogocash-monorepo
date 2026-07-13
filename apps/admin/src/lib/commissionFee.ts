@@ -41,3 +41,37 @@ export function applyThirtyPercentFee(raw: number): number {
 export function reverseThirtyPercentFee(net: number): number {
   return reversePlatformFee(net, DEFAULT_PLATFORM_FEE_PERCENT);
 }
+
+/**
+ * Reconcile the raw-% display and the stored net when the Fee Structure rate
+ * resolves asynchronously. If the admin authored the raw this session
+ * (typed / partner-synced), the RAW is ground truth: recompute the stored net
+ * with the real fee — otherwise a net baked at the 30% fallback would be
+ * saved while the UI shows a different, correct-looking number. If the raw
+ * was only seeded from the stored net, the NET is ground truth: re-derive the
+ * raw display (a passive open must never rewrite stored economics).
+ */
+export function reconcileCommissionOnFeeChange(args: {
+  rawEdited: boolean;
+  raw: string;
+  storedNet: number | null | undefined;
+  feePercent: number;
+}): { raw: string; storedNet: number | null } {
+  if (args.rawEdited) {
+    const n = Number(args.raw);
+    return {
+      raw: args.raw,
+      storedNet:
+        args.raw.trim() === "" || !Number.isFinite(n)
+          ? null
+          : applyPlatformFee(n, args.feePercent),
+    };
+  }
+  return {
+    raw:
+      args.storedNet != null
+        ? String(reversePlatformFee(args.storedNet, args.feePercent))
+        : "",
+    storedNet: args.storedNet ?? null,
+  };
+}

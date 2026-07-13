@@ -31,3 +31,50 @@ export function rawCommissionFromNet(
     ? ""
     : String(reversePlatformFee(n, feePercent));
 }
+
+/** Payload row shape the create-brand endpoint accepts. */
+export type FinalizedProductTypeRow = {
+  name: string;
+  commission_info: string;
+  deeplink: string;
+};
+
+/**
+ * Build the create-brand payload rows at SUBMIT time. Auto rows recompute
+ * their net from the raw % with the fee that is current now — the
+ * commission_info string frozen at typing time may predate the Fee Structure
+ * fetch resolving (i.e. it was baked with the 30% fallback).
+ */
+export function finalizeProductTypeRows(
+  rows: Array<{
+    name: string;
+    commission_info: string;
+    deeplink?: string | null;
+    entry_mode?: "manual" | "auto";
+    commission_raw?: string;
+  }>,
+  feePercent: number,
+): FinalizedProductTypeRow[] {
+  return rows
+    .map((row) => {
+      const isAuto = row.entry_mode === "auto";
+      const raw = (row.commission_raw ?? "").trim();
+      const net = isAuto && raw ? netCommissionFromRaw(raw, feePercent) : "";
+      return {
+        name: row.name.trim(),
+        commission_info:
+          isAuto && raw
+            ? net === ""
+              ? ""
+              : `${net}%`
+            : row.commission_info.trim(),
+        deeplink: (row.deeplink ?? "").trim(),
+      };
+    })
+    .filter(
+      (row) =>
+        row.name.length > 0 ||
+        row.commission_info.length > 0 ||
+        row.deeplink.length > 0,
+    );
+}

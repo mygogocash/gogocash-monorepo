@@ -4,6 +4,7 @@ import {
   applyThirtyPercentFee,
   reversePlatformFee,
   reverseThirtyPercentFee,
+  reconcileCommissionOnFeeChange,
 } from "./commissionFee";
 
 describe("applyThirtyPercentFee", () => {
@@ -87,5 +88,63 @@ describe("reversePlatformFee", () => {
     expect(reversePlatformFee(applyPlatformFee(10, 20), 20)).toBe(10);
     expect(reversePlatformFee(applyPlatformFee(12.5, 30), 30)).toBe(12.5);
     expect(reversePlatformFee(applyPlatformFee(5, 0), 0)).toBe(5);
+  });
+});
+
+describe("reconcileCommissionOnFeeChange (PR #283 review HIGH-2)", () => {
+  // When the Fee Structure rate resolves after the admin already typed (or
+  // partner-synced) a raw %, the RAW is ground truth: the stored net must be
+  // recomputed with the real fee. When the raw was only seeded from the
+  // stored net, the stored net is ground truth: re-derive the raw display.
+  it("edited raw wins: stored net is recomputed with the new fee", () => {
+    expect(
+      reconcileCommissionOnFeeChange({
+        rawEdited: true,
+        raw: "10",
+        storedNet: 7, // baked at the 30% fallback
+        feePercent: 20,
+      }),
+    ).toEqual({ raw: "10", storedNet: 8 });
+  });
+
+  it("unedited raw is re-derived from the stored net (passive open stays safe)", () => {
+    expect(
+      reconcileCommissionOnFeeChange({
+        rawEdited: false,
+        raw: "10", // seeded at the fallback fee
+        storedNet: 7,
+        feePercent: 30,
+      }),
+    ).toEqual({ raw: "10", storedNet: 7 });
+    expect(
+      reconcileCommissionOnFeeChange({
+        rawEdited: false,
+        raw: "23.33",
+        storedNet: 7,
+        feePercent: 20,
+      }),
+    ).toEqual({ raw: "8.75", storedNet: 7 });
+  });
+
+  it("edited-but-blank raw clears the stored net", () => {
+    expect(
+      reconcileCommissionOnFeeChange({
+        rawEdited: true,
+        raw: "  ",
+        storedNet: 7,
+        feePercent: 20,
+      }),
+    ).toEqual({ raw: "  ", storedNet: null });
+  });
+
+  it("no stored net and unedited raw yields an empty raw display", () => {
+    expect(
+      reconcileCommissionOnFeeChange({
+        rawEdited: false,
+        raw: "",
+        storedNet: null,
+        feePercent: 20,
+      }),
+    ).toEqual({ raw: "", storedNet: null });
   });
 });

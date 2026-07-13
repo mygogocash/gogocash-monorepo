@@ -106,3 +106,15 @@ describe("CreateBrandForm — #274/#275/#276 (source signals)", () => {
     expect(formSource).toContain("BrandService requires it");
   });
 });
+
+describe("PR #283 review fixes — fee-resolution race (HIGH-1) + fallback notice", () => {
+
+  it("submit recomputes auto product-type rows with the submit-time fee", () => {
+    expect(formSource).toContain("finalizeProductTypeRows(productTypes, feePercent)");
+  });
+
+  it("surfaces the fee fallback to the admin instead of silently using 30%", () => {
+    expect(formSource).toContain("Fee Structure rate unavailable");
+    expect(formSource).toContain("isFallback: feeIsFallback");
+  });
+});

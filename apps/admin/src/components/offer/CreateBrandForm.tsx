@@ -11,7 +11,10 @@ import toast from "react-hot-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSystemFeePercent } from "@/hooks/useSystemFeePercent";
 import { applyPlatformFee } from "@/lib/commissionFee";
-import { netCommissionFromRaw } from "@/lib/productTypeCommission";
+import {
+  finalizeProductTypeRows,
+  netCommissionFromRaw,
+} from "@/lib/productTypeCommission";
 import { defaultLookupFromBrandAndCountry } from "@/lib/createBrandLookupSlug";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { isDirty } from "@/lib/isDirty";
@@ -156,7 +159,7 @@ export default function CreateBrandForm() {
   const { can } = usePermissions();
   const canManageBrands = can("brands:manage");
   // Platform fee % from Fee Structure (falls back to 30 while loading / on error).
-  const { feePercent } = useSystemFeePercent();
+  const { feePercent, isFallback: feeIsFallback } = useSystemFeePercent();
   const [brandName, setBrandName] = useState("");
   const [affiliateNetworkId, setAffiliateNetworkId] = useState("involve_asia");
   const [deeplinkStoreId, setDeeplinkStoreId] = useState("global");
@@ -448,20 +451,12 @@ export default function CreateBrandForm() {
       max_cap = n;
     }
 
+    // Auto rows recompute their net from the raw % with the fee that is
+    // current NOW — the commission_info baked at typing time may predate the
+    // Fee Structure fetch resolving (30% fallback window).
     const productTypeRows = allProductTypes
       ? []
-      : productTypes
-          .map((row) => ({
-            name: row.name.trim(),
-            commission_info: row.commission_info.trim(),
-            deeplink: (row.deeplink ?? "").trim(),
-          }))
-          .filter(
-            (row) =>
-              row.name.length > 0 ||
-              row.commission_info.length > 0 ||
-              row.deeplink.length > 0,
-          );
+      : finalizeProductTypeRows(productTypes, feePercent);
 
     const formData = new FormData();
     formData.append("brand_name", name);
@@ -862,6 +857,12 @@ export default function CreateBrandForm() {
                   : `Maximum % offered to users. Enter the value already reduced by ${feePercent}% from the affiliate partner rate.`
               }
             />
+            {feeIsFallback ? (
+              <p className="mb-2 text-xs text-amber-600 dark:text-amber-400">
+                Fee Structure rate unavailable — using the {feePercent}%
+                default until it loads.
+              </p>
+            ) : null}
             <div className="mb-2 flex flex-wrap gap-2">
               <Button
                 size="sm"

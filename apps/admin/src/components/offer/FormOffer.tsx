@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isAxiosError } from "axios";
 import type { FetchBestResponse } from "@/components/commission/CommissionManagementClient";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
@@ -49,7 +49,11 @@ import {
   formatPartnerRatesMinMax,
 } from "@/lib/offerDeeplink";
 import { defaultLookupFromBrandAndCountry } from "@/lib/createBrandLookupSlug";
-import { applyPlatformFee, reversePlatformFee } from "@/lib/commissionFee";
+import {
+  applyPlatformFee,
+  reconcileCommissionOnFeeChange,
+  reversePlatformFee,
+} from "@/lib/commissionFee";
 import { netCommissionFromRaw } from "@/lib/productTypeCommission";
 import { useSystemFeePercent } from "@/hooks/useSystemFeePercent";
 import {
@@ -318,7 +322,7 @@ const FormOffer = ({
 }: FormOfferProps) => {
   const queryClient = useQueryClient();
   // Platform fee % from Fee Structure (falls back to 30 while loading / on error).
-  const { feePercent } = useSystemFeePercent();
+  const { feePercent, isFallback: feeIsFallback } = useSystemFeePercent();
   const logoDesktopUrl = useObjectUrl(form.logo_desktop);
   const bannerUrl = useObjectUrl(form.banner);
   const logoCircleUrl = useObjectUrl(form.logo_circle);
@@ -504,22 +508,41 @@ const FormOffer = ({
     setStartDateType(form.upsize_start_date ? "date" : "text");
     setEndDateType(form.upsize_end_date ? "date" : "text");
   }
-  // The Fee Structure rate resolves asynchronously: once it changes (e.g. the
-  // 30% fallback gives way to the configured value), re-derive the raw inputs
-  // from the saved nets so raw ↔ net stays consistent with the real fee.
+  // The Fee Structure rate resolves asynchronously. When it changes (the 30%
+  // fallback giving way to the configured value), reconcile raw ↔ net: a raw
+  // the admin authored this session (typed / partner-synced) is ground truth
+  // and the stored net is recomputed with the real fee; a raw that was only
+  // seeded from the stored net is re-derived so a passive open never rewrites
+  // stored economics.
+  const commissionRawEditedRef = useRef(false);
+  const upsizeCommissionRawEditedRef = useRef(false);
   const [seededFeePercent, setSeededFeePercent] = useState(feePercent);
   if (seededFeePercent !== feePercent) {
     setSeededFeePercent(feePercent);
-    setCommissionRaw(
-      form.commission_store != null
-        ? String(reversePlatformFee(form.commission_store, feePercent))
-        : "",
-    );
-    setUpsizeCommissionRaw(
-      form.upsize_special_commission != null
-        ? String(reversePlatformFee(form.upsize_special_commission, feePercent))
-        : "",
-    );
+    const main = reconcileCommissionOnFeeChange({
+      rawEdited: commissionRawEditedRef.current,
+      raw: commissionRaw,
+      storedNet: form.commission_store,
+      feePercent,
+    });
+    const upsize = reconcileCommissionOnFeeChange({
+      rawEdited: upsizeCommissionRawEditedRef.current,
+      raw: upsizeCommissionRaw,
+      storedNet: form.upsize_special_commission,
+      feePercent,
+    });
+    setCommissionRaw(main.raw);
+    setUpsizeCommissionRaw(upsize.raw);
+    if (
+      main.storedNet !== (form.commission_store ?? null) ||
+      upsize.storedNet !== (form.upsize_special_commission ?? null)
+    ) {
+      setForm((prev) => ({
+        ...prev,
+        commission_store: main.storedNet,
+        upsize_special_commission: upsize.storedNet,
+      }));
+    }
   }
 
   // When per-row product types are in play ("All product types" off), the single
@@ -546,6 +569,7 @@ const FormOffer = ({
     (rawPercent: number): boolean => {
       const fields = commissionFieldsFromPartnerRaw(rawPercent, feePercent);
       if (!fields) return false;
+      commissionRawEditedRef.current = true;
       setCommissionRaw(fields.commissionRaw);
       setForm((prev) => ({
         ...prev,
@@ -1335,13 +1359,27 @@ const FormOffer = ({
 
   const addUpsizeDraft = () => {
     if (!upsizeDraft.name.trim()) return;
+    // Commit-time recompute: the draft's commission_info was written at typing
+    // time with whatever fee was current then (possibly the 30% fallback) —
+    // rebuild it from the raw with the fee that is current NOW.
+    const committedDraft =
+      (upsizeDraft.pay_in ?? "cashback") === "cashback" &&
+      (upsizeDraft.commission_raw ?? "").trim()
+        ? {
+            ...upsizeDraft,
+            commission_info: netCommissionFromRaw(
+              upsizeDraft.commission_raw ?? "",
+              feePercent,
+            ),
+          }
+        : upsizeDraft;
     const editing = editingUpsizeIndex;
     setForm((prev) => {
       const list = prev.upsize_product_types ?? [];
       const next =
         editing !== null && editing < list.length
-          ? list.map((row, i) => (i === editing ? upsizeDraft : row))
-          : [...list, upsizeDraft];
+          ? list.map((row, i) => (i === editing ? committedDraft : row))
+          : [...list, committedDraft];
       return { ...prev, upsize_product_types: next };
     });
     setUpsizeDraft(EMPTY_UPSIZE_DRAFT);
@@ -2137,6 +2175,12 @@ const FormOffer = ({
                 {cashbackSaveError}
               </p>
             ) : null}
+            {feeIsFallback ? (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Fee Structure rate unavailable — using the {feePercent}% default
+                until it loads.
+              </p>
+            ) : null}
             <fieldset
               key={cashbackEditKey}
               disabled={!editingCashback || isLoading}
@@ -2247,6 +2291,7 @@ const FormOffer = ({
                                 value={commissionRaw}
                                 onChange={(e) => {
                                   const v = e.target.value;
+                                  commissionRawEditedRef.current = true;
                                   setCommissionRaw(v);
                                   const n = Number(v);
                                   setForm((prev) => ({
@@ -3329,6 +3374,8 @@ const FormOffer = ({
                                               value={upsizeCommissionRaw}
                                               onChange={(e) => {
                                                 const v = e.target.value;
+                                                upsizeCommissionRawEditedRef.current =
+                                                  true;
                                                 setUpsizeCommissionRaw(v);
                                                 const n = Number(v);
                                                 setForm((prev) => ({
