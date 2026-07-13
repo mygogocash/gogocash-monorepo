@@ -4,7 +4,6 @@ import client from "@/lib/axios/client";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
 import { Offer } from "@/types/api";
-import { useDataSession } from "@/hooks/useDataSession";
 import { UserForm } from "@/types/user";
 import { validatePhone } from "@/utils/helper";
 import { devError } from "@/lib/devConsole";
@@ -51,7 +50,6 @@ const FormUpdate = ({
   isLoading,
   setIsLoading,
 }: IProp) => {
-  const session = useDataSession();
   // Validate the raw value; guard against undefined (formatPhone/AsYouType
   // throws on undefined) and treat an empty field as valid (optional).
   const isValid = form.mobile ? validatePhone(form.mobile, "TH") : true;
@@ -108,11 +106,7 @@ const FormUpdate = ({
       formData.append("wallet_info", form.wallet_info);
 
     client
-      .post(`/admin/update-user/${form.id}`, formData, {
-        headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
-        },
-      })
+      .post(`/admin/update-user/${form.id}`, formData)
       .then(() => {
         setOpenModal(false);
         fetchData();

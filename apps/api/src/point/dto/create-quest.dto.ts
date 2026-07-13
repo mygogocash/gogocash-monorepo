@@ -1,10 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsDate,
   IsIn,
   IsInt,
   IsMongoId,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -13,39 +16,67 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 
 export class CreateQuestDto {
-  @ApiProperty({ example: '' })
+  @ApiProperty({ example: '', required: false })
+  @IsOptional()
+  @IsString()
   _id?: string;
+
   @ApiProperty({ example: '2024-01-01' })
+  @Type(() => Date)
+  @IsDate()
   start_date: Date;
+
   @ApiProperty({ example: '2024-01-31' })
+  @Type(() => Date)
+  @IsDate()
   end_date: Date;
+
   @ApiProperty({ example: 'open|close|scheduled' })
+  @IsString()
+  @IsIn(['open', 'close', 'scheduled'])
   status: string;
 
   @ApiProperty({ example: false, required: false })
+  @IsOptional()
+  @IsBoolean()
   reward_status?: boolean;
 
   @ApiProperty({ example: '' })
+  @IsString()
   facebook_post: string;
+
   @ApiProperty({ example: '' })
+  @IsString()
   facebook_page: string;
+
   @ApiProperty({ example: '' })
+  @IsString()
   line: string;
+
   @ApiProperty({ example: '' })
+  @IsString()
   banner_en: string;
+
   @ApiProperty({ example: '' })
+  @IsString()
   banner_th: string;
+
   @ApiProperty({ example: '' })
+  @IsString()
   sub_banner_en: string;
+
   @ApiProperty({ example: '' })
+  @IsString()
   sub_banner_th: string;
 }
 
 export class CloseQuestDto {
   @ApiProperty({ example: 'open|close|scheduled' })
+  @IsString()
+  @IsNotEmpty()
+  @IsIn(['open', 'close', 'scheduled'])
   status: string;
 }
 

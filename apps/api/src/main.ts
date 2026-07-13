@@ -9,6 +9,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as path from 'path';
 import { SanitisedExceptionFilter } from './common/sanitised-exception.filter';
 import { buildCorsAllowSet, isCorsOriginAllowed } from './common/cors-origins';
+import { GLOBAL_VALIDATION_PIPE_OPTIONS } from './common/validation-pipe.options';
 
 async function bootstrap() {
   // rawBody preserves the unparsed buffer on request.rawBody for routes that
@@ -38,25 +39,17 @@ async function bootstrap() {
   app.use(urlencoded({ extended: true, limit: '256kb' }));
   app.use(cookieParser());
   app.useGlobalFilters(new SanitisedExceptionFilter());
-  // V-1: global request validation. Until now class-validator decorators on
-  // DTOs were dead code (no pipe ran them). STAGED rollout, three deliberate
-  // choices to keep blast radius minimal on a live API:
-  //   - `transform: true`        — instantiate DTO classes + coerce types.
-  //   - `forbidUnknownValues:false` — REQUIRED. class-validator 0.15 otherwise
-  //     400s any *decorator-less* class DTO (e.g. TelegramAuthDto, GETSignDTO),
-  //     which would break Telegram login and other legacy endpoints. Verified
-  //     empirically: a decorator-less class yields 1 error by default, 0 with
-  //     this flag. Decorated DTOs are still fully enforced.
-  //   - NO `whitelist`/`forbidNonWhitelisted` — would strip undecorated fields
-  //     (e.g. blank out amount_net on the partly-decorated withdraw body).
-  //     mongoose `strict:true` already drops unknown fields, so deferring this
-  //     costs little; enabling it is a follow-up needing a full body-DTO audit.
-  // NOTE: unit tests call controllers directly and BYPASS this pipe, so they
-  // cannot prove a real request is accepted — the auth/withdraw/profile flows
-  // MUST be smoke-tested on staging before this is trusted in production.
-  app.useGlobalPipes(
-    new ValidationPipe({ transform: true, forbidUnknownValues: false }),
-  );
+  // V-1 / #46: global request validation.
+  //   - `transform: true`         — instantiate DTO classes + coerce types.
+  //   - `whitelist: true`         — strip properties without class-validator
+  //     decorators (defense-in-depth alongside mongoose strict).
+  //   - `forbidNonWhitelisted: true` — 400 on unknown body fields instead of
+  //     silently dropping them (requires every @Body() DTO field decorated).
+  //   - `forbidUnknownValues: false` — REQUIRED. class-validator 0.15 otherwise
+  //     400s any *decorator-less* class DTO / plain Object metatype. Keep until
+  //     every body uses a fully decorated class DTO (inline `{ ... }` bodies
+  //     still exist on a few admin/telegram routes).
+  app.useGlobalPipes(new ValidationPipe(GLOBAL_VALIDATION_PIPE_OPTIONS));
   // DEV ONLY: request logger so we can see incoming hits in the nest log.
   if (process.env.NODE_ENV !== 'production') {
     app.use((req: any, _res: any, next: any) => {

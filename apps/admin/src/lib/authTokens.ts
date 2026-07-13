@@ -1,5 +1,5 @@
 /**
- * Fallback JWT string when NextAuth session has no `accessToken` (local mock / static export).
- * Keep in sync with mock login responses in `src/lib/mockApiCore.ts` and NextAuth callbacks.
+ * Legacy mock JWT string for NextAuth authorize (mock login) and static shims.
+ * Kept on the encrypted JWT only — never exposed via getSession().
  */
 export const DEFAULT_MOCK_ACCESS_TOKEN = "mock-jwt-token-for-development";

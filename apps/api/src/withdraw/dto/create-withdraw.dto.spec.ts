@@ -8,8 +8,8 @@ import { CreateWithdrawDto } from './create-withdraw.dto';
  * carried NO class-validator decorators, so even with a global ValidationPipe
  * its money fields were unvalidated. These tests pin the decorators that make
  * the (now-active) pipe actually reject garbage amounts/currencies. Optional
- * fields stay optional — the pipe runs transform-only (no whitelist) so missing
- * fields must not error.
+ * fields stay optional — missing fields must not error. Unknown fields are
+ * rejected by the global pipe's forbidNonWhitelisted (#46).
  */
 const errorsFor = async (plain: Record<string, unknown>) =>
   validate(plainToInstance(CreateWithdrawDto, plain));

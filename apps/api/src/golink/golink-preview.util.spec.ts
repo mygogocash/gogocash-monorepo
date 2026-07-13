@@ -1,4 +1,7 @@
-import { isAllowedGoLinkPreviewHost, extractOpenGraphPreview } from './golink-preview.util';
+import {
+  isAllowedGoLinkPreviewHost,
+  extractOpenGraphPreview,
+} from './golink-preview.util';
 
 describe('isAllowedGoLinkPreviewHost', () => {
   it('allows known marketplace hosts', () => {

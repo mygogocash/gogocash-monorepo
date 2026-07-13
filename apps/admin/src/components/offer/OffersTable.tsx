@@ -13,7 +13,6 @@ import {
 import { apiClient } from "@/lib/api";
 import { appLinks } from "@/lib/appLinks";
 import { isUpsizeActiveNow } from "@/lib/upsizeStatus";
-import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import {
   Offer,
@@ -28,7 +27,6 @@ import { pathImage } from "@/utils/helper";
 import { resolveAdminOfferLogoPath } from "@/lib/offerDisplay";
 import { devError } from "@/lib/devConsole";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
-import { useDataSession } from "@/hooks/useDataSession";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import FormOffer from "./FormOffer";
 import { useRouter } from "next/navigation";
@@ -93,10 +91,7 @@ export default function OffersTable({
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const [form, setForm] = useState<OfferRequestForm>(emptyOfferRequestForm());
-  const session = useDataSession();
   const queryClient = useQueryClient();
-  const token = session.accessToken ?? DEFAULT_MOCK_ACCESS_TOKEN;
-
   const [query, setQuery] = useState<OffersQuery>({
     search: "",
     limit: 10,
@@ -183,13 +178,13 @@ export default function OffersTable({
   };
 
   const deleteOfferMutation = useMutation({
-    mutationFn: (offerId: string) => apiClient.deleteOffer(offerId, token),
+    mutationFn: (offerId: string) => apiClient.deleteOffer(offerId),
     onSuccess: invalidateOffersList,
     onError: (err) => devError("Failed to delete offer:", err),
   });
 
   const updateListMutation = useMutation({
-    mutationFn: () => apiClient.updateListOffer(token),
+    mutationFn: () => apiClient.updateListOffer(),
     onSuccess: invalidateOffersList,
     onError: (err) => devError("Failed to update offer list:", err),
   });

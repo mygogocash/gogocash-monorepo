@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsIn,
@@ -9,6 +10,7 @@ import {
   Matches,
   Max,
   Min,
+  ValidateNested,
 } from 'class-validator';
 
 /**
@@ -147,31 +149,74 @@ export class MarkWithdrawPaidDto {
 }
 
 export class GETSignDTO {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   userid: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   userAddress: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   totalCashbackAmount: string;
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
   conversionIdHashes: string[];
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   expireAt: string;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
   chain: number;
 }
 
 export class GetWithdrawTransactionsDTO {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
   page: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
   limit: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   search?: string;
 }
 
 export class DataCreateRewardList {
   @ApiProperty({ example: 1 })
+  @Type(() => Number)
+  @IsNumber()
   rank: number;
 
   @ApiProperty({ example: 1000 })
+  @Type(() => Number)
+  @IsNumber()
   reward: number;
 
   @ApiProperty({ example: 'THB' })
+  @IsString()
+  @IsNotEmpty()
   currency: string;
 }
 export class RequestCreateRewardList {
   @ApiProperty({ example: [{ rank: 1, reward: 1000, currency: 'THB' }] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DataCreateRewardList)
   list: DataCreateRewardList[];
 }

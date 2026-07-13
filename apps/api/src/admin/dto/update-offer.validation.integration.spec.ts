@@ -13,6 +13,7 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { UpdateOfferAdminDto } from './update-admin.dto';
+import { GLOBAL_VALIDATION_PIPE_OPTIONS } from '../../common/validation-pipe.options';
 
 @Controller('offer-test')
 class OfferValidationController {
@@ -46,9 +47,7 @@ describe('UpdateOfferAdminDto validation (integration)', () => {
       controllers: [OfferValidationController],
     }).compile();
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({ transform: true, forbidUnknownValues: false }),
-    );
+    app.useGlobalPipes(new ValidationPipe(GLOBAL_VALIDATION_PIPE_OPTIONS));
     await app.init();
   });
 

@@ -30,23 +30,17 @@ import {
   FeeSettingsForm,
 } from "@/types/api";
 import type { Permission } from "@/lib/rbac";
-import type { DataSession } from "@/types/authSession";
+import { resolveAdminApiBaseURL } from "@/lib/backendProxy";
 import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
 import { AxiosRequestConfig } from "axios";
 
 class ApiClient {
   private getBaseURL(): string {
-    // Use real API when configured; fall back to local mock.
-    const realApi = process.env.NEXT_PUBLIC_API_URL;
-    if (realApi) return realApi;
-
-    if (typeof window !== "undefined") {
-      return `${window.location.origin}/api/mock`;
-    }
-    const appOrigin = (
-      process.env.NEXTAUTH_URL || "http://localhost:3000"
-    ).replace(/\/$/, "");
-    return `${appOrigin}/api/mock`;
+    return resolveAdminApiBaseURL({
+      realApiUrl: process.env.NEXT_PUBLIC_API_URL,
+      isBrowser: typeof window !== "undefined",
+      appOrigin: process.env.NEXTAUTH_URL || "http://localhost:3000",
+    });
   }
 
   private get isRealApi(): boolean {
@@ -77,14 +71,12 @@ class ApiClient {
       ...options.headers,
     } as Record<string, string>;
 
-    const hasAuthorization = Object.keys(headers).some(
-      (key) => key.toLowerCase() === "authorization",
-    );
-    if (!hasAuthorization && typeof window !== "undefined") {
-      const { getSession } = await import("next-auth/react");
-      const session = (await getSession()) as DataSession | null;
-      if (session?.accessToken) {
-        headers.Authorization = `Bearer ${session.accessToken}`;
+    // Browser real-API traffic uses the BFF; never attach Bearer from getSession.
+    if (typeof window !== "undefined" && this.isRealApi) {
+      for (const key of Object.keys(headers)) {
+        if (key.toLowerCase() === "authorization") {
+          delete headers[key];
+        }
       }
     }
 
@@ -175,12 +167,12 @@ class ApiClient {
     });
   }
 
-  async getProfile(token: string): Promise<LoginResponse> {
+  async getProfile(token?: string): Promise<LoginResponse> {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
     return this.request<LoginResponse>("/auth/profile", {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
     });
   }
 
@@ -232,31 +224,31 @@ class ApiClient {
 
   // User management endpoints
   async updateProfile(
-    token: string,
     userData: Partial<{ name: string; email: string; avatar: string }>,
+    token?: string,
   ): Promise<LoginResponse> {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
     return this.request<LoginResponse>("/user/profile", {
       method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(userData),
     });
   }
 
   async changePassword(
-    token: string,
     passwordData: {
       current_password: string;
       password: string;
       password_confirmation: string;
     },
+    token?: string,
   ): Promise<{ message: string }> {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
     return this.request<{ message: string }>("/user/change-password", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(passwordData),
     });
   }
@@ -648,7 +640,7 @@ class ApiClient {
 
   async getWithdraws(
     query: WithdrawQuery = {},
-    token: string,
+    token?: string,
   ): Promise<ResponseWithdraws> {
     // Build query parameters
     const params = new URLSearchParams();
@@ -665,9 +657,7 @@ class ApiClient {
 
     return this.request<ResponseWithdraws>(endpoint, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
   }
 
@@ -679,16 +669,17 @@ class ApiClient {
   async markWithdrawPaid(
     id: string,
     tx_hash: string,
-    token: string,
+    token?: string,
   ): Promise<{ success: boolean; data: unknown }> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
     return this.request<{ success: boolean; data: unknown }>(
       `/withdraw/${id}/mark-paid`,
       {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify({ tx_hash }),
       },
     );
@@ -701,13 +692,13 @@ class ApiClient {
       reward_currency: string;
       user: string;
     },
-    token: string,
+    token?: string,
   ): Promise<unknown> {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
     return this.request(`/withdraw/create-conversion-reward`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(body),
     });
   }
@@ -718,20 +709,20 @@ class ApiClient {
       point_amount: number;
       user: string;
     },
-    token: string,
+    token?: string,
   ): Promise<unknown> {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
     return this.request(`/point/admin-create-point`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(body),
     });
   }
 
   async getConversion(
     query: ConversionQuery = {},
-    token: string,
+    token?: string,
   ): Promise<ResponseConversion> {
     // Build query parameters
     const params = new URLSearchParams();
@@ -748,15 +739,13 @@ class ApiClient {
 
     return this.request<ResponseConversion>(endpoint, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
   }
 
   async getCreatedConversions(
     query: ConversionQuery = {},
-    token: string,
+    token?: string,
   ): Promise<ResponseConversion> {
     const params = new URLSearchParams();
     if (query.search) params.append("search", query.search);
@@ -770,33 +759,26 @@ class ApiClient {
       : "/admin/created-conversions";
     return this.request<ResponseConversion>(endpoint, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
   }
 
-  async getFee(token: string): Promise<ResponseFee[]> {
+  async getFee(token?: string): Promise<ResponseFee[]> {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
     return this.request(`/admin/get-fee-rate`, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
     });
   }
 
-  async updateFee(query: FeeSettingsForm, token: string): Promise<ResponseFee> {
-    // Build query parameters
-    // const form = new FormData();
-    // if (query.system) form.append('system', query.system.toString());
-    // if (query.store) form.append('store', query.store.toString());
-    // if (query.minimum_withdraw) form.append('minimum_withdraw', query.minimum_withdraw.toString());
+  async updateFee(query: FeeSettingsForm, token?: string): Promise<ResponseFee> {
     const { id, ...dt } = query;
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
     return this.request<ResponseFee>(`/admin/update-fee-rate/${id}`, {
       method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(dt),
     });
   }
@@ -807,12 +789,12 @@ class ApiClient {
     });
   }
 
-  async updateListOffer(token: string): Promise<Offer[]> {
+  async updateListOffer(token?: string): Promise<Offer[]> {
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
     return this.request<Offer[]>(`/involve`, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
     });
   }
 
@@ -844,7 +826,7 @@ class ApiClient {
     const baseURL = this.getBaseURL();
     const endpoint = "/offer";
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (token) {
+    if (token && !(typeof window !== "undefined" && this.isRealApi)) {
       headers.Authorization = `Bearer ${token}`;
     }
 

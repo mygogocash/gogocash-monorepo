@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { apiClient } from "@/lib/api";
-import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import { listRoles } from "@/lib/rbac/roleStore";
 import type { RolesResponse } from "@/types/api";
 
@@ -19,15 +18,12 @@ export const ROLES_QUERY_KEY = ["admin", "roles"] as const;
  * and the "Invite admin" dropdown has nothing to pick.
  */
 export function useRolesQuery() {
-  const { data: session, status } = useSession();
-  const token =
-    (session as { accessToken?: string })?.accessToken ??
-    DEFAULT_MOCK_ACCESS_TOKEN;
+  const { status } = useSession();
   return useQuery<RolesResponse>({
     queryKey: ROLES_QUERY_KEY,
     queryFn: async () => {
       try {
-        return await apiClient.getRoles(token);
+        return await apiClient.getRoles();
       } catch {
         return { data: listRoles() };
       }

@@ -1,9 +1,10 @@
-/** Session fields used by the axios client interceptor (avoids importing the route module). */
+/** Session fields used by the admin UI (avoids importing the route module). */
 export interface DataSession {
-  accessToken?: string;
   expires?: string;
   user?: {
+    id?: string;
     name?: string | null;
     email?: string | null;
+    role?: string;
   };
 }

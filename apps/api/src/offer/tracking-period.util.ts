@@ -36,7 +36,7 @@ export type TrackingPeriodFields = {
   validation_terms?: number;
 };
 
-export function isValidDayCount(value: unknown): value is number {
+function isValidDayCount(value: unknown): value is number {
   return (
     typeof value === 'number' &&
     Number.isInteger(value) &&

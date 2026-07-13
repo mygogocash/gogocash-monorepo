@@ -1,11 +1,16 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { CreateAdminDto } from './create-admin.dto';
 import {
+  ArrayNotEmpty,
+  IsArray,
   IsIn,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
 
 export class UpdateAdminDto extends PartialType(CreateAdminDto) {}
@@ -328,4 +333,31 @@ export class RejectOfferDto {
   @IsNotEmpty()
   @IsString()
   reason: string;
+}
+
+export class TopBrandConfigEntryDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  offerId: string;
+
+  @ApiProperty()
+  @IsString()
+  cashback: string;
+}
+
+export class SaveTopBrandsDto {
+  @ApiProperty({ type: [TopBrandConfigEntryDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TopBrandConfigEntryDto)
+  brands: TopBrandConfigEntryDto[];
+}
+
+export class GetConversionInWithdrawDto {
+  @ApiProperty({ type: [Number] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsNumber({}, { each: true })
+  data: number[];
 }
