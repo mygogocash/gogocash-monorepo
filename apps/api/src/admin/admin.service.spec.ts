@@ -358,7 +358,7 @@ describe('AdminService', () => {
       const innerMatch = offerLookup.pipeline.find((s: any) => s.$match).$match;
       expect(innerMatch.$expr.$and).toEqual(
         expect.arrayContaining([
-          { $eq: ['$source', '$$src'] },
+          { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
           { $eq: ['$offer_id', '$$oid'] },
         ]),
       );
@@ -399,7 +399,7 @@ describe('AdminService', () => {
       const innerMatch = offerLookup.pipeline.find((s: any) => s.$match).$match;
       expect(innerMatch.$expr.$and).toEqual(
         expect.arrayContaining([
-          { $eq: ['$source', '$$src'] },
+          { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
           { $eq: ['$offer_id', '$$oid'] },
         ]),
       );

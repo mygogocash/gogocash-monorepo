@@ -325,10 +325,19 @@ export class InvolveService {
     // including offers that ARE in `ids` and any Optimise/manual docs. That was
     // a pre-existing bug. A single source-scoped updateMany with offer_id $nin
     // ids disables exactly the Involve offers that vanished from this sync.
-    await this.offerModel.updateMany(
-      { source: { $in: ['involve', null] }, offer_id: { $nin: ids } },
-      { $set: { type: 'old', disabled: true } },
-    );
+    //
+    // GUARD: only run the disable pass when this sync actually returned offers.
+    // `{ $nin: [] }` matches EVERY document, so an empty `ids` (a transient
+    // upstream hiccup, a filter momentarily matching nothing, or a changed
+    // response shape) would otherwise disable the ENTIRE live catalog in one
+    // write — blacking out cashback platform-wide. The old per-id loop was a
+    // no-op when ids was empty; this preserves that safety.
+    if (ids.length > 0) {
+      await this.offerModel.updateMany(
+        { source: { $in: ['involve', null] }, offer_id: { $nin: ids } },
+        { $set: { type: 'old', disabled: true } },
+      );
+    }
 
     await this.getCategoryList();
     return offers;
@@ -671,7 +680,7 @@ export class InvolveService {
                 $match: {
                   $expr: {
                     $and: [
-                      { $eq: ['$source', '$$src'] },
+                      { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
                       { $eq: ['$offer_id', '$$oid'] },
                     ],
                   },

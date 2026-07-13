@@ -280,7 +280,7 @@ export class AdminService {
                 $match: {
                   $expr: {
                     $and: [
-                      { $eq: ['$source', '$$src'] },
+                      { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
                       { $eq: ['$offer_id', '$$oid'] },
                     ],
                   },
@@ -814,7 +814,7 @@ export class AdminService {
               $match: {
                 $expr: {
                   $and: [
-                    { $eq: ['$source', '$$src'] },
+                    { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
                     { $eq: ['$offer_id', '$$oid'] },
                   ],
                 },

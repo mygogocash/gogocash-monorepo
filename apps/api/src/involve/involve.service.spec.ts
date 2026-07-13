@@ -628,7 +628,9 @@ describe('InvolveService', () => {
         (s) => s.$match,
       )?.$match.$expr.$and;
       expect(andClauses).toEqual(
-        expect.arrayContaining([{ $eq: ['$source', '$$src'] }]),
+        expect.arrayContaining([
+          { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
+        ]),
       );
       // The old hardcoded literal must be gone.
       expect(JSON.stringify(andClauses)).not.toContain(
@@ -701,6 +703,27 @@ describe('InvolveService', () => {
           '$ne' in call[0].offer_id,
       );
       expect(neDisableCalls).toHaveLength(0);
+    });
+
+    // CRITICAL guard: `{ $nin: [] }` matches EVERY document, so a sync that
+    // returns zero offers (a transient upstream hiccup or a filter momentarily
+    // matching nothing) must NOT run the disable pass — otherwise it would flip
+    // the entire live catalog to disabled:true in one write. The old per-id loop
+    // was a no-op when ids was empty; this preserves that.
+    it('findAll > given the sync returns no offers > then the disable updateMany never runs (no $nin:[] catalog wipe)', async () => {
+      offerModel.updateMany = jest.fn().mockResolvedValue({});
+      offerModel.find.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+      });
+      jest.spyOn(service, 'getOfferAll').mockResolvedValue({
+        data: { data: [], nextPage: null },
+      } as never);
+
+      await service.findAll();
+
+      expect(offerModel.updateMany).not.toHaveBeenCalled();
     });
   });
 });

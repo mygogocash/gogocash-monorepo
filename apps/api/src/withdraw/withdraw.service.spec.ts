@@ -1101,7 +1101,7 @@ describe('WithdrawService', () => {
         subPipeline.find((s) => s.$match)?.$match.$expr.$and ?? [];
       expect(andClauses).toEqual(
         expect.arrayContaining([
-          { $eq: ['$source', '$$src'] },
+          { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
           { $eq: ['$offer_id', '$$oid'] },
         ]),
       );
