@@ -51,6 +51,10 @@ describe("Thai locale sweep — catalog coverage", () => {
       "Start typing to search brands, stores, products, or cashback.",
       "Trending searches",
       "Search suggestions",
+      // Issue #249 follow-up: recent-history chrome also missing from catalogs.
+      "Recent searches",
+      "Clear all",
+      "Clear recent searches",
       // Issue #248: the suggestions grid gets its own subtitle instead of
       // duplicating the popular-banner sentence.
       "Tap a brand to search its cashback deals.",

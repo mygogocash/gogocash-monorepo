@@ -16,7 +16,7 @@ export const radii = {
 export const spacing = {
   xs: 6,
   sm: 10,
-  homeStackGap: 16,
+  homeStackGap: 24,
   md: 16,
   lg: 24,
   xl: 32,

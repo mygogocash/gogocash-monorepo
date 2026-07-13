@@ -37,6 +37,10 @@ import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import { haptics } from "@mobile/lib/haptics";
 import { markIntroModalPending } from "@mobile/features/introModal/introModalSession";
 import { toPhoneE164 } from "@mobile/auth/phoneE164";
+import {
+  canAttemptPhoneOtpSend,
+  nextOtpSendCooldownSeconds,
+} from "@mobile/auth/otpSendCooldown";
 import { useFirebasePhoneRecaptcha } from "@mobile/auth/useFirebasePhoneRecaptcha";
 import { buildDemoMobileSession, persistMobileSession, type MobileSession } from "@mobile/auth/session";
 import { sanitizeCallbackPath } from "@mobile/auth/routeGuard";
@@ -124,6 +128,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const [authPhase, setAuthPhase] = useState<AuthPhase>("phone");
   const [otpFailure, setOtpFailure] = useState<"code" | "system" | null>(null);
   const [sendError, setSendError] = useState<SendErrorKind | null>(null);
+  const [sendCooldownSeconds, setSendCooldownSeconds] = useState(0);
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [emailMode, setEmailMode] = useState<"signin" | "signup">("signin");
@@ -237,11 +242,16 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   );
   const title = tc(webAuthPage.titleByMode[mode]);
   const phoneDigits = phoneLocal.replace(/\D/g, "");
-  const canSubmitPhone = privacyAccepted && phoneDigits.length >= 9;
+  const canSubmitPhone = canAttemptPhoneOtpSend({
+    cooldownSecondsRemaining: sendCooldownSeconds,
+    privacyAccepted,
+    phoneDigitCount: phoneDigits.length,
+  });
   const dividerText = webAuthPage.socialDividerByMode[mode];
   const primarySocialProviders = authSocialProviders.slice(0, 4);
   const secondarySocialProviders = authSocialProviders.slice(4);
   const resendCountdownLabel = formatOtpCountdown(resendSecondsRemaining);
+  const sendCooldownLabel = formatOtpCountdown(sendCooldownSeconds);
   const maskedPhone = useMemo(() => {
     if (!phoneDigits) {
       return selectedCountry.dialCode;
@@ -284,7 +294,9 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           // Send failed (invalid number, rate limit, unsupported platform):
           // surface the error visibly and keep the user on the phone step.
           // Never include the phone number or provider internals in the notice.
-          setSendError(toSendErrorKind(error));
+          const kind = toSendErrorKind(error);
+          setSendError(kind);
+          setSendCooldownSeconds((current) => nextOtpSendCooldownSeconds(kind, current));
           haptics.error();
         }
       })();
@@ -315,6 +327,18 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
 
     return () => clearTimeout(timeoutId);
   }, [authPhase, resendSecondsRemaining]);
+
+  useEffect(() => {
+    if (sendCooldownSeconds <= 0) {
+      return undefined;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setSendCooldownSeconds((remaining) => Math.max(remaining - 1, 0));
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [sendCooldownSeconds]);
 
   const handleOtpChange = (nextValue: string) => {
     const nextDigits = nextValue.replace(/\D/g, "").slice(0, 6);
@@ -464,6 +488,55 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
 
     if (!liveAuth) {
       toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+      return;
+    }
+
+    if (provider.id === "line") {
+      setSocialBusyProviderId(provider.id);
+      void (async () => {
+        try {
+          const {
+            exchangeLineAuth,
+            isLineLoginConfigured,
+            requestLineLogin,
+          } = await import("@mobile/auth/lineLogin");
+          if (!isLineLoginConfigured()) {
+            toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+            return;
+          }
+          if (Platform.OS !== "web") {
+            toastCtx?.show(tc(authSendErrorMessages.webOnly));
+            return;
+          }
+          const { accessToken, profile } = await requestLineLogin();
+          const session = await exchangeLineAuth({
+            accessToken,
+            apiUrl: env.apiUrl,
+            country: selectedCountry.code,
+            profile,
+          });
+          await completeSocialSession(session);
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            error.name === "LineLoginNotConfiguredError"
+          ) {
+            toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+            return;
+          }
+          const code = (error as { code?: string })?.code;
+          if (
+            code === "auth/popup-closed-by-user" ||
+            code === "auth/cancelled-popup-request"
+          ) {
+            return;
+          }
+          toastCtx?.show(tc(sendErrorCopy[toSendErrorKind(error)]));
+          haptics.error();
+        } finally {
+          setSocialBusyProviderId(null);
+        }
+      })();
       return;
     }
 
@@ -787,9 +860,16 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         />
                       </View>
                       {sendError ? (
-                        <Text accessibilityRole="alert" style={styles.otpError}>
-                          {tc(sendErrorCopy[sendError])}
-                        </Text>
+                        <View>
+                          <Text accessibilityRole="alert" style={styles.otpError}>
+                            {tc(sendErrorCopy[sendError])}
+                          </Text>
+                          {sendError === "rate-limit" && sendCooldownSeconds > 0 ? (
+                            <Text accessibilityRole="timer" style={styles.otpError}>
+                              {sendCooldownLabel}
+                            </Text>
+                          ) : null}
+                        </View>
                       ) : null}
                     </View>
 
@@ -980,9 +1060,14 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                                 setOtpInput("");
                                 setOtpFailure(null);
                                 setResendSecondsRemaining(otpResendDurationSeconds);
-                              } catch {
+                              } catch (error) {
                                 // Resend failed — keep the current countdown/state and
                                 // surface error feedback instead of pretending it sent.
+                                const kind = toSendErrorKind(error);
+                                setSendError(kind);
+                                setSendCooldownSeconds((current) =>
+                                  nextOtpSendCooldownSeconds(kind, current),
+                                );
                                 haptics.error();
                               }
                             })();
@@ -1216,6 +1301,10 @@ function SocialProviderIcon({ provider }: { provider: SocialProvider }) {
     return <GoogleBrandIcon />;
   }
 
+  if (provider.id === "line") {
+    return <LineBrandIcon />;
+  }
+
   if (provider.id === "telegram") {
     return <TelegramBrandIcon />;
   }
@@ -1268,6 +1357,17 @@ function GoogleBrandIcon() {
       <Path
         d="M19.6616 2.76262L15.7741 5.94525C14.6803 5.26153 13.3872 4.86656 12.002 4.86656C8.87408 4.86656 6.21627 6.88017 5.25364 9.68175L1.34441 6.48131H1.34375C3.34091 2.63077 7.36419 0 12.002 0C14.9136 0 17.5833 1.03716 19.6616 2.76262Z"
         fill="#F14336"
+      />
+    </Svg>
+  );
+}
+
+function LineBrandIcon() {
+  return (
+    <Svg height={24} viewBox="0 0 24 24" width={24}>
+      <Path
+        d="M19.3627 9.86356C19.4475 9.86064 19.5319 9.8748 19.611 9.90521C19.6901 9.93561 19.7623 9.98163 19.8233 10.0405C19.8842 10.0994 19.9327 10.17 19.9658 10.248C19.9989 10.326 20.016 10.4099 20.016 10.4947C20.016 10.5794 19.9989 10.6633 19.9658 10.7414C19.9327 10.8194 19.8842 10.89 19.8233 10.9489C19.7623 11.0077 19.6901 11.0538 19.611 11.0842C19.5319 11.1146 19.4475 11.1287 19.3627 11.1258H17.6085V12.2508H19.3627C19.448 12.2466 19.5331 12.2598 19.6131 12.2896C19.6931 12.3193 19.7662 12.365 19.828 12.4238C19.8897 12.4827 19.9389 12.5535 19.9725 12.6319C20.0062 12.7103 20.0235 12.7947 20.0235 12.8801C20.0235 12.9654 20.0062 13.0498 19.9725 13.1282C19.9389 13.2067 19.8897 13.2774 19.828 13.3363C19.7662 13.3951 19.6931 13.4408 19.6131 13.4705C19.5331 13.5003 19.448 13.5135 19.3627 13.5093H16.98C16.8134 13.5087 16.6539 13.4422 16.5362 13.3243C16.4186 13.2063 16.3524 13.0466 16.3522 12.8801V8.11006C16.3522 7.76281 16.6335 7.47781 16.98 7.47781H19.3673C19.5292 7.48618 19.6817 7.55653 19.7932 7.67429C19.9047 7.79204 19.9666 7.94818 19.9662 8.11035C19.9657 8.27251 19.9028 8.42828 19.7906 8.54537C19.6784 8.66247 19.5255 8.73191 19.3635 8.73931H17.6092V9.86431L19.3627 9.86356ZM15.5123 12.8793C15.5109 13.0464 15.4436 13.2061 15.325 13.3238C15.2065 13.4415 15.0463 13.5076 14.8793 13.5078C14.7803 13.5088 14.6826 13.4867 14.5937 13.4434C14.5048 13.4 14.4272 13.3366 14.367 13.2581L11.9257 9.93781V12.8786C11.9257 13.0454 11.8595 13.2055 11.7414 13.3235C11.6234 13.4415 11.4634 13.5078 11.2965 13.5078C11.1296 13.5078 10.9696 13.4415 10.8516 13.3235C10.7335 13.2055 10.6672 13.0454 10.6672 12.8786V8.10856C10.6672 7.83931 10.8435 7.59781 11.097 7.51156C11.1598 7.49011 11.2257 7.47921 11.292 7.47931C11.487 7.47931 11.667 7.58506 11.7878 7.73356L14.2485 11.0613V8.10856C14.2485 7.76131 14.5297 7.47631 14.8778 7.47631C15.2257 7.47631 15.5107 7.76131 15.5107 8.10856L15.5123 12.8793ZM9.77025 12.8793C9.76946 13.0466 9.70239 13.2068 9.58375 13.3247C9.4651 13.4426 9.30454 13.5088 9.13725 13.5086C8.9712 13.5072 8.81242 13.4403 8.69543 13.3225C8.57843 13.2046 8.51269 13.0454 8.5125 12.8793V8.10931C8.5125 7.76206 8.79375 7.47706 9.14175 7.47706C9.48975 7.47706 9.771 7.76206 9.771 8.10931L9.77025 12.8793ZM7.305 13.5086H4.91775C4.75064 13.5082 4.59042 13.4419 4.4719 13.3241C4.35339 13.2062 4.28613 13.0464 4.28475 12.8793V8.10931C4.28475 7.76206 4.56975 7.47706 4.91775 7.47706C5.26575 7.47706 5.547 7.76206 5.547 8.10931V12.2501H7.305C7.47189 12.2501 7.63194 12.3164 7.74995 12.4344C7.86795 12.5524 7.93425 12.7124 7.93425 12.8793C7.93425 13.0462 7.86795 13.2063 7.74995 13.3243C7.63194 13.4423 7.47189 13.5086 7.305 13.5086ZM24 10.3121C24 4.94131 18.6128 0.570312 12 0.570312C5.38725 0.570312 0 4.94131 0 10.3121C0 15.1248 4.26975 19.1561 10.035 19.9218C10.4257 20.0036 10.9567 20.1798 11.094 20.5121C11.2148 20.8121 11.172 21.2771 11.133 21.5943L10.9688 22.6136C10.9215 22.9143 10.7265 23.7978 12.0157 23.2586C13.3088 22.7193 18.9338 19.1808 21.453 16.2813C23.1758 14.3951 24 12.4571 24 10.3121Z"
+        fill="#00C500"
       />
     </Svg>
   );

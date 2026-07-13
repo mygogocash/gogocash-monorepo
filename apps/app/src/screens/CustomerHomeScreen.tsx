@@ -86,10 +86,11 @@ export function CustomerHomeScreen() {
   // it MUST carry the live resolution wiring too (regression: unwired, it fell
   // back to the fixtures demo product in backend mode).
   const { isAuthed } = useAuthGuardSession();
-  const { live: liveGoLink, match: goLinkMatch } = useGoLinkResolution(
-    Boolean(desktopGoLinkResultHref),
-    desktopGoLinkResultHref,
-  );
+  const {
+    live: liveGoLink,
+    match: goLinkMatch,
+    productPreview: goLinkProductPreview,
+  } = useGoLinkResolution(Boolean(desktopGoLinkResultHref), desktopGoLinkResultHref);
   const [searchPopoverOpen, setSearchPopoverOpen] = useState(false);
   const [searchPopoverMounted, setSearchPopoverMounted] = useState(false);
   const [searchAnchorFrame, setSearchAnchorFrame] = useState<SearchAnchorFrame | null>(null);
@@ -271,6 +272,7 @@ export function CustomerHomeScreen() {
               match={goLinkMatch}
               onClose={() => setDesktopGoLinkResultHref("")}
               onShopNow={handleDesktopGoLinkShopNow}
+              productPreview={goLinkProductPreview}
             />
           ) : null}
           <IntroAfterLoginModal />
@@ -387,6 +389,7 @@ export function CustomerHomeScreen() {
               match={goLinkMatch}
               onClose={() => setDesktopGoLinkResultHref("")}
               onShopNow={handleDesktopGoLinkShopNow}
+              productPreview={goLinkProductPreview}
             />
           ) : null}
         </View>

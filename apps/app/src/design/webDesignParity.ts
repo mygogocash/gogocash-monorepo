@@ -607,6 +607,7 @@ export const webAuthPage = {
   socialProviders: [
     { id: "facebook", label: "Facebook" },
     { id: "google", label: "Gmail" },
+    { id: "line", label: "LINE" },
     { id: "telegram", label: "Telegram" },
     { id: "apple", label: "Apple" },
     { id: "x", label: "X" },

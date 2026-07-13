@@ -22,6 +22,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { InvolveModule } from './involve/involve.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PdpaModule } from './pdpa/pdpa.module';
+import { GolinkModule } from './golink/golink.module';
 @Module({
   imports: [
     // ScheduleModule stays the in-process scheduler (staging); feature/bug-old's
@@ -34,6 +35,7 @@ import { PdpaModule } from './pdpa/pdpa.module';
     CustomerBillingModule,
     CatalogModule,
     PdpaModule,
+    GolinkModule,
     ConfigModule.forRoot({
       load: [envConfig],
     }),

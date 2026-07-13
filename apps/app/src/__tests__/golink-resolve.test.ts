@@ -142,28 +142,32 @@ describe("GoGoLink live wiring (source signals)", () => {
     expect(homeSource).toContain("useGoLinkResolution(");
     expect(homeSource).toContain("live={liveGoLink}");
     expect(homeSource).toContain("match={goLinkMatch}");
+    expect(homeSource).toContain("productPreview={goLinkProductPreview}");
     expect(homeSource).toContain("openGoLinkTracked(");
     // The fixture route survives only behind the !liveGoLink branch.
     expect(homeSource).toMatch(/if \(!liveGoLink\) \{\s*router\.push\(homeGoLinkShopNowRoute/);
   });
 
-  it("the dialog's live/match props are REQUIRED so future callers cannot silently fall back", () => {
+  it("the dialog's live/match/productPreview props are REQUIRED so future callers cannot silently fall back", () => {
     const propsBlock = screenSource.slice(
       screenSource.indexOf("export function GoLinkResultDialog"),
-      screenSource.indexOf("export function GoLinkResultDialog") + 700,
+      screenSource.indexOf("export function GoLinkResultDialog") + 900,
     );
     expect(propsBlock).not.toContain("live?:");
     expect(propsBlock).not.toContain("match?:");
+    expect(propsBlock).not.toContain("productPreview?:");
     expect(propsBlock).toContain("live: boolean;");
     expect(propsBlock).toContain("match: GoLinkResolutionState;");
+    expect(propsBlock).toContain("productPreview: GoLinkProductPreview;");
   });
 
-  it("the shared hook + helper own the catalog match and create-affiliate mint", () => {
+  it("the shared hook + helper own the catalog match, preview fetch, and create-affiliate mint", () => {
     const hookSource = readFileSync(
       resolve(__dirname, "../features/useGoLinkResolution.ts"),
       "utf8",
     );
     expect(hookSource).toContain("matchGoLinkOffer(");
+    expect(hookSource).toContain("fetchGoLinkPreview(");
     expect(hookSource).toContain("buildGoLinkTrackingUrl(");
     expect(hookSource).toContain("mintUserTrackingLink(");
   });
