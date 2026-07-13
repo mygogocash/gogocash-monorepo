@@ -19,7 +19,35 @@ export function isFeaturedSearchResponse(value: unknown): value is FeaturedSearc
   return Array.isArray(candidate.data);
 }
 
-export function useFeaturedSearchTerms() {
+function fixtureFeaturedTerms(): string[] {
+  return webHomeSearchPopularPanel.items.map((item) => item.brand);
+}
+
+// Popular-terms chain: curated featured terms → live brand catalog (capped to
+// the fixture panel size) → fixture brands. Staging's featured endpoint is
+// empty today, so without the live fallback the demo fixture brands leak into
+// backend-mode UI.
+export function resolveFeaturedSearchTerms({
+  backendTerms,
+  fallbackTerms,
+}: {
+  backendTerms: readonly string[] | null;
+  fallbackTerms?: readonly string[];
+}): string[] {
+  const curated = dedupeSearchTerms([...(backendTerms ?? [])]);
+  if (curated.length > 0) {
+    return curated;
+  }
+
+  const live = dedupeSearchTerms([...(fallbackTerms ?? [])]);
+  if (live.length > 0) {
+    return live.slice(0, webHomeSearchPopularPanel.items.length);
+  }
+
+  return fixtureFeaturedTerms();
+}
+
+export function useFeaturedSearchTerms(fallbackTerms?: readonly string[]) {
   const env = useMemo(() => getMobileEnv(), []);
   const shouldFetch = env.accountDataSource === "backend";
 
@@ -37,14 +65,12 @@ export function useFeaturedSearchTerms() {
   });
 
   if (!shouldFetch || featuredQuery.isError || !isFeaturedSearchResponse(featuredQuery.data)) {
-    return webHomeSearchPopularPanel.items.map((item) => item.brand);
+    return resolveFeaturedSearchTerms({ backendTerms: null, fallbackTerms });
   }
 
-  const terms = dedupeSearchTerms(
-    (featuredQuery.data.data ?? [])
-      .map((row) => (typeof row.term === "string" ? row.term.trim() : ""))
-      .filter(Boolean)
-  );
+  const backendTerms = (featuredQuery.data.data ?? [])
+    .map((row) => (typeof row.term === "string" ? row.term.trim() : ""))
+    .filter(Boolean);
 
-  return terms.length > 0 ? terms : webHomeSearchPopularPanel.items.map((item) => item.brand);
+  return resolveFeaturedSearchTerms({ backendTerms, fallbackTerms });
 }

@@ -4,7 +4,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { mapOfferCatalogToCompactBrandCards } from "@mobile/account/brandCatalogResource";
-import { resolveSearchSuggestionItem } from "@mobile/account/searchSuggestionResource";
+import {
+  rankPopularLiveBrandTerms,
+  resolveSearchSuggestionItem,
+} from "@mobile/account/searchSuggestionResource";
 import type { OfferListResponse } from "@mobile/api/catalogTypes";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
@@ -96,5 +99,49 @@ describe("search suggestion UI wiring", () => {
 
     expect(popover).toContain("resolveSearchSuggestionItem");
     expect(popover).toContain("liveCards");
+  });
+});
+
+describe("rankPopularLiveBrandTerms", () => {
+  // Staging 2026-07-13: the popular panel's live fallback took the first
+  // catalog brands verbatim, which all displayed 0% cashback — a weak
+  // "Popular right now" list. Brands with real rates must rank first.
+  const card = (brand: string, cashback: string) =>
+    ({ brand, cashback, category: "Marketplace", href: "/shop/x", tint: "#EAF3FB" }) as const;
+
+  it("given mixed cashback rates > then higher rates rank first", () => {
+    const terms = rankPopularLiveBrandTerms([
+      card("King Power", "0%"),
+      card("Shopee", "0.29%"),
+      card("Lazada", "2.02%"),
+      card("KTC Credit Card (TH)", "0%"),
+    ]);
+
+    expect(terms).toEqual(["Lazada", "Shopee", "King Power", "KTC Credit Card (TH)"]);
+  });
+
+  it("given equal rates > then the catalog order is preserved (stable)", () => {
+    const terms = rankPopularLiveBrandTerms([
+      card("Alpha", "1.0%"),
+      card("Beta", "1.0%"),
+      card("Gamma", "1.0%"),
+    ]);
+
+    expect(terms).toEqual(["Alpha", "Beta", "Gamma"]);
+  });
+
+  it("given unparseable cashback copy > then it ranks as zero instead of crashing", () => {
+    const terms = rankPopularLiveBrandTerms([
+      card("Mystery", "up to —"),
+      card("Shopee", "0.29%"),
+    ]);
+
+    expect(terms).toEqual(["Shopee", "Mystery"]);
+  });
+
+  it("the popover ranks its live fallback terms by cashback", () => {
+    const popover = readMobileFile("src/screens/home/HomeSearchPopularPopover.tsx");
+
+    expect(popover).toContain("rankPopularLiveBrandTerms(");
   });
 });

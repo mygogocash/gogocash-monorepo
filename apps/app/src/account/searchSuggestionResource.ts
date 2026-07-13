@@ -116,3 +116,18 @@ export function resolveSearchSuggestionItem(
     logoTextColor: "#00CC99",
   };
 }
+
+function parseCashbackRate(cashback: string): number {
+  const rate = Number.parseFloat(cashback.replace(/[^\d.]/g, ""));
+  return Number.isFinite(rate) ? rate : 0;
+}
+
+// "Popular right now" fallback ordering: brands with real cashback rates rank
+// above 0%/unparseable ones; ties keep catalog order (Array.sort is stable).
+export function rankPopularLiveBrandTerms(
+  liveCards: readonly LiveCompactBrandCard[],
+): string[] {
+  return [...liveCards]
+    .sort((a, b) => parseCashbackRate(b.cashback) - parseCashbackRate(a.cashback))
+    .map((card) => card.brand);
+}
