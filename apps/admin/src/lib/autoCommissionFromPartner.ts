@@ -1,8 +1,14 @@
-import { applyThirtyPercentFee } from "@/lib/commissionFee";
+import {
+  applyPlatformFee,
+  DEFAULT_PLATFORM_FEE_PERCENT,
+} from "@/lib/commissionFee";
 import { bestPercentFromPartnerRates } from "@/lib/offerDeeplink";
 
-/** Raw partner % → form fields for "Auto apply 30% fee" mode. */
-export function commissionFieldsFromPartnerRaw(rawPercent: number): {
+/** Raw partner % → form fields for the auto "apply platform fee" mode. */
+export function commissionFieldsFromPartnerRaw(
+  rawPercent: number,
+  feePercent: number = DEFAULT_PLATFORM_FEE_PERCENT,
+): {
   commissionRaw: string;
   commission_store: number;
 } | null {
@@ -10,7 +16,7 @@ export function commissionFieldsFromPartnerRaw(rawPercent: number): {
   const rounded = Math.round(rawPercent * 100) / 100;
   return {
     commissionRaw: String(rounded),
-    commission_store: applyThirtyPercentFee(rounded),
+    commission_store: applyPlatformFee(rounded, feePercent),
   };
 }
 

@@ -9,6 +9,12 @@ import { AFFILIATE_NETWORKS } from "@/data/affiliateNetworks";
 import { DEEPLINK_STORE_OPTIONS } from "@/data/deeplinkStores";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useSystemFeePercent } from "@/hooks/useSystemFeePercent";
+import { applyPlatformFee } from "@/lib/commissionFee";
+import {
+  finalizeProductTypeRows,
+  netCommissionFromRaw,
+} from "@/lib/productTypeCommission";
 import { defaultLookupFromBrandAndCountry } from "@/lib/createBrandLookupSlug";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { isDirty } from "@/lib/isDirty";
@@ -77,6 +83,15 @@ function buildCreateBrandTagPreviewChips(
 /** Default offer category label until a partner feed assigns another (matches mock create). */
 const CREATE_BRAND_INITIAL_CATEGORY = "Shopping";
 
+/**
+ * Product-type row plus per-row commission-entry UI state. `entry_mode` and
+ * `commission_raw` are editing-only and stripped from the submit payload —
+ * the saved row shape stays {name, commission_info, deeplink}.
+ */
+type CreateBrandProductTypeRow = OfferProductTypeEntry & {
+  entry_mode?: "manual" | "auto";
+};
+
 const SCROLL_CLASS = "scroll-mt-[4.5rem]";
 
 const CREATE_BRAND_JUMP_LINKS = [
@@ -110,11 +125,11 @@ const CREATE_BRAND_INITIAL_SNAPSHOT = {
   disabledOffer: false,
   topBrands: false,
   isGlobal: false,
-  defaultCountry: "Thailand",
   commissionEntryMode: "manual" as "manual" | "auto",
   commissionPercentInput: "",
+  commissionRawInput: "",
   allProductTypes: true,
-  productTypes: [] as OfferProductTypeEntry[],
+  productTypes: [] as CreateBrandProductTypeRow[],
   maxCapInput: "",
   noteToUser: "",
   offerDisplayTags: { ...DEFAULT_OFFER_DISPLAY_TAGS } as OfferDisplayTags,
@@ -143,6 +158,8 @@ export default function CreateBrandForm() {
   const queryClient = useQueryClient();
   const { can } = usePermissions();
   const canManageBrands = can("brands:manage");
+  // Platform fee % from Fee Structure (falls back to 30 while loading / on error).
+  const { feePercent, isFallback: feeIsFallback } = useSystemFeePercent();
   const [brandName, setBrandName] = useState("");
   const [affiliateNetworkId, setAffiliateNetworkId] = useState("involve_asia");
   const [deeplinkStoreId, setDeeplinkStoreId] = useState("global");
@@ -157,16 +174,19 @@ export default function CreateBrandForm() {
   const [disabledOffer, setDisabledOffer] = useState(false);
   const [topBrands, setTopBrands] = useState(false);
   // Brand visibility: when isGlobal=true the brand is shown to customers in every country;
-  // otherwise only customers whose country matches `countries` see it. defaultCountry is the
-  // fallback variant when a global brand is opened by a user whose country has no dedicated line.
+  // otherwise only customers whose country matches `countries` see it. Global brands fall
+  // back to the fixed Thailand variant for users whose country has no dedicated line.
   const [isGlobal, setIsGlobal] = useState(false);
-  const [defaultCountry, setDefaultCountry] = useState("Thailand");
   const [commissionEntryMode, setCommissionEntryMode] = useState<
     "manual" | "auto"
   >("manual");
   const [commissionPercentInput, setCommissionPercentInput] = useState("");
+  // Auto mode: raw partner % the admin types; the saved net is derived from it.
+  const [commissionRawInput, setCommissionRawInput] = useState("");
   const [allProductTypes, setAllProductTypes] = useState(true);
-  const [productTypes, setProductTypes] = useState<OfferProductTypeEntry[]>([]);
+  const [productTypes, setProductTypes] = useState<CreateBrandProductTypeRow[]>(
+    [],
+  );
   const [maxCapInput, setMaxCapInput] = useState("");
   const [noteToUser, setNoteToUser] = useState("");
   const [offerDisplayTags, setOfferDisplayTags] = useState<OfferDisplayTags>({
@@ -176,13 +196,14 @@ export default function CreateBrandForm() {
   const [customTerms, setCustomTerms] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // When true, after a successful save the form keeps the brand-level fields (name, logos,
-  // description, availability, default country) but clears the country / tracking inputs so
-  // the admin can add another country variant of the same brand without re-entering shared info.
+  // description, availability) but clears the country / tracking inputs so the admin can
+  // add another country variant of the same brand without re-entering shared info.
   const [addAnotherCountry, setAddAnotherCountry] = useState(false);
 
   const resetCountryVariantFields = () => {
     // Country-specific fields — wiped after save when "Add another country" is on.
-    setCountries(isGlobal ? defaultCountry : "Thailand");
+    // Global brands fall back to the fixed Thailand default, so start there too.
+    setCountries("Thailand");
     setCurrency("THB");
     setTrackingLink("");
     setAppDeeplink("");
@@ -190,6 +211,7 @@ export default function CreateBrandForm() {
     setSyncLookupFromBrandCountry(true);
     setCommissionEntryMode("manual");
     setCommissionPercentInput("");
+    setCommissionRawInput("");
     setMaxCapInput("");
     setNoteToUser("");
     setProductTypes([]);
@@ -200,7 +222,7 @@ export default function CreateBrandForm() {
     setOfferDisplayTags({ ...DEFAULT_OFFER_DISPLAY_TAGS });
     setDisabledOffer(false);
     setTopBrands(false);
-    // Brand-level fields kept: brandName, logos, banners, description, isGlobal, defaultCountry.
+    // Brand-level fields kept: brandName, logos, banners, description, isGlobal.
   };
   const [logoDesktop, setLogoDesktop] = useState<File | null>(null);
   const [logoMobile, setLogoMobile] = useState<File | null>(null);
@@ -227,9 +249,9 @@ export default function CreateBrandForm() {
           disabledOffer,
           topBrands,
           isGlobal,
-          defaultCountry,
           commissionEntryMode,
           commissionPercentInput,
+          commissionRawInput,
           allProductTypes,
           productTypes,
           maxCapInput,
@@ -259,9 +281,9 @@ export default function CreateBrandForm() {
       disabledOffer,
       topBrands,
       isGlobal,
-      defaultCountry,
       commissionEntryMode,
       commissionPercentInput,
+      commissionRawInput,
       allProductTypes,
       productTypes,
       maxCapInput,
@@ -276,6 +298,24 @@ export default function CreateBrandForm() {
       bannerMobile,
     ],
   );
+
+  // Live "% after fee" preview for the auto two-box; also the net submitted
+  // as commission_store when the form saves in auto mode.
+  const autoCommissionNet = useMemo(() => {
+    const raw = commissionRawInput.trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? applyPlatformFee(n, feePercent) : null;
+  }, [commissionRawInput, feePercent]);
+
+  const updateProductTypeRow = (
+    index: number,
+    patch: Partial<CreateBrandProductTypeRow>,
+  ) => {
+    setProductTypes((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    );
+  };
 
   const { data: policyCategories = [], isPending: policyCategoriesPending } =
     useQuery<ResCategoryList[]>({
@@ -386,6 +426,18 @@ export default function CreateBrandForm() {
         }
         commission_store = n;
       }
+    } else {
+      // Auto: the admin types the raw partner %; the saved commission is the
+      // net after the platform fee (Fee Structure rate).
+      const raw = commissionRawInput.trim();
+      if (raw) {
+        const n = Number(raw);
+        if (!Number.isFinite(n)) {
+          toast.error("Raw commission % must be a number.");
+          return;
+        }
+        commission_store = applyPlatformFee(n, feePercent);
+      }
     }
 
     let max_cap: number | null = null;
@@ -399,20 +451,12 @@ export default function CreateBrandForm() {
       max_cap = n;
     }
 
+    // Auto rows recompute their net from the raw % with the fee that is
+    // current NOW — the commission_info baked at typing time may predate the
+    // Fee Structure fetch resolving (30% fallback window).
     const productTypeRows = allProductTypes
       ? []
-      : productTypes
-          .map((row) => ({
-            name: row.name.trim(),
-            commission_info: row.commission_info.trim(),
-            deeplink: (row.deeplink ?? "").trim(),
-          }))
-          .filter(
-            (row) =>
-              row.name.length > 0 ||
-              row.commission_info.length > 0 ||
-              row.deeplink.length > 0,
-          );
+      : finalizeProductTypeRows(productTypes, feePercent);
 
     const formData = new FormData();
     formData.append("brand_name", name);
@@ -424,7 +468,7 @@ export default function CreateBrandForm() {
     formData.append("disabled", String(disabledOffer));
     formData.append("extra_store", String(topBrands));
     formData.append("commission_entry_mode", commissionEntryMode);
-    if (commissionEntryMode === "manual" && commission_store != null) {
+    if (commission_store != null) {
       formData.append("commission_store", String(commission_store));
     }
     formData.append("all_product_types", String(allProductTypes));
@@ -438,7 +482,10 @@ export default function CreateBrandForm() {
     if (isGlobal) {
       // default_country is only relevant for global brands; sending it for country-specific
       // brands would be misleading (the single-country variant is implicitly the default).
-      formData.append("default_country", defaultCountry);
+      // The picker was removed (#274) but the field is still sent: the API keeps a
+      // denormalized copy on the offer doc (real routing uses Brand.default_country) and
+      // BrandService requires it for global brands — Thailand is the fixed fallback.
+      formData.append("default_country", "Thailand");
     }
 
     const desc = description.trim();
@@ -631,7 +678,7 @@ export default function CreateBrandForm() {
           <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/40">
             <FieldLabel
               label="Availability"
-              description="Country-specific brands are hidden from customers in other countries. Global brands appear worldwide and route customers without a dedicated country variant to the default country's tracking link."
+              description="Country-specific brands are hidden from customers in other countries. Global brands appear worldwide; customers without a dedicated country variant always fall back to the Thailand tracking link."
             />
             <div className="mt-3 space-y-2">
               <label className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40">
@@ -689,39 +736,11 @@ export default function CreateBrandForm() {
                   </span>
                   <span className="block text-xs text-gray-500 dark:text-gray-400">
                     Every customer sees this brand. Customers from countries
-                    without a dedicated variant are routed to the default
-                    country&apos;s tracking link.
+                    without a dedicated variant are routed to the Thailand
+                    tracking link (the fixed fallback).
                   </span>
                 </span>
               </label>
-              {isGlobal && (
-                <div className="mt-2 ml-7">
-                  <label
-                    htmlFor="create-brand-default-country"
-                    className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Default country (fallback for users without a dedicated
-                    variant)
-                  </label>
-                  <select
-                    id="create-brand-default-country"
-                    value={defaultCountry}
-                    onChange={(e) => setDefaultCountry(e.target.value)}
-                    className="w-full max-w-sm rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                  >
-                    {COUNTRY_OPTIONS.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    When a Singapore user opens this brand and there&apos;s no
-                    SG variant, they&apos;ll be sent to the {defaultCountry}{" "}
-                    tracking link.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
 
@@ -834,10 +853,16 @@ export default function CreateBrandForm() {
               label="Commission (%)"
               description={
                 commissionEntryMode === "auto"
-                  ? "Auto applying with 30% fee: partner rate is fetched after the offer exists (open the new offer and sync), or switch to Manual to type the user-facing % now."
-                  : "Maximum % offered to users. Enter the value already reduced by 30% from the affiliate partner rate."
+                  ? `Auto applying with ${feePercent}% fee: type the raw partner % and the user-facing % (after the ${feePercent}% fee) is computed and saved when you create the brand.`
+                  : `Maximum % offered to users. Enter the value already reduced by ${feePercent}% from the affiliate partner rate.`
               }
             />
+            {feeIsFallback ? (
+              <p className="mb-2 text-xs text-amber-600 dark:text-amber-400">
+                Fee Structure rate unavailable — using the {feePercent}%
+                default until it loads.
+              </p>
+            ) : null}
             <div className="mb-2 flex flex-wrap gap-2">
               <Button
                 size="sm"
@@ -845,7 +870,10 @@ export default function CreateBrandForm() {
                 variant={
                   commissionEntryMode === "manual" ? "primary" : "outline"
                 }
-                onClick={() => setCommissionEntryMode("manual")}
+                onClick={() => {
+                  setCommissionEntryMode("manual");
+                  setCommissionRawInput("");
+                }}
                 className="touch-manipulation"
               >
                 Manual
@@ -854,29 +882,67 @@ export default function CreateBrandForm() {
                 size="sm"
                 type="button"
                 variant={commissionEntryMode === "auto" ? "primary" : "outline"}
-                onClick={() => setCommissionEntryMode("auto")}
+                onClick={() => {
+                  setCommissionEntryMode("auto");
+                  setCommissionPercentInput("");
+                }}
                 className="touch-manipulation"
               >
-                Auto applying with 30% fee
+                {`Auto applying with ${feePercent}% fee`}
               </Button>
             </div>
-            <Input
-              type="text"
-              value={commissionPercentInput}
-              onChange={(e) => setCommissionPercentInput(e.target.value)}
-              disabled={commissionEntryMode === "auto"}
-              placeholder={
-                commissionEntryMode === "auto"
-                  ? "Set via offer editor after creation, or choose Manual"
-                  : "e.g. 6"
-              }
-            />
+            {commissionEntryMode === "auto" ? (
+              <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Raw %
+                  </p>
+                  <Input
+                    type="text"
+                    name="commission_raw"
+                    value={commissionRawInput}
+                    onChange={(e) => setCommissionRawInput(e.target.value)}
+                    placeholder="e.g. 10"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                    % after {feePercent}% fee
+                  </p>
+                  <Input
+                    type="text"
+                    name="commission_store"
+                    value={autoCommissionNet ?? ""}
+                    disabled
+                    placeholder="—"
+                  />
+                </div>
+              </div>
+            ) : (
+              <Input
+                type="text"
+                value={commissionPercentInput}
+                onChange={(e) => setCommissionPercentInput(e.target.value)}
+                placeholder="e.g. 6"
+              />
+            )}
             <div className="mt-3">
               <Switch
                 key={`create-brand-all-pt-${allProductTypes ? "1" : "0"}`}
                 label="All product types"
                 defaultChecked={allProductTypes}
-                onChange={setAllProductTypes}
+                onChange={(on) => {
+                  setAllProductTypes(on);
+                  // Always-ready frame: entering per-row mode seeds one empty
+                  // row so the section never opens empty.
+                  if (!on) {
+                    setProductTypes((prev) =>
+                      prev.length === 0
+                        ? [{ name: "", commission_info: "", deeplink: "" }]
+                        : prev,
+                    );
+                  }
+                }}
               />
               <p className="mt-0.5 ml-6 text-xs text-gray-500 dark:text-gray-400">
                 Use one commission rate and tracking link for all lines. Turn
@@ -888,7 +954,7 @@ export default function CreateBrandForm() {
 
         <section
           id="create-brand-section-product"
-          className={`space-y-4 ${SCROLL_CLASS}${
+          className={`space-y-4 ${SCROLL_CLASS} ${
             allProductTypes ? "hidden" : ""
           }`}
         >
@@ -897,19 +963,6 @@ export default function CreateBrandForm() {
               Product Type
             </h2>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-2">
-              <Button
-                size="sm"
-                type="button"
-                disabled={!formDirty}
-                onClick={() =>
-                  toast.success(
-                    "Product type rows are included when you click Create brand below.",
-                  )
-                }
-                className="min-h-11 w-full touch-manipulation sm:w-auto sm:shrink-0"
-              >
-                Save changes
-              </Button>
               <Button
                 size="sm"
                 variant="outline"
@@ -924,6 +977,19 @@ export default function CreateBrandForm() {
                 className="min-h-11 w-full touch-manipulation sm:w-auto sm:shrink-0"
               >
                 Add
+              </Button>
+              <Button
+                size="sm"
+                type="button"
+                disabled={!formDirty}
+                onClick={() =>
+                  toast.success(
+                    "Product type rows are included when you click Create brand below.",
+                  )
+                }
+                className="min-h-11 w-full touch-manipulation sm:w-auto sm:shrink-0"
+              >
+                Save changes
               </Button>
             </div>
           </div>
@@ -942,6 +1008,11 @@ export default function CreateBrandForm() {
             <ul className="space-y-4">
               {productTypes.map((row, i) => {
                 const baseId = `create-brand-pt-${i}`;
+                const rowMode = row.entry_mode ?? "manual";
+                const rowNet = netCommissionFromRaw(
+                  row.commission_raw ?? "",
+                  feePercent,
+                );
                 return (
                   <li
                     key={i}
@@ -959,35 +1030,93 @@ export default function CreateBrandForm() {
                         type="text"
                         placeholder="e.g. Electronics"
                         value={row.name}
-                        onChange={(e) => {
-                          const next = [...productTypes];
-                          next[i] = { ...next[i], name: e.target.value };
-                          setProductTypes(next);
-                        }}
+                        onChange={(e) =>
+                          updateProductTypeRow(i, { name: e.target.value })
+                        }
                         autoComplete="off"
                         enterKeyHint="next"
                         className="min-h-11 w-full min-w-0 touch-manipulation !text-base sm:!text-sm"
                       />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <label
-                        htmlFor={`${baseId}-commission`}
-                        className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                      >
-                        Manually commission input
-                      </label>
-                      <TextArea
-                        id={`${baseId}-commission`}
-                        rows={1}
-                        placeholder="e.g. 5% on new customers"
-                        value={row.commission_info}
-                        onChange={(v) => {
-                          const next = [...productTypes];
-                          next[i] = { ...next[i], commission_info: v };
-                          setProductTypes(next);
-                        }}
-                        className="h-11 max-h-11 min-h-11 touch-manipulation resize-none overflow-y-auto !text-base !text-gray-800 placeholder:text-gray-400 sm:!text-sm dark:!text-white/90"
-                      />
+                    <div className="min-w-0 flex-[2]">
+                      <p className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Commission
+                      </p>
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          type="button"
+                          variant={rowMode === "manual" ? "primary" : "outline"}
+                          onClick={() =>
+                            updateProductTypeRow(i, { entry_mode: "manual" })
+                          }
+                          className="touch-manipulation"
+                        >
+                          Manual
+                        </Button>
+                        <Button
+                          size="sm"
+                          type="button"
+                          variant={rowMode === "auto" ? "primary" : "outline"}
+                          onClick={() =>
+                            // Entering auto drops any stale free text; the net
+                            // is re-derived from the raw % as it's typed.
+                            updateProductTypeRow(i, {
+                              entry_mode: "auto",
+                              commission_raw: "",
+                              commission_info: "",
+                            })
+                          }
+                          className="touch-manipulation"
+                        >
+                          {`Auto applying with ${feePercent}% fee`}
+                        </Button>
+                      </div>
+                      {rowMode === "auto" ? (
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <Input
+                            id={`${baseId}-commission-raw`}
+                            type="text"
+                            placeholder="Raw %"
+                            ariaLabel={`Raw % for row ${i + 1}`}
+                            value={row.commission_raw ?? ""}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const net = netCommissionFromRaw(v, feePercent);
+                              // Saved row shape stays {name, commission_info,
+                              // deeplink}: the derived net lands in the
+                              // commission_info string as "{net}%".
+                              updateProductTypeRow(i, {
+                                commission_raw: v,
+                                commission_info:
+                                  net === "" ? "" : `${net}%`,
+                              });
+                            }}
+                            autoComplete="off"
+                            className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                          />
+                          <Input
+                            id={`${baseId}-commission-net`}
+                            type="text"
+                            placeholder={`% after ${feePercent}% fee`}
+                            ariaLabel={`% after ${feePercent}% fee for row ${i + 1}`}
+                            value={rowNet === "" ? "" : `${rowNet}%`}
+                            disabled
+                            className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                          />
+                        </div>
+                      ) : (
+                        <TextArea
+                          id={`${baseId}-commission`}
+                          rows={1}
+                          placeholder="e.g. 5% on new customers"
+                          value={row.commission_info}
+                          onChange={(v) =>
+                            updateProductTypeRow(i, { commission_info: v })
+                          }
+                          className="h-11 max-h-11 min-h-11 touch-manipulation resize-none overflow-y-auto !text-base !text-gray-800 placeholder:text-gray-400 sm:!text-sm dark:!text-white/90"
+                        />
+                      )}
                     </div>
                     <div className="flex shrink-0 sm:items-end sm:pb-0.5">
                       <Button
@@ -1017,7 +1146,7 @@ export default function CreateBrandForm() {
           <div>
             <FieldLabel
               label="Max cap"
-              description="Maximum cap offered to users. Enter the value already reduced by 30% from the affiliate partner cap."
+              description={`Maximum cap offered to users. Enter the value already reduced by ${feePercent}% from the affiliate partner cap.`}
             />
             <Input
               type="text"
@@ -1505,7 +1634,7 @@ export default function CreateBrandForm() {
           <label
             htmlFor="create-brand-add-another"
             className="mr-auto flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-            title="After saving, keep brand-level fields (name, logo, default country) and clear the country/tracking inputs so you can add another country variant of this brand quickly."
+            title="After saving, keep brand-level fields (name, logo, availability) and clear the country/tracking inputs so you can add another country variant of this brand quickly."
           >
             <input
               id="create-brand-add-another"
