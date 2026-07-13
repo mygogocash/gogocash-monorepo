@@ -909,10 +909,31 @@ export class WithdrawService {
           $match: buildUserConversionScopeFilter(user._id),
         },
         {
+          // Source-constrained lookup: offer_id is only unique WITHIN a source
+          // (Involve vs Optimise/Accesstrade can share a numeric offer_id). The
+          // old naive localField/foreignField join matched offers regardless of
+          // source, so once a second network shares an offer_id, $unwind fans
+          // the conversion into multiple rows and the displayed cashback
+          // DOUBLES. Pin offer.source to the CONVERSION's own source ($ifNull ->
+          // 'involve' for legacy rows) and take a single match. For Involve-only
+          // data (every offer carrying source:'involve' after the backfill /
+          // next sync) this is byte-identical to the naive join.
           $lookup: {
             from: 'offers',
-            localField: 'offer_id',
-            foreignField: 'offer_id',
+            let: { oid: '$offer_id', src: { $ifNull: ['$source', 'involve'] } },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
+                      { $eq: ['$offer_id', '$$oid'] },
+                    ],
+                  },
+                },
+              },
+              { $limit: 1 },
+            ],
             as: 'offer',
           },
         },
