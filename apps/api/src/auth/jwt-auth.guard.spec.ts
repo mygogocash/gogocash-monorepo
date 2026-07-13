@@ -24,7 +24,7 @@ describe('CrossmintAuthGuard', () => {
       'Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ1c2VySWQiOiJhdHRhY2tlciJ9.';
 
     expect(() => guard.canActivate(contextWithAuth(forged))).toThrow(
-      /Crossmint sign-in is disabled/,
+      /no longer available/,
     );
   });
 });

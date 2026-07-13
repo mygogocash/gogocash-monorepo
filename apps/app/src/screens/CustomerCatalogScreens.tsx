@@ -12,6 +12,7 @@ import {
 } from "@mobile/catalog/api";
 import type { CustomerCart, CustomerCatalogHome, CustomerCatalogProduct, CustomerOrder } from "@mobile/catalog/types";
 import { toastErrorMessages, userErrorMessageFromUnknown } from "@mobile/i18n/toastMessages";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { captureHandledException } from "@mobile/observability/client";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 
@@ -95,6 +96,7 @@ export function CustomerCatalogHomeScreen() {
 export function CustomerProductDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { colors } = useTheme();
+  const tc = useCopy();
   const { data: product, error, loading } = useAsyncData<CustomerCatalogProduct | null>(
     () => getCatalogProduct(String(slug)),
     null,
@@ -113,7 +115,12 @@ export function CustomerProductDetailScreen() {
   }
 
   if (loading) return <StatePage label="Loading product..." />;
-  if (error || !product) return <StatePage label={error || "Product not found."} />;
+  if (error || !product)
+    return (
+      <StatePage
+        label={tc(error || "We couldn't find this product. It may no longer be available.")}
+      />
+    );
 
   return (
     <ScrollView contentContainerStyle={[styles.page, { backgroundColor: colors.background }]}>

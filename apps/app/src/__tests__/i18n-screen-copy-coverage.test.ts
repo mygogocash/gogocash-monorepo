@@ -149,7 +149,7 @@ describe("i18n screen copy coverage — CustomerMembershipScreen", () => {
       "Best value",
       "Annual",
       "~฿41/mo effective when billed yearly",
-      "Online checkout is not available.",
+      "Online checkout isn't available right now. Please try again later.",
       "Get ฿490/year",
       "Start for ฿49/month",
       // perks
@@ -316,7 +316,7 @@ describe("i18n screen copy coverage — CustomerAuthCallbackScreen", () => {
       "Signing you in",
       "Your Firebase session was saved. Redirecting to GoGoCash.",
       "Open the latest sign-in link and try again.",
-      "GoGoCash could not complete the secure token handoff.",
+      "We couldn't finish signing you in. Open the latest sign-in link and try again.",
       "Saving your Firebase token and preparing your GoGoCash session.",
       "Back to sign in",
     ]);

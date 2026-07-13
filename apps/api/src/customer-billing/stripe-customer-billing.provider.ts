@@ -1,4 +1,8 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import Stripe from 'stripe';
 import type {
   CreateBillingPortalSessionInput,
@@ -9,6 +13,7 @@ import type {
 
 @Injectable()
 export class StripeCustomerBillingProvider implements CustomerBillingProvider {
+  private readonly logger = new Logger(StripeCustomerBillingProvider.name);
   private stripe: Stripe | null = null;
 
   async createCheckoutSession(input: CreateCheckoutSessionInput) {
@@ -102,7 +107,12 @@ export class StripeCustomerBillingProvider implements CustomerBillingProvider {
 
     const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
     if (!secretKey) {
-      throw new ServiceUnavailableException('Stripe is not configured');
+      this.logger.error(
+        'Customer billing is not configured (missing STRIPE_SECRET_KEY).',
+      );
+      throw new ServiceUnavailableException(
+        'Billing is temporarily unavailable. Please try again later or contact support.',
+      );
     }
 
     this.stripe = new Stripe(secretKey);

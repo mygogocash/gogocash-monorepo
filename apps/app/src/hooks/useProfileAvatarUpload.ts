@@ -62,7 +62,11 @@ export function useProfileAvatarUpload(initialAvatarUrl?: string | null) {
 
   const pickAndUpload = useCallback(async () => {
     if (Platform.OS !== "web" || typeof document === "undefined") {
-      toast.show(tc("Profile photo upload is available on web for now."));
+      toast.show(
+        tc(
+          "Photo upload isn't available in the app yet. You can update your photo on the GoGoCash website.",
+        ),
+      );
       return;
     }
 

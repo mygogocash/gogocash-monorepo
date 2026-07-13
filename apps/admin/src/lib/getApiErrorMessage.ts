@@ -1,3 +1,32 @@
+/** Appended to generic failures so the user always has a next step. */
+const NEXT_ACTION =
+  "Please try again, or contact an administrator if it continues.";
+
+/** Default, next-action-carrying copy for a failure we can't describe further. */
+export const GENERIC_ERROR_MESSAGE = `Something went wrong. ${NEXT_ACTION}`;
+
+/**
+ * Plain-language, status-aware copy for the *bare-status* fallback — used when
+ * an HTTP failure carries no usable backend message. It never exposes the raw
+ * status number to the user; callers still prefer a real backend `message`
+ * (RolesGuard etc.), so this only fills the gap where there is none.
+ */
+export function friendlyStatusMessage(status?: number): string {
+  switch (status) {
+    case 401:
+      return "Your session has expired. Please sign in again.";
+    case 403:
+      return "You don't have permission to do that. Ask an administrator if you need access.";
+    case 404:
+      return "That wasn't found. Please refresh and try again.";
+    case 408:
+    case 429:
+      return "Please wait a moment and try again.";
+    default:
+      return GENERIC_ERROR_MESSAGE;
+  }
+}
+
 /**
  * Normalizes errors from our axios client (interceptor rejects `response`, so `data.message`)
  * plus raw `AxiosError` shapes (`response.data.message`), generic `Error`, and the flat
@@ -7,7 +36,7 @@
  */
 export function getApiErrorMessage(
   error: unknown,
-  fallback = "Something went wrong",
+  fallback = GENERIC_ERROR_MESSAGE,
 ): string {
   if (error && typeof error === "object" && "response" in error) {
     const res = (error as { response?: { data?: { message?: string | string[] } } })

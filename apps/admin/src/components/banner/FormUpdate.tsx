@@ -153,7 +153,12 @@ const FormUpdate = ({
       toast.success("Banner saved successfully");
     } catch (err: unknown) {
       devApiError("Banner update failed:", err, "Update failed");
-      toast.error(getApiErrorMessage(err, "Update failed"));
+      toast.error(
+        getApiErrorMessage(
+          err,
+          "Couldn't update the banner. Please try again, or contact an administrator if it continues.",
+        ),
+      );
     } finally {
       setIsLoading(false);
     }

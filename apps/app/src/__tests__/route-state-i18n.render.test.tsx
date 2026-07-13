@@ -142,7 +142,9 @@ describe("CustomerAccountResourceState i18n (render, th)", () => {
     );
     expect(screen.queryByText("Account data unavailable")).toBeNull();
     expect(
-      screen.queryByText("Backend account data is disabled for this environment."),
+      screen.queryByText(
+        "Your account details aren't available right now. Please try again later or contact support.",
+      ),
     ).toBeNull();
   });
 

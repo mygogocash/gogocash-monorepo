@@ -449,7 +449,8 @@ describe('GototrackService detection and activation', () => {
     const { activationEventModel, involveService, service } = makeService();
     const upstreamAuthFailure = new HttpException(
       {
-        message: 'GoGoTrack affiliate network sign-in failed.',
+        message:
+          "We couldn't complete your request right now. Please try again in a moment or contact support if it keeps happening.",
         code: 'GOGOSENSE_UPSTREAM_AUTH_FAILED',
         upstreamStatusCode: 401,
       },

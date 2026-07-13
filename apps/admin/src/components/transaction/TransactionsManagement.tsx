@@ -52,7 +52,9 @@ export default function TransactionsManagement() {
       URL.revokeObjectURL(url);
       toast.success("Exported");
     } catch {
-      toast.error("Export failed");
+      toast.error(
+        "Couldn't export transactions. Please try again, or contact an administrator if it continues.",
+      );
     }
   };
 

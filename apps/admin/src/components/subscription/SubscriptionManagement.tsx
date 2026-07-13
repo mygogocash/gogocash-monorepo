@@ -142,7 +142,10 @@ export default function SubscriptionManagement() {
       });
       setPlanModal(false);
     },
-    onError: () => toast.error("Failed"),
+    onError: () =>
+      toast.error(
+        "Couldn't save the plan. Please try again, or contact an administrator if it continues.",
+      ),
   });
 
   const delPlan = useMutation({
@@ -315,7 +318,11 @@ export default function SubscriptionManagement() {
         {subsQ.isLoading ? (
           <AdminTableSkeleton rows={5} />
         ) : subsQ.isError ? (
-          <p className="mt-4 text-sm text-red-600">Failed to load.</p>
+          <p className="mt-4 text-sm text-red-600">
+            {
+              "Couldn't load subscriptions. Please refresh the page, or contact an administrator if it continues."
+            }
+          </p>
         ) : !subsQ.data?.data.length ? (
           <p className="mt-6 text-center text-sm text-gray-500">
             No subscriptions.

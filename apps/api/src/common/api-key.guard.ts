@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { timingSafeEqual } from 'crypto';
@@ -19,11 +20,18 @@ import { Request } from 'express';
  */
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
+  private readonly logger = new Logger(ApiKeyGuard.name);
+
   canActivate(context: ExecutionContext): boolean {
     const expected = process.env.INVOLVE_AI_API_KEY;
     if (!expected || expected.length === 0) {
+      // Fail closed but keep the real cause server-side; clients get generic copy.
+      this.logger.error(
+        'Request rejected: INVOLVE_AI_API_KEY is not configured.',
+      );
       throw new UnauthorizedException({
-        message: 'Endpoint disabled: API key not configured',
+        message:
+          'This service is temporarily unavailable. Please try again later.',
       });
     }
     const req = context.switchToHttp().getRequest<Request>();

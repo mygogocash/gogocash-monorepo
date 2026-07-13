@@ -30,6 +30,7 @@ import {
   FeeSettingsForm,
 } from "@/types/api";
 import type { Permission } from "@/lib/rbac";
+import { friendlyStatusMessage } from "@/lib/getApiErrorMessage";
 import { resolveAdminApiBaseURL } from "@/lib/backendProxy";
 import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
 import { AxiosRequestConfig } from "axios";
@@ -109,7 +110,7 @@ class ApiClient {
       if (result.status >= 400) {
         const data = result.body as { message?: string; errors?: unknown };
         const apiError: ApiError = {
-          message: data?.message || `HTTP Error ${result.status}`,
+          message: data?.message || friendlyStatusMessage(result.status),
           status: result.status,
           errors: data?.errors as ApiError["errors"],
         };
@@ -123,20 +124,28 @@ class ApiClient {
       return response.data;
     } catch (error) {
       if (axios.default.isAxiosError(error) && error.response) {
+        // Prefer the backend's own message (RolesGuard etc.); otherwise use
+        // plain, status-aware copy — never a raw "HTTP Error 403".
         const message =
-          error.response.data?.message || `HTTP Error ${error.response.status}`;
+          error.response.data?.message ||
+          friendlyStatusMessage(error.response.status);
         throw Object.assign(new Error(message), {
           status: error.response.status,
           errors: error.response.data?.errors,
         } satisfies Partial<ApiError>);
       }
 
-      // Network or other non-HTTP errors — still an Error instance so
-      // global error handlers / Sentry / `instanceof Error` narrowing work.
-      const message = error instanceof Error ? error.message : "Network error";
-      throw Object.assign(new Error(message), {
-        status: 0,
-      } satisfies Partial<ApiError>);
+      // No HTTP response reached us (offline, DNS, CORS, timeout). Never surface
+      // the raw transport string — show a friendly, actionable message. Still an
+      // Error instance so `instanceof Error` narrowing / global handlers work.
+      throw Object.assign(
+        new Error(
+          "Couldn't reach the server. Check your connection and try again.",
+        ),
+        {
+          status: 0,
+        } satisfies Partial<ApiError>,
+      );
     }
   }
 
@@ -859,7 +868,7 @@ class ApiClient {
       if (result.status >= 400) {
         const data = result.body as { message?: string; errors?: unknown };
         const apiError: ApiError = {
-          message: data?.message || `HTTP Error ${result.status}`,
+          message: data?.message || friendlyStatusMessage(result.status),
           status: result.status,
           errors: data?.errors as ApiError["errors"],
         };
@@ -885,8 +894,14 @@ class ApiClient {
         const data = err.response?.data as
           | { message?: string; errors?: unknown }
           | undefined;
+        // Prefer the backend message; otherwise friendly copy — status-aware
+        // when a response arrived, connection copy when none did. Never leak
+        // the raw axios error string ("Request failed with status code 403").
+        const fallback = err.response
+          ? friendlyStatusMessage(err.response.status)
+          : "Couldn't reach the server. Check your connection and try again.";
         const apiError: ApiError = {
-          message: data?.message || err.message || "Request failed",
+          message: data?.message || fallback,
           status: err.response?.status ?? 0,
           errors: data?.errors as ApiError["errors"],
         };

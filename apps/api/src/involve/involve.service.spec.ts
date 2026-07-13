@@ -594,5 +594,136 @@ describe('InvolveService', () => {
       expect(result.pagination.page).toBe(3);
       expect(result.pagination.limit).toBe(5);
     });
+
+    // offer_id is only unique WITHIN a source. The offers $lookup must pin
+    // offer.source to the CONVERSION's source (defaulted to 'involve' for legacy
+    // rows that predate the schema field), not a hardcoded 'involve'. For all
+    // Involve-only data $$src === 'involve', so the result is byte-identical.
+    it('getConversationAllPage > given the offers join > then it pins offer.source to the conversion source ($$src), not a hardcoded literal', async () => {
+      const user = { _id: new Types.ObjectId() };
+      userModel.findOne.mockResolvedValue(user);
+      feeRateModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ system: 30, max_cap: 1000 }),
+      });
+      conversionModel.aggregate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      });
+
+      await service.getConversationAllPage(
+        { page: 1, limit: 10 } as never,
+        user._id.toString(),
+      );
+
+      const pipeline = conversionModel.aggregate.mock.calls[0][0] as Array<
+        Record<string, any>
+      >;
+      const lookup = pipeline.find(
+        (s) => s.$lookup && s.$lookup.from === 'offers',
+      )?.$lookup as Record<string, any>;
+      expect(lookup.let).toMatchObject({
+        oid: '$offer_id',
+        src: { $ifNull: ['$source', 'involve'] },
+      });
+      const andClauses = (lookup.pipeline as Array<Record<string, any>>).find(
+        (s) => s.$match,
+      )?.$match.$expr.$and;
+      expect(andClauses).toEqual(
+        expect.arrayContaining([
+          { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
+        ]),
+      );
+      // The old hardcoded literal must be gone.
+      expect(JSON.stringify(andClauses)).not.toContain(
+        JSON.stringify({ $eq: ['$source', 'involve'] }),
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // findAll — Involve catalog sync (H2). Two latent hazards:
+  //  a) the per-offer upsert filtered on offer_id alone, so an Optimise/manual
+  //     doc sharing a numeric offer_id could be clobbered; it must be scoped to
+  //     source and stamp source:'involve' on write.
+  //  b) the stale-disable loop ran one updateOne({ offer_id: { $ne } }) PER id,
+  //     each disabling ONE ARBITRARY non-matching doc — a pre-existing bug that
+  //     could disable live/in-sync offers. It must be a single updateMany scoped
+  //     to source with offer_id $nin ids.
+  // ---------------------------------------------------------------------------
+  describe('findAll (Involve catalog sync, H2)', () => {
+    function primeFindAll() {
+      offerModel.updateMany = jest.fn().mockResolvedValue({});
+      offerModel.find.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+      });
+      jest.spyOn(service, 'getOfferAll').mockResolvedValue({
+        data: {
+          data: [
+            { offer_id: 1, offer_name: 'a' },
+            { offer_id: 2, offer_name: 'b' },
+          ],
+          nextPage: null,
+        },
+      } as never);
+    }
+
+    it('findAll > given synced offers > then every upsert is scoped to source {$in:[involve,null]} and stamps source:involve', async () => {
+      primeFindAll();
+
+      await service.findAll();
+
+      const upsertCalls = offerModel.updateOne.mock.calls.filter(
+        (call) => call[2] && call[2].upsert === true,
+      );
+      expect(upsertCalls).toHaveLength(2);
+      for (const [filter, update] of upsertCalls) {
+        expect(filter.source).toEqual({ $in: ['involve', null] });
+        expect(filter.offer_id).toBeDefined();
+        expect(update.$set.source).toBe('involve');
+      }
+    });
+
+    it('findAll > given synced offers > then stale offers are disabled by a single source-scoped updateMany, not per-id $ne updateOne', async () => {
+      primeFindAll();
+
+      await service.findAll();
+
+      expect(offerModel.updateMany).toHaveBeenCalledTimes(1);
+      expect(offerModel.updateMany).toHaveBeenCalledWith(
+        { source: { $in: ['involve', null] }, offer_id: { $nin: [1, 2] } },
+        { $set: { type: 'old', disabled: true } },
+      );
+      // The pre-existing arbitrary-doc-disable bug used offer_id: { $ne } in a
+      // per-id updateOne — none of those must survive.
+      const neDisableCalls = offerModel.updateOne.mock.calls.filter(
+        (call) =>
+          call[0]?.offer_id &&
+          typeof call[0].offer_id === 'object' &&
+          '$ne' in call[0].offer_id,
+      );
+      expect(neDisableCalls).toHaveLength(0);
+    });
+
+    // CRITICAL guard: `{ $nin: [] }` matches EVERY document, so a sync that
+    // returns zero offers (a transient upstream hiccup or a filter momentarily
+    // matching nothing) must NOT run the disable pass — otherwise it would flip
+    // the entire live catalog to disabled:true in one write. The old per-id loop
+    // was a no-op when ids was empty; this preserves that.
+    it('findAll > given the sync returns no offers > then the disable updateMany never runs (no $nin:[] catalog wipe)', async () => {
+      offerModel.updateMany = jest.fn().mockResolvedValue({});
+      offerModel.find.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+      });
+      jest.spyOn(service, 'getOfferAll').mockResolvedValue({
+        data: { data: [], nextPage: null },
+      } as never);
+
+      await service.findAll();
+
+      expect(offerModel.updateMany).not.toHaveBeenCalled();
+    });
   });
 });

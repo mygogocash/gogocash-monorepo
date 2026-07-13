@@ -129,7 +129,9 @@ export function CustomerMembershipScreen() {
             </View>
             <View style={styles.disabledNotice}>
               <SparklesIcon color={colors.primaryDark} size={18} strokeWidth={2} />
-              <Text style={styles.disabledText}>{tc("Online checkout is not available.")}</Text>
+              <Text style={styles.disabledText}>
+                {tc("Online checkout isn't available right now. Please try again later.")}
+              </Text>
             </View>
             <Link asChild href="/pricing">
               <Pressable

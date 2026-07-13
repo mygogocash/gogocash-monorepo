@@ -2,6 +2,7 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -10,6 +11,8 @@ import { Observable } from 'rxjs';
 import { IS_PUBLIC_KEY } from './public.decorator';
 @Injectable()
 export class AuthAdminGuard implements CanActivate {
+  private readonly logger = new Logger(AuthAdminGuard.name);
+
   constructor(
     private jwtService: JwtService,
     private readonly reflector: Reflector,
@@ -43,9 +46,15 @@ export class AuthAdminGuard implements CanActivate {
       request['user'] = decoded;
       return decoded;
     } catch (error: any) {
-      // Don't log the error — repeated failed admin auth attempts can fill
-      // logs with details that fingerprint the JWT library / secret format.
-      throw new UnauthorizedException(error?.message || 'Invalid token');
+      // Client never sees the raw verify error (it could fingerprint the JWT
+      // library / secret format). Keep the reason at debug level for ops
+      // diagnosability without spamming default logs on repeated failures.
+      this.logger.debug(
+        `Admin token verification failed: ${error?.message ?? 'unknown error'}`,
+      );
+      throw new UnauthorizedException(
+        'Your admin session has expired. Please sign in again.',
+      );
     }
   }
 }

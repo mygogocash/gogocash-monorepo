@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -30,6 +31,8 @@ type BillingUser = {
 
 @Injectable()
 export class CustomerBillingService {
+  private readonly logger = new Logger(CustomerBillingService.name);
+
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @Inject(CUSTOMER_BILLING_PROVIDER)
@@ -126,7 +129,9 @@ export class CustomerBillingService {
 
   private assertEnabled() {
     if (!this.options.enabled) {
-      throw new ForbiddenException('Stripe billing is disabled');
+      throw new ForbiddenException(
+        'Billing is temporarily unavailable. Please try again later or contact support.',
+      );
     }
   }
 
@@ -137,8 +142,12 @@ export class CustomerBillingService {
     const priceId = this.options.priceIds[`${tier}:${interval}`];
 
     if (!priceId) {
+      // Keep the unconfigured plan key in server logs for ops.
+      this.logger.error(
+        `Billing price is not configured for plan "${tier}:${interval}".`,
+      );
       throw new ServiceUnavailableException(
-        'Price is not configured for this plan. Set STRIPE_PRICE_* env vars.',
+        "This plan isn't available right now. Please try again later or contact support.",
       );
     }
 
