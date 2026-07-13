@@ -196,8 +196,18 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("authSocialProviders.map");
     expect(authFile).toContain("usesMobileFormLayout ? tc(dividerText).toUpperCase() : tc(dividerText)");
     expect(authFile).toContain("<CustomerCookieConsentBanner isDesktop={isDesktopShell} />");
-    expectStyleBlock(authFile, "pageAuthMobile", ["paddingHorizontal: 24"]);
-    expectStyleBlock(authFile, "cardInnerMobile", ["paddingHorizontal: 16", "paddingTop: 24"]);
+    // Founder 2026-07-13: the social grid sat flush against the card edge and
+    // the floating bottom nav. The page clears the nav like sibling detail
+    // screens (clearance + 24) and the card keeps inner bottom breathing room.
+    expectStyleBlock(authFile, "pageAuthMobile", [
+      "paddingBottom: mobileShellLayout.bottomNavClearance + 24",
+      "paddingHorizontal: 24",
+    ]);
+    expectStyleBlock(authFile, "cardInnerMobile", [
+      "paddingBottom: 24",
+      "paddingHorizontal: 16",
+      "paddingTop: 24",
+    ]);
     expectStyleBlock(authFile, "brandBlockMobile", ["gap: 8", "paddingBottom: 32"]);
     expectStyleBlock(authFile, "countryRowMobile", [
       'alignItems: "stretch"',

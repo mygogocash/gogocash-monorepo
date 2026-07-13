@@ -15,6 +15,7 @@ import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
 import { webSearchInputFocusReset } from "@mobile/screens/home/homeAssets";
+import type { SearchAnchorFrame } from "@mobile/screens/home/searchPopoverFrame";
 
 const webSearchShellMotionStyle = {
   transitionDuration: motion.cssTransition.duration,
@@ -32,12 +33,16 @@ function getWebKeyboardShortcutLabel(): string {
 
 export function DesktopHeaderSearch({
   onSearchFocus,
+  onSearchFrameChange,
   onSearchQueryChange,
   searchQuery,
+  viewportWidth,
 }: {
   onSearchFocus?: () => void;
+  onSearchFrameChange?: (frame: SearchAnchorFrame) => void;
   onSearchQueryChange?: (value: string) => void;
   searchQuery?: string;
+  viewportWidth?: number;
 } = {}) {
   const router = useRouter();
   const analytics = useAnalytics();
@@ -45,6 +50,7 @@ export function DesktopHeaderSearch({
   const { colors } = useTheme();
   const styles = useThemedStyles(createDesktopHeaderSearchStyles);
   const inputRef = useRef<TextInput>(null);
+  const shellRef = useRef<View>(null);
   const pendingFocusSourceRef = useRef<string | null>(null);
   const [focused, setFocused] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -96,6 +102,24 @@ export function DesktopHeaderSearch({
     navigateToSearch(query);
   }, [analytics, navigateToSearch, query]);
 
+  // Window coordinates, because the home search popover renders on a
+  // viewport-absolute layer outside the header's coordinate space.
+  const reportSearchFrame = useCallback(() => {
+    if (!onSearchFrameChange) {
+      return;
+    }
+    shellRef.current?.measureInWindow((x, y, width, height) => {
+      onSearchFrameChange({ height, width, x, y });
+    });
+  }, [onSearchFrameChange]);
+
+  // onLayout only fires on size changes; a viewport resize can shift the
+  // centered header cap (changing x) without resizing the shell, so re-measure
+  // whenever the viewport width changes too.
+  useEffect(() => {
+    reportSearchFrame();
+  }, [reportSearchFrame, viewportWidth]);
+
   useEffect(() => {
     if (Platform.OS !== "web") {
       return;
@@ -119,8 +143,10 @@ export function DesktopHeaderSearch({
 
   return (
     <View
+      onLayout={reportSearchFrame}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
+      ref={shellRef}
       style={StyleSheet.flatten([
         styles.shell,
         webSearchShellMotionStyle,
