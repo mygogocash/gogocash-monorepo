@@ -33,6 +33,7 @@ import { escapeRegexLiteral } from 'src/common/escape-regex';
 import { countryFilterRegex } from 'src/utils/country';
 import { normalizeCustomerCashbackLabel } from 'src/common/normalize-customer-cashback-label';
 import { requireObjectId, mongoSetUpdate } from 'src/common/mongo-query';
+import { resolveTrackingPeriod } from './tracking-period.util';
 
 const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
@@ -96,7 +97,22 @@ const PUBLIC_OFFER_DETAIL_FIELDS = [
   'custom_terms',
   'note_to_user',
 ] as const;
-const PUBLIC_OFFER_DETAIL_SELECT = PUBLIC_OFFER_DETAIL_FIELDS.join(' ');
+// Selected for the tracking_period derivation only — never whitelisted into
+// the response (pickPublicOfferDetail filters them back out).
+const OFFER_DETAIL_DERIVATION_FIELDS = [
+  'validation_terms',
+  'tracking_period_mode',
+  'tracking_days',
+  'confirm_days',
+] as const;
+// Exclusion projection for the public LIST endpoints (which otherwise return
+// whole docs): raw tracking-period config stays admin-only there too.
+const PUBLIC_LIST_EXCLUDED_FIELDS_SELECT =
+  '-tracking_period_mode -tracking_days -confirm_days';
+const PUBLIC_OFFER_DETAIL_SELECT = [
+  ...PUBLIC_OFFER_DETAIL_FIELDS,
+  ...OFFER_DETAIL_DERIVATION_FIELDS,
+].join(' ');
 
 function pickPublicOfferDetail(offer: Record<string, any> | null) {
   if (!offer) return null;
@@ -273,6 +289,12 @@ export class OfferService implements OnApplicationBootstrap {
       }
     }
     let listQuery = this.offerModel.find(filter);
+    if (!admin) {
+      // Raw tracking-period config is admin-only (the detail route serves the
+      // derived tracking_period instead) — keep the public list surfaces
+      // consistent with that contract.
+      listQuery = listQuery.select(PUBLIC_LIST_EXCLUDED_FIELDS_SELECT);
+    }
     if (admin) {
       listQuery = listQuery.sort({
         datetime_created: -1,
@@ -376,6 +398,7 @@ export class OfferService implements OnApplicationBootstrap {
 
     const dataExtra = await this.offerModel
       .find(filter)
+      .select(PUBLIC_LIST_EXCLUDED_FIELDS_SELECT)
       .sort({ extra_store_sort: 1 })
       .lean();
 
@@ -390,7 +413,16 @@ export class OfferService implements OnApplicationBootstrap {
       .findOne({ _id: id, ...ACTIVE_OFFER_FILTER } as any)
       .select(PUBLIC_OFFER_DETAIL_SELECT)
       .lean();
-    return pickPublicOfferDetail(offer as Record<string, any> | null);
+    const picked = pickPublicOfferDetail(offer as Record<string, any> | null);
+    if (!picked) {
+      return null;
+    }
+    // Derived tracking windows are the only tracking-period data customers
+    // see; the raw mode/day/validation fields stay admin-only.
+    return {
+      ...picked,
+      tracking_period: resolveTrackingPeriod(offer as Record<string, any>),
+    };
   }
 
   /** Permanent delete: remove the offer and clean up merchandising references. */

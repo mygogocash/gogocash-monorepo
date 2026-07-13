@@ -21,6 +21,7 @@ import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { LinkMyCashbackConnectorDots } from "@mobile/components/LinkMyCashbackConnectorDots";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { haptics } from "@mobile/lib/haptics";
+import { useCopy } from "@mobile/i18n/useCopy";
 import {
   getDesktopShellHorizontalPadding,
   mobileShellLayout,
@@ -105,6 +106,7 @@ function LinkOtpBoxes({
   value: string;
 }) {
   const styles = useThemedStyles(createMyCashbackSignInScreenStyles);
+  const tc = useCopy();
   const [isFocused, setIsFocused] = useState(false);
   const otpDigits = Array.from({ length: 6 }, (_, index) => value[index] ?? "");
   const activeIndex = isFocused && value.length < otpDigits.length ? value.length : -1;
@@ -112,7 +114,7 @@ function LinkOtpBoxes({
   return (
     <View style={styles.otpWrap}>
       <TextInput
-        accessibilityLabel={linkCopy.verifyOtpAria}
+        accessibilityLabel={tc(linkCopy.verifyOtpAria)}
         keyboardType="number-pad"
         maxLength={6}
         onBlur={() => setIsFocused(false)}
@@ -149,6 +151,7 @@ function LinkOtpBoxes({
 
 export function CustomerMyCashbackSignInScreen() {
   const styles = useThemedStyles(createMyCashbackSignInScreenStyles);
+  const tc = useCopy();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -265,8 +268,8 @@ export function CustomerMyCashbackSignInScreen() {
                 source={logoMarkImage}
                 style={styles.logoMark}
               />
-              <Text style={styles.title}>{webLinkMyCashbackIntro.title}</Text>
-              <Text style={styles.subtitle}>{webLinkMyCashbackIntro.subtitle}</Text>
+              <Text style={styles.title}>{tc(webLinkMyCashbackIntro.title)}</Text>
+              <Text style={styles.subtitle}>{tc(webLinkMyCashbackIntro.subtitle)}</Text>
 
               <View style={styles.connectorRow}>
                 <View style={styles.connectorImageFrame}>
@@ -298,8 +301,8 @@ export function CustomerMyCashbackSignInScreen() {
               {linkStep === "method" ? (
                 <View style={styles.stepBody}>
                   <View style={styles.stepHeader}>
-                    <Text style={styles.stepTitle}>{linkCopy.methodTitle}</Text>
-                    <Text style={styles.stepDescription}>{linkCopy.methodDescription}</Text>
+                    <Text style={styles.stepTitle}>{tc(linkCopy.methodTitle)}</Text>
+                    <Text style={styles.stepDescription}>{tc(linkCopy.methodDescription)}</Text>
                   </View>
 
                   <View style={styles.radioRow}>
@@ -326,7 +329,7 @@ export function CustomerMyCashbackSignInScreen() {
                           >
                             {selected ? <View style={styles.radioInner} /> : null}
                           </View>
-                          <Text style={styles.radioLabel}>{option.label}</Text>
+                          <Text style={styles.radioLabel}>{tc(option.label)}</Text>
                         </Pressable>
                       );
                     })}
@@ -347,7 +350,7 @@ export function CustomerMyCashbackSignInScreen() {
                           setPhoneLocal(value.replace(/\D/g, "").slice(0, 10))
                         }
                         onFocus={() => setInputFocused(true)}
-                        placeholder={linkCopy.phonePlaceholder}
+                        placeholder={tc(linkCopy.phonePlaceholder)}
                         placeholderTextColor={colors.muted}
                         style={[styles.input, styles.inputFlex, isInputFocused ? styles.inputFocused : null]}
                         value={phoneLocal}
@@ -363,7 +366,7 @@ export function CustomerMyCashbackSignInScreen() {
                       onBlur={() => setInputFocused(false)}
                       onChangeText={setEmailValue}
                       onFocus={() => setInputFocused(true)}
-                      placeholder={linkCopy.emailPlaceholder}
+                      placeholder={tc(linkCopy.emailPlaceholder)}
                       placeholderTextColor={colors.muted}
                       style={[styles.input, styles.inputFull, isInputFocused ? styles.inputFocused : null]}
                       value={emailValue}
@@ -371,7 +374,7 @@ export function CustomerMyCashbackSignInScreen() {
                   )}
 
                   <Pressable
-                    accessibilityLabel={linkCopy.consentPrefix + linkCopy.privacyPolicyLabel}
+                    accessibilityLabel={tc(linkCopy.consentPrefix) + tc(linkCopy.privacyPolicyLabel)}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: consentChecked }}
                     onPress={() => setConsentChecked((value) => !value)}
@@ -386,14 +389,14 @@ export function CustomerMyCashbackSignInScreen() {
                       {consentChecked ? <Check color={colors.white} size={13} weight="bold" /> : null}
                     </View>
                     <Text style={styles.consentText}>
-                      {linkCopy.consentPrefix}
-                      <Text style={styles.consentLink}>{linkCopy.privacyPolicyLabel}</Text>
+                      {tc(linkCopy.consentPrefix)}
+                      <Text style={styles.consentLink}>{tc(linkCopy.privacyPolicyLabel)}</Text>
                     </Text>
                   </Pressable>
 
                   <View style={styles.actionRow}>
                     <MotionPressable
-                      accessibilityLabel={linkCopy.back}
+                      accessibilityLabel={tc(linkCopy.back)}
                       accessibilityRole="button"
                       hoverLift={false}
                       onPress={() => router.push("/link-mycashback")}
@@ -401,7 +404,7 @@ export function CustomerMyCashbackSignInScreen() {
                       style={StyleSheet.flatten([styles.actionButton, styles.backButton])}
                     >
                       <Text style={[styles.actionButtonText, styles.backButtonText]}>
-                        {linkCopy.back}
+                        {tc(linkCopy.back)}
                       </Text>
                     </MotionPressable>
                     <MotionPressable
@@ -422,7 +425,7 @@ export function CustomerMyCashbackSignInScreen() {
                           canSubmitMethod ? styles.nextButtonText : styles.nextButtonTextDisabled,
                         ]}
                       >
-                        {linkCopy.next}
+                        {tc(linkCopy.next)}
                       </Text>
                     </MotionPressable>
                   </View>
@@ -430,17 +433,21 @@ export function CustomerMyCashbackSignInScreen() {
               ) : linkStep === "verify" ? (
                 <View style={styles.stepBody}>
                   <View style={styles.stepHeader}>
-                    <Text style={styles.stepTitle}>{linkCopy.verifyTitle}</Text>
+                    <Text style={styles.stepTitle}>{tc(linkCopy.verifyTitle)}</Text>
                     <Text style={styles.stepDescription}>
-                      {linkChannel === "phone"
-                        ? linkCopy.verifyDescriptionPhone
-                        : linkCopy.verifyDescriptionEmail}
+                      {tc(
+                        linkChannel === "phone"
+                          ? linkCopy.verifyDescriptionPhone
+                          : linkCopy.verifyDescriptionEmail
+                      )}
                     </Text>
                     <View style={styles.sentRow}>
                       <Text style={styles.sentLabel}>
-                        {linkChannel === "phone"
-                          ? linkCopy.verifySentToPhone
-                          : linkCopy.verifySentToEmail}
+                        {tc(
+                          linkChannel === "phone"
+                            ? linkCopy.verifySentToPhone
+                            : linkCopy.verifySentToEmail
+                        )}
                       </Text>
                       <Text style={styles.sentDestination}>{maskedDestination}</Text>
                     </View>
@@ -453,7 +460,7 @@ export function CustomerMyCashbackSignInScreen() {
                   />
                   {otpError ? (
                     <Text accessibilityRole="alert" style={styles.otpErrorText}>
-                      {linkCopy.verifyInvalidOtp}
+                      {tc(linkCopy.verifyInvalidOtp)}
                     </Text>
                   ) : null}
 
@@ -470,7 +477,7 @@ export function CustomerMyCashbackSignInScreen() {
                           resendSeconds > 0 ? styles.resendTextDisabled : null,
                         ]}
                       >
-                        {linkCopy.verifyResend}
+                        {tc(linkCopy.verifyResend)}
                       </Text>
                     </Pressable>
                     <Text style={styles.resendCountdown}>{formatCountdown(resendSeconds)}</Text>
@@ -478,7 +485,7 @@ export function CustomerMyCashbackSignInScreen() {
 
                   <View style={styles.actionRow}>
                     <MotionPressable
-                      accessibilityLabel={linkCopy.back}
+                      accessibilityLabel={tc(linkCopy.back)}
                       accessibilityRole="button"
                       hoverLift={false}
                       onPress={() => {
@@ -490,7 +497,7 @@ export function CustomerMyCashbackSignInScreen() {
                       style={StyleSheet.flatten([styles.actionButton, styles.backButton])}
                     >
                       <Text style={[styles.actionButtonText, styles.backButtonText]}>
-                        {linkCopy.back}
+                        {tc(linkCopy.back)}
                       </Text>
                     </MotionPressable>
                     <MotionPressable
@@ -511,7 +518,7 @@ export function CustomerMyCashbackSignInScreen() {
                           canSubmitOtp ? styles.nextButtonText : styles.nextButtonTextDisabled,
                         ]}
                       >
-                        {linkCopy.next}
+                        {tc(linkCopy.next)}
                       </Text>
                     </MotionPressable>
                   </View>
@@ -519,8 +526,8 @@ export function CustomerMyCashbackSignInScreen() {
               ) : (
                 <View style={styles.successBody}>
                   <CheckCircle color={colors.primary} size={64} weight="fill" />
-                  <Text style={styles.successTitle}>{linkCopy.successTitle}</Text>
-                  <Text style={styles.successDescription}>{linkCopy.successDescription}</Text>
+                  <Text style={styles.successTitle}>{tc(linkCopy.successTitle)}</Text>
+                  <Text style={styles.successDescription}>{tc(linkCopy.successDescription)}</Text>
                   <View style={styles.successActions}>
                     <MotionPressable
                       accessibilityRole="button"
@@ -529,7 +536,7 @@ export function CustomerMyCashbackSignInScreen() {
                       pressScale={motion.scale.subtlePress}
                       style={styles.successContinueButton}
                     >
-                      <Text style={styles.successContinueText}>{linkCopy.successContinue}</Text>
+                      <Text style={styles.successContinueText}>{tc(linkCopy.successContinue)}</Text>
                     </MotionPressable>
                     <Pressable
                       accessibilityRole="button"
@@ -539,7 +546,7 @@ export function CustomerMyCashbackSignInScreen() {
                         setOtpError(false);
                       }}
                     >
-                      <Text style={styles.successEditCodeText}>{linkCopy.successEditCode}</Text>
+                      <Text style={styles.successEditCodeText}>{tc(linkCopy.successEditCode)}</Text>
                     </Pressable>
                   </View>
                 </View>

@@ -91,7 +91,7 @@ export function CustomerProductDiscoveryScreen() {
   const totalPages = Math.max(1, Math.ceil(productResults.length / pageSize));
   const activePage = Math.min(currentPage, totalPages);
   const visibleProducts = productResults.slice((activePage - 1) * pageSize, activePage * pageSize);
-  const resultsLabel = `${productResults.length} ${webProductDiscovery.resultsUnit}`;
+  const resultsLabel = `${productResults.length} ${tc(webProductDiscovery.resultsUnit)}`;
 
   const updateSearchQuery = (value: string) => {
     setSearchQuery(value);
@@ -150,7 +150,7 @@ export function CustomerProductDiscoveryScreen() {
       <View style={styles.searchPill}>
         <SearchIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
         <Text numberOfLines={1} style={styles.searchText}>
-          {webHomeSearchPlaceholder}
+          {tc(webHomeSearchPlaceholder)}
         </Text>
       </View>
     </View>

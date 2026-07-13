@@ -79,7 +79,7 @@ export function ProductDiscoveryMobileFilters({
                   : null,
               ]}
             >
-              {filter.label}
+              {tc(filter.label)}
             </Text>
           </MotionPressable>
         ))}

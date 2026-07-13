@@ -141,7 +141,7 @@ export function CustomerBrandDirectoryScreen() {
   const totalPages = Math.max(1, Math.ceil(brandResults.length / pageSize));
   const activePage = Math.min(currentPage, totalPages);
   const visibleBrands = brandResults.slice((activePage - 1) * pageSize, activePage * pageSize);
-  const resultsLabel = `${brandResults.length} ${webBrandDirectory.resultsUnit}`;
+  const resultsLabel = `${brandResults.length} ${tc(webBrandDirectory.resultsUnit)}`;
 
   const updateSearchQuery = (value: string) => {
     setSearchQuery(value);
@@ -184,7 +184,7 @@ export function CustomerBrandDirectoryScreen() {
       <View style={styles.searchPill}>
         <SearchIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
         <Text numberOfLines={1} style={styles.searchText}>
-          {webHomeSearchPlaceholder}
+          {tc(webHomeSearchPlaceholder)}
         </Text>
       </View>
     </View>

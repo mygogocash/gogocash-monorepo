@@ -113,17 +113,19 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/login.tsx",
-    expectedLinks: ["/privacy-policy", 'mode === "register" ? "/login" : "/register"'],
+    // "Create new account" is disabled for launch — the only mode link left is
+    // the register screen's back-link to /login (shared screen source).
+    expectedLinks: ["/privacy-policy", 'href="/login"'],
     landmarks: ["webAuthPage", "PhoneOtpBoxes", "privacyAccepted", "socialProviders"],
     routeId: "login",
     routeMarkers: ["CustomerAuthScreen", 'mode="login"'],
     screenFiles: ["src/screens/CustomerAuthScreen.tsx"],
     userFlow:
-      "Customer signs in with phone/social auth, accepts privacy terms, enters OTP, or switches to register.",
+      "Customer signs in with phone/social/email auth, accepts privacy terms, and enters OTP.",
   },
   {
     appFile: "app/register.tsx",
-    expectedLinks: ["/privacy-policy", 'mode === "register" ? "/login" : "/register"'],
+    expectedLinks: ["/privacy-policy", 'href="/login"'],
     landmarks: ["webAuthPage", "PhoneOtpBoxes", "privacyAccepted", "socialProviders"],
     routeId: "register",
     routeMarkers: ["CustomerAuthScreen", 'mode="register"'],

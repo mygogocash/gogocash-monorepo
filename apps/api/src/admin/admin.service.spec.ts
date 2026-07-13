@@ -496,6 +496,90 @@ describe('AdminService', () => {
       expect(persisted.tracking_link).toBe('https://track.example/new');
     });
 
+    it('updateOffer > given tracking_period_mode manual with day counts > then the $set persists all three fields', async () => {
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        product_type: [],
+        tracking_period_mode: 'manual',
+        tracking_days: 21,
+        confirm_days: 45,
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.tracking_period_mode).toBe('manual');
+      expect(persisted.tracking_days).toBe(21);
+      expect(persisted.confirm_days).toBe(45);
+    });
+
+    it('updateOffer > given a payload without tracking-period fields > then the $set contains none of them (existing values untouched)', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          tracking_period_mode: 'manual',
+          tracking_days: 7,
+          confirm_days: 14,
+        }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, { product_type: [] });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted).not.toHaveProperty('tracking_period_mode');
+      expect(persisted).not.toHaveProperty('tracking_days');
+      expect(persisted).not.toHaveProperty('confirm_days');
+    });
+
+    it('updateOffer > given mode switched to auto only > then stored manual day counts are not cleared', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({ _id: offerId, tracking_days: 7, confirm_days: 14 }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        product_type: [],
+        tracking_period_mode: 'auto',
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.tracking_period_mode).toBe('auto');
+      expect(persisted).not.toHaveProperty('tracking_days');
+      expect(persisted).not.toHaveProperty('confirm_days');
+    });
+
+    it('updateOffer > given terms-and-conditions fields > then they persist (regression: admin T&C saves silently no-oped)', async () => {
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        product_type: [],
+        policy_category_id: '68345f00aa11bb22cc33dd99',
+        custom_terms: '1. Custom term',
+        note_to_user: 'Flash sale this week only.',
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.policy_category_id).toBe('68345f00aa11bb22cc33dd99');
+      expect(persisted.custom_terms).toBe('1. Custom term');
+      expect(persisted.note_to_user).toBe('Flash sale this week only.');
+    });
+
+    it('updateOffer > given a payload without terms fields > then the $set leaves them untouched', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({ _id: offerId, custom_terms: 'keep me' }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, { product_type: [] });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted).not.toHaveProperty('policy_category_id');
+      expect(persisted).not.toHaveProperty('custom_terms');
+      expect(persisted).not.toHaveProperty('note_to_user');
+    });
+
     it('updateOffer > given lookup_value > then it persists the trimmed slug', async () => {
       offerModel.findById.mockReturnValue(
         makeQuery({

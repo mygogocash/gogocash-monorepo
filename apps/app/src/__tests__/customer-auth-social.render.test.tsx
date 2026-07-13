@@ -70,7 +70,6 @@ vi.mock("@mobile/auth/firebaseLogin", () => ({
 import { ToastProvider } from "@mobile/components/Toast";
 import { CustomerAuthScreen } from "@mobile/screens/CustomerAuthScreen";
 import { mobileSessionStorageKey } from "@mobile/auth/session";
-import { authSendErrorMessages } from "@mobile/i18n/toastMessages";
 
 function readStoredSession(): Record<string, unknown> | null {
   const raw = window.localStorage.getItem(mobileSessionStorageKey);
@@ -191,23 +190,14 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
     });
   });
 
-  it("native Apple > given configured provider > uses the native OAuth seam", async () => {
+  it("disabled providers > Apple is not rendered in backend mode", () => {
+    // Founder (2026-07-12): Apple/X/Microsoft disabled for launch. The apple
+    // native OAuth seam stays covered by native-oauth-signin.test.ts for when
+    // the provider is re-enabled.
     platformState.OS = "android";
-    signInWithNativeOAuth.mockResolvedValue({ idToken: "native-apple-id-token" });
 
     renderLogin();
-    fireEvent.click(screen.getByRole("button", { name: "Apple" }));
-
-    await waitFor(() => {
-      expect(signInWithNativeOAuth).toHaveBeenCalledWith("apple");
-    });
-    await waitFor(() => {
-      expect(exchangeFirebaseIdToken).toHaveBeenCalledWith({
-        apiUrl: "https://api.dev.gogocash.co",
-        country: "TH",
-        idToken: "native-apple-id-token",
-      });
-    });
+    expect(screen.queryByRole("button", { name: "Apple" })).toBeNull();
   });
 
   it("native Facebook > given not configured > shows Coming soon toast", async () => {
@@ -242,17 +232,11 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
     expect(screen.queryByText("Could not complete your request. Please try again.")).toBeNull();
   });
 
-  it("native Microsoft/X > keep the web-only toast", async () => {
+  it("disabled providers > Microsoft and X are not rendered in backend mode", () => {
     platformState.OS = "android";
 
     renderLogin();
-    fireEvent.click(screen.getByRole("button", { name: "Microsoft" }));
-
-    await waitFor(() => {
-      expect(screen.getByText(authSendErrorMessages.webOnly)).toBeTruthy();
-    });
-    expect(signInWithNativeGoogle).not.toHaveBeenCalled();
-    expect(signInWithNativeOAuth).not.toHaveBeenCalled();
-    expect(signInWithSocialProvider).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Microsoft" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "X" })).toBeNull();
   });
 });
