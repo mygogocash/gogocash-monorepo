@@ -9,7 +9,6 @@ import {
   DataConversion,
   ResponseConversion,
 } from "@/types/api";
-import { useDataSession } from "@/hooks/useDataSession";
 import client from "@/lib/axios/client";
 import { Modal } from "@/components/ui/modal";
 import NoData from "@/components/common/NoData";
@@ -29,7 +28,6 @@ const STATUS_OPTIONS = [
 ];
 
 export default function CreatedConversionTable() {
-  const session = useDataSession();
   const { loading, error, getCreatedConversions, clearError } = useApi();
   const [lists, setLists] = useState<ResponseConversion>();
   const [pagination, setPagination] = useState({
@@ -55,10 +53,11 @@ export default function CreatedConversionTable() {
 
   const fetchList = async (page = 1) => {
     try {
-      const res = await getCreatedConversions(
-        { ...query, page, limit: query.limit ?? 10 },
-        session?.accessToken ?? "",
-      );
+      const res = await getCreatedConversions({
+        ...query,
+        page,
+        limit: query.limit ?? 10,
+      });
       setLists(res);
       setPagination({
         page: res.pagination.page,
@@ -110,7 +109,7 @@ export default function CreatedConversionTable() {
   };
 
   const handleSaveUpdate = async () => {
-    if (!updateModal || !session?.accessToken) return;
+    if (!updateModal) return;
     const amountError =
       validateOptionalAmount(editForm.sale_amount, "Sale amount") ||
       validateOptionalAmount(editForm.payout, "Payout", true);
@@ -131,7 +130,7 @@ export default function CreatedConversionTable() {
           adv_sub2: editForm.adv_sub2 || undefined,
           remark: editForm.remark || undefined,
         },
-        { headers: { Authorization: `Bearer ${session.accessToken}` } },
+        {},
       );
       setUpdateModal(null);
       fetchList(pagination.page);

@@ -4,7 +4,6 @@ import Input from "../form/input/InputField";
 import client from "@/lib/axios/client";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
-import { useDataSession } from "@/hooks/useDataSession";
 import { pathImage } from "@/utils/helper";
 import { devError } from "@/lib/devConsole";
 import { CategoryRequestForm, ResCategoryList } from "@/types/category";
@@ -29,7 +28,6 @@ const FormCategory = ({
   isLoading,
   setIsLoading,
 }: IProp) => {
-  const session = useDataSession();
   const category = openModal && typeof openModal === "object" ? openModal : null;
   const [iconObjectUrl, setIconObjectUrl] = useState<string | null>(null);
   const [bannerObjectUrl, setBannerObjectUrl] = useState<string | null>(null);
@@ -83,7 +81,6 @@ const FormCategory = ({
     client
       .patch(`/admin/update-category/${category._id}`, formData, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       })

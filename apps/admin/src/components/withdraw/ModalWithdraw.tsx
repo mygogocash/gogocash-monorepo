@@ -63,7 +63,6 @@ const ModalWithdraw = ({
     client
       .patch(`/admin/update-request-withdraw`, formData, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       })
@@ -132,10 +131,9 @@ const ModalWithdraw = ({
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pb-4">
           {/* MiniPay / manual-payout admin action. Renders only when the row is
             `withdraw_mode === "manual"` and `status === "pending"`. */}
-          {session?.accessToken ? (
+          {session?.user ? (
             <ManualWithdrawMarkPaid
               withdraw={openModal as unknown as WithdrawList}
-              token={session.accessToken}
               onMarkedPaid={() => {
                 setOpenModal(false);
                 fetchData();

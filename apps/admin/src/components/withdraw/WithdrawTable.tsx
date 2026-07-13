@@ -8,7 +8,6 @@ import {
   ResponseWithdraws,
   WithdrawQuery,
 } from "@/types/api";
-import { useDataSession } from "@/hooks/useDataSession";
 import ModalWithdraw from "./ModalWithdraw";
 import { useRouter } from "next/navigation";
 import CopyButton from "@/components/ui/CopyButton";
@@ -21,7 +20,6 @@ export interface WithdrawRequestForm {
 }
 
 export default function WithdrawTable() {
-  const session = useDataSession();
   const { loading, error, getWithdraws, clearError } = useApi();
   const [openModal, setOpenModal] = useState<DataWithdrawsList | boolean>(
     false,
@@ -83,10 +81,7 @@ export default function WithdrawTable() {
     const reqId = ++reqIdRef.current;
     try {
       const queryToUse = newQuery || query;
-      const response = await getWithdraws(
-        queryToUse,
-        session?.accessToken || "",
-      );
+      const response = await getWithdraws(queryToUse);
       if (reqId !== reqIdRef.current) return; // a newer request superseded this
       setLists(response);
       setPagination({

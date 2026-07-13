@@ -6,7 +6,6 @@ import Input from "../form/input/InputField";
 import client from "@/lib/axios/client";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
-import { useDataSession } from "@/hooks/useDataSession";
 import { usePermissions } from "@/hooks/usePermissions";
 import { pathImage } from "@/utils/helper";
 import { useObjectUrl } from "@/hooks/useObjectUrl";
@@ -45,7 +44,6 @@ const FormUpdate = ({
   headerDescription = "Edit homepage banner slot {slot}: upload an image, set the link and optional start/end dates. The banner is shown to users on the app homepage.",
   uploadImageHint = "Choose a banner image (e.g. PNG, JPG). Recommended size: 1920×1080 (16:9). Non-16:9 uploads are center-cropped to fill the hero frame.",
 }: IProp) => {
-  const session = useDataSession();
   const { can } = usePermissions();
   const canManageBanners = can("banner:manage");
 
@@ -148,7 +146,7 @@ const FormUpdate = ({
       await client.post(
         savePath,
         formData,
-        multipartPostConfig(session?.accessToken),
+        multipartPostConfig(),
       );
       await Promise.resolve(fetchData());
       setOpenModal(false);
