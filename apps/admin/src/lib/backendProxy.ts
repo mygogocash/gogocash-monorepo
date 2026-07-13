@@ -4,6 +4,9 @@
  * from the NextAuth JWT cookie and never trusts a client Authorization header.
  */
 
+/** Cap for buffered proxy bodies (banner/brand multipart). Reject before reading. */
+export const MAX_PROXY_BODY_BYTES = 32 * 1024 * 1024;
+
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
   "keep-alive",
@@ -48,6 +51,33 @@ export function filterOutgoingRequestHeaders(incoming: Headers): Headers {
     outgoing.set(key, value);
   });
   return outgoing;
+}
+
+/**
+ * Reject oversized bodies before / after buffering so the BFF cannot be used
+ * as an unbounded memory sink for multipart uploads.
+ */
+export function assertProxyBodyWithinLimit(
+  requestHeaders: Headers,
+  body: ArrayBuffer | null,
+): Response | null {
+  const contentLength = requestHeaders.get("content-length");
+  if (contentLength) {
+    const declared = Number(contentLength);
+    if (Number.isFinite(declared) && declared > MAX_PROXY_BODY_BYTES) {
+      return Response.json(
+        { message: "Request body too large" },
+        { status: 413 },
+      );
+    }
+  }
+  if (body && body.byteLength > MAX_PROXY_BODY_BYTES) {
+    return Response.json(
+      { message: "Request body too large" },
+      { status: 413 },
+    );
+  }
+  return null;
 }
 
 export type ProxyToBackendArgs = {

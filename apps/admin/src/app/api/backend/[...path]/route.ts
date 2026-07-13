@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import {
+  assertProxyBodyWithinLimit,
   proxyToBackend,
   resolveUpstreamBaseUrl,
 } from "@/lib/backendProxy";
@@ -21,6 +22,9 @@ async function handle(
     );
   }
 
+  const tooLargeBeforeRead = assertProxyBodyWithinLimit(request.headers, null);
+  if (tooLargeBeforeRead) return tooLargeBeforeRead;
+
   const token = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
@@ -37,6 +41,9 @@ async function handle(
   const method = request.method.toUpperCase();
   const body =
     method === "GET" || method === "HEAD" ? null : await request.arrayBuffer();
+
+  const tooLargeAfterRead = assertProxyBodyWithinLimit(request.headers, body);
+  if (tooLargeAfterRead) return tooLargeAfterRead;
 
   return proxyToBackend({
     method,

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  MAX_PROXY_BODY_BYTES,
+  assertProxyBodyWithinLimit,
   buildUpstreamUrl,
   filterOutgoingRequestHeaders,
   proxyToBackend,
@@ -103,6 +105,25 @@ describe("filterOutgoingRequestHeaders", () => {
       "multipart/form-data; boundary=abc",
     );
     expect(outgoing.get("Accept")).toBe("application/json");
+  });
+});
+
+describe("assertProxyBodyWithinLimit", () => {
+  it("given Content-Length over the cap > then returns 413", () => {
+    const headers = new Headers({ "content-length": String(MAX_PROXY_BODY_BYTES + 1) });
+    const rejected = assertProxyBodyWithinLimit(headers, null);
+    expect(rejected?.status).toBe(413);
+  });
+
+  it("given buffered body over the cap > then returns 413", () => {
+    const body = new ArrayBuffer(MAX_PROXY_BODY_BYTES + 1);
+    const rejected = assertProxyBodyWithinLimit(new Headers(), body);
+    expect(rejected?.status).toBe(413);
+  });
+
+  it("given body within the cap > then returns null", () => {
+    const body = new ArrayBuffer(16);
+    expect(assertProxyBodyWithinLimit(new Headers(), body)).toBeNull();
   });
 });
 
