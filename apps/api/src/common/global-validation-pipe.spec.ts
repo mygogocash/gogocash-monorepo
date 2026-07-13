@@ -8,7 +8,8 @@ import {
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { TelegramAuthDto } from '../auth/dto/auth.dto';
+import { TelegramAuthDto, FirebaseIdTokenDto } from '../auth/dto/auth.dto';
+import { DiscoverReorderDto } from '../admin/discover/discover.dto';
 import { CreateWithdrawDto } from '../withdraw/dto/create-withdraw.dto';
 import { GLOBAL_VALIDATION_PIPE_OPTIONS } from './validation-pipe.options';
 
@@ -29,6 +30,16 @@ class PipeTestController {
 
   @Post('telegram')
   telegram(@Body() dto: TelegramAuthDto) {
+    return { ok: true, dto };
+  }
+
+  @Post('firebase-token')
+  firebaseToken(@Body() dto: FirebaseIdTokenDto) {
+    return { ok: true, dto };
+  }
+
+  @Post('discover-reorder')
+  discoverReorder(@Body() dto: DiscoverReorderDto) {
     return { ok: true, dto };
   }
 }
@@ -101,4 +112,26 @@ describe('global ValidationPipe wiring (#46 whitelist)', () => {
       .post('/pipe-test/telegram')
       .send({ first_name: 'Ada' })
       .expect(400));
+
+  it('accepts FirebaseIdTokenDto and rejects unknown fields', async () => {
+    await request(app.getHttpServer())
+      .post('/pipe-test/firebase-token')
+      .send({ idToken: 'tok' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post('/pipe-test/firebase-token')
+      .send({ idToken: 'tok', evil: true })
+      .expect(400);
+  });
+
+  it('accepts DiscoverReorderDto and rejects empty order', async () => {
+    await request(app.getHttpServer())
+      .post('/pipe-test/discover-reorder')
+      .send({ order: ['a', 'b'] })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post('/pipe-test/discover-reorder')
+      .send({ order: [] })
+      .expect(400);
+  });
 });

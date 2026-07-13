@@ -1,6 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 
+/**
+ * Legacy create-offer body stub. Admin offer writes use UpdateOfferAdminDto /
+ * multipart routes instead. Empty class is intentional — under whitelist +
+ * forbidNonWhitelisted only `{}` is accepted (#46).
+ */
 export class CreateOfferDto {}
 
 export class GetMyOfferDto {

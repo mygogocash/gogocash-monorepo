@@ -172,6 +172,14 @@ export class TelegramAuthDto {
   country?: string;
 }
 
+/** POST /auth/firebase body — phone verification idToken after FirebaseAuthGuard. */
+export class FirebaseIdTokenDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  idToken: string;
+}
+
 /**
  * MiniPay SIWE (EIP-4361) sign-in payload. The client signs a message of the
  * standard SIWE shape inside MiniPay; the server verifies the signature
