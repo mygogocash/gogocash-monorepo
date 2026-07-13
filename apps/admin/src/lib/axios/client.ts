@@ -153,9 +153,13 @@ client.interceptors.response.use(
       );
     }
     if (error.request) {
-      throw new Error("No response from server");
+      throw new Error(
+        "Couldn't reach the server. Check your connection and try again.",
+      );
     }
-    throw new Error("An error occurred while setting up the request");
+    throw new Error(
+      "Something went wrong sending your request. Please try again.",
+    );
   },
 );
 

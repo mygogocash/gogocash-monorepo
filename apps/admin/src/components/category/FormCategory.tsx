@@ -93,7 +93,9 @@ const FormCategory = ({
       .catch((err) => {
         setIsLoading(false);
         devError("Failed to update category:", err);
-        toast.error("Category update failed");
+        toast.error(
+          "Couldn't update the category. Please try again, or contact an administrator if it continues.",
+        );
       });
   };
 

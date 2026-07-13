@@ -17,8 +17,16 @@ async function handle(
 ): Promise<Response> {
   const upstreamBase = resolveUpstreamBaseUrl();
   if (!upstreamBase) {
+    // Keep the real cause in the server logs for ops — the client only ever
+    // gets a generic message that never names env vars or internal config.
+    console.error(
+      "[api/backend] Upstream API base URL is not configured — set API_URL (or NEXT_PUBLIC_API_URL).",
+    );
     return Response.json(
-      { message: "Backend API URL is not configured" },
+      {
+        message:
+          "This service is temporarily unavailable. Please try again later, or contact an administrator if it continues.",
+      },
       { status: 503 },
     );
   }

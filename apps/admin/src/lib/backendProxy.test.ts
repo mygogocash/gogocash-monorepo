@@ -122,6 +122,17 @@ describe("assertProxyBodyWithinLimit", () => {
     expect(rejected?.status).toBe(413);
   });
 
+  it("given an oversized upload > then the message is plain, actionable, and names the size limit", async () => {
+    const headers = new Headers({
+      "content-length": String(MAX_PROXY_BODY_BYTES + 1),
+    });
+    const rejected = assertProxyBodyWithinLimit(headers, null);
+    expect(await rejected?.json()).toEqual({
+      message:
+        "The file you're uploading is too large. Please use a smaller file (under 32 MB).",
+    });
+  });
+
   it("given body within the cap > then returns null", () => {
     const body = new ArrayBuffer(16);
     expect(assertProxyBodyWithinLimit(new Headers(), body)).toBeNull();

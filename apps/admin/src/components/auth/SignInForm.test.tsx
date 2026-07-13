@@ -95,6 +95,43 @@ describe("SignInForm", () => {
     });
   });
 
+  it("given mock quick access fails > then shows a plain demo-unavailable message that never leaks env vars", async () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    authMock.signIn.mockResolvedValue({ error: "CredentialsSignin" });
+
+    render(<SignInForm />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /sign in with mock account/i }),
+    );
+
+    const message = await screen.findByText(
+      "Demo sign-in isn't available here. Please sign in with your email and password.",
+    );
+    expect(message).toBeTruthy();
+    expect(screen.queryByText(/ALLOW_MOCK_ADMIN_PASSWORD/)).toBeNull();
+    expect(screen.queryByText(/development/)).toBeNull();
+  });
+
+  it("given sign in throws > then shows a plain, actionable error message", async () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    authMock.signIn.mockRejectedValue(new Error("boom"));
+
+    render(<SignInForm />);
+
+    await userEvent.type(
+      screen.getByLabelText(/email \/ username/i),
+      "admin@gogocash.co",
+    );
+    await userEvent.type(screen.getByLabelText(/^password/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    const message = await screen.findByText(
+      "Something went wrong during sign in. Please try again.",
+    );
+    expect(message).toBeTruthy();
+  });
+
   it("given a real API is configured > then mock quick access is hidden", () => {
     process.env.NEXT_PUBLIC_API_URL = "https://api.gogocash.co";
 

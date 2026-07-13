@@ -273,7 +273,10 @@ export default function SearchConfigManagement() {
       void qc.invalidateQueries({ queryKey: ["admin", "search", key] });
       resetBuilder();
     },
-    onError: () => toast.error("Could not save rule"),
+    onError: () =>
+      toast.error(
+        "Couldn't save the search rule. Please try again, or contact an administrator if it continues.",
+      ),
   });
 
   if (ftQ.isLoading || brQ.isLoading || blQ.isLoading)
