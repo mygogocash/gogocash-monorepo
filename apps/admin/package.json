@@ -63,7 +63,7 @@
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "19.2.7",
-    "react-dropzone": "^15.0.0",
+    "react-dropzone": "^17.0.0",
     "react-hot-toast": "^2.6.0",
     "recharts": "^3.9.2",
     "swiper": "^14.0.1",
@@ -90,7 +90,7 @@
     "postcss": "^8.5.16",
     "prettier": "^3.9.4",
     "tailwindcss": "^4.3.2",
-    "typescript": "~6.0.3",
+    "typescript": "~7.0.2",
     "vitest": "^4.1.10"
   },
   "overrides": {
