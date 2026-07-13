@@ -18,6 +18,7 @@ const sendPhoneOtp = vi.fn();
 vi.mock("@mobile/auth/firebasePhoneAuth", () => ({
   sendPhoneOtp: (...args: unknown[]) => sendPhoneOtp(...args),
   confirmPhoneOtp: vi.fn(),
+  preloadInlineRecaptcha: vi.fn(),
 }));
 vi.mock("@mobile/auth/firebaseLogin", () => ({
   exchangeFirebaseIdToken: vi.fn(),

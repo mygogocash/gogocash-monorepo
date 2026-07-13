@@ -29,6 +29,9 @@ const confirmPhoneOtp = vi.fn();
 vi.mock("@mobile/auth/firebasePhoneAuth", () => ({
   sendPhoneOtp: (...args: unknown[]) => sendPhoneOtp(...args),
   confirmPhoneOtp: (...args: unknown[]) => confirmPhoneOtp(...args),
+  // The phone step preloads the inline reCAPTCHA widget on web; the render
+  // suite only needs the call to resolve, not a real verifier.
+  preloadInlineRecaptcha: vi.fn(),
 }));
 
 const exchangeFirebaseIdToken = vi.fn();
