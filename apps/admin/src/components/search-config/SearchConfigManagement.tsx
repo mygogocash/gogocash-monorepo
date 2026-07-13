@@ -18,8 +18,8 @@ import Input from "@/components/form/input/InputField";
 import Switch from "@/components/form/switch/Switch";
 import { TrashBinIcon } from "@/icons";
 import StatusTag from "@/components/ui/StatusTag";
-import { AdminQueryError } from "@/components/common/AdminQueryError";
 import { AdminTableSkeleton } from "@/components/common/AdminTableSkeleton";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { OFFER_THUMB_SIZES } from "@/components/offer/offerMedia";
 import { pathImage } from "@/utils/helper";
@@ -279,21 +279,39 @@ export default function SearchConfigManagement() {
   if (ftQ.isLoading || brQ.isLoading || blQ.isLoading)
     return <AdminTableSkeleton />;
 
-  if (ftQ.isError || brQ.isError || blQ.isError) {
-    return (
-      <AdminQueryError
-        title="Could not load search configuration"
-        onRetry={() => {
-          void ftQ.refetch();
-          void brQ.refetch();
-          void blQ.refetch();
-        }}
-      />
-    );
-  }
+  // #279: a failed load must not replace the whole page — surface the error
+  // in a banner and keep every settings section rendered and usable.
+  const firstError = ftQ.isError
+    ? ftQ.error
+    : brQ.isError
+      ? brQ.error
+      : blQ.isError
+        ? blQ.error
+        : null;
 
   return (
     <div className="space-y-6">
+      {firstError != null && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50/80 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200"
+        >
+          <span>
+            {getApiErrorMessage(firstError, "Could not load search configuration.")}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              void ftQ.refetch();
+              void brQ.refetch();
+              void blQ.refetch();
+            }}
+            className="rounded-lg border border-red-300 px-3 py-1 text-xs font-medium text-red-800 transition hover:bg-red-100 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-900/40"
+          >
+            Try again
+          </button>
+        </div>
+      )}
       {/* Rule builder — pick shops, save the selection, then choose how they
       appear in search and save again. */}
       <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">

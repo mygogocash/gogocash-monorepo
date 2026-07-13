@@ -85,7 +85,10 @@ describe('Admin money/sensitive controllers enforce roles', () => {
     expect(rolesOnClass(SubscriptionsController)).toContain('superadmin');
     expect(rolesOnClass(MembershipController)).toContain('superadmin');
     expect(rolesOnClass(DiscoverController)).toContain('support');
-    expect(rolesOnClass(SearchController)).toContain('support');
+    // SearchController deliberately has NO class-level tier since #279 —
+    // reads are viewer-open, writes are support-gated per route
+    // (pinned in search/search.controller.spec.ts).
+    expect(rolesOnClass(SearchController)).toEqual([]);
     expect(rolesOnClass(CommissionManagementController)).toContain('support');
   });
 });
