@@ -53,6 +53,7 @@ import { DesktopGoLinkBanner } from "./home/DesktopGoLinkBanner";
 import { homeGoLinkShopNowRoute, homeIconStrokeWidth, webSearchInputFocusReset } from "./home/homeAssets";
 import { HomeHeroBanners } from "./home/HomeHeroBanners";
 import { HomeSearchPopularPopover } from "./home/HomeSearchPopularPopover";
+import type { SearchAnchorFrame } from "./home/searchPopoverFrame";
 import { HomeScreenThemeProvider } from "./home/homeScreenHooks";
 import { MobileTabletHomeHeader } from "./home/MobileTabletHomeHeader";
 import { PromoSection } from "./home/PromoSection";
@@ -91,6 +92,7 @@ export function CustomerHomeScreen() {
   );
   const [searchPopoverOpen, setSearchPopoverOpen] = useState(false);
   const [searchPopoverMounted, setSearchPopoverMounted] = useState(false);
+  const [searchAnchorFrame, setSearchAnchorFrame] = useState<SearchAnchorFrame | null>(null);
   const [goLinkSheetOpen, setGoLinkSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const brandCatalogResource = useCustomerAccountResource({
@@ -201,6 +203,7 @@ export function CustomerHomeScreen() {
           <View style={styles.desktopShellFrame}>
             <CustomerDesktopHeader
               onSearchFocus={openSearchPopover}
+              onSearchFrameChange={setSearchAnchorFrame}
               onSearchQueryChange={setSearchQuery}
               searchQuery={searchQuery}
               viewportWidth={width}
@@ -240,6 +243,7 @@ export function CustomerHomeScreen() {
           </View>
           {searchPopoverMounted ? (
             <HomeSearchPopularPopover
+              anchor={searchAnchorFrame}
               horizontalPadding={homeLayout.contentHorizontalPadding}
               liveCards={liveCards}
               onClose={closeSearchPopover}
@@ -247,6 +251,7 @@ export function CustomerHomeScreen() {
               onSelectRecent={(term) => setSearchQuery(term)}
               query={searchQuery}
               top={searchPopoverTop}
+              viewportWidth={width}
               visible={searchPopoverOpen}
             />
           ) : null}
