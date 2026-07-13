@@ -131,6 +131,76 @@ describe("mapMerchantOfferToShopDetail", () => {
     expect(shop.trackingPeriod).toEqual(fixtureShop.trackingPeriod);
   });
 
+  it("given a three_step tracking_period with subtitles > then Tracking and Confirm carry them", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        tracking_period: {
+          tracking_days: 7,
+          confirm_days: 15,
+          flow_type: "three_step",
+          tracking_subtitle: "from the following month",
+          confirm_subtitle: "after validation",
+        },
+      },
+      fixtureShop,
+    );
+
+    expect(shop.trackingPeriod).toEqual([
+      { label: "Purchase", detail: "with GoGoCash", icon: "shopping" },
+      {
+        label: "Tracking",
+        detail: "within 7 day",
+        icon: "check",
+        subtitle: "from the following month",
+      },
+      {
+        label: "Confirm",
+        detail: "within 15 day",
+        icon: "bank",
+        subtitle: "after validation",
+      },
+    ]);
+  });
+
+  it("given a two_step tracking_period > then the strip collapses to Purchase + a combined Tracking and confirm step", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        tracking_period: {
+          tracking_days: 7,
+          confirm_days: 45,
+          flow_type: "two_step",
+          tracking_subtitle: "from the following month",
+          confirm_subtitle: "once the store approves",
+        },
+      },
+      fixtureShop,
+    );
+
+    expect(shop.trackingPeriod).toEqual([
+      { label: "Purchase", detail: "with GoGoCash", icon: "shopping" },
+      {
+        label: "Tracking and confirm",
+        detail: "within 45 day",
+        icon: "bank",
+        subtitle: "once the store approves",
+      },
+    ]);
+  });
+
+  it("given a tracking_period without flow_type (older API) > then it renders as three_step without subtitle lines", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      { ...liveOffer, tracking_period: { tracking_days: 7, confirm_days: 15 } },
+      fixtureShop,
+    );
+
+    expect(shop.trackingPeriod).toHaveLength(3);
+    expect(
+      shop.trackingPeriod.every((step) => step.subtitle === undefined),
+    ).toBe(true);
+  });
+
   it("buildTrackingPeriodSteps > given zero, negative, or non-integer days > then it returns null", () => {
     expect(buildTrackingPeriodSteps(undefined)).toBeNull();
     expect(buildTrackingPeriodSteps({ tracking_days: 0, confirm_days: 30 })).toBeNull();

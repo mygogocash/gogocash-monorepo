@@ -5,6 +5,7 @@ import {
   toSendErrorKind,
   type SendErrorKind,
 } from "@mobile/auth/authSendErrorKind";
+import { RECAPTCHA_INLINE_CONTAINER_ID } from "@mobile/auth/recaptchaSlot";
 import { emailAuthErrorCopy, type EmailAuthErrorKind } from "@mobile/auth/emailAuthErrorKind";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { Check, ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
@@ -114,7 +115,7 @@ function formatOtpCountdown(totalSeconds: number) {
 
 export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const styles = useThemedStyles(createAuthScreenStyles);
-  const { colors } = useTheme();
+  const { colors, resolved } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { callbackUrl: callbackUrlParam } = useLocalSearchParams<{ callbackUrl?: string | string[] }>();
@@ -270,6 +271,19 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     setSendError(null);
     setPhoneLocal(nextValue.replace(/\D/g, "").slice(0, 10));
   };
+
+  // Render the visible captcha checkbox as soon as the phone step mounts so
+  // users see it inside the card (the invisible badge used to float clipped at
+  // the viewport corner — and showed Google's domain error there, unreadable).
+  useEffect(() => {
+    if (!liveAuth || authPhase !== "phone" || Platform.OS !== "web") {
+      return;
+    }
+    void (async () => {
+      const { preloadInlineRecaptcha } = await import("@mobile/auth/firebasePhoneAuth");
+      await preloadInlineRecaptcha({ theme: resolved === "dark" ? "dark" : "light" });
+    })();
+  }, [liveAuth, authPhase, resolved]);
 
   const handlePhoneSubmit = () => {
     if (!canSubmitPhone) {
@@ -874,6 +888,10 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                     </View>
 
                     {privacyConsentRow}
+
+                    {liveAuth && Platform.OS === "web" ? (
+                      <View nativeID={RECAPTCHA_INLINE_CONTAINER_ID} style={styles.recaptchaSlot} />
+                    ) : null}
 
                     <MotionPressable
                       accessibilityRole="button"
@@ -1782,6 +1800,10 @@ function createAuthScreenStyles(colors: ThemeColors) {
   },
   phoneInputFocused: {
     borderColor: "#00CC99",
+  },
+  recaptchaSlot: {
+    alignItems: "center",
+    width: "100%",
   },
   privacyWrap: {
     alignItems: "center",

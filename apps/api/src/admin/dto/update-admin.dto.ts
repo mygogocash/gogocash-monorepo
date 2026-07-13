@@ -157,6 +157,24 @@ export class UpdateOfferAdminDto {
   @IsOptional()
   confirm_days?: number | string;
 
+  @ApiProperty({ required: false, enum: ['three_step', 'two_step'] })
+  @IsIn(['three_step', 'two_step'])
+  @IsOptional()
+  flow_type?: 'three_step' | 'two_step';
+
+  /** Editable step captions; empty string clears back to the default copy. */
+  @ApiProperty({ required: false })
+  @IsString()
+  @MaxLength(200)
+  @IsOptional()
+  tracking_subtitle?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @MaxLength(200)
+  @IsOptional()
+  confirm_subtitle?: string;
+
   @ApiProperty({ required: false })
   @IsString()
   @MaxLength(64)
@@ -360,4 +378,37 @@ export class GetConversionInWithdrawDto {
   @ArrayNotEmpty()
   @IsNumber({}, { each: true })
   data: number[];
+}
+
+export class CreateCategoryNameDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+}
+
+/**
+ * Body for POST /admin/create-category. The admin UI's `fetcherPost` tuple
+ * quirk nests the JSON payload under `data` (`{ data: { name } }`); a flat
+ * `{ name }` body is accepted too.
+ */
+export class CreateCategoryDto {
+  @ApiProperty({ required: false, type: CreateCategoryNameDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreateCategoryNameDto)
+  data?: CreateCategoryNameDto;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+}
+
+/** Body fields for PATCH /admin/update-category/:id (JSON or multipart). */
+export class UpdateCategoryBodyDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
 }

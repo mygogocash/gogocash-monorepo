@@ -23,6 +23,10 @@ describe("Thai locale sweep — catalog coverage", () => {
       "within 30 day",
       "within",
       "day",
+      // Issue #273: default step subtitles + combined 2-step label.
+      "from the following month",
+      "after validation",
+      "Tracking and confirm",
       "10% Cashback Bonus",
       "No deals available right now",
       "Please favorite us to stay updated on great deals",

@@ -8,6 +8,7 @@ import {
   proxyToBackend,
   resolveAdminApiBaseURL,
   resolveUpstreamBaseUrl,
+  sessionExpiredResponse,
 } from "./backendProxy";
 
 describe("resolveUpstreamBaseUrl", () => {
@@ -127,12 +128,25 @@ describe("assertProxyBodyWithinLimit", () => {
   });
 });
 
+describe("sessionExpiredResponse", () => {
+  // The BFF answers missing/expired NextAuth sessions itself (no upstream
+  // call); the axios client keys its sign-in redirect off this 401.
+  it("given a missing session > then returns 401 with the session-expired message", async () => {
+    const response = sessionExpiredResponse();
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({
+      message: "Session expired. Please sign in again.",
+    });
+  });
+});
+
 describe("proxyToBackend", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("given no access token > then returns 401 and does not call upstream", async () => {
+  it("given no access token > then returns the session-expired 401 and does not call upstream", async () => {
     const fetchImpl = vi.fn();
 
     const response = await proxyToBackend({
@@ -147,7 +161,9 @@ describe("proxyToBackend", () => {
     });
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({ message: "Unauthorized" });
+    expect(await response.json()).toEqual({
+      message: "Session expired. Please sign in again.",
+    });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 

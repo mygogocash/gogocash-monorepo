@@ -16,6 +16,17 @@ describe("commissionFieldsFromPartnerRaw", () => {
     expect(commissionFieldsFromPartnerRaw(0)).toBeNull();
     expect(commissionFieldsFromPartnerRaw(NaN)).toBeNull();
   });
+
+  it("given an explicit fee percent > then nets with that fee instead of 30", () => {
+    expect(commissionFieldsFromPartnerRaw(10, 20)).toEqual({
+      commissionRaw: "10",
+      commission_store: 8,
+    });
+    expect(commissionFieldsFromPartnerRaw(10, 0)).toEqual({
+      commissionRaw: "10",
+      commission_store: 10,
+    });
+  });
 });
 
 describe("bestPartnerRawFromCommissions", () => {

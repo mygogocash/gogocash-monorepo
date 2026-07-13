@@ -1,4 +1,4 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import {
   ProductTypeDto,
@@ -39,6 +39,15 @@ import {
   requireOneOf,
   requireTrimmedString,
 } from 'src/common/mongo-query';
+
+/** Mongo unique-index violation (e.g. duplicate category name). */
+function isMongoDuplicateKeyError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { code?: unknown }).code === 11000
+  );
+}
 
 @Injectable()
 export class AdminService {
@@ -422,6 +431,9 @@ export class AdminService {
       tracking_period_mode?: 'auto' | 'manual';
       tracking_days?: number;
       confirm_days?: number;
+      flow_type?: 'three_step' | 'two_step';
+      tracking_subtitle?: string;
+      confirm_subtitle?: string;
       policy_category_id?: string;
       custom_terms?: string;
       note_to_user?: string;
@@ -525,6 +537,15 @@ export class AdminService {
           ...(updateData.confirm_days !== undefined
             ? { confirm_days: updateData.confirm_days }
             : {}),
+          ...(updateData.flow_type !== undefined
+            ? { flow_type: updateData.flow_type }
+            : {}),
+          ...(updateData.tracking_subtitle !== undefined
+            ? { tracking_subtitle: updateData.tracking_subtitle }
+            : {}),
+          ...(updateData.confirm_subtitle !== undefined
+            ? { confirm_subtitle: updateData.confirm_subtitle }
+            : {}),
           ...(updateData.policy_category_id !== undefined
             ? { policy_category_id: updateData.policy_category_id }
             : {}),
@@ -540,9 +561,32 @@ export class AdminService {
       .exec();
   }
 
+  /**
+   * Create a policy category. `name` is unique at the schema level; the Mongo
+   * duplicate-key error is translated into a 400 the admin UI can toast
+   * verbatim. Returns the bare created document (the UI reads `_id`/`name`).
+   */
+  async createCategory(name: string) {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (!trimmed) {
+      throw new BadRequestException('name is required');
+    }
+    try {
+      return await this.categoryModel.create({ name: trimmed });
+    } catch (error) {
+      if (isMongoDuplicateKeyError(error)) {
+        throw new BadRequestException(
+          `A category named "${trimmed}" already exists`,
+        );
+      }
+      throw error;
+    }
+  }
+
   async updateCategory(
     id: string,
     updateData: {
+      name?: string;
       image?: Express.Multer.File;
     },
   ) {
@@ -558,16 +602,26 @@ export class AdminService {
         data.image,
       );
     }
-    return this.categoryModel
-      .findByIdAndUpdate(
-        requireObjectId(id),
-        {
-          ...updateData,
-          image: file1 ?? data.image,
-        },
-        { new: true },
-      )
-      .exec();
+    try {
+      return await this.categoryModel
+        .findByIdAndUpdate(
+          requireObjectId(id),
+          {
+            // Absent key = no change: image-only saves must never touch the name.
+            ...(updateData.name !== undefined ? { name: updateData.name } : {}),
+            image: file1 ?? data.image,
+          },
+          { new: true },
+        )
+        .exec();
+    } catch (error) {
+      if (isMongoDuplicateKeyError(error)) {
+        throw new BadRequestException(
+          `A category named "${updateData.name}" already exists`,
+        );
+      }
+      throw error;
+    }
   }
 
   async updateUser(id: string, mobile: string) {

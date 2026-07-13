@@ -425,5 +425,8 @@
   "mobileSearchSuggestionsSubtitle": "Tap a brand to search its cashback deals.",
   "mobileSearchRecentHeading": "Recent searches",
   "mobileSearchClearAll": "Clear all",
-  "mobileSearchClearRecentA11y": "Clear recent searches"
+  "mobileSearchClearRecentA11y": "Clear recent searches",
+  "mobileTrackingSubtitleFollowingMonth": "from the following month",
+  "mobileTrackingSubtitleAfterValidation": "after validation",
+  "mobileTrackingStepTrackingAndConfirm": "Tracking and confirm"
 }

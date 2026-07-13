@@ -13,6 +13,7 @@ import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { PencilIcon } from "@/icons";
 import CategoryIcon from "./CategoryIcon";
 import { isDirty } from "@/lib/isDirty";
+import { createCategoryErrorMessage } from "@/lib/createCategoryError";
 import toast from "react-hot-toast";
 import {
   DEFAULT_POLICY_TEMPLATES,
@@ -559,7 +560,7 @@ export default function PolicyTable() {
     setCreatingSave(true);
     try {
       const created = (await fetcherPost([
-        "/offer/create-category",
+        "/admin/create-category",
         { data: { name: "New category" } },
       ])) as ResCategoryList;
       await queryClient.invalidateQueries({
@@ -569,15 +570,7 @@ export default function PolicyTable() {
       setNameDraft(created.name);
       setEditingName(true);
     } catch (err: unknown) {
-      const message =
-        err &&
-        typeof err === "object" &&
-        "data" in err &&
-        typeof (err as { data?: { message?: string } }).data?.message ===
-          "string"
-          ? (err as { data: { message: string } }).data.message
-          : "Failed to create category.";
-      toast.error(message);
+      toast.error(createCategoryErrorMessage(err));
     } finally {
       setCreatingSave(false);
       creatingRef.current = false;
