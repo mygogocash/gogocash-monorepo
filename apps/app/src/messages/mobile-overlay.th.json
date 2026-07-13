@@ -415,5 +415,8 @@
   "mobileRegionTaiwan": "ไต้หวัน",
   "mobileRegionJapan": "ญี่ปุ่น",
   "mobileRegionChina": "จีน",
-  "mobileRegionSoutheastAsia": "เอเชียตะวันออกเฉียงใต้"
+  "mobileRegionSoutheastAsia": "เอเชียตะวันออกเฉียงใต้",
+  "mobileGoLinkChecking": "กำลังตรวจสอบร้านค้า…",
+  "mobileGoLinkUnsupportedStore": "GoGoLink ยังไม่รองรับร้านค้านี้",
+  "mobileGoLinkRealRateNote": "อัตราเงินคืนที่แสดงคืออัตราสูงสุดปัจจุบันของร้านค้า การอนุมัติขั้นสุดท้ายขึ้นอยู่กับร้านค้าและเงื่อนไขของข้อเสนอ"
 }

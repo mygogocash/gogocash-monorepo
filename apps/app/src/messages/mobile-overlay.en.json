@@ -415,5 +415,8 @@
   "mobileRegionTaiwan": "Taiwan",
   "mobileRegionJapan": "Japan",
   "mobileRegionChina": "China",
-  "mobileRegionSoutheastAsia": "Southeast Asia"
+  "mobileRegionSoutheastAsia": "Southeast Asia",
+  "mobileGoLinkChecking": "Checking store…",
+  "mobileGoLinkUnsupportedStore": "This store isn't supported by GoGoLink yet.",
+  "mobileGoLinkRealRateNote": "Cashback rate shown is the store's current maximum. Final approval depends on the store and offer terms."
 }
