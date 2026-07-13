@@ -83,15 +83,32 @@ export class R2ObjectStorageService {
       process.env.MEDIA_UPLOAD_DISABLED?.trim() === 'true' ||
       process.env.GCS_MEDIA_UPLOAD_DISABLED?.trim() === 'true'
     ) {
+      // Keep the operational reason in server logs; clients get generic copy.
+      this.logger.warn(
+        'Media upload blocked: MEDIA_UPLOAD_DISABLED/GCS_MEDIA_UPLOAD_DISABLED is set to "true".',
+      );
       throw new HttpException(
-        'Media uploads are disabled (MEDIA_UPLOAD_DISABLED=true).',
+        'Media uploads are currently disabled. Please try again later or contact an administrator.',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
     if (!this.isConfigured()) {
+      // Log exactly which vars are missing so ops keeps diagnosability without
+      // leaking configuration names to API clients.
+      const missing = [
+        ['R2_BUCKET', this.getBucketName()],
+        ['R2_ENDPOINT', this.getEndpoint()],
+        ['R2_PUBLIC_BASE_URL', this.getPublicBaseUrl()],
+        ['R2_ACCESS_KEY_ID', process.env.R2_ACCESS_KEY_ID?.trim()],
+        ['R2_SECRET_ACCESS_KEY', process.env.R2_SECRET_ACCESS_KEY?.trim()],
+      ]
+        .filter(([, value]) => !value)
+        .map(([name]) => name);
+      this.logger.error(
+        `R2 media storage is not configured (missing: ${missing.join(', ')}).`,
+      );
       throw new HttpException(
-        'R2 media storage is not configured (set R2_BUCKET, R2_ENDPOINT, ' +
-          'R2_PUBLIC_BASE_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).',
+        'Media storage is temporarily unavailable. Please try again later or contact support.',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
@@ -133,8 +150,9 @@ export class R2ObjectStorageService {
     const buffer = await this.readUploadBuffer(file);
     const maxBytes = resolveMaxUploadBytes();
     if (buffer.length > maxBytes) {
+      const maxMb = Math.floor(maxBytes / (1024 * 1024));
       throw new HttpException(
-        `Upload exceeds maximum size of ${maxBytes} bytes`,
+        `This file is too large. Please upload a file under ${maxMb} MB.`,
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -165,8 +183,10 @@ export class R2ObjectStorageService {
       this.logger.error(
         `R2 upload failed folder=${folder} ms=${Date.now() - startedAt}: ${message}`,
       );
+      // Raw upstream error (`message`) is already captured by this.logger.error
+      // above; clients only get generic, actionable copy.
       throw new HttpException(
-        `Media upload failed (${message}). Check the R2_* configuration.`,
+        "We couldn't upload your file right now. Please try again in a moment or contact support if it keeps happening.",
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
@@ -205,8 +225,10 @@ export class R2ObjectStorageService {
       this.logger.error(
         `R2 uploadBuffer failed key=${objectKey} ms=${Date.now() - startedAt}: ${message}`,
       );
+      // Raw upstream error (`message`) is already captured by this.logger.error
+      // above; clients only get generic, actionable copy.
       throw new HttpException(
-        `Media upload failed (${message}). Check the R2_* configuration.`,
+        "We couldn't upload your file right now. Please try again in a moment or contact support if it keeps happening.",
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }

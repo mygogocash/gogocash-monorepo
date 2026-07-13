@@ -10,7 +10,7 @@ import {
 export class CrossmintAuthGuard implements CanActivate {
   canActivate(_context: ExecutionContext): boolean {
     throw new UnauthorizedException(
-      'Crossmint sign-in is disabled. Use /auth/log-in (Firebase) or /auth/minipay-siwe instead.',
+      'This sign-in method is no longer available. Please sign in with your usual method.',
     );
   }
 }

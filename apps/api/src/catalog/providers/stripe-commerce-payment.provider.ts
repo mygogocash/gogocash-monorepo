@@ -1,4 +1,8 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import Stripe from 'stripe';
 
 import {
@@ -10,6 +14,7 @@ import {
 
 @Injectable()
 export class StripeCommercePaymentProvider implements CommercePaymentProvider {
+  private readonly logger = new Logger(StripeCommercePaymentProvider.name);
   private stripe?: Stripe;
 
   async createCheckoutSession(
@@ -43,8 +48,11 @@ export class StripeCommercePaymentProvider implements CommercePaymentProvider {
     );
 
     if (!session.url) {
+      this.logger.error(
+        'Commerce checkout session returned no redirect URL from the payment provider.',
+      );
       throw new ServiceUnavailableException(
-        'Stripe checkout session did not return a checkout URL',
+        'Payments are temporarily unavailable. Please try again later or contact support.',
       );
     }
 
@@ -91,8 +99,11 @@ export class StripeCommercePaymentProvider implements CommercePaymentProvider {
     if (!this.stripe) {
       const apiKey = process.env.STRIPE_SECRET_KEY;
       if (!apiKey) {
+        this.logger.error(
+          'Commerce payments are not configured (missing STRIPE_SECRET_KEY).',
+        );
         throw new ServiceUnavailableException(
-          'Stripe commerce is not configured',
+          'Payments are temporarily unavailable. Please try again later or contact support.',
         );
       }
       this.stripe = new Stripe(apiKey, { apiVersion: '2026-06-24.dahlia' });

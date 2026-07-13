@@ -88,7 +88,7 @@ export class AuthController {
 
     if (!token) {
       throw new UnauthorizedException(
-        'Firebase token is required in Authorization header or body',
+        'Your session is missing. Please sign in again.',
       );
     }
 
@@ -131,7 +131,7 @@ export class AuthController {
 
     if (!token) {
       throw new UnauthorizedException(
-        'Firebase token is required in Authorization header or body',
+        'Your session is missing. Please sign in again.',
       );
     }
 

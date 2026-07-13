@@ -62,7 +62,8 @@ export class InvolveService {
       ).response;
       throw new HttpException(
         {
-          message: 'GoGoTrack affiliate network sign-in failed.',
+          message:
+            "We couldn't complete your request right now. Please try again in a moment or contact support if it keeps happening.",
           code: GOGOSENSE_UPSTREAM_AUTH_FAILED,
           upstreamStatusCode: response?.data?.status_code ?? response?.status,
         },
