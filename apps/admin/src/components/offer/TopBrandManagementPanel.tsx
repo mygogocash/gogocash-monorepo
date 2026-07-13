@@ -376,18 +376,20 @@ export default function TopBrandManagementPanel() {
     );
   }
 
-  if (isError) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-red-50/80 p-6 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
-        {error instanceof Error ? error.message : "Failed to load top brands."}
-      </div>
-    );
-  }
-
   const staleIds = localOrder.filter((id) => !offerById.has(id));
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
+      {/* #278: a failed load must not blank the whole panel — surface the
+          error and keep the picker + order list interactive. */}
+      {isError ? (
+        <div
+          role="alert"
+          className="mb-4 rounded-lg border border-red-200 bg-red-50/80 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200"
+        >
+          {getApiErrorMessage(error, "Could not load top brands.")}
+        </div>
+      ) : null}
       <div className="max-w-3xl space-y-2">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
           Homepage top brands

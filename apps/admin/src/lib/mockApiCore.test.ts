@@ -34,6 +34,26 @@ describe("pagination clamping", () => {
   });
 });
 
+describe("policy category create (mock parity with POST /admin/create-category)", () => {
+  it("creates a category from the fetcherPost tuple body shape", async () => {
+    const res = await call("POST", ["admin", "create-category"], {
+      body: { data: { name: "  New category  " } },
+    });
+    expect(res.status).toBe(200);
+    const body = res.body as { _id: string; name: string };
+    expect(body._id).toBeTruthy();
+    expect(body.name).toBe("New category");
+  });
+
+  it("rejects a missing name with 400", async () => {
+    const res = await call("POST", ["admin", "create-category"], {
+      body: { data: {} },
+    });
+    expect(res.status).toBe(400);
+    expect((res.body as { message: string }).message).toBe("name is required");
+  });
+});
+
 describe("banner slot updates", () => {
   it("persists only edited slot fields while preserving other slots", async () => {
     const baseline = await call("GET", ["admin", "banner-home"]);

@@ -4,6 +4,7 @@ import {
   assertProxyBodyWithinLimit,
   proxyToBackend,
   resolveUpstreamBaseUrl,
+  sessionExpiredResponse,
 } from "@/lib/backendProxy";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,11 @@ async function handle(
     token && typeof (token as { accessToken?: unknown }).accessToken === "string"
       ? (token as { accessToken: string }).accessToken
       : null;
+  // No session (or a session without a Nest JWT): answer here — never read the
+  // body or touch the upstream on behalf of an unauthenticated browser.
+  if (!accessToken || !accessToken.trim()) {
+    return sessionExpiredResponse();
+  }
 
   const { path } = await context.params;
   const pathSegments = Array.isArray(path) ? path : [];

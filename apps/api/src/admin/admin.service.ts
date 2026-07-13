@@ -1,4 +1,4 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import {
   ProductTypeDto,
@@ -39,6 +39,15 @@ import {
   requireOneOf,
   requireTrimmedString,
 } from 'src/common/mongo-query';
+
+/** Mongo unique-index violation (e.g. duplicate category name). */
+function isMongoDuplicateKeyError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { code?: unknown }).code === 11000
+  );
+}
 
 @Injectable()
 export class AdminService {
@@ -540,9 +549,32 @@ export class AdminService {
       .exec();
   }
 
+  /**
+   * Create a policy category. `name` is unique at the schema level; the Mongo
+   * duplicate-key error is translated into a 400 the admin UI can toast
+   * verbatim. Returns the bare created document (the UI reads `_id`/`name`).
+   */
+  async createCategory(name: string) {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (!trimmed) {
+      throw new BadRequestException('name is required');
+    }
+    try {
+      return await this.categoryModel.create({ name: trimmed });
+    } catch (error) {
+      if (isMongoDuplicateKeyError(error)) {
+        throw new BadRequestException(
+          `A category named "${trimmed}" already exists`,
+        );
+      }
+      throw error;
+    }
+  }
+
   async updateCategory(
     id: string,
     updateData: {
+      name?: string;
       image?: Express.Multer.File;
     },
   ) {
@@ -558,16 +590,26 @@ export class AdminService {
         data.image,
       );
     }
-    return this.categoryModel
-      .findByIdAndUpdate(
-        requireObjectId(id),
-        {
-          ...updateData,
-          image: file1 ?? data.image,
-        },
-        { new: true },
-      )
-      .exec();
+    try {
+      return await this.categoryModel
+        .findByIdAndUpdate(
+          requireObjectId(id),
+          {
+            // Absent key = no change: image-only saves must never touch the name.
+            ...(updateData.name !== undefined ? { name: updateData.name } : {}),
+            image: file1 ?? data.image,
+          },
+          { new: true },
+        )
+        .exec();
+    } catch (error) {
+      if (isMongoDuplicateKeyError(error)) {
+        throw new BadRequestException(
+          `A category named "${updateData.name}" already exists`,
+        );
+      }
+      throw error;
+    }
   }
 
   async updateUser(id: string, mobile: string) {

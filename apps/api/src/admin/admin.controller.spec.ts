@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { Request } from 'express';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -48,6 +49,7 @@ describe('AdminController', () => {
       updateOffer: stub(),
       approveOffer: stub(),
       rejectOffer: stub(),
+      createCategory: stub(),
       updateCategory: stub(),
       updateUser: stub(),
       getMyCashBackUser: stub(),
@@ -593,12 +595,40 @@ describe('AdminController', () => {
     });
   });
 
+  // ─── Category create + rename ───────────────────────────────────────────
+
+  describe('createCategory', () => {
+    // The admin UI's fetcherPost tuple quirk wraps the JSON body as
+    // `{ data: { name } }`; a plain `{ name }` body must work too.
+    it('createCategory > given the axios tuple body shape { data: { name } } > then it forwards the trimmed name', () => {
+      const result = controller.createCategory({
+        data: { name: '  Fashion  ' },
+      } as never);
+
+      expect(adminService.createCategory).toHaveBeenCalledWith('Fashion');
+      expect(result).toBe(RETURN);
+    });
+
+    it('createCategory > given a flat { name } body > then it forwards the trimmed name', () => {
+      controller.createCategory({ name: ' Travel ' } as never);
+
+      expect(adminService.createCategory).toHaveBeenCalledWith('Travel');
+    });
+
+    it('createCategory > given no name in either shape > then it rejects with 400 before hitting the service', () => {
+      expect(() => controller.createCategory({} as never)).toThrow(
+        BadRequestException,
+      );
+      expect(adminService.createCategory).not.toHaveBeenCalled();
+    });
+  });
+
   // ─── Category + banner multipart unwrapping ─────────────────────────────
 
   describe('updateCategory', () => {
     it('updateCategory > given an uploaded image array > then it unwraps the first file', () => {
       const image = { originalname: 'cat.png' } as Express.Multer.File;
-      controller.updateCategory('cat-1', { image: [image] });
+      controller.updateCategory('cat-1', {} as never, { image: [image] });
 
       expect(adminService.updateCategory).toHaveBeenCalledWith('cat-1', {
         image,
@@ -606,11 +636,38 @@ describe('AdminController', () => {
     });
 
     it('updateCategory > given no image > then image is null', () => {
-      controller.updateCategory('cat-1', {});
+      controller.updateCategory('cat-1', {} as never, {});
 
       expect(adminService.updateCategory).toHaveBeenCalledWith('cat-1', {
         image: null,
       });
+    });
+
+    // The rename bug: PolicyTable PATCHes `{ name }` as JSON, but the
+    // controller used to ignore the body entirely, silently dropping renames.
+    it('updateCategory > given a JSON body with name > then it forwards the trimmed name', () => {
+      controller.updateCategory('cat-1', { name: '  Electronics  ' }, {});
+
+      expect(adminService.updateCategory).toHaveBeenCalledWith('cat-1', {
+        name: 'Electronics',
+        image: null,
+      });
+    });
+
+    it('updateCategory > given an image-only payload > then name stays undefined (no accidental rename)', () => {
+      const image = { originalname: 'cat.png' } as Express.Multer.File;
+      controller.updateCategory('cat-1', {} as never, { image: [image] });
+
+      const arg = adminService.updateCategory.mock.calls[0][1];
+      expect(arg.name).toBeUndefined();
+    });
+
+    it('updateCategory > given the multipart "undefined" sentinel or blank name > then name stays undefined', () => {
+      controller.updateCategory('cat-1', { name: 'undefined' }, {});
+      controller.updateCategory('cat-2', { name: '   ' }, {});
+
+      expect(adminService.updateCategory.mock.calls[0][1].name).toBeUndefined();
+      expect(adminService.updateCategory.mock.calls[1][1].name).toBeUndefined();
     });
   });
 

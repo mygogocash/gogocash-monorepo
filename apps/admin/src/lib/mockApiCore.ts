@@ -1057,7 +1057,8 @@ async function handleMockPOST(
   joined: string,
   body: unknown,
 ): Promise<MockApiResult> {
-  if (joined === "offer/create-category") {
+  // Mirrors POST /admin/create-category (PolicyTable's "New category" flow).
+  if (joined === "admin/create-category") {
     const b = body as { data?: { name?: string }; name?: string } | null;
     const name = (b?.data?.name ?? b?.name ?? "").trim();
     if (!name) return jsonErr(400, { message: "name is required" });
