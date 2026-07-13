@@ -86,7 +86,7 @@
     "babel-preset-expo": "~57.0.0",
     "happy-dom": "^20.9.0",
     "react-test-renderer": "19.2.7",
-    "typescript": "~7.0.2",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.9"
   },
   "expo": {
