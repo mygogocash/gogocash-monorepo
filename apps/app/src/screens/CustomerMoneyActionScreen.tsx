@@ -78,7 +78,9 @@ export function evaluateWithdraw(
     return { ok: false, error: "Please enter a valid withdrawal amount." };
   }
   if (amount < min) {
-    return { ok: false, error: `Minimum withdrawal is ${min.toFixed(2)} THB.` };
+    // Return a parameterized template (not a pre-interpolated string) so tc() can reverse-resolve it
+    // to Thai; the render site substitutes {min} with the formatted floor AFTER translation.
+    return { ok: false, error: "Minimum withdrawal is {min} THB." };
   }
   if (amount > balance) {
     return { ok: false, error: "Insufficient available balance." };
@@ -424,7 +426,9 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       if (decision.error) {
         // Error buzz on a rejected attempt (invalid amount / insufficient / no method).
         haptics.error();
-        setErrors([tc(decision.error)]);
+        // Interpolate the {min} placeholder AFTER translation so the localized copy shows the real
+        // floor; a no-op for errors without the placeholder.
+        setErrors([tc(decision.error).replace("{min}", formatThb(MIN_WITHDRAW))]);
       }
       return;
     }

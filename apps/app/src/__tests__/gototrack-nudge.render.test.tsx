@@ -12,6 +12,7 @@ vi.mock("@mobile/gototrack/useGoGoTrackApi", () => ({
   useGoGoTrackApi: () => useGoGoTrackApiMock(),
 }));
 
+import { ApiError } from "@mobile/api/client";
 import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 import type { GoGoTrackDetector } from "@mobile/gototrack/detector";
 import { GoGoTrackDetectionBanner } from "@mobile/gototrack/GoGoTrackDetectionBanner";
@@ -303,6 +304,42 @@ describe("GoGoTrackDetectionBanner activation failures", () => {
     expect(api.activate).toHaveBeenCalledTimes(2);
     expect(openUrl).toHaveBeenCalledWith("https://track.gogocash.co/retry");
     expect(screen.queryByText(toastErrorMessages.cashbackActivationFailed)).toBeNull();
+  });
+
+  it("matched detection > given activation rejects with an ApiError > shows the localized copy, never the raw upstream text", async () => {
+    // Regression: the catch block rendered `error.message` verbatim, so an upstream failure like
+    // "Request failed with status 500" leaked into the on-screen banner. It must show the already-
+    // localized activation-failure copy instead — never the raw status string.
+    const rawUpstream = "Request failed with status 500";
+    const activate = vi.fn().mockRejectedValue(new ApiError(rawUpstream, 500));
+    const api: GoGoTrackHookApi = {
+      detect: vi.fn(async () => ({
+        matched: true,
+        merchantId: "shopee",
+        merchantName: "Shopee",
+        offerId: 101,
+        networkMerchantId: 201,
+        recommendedAction: "activate" as const,
+      })),
+      activate,
+    };
+
+    render(
+      createElement(GoGoTrackDetectionBanner, {
+        api,
+        detector: detector("com.shopee.th"),
+        openUrl: vi.fn(),
+      })
+    );
+
+    await act(async () => {});
+    const button = await screen.findByText("Activate cashback");
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(await screen.findByText(toastErrorMessages.cashbackActivationFailed)).toBeTruthy();
+    expect(screen.queryByText(rawUpstream)).toBeNull();
   });
 
   it("activation in flight > ignores rapid duplicate taps until the request settles", async () => {
