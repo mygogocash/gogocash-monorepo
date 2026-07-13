@@ -1051,12 +1051,13 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                   )}
                 </View>
 
-                {!isDesktopShell ? (
-                  <Link asChild href={mode === "register" ? "/login" : "/register"}>
+                {/* "Create new account" is disabled for launch (founder,
+                    2026-07-12): only the register screen keeps its back-link
+                    to login. Email signup inside the email phase stays. */}
+                {!isDesktopShell && mode === "register" ? (
+                  <Link asChild href="/login">
                     <Pressable style={styles.modeLink}>
-                      <Text style={styles.modeLinkText}>
-                        {mode === "register" ? "Already have an account" : "Create new account"}
-                      </Text>
+                      <Text style={styles.modeLinkText}>Already have an account</Text>
                     </Pressable>
                   </Link>
                 ) : null}

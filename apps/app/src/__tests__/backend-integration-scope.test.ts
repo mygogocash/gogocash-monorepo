@@ -18,10 +18,12 @@ describe("backendIntegrationScope", () => {
     );
   });
 
-  it("resolveAuthSocialProviders > backend > omits Connect Wallet and Telegram", () => {
+  it("resolveAuthSocialProviders > backend > keeps only the launch providers (Facebook, Google)", () => {
+    // Founder (2026-07-12): disable Apple, X, and Microsoft for launch.
+    // Wallet/Telegram were already excluded on the same mechanism.
     expect(
       resolveAuthSocialProviders(webAuthPage.socialProviders, "backend").map((p) => p.id),
-    ).toEqual(["facebook", "google", "apple", "x", "microsoft"]);
+    ).toEqual(["facebook", "google"]);
   });
 
   it("resolveAuthSocialProviders > fixtures > keeps Connect Wallet for parity UI", () => {

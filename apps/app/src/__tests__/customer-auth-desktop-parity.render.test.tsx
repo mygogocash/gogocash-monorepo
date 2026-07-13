@@ -25,12 +25,12 @@ function renderAuth(mode: "login" | "register", withToast = false) {
 }
 
 describe("CustomerAuthScreen — login/register link and social stubs", () => {
-  it("given login mode > then shows the Create new account link on all breakpoints", () => {
+  it("given login mode > then hides the Create new account link (founder: disabled for launch)", () => {
     renderAuth("login");
-    expect(screen.getByText("Create new account")).toBeTruthy();
+    expect(screen.queryByText("Create new account")).toBeNull();
   });
 
-  it("given register mode > then shows the Already have an account link on all breakpoints", () => {
+  it("given register mode > then still shows the Already have an account link back to login", () => {
     renderAuth("register");
     expect(screen.getByText("Already have an account")).toBeTruthy();
   });
