@@ -42,10 +42,15 @@ export type CompactBrandCardContent = {
 };
 
 export type BrandCardProps =
-  | (TopBrandCard & {
+  // Coupon label + logo are optional: promo-section cards carry neither, and
+  // the L branch already renders a tinted fallback tile / hides the chip.
+  | (Omit<TopBrandCard, "label" | "logoUri" | "showGrabCoupon"> & {
       readonly size: "L";
       readonly cardHeight: number;
       readonly cardWidth: number;
+      readonly label?: string;
+      readonly logoUri?: string;
+      readonly showGrabCoupon?: boolean;
       readonly accessibilityLabel?: string;
       readonly onPress?: () => void;
       readonly testID?: string;
@@ -132,7 +137,7 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
             sourceKey={logoSourceKey}
             tint={tint}
           >
-            {props.showGrabCoupon ? (
+            {props.showGrabCoupon && props.label ? (
               <View style={styles.couponChip}>
                 <Text style={styles.couponIcon}>🧧</Text>
                 <Text numberOfLines={1} style={styles.couponText}>
