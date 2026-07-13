@@ -94,6 +94,30 @@ describe("offerToEditForm", () => {
     expect(fromPublicDetail.confirm_subtitle).toBe("once the store approves");
   });
 
+  it("seeds default-equal subtitles from the derived object as null, so an unrelated save cannot pin the live default into storage", () => {
+    // PR #282 review (MEDIUM): the public-detail resolver ALWAYS returns
+    // subtitle strings — for never-customized offers they equal the live
+    // defaults. Seeding those literals into the form meant any tracking-period
+    // save persisted the default text verbatim, decoupling the offer from
+    // future default-copy changes. Default-equal captions must seed as null
+    // (saved as an explicit clear, which resolves to the live default).
+    const neverCustomized = offerToEditForm({
+      _id: "offer-8",
+      offer_name: "Untouched Brand",
+      product_types: [],
+      tracking_period: {
+        tracking_days: 30,
+        confirm_days: 60,
+        source: "partner",
+        flow_type: "three_step",
+        tracking_subtitle: "from the following month",
+        confirm_subtitle: "after validation",
+      },
+    } as unknown as Offer);
+    expect(neverCustomized.tracking_subtitle).toBeNull();
+    expect(neverCustomized.confirm_subtitle).toBeNull();
+  });
+
   it("reconstructs a manual config from the derived tracking_period when raw fields are stripped (public detail route)", () => {
     // /brands/[id] loads offers via the PUBLIC GET /offer/:id, which strips
     // tracking_period_mode/tracking_days/confirm_days and attaches the derived

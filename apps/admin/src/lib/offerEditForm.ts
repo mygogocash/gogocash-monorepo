@@ -6,6 +6,10 @@ import {
 } from "@/types/api";
 import { resolveDeeplinkStoreId } from "@/data/deeplinkStores";
 import { resolveAffiliateNetworkIdForOffer } from "@/data/affiliateNetworks";
+import {
+  DEFAULT_CONFIRM_SUBTITLE,
+  DEFAULT_TRACKING_SUBTITLE,
+} from "@/lib/offerTrackingPeriod";
 
 export function emptyOfferRequestForm(): OfferRequestForm {
   return {
@@ -143,7 +147,21 @@ function seedFlowFields(source: {
 } {
   return {
     flow_type: source.flow_type === "two_step" ? "two_step" : "three_step",
-    tracking_subtitle: source.tracking_subtitle ?? null,
-    confirm_subtitle: source.confirm_subtitle ?? null,
+    // The public-detail resolver always returns subtitle strings — for
+    // never-customized offers they equal the live defaults. Seed those as
+    // null so saving the section stores an explicit clear (which resolves to
+    // the live default) instead of pinning today's default copy verbatim.
+    tracking_subtitle: seedSubtitle(source.tracking_subtitle, DEFAULT_TRACKING_SUBTITLE),
+    confirm_subtitle: seedSubtitle(source.confirm_subtitle, DEFAULT_CONFIRM_SUBTITLE),
   };
+}
+
+function seedSubtitle(
+  value: string | null | undefined,
+  liveDefault: string,
+): string | null {
+  if (!value || value === liveDefault) {
+    return null;
+  }
+  return value;
 }
