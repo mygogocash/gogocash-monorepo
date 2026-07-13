@@ -71,4 +71,11 @@ describe("auth failure copy (issues #250/#236)", () => {
       authSendErrorMessages.rateLimit,
     );
   });
+
+  it("client cooldown after rate-limit gates further OTP sends for 5 minutes", async () => {
+    const { OTP_RATE_LIMIT_COOLDOWN_SECONDS, nextOtpSendCooldownSeconds } = await import(
+      "@mobile/auth/otpSendCooldown"
+    );
+    expect(nextOtpSendCooldownSeconds("rate-limit", 0)).toBe(OTP_RATE_LIMIT_COOLDOWN_SECONDS);
+  });
 });

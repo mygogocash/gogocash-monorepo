@@ -38,20 +38,16 @@ export function PromoSection({
   const colors = useHomeScreenColors();
   const tc = useCopy();
   const sectionCards = getPromoSectionCards(id, cards);
-  // Founder feedback 2026-07-11: mobile rails snapped by a whole 8-column
-  // group and a 4-card section hid half its cards behind a swipe. Mobile now
-  // has two modes — "grid" (few cards: all visible, no swiping) and "scroll"
-  // (free momentum, no snap). Desktop keeps the web-parity "pager".
+  // Issue #253: Travel / Beauty / Trending use the same size="L" Top Brands card
+  // (full-bleed artwork + favorite heart). Layout metrics follow topBrand*.
   const layoutMode = getPromoSectionLayoutMode(homeLayout.isDesktop, sectionCards.length);
   const isPager = layoutMode === "pager";
   const sectionPageSize = getPromoSectionPageSize(homeLayout);
   const promoPages = chunkCompactBrandCards(sectionCards, sectionPageSize);
-  // Scroll mode flows column-major (rows per column) so the rail is one
-  // continuous grid with no page seams or trailing dead space.
-  const promoColumns = chunkCompactBrandCards(sectionCards, homeLayout.compactBrandRowsPerPage);
+  const promoColumns = chunkCompactBrandCards(sectionCards, homeLayout.topBrandRowsPerPage);
   const gridCardWidth = getPromoGridCardWidth(
     homeLayout.brandSectionFrameWidth,
-    homeLayout.compactBrandGap
+    homeLayout.topBrandGap
   );
   const sectionDotCount = homeLayout.isDesktop
     ? promoPages.length
@@ -60,6 +56,8 @@ export function PromoSection({
   const promoMaxPageIndex = Math.max(0, promoPages.length - 1);
   const activePromoDot = Math.min(activePromoPage, sectionDotCount - 1);
   const promoScrollX = useMemo(() => new Animated.Value(0), []);
+  const pageWidth = homeLayout.topBrandGroupWidth;
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -71,105 +69,104 @@ export function PromoSection({
         </View>
         <Link asChild href={link as never}>
           <MotionPressable pressScale={motion.scale.subtlePress}>
-            {/* Only the words go through tc — the arrow suffix breaks the catalog match. */}
             <Text style={styles.sectionAction}>{`${tc("View all")}  →`}</Text>
           </MotionPressable>
         </Link>
       </View>
       <View style={styles.promoSectionBody}>
         {layoutMode === "grid" ? (
-          <View
-            style={[styles.compactBrandGrid, { gap: homeLayout.compactBrandGap, width: "100%" }]}
-          >
+          <View style={[styles.brandGrid, { gap: homeLayout.topBrandGap, width: "100%" }]}>
             {sectionCards.map((card) => (
               <BrandCard
-                cardHeight={homeLayout.compactBrandCardHeight}
+                cardHeight={homeLayout.topBrandCardHeight}
                 cardWidth={gridCardWidth}
-                logoVisualHeight={homeLayout.compactBrandLogoVisualHeight}
                 key={`${title}-${card.brand}`}
-                {...card}
-                // Issue #253 (partial): favorite heart matches Top Brands; full-bleed
-                // size="L" deferred — conflicts with compact rail layout metrics.
-                showFavoriteHeart
-                size="S"
+                brand={card.brand}
+                cashback={card.cashback}
+                href={card.href}
+                logoUri={card.logoUri}
+                size="L"
+                tint={card.tint}
               />
             ))}
           </View>
         ) : (
-        <View
-          style={{ height: homeLayout.compactBrandGridHeight, overflow: "hidden", width: "100%" }}
-        >
-        <Animated.ScrollView
-          contentContainerStyle={[
-            styles.promoPagerContent,
-            isPager ? null : { gap: homeLayout.compactBrandGap },
-          ]}
-          decelerationRate={isPager ? "fast" : "normal"}
-          disableIntervalMomentum={isPager}
-          horizontal
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { x: promoScrollX } } }],
-            { useNativeDriver: motion.useNativeDriver }
-          )}
-          onMomentumScrollEnd={(event) =>
-            setActivePromoPage(
-              getPagedScrollIndex(event, homeLayout.compactBrandGroupWidth, promoMaxPageIndex)
-            )
-          }
-          pagingEnabled={isPager}
-          scrollEventThrottle={16}
-          showsHorizontalScrollIndicator={false}
-          snapToAlignment="start"
-          snapToInterval={isPager ? homeLayout.compactBrandGroupWidth : undefined}
-          style={[styles.promoScroll, { height: homeLayout.compactBrandGridHeight }]}
-        >
-          {isPager
-            ? promoPages.map((pageCards, pageIndex) => (
-                <Animated.View
-                  key={`${title}-promo-page-${pageIndex}`}
-                  style={[
-                    styles.promoPage,
-                    styles.compactBrandGrid,
-                    {
-                      gap: homeLayout.compactBrandGap,
-                      height: homeLayout.compactBrandGridHeight,
-                      width: homeLayout.compactBrandGroupWidth,
-                    },
-                  ]}
-                >
-                  {pageCards.map((card) => (
-                    <BrandCard
-                      cardHeight={homeLayout.compactBrandCardHeight}
-                      cardWidth={homeLayout.compactBrandCardWidth}
-                      logoVisualHeight={homeLayout.compactBrandLogoVisualHeight}
-                      key={`${title}-${card.brand}`}
-                      {...card}
-                      showFavoriteHeart
-                      size="S"
-                    />
+          <View
+            style={{ height: homeLayout.topBrandGridHeight, overflow: "hidden", width: "100%" }}
+          >
+            <Animated.ScrollView
+              contentContainerStyle={[
+                styles.promoPagerContent,
+                isPager ? null : { gap: homeLayout.topBrandGap },
+              ]}
+              decelerationRate={isPager ? "fast" : "normal"}
+              disableIntervalMomentum={isPager}
+              horizontal
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { x: promoScrollX } } }],
+                { useNativeDriver: motion.useNativeDriver }
+              )}
+              onMomentumScrollEnd={(event) =>
+                setActivePromoPage(getPagedScrollIndex(event, pageWidth, promoMaxPageIndex))
+              }
+              pagingEnabled={isPager}
+              scrollEventThrottle={16}
+              showsHorizontalScrollIndicator={false}
+              snapToAlignment="start"
+              snapToInterval={isPager ? pageWidth : undefined}
+              style={[styles.promoScroll, { height: homeLayout.topBrandGridHeight }]}
+            >
+              {isPager
+                ? promoPages.map((pageCards, pageIndex) => (
+                    <Animated.View
+                      key={`${title}-promo-page-${pageIndex}`}
+                      style={[
+                        styles.promoPage,
+                        styles.brandGrid,
+                        {
+                          gap: homeLayout.topBrandGap,
+                          height: homeLayout.topBrandGridHeight,
+                          width: pageWidth,
+                        },
+                      ]}
+                    >
+                      {pageCards.map((card) => (
+                        <BrandCard
+                          cardHeight={homeLayout.topBrandCardHeight}
+                          cardWidth={homeLayout.topBrandCardWidth}
+                          key={`${title}-${card.brand}`}
+                          brand={card.brand}
+                          cashback={card.cashback}
+                          href={card.href}
+                          logoUri={card.logoUri}
+                          size="L"
+                          tint={card.tint}
+                        />
+                      ))}
+                    </Animated.View>
+                  ))
+                : promoColumns.map((columnCards, columnIndex) => (
+                    <View
+                      key={`${title}-promo-column-${columnIndex}`}
+                      style={{ gap: homeLayout.topBrandGap }}
+                    >
+                      {columnCards.map((card) => (
+                        <BrandCard
+                          cardHeight={homeLayout.topBrandCardHeight}
+                          cardWidth={homeLayout.topBrandCardWidth}
+                          key={`${title}-${card.brand}`}
+                          brand={card.brand}
+                          cashback={card.cashback}
+                          href={card.href}
+                          logoUri={card.logoUri}
+                          size="L"
+                          tint={card.tint}
+                        />
+                      ))}
+                    </View>
                   ))}
-                </Animated.View>
-              ))
-            : promoColumns.map((columnCards, columnIndex) => (
-                <View
-                  key={`${title}-promo-column-${columnIndex}`}
-                  style={{ gap: homeLayout.compactBrandGap }}
-                >
-                  {columnCards.map((card) => (
-                    <BrandCard
-                      cardHeight={homeLayout.compactBrandCardHeight}
-                      cardWidth={homeLayout.compactBrandCardWidth}
-                      logoVisualHeight={homeLayout.compactBrandLogoVisualHeight}
-                      key={`${title}-${card.brand}`}
-                      {...card}
-                      showFavoriteHeart
-                      size="S"
-                    />
-                  ))}
-                </View>
-              ))}
-        </Animated.ScrollView>
-        </View>
+            </Animated.ScrollView>
+          </View>
         )}
         {isPager && sectionDotCount > 1 ? (
           <CarouselDots
@@ -177,7 +174,7 @@ export function PromoSection({
             color={colors.primary}
             containerStyle={styles.promoSectionDots}
             count={sectionDotCount}
-            pageWidth={homeLayout.compactBrandGroupWidth}
+            pageWidth={pageWidth}
             scrollX={promoScrollX}
             size={12}
           />

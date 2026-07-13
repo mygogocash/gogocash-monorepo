@@ -45,6 +45,10 @@ import {
   useGoLinkResolution,
   type GoLinkResolutionState,
 } from "@mobile/features/useGoLinkResolution";
+import {
+  hasGoLinkProductPreview,
+  type GoLinkProductPreview,
+} from "@mobile/api/golinkPreview";
 import { getMobileEnv } from "@mobile/config/env";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { buildLoginRedirectWithCallback } from "@mobile/auth/routeGuard";
@@ -192,10 +196,11 @@ export function CustomerGoLinkScreen({
   const env = getMobileEnv();
   const { isAuthed } = useAuthGuardSession();
   const session = useMobileSessionSnapshot();
-  const { live: liveGoLink, match: goLinkMatch } = useGoLinkResolution(
-    goLinkResultOpen,
-    goLinkResultHref,
-  );
+  const {
+    live: liveGoLink,
+    match: goLinkMatch,
+    productPreview: goLinkProductPreview,
+  } = useGoLinkResolution(goLinkResultOpen, goLinkResultHref);
 
   const openGoLinkTrackedUrl = (offer: GoLinkOfferLike, pastedUrl: string) =>
     openGoLinkTracked(offer, pastedUrl, {
@@ -420,6 +425,7 @@ export function CustomerGoLinkScreen({
             }
             void openGoLinkTrackedUrl(offer, pastedUrl);
           }}
+          productPreview={goLinkProductPreview}
         />
       ) : null}
     </View>
@@ -511,6 +517,7 @@ export function GoLinkResultDialog({
   match,
   onClose,
   onShopNow,
+  productPreview,
 }: {
   href: string;
   /**
@@ -522,6 +529,8 @@ export function GoLinkResultDialog({
   match: GoLinkResolutionState;
   onClose: () => void;
   onShopNow: () => void;
+  /** Live OG fields from POST /golink/preview — empty when unavailable. */
+  productPreview: GoLinkProductPreview;
 }) {
   const styles = useThemedStyles(createGoLinkScreenStyles);
   const { colors } = useTheme();
@@ -533,6 +542,18 @@ export function GoLinkResultDialog({
         width: BRAND_LOGO_IMAGE_WIDTH,
       })
     : undefined;
+  const showProductPreview = Boolean(matchedOffer && hasGoLinkProductPreview(productPreview));
+  const productTitle =
+    (showProductPreview && productPreview.title?.trim()) ||
+    matchedOffer?.offer_name_display?.trim() ||
+    matchedOffer?.offer_name ||
+    "";
+  const productImageUri =
+    showProductPreview && productPreview.imageUrl?.trim()
+      ? productPreview.imageUrl.trim()
+      : undefined;
+  const productPriceLabel =
+    showProductPreview && productPreview.price?.trim() ? productPreview.price.trim() : null;
   const showShopActions = !live || matchedOffer !== null;
   const [termsPanelOpen, setTermsPanelOpen] = useState(false);
   const { contentTranslateY, isClosing, overlayOpacity, runExitAnimation } =
@@ -598,7 +619,15 @@ export function GoLinkResultDialog({
             {matchedOffer ? (
               <>
                 <View style={styles.resultProductWrap}>
-                  {merchantLogoUri ? (
+                  {productImageUri ? (
+                    <Image
+                      alt={productTitle}
+                      accessibilityIgnoresInvertColors
+                      resizeMode="cover"
+                      source={{ uri: productImageUri }}
+                      style={styles.resultProductImage}
+                    />
+                  ) : merchantLogoUri ? (
                     <Image
                       alt={matchedOffer.offer_name_display ?? matchedOffer.offer_name ?? ""}
                       accessibilityIgnoresInvertColors
@@ -607,11 +636,18 @@ export function GoLinkResultDialog({
                       style={styles.resultMerchantLogo}
                     />
                   ) : null}
+                  {productImageUri && merchantLogoUri ? (
+                    <Image
+                      alt={matchedOffer.offer_name_display ?? matchedOffer.offer_name ?? ""}
+                      accessibilityIgnoresInvertColors
+                      resizeMode="contain"
+                      source={{ uri: merchantLogoUri }}
+                      style={styles.resultShopBadge}
+                    />
+                  ) : null}
                 </View>
                 <View style={styles.resultDetails}>
-                  <Text style={styles.resultTitle}>
-                    {matchedOffer.offer_name_display?.trim() || matchedOffer.offer_name}
-                  </Text>
+                  <Text style={styles.resultTitle}>{productTitle}</Text>
                   {sourceHost ? (
                     <Text numberOfLines={1} style={styles.resultHost}>
                       {tc("Link from")} {sourceHost}
@@ -620,6 +656,11 @@ export function GoLinkResultDialog({
                   <Text numberOfLines={1} style={styles.resultHost}>
                     {href}
                   </Text>
+                  {productPriceLabel ? (
+                    <View style={styles.resultPriceRow}>
+                      <Text style={styles.resultPriceAmount}>{productPriceLabel}</Text>
+                    </View>
+                  ) : null}
                 </View>
               </>
             ) : null}
