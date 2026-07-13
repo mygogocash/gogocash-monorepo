@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { usePublicCatalogPullToRefresh } from "@mobile/account/usePublicCatalogPullToRefresh";
+import { rankPopularLiveBrandTerms } from "@mobile/account/searchSuggestionResource";
 import { useFeaturedSearchTerms } from "@mobile/account/useFeaturedSearch";
 import { useOfferSearch } from "@mobile/account/useOfferSearch";
 import { getResponsiveHomeLayoutMetrics, webHomePromoSections } from "@mobile/design/webDesignParity";
@@ -48,7 +49,6 @@ export function CustomerSearchScreen() {
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
-  const suggestionTerms = useFeaturedSearchTerms();
   const brandCatalogResource = useCustomerAccountResource({
     fixtureData: webHomePromoSections,
     resourceId: "brandCatalog",
@@ -60,6 +60,12 @@ export function CustomerSearchScreen() {
     () => resolveLiveBrandCards(brandCatalogResource.source, brandCatalogResource.data, [], region),
     [brandCatalogResource.source, brandCatalogResource.data, region],
   );
+  // Same fallback chain as the home popover: curated featured terms -> live
+  // brand catalog ranked by cashback -> fixtures last resort. Staging's
+  // featured endpoint is empty, so without this the trending chips and the
+  // suggestions grid rendered fixture demo brands (issue #248).
+  const liveFallbackTerms = useMemo(() => rankPopularLiveBrandTerms(liveCards), [liveCards]);
+  const suggestionTerms = useFeaturedSearchTerms(liveFallbackTerms);
   const columnCount = homeLayout.contentWidth >= 768 ? 3 : 2;
   const trimmedQuery = normalizeSearchQuery(query);
   const hasQuery = trimmedQuery.length > 0;

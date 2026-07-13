@@ -1,5 +1,10 @@
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import { sendErrorCopy, toSendErrorKind, type SendErrorKind } from "@mobile/auth/authSendErrorKind";
+import {
+  isOtpCodeError,
+  sendErrorCopy,
+  toSendErrorKind,
+  type SendErrorKind,
+} from "@mobile/auth/authSendErrorKind";
 import { emailAuthErrorCopy, type EmailAuthErrorKind } from "@mobile/auth/emailAuthErrorKind";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { Check, ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
@@ -27,7 +32,7 @@ import { CustomerDesktopHeader } from "@mobile/components/CustomerDesktopHeader"
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { ToastContext } from "@mobile/hooks/useToast";
-import { authSendErrorMessages } from "@mobile/i18n/toastMessages";
+import { authSendErrorMessages, toastErrorMessages } from "@mobile/i18n/toastMessages";
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import { haptics } from "@mobile/lib/haptics";
 import { markIntroModalPending } from "@mobile/features/introModal/introModalSession";
@@ -117,7 +122,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   // of easing. MotionPressable already handles its own press-feedback reduction.
   const reducedMotion = useReducedMotion();
   const [authPhase, setAuthPhase] = useState<AuthPhase>("phone");
-  const [otpError, setOtpError] = useState(false);
+  const [otpFailure, setOtpFailure] = useState<"code" | "system" | null>(null);
   const [sendError, setSendError] = useState<SendErrorKind | null>(null);
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
@@ -273,7 +278,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           );
           setAuthPhase("otp");
           setOtpInput("");
-          setOtpError(false);
+          setOtpFailure(null);
           setResendSecondsRemaining(otpResendDurationSeconds);
         } catch (error) {
           // Send failed (invalid number, rate limit, unsupported platform):
@@ -288,14 +293,14 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
 
     setAuthPhase("otp");
     setOtpInput("");
-    setOtpError(false);
+    setOtpFailure(null);
     setResendSecondsRemaining(otpResendDurationSeconds);
   };
 
   const handleChangePhone = () => {
     setAuthPhase("phone");
     setOtpInput("");
-    setOtpError(false);
+    setOtpFailure(null);
     setResendSecondsRemaining(otpResendDurationSeconds);
   };
 
@@ -326,42 +331,51 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     }
 
     setOtpInput(nextDigits);
-    setOtpError(isInvalidFullCode);
+    setOtpFailure(isInvalidFullCode ? "code" : null);
   };
 
   const handleOtpSubmit = () => {
     if (liveAuth) {
       if (otpInput.length !== 6) {
-        setOtpError(true);
+        setOtpFailure("code");
         haptics.error();
         return;
       }
+      // Issue #250: track which step fails so a backend/exchange failure is
+      // never presented as a wrong code (a correct OTP was once rejected as
+      // "incorrect" with no way to diagnose why).
+      let step: "confirm" | "exchange" | "persist" = "confirm";
       void (async () => {
         try {
           const confirmation = confirmationRef.current;
           if (!confirmation) {
             // No in-flight confirmation (e.g. page reloaded on the OTP step) —
-            // the code cannot be verified; surface the error state.
-            setOtpError(true);
+            // the code cannot be verified; surface the system failure state.
+            setOtpFailure("system");
             haptics.error();
             return;
           }
           const { confirmPhoneOtp } = await import("@mobile/auth/firebasePhoneAuth");
           const { exchangeFirebaseIdToken } = await import("@mobile/auth/firebaseLogin");
           const { idToken } = await confirmPhoneOtp(confirmation, otpInput);
+          step = "exchange";
           const session = await exchangeFirebaseIdToken({
             apiUrl: getMobileEnv().apiUrl,
             country: selectedCountry.code,
             idToken,
           });
+          step = "persist";
           haptics.success();
           markIntroModalPending();
           await persistMobileSession(session);
           router.replace(postLoginPath as never);
-        } catch {
-          // Wrong/expired code or a failed backend exchange: no session is
-          // written, no navigation happens — surface the error on the OTP step.
-          setOtpError(true);
+        } catch (error) {
+          // No session is written, no navigation happens. Record the failing
+          // step (token/phone fields are redacted by the telemetry client) and
+          // only blame the entered code when Firebase actually rejected it.
+          const { captureHandledException } = await import("@mobile/observability/client");
+          captureHandledException(error, { feature: "phone-otp-login", step });
+          setOtpFailure(step === "confirm" && isOtpCodeError(error) ? "code" : "system");
           haptics.error();
         }
       })();
@@ -369,7 +383,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     }
 
     const isValid = otpInput.length === 6 && otpInput === "123456";
-    setOtpError(!isValid);
+    setOtpFailure(isValid ? null : "code");
     if (isValid) {
       // Success haptic on a verified sign-in, then mirror the web post-login flow:
       // queue the first-visit intro modal (shown when home mounts), persist the session
@@ -385,7 +399,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
         } catch {
           // A failed session write must not silently land the user on a "signed-in"
           // destination — surface the error and keep them on the OTP step.
-          setOtpError(true);
+          setOtpFailure("system");
           haptics.error();
         }
       })();
@@ -936,13 +950,17 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       <Text style={styles.changePhoneText}>{tc(webAuthPage.otp.changeNumber)}</Text>
                     </MotionPressable>
                     <PhoneOtpBoxes
-                      hasError={otpError}
+                      hasError={otpFailure !== null}
                       onChangeText={handleOtpChange}
                       value={otpInput}
                     />
-                    {otpError ? (
+                    {otpFailure ? (
                       <Text accessibilityRole="alert" style={styles.otpError}>
-                        {tc(webAuthPage.otp.errorAria)}
+                        {tc(
+                          otpFailure === "code"
+                            ? webAuthPage.otp.errorAria
+                            : toastErrorMessages.signInFailed
+                        )}
                       </Text>
                     ) : null}
                     <View style={styles.resendRow}>
@@ -960,7 +978,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                                   toPhoneE164(selectedCountry.dialCode, phoneDigits)
                                 );
                                 setOtpInput("");
-                                setOtpError(false);
+                                setOtpFailure(null);
                                 setResendSecondsRemaining(otpResendDurationSeconds);
                               } catch {
                                 // Resend failed — keep the current countdown/state and
@@ -971,7 +989,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                             return;
                           }
                           setOtpInput("");
-                          setOtpError(false);
+                          setOtpFailure(null);
                           setResendSecondsRemaining(otpResendDurationSeconds);
                         }}
                         pressScale={motion.scale.subtlePress}
