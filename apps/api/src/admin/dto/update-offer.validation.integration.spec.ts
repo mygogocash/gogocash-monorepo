@@ -86,4 +86,50 @@ describe('UpdateOfferAdminDto validation (integration)', () => {
       }),
     );
   });
+
+  it('given tracking-period multipart fields > then accepts manual mode with day counts arriving as strings', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/offer-test/update-offer/offer-1')
+      .field('tracking_period_mode', 'manual')
+      .field('tracking_days', '21')
+      .field('confirm_days', '45');
+
+    expect(response.status).toBe(200);
+    expect(response.body.body.tracking_period_mode).toBe('manual');
+    expect(response.body.body.tracking_days).toBe('21');
+    expect(response.body.body.confirm_days).toBe('45');
+  });
+
+  it('given tracking_period_mode=weekly > then validation rejects with 400', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/offer-test/update-offer/offer-1')
+      .field('tracking_period_mode', 'weekly');
+
+    expect(response.status).toBe(400);
+  });
+
+  it('given terms-and-conditions multipart fields > then policy/custom terms/note pass validation', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/offer-test/update-offer/offer-1')
+      .field('policy_category_id', '68345f00aa11bb22cc33dd99')
+      .field('custom_terms', '1. Custom term\n2. No stacking')
+      .field('note_to_user', 'Flash sale this week only.');
+
+    expect(response.status).toBe(200);
+    expect(response.body.body.policy_category_id).toBe(
+      '68345f00aa11bb22cc33dd99',
+    );
+    expect(response.body.body.custom_terms).toBe(
+      '1. Custom term\n2. No stacking',
+    );
+    expect(response.body.body.note_to_user).toBe('Flash sale this week only.');
+  });
+
+  it('given an oversized note_to_user > then validation rejects with 400 (stored-DoS guard)', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/offer-test/update-offer/offer-1')
+      .field('note_to_user', 'x'.repeat(2_001));
+
+    expect(response.status).toBe(400);
+  });
 });

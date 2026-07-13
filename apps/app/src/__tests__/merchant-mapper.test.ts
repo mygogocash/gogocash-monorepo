@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { isMerchantOfferResponse } from "../api/merchantTypes";
-import { mapMerchantOfferToShopDetail } from "../api/merchantMapper";
+import {
+  buildTrackingPeriodSteps,
+  mapMerchantOfferToShopDetail,
+} from "../api/merchantMapper";
 
 vi.mock("@mobile/config/env", () => ({
   getMobileEnv: () => ({
@@ -20,6 +23,11 @@ const fixtureShop = {
   note: "fixture merchant campaign note",
   shopNowLabel: "Shop Now",
   disclaimer: "static legal copy",
+  trackingPeriod: [
+    { label: "Purchase", detail: "with GoGoCash", icon: "shopping" },
+    { label: "Tracking", detail: "within 30 day", icon: "check" },
+    { label: "Confirm", detail: "within 30 day", icon: "bank" },
+  ],
 } as const;
 
 // Shape verified against the live staging detail response (2026-06-12):
@@ -95,6 +103,33 @@ describe("mapMerchantOfferToShopDetail", () => {
     expect(shop.disclaimer).toContain("Lazada TH");
     expect(shop.disclaimer).not.toBe("static legal copy");
     expect(shop.shopNowLabel).toBe("Shop Now");
+  });
+
+  it("given tracking_period with tracking 7 and confirm 15 > then steps read within N day with fixture labels and icons", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      { ...liveOffer, tracking_period: { tracking_days: 7, confirm_days: 15 } },
+      fixtureShop,
+    );
+
+    expect(shop.trackingPeriod).toEqual([
+      { label: "Purchase", detail: "with GoGoCash", icon: "shopping" },
+      { label: "Tracking", detail: "within 7 day", icon: "check" },
+      { label: "Confirm", detail: "within 15 day", icon: "bank" },
+    ]);
+  });
+
+  it("given no tracking_period field (older API) > then fixture steps pass through unchanged", () => {
+    const shop = mapMerchantOfferToShopDetail(liveOffer, fixtureShop);
+
+    expect(shop.trackingPeriod).toEqual(fixtureShop.trackingPeriod);
+  });
+
+  it("buildTrackingPeriodSteps > given zero, negative, or non-integer days > then it returns null", () => {
+    expect(buildTrackingPeriodSteps(undefined)).toBeNull();
+    expect(buildTrackingPeriodSteps({ tracking_days: 0, confirm_days: 30 })).toBeNull();
+    expect(buildTrackingPeriodSteps({ tracking_days: 30, confirm_days: -1 })).toBeNull();
+    expect(buildTrackingPeriodSteps({ tracking_days: 2.5, confirm_days: 30 })).toBeNull();
+    expect(buildTrackingPeriodSteps({ tracking_days: 30 })).toBeNull();
   });
 
   it("given missing commission info > then does not leak fixture cashback onto the live merchant", () => {

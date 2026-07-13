@@ -546,6 +546,19 @@ export interface Offer {
   tracking_link: string;
   tracking_type: string;
   validation_terms: number;
+  /** Cashback tracking-period config ('auto' derives from validation_terms). */
+  tracking_period_mode?: "auto" | "manual";
+  tracking_days?: number | null;
+  confirm_days?: number | null;
+  /**
+   * API-derived windows (public GET /offer/:id attaches this and STRIPS the
+   * raw fields above — the /brands/[id] route seeds from it instead).
+   */
+  tracking_period?: {
+    tracking_days: number;
+    confirm_days: number;
+    source: "partner" | "manual" | "default";
+  };
   logo_desktop: string;
   logo_mobile: string;
   banner: string;
@@ -651,6 +664,10 @@ export interface OfferRequestForm {
   /** Advertiser / market for tracking link targeting (see `DEEPLINK_STORE_OPTIONS`). */
   deeplink_store_id: string;
   offer_display_tags: OfferDisplayTags;
+  /** Cashback tracking-period config ('auto' derives from partner validation_terms). */
+  tracking_period_mode: "auto" | "manual";
+  tracking_days: number | null;
+  confirm_days: number | null;
 }
 
 export interface OffersQuery {

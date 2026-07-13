@@ -39,6 +39,9 @@ export function emptyOfferRequestForm(): OfferRequestForm {
     affiliate_network_id: "involve_asia",
     deeplink_store_id: "global",
     offer_display_tags: normalizeOfferDisplayTags(undefined),
+    tracking_period_mode: "auto",
+    tracking_days: null,
+    confirm_days: null,
   };
 }
 
@@ -74,5 +77,38 @@ export function offerToEditForm(offer: Offer): OfferRequestForm {
     affiliate_network_id: resolveAffiliateNetworkIdForOffer(offer),
     deeplink_store_id: resolveDeeplinkStoreId(offer),
     offer_display_tags: normalizeOfferDisplayTags(offer.offer_display_tags),
+    ...seedTrackingPeriodFields(offer),
   };
+}
+
+/**
+ * The admin list (/offer/admin) carries the raw tracking-period fields, but
+ * the /brands/[id] route loads offers via the PUBLIC detail endpoint, which
+ * strips them and attaches the derived `tracking_period` instead. Seed from
+ * the raw fields when present, else reconstruct from the derived object —
+ * otherwise a stored manual config would seed as "auto" and a routine
+ * Edit → Save from that route would silently flip the brand back to auto.
+ */
+function seedTrackingPeriodFields(offer: Offer): {
+  tracking_period_mode: "auto" | "manual";
+  tracking_days: number | null;
+  confirm_days: number | null;
+} {
+  if (offer.tracking_period_mode !== undefined) {
+    return {
+      tracking_period_mode:
+        offer.tracking_period_mode === "manual" ? "manual" : "auto",
+      tracking_days: offer.tracking_days ?? null,
+      confirm_days: offer.confirm_days ?? null,
+    };
+  }
+  const derived = offer.tracking_period;
+  if (derived?.source === "manual") {
+    return {
+      tracking_period_mode: "manual",
+      tracking_days: derived.tracking_days,
+      confirm_days: derived.confirm_days,
+    };
+  }
+  return { tracking_period_mode: "auto", tracking_days: null, confirm_days: null };
 }

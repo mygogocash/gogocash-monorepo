@@ -39,7 +39,10 @@ import {
   type CategoryPolicyPayload,
   type ShopTermsViewModel,
 } from "@mobile/account/policyResource";
-import { mapMerchantOfferToShopDetail } from "@mobile/api/merchantMapper";
+import {
+  mapMerchantOfferToShopDetail,
+  type TrackingPeriodStep,
+} from "@mobile/api/merchantMapper";
 import { isMerchantOfferResponse } from "@mobile/api/merchantTypes";
 import { buildLoginRedirectWithCallback } from "@mobile/auth/routeGuard";
 import {
@@ -81,7 +84,12 @@ const questBannerAssets = {
 
 // Identity fields widen to string so the live-mapped merchant (real ids and
 // rates from the backend) satisfies the same view-model as the fixture.
-type ShopDetail = Omit<typeof webShopDetailGroceryGalaxy, "brand" | "cashback" | "category" | "id"> & {
+// trackingPeriod widens off the fixture's literal tuple so API-derived
+// per-brand windows (mapper's buildTrackingPeriodSteps) fit the same shape.
+type ShopDetail = Omit<
+  typeof webShopDetailGroceryGalaxy,
+  "brand" | "cashback" | "category" | "id" | "trackingPeriod"
+> & {
   bannerUri?: string;
   brand: string;
   cashback: string;
@@ -91,6 +99,7 @@ type ShopDetail = Omit<typeof webShopDetailGroceryGalaxy, "brand" | "cashback" |
   logoUri?: string;
   noteToUser?: string;
   policyCategoryId?: string;
+  trackingPeriod: readonly TrackingPeriodStep[];
   trackingUrl?: string;
 };
 type TrackingStep = ShopDetail["trackingPeriod"][number];
