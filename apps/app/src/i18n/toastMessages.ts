@@ -25,10 +25,10 @@ export type ToastErrorMessage = (typeof toastErrorMessages)[keyof typeof toastEr
 export const authSendErrorMessages = {
   // Firebase's abuse backoff can last hours — never promise a short wait.
   rateLimit: "Too many attempts. Please try again later.",
-  securityCheck: "Security check failed. Please refresh the page and try again.",
+  securityCheck: "Security check failed. Please close and reopen the app, then try again.",
   invalidPhone: "That phone number doesn't look valid. Check it and try again.",
   notConfigured: "Sign-in is temporarily unavailable. Please try again later.",
-  webOnly: "Social sign-in is available on Expo web. Use your browser to continue.",
+  webOnly: "Social sign-in isn't available in the app yet. Open GoGoCash in your web browser to continue.",
   generic: toastErrorMessages.requestFailed,
 } as const;
 

@@ -211,7 +211,11 @@ function ProfileMyCashbackLinkSection() {
             </View>
             <Pressable
               accessibilityRole="button"
-              onPress={() => toast.show(tc("This sign-in method is not available yet."))}
+              onPress={() =>
+                toast.show(
+                  `${tc("This sign-in method is not available yet.")} ${tc("Try another option or check back later.")}`,
+                )
+              }
               style={styles.linkInline}
             >
               <Text style={styles.unlinkText}>{tc("Unlink")}</Text>
@@ -253,7 +257,11 @@ function ProfileSocialLinkSection() {
             <Pressable
               accessibilityLabel={tc(provider.label)}
               accessibilityRole="button"
-              onPress={() => toast.show(tc("This sign-in method is not available yet."))}
+              onPress={() =>
+                toast.show(
+                  `${tc("This sign-in method is not available yet.")} ${tc("Try another option or check back later.")}`,
+                )
+              }
               style={styles.socialLinkButton}
             >
               <Text style={styles.socialLinkButtonText}>{tc("Link")}</Text>

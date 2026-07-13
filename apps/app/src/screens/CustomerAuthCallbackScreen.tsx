@@ -197,7 +197,7 @@ function getBody(state: CallbackState) {
   }
 
   if (state === "error") {
-    return "GoGoCash could not complete the secure token handoff.";
+    return "We couldn't finish signing you in. Open the latest sign-in link and try again.";
   }
 
   return "Saving your Firebase token and preparing your GoGoCash session.";
