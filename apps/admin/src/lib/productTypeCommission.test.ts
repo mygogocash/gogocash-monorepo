@@ -45,6 +45,24 @@ describe("rawCommissionFromNet", () => {
   });
 });
 
+describe("explicit fee percent (Fee Structure rate)", () => {
+  it("netCommissionFromRaw nets with the given fee instead of 30", () => {
+    expect(netCommissionFromRaw("10", 20)).toBe("8");
+    expect(netCommissionFromRaw("10", 0)).toBe("10");
+  });
+
+  it("rawCommissionFromNet reverses the given fee instead of 30", () => {
+    expect(rawCommissionFromNet("8", 20)).toBe("10");
+    expect(rawCommissionFromNet("10", 0)).toBe("10");
+  });
+
+  it("round-trips at a non-default fee", () => {
+    expect(rawCommissionFromNet(netCommissionFromRaw("12.5", 20), 20)).toBe(
+      "12.5",
+    );
+  });
+});
+
 describe("raw → net → raw round-trip", () => {
   it("recovers the original clean raw number", () => {
     expect(rawCommissionFromNet(netCommissionFromRaw("10"))).toBe("10");

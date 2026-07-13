@@ -32,7 +32,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/api", () => ({
-  apiClient: { createBrandFromAffiliate: vi.fn() },
+  apiClient: {
+    createBrandFromAffiliate: vi.fn(),
+    // useSystemFeePercent queries the Fee Structure rate on mount.
+    getFee: vi.fn().mockResolvedValue([{ system: 30 }]),
+  },
 }));
 
 vi.mock("@/lib/axios/client", () => ({

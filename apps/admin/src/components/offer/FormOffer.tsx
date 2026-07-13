@@ -49,11 +49,9 @@ import {
   formatPartnerRatesMinMax,
 } from "@/lib/offerDeeplink";
 import { defaultLookupFromBrandAndCountry } from "@/lib/createBrandLookupSlug";
-import {
-  applyThirtyPercentFee,
-  reverseThirtyPercentFee,
-} from "@/lib/commissionFee";
+import { applyPlatformFee, reversePlatformFee } from "@/lib/commissionFee";
 import { netCommissionFromRaw } from "@/lib/productTypeCommission";
+import { useSystemFeePercent } from "@/hooks/useSystemFeePercent";
 import {
   EMPTY_PRODUCT_TYPE_DRAFT,
   highestCashbackPercent,
@@ -319,6 +317,8 @@ const FormOffer = ({
   isLoading,
 }: FormOfferProps) => {
   const queryClient = useQueryClient();
+  // Platform fee % from Fee Structure (falls back to 30 while loading / on error).
+  const { feePercent } = useSystemFeePercent();
   const logoDesktopUrl = useObjectUrl(form.logo_desktop);
   const bannerUrl = useObjectUrl(form.banner);
   const logoCircleUrl = useObjectUrl(form.logo_circle);
@@ -450,25 +450,26 @@ const FormOffer = ({
   }
 
   /**
-   * "Auto apply 30% fee": the raw partner number the admin types. The saved
-   * commission (`commission_store`) is this minus a 30% fee (raw × 0.7). Held
-   * as a string for clean typing; re-derived from the saved net whenever a
-   * different offer loads (same `form.id` cadence as the baseline above).
+   * Auto fee mode: the raw partner number the admin types. The saved
+   * commission (`commission_store`) is this minus the platform fee
+   * (raw × (1 − fee/100), Fee Structure rate). Held as a string for clean
+   * typing; re-derived from the saved net whenever a different offer loads
+   * (same `form.id` cadence as the baseline above).
    */
   const [commissionRaw, setCommissionRaw] = useState(() =>
     form.commission_store != null
-      ? String(reverseThirtyPercentFee(form.commission_store))
+      ? String(reversePlatformFee(form.commission_store, feePercent))
       : "",
   );
   // Upsize "Special commission" mirrors the main commission entry: Auto applies
-  // the 30% fee to a raw partner %, Manual takes the net directly. Mode + raw are
-  // local (the net lives in form.upsize_special_commission).
+  // the platform fee to a raw partner %, Manual takes the net directly. Mode +
+  // raw are local (the net lives in form.upsize_special_commission).
   const [upsizeCommissionMode, setUpsizeCommissionMode] = useState<
     "auto" | "manual"
   >("auto");
   const [upsizeCommissionRaw, setUpsizeCommissionRaw] = useState(() =>
     form.upsize_special_commission != null
-      ? String(reverseThirtyPercentFee(form.upsize_special_commission))
+      ? String(reversePlatformFee(form.upsize_special_commission, feePercent))
       : "",
   );
   // Upsize date inputs render as type="text" (so the "Start Date" / "End Date"
@@ -491,17 +492,34 @@ const FormOffer = ({
     setUpsizeLaunched(offerFormHasUpsize(form));
     setCommissionRaw(
       form.commission_store != null
-        ? String(reverseThirtyPercentFee(form.commission_store))
+        ? String(reversePlatformFee(form.commission_store, feePercent))
         : "",
     );
     setUpsizeCommissionRaw(
       form.upsize_special_commission != null
-        ? String(reverseThirtyPercentFee(form.upsize_special_commission))
+        ? String(reversePlatformFee(form.upsize_special_commission, feePercent))
         : "",
     );
     setUpsizeCommissionMode("auto");
     setStartDateType(form.upsize_start_date ? "date" : "text");
     setEndDateType(form.upsize_end_date ? "date" : "text");
+  }
+  // The Fee Structure rate resolves asynchronously: once it changes (e.g. the
+  // 30% fallback gives way to the configured value), re-derive the raw inputs
+  // from the saved nets so raw ↔ net stays consistent with the real fee.
+  const [seededFeePercent, setSeededFeePercent] = useState(feePercent);
+  if (seededFeePercent !== feePercent) {
+    setSeededFeePercent(feePercent);
+    setCommissionRaw(
+      form.commission_store != null
+        ? String(reversePlatformFee(form.commission_store, feePercent))
+        : "",
+    );
+    setUpsizeCommissionRaw(
+      form.upsize_special_commission != null
+        ? String(reversePlatformFee(form.upsize_special_commission, feePercent))
+        : "",
+    );
   }
 
   // When per-row product types are in play ("All product types" off), the single
@@ -517,7 +535,7 @@ const FormOffer = ({
     form.commission_store !== highestRowCashback
   ) {
     setForm((prev) => ({ ...prev, commission_store: highestRowCashback }));
-    setCommissionRaw(String(reverseThirtyPercentFee(highestRowCashback)));
+    setCommissionRaw(String(reversePlatformFee(highestRowCashback, feePercent)));
   }
 
   // The single-commission controls are read-only when per-row rates drive the
@@ -526,7 +544,7 @@ const FormOffer = ({
 
   const applyPartnerCommissionToForm = useCallback(
     (rawPercent: number): boolean => {
-      const fields = commissionFieldsFromPartnerRaw(rawPercent);
+      const fields = commissionFieldsFromPartnerRaw(rawPercent, feePercent);
       if (!fields) return false;
       setCommissionRaw(fields.commissionRaw);
       setForm((prev) => ({
@@ -536,7 +554,7 @@ const FormOffer = ({
       }));
       return true;
     },
-    [setForm],
+    [setForm, feePercent],
   );
 
   const fetchBestCommission = useMutation({
@@ -574,14 +592,14 @@ const FormOffer = ({
         applyPartnerCommissionToForm(data.bestRatePercent);
         fetchOffers();
         toast.success(
-          `Loaded partner rate ${data.bestRatePercent}% (user-facing ${applyThirtyPercentFee(data.bestRatePercent)}% after 30% fee)`,
+          `Loaded partner rate ${data.bestRatePercent}% (user-facing ${applyPlatformFee(data.bestRatePercent, feePercent)}% after ${feePercent}% fee)`,
         );
         return;
       }
       if (localRaw > 0) {
         applyPartnerCommissionToForm(localRaw);
         toast.success(
-          `Using partner rate on file ${localRaw}% (user-facing ${applyThirtyPercentFee(localRaw)}%)`,
+          `Using partner rate on file ${localRaw}% (user-facing ${applyPlatformFee(localRaw, feePercent)}%)`,
         );
         return;
       }
@@ -613,6 +631,7 @@ const FormOffer = ({
     fetchBestCommission,
     applyPartnerCommissionToForm,
     fetchOffers,
+    feePercent,
   ]);
 
   // Product-type "add" frame: a local draft, committed into form.product_types
@@ -1440,7 +1459,7 @@ const FormOffer = ({
       toast.success(editing !== null ? "Tagline updated" : "Tagline added");
       return;
     }
-    const entry = productTypeDraftToEntry(productTypeDraft);
+    const entry = productTypeDraftToEntry(productTypeDraft, feePercent);
     const editing = editingProductIndex;
     setForm((prev) => {
       const list = prev.product_types ?? [];
@@ -1467,7 +1486,7 @@ const FormOffer = ({
       setProductTypeDraft({ ...EMPTY_PRODUCT_TYPE_DRAFT, name: entry.name });
     } else {
       setInsertMode("product");
-      setProductTypeDraft(productTypeEntryToDraft(entry));
+      setProductTypeDraft(productTypeEntryToDraft(entry, feePercent));
     }
     setEditingProductIndex(index);
   };
@@ -2145,8 +2164,8 @@ const FormOffer = ({
                       label="Commission (%)"
                       description={
                         form.commission_entry_mode === "auto"
-                          ? "Loads the best partner rate for this merchant on the selected affiliate network (same as Commission Management), then applies −30% for the user-facing %."
-                          : "Maximum % offered to users. Enter the value already reduced by 30% from the affiliate partner rate."
+                          ? `Loads the best partner rate for this merchant on the selected affiliate network (same as Commission Management), then applies −${feePercent}% for the user-facing %.`
+                          : `Maximum % offered to users. Enter the value already reduced by ${feePercent}% from the affiliate partner rate.`
                       }
                     />
                     <div className="mb-3 flex min-w-0 items-start gap-3 sm:max-w-md">
@@ -2193,7 +2212,7 @@ const FormOffer = ({
                       >
                         {fetchBestCommission.isPending
                           ? "Loading partner rate…"
-                          : "Auto apply 30% fee"}
+                          : `Auto applying with ${feePercent}% fee`}
                       </button>
                       <button
                         type="button"
@@ -2235,7 +2254,7 @@ const FormOffer = ({
                                     commission_store:
                                       v.trim() === "" || Number.isNaN(n)
                                         ? null
-                                        : applyThirtyPercentFee(n),
+                                        : applyPlatformFee(n, feePercent),
                                   }));
                                 }}
                                 disabled={isLoading || commissionLockedToRows}
@@ -2249,7 +2268,7 @@ const FormOffer = ({
                           </div>
                           <div className="min-w-0">
                             <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                              % after 30% fee
+                              % after {feePercent}% fee
                             </p>
                             {editingCashback ? (
                               <Input
@@ -2311,7 +2330,7 @@ const FormOffer = ({
                   <div>
                     <FieldLabel
                       label="Max cap"
-                      description="Maximum cap offered to users. Enter the value already reduced by 30% from the affiliate partner cap."
+                      description={`Maximum cap offered to users. Enter the value already reduced by ${feePercent}% from the affiliate partner cap.`}
                     />
                     {editingCashback ? (
                       <Input
@@ -2527,11 +2546,12 @@ const FormOffer = ({
                                     <Input
                                       id="offer-pt-draft-net"
                                       type="text"
-                                      placeholder="% after 30% fee"
-                                      ariaLabel="% after 30% fee"
-                                      title="% after 30% fee"
+                                      placeholder={`% after ${feePercent}% fee`}
+                                      ariaLabel={`% after ${feePercent}% fee`}
+                                      title={`% after ${feePercent}% fee`}
                                       value={netCommissionFromRaw(
                                         productTypeDraft.commission_raw,
+                                        feePercent,
                                       )}
                                       disabled
                                       className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
@@ -3169,6 +3189,7 @@ const FormOffer = ({
                                                         commission_info:
                                                           netCommissionFromRaw(
                                                             e.target.value,
+                                                            feePercent,
                                                           ),
                                                       })
                                                     }
@@ -3180,10 +3201,11 @@ const FormOffer = ({
                                                 <div className="min-w-0 flex-1">
                                                   <Input
                                                     type="text"
-                                                    placeholder="% after 30% fee"
-                                                    ariaLabel={`% after 30% fee for ${row.name.trim()}`}
+                                                    placeholder={`% after ${feePercent}% fee`}
+                                                    ariaLabel={`% after ${feePercent}% fee for ${row.name.trim()}`}
                                                     value={netCommissionFromRaw(
                                                       row.commission_raw ?? "",
+                                                      feePercent,
                                                     )}
                                                     disabled
                                                     className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
@@ -3273,7 +3295,7 @@ const FormOffer = ({
                                           : COMMISSION_MODE_TOGGLE_INACTIVE
                                       } touch-manipulation`}
                                     >
-                                      Auto apply 30% fee
+                                      {`Auto applying with ${feePercent}% fee`}
                                     </button>
                                     <button
                                       type="button"
@@ -3315,8 +3337,9 @@ const FormOffer = ({
                                                     v.trim() === "" ||
                                                     Number.isNaN(n)
                                                       ? null
-                                                      : applyThirtyPercentFee(
+                                                      : applyPlatformFee(
                                                           n,
+                                                          feePercent,
                                                         ),
                                                 }));
                                               }}
@@ -3336,7 +3359,7 @@ const FormOffer = ({
                                         </div>
                                         <div className="min-w-0">
                                           <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                                            % after 30% fee
+                                            % after {feePercent}% fee
                                           </p>
                                           {editingUpsize ? (
                                             <Input
@@ -3403,7 +3426,7 @@ const FormOffer = ({
                                 <div className="sm:col-span-2">
                                   <FieldLabel
                                     label="Max cap for upsize"
-                                    description="Maximum cap offered to users during the promo. Enter the value already reduced by 30% from the affiliate partner cap."
+                                    description={`Maximum cap offered to users during the promo. Enter the value already reduced by ${feePercent}% from the affiliate partner cap.`}
                                   />
                                   {editingUpsize ? (
                                     <Input
