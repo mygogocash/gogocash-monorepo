@@ -26,7 +26,9 @@ import {
 @ApiTags('Search Config')
 @Controller('admin/search')
 @UseGuards(AuthAdminGuard, RolesGuard)
-@Roles('support') // featured terms / boost / blacklist — controls user search results
+// Reads are open to any authenticated admin (RolesGuard is a no-op without
+// @Roles metadata); writes control user-facing search results, so every
+// mutation handler below stays support-gated via a per-route @Roles('support').
 @ApiSecurity('access-token')
 @ApiBearerAuth()
 export class SearchController {
@@ -39,16 +41,19 @@ export class SearchController {
   }
 
   @Post('featured-terms')
+  @Roles('support')
   createFeaturedTerm(@Body() dto: CreateFeaturedTermDto) {
     return this.searchService.createFeaturedTerm(dto);
   }
 
   @Put('featured-terms/reorder')
+  @Roles('support')
   reorderFeaturedTerms(@Body() dto: ReorderTermsDto) {
     return this.searchService.reorderFeaturedTerms(dto.order);
   }
 
   @Put('featured-terms/:id')
+  @Roles('support')
   updateFeaturedTerm(
     @Param('id') id: string,
     @Body() dto: UpdateFeaturedTermDto,
@@ -57,6 +62,7 @@ export class SearchController {
   }
 
   @Delete('featured-terms/:id')
+  @Roles('support')
   deleteFeaturedTerm(@Param('id') id: string) {
     return this.searchService.deleteFeaturedTerm(id);
   }
@@ -68,16 +74,19 @@ export class SearchController {
   }
 
   @Post('boost-rules')
+  @Roles('support')
   createBoostRule(@Body() dto: CreateBoostRuleDto) {
     return this.searchService.createBoostRule(dto);
   }
 
   @Put('boost-rules/:id')
+  @Roles('support')
   updateBoostRule(@Param('id') id: string, @Body() dto: UpdateBoostRuleDto) {
     return this.searchService.updateBoostRule(id, dto);
   }
 
   @Delete('boost-rules/:id')
+  @Roles('support')
   deleteBoostRule(@Param('id') id: string) {
     return this.searchService.deleteBoostRule(id);
   }
@@ -89,16 +98,19 @@ export class SearchController {
   }
 
   @Post('blacklist')
+  @Roles('support')
   createBlacklistEntry(@Body() dto: CreateBlacklistDto) {
     return this.searchService.createBlacklistEntry(dto);
   }
 
   @Delete('blacklist/:id')
+  @Roles('support')
   deleteBlacklistEntry(@Param('id') id: string) {
     return this.searchService.deleteBlacklistEntry(id);
   }
 
   @Post('blacklist/import')
+  @Roles('support')
   bulkImportBlacklist(@Body() dto: BulkImportBlacklistDto) {
     return this.searchService.bulkImportBlacklist(dto.keywords);
   }

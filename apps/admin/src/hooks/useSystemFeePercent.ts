@@ -5,7 +5,7 @@ import { apiClient } from "@/lib/api";
 import { DEFAULT_PLATFORM_FEE_PERCENT } from "@/lib/commissionFee";
 import type { ResponseFee } from "@/types/api";
 
-export const SYSTEM_FEE_PERCENT_QUERY_KEY = [
+const SYSTEM_FEE_PERCENT_QUERY_KEY = [
   "admin",
   "system-fee-percent",
 ] as const;

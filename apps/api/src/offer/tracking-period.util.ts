@@ -26,9 +26,9 @@ export const MAX_TRACKING_PERIOD_DAYS = 365;
  * Confirm; 'two_step' collapses the last two into a combined "Tracking and
  * confirm" step. Editable per-step subtitles default to the copy below.
  */
-export const DEFAULT_FLOW_TYPE = 'three_step';
-export const DEFAULT_TRACKING_SUBTITLE = 'from the following month';
-export const DEFAULT_CONFIRM_SUBTITLE = 'after validation';
+const DEFAULT_FLOW_TYPE = 'three_step';
+const DEFAULT_TRACKING_SUBTITLE = 'from the following month';
+const DEFAULT_CONFIRM_SUBTITLE = 'after validation';
 
 export type TrackingPeriodSource = 'partner' | 'manual' | 'default';
 
