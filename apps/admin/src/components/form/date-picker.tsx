@@ -32,6 +32,8 @@ type PropsType = {
   ariaLabel?: string;
   name?: string;
   disabled?: boolean;
+  /** Marks the field required — renders a `*` marker on the label. */
+  required?: boolean;
 };
 
 const defaultInputClass =
@@ -59,6 +61,7 @@ export default function DatePicker({
   name,
   hint,
   disabled = false,
+  required = false,
 }: PropsType) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const pickerRef = useRef<Instance | null>(null);
@@ -201,7 +204,11 @@ export default function DatePicker({
 
   return (
     <div>
-      {label && <Label htmlFor={id}>{label}</Label>}
+      {label && (
+        <Label htmlFor={id} required={required}>
+          {label}
+        </Label>
+      )}
 
       <div className="relative">
         <input
