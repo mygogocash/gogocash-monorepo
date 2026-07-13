@@ -264,10 +264,30 @@ export class AdminService {
           $match: filter,
         },
         {
+          // offer_id is unique only WITHIN a source (Involve vs Optimise/
+          // Accesstrade can share a numeric offer_id). Match the offer on BOTH
+          // source and offer_id so $unwind can't duplicate the conversion by
+          // joining a same-id offer from another network. For Involve-only data
+          // $$src === 'involve', i.e. byte-identical to the previous behaviour.
           $lookup: {
             from: 'offers',
-            localField: 'offer_id',
-            foreignField: 'offer_id',
+            let: {
+              oid: '$offer_id',
+              src: { $ifNull: ['$source', 'involve'] },
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$source', '$$src'] },
+                      { $eq: ['$offer_id', '$$oid'] },
+                    ],
+                  },
+                },
+              },
+              { $limit: 1 },
+            ],
             as: 'offer',
           },
         },
@@ -779,10 +799,29 @@ export class AdminService {
   async getDeepLinkList() {
     return this.deeplinkModel.aggregate([
       {
+        // offer_id is unique only WITHIN a source; key the join off the
+        // deeplink's own source (defaulted to 'involve') so a same-id offer
+        // from another network can't be $unwind-joined. For Involve-only data
+        // $$src === 'involve' — byte-identical to the previous behaviour.
         $lookup: {
           from: 'offers',
-          localField: 'offer_id',
-          foreignField: 'offer_id',
+          let: {
+            oid: '$offer_id',
+            src: { $ifNull: ['$source', 'involve'] },
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$source', '$$src'] },
+                    { $eq: ['$offer_id', '$$oid'] },
+                  ],
+                },
+              },
+            },
+            { $limit: 1 },
+          ],
           as: 'offer',
         },
       },
