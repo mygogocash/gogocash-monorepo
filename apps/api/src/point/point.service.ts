@@ -1339,7 +1339,10 @@ export class PointService {
       .findOne(this.activeQuestFilter())
       .lean();
     if (!quest) {
-      throw new HttpException('No open quest available', 400);
+      throw new HttpException(
+        'There are no active quests right now. Please check back later.',
+        400,
+      );
     }
     const socialRewards = await this.socialRewardModel
       .find({
@@ -1356,7 +1359,10 @@ export class PointService {
       .findOne(this.activeQuestFilter())
       .lean();
     if (!quest) {
-      throw new HttpException('No open quest available', 400);
+      throw new HttpException(
+        'There are no active quests right now. Please check back later.',
+        400,
+      );
     }
     const filter = {
       user_id: new Types.ObjectId(userId),
@@ -1408,7 +1414,10 @@ export class PointService {
   async getQuestAll() {
     const quest = await this.questModel.find().lean();
     if (!quest || quest.length === 0) {
-      throw new HttpException('No open quest available', 400);
+      throw new HttpException(
+        'There are no active quests right now. Please check back later.',
+        400,
+      );
     }
     return quest;
   }
@@ -1426,7 +1435,10 @@ export class PointService {
       .sort({ createdAt: 1 })
       .lean();
     if (!consversion || consversion.length === 0) {
-      throw new HttpException('No open quest available', 400);
+      throw new HttpException(
+        'There are no active quests right now. Please check back later.',
+        400,
+      );
     }
     return consversion;
   }

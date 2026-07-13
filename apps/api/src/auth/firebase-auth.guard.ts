@@ -3,6 +3,7 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -37,6 +38,8 @@ const cacheSet = (key: string, value: CachedDecode): void => {
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
+  private readonly logger = new Logger(FirebaseAuthGuard.name);
+
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private jwtService: JwtService,
@@ -101,7 +104,13 @@ export class FirebaseAuthGuard implements CanActivate {
       request['user'] = { sub, userId: sub, firebaseId: decoded.uid };
       return true;
     } catch (errorData: any) {
-      throw new UnauthorizedException(errorData?.message || 'Invalid token');
+      // Keep the raw upstream reason in server logs; clients get generic copy.
+      this.logger.warn(
+        `Firebase token verification failed: ${errorData?.message ?? 'unknown error'}`,
+      );
+      throw new UnauthorizedException(
+        'Your session has expired. Please sign in again.',
+      );
     }
   }
 }

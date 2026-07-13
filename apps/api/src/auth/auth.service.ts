@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
@@ -27,6 +28,7 @@ import { UserDocument } from 'src/user/schemas/user.schema';
 import { toIso2Server } from 'src/utils/country';
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private baseUrl: string;
   private projectId: string;
   private secret: string;
@@ -211,8 +213,12 @@ export class AuthService {
         auth_flow: 'register' as const,
       };
     } catch (error: any) {
+      // Log the raw provider error for ops; never expose it to the client.
+      this.logger.warn(
+        `Firebase sign-in verification failed: ${error?.message ?? 'unknown error'}`,
+      );
       throw new UnauthorizedException(
-        error?.message || 'Invalid Firebase token',
+        "Your sign-in couldn't be verified. Please sign in again.",
       );
     }
   }
@@ -490,8 +496,12 @@ export class AuthService {
 
       return { uid: decoded.uid, user: userUpdate };
     } catch (error: any) {
+      // Log the raw provider error for ops; never expose it to the client.
+      this.logger.warn(
+        `Firebase sign-in verification failed: ${error?.message ?? 'unknown error'}`,
+      );
       throw new UnauthorizedException(
-        error?.message || 'Invalid Firebase token',
+        "Your sign-in couldn't be verified. Please sign in again.",
       );
     }
   }
@@ -542,7 +552,9 @@ export class AuthService {
     try {
       recovered = ethers.verifyMessage(message, signature);
     } catch {
-      throw new UnauthorizedException('Invalid SIWE signature');
+      throw new UnauthorizedException(
+        "We couldn't verify your wallet. Please reconnect your wallet and try again.",
+      );
     }
     if (recovered.toLowerCase() !== address.toLowerCase()) {
       throw new UnauthorizedException('Signature does not match address');
@@ -557,7 +569,9 @@ export class AuthService {
     if (expectedDomain) {
       const domainMatch = /^(\S+) wants you to sign in/m.exec(message);
       if (!domainMatch || domainMatch[1] !== expectedDomain) {
-        throw new UnauthorizedException('SIWE domain mismatch');
+        throw new UnauthorizedException(
+          "We couldn't verify your wallet sign-in. Please reconnect your wallet and try again.",
+        );
       }
       const uriMatch = /^URI:\s*(\S+)/m.exec(message);
       let uriHost: string | null = null;
@@ -583,7 +597,9 @@ export class AuthService {
     const ageMs = Date.now() - issuedAt.getTime();
     // Accept 60 s of client clock skew; 5 min freshness window past that.
     if (ageMs < -60_000 || ageMs > 5 * 60_000) {
-      throw new UnauthorizedException('SIWE message expired or in the future');
+      throw new UnauthorizedException(
+        'Your wallet sign-in request expired. Please reconnect your wallet and try again.',
+      );
     }
 
     // Single-use nonce — atomically consume so replay of the same message

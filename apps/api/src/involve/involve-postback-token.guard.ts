@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { timingSafeEqual } from 'crypto';
@@ -16,11 +17,18 @@ import { Request } from 'express';
  */
 @Injectable()
 export class InvolvePostbackTokenGuard implements CanActivate {
+  private readonly logger = new Logger(InvolvePostbackTokenGuard.name);
+
   canActivate(context: ExecutionContext): boolean {
     const expected = process.env.INVOLVE_POSTBACK_SECRET;
     if (!expected || expected.length === 0) {
+      // Fail closed but keep the real cause server-side; clients get generic copy.
+      this.logger.error(
+        'Postback rejected: INVOLVE_POSTBACK_SECRET is not configured.',
+      );
       throw new UnauthorizedException({
-        message: 'Endpoint disabled: postback secret not configured',
+        message:
+          'This service is temporarily unavailable. Please try again later.',
       });
     }
 

@@ -254,8 +254,12 @@ export class SubscriptionsService {
         break;
       }
       default: {
+        // Exhaustiveness guard: unreachable for valid, typed actions.
         const _exhaustive: never = normalizedAction;
-        throw new BadRequestException(`Unknown action: ${_exhaustive}`);
+        void _exhaustive;
+        throw new BadRequestException(
+          "This action isn't supported. Please refresh and try again.",
+        );
       }
     }
 
