@@ -5,6 +5,7 @@ import {
   BadgePercent as BadgePercentIcon,
   Banknote as BanknoteIcon,
   CheckCircle as CheckCircleIcon,
+  ChevronLeft as ChevronLeftIcon,
   Heart as HeartIcon,
   Info as InfoIcon,
   Shirt as ShirtIcon,
@@ -73,6 +74,7 @@ import {
 } from "@mobile/design/webDesignParity";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
+import { motion } from "@mobile/theme/motion";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
@@ -222,9 +224,17 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
     );
   }
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace("/" as never);
+  };
+
   const shopPageContent = (
     <>
-      <ShopHero isDesktop={isDesktop} onShopNow={handleShopNow} shop={shop} />
+      <ShopHero isDesktop={isDesktop} onBack={handleBack} onShopNow={handleShopNow} shop={shop} />
       <View style={[styles.detailGrid, isDesktop ? styles.detailGridDesktop : null]}>
         <View style={[styles.leftColumn, isDesktop ? styles.leftColumnDesktop : null]}>
           <ShopCashbackRail shop={shop} />
@@ -345,14 +355,18 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
 
 function ShopHero({
   isDesktop,
+  onBack,
   onShopNow,
   shop,
 }: {
   isDesktop: boolean;
+  onBack: () => void;
   onShopNow: () => void;
   shop: ShopDetail;
 }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
+  const tc = useCopy();
+  const { colors } = useTheme();
   const [bannerFailed, setBannerFailed] = useState(false);
   useEffect(() => {
     setBannerFailed(false);
@@ -383,6 +397,19 @@ function ShopHero({
             style={styles.heroImage}
           />
         )}
+        {/* Mobile/tablet have no other back affordance; desktop keeps its header. */}
+        {!isDesktop ? (
+          <MotionPressable
+            accessibilityLabel={tc("Back")}
+            accessibilityRole="button"
+            hitSlop={{ bottom: 8, left: 8, right: 8, top: 8 }}
+            onPress={onBack}
+            pressScale={motion.scale.subtlePress}
+            style={styles.heroBackButton}
+          >
+            <ChevronLeftIcon color={colors.ink} size={22} strokeWidth={2} />
+          </MotionPressable>
+        ) : null}
       </View>
       <ShopHeroSummaryCard isDesktop={isDesktop} onShopNow={onShopNow} shop={shop} />
     </View>
@@ -878,6 +905,18 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   heroImage: {
     height: "100%",
     width: "100%",
+  },
+  heroBackButton: {
+    alignItems: "center",
+    backgroundColor: colors.card,
+    borderRadius: radii.chip,
+    boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
+    height: 40,
+    justifyContent: "center",
+    left: 12,
+    position: "absolute",
+    top: 12,
+    width: 40,
   },
   summaryCard: {
     alignItems: "stretch",

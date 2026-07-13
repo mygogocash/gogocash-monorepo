@@ -1356,6 +1356,10 @@ function createAuthScreenStyles(colors: ThemeColors) {
     paddingHorizontal: mobileShellLayout.contentHorizontalPadding,
   },
   pageAuthMobile: {
+    // The floating bottom nav overlays the last ~100px of scroll content;
+    // bottomNavClearance alone left the social grid flush against it. Match
+    // the sibling detail screens' clearance + 24.
+    paddingBottom: mobileShellLayout.bottomNavClearance + 24,
     paddingHorizontal: 24,
   },
   pageAuthTablet: {
@@ -1422,6 +1426,9 @@ function createAuthScreenStyles(colors: ThemeColors) {
     paddingTop: 32,
   },
   cardInnerMobile: {
+    // The card clips (overflow hidden); without inner bottom padding the
+    // social grid renders flush against the card edge.
+    paddingBottom: 24,
     paddingHorizontal: 16,
     paddingTop: 24,
   },

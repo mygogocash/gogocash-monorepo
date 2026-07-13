@@ -292,4 +292,34 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("getScaledCompactBrandCardMetrics(FIXED_RELATED_CARD_WIDTH)");
     expect(shopFile).not.toContain("relatedVisual");
   });
+
+  it("mobile hero > given the reference cover overlay > then a floating circular back button is present", () => {
+    // Founder 2026-07-13 (competitor reference): brand pages need a top-left
+    // back control on mobile; the bottom nav was the only way out.
+    const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+
+    // canGoBack-guarded handler — same contract as CustomerSearchScreen.
+    expect(shopFile).toContain("router.canGoBack()");
+    expect(shopFile).toContain('router.replace("/" as never)');
+    expect(shopFile).toContain("onBack={handleBack}");
+    // Mobile-only overlay control with the shared translated label.
+    expect(shopFile).toContain('accessibilityLabel={tc("Back")}');
+    expect(shopFile).toContain("ChevronLeft as ChevronLeftIcon");
+    expect(shopFile).toMatch(/\{!isDesktop \? \(\s*<MotionPressable/);
+
+    // Style pins (presence checks); the pinned heroBanner block stays untouched.
+    const backBlock = shopFile.match(/heroBackButton:\s*\{[\s\S]*?\},/)?.[0];
+    expect(backBlock, "heroBackButton style block").toBeDefined();
+    for (const snippet of [
+      'position: "absolute"',
+      "backgroundColor: colors.card",
+      "borderRadius: radii.chip",
+      "height: 40",
+      "width: 40",
+      "left: 12",
+      "top: 12",
+    ]) {
+      expect(backBlock).toContain(snippet);
+    }
+  });
 });
