@@ -1033,6 +1033,97 @@ describe('WithdrawService', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // listCheckWithdrawNew — source-scoped offer join (H1).
+  //
+  // offer_id is only unique WITHIN a source (Involve vs Optimise/Accesstrade can
+  // share a numeric offer_id). The old join was a naive localField/foreignField
+  // on offer_id + $unwind: with two offers sharing an id, $unwind fans the
+  // conversion into multiple rows and the displayed cashback DOUBLES. The fix
+  // mirrors getConversationAllPage: a source-constrained sub-pipeline that pins
+  // offer.source to the conversion's source ($ifNull -> 'involve' for legacy
+  // rows) and offer.offer_id, taking a single match.
+  // ---------------------------------------------------------------------------
+  describe('listCheckWithdrawNew source-scoped offer join (H1)', () => {
+    function primeListCheckWithdrawNew(mocks: Mocks) {
+      mocks.userModel.findOne.mockResolvedValue({
+        _id: new Types.ObjectId(VALID_USER_ID),
+        email: 'u@example.com',
+        mobile: '0800000000',
+      });
+      mocks.feeRateModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ max_cap: 5, system: 30 }),
+      });
+      mocks.withdrawModel.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue([]),
+        }),
+      });
+      mocks.conversionModel.aggregate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      });
+    }
+
+    function captureOfferLookup(mocks: Mocks) {
+      const pipeline = mocks.conversionModel.aggregate.mock
+        .calls[0][0] as Array<Record<string, any>>;
+      const lookupStage = pipeline.find(
+        (stage) => stage.$lookup && stage.$lookup.from === 'offers',
+      );
+      return lookupStage?.$lookup as Record<string, any> | undefined;
+    }
+
+    it('listCheckWithdrawNew > given the offers join > then it is a source-constrained sub-pipeline, not a naive localField/foreignField join', async () => {
+      primeListCheckWithdrawNew(mocks);
+
+      await mocks.service.listCheckWithdrawNew(VALID_USER_ID);
+
+      const lookup = captureOfferLookup(mocks);
+      expect(lookup).toBeDefined();
+      // Naive join fields are what caused the double-count — they must be gone.
+      expect(lookup?.localField).toBeUndefined();
+      expect(lookup?.foreignField).toBeUndefined();
+      // Source of truth is the conversion's source, defaulting to 'involve'.
+      expect(lookup?.let).toMatchObject({
+        oid: '$offer_id',
+        src: { $ifNull: ['$source', 'involve'] },
+      });
+    });
+
+    it('listCheckWithdrawNew > given the offers join sub-pipeline > then it matches offer.source to $$src and offer.offer_id to $$oid and limits to 1', async () => {
+      primeListCheckWithdrawNew(mocks);
+
+      await mocks.service.listCheckWithdrawNew(VALID_USER_ID);
+
+      const lookup = captureOfferLookup(mocks);
+      const subPipeline = lookup?.pipeline as Array<Record<string, any>>;
+      expect(Array.isArray(subPipeline)).toBe(true);
+      const andClauses =
+        subPipeline.find((s) => s.$match)?.$match.$expr.$and ?? [];
+      expect(andClauses).toEqual(
+        expect.arrayContaining([
+          { $eq: ['$source', '$$src'] },
+          { $eq: ['$offer_id', '$$oid'] },
+        ]),
+      );
+      expect(subPipeline).toEqual(expect.arrayContaining([{ $limit: 1 }]));
+    });
+
+    it('listCheckWithdrawNew > given the offers join > then it keeps $unwind with preserveNullAndEmptyArrays (missing-offer rows survive)', async () => {
+      primeListCheckWithdrawNew(mocks);
+
+      await mocks.service.listCheckWithdrawNew(VALID_USER_ID);
+
+      const pipeline = mocks.conversionModel.aggregate.mock
+        .calls[0][0] as Array<Record<string, any>>;
+      const unwind = pipeline.find((s) => s.$unwind);
+      expect(unwind?.$unwind).toEqual({
+        path: '$offer',
+        preserveNullAndEmptyArrays: true,
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // getBankList — deterministic static reference.
   // ---------------------------------------------------------------------------
   describe('getBankList', () => {

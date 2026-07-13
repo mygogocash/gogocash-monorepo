@@ -29,6 +29,8 @@
     "migrate:country:dry": "node -r @swc-node/register scripts/migrate-country.ts --dry-run",
     "backfill:conversion-userid": "node -r @swc-node/register scripts/backfill-conversion-userid.ts",
     "backfill:conversion-userid:dry": "node -r @swc-node/register scripts/backfill-conversion-userid.ts --dry-run",
+    "backfill:offer-source": "node -r @swc-node/register scripts/backfill-offer-source.ts",
+    "backfill:offer-source:dry": "node -r @swc-node/register scripts/backfill-offer-source.ts --dry-run",
     "backfill:quest-tasks": "node -r @swc-node/register scripts/backfill-quest-tasks.ts",
     "backfill:quest-tasks:dry": "node -r @swc-node/register scripts/backfill-quest-tasks.ts --dry-run",
     "gototrack:seed-merchants": "node -r @swc-node/register scripts/seed-gototrack-merchants.ts",
