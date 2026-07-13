@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   Animated,
   Image,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -40,13 +39,13 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import { haptics } from "@mobile/lib/haptics";
 import { getGoLinkSourceHost, isValidGoLinkUrl } from "@mobile/features/golink";
+import { type GoLinkOfferLike } from "@mobile/features/golinkResolve";
 import {
-  buildGoLinkTrackingUrl,
-  matchGoLinkOffer,
-  type GoLinkOfferLike,
-} from "@mobile/features/golinkResolve";
+  openGoLinkTracked,
+  useGoLinkResolution,
+  type GoLinkResolutionState,
+} from "@mobile/features/useGoLinkResolution";
 import { getMobileEnv } from "@mobile/config/env";
-import { useRegion } from "@mobile/i18n/LocaleProvider";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { buildLoginRedirectWithCallback } from "@mobile/auth/routeGuard";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
@@ -77,11 +76,6 @@ const guidelineSteps = [
 // Fixtures-mode Shop Now target (design parity). Backend mode opens the real
 // per-user tracking link for the matched merchant instead.
 const goLinkShopNowRoute = "/shop/brand-orbit-airways-1003?golinkContinue=1";
-
-type GoLinkResolutionState = {
-  offer: GoLinkOfferLike | null;
-  status: "loading" | "matched" | "unmatched";
-};
 
 type GoLinkPresentation = "route" | "homeSheet";
 
@@ -193,91 +187,22 @@ export function CustomerGoLinkScreen({
   const [goLinkResultHref, setGoLinkResultHref] = useState("");
   const [guidelineOpen, setGuidelineOpen] = useState(false);
   // Live merchant resolution for the pasted link (backend mode only): fixtures
-  // mode keeps the design-parity demo product + fixture Shop Now route.
+  // mode keeps the design-parity demo product + fixture Shop Now route. The
+  // hook is shared with the home hero card so every dialog caller resolves.
   const env = getMobileEnv();
-  const liveGoLink = env.accountDataSource === "backend";
-  const { region } = useRegion();
   const { isAuthed } = useAuthGuardSession();
   const session = useMobileSessionSnapshot();
-  const [goLinkMatch, setGoLinkMatch] = useState<GoLinkResolutionState>({
-    offer: null,
-    status: "loading",
-  });
+  const { live: liveGoLink, match: goLinkMatch } = useGoLinkResolution(
+    goLinkResultOpen,
+    goLinkResultHref,
+  );
 
-  useEffect(() => {
-    if (!goLinkResultOpen || !goLinkResultHref || !liveGoLink) {
-      return;
-    }
-    let active = true;
-    setGoLinkMatch({ offer: null, status: "loading" });
-    (async () => {
-      try {
-        const params = new URLSearchParams({ limit: "100", page: "1" });
-        if (region) {
-          params.set("country", region);
-        }
-        const response = await fetch(`${env.apiUrl}/offer?${params.toString()}`, {
-          headers: { Accept: "application/json" },
-        });
-        const payload = (await response.json()) as { data?: GoLinkOfferLike[] };
-        const offer = matchGoLinkOffer(goLinkResultHref, payload?.data ?? []);
-        if (active) {
-          setGoLinkMatch({ offer, status: offer ? "matched" : "unmatched" });
-        }
-      } catch {
-        // Resolution failure degrades to the honest "not supported" state —
-        // never a fake product.
-        if (active) {
-          setGoLinkMatch({ offer: null, status: "unmatched" });
-        }
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [env.apiUrl, goLinkResultHref, goLinkResultOpen, liveGoLink, region]);
-
-  // Per-user, product-targeted tracking link: create-affiliate mints a link
-  // with aff_sub=user_id:<id> baked in (same endpoint production web uses);
-  // the pasted product URL rides along as the Involve `url` deeplink param.
-  // Any failure falls back to the offer's raw tracking link so the shopper is
-  // never dead-ended (worst case: cashback attribution is lost, not the sale).
-  const openGoLinkTrackedUrl = async (offer: GoLinkOfferLike, pastedUrl: string) => {
-    const fallback = buildGoLinkTrackingUrl(offer.tracking_link ?? "", pastedUrl);
-    try {
-      if (!offer.offer_id || !offer.merchant_id) {
-        throw new Error("offer is missing network ids");
-      }
-      const response = await fetch(`${env.apiUrl}/involve/create-affiliate`, {
-        body: JSON.stringify({
-          deeplink: pastedUrl,
-          merchant_id: offer.merchant_id,
-          offer_id: offer.offer_id,
-        }),
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${typeof session?.access_token === "string" ? session.access_token : ""}`,
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error(`create-affiliate failed: ${response.status}`);
-      }
-      const doc = (await response.json()) as { deeplink?: string };
-      const tracked =
-        typeof doc?.deeplink === "string" && doc.deeplink
-          ? buildGoLinkTrackingUrl(doc.deeplink, pastedUrl)
-          : fallback;
-      if (tracked) {
-        await Linking.openURL(tracked);
-      }
-    } catch {
-      if (fallback) {
-        void Linking.openURL(fallback).catch(() => undefined);
-      }
-    }
-  };
+  const openGoLinkTrackedUrl = (offer: GoLinkOfferLike, pastedUrl: string) =>
+    openGoLinkTracked(offer, pastedUrl, {
+      accessToken:
+        typeof session?.access_token === "string" ? session.access_token : undefined,
+      apiUrl: env.apiUrl,
+    });
   const dismissGoLink = useCallback(() => {
     if (onClose) {
       onClose();
@@ -582,14 +507,19 @@ function goLinkCashbackLabel(offer: GoLinkOfferLike): string {
 
 export function GoLinkResultDialog({
   href,
-  live = false,
-  match = { offer: null, status: "loading" },
+  live,
+  match,
   onClose,
   onShopNow,
 }: {
   href: string;
-  live?: boolean;
-  match?: GoLinkResolutionState;
+  /**
+   * REQUIRED on purpose: every caller must wire useGoLinkResolution. When
+   * these were optional, the home hero card silently fell back to the demo
+   * product in backend mode.
+   */
+  live: boolean;
+  match: GoLinkResolutionState;
   onClose: () => void;
   onShopNow: () => void;
 }) {

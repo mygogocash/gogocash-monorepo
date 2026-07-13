@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Animated, Pressable, ScrollView, Text, View } from "react-native";
 import type { LiveCompactBrandCard } from "@mobile/account/brandCatalogResource";
-import { resolveSearchSuggestionItem } from "@mobile/account/searchSuggestionResource";
+import {
+  rankPopularLiveBrandTerms,
+  resolveSearchSuggestionItem,
+} from "@mobile/account/searchSuggestionResource";
+import { useFeaturedSearchTerms } from "@mobile/account/useFeaturedSearch";
 import { useOfferSearch } from "@mobile/account/useOfferSearch";
 import { webHomeSearchPopularPanel } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -18,8 +22,13 @@ import { useTheme } from "@mobile/theme/ThemeProvider";
 import { HomeSearchIntro } from "./HomeSearchIntro";
 import { HomeSearchResultRow } from "./HomeSearchResultRow";
 import { useHomeScreenStyles } from "./homeScreenHooks";
+import { resolveSearchPopoverFrame, type SearchAnchorFrame } from "./searchPopoverFrame";
 
 export function HomeSearchPopularPopover({
+  // REQUIRED on purpose: without the measured anchor the popover falls back to
+  // a centered panel instead of hugging the search input, so every caller must
+  // wire the frame reported by DesktopHeaderSearch.
+  anchor,
   horizontalPadding,
   liveCards = [],
   onClose,
@@ -27,8 +36,10 @@ export function HomeSearchPopularPopover({
   onSelectRecent,
   query,
   top,
+  viewportWidth,
   visible,
 }: {
+  anchor: SearchAnchorFrame | null;
   horizontalPadding: number;
   liveCards?: readonly LiveCompactBrandCard[];
   onClose: () => void;
@@ -36,6 +47,7 @@ export function HomeSearchPopularPopover({
   onSelectRecent: (term: string) => void;
   query: string;
   top: number;
+  viewportWidth: number;
   visible: boolean;
 }) {
   const styles = useHomeScreenStyles();
@@ -43,13 +55,18 @@ export function HomeSearchPopularPopover({
   const { colors } = useTheme();
   const { matches: searchMatches, status: searchStatus } = useOfferSearch(query);
   const fallbackTint = pickThemed(colors, colors.fieldMuted, colors.field);
+  const liveFallbackTerms = useMemo(() => rankPopularLiveBrandTerms(liveCards), [liveCards]);
+  const popularTerms = useFeaturedSearchTerms(liveFallbackTerms);
   const popularItems = useMemo(
-    () =>
-      webHomeSearchPopularPanel.items.map((item) =>
-        resolveSearchSuggestionItem(item.brand, liveCards, fallbackTint),
-      ),
-    [fallbackTint, liveCards],
+    () => popularTerms.map((term) => resolveSearchSuggestionItem(term, liveCards, fallbackTint)),
+    [fallbackTint, liveCards, popularTerms],
   );
+  const popoverFrame = resolveSearchPopoverFrame({
+    anchor,
+    fallbackHorizontalPadding: horizontalPadding,
+    fallbackTop: top,
+    viewportWidth,
+  });
   const hasSearchQuery = query.trim().length > 0;
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const popoverOpacity = useMemo(() => new Animated.Value(0), []);
@@ -131,11 +148,11 @@ export function HomeSearchPopularPopover({
         style={[
           styles.searchPopoverPosition,
           {
-            left: horizontalPadding,
+            left: popoverFrame.left,
             opacity: popoverOpacity,
-            right: horizontalPadding,
-            top,
+            top: popoverFrame.top,
             transform: [{ translateY: popoverTranslateY }],
+            width: popoverFrame.width,
           },
         ]}
       >

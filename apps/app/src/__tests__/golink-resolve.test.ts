@@ -129,10 +129,43 @@ describe("GoGoLink live wiring (source signals)", () => {
     "utf8",
   );
 
-  it("the screen resolves the pasted link against the live catalog and mints a per-user deeplink", () => {
-    expect(screenSource).toContain("matchGoLinkOffer(");
-    expect(screenSource).toContain("buildGoLinkTrackingUrl(");
-    expect(screenSource).toContain("/involve/create-affiliate");
+  it("the screen resolves the pasted link via the shared hook and tracked-open helper", () => {
+    expect(screenSource).toContain("useGoLinkResolution(");
+    expect(screenSource).toContain("openGoLinkTracked(");
+  });
+
+  it("the HOME hero card wires the same resolution (regression: it fell back to the demo product)", () => {
+    const homeSource = readFileSync(
+      resolve(__dirname, "../screens/CustomerHomeScreen.tsx"),
+      "utf8",
+    );
+    expect(homeSource).toContain("useGoLinkResolution(");
+    expect(homeSource).toContain("live={liveGoLink}");
+    expect(homeSource).toContain("match={goLinkMatch}");
+    expect(homeSource).toContain("openGoLinkTracked(");
+    // The fixture route survives only behind the !liveGoLink branch.
+    expect(homeSource).toMatch(/if \(!liveGoLink\) \{\s*router\.push\(homeGoLinkShopNowRoute/);
+  });
+
+  it("the dialog's live/match props are REQUIRED so future callers cannot silently fall back", () => {
+    const propsBlock = screenSource.slice(
+      screenSource.indexOf("export function GoLinkResultDialog"),
+      screenSource.indexOf("export function GoLinkResultDialog") + 700,
+    );
+    expect(propsBlock).not.toContain("live?:");
+    expect(propsBlock).not.toContain("match?:");
+    expect(propsBlock).toContain("live: boolean;");
+    expect(propsBlock).toContain("match: GoLinkResolutionState;");
+  });
+
+  it("the shared hook + helper own the catalog match and create-affiliate mint", () => {
+    const hookSource = readFileSync(
+      resolve(__dirname, "../features/useGoLinkResolution.ts"),
+      "utf8",
+    );
+    expect(hookSource).toContain("matchGoLinkOffer(");
+    expect(hookSource).toContain("buildGoLinkTrackingUrl(");
+    expect(hookSource).toContain("mintUserTrackingLink(");
   });
 
   it("Shop Now auth-gates via the login redirect and only hard-routes fixtures mode to the demo shop", () => {

@@ -8,6 +8,7 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { CustomerDesktopBrandLink } from "@mobile/components/CustomerDesktopBrandLink";
 import { DesktopHeaderSearch } from "@mobile/components/DesktopHeaderSearch";
+import type { SearchAnchorFrame } from "@mobile/screens/home/searchPopoverFrame";
 import { CustomerLocaleRegionControl } from "@mobile/components/CustomerLocaleRegionControl";
 import { CustomerSignInNavGraphic } from "@mobile/components/CustomerSignInNavGraphic";
 import { CustomerProfileNav } from "@mobile/components/CustomerProfileNav";
@@ -83,11 +84,13 @@ function useDesktopHeaderStyles() {
 
 export function CustomerDesktopHeader({
   onSearchFocus,
+  onSearchFrameChange,
   onSearchQueryChange,
   searchQuery,
   viewportWidth,
 }: {
   onSearchFocus?: () => void;
+  onSearchFrameChange?: (frame: SearchAnchorFrame) => void;
   onSearchQueryChange?: (value: string) => void;
   searchQuery?: string;
   viewportWidth: number;
@@ -117,8 +120,10 @@ export function CustomerDesktopHeader({
           <CustomerDesktopBrandLink />
           <DesktopHeaderSearch
             onSearchFocus={onSearchFocus}
+            onSearchFrameChange={onSearchFrameChange}
             onSearchQueryChange={onSearchQueryChange}
             searchQuery={searchQuery}
+            viewportWidth={viewportWidth}
           />
           <View style={styles.desktopHeaderActions}>
             <Link asChild href="/quest">
