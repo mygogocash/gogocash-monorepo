@@ -185,8 +185,8 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   if (merchantResource.status !== "ready") {
     return (
       <CustomerAccountResourceState
-        emptyBody="This merchant does not have active cashback details yet."
-        emptyTitle="No merchant details yet"
+        emptyBody={tc("This merchant does not have active cashback details yet.")}
+        emptyTitle={tc("No merchant details yet")}
         loadingSkeleton={<ShopDetailSkeleton />}
         resource={merchantResource}
         resourceLabel="merchant details"
@@ -379,6 +379,7 @@ function ShopHeroSummaryCard({
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
   const router = useRouter();
+  const tc = useCopy();
   const { isAuthed, ready: authReady } = useAuthGuardSession();
   const { isFavorite, toggleFavorite } = useFavoriteBrands();
   const favorited = isFavorite(shop.id);
@@ -469,7 +470,7 @@ function ShopHeroSummaryCard({
         isDesktop ? null : styles.shopNowButtonCompact,
       ])}
     >
-      <Text style={styles.shopNowText}>{shop.shopNowLabel}</Text>
+      <Text style={styles.shopNowText}>{tc(shop.shopNowLabel)}</Text>
     </MotionPressable>
   );
 
@@ -498,10 +499,11 @@ function ShopHeroSummaryCard({
 function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
+  const tc = useCopy();
   return (
     <View style={styles.cashbackRail}>
       <View style={styles.cashbackHeader}>
-        <Text style={styles.cashbackLabel}>Cashback upto</Text>
+        <Text style={styles.cashbackLabel}>{tc("Cashback upto")}</Text>
         <Text style={styles.cashbackValue}>{shop.cashback}</Text>
       </View>
       <View style={styles.tagRow} accessibilityLabel="Offer highlights">
@@ -514,16 +516,20 @@ function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
         <View style={styles.extraTag}>
           <Text style={styles.fireIcon}>🔥</Text>
           <Text style={styles.tagText}>
-            Extra Cashback <Text style={styles.tagStrong}>{shop.extraCashback}</Text>
+            {tc("Extra Cashback")} <Text style={styles.tagStrong}>{shop.extraCashback}</Text>
           </Text>
         </View>
       </View>
       <View style={styles.rateDetails}>
-        <Text style={styles.disclaimer}>{shop.disclaimer}</Text>
-        <Text style={styles.disclaimer}>{shop.maxPerTransaction}</Text>
+        <Text style={styles.disclaimer}>{tc(shop.disclaimer)}</Text>
+        <Text style={styles.disclaimer}>{tc(shop.maxPerTransaction)}</Text>
         <View style={styles.rateSummaryRow}>
-          <Text style={styles.rateSummaryText}>Cashback starting from {shop.rateSummary.from}</Text>
-          <Text style={styles.rateSummaryText}>up to {shop.rateSummary.upTo}</Text>
+          <Text style={styles.rateSummaryText}>
+            {tc("Cashback starting from")} {shop.rateSummary.from}
+          </Text>
+          <Text style={styles.rateSummaryText}>
+            {tc("up to")} {shop.rateSummary.upTo}
+          </Text>
         </View>
         <View style={styles.productRateList}>
           {shop.productRates.map((rate) => (
@@ -534,8 +540,8 @@ function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
           ))}
         </View>
         <View style={styles.noteBox}>
-          <Text style={styles.noteTitle}>NOTE</Text>
-          <Text style={styles.noteBody}>{shop.note}</Text>
+          <Text style={styles.noteTitle}>{tc("NOTE")}</Text>
+          <Text style={styles.noteBody}>{tc(shop.note)}</Text>
         </View>
       </View>
     </View>
@@ -544,9 +550,10 @@ function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
 
 function ShopTrackingPeriod({ shop }: { shop: ShopDetail }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
+  const tc = useCopy();
   return (
     <View style={styles.trackingSection}>
-      <Text style={styles.sectionTitle}>Cashback Tracking Period</Text>
+      <Text style={styles.sectionTitle}>{tc("Cashback Tracking Period")}</Text>
       <View style={styles.trackingRow}>
         {shop.trackingPeriod.map((step, index) => (
           <TrackingStepItem
@@ -560,14 +567,26 @@ function ShopTrackingPeriod({ shop }: { shop: ShopDetail }) {
   );
 }
 
+// Tracking details like "within 30 day" carry a dynamic count, so the catalog
+// can't hold every variant — translate the "within"/"day" halves around the
+// number; anything else goes through tc() whole.
+function translateTrackingDetail(detail: string, tc: (s: string) => string): string {
+  const match = detail.match(/^within (\d+) day$/);
+  if (match) {
+    return `${tc("within")} ${match[1]} ${tc("day")}`;
+  }
+  return tc(detail);
+}
+
 function TrackingStepItem({ showConnector, step }: { showConnector: boolean; step: TrackingStep }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
+  const tc = useCopy();
   return (
     <View style={styles.trackingItemWrap}>
       <View style={styles.trackingItem}>
         <TrackingIcon name={step.icon} />
-        <Text style={styles.trackingLabel}>{step.label}</Text>
-        <Text style={styles.trackingDetail}>{step.detail}</Text>
+        <Text style={styles.trackingLabel}>{tc(step.label)}</Text>
+        <Text style={styles.trackingDetail}>{translateTrackingDetail(step.detail, tc)}</Text>
       </View>
       {showConnector ? <View style={styles.trackingConnector} /> : null}
     </View>
@@ -585,6 +604,7 @@ function TrackingIcon({ name }: { name: TrackingStep["icon"] }) {
 function ShopReferralCard({ onShare, shop }: { onShare: () => void; shop: ShopDetail }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
+  const tc = useCopy();
   return (
     <View style={styles.referralCard}>
       <View style={styles.referralIcon}>
@@ -592,12 +612,12 @@ function ShopReferralCard({ onShare, shop }: { onShare: () => void; shop: ShopDe
       </View>
       <View style={styles.referralCopy}>
         <Text numberOfLines={2} style={styles.referralTitle}>
-          {shop.referral.title}
+          {tc(shop.referral.title)}
         </Text>
         <Text numberOfLines={2} style={styles.referralSubtitle}>
-          {shop.referral.subtitle}
+          {tc(shop.referral.subtitle)}
         </Text>
-        <Text style={styles.referralBody}>{shop.referral.body}</Text>
+        <Text style={styles.referralBody}>{tc(shop.referral.body)}</Text>
       </View>
       <MotionPressable
         accessibilityRole="button"
@@ -607,7 +627,7 @@ function ShopReferralCard({ onShare, shop }: { onShare: () => void; shop: ShopDe
         style={styles.shareButton}
       >
         <ShareIcon color={colors.white} size={16} strokeWidth={2} />
-        <Text style={styles.shareButtonText}>{shop.referral.actionLabel}</Text>
+        <Text style={styles.shareButtonText}>{tc(shop.referral.actionLabel)}</Text>
       </MotionPressable>
     </View>
   );
@@ -644,9 +664,10 @@ function ShopQuestBanner({ shop }: { shop: ShopDetail }) {
 
 function ShopDealsEmptyState({ shop }: { shop: ShopDetail }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
+  const tc = useCopy();
   return (
     <View style={styles.dealsSection}>
-      <Text style={styles.sectionTitle}>{shop.deals.title}</Text>
+      <Text style={styles.sectionTitle}>{tc(shop.deals.title)}</Text>
       <View style={styles.dealsEmptyCard}>
         <Image
           accessibilityLabel="No deals available"
@@ -655,8 +676,8 @@ function ShopDealsEmptyState({ shop }: { shop: ShopDetail }) {
           source={walletNoDataImage}
           style={styles.emptyImage}
         />
-        <Text style={styles.emptyTitle}>{shop.deals.emptyTitle}</Text>
-        <Text style={styles.emptySubtitle}>{shop.deals.emptySubtitle}</Text>
+        <Text style={styles.emptyTitle}>{tc(shop.deals.emptyTitle)}</Text>
+        <Text style={styles.emptySubtitle}>{tc(shop.deals.emptySubtitle)}</Text>
       </View>
     </View>
   );
@@ -665,17 +686,18 @@ function ShopDealsEmptyState({ shop }: { shop: ShopDetail }) {
 function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
+  const tc = useCopy();
   return (
     <View style={styles.termsPanel}>
       <View style={styles.termsHeader}>
         <Text style={styles.termsEmoji}>{terms.eyebrow}</Text>
         <View style={styles.termsTitleWrap}>
-          <Text style={styles.sectionTitle}>{terms.title}</Text>
-          <Text style={styles.termsSubtitle}>{terms.subtitle}</Text>
+          <Text style={styles.sectionTitle}>{tc(terms.title)}</Text>
+          <Text style={styles.termsSubtitle}>{tc(terms.subtitle)}</Text>
         </View>
         <InfoIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
       </View>
-      <Text style={styles.termsSectionTitle}>{terms.exclusionsTitle}</Text>
+      <Text style={styles.termsSectionTitle}>{tc(terms.exclusionsTitle)}</Text>
       <View style={styles.termsList}>
         {terms.bullets.map((bullet) => (
           <View key={bullet} style={styles.termBulletRow}>
@@ -695,6 +717,7 @@ const relatedCardMetrics = getScaledCompactBrandCardMetrics(FIXED_RELATED_CARD_W
 
 function ShopExploreRelated({ excludeShopId }: { excludeShopId: string }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
+  const tc = useCopy();
   const { region } = useLocale();
   const catalogResource = useCustomerAccountResource<OfferListResponse, OfferListResponse>({
     fixtureData: { data: [], limit: 80, page: 1, total: 0, totalPages: 0 },
@@ -716,7 +739,7 @@ function ShopExploreRelated({ excludeShopId }: { excludeShopId: string }) {
 
   return (
     <View style={styles.relatedSection}>
-      <Text style={styles.sectionTitle}>Explore other shops</Text>
+      <Text style={styles.sectionTitle}>{tc("Explore other shops")}</Text>
       <ScrollView
         contentContainerStyle={styles.relatedRow}
         horizontal

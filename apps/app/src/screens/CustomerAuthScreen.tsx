@@ -531,7 +531,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
         ) {
           return;
         }
-        toastCtx?.show(sendErrorCopy[toSendErrorKind(error)]);
+        toastCtx?.show(tc(sendErrorCopy[toSendErrorKind(error)]));
         haptics.error();
       } finally {
         setSocialBusyProviderId(null);
@@ -922,7 +922,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                   <View style={styles.otpStack}>
                     <Text style={styles.otpIntro}>{tc(webAuthPage.otp.intro)}</Text>
                     <View style={styles.otpPhoneRow}>
-                      <Text style={styles.otpSentTo}>{webAuthPage.otp.sentTo}</Text>
+                      <Text style={styles.otpSentTo}>{tc(webAuthPage.otp.sentTo)}</Text>
                       <Text style={styles.otpPhone}>{maskedPhone}</Text>
                     </View>
                     <MotionPressable
@@ -942,7 +942,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                     />
                     {otpError ? (
                       <Text accessibilityRole="alert" style={styles.otpError}>
-                        {webAuthPage.otp.errorAria}
+                        {tc(webAuthPage.otp.errorAria)}
                       </Text>
                     ) : null}
                     <View style={styles.resendRow}>
@@ -1009,7 +1009,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         usesMobileFormLayout ? styles.dividerTextMobile : null,
                       ]}
                     >
-                      {usesMobileFormLayout ? dividerText.toUpperCase() : dividerText}
+                      {usesMobileFormLayout ? tc(dividerText).toUpperCase() : tc(dividerText)}
                     </Text>
                     <View style={styles.dividerLine} />
                   </View>
@@ -1057,7 +1057,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                 {!isDesktopShell && mode === "register" ? (
                   <Link asChild href="/login">
                     <Pressable style={styles.modeLink}>
-                      <Text style={styles.modeLinkText}>Already have an account</Text>
+                      <Text style={styles.modeLinkText}>{tc("Already have an account")}</Text>
                     </Pressable>
                   </Link>
                 ) : null}

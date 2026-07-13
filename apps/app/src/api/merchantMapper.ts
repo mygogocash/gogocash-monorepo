@@ -142,8 +142,10 @@ export function mapMerchantOfferToShopDetail<
     cashback,
     category: offer.categories?.trim() || fixtureShop.category,
     customTerms: offer.custom_terms?.trim() || undefined,
+    // Brand-less constants (not `${brand} …` templates) so tc() can reverse-look-up
+    // the exact English catalog value and render Thai in Thai mode.
     disclaimer:
-      `${brand} cashback rates, tracking windows, exclusions, and availability can change. ` +
+      "Cashback rates, tracking windows, exclusions, and availability can change. " +
       "Final approval remains subject to the merchant and partner network.",
     extraCashback: cashback,
     id: offer._id,
@@ -151,7 +153,7 @@ export function mapMerchantOfferToShopDetail<
     logoUri: firstImageUri(apiBaseUrl, BRAND_LOGO_IMAGE_WIDTH, resolvePublicOfferLogo(offer)),
     note:
       offer.note_to_user?.trim() ||
-      `${brand} cashback is tracked through GoGoCash after you open the merchant link and complete an eligible order.`,
+      "Cashback is tracked through GoGoCash after you open the merchant link and complete an eligible order.",
     noteToUser: offer.note_to_user?.trim() || undefined,
     policyCategoryId: offer.policy_category_id?.trim() || undefined,
     productRates: [{ name: brand, rate: cashback }],

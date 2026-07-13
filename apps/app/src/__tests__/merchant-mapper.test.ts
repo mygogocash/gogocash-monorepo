@@ -100,7 +100,11 @@ describe("mapMerchantOfferToShopDetail", () => {
     expect(shop.noteToUser).toBe("Flash sale this week only.");
     expect(shop.customTerms).toBe("1. Custom merchant term\n2. No stacking");
     expect(shop.policyCategoryId).toBe("68345f00aa11bb22cc33dd99");
-    expect(shop.disclaimer).toContain("Lazada TH");
+    // Brand-less constant so tc() can reverse-look-up the catalog value in Thai mode.
+    expect(shop.disclaimer).toBe(
+      "Cashback rates, tracking windows, exclusions, and availability can change. " +
+        "Final approval remains subject to the merchant and partner network.",
+    );
     expect(shop.disclaimer).not.toBe("static legal copy");
     expect(shop.shopNowLabel).toBe("Shop Now");
   });

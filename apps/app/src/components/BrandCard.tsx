@@ -136,7 +136,7 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
               <View style={styles.couponChip}>
                 <Text style={styles.couponIcon}>🧧</Text>
                 <Text numberOfLines={1} style={styles.couponText}>
-                  {props.label}
+                  {tc(props.label)}
                 </Text>
               </View>
             ) : null}

@@ -6,7 +6,6 @@ import { CarouselDots } from "@mobile/components/CarouselDots";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
-import { viewAllLabel } from "./homeAssets";
 import {
   chunkCompactBrandCards,
   getPagedScrollIndex,
@@ -72,7 +71,8 @@ export function PromoSection({
         </View>
         <Link asChild href={link as never}>
           <MotionPressable pressScale={motion.scale.subtlePress}>
-            <Text style={styles.sectionAction}>{tc(viewAllLabel)}</Text>
+            {/* Only the words go through tc — the arrow suffix breaks the catalog match. */}
+            <Text style={styles.sectionAction}>{`${tc("View all")}  →`}</Text>
           </MotionPressable>
         </Link>
       </View>
