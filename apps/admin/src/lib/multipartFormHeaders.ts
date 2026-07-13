@@ -3,20 +3,12 @@ import type { AxiosRequestConfig } from "axios";
 /** Banner / media multipart uploads — fail fast instead of hanging on slow Drive uploads. */
 export const MULTIPART_UPLOAD_TIMEOUT_MS = 120_000;
 
-/** Auth headers for multipart FormData uploads. Do not set Content-Type — axios adds the boundary. */
-export function multipartAuthHeaders(
-  accessToken?: string | null,
-): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (accessToken) {
-    headers.Authorization = `Bearer ${accessToken}`;
-  }
-  return headers;
-}
-
-/** POST config for multipart FormData uploads (auth only; boundary comes from the browser). */
+/**
+ * POST config for multipart FormData uploads.
+ * Auth is attached by the BFF (`/api/backend`) from the NextAuth JWT cookie —
+ * do not pass a Bearer token from the browser session.
+ */
 export function multipartPostConfig(
-  accessToken?: string | null,
   extra?: AxiosRequestConfig,
 ): AxiosRequestConfig {
   return {
@@ -24,14 +16,11 @@ export function multipartPostConfig(
     ...extra,
     headers: {
       ...extra?.headers,
-      ...multipartAuthHeaders(accessToken),
     },
   };
 }
 
-function deleteContentTypeHeader(
-  headers: Record<string, unknown>,
-): void {
+function deleteContentTypeHeader(headers: Record<string, unknown>): void {
   const axiosHeaders = headers as {
     delete?: (name: string) => boolean;
     setContentType?: (value: false | string | null | undefined) => void;
@@ -54,7 +43,11 @@ export function stripDefaultJsonContentTypeForFormData(
   headers: Record<string, unknown> | undefined,
   data: unknown,
 ): void {
-  if (typeof FormData === "undefined" || !(data instanceof FormData) || !headers) {
+  if (
+    typeof FormData === "undefined" ||
+    !(data instanceof FormData) ||
+    !headers
+  ) {
     return;
   }
   deleteContentTypeHeader(headers);

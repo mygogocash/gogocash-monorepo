@@ -18,6 +18,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  FirebaseIdTokenDto,
   LineAuthDto,
   MiniPaySiweDto,
   RequestOtpDto,
@@ -220,7 +221,7 @@ export class AuthController {
   @ApiBearerAuth() // This directly applies Bearer authentication
   async authWithFirebase(
     @Req() req: Request,
-    @Body() body: { idToken: string },
+    @Body() body: FirebaseIdTokenDto,
   ) {
     const user = req['user'] as any;
     const id = user?.sub;

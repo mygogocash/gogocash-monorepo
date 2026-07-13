@@ -11,7 +11,6 @@ import {
   ResponseConversion,
   WithdrawQuery,
 } from "@/types/api";
-import { useDataSession } from "@/hooks/useDataSession";
 import client from "@/lib/axios/client";
 import { Modal } from "@/components/ui/modal";
 import NoData from "@/components/common/NoData";
@@ -20,7 +19,6 @@ import { devError } from "@/lib/devConsole";
 export default function ConversionTable() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const session = useDataSession();
   const { loading, error, getConversion, clearError } = useApi();
 
   const [lists, setLists] = useState<ResponseConversion>();
@@ -65,10 +63,7 @@ export default function ConversionTable() {
     const reqId = ++reqIdRef.current;
     try {
       const queryToUse = newQuery || query;
-      const response = await getConversion(
-        queryToUse,
-        session?.accessToken || "",
-      );
+      const response = await getConversion(queryToUse);
       if (reqId !== reqIdRef.current) return; // a newer request superseded this
       setLists(response);
       setPagination({
@@ -155,11 +150,6 @@ export default function ConversionTable() {
       const response = await client.patch(
         `/admin/update-conversion/${conversionId}`,
         {},
-        {
-          headers: {
-            Authorization: `Bearer ${session?.accessToken}`,
-          },
-        },
       );
       if (response.status === 200) {
         alert("Conversion updated successfully");
@@ -181,7 +171,6 @@ export default function ConversionTable() {
         { conversion_status: newStatus },
         {
           headers: {
-            Authorization: `Bearer ${session?.accessToken}`,
             "Content-Type": "application/json",
           },
         },

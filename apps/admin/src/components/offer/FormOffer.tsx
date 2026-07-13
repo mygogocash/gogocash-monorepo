@@ -32,7 +32,6 @@ import {
 import { pathImage } from "@/utils/helper";
 import { resolveAdminOfferLogoPath } from "@/lib/offerDisplay";
 import { reorder } from "@/lib/reorder";
-import { useDataSession } from "@/hooks/useDataSession";
 import { useObjectUrl } from "@/hooks/useObjectUrl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ResCategoryList } from "@/types/category";
@@ -319,7 +318,6 @@ const FormOffer = ({
   setForm,
   isLoading,
 }: FormOfferProps) => {
-  const session = useDataSession();
   const queryClient = useQueryClient();
   const logoDesktopUrl = useObjectUrl(form.logo_desktop);
   const bannerUrl = useObjectUrl(form.banner);
@@ -699,7 +697,6 @@ const FormOffer = ({
       fd.append("note_to_user", form.note_to_user ?? "");
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       });
@@ -782,7 +779,6 @@ const FormOffer = ({
       }
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       });
@@ -848,7 +844,6 @@ const FormOffer = ({
       if (form.banner_mobile) fd.append("banner_mobile", form.banner_mobile);
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       });
@@ -955,7 +950,6 @@ const FormOffer = ({
       }
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       });
@@ -1062,7 +1056,6 @@ const FormOffer = ({
       fd.append("offer_display_tags", JSON.stringify(form.offer_display_tags));
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       });
@@ -1175,7 +1168,6 @@ const FormOffer = ({
       });
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       });

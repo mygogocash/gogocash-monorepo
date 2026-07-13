@@ -26,7 +26,7 @@ vi.mock("@/hooks/usePermissions", () => ({
 }));
 
 vi.mock("@/hooks/useDataSession", () => ({
-  useDataSession: () => ({ accessToken: "test-token" }),
+  useDataSession: () => ({ user: { email: "admin@gogocash.co" } }),
 }));
 
 vi.mock("@/hooks/useObjectUrl", () => ({
@@ -129,10 +129,9 @@ describe("Banner FormUpdate save", () => {
     const [, body, config] = postMock.mock.calls[0] ?? [];
     expect(body).toBeInstanceOf(FormData);
     expect((body as FormData).get("image_1")).toBe(file);
-    expect(config?.headers).toEqual({
-      Authorization: "Bearer test-token",
-    });
+    expect(config?.headers).toEqual({});
     expect(config?.headers).not.toHaveProperty("Content-Type");
+    expect(config?.headers).not.toHaveProperty("Authorization");
     expect(config?.timeout).toBe(120_000);
     expect(onSaved).toHaveBeenCalledTimes(1);
   });

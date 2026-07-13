@@ -12,6 +12,7 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { UpdateBannerHomeBodyDto } from './update-admin.dto';
+import { GLOBAL_VALIDATION_PIPE_OPTIONS } from '../../common/validation-pipe.options';
 
 @Controller('banner-test')
 class BannerValidationController {
@@ -48,9 +49,7 @@ describe('UpdateBannerHomeBodyDto validation (integration)', () => {
       controllers: [BannerValidationController],
     }).compile();
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({ transform: true, forbidUnknownValues: false }),
-    );
+    app.useGlobalPipes(new ValidationPipe(GLOBAL_VALIDATION_PIPE_OPTIONS));
     await app.init();
   });
 

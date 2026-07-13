@@ -8,9 +8,7 @@ import { apiClient } from "@/lib/api";
 import { AFFILIATE_NETWORKS } from "@/data/affiliateNetworks";
 import { DEEPLINK_STORE_OPTIONS } from "@/data/deeplinkStores";
 import toast from "react-hot-toast";
-import { useDataSession } from "@/hooks/useDataSession";
 import { usePermissions } from "@/hooks/usePermissions";
-import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import { defaultLookupFromBrandAndCountry } from "@/lib/createBrandLookupSlug";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { isDirty } from "@/lib/isDirty";
@@ -143,11 +141,8 @@ const COUNTRY_OPTIONS = [
 export default function CreateBrandForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const session = useDataSession();
   const { can } = usePermissions();
   const canManageBrands = can("brands:manage");
-  const accessToken = session.accessToken ?? DEFAULT_MOCK_ACCESS_TOKEN;
-
   const [brandName, setBrandName] = useState("");
   const [affiliateNetworkId, setAffiliateNetworkId] = useState("involve_asia");
   const [deeplinkStoreId, setDeeplinkStoreId] = useState("global");
@@ -460,7 +455,7 @@ export default function CreateBrandForm() {
 
     setSubmitting(true);
     try {
-      await apiClient.createBrandFromAffiliate(formData, accessToken);
+      await apiClient.createBrandFromAffiliate(formData);
       void queryClient.invalidateQueries({ queryKey: ["offers", "list"] });
       void queryClient.invalidateQueries({
         queryKey: COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY,

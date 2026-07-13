@@ -1,6 +1,6 @@
-import type { DataSession } from "@/types/authSession";
 import { handleMockApiRequest } from "@/lib/mockApiCore";
 import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
+import { resolveAdminApiBaseURL } from "@/lib/backendProxy";
 import { stripDefaultJsonContentTypeForFormData } from "@/lib/multipartFormHeaders";
 import axios, {
   AxiosRequestConfig,
@@ -8,11 +8,14 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 import xhrAdapter from "axios/lib/adapters/xhr.js";
-import { getSession } from "next-auth/react";
 
-// Use real API when NEXT_PUBLIC_API_URL is set; fall back to local mock.
-const baseURL = process.env.NEXT_PUBLIC_API_URL || "/api/mock";
+// Real API in the browser goes through the same-origin BFF so the Nest JWT
+// never reaches client JS. Mock mode is unchanged.
 const isRealApi = !!process.env.NEXT_PUBLIC_API_URL;
+const baseURL = resolveAdminApiBaseURL({
+  realApiUrl: process.env.NEXT_PUBLIC_API_URL,
+  isBrowser: true,
+});
 
 const firebaseStaticMockAdapter: AxiosAdapter = async (
   config: InternalAxiosRequestConfig,
@@ -52,7 +55,6 @@ const firebaseStaticMockAdapter: AxiosAdapter = async (
 };
 
 const hybridAdapter: AxiosAdapter = (config) => {
-  // Skip mock adapter when connected to real API
   if (isRealApi) {
     if (typeof xhrAdapter !== "function") {
       return Promise.reject(new Error("XHR adapter unavailable"));
@@ -81,9 +83,20 @@ if (typeof window !== "undefined") {
 
 client.interceptors.request.use(
   async (config) => {
-    const session = (await getSession()) as unknown as DataSession;
-    if (session?.accessToken) {
-      config.headers.Authorization = `Bearer ${session.accessToken}`;
+    // Auth is attached by `/api/backend` from the NextAuth JWT cookie.
+    if (isRealApi && config.headers) {
+      const headers = config.headers as {
+        delete?: (name: string) => void;
+        Authorization?: unknown;
+        authorization?: unknown;
+      };
+      if (typeof headers.delete === "function") {
+        headers.delete("Authorization");
+        headers.delete("authorization");
+      } else {
+        delete headers.Authorization;
+        delete headers.authorization;
+      }
     }
     stripDefaultJsonContentTypeForFormData(
       config.headers as Record<string, unknown>,
@@ -116,9 +129,7 @@ export default client;
 
 export const fetcher = async (args: string | [string, AxiosRequestConfig]) => {
   const [url, config] = Array.isArray(args) ? args : [args];
-
   const res = await client.get(url, { ...config });
-
   return res.data;
 };
 
@@ -126,9 +137,7 @@ export const fetcherPost = async (
   args: string | [string, AxiosRequestConfig],
 ) => {
   const [url, config] = Array.isArray(args) ? args : [args];
-
   const res = await client.post(url, { ...config });
-
   return res.data;
 };
 
@@ -136,8 +145,6 @@ export const fetcherPut = async (
   args: string | [string, AxiosRequestConfig],
 ) => {
   const [url, config] = Array.isArray(args) ? args : [args];
-
   const res = await client.put(url, { ...config });
-
   return res.data;
 };

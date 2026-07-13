@@ -31,7 +31,9 @@ import {
 } from './dto/create-admin.dto';
 import {
   ApproveOfferDto,
+  GetConversionInWithdrawDto,
   RejectOfferDto,
+  SaveTopBrandsDto,
   UpdateAdminDto,
   UpdateBannerHomeBodyDto,
   UpdateBannerHomeDto,
@@ -337,9 +339,7 @@ export class AdminController {
   // so it must not be reachable by a read-only viewer.
   @Roles('approver')
   @Put('top-brands')
-  saveTopBrands(
-    @Body() body: { brands: { offerId: string; cashback: string }[] },
-  ) {
+  saveTopBrands(@Body() body: SaveTopBrandsDto) {
     return this.adminService.saveTopBrands(body.brands);
   }
 
@@ -413,7 +413,7 @@ export class AdminController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('getConversionInWithdraw')
-  getConversionInWithdraw(@Body() body: { data: number[] }) {
+  getConversionInWithdraw(@Body() body: GetConversionInWithdrawDto) {
     return this.adminService.getConversionInWithdraw(body.data);
   }
 

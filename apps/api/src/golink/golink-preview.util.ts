@@ -19,10 +19,16 @@ export function isAllowedGoLinkPreviewHost(hostname: string): boolean {
   if (!host || host.includes(':') || /^\d+\.\d+\.\d+\.\d+$/.test(host)) {
     return false;
   }
-  if (host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal')) {
+  if (
+    host === 'localhost' ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal')
+  ) {
     return false;
   }
-  return HOST_NEEDLES.some((needle) => host === needle || host.includes(needle));
+  return HOST_NEEDLES.some(
+    (needle) => host === needle || host.includes(needle),
+  );
 }
 
 export type GoLinkOpenGraphPreview = {
