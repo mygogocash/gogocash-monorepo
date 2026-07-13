@@ -32,6 +32,9 @@ type LiveShopDetailFields = {
   extraCashback: string;
   logoText: string;
   logoUri?: string;
+  /** Affiliate-network ids for minting per-user tracked links on Shop Now. */
+  merchantId?: number;
+  offerId?: number;
   note: string;
   noteToUser?: string;
   policyCategoryId?: string;
@@ -151,6 +154,8 @@ export function mapMerchantOfferToShopDetail<
     id: offer._id,
     logoText: initialsFromBrand(brand),
     logoUri: firstImageUri(apiBaseUrl, BRAND_LOGO_IMAGE_WIDTH, resolvePublicOfferLogo(offer)),
+    merchantId: typeof offer.merchant_id === "number" ? offer.merchant_id : undefined,
+    offerId: typeof offer.offer_id === "number" ? offer.offer_id : undefined,
     note:
       offer.note_to_user?.trim() ||
       "Cashback is tracked through GoGoCash after you open the merchant link and complete an eligible order.",

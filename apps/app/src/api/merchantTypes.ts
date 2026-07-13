@@ -12,6 +12,9 @@ export type MerchantOfferResponse = {
   offer_name: string;
   banner?: string;
   categories?: string;
+  /** Affiliate-network ids — Shop Now needs both to mint a per-user link. */
+  offer_id?: number;
+  merchant_id?: number;
   commission_store?: number | string;
   commissions?: MerchantCommission[];
   custom_terms?: string;
