@@ -10,6 +10,13 @@ describe('CommissionManagementService', () => {
     findById: jest.fn(),
     updateOne: jest.fn(),
   };
+  // Registry mock for the new seam-dispatch tests. The existing suite (above)
+  // constructs the service with the `involveService` mock in the 2nd slot and
+  // must keep passing unchanged — that is the involve-behavior regression proof.
+  const registry = {
+    providerFor: jest.fn(),
+    enabledProviders: jest.fn(),
+  };
 
   let service: CommissionManagementService;
 
@@ -128,5 +135,116 @@ describe('CommissionManagementService', () => {
       { $set: { app_deeplink: 'https://gogocash.app/open/shop-a?bestRate=5' } },
     );
     expect(result.success).toBe(true);
+  });
+
+  // New: mergePartnerFeed now dispatches through the affiliate provider seam
+  // instead of calling InvolveService directly.
+  describe('mergePartnerFeed dispatch (affiliate seam)', () => {
+    let seamService: CommissionManagementService;
+
+    beforeEach(() => {
+      seamService = new CommissionManagementService(
+        offerModel as any,
+        registry as any,
+      );
+    });
+
+    it('fetchBest > given an enabled provider for the network > then it refreshes via the registry and persists the returned patch', async () => {
+      const provider = {
+        source: 'involve',
+        isEnabled: jest.fn().mockReturnValue(true),
+        refreshOffer: jest.fn().mockResolvedValue({
+          commissions: [{ Commission: '9%' }],
+          tracking_link: 'https://track.example/fresh',
+          commission_tracking: 'CPS',
+        }),
+      };
+      registry.providerFor.mockReturnValue(provider);
+      offerModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          _id: '507f1f77bcf86cd799439011',
+          offer_id: 1001,
+          offer_name: 'Shop A',
+          offer_name_display: 'Shop A',
+          lookup_value: 'shop-a',
+          source: 'involve',
+          commissions: [{ Commission: '5%' }],
+          currency: 'THB',
+        }),
+      });
+
+      const result = await seamService.fetchBest({
+        offerId: '507f1f77bcf86cd799439011',
+        affiliateNetworkId: 'involve_asia',
+      });
+
+      expect(registry.providerFor).toHaveBeenCalledWith('involve');
+      expect(provider.refreshOffer).toHaveBeenCalledTimes(1);
+      expect(offerModel.updateOne).toHaveBeenCalledWith(
+        { _id: '507f1f77bcf86cd799439011' },
+        {
+          $set: {
+            commissions: [{ Commission: '9%' }],
+            tracking_link: 'https://track.example/fresh',
+            commission_tracking: 'CPS',
+          },
+        },
+      );
+      // Patch's 9% partner rate wins over the offer's stale 5%.
+      expect(result.bestRatePercent).toBe(9);
+    });
+
+    it('fetchBest > given optimise (no provider registered yet) > then it falls through to the unsupported path and never persists', async () => {
+      registry.providerFor.mockReturnValue(null);
+      offerModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          _id: '507f1f77bcf86cd799439012',
+          offer_id: 2002,
+          offer_name: 'Shop B',
+          source: 'optimise',
+          commissions: [{ Commission: '4%' }],
+          currency: 'THB',
+        }),
+      });
+
+      const result = await seamService.fetchBest({
+        offerId: '507f1f77bcf86cd799439012',
+        affiliateNetworkId: 'optimise',
+      });
+
+      expect(registry.providerFor).toHaveBeenCalledWith('optimise');
+      expect(offerModel.updateOne).not.toHaveBeenCalled();
+      // Falls back to the stored offer's own 4% — nothing refreshed.
+      expect(result.bestRatePercent).toBe(4);
+      expect(result.affiliateNetworkId).toBe('optimise');
+    });
+
+    it('fetchBest > given a disabled provider > then it falls through to not-connected and never refreshes or persists', async () => {
+      const provider = {
+        source: 'involve',
+        isEnabled: jest.fn().mockReturnValue(false),
+        refreshOffer: jest.fn(),
+      };
+      registry.providerFor.mockReturnValue(provider);
+      offerModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          _id: '507f1f77bcf86cd799439011',
+          offer_id: 1001,
+          offer_name: 'Shop A',
+          source: 'involve',
+          commissions: [{ Commission: '6.5%' }],
+          currency: 'THB',
+        }),
+      });
+
+      const result = await seamService.fetchBest({
+        offerId: '507f1f77bcf86cd799439011',
+        affiliateNetworkId: 'involve_asia',
+      });
+
+      expect(provider.refreshOffer).not.toHaveBeenCalled();
+      expect(offerModel.updateOne).not.toHaveBeenCalled();
+      expect(result.bestRatePercent).toBe(6.5);
+    });
   });
 });

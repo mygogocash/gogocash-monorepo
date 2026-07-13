@@ -1,6 +1,7 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Logger, Param, UseGuards } from '@nestjs/common';
 import { TasksService } from './tasks.service';
-import { InvolveService } from 'src/involve/involve.service';
+import { AffiliateProviderRegistry } from 'src/affiliate/affiliate-provider.registry';
+import { syncEnabledAffiliateProviders } from 'src/affiliate/affiliate-sync.util';
 import { rateCurrencyUSD } from 'src/utils/helper';
 import { InjectModel } from '@nestjs/mongoose';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
@@ -25,9 +26,11 @@ function isFirebaseCronSecret(id: string): boolean {
 @RateLimit({ windowMs: 60_000, max: 10 })
 @Controller('tasks')
 export class TasksController {
+  private readonly logger = new Logger(TasksController.name);
+
   constructor(
     private readonly tasksService: TasksService,
-    private readonly involveService: InvolveService,
+    private readonly registry: AffiliateProviderRegistry,
     private readonly pointService: PointService,
     private readonly jobService: JobService,
     private readonly withdrawService: WithdrawService,
@@ -39,7 +42,9 @@ export class TasksController {
     if (!isFirebaseCronSecret(id)) {
       return { message: 'error' };
     }
-    await this.involveService.findAll();
+    // Break-glass manual trigger of the offer-sync that the monthly cron runs.
+    // Same registry dispatch, error-isolated per provider.
+    await syncEnabledAffiliateProviders(this.registry, this.logger);
   }
 
   @Get('update-points/:id')

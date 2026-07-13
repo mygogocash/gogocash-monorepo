@@ -142,6 +142,7 @@ import {
 } from './search/schemas/blacklist.schema';
 
 import { InvolveModule } from 'src/involve/involve.module';
+import { AffiliateModule } from 'src/affiliate/affiliate.module';
 import { UserService } from 'src/user/user.service';
 import { MediaModule } from 'src/media/media.module';
 import { JobService } from 'src/withdraw/cronjob/job.service';
@@ -156,7 +157,11 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     EmailModule,
     MediaModule,
     PointModule,
+    // InvolveModule stays: JobService / WithdrawService (providers here) inject
+    // InvolveService. AffiliateModule adds the seam CommissionManagementService
+    // dispatches offer-refresh through.
     InvolveModule,
+    AffiliateModule,
     MongooseModule.forFeature([
       { name: UserAdmin.name, schema: UserAdminSchema },
       { name: AdminToken.name, schema: AdminTokenSchema },

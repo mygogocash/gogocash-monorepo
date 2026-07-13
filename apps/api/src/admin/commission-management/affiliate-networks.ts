@@ -35,6 +35,8 @@ export function sourceForAffiliateNetwork(
       return 'involve';
     case 'optimise':
       return 'optimise';
+    case 'accesstrade':
+      return 'accesstrade';
     default:
       return null;
   }
@@ -60,6 +62,10 @@ export function listAffiliateNetworks(): AffiliateNetworkDto[] {
         ? Boolean(process.env.INVOLVE_SECRET?.trim())
         : n.id === 'optimise'
           ? Boolean(process.env.OPTIMISE_API_KEY?.trim())
-          : false,
+          : n.id === 'accesstrade'
+            ? // Connected flag only: the numeric tail of the Accesstrade datafeed
+              // API link, used until the Accesstrade provider itself lands.
+              Boolean(process.env.ACCESSTRADE_API_KEY?.trim())
+            : false,
   }));
 }
