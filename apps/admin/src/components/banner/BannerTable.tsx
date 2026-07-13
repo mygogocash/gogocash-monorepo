@@ -20,8 +20,6 @@ import { multipartPostConfig } from "@/lib/multipartFormHeaders";
 
 export type { BannerTableVariant } from "@/types/banner";
 
-type HeaderNavMode = "fullHome" | "fullAllBrand" | "minimal";
-
 const VARIANT_CONFIG: Record<
   BannerTableVariant,
   {
@@ -33,7 +31,6 @@ const VARIANT_CONFIG: Record<
     formTitle: string;
     formDescription: string;
     uploadHint: string;
-    headerNavMode: HeaderNavMode;
   }
 > = {
   home: {
@@ -46,7 +43,6 @@ const VARIANT_CONFIG: Record<
       "Edit homepage banner slot {slot}: upload an image, set the link and optional start/end dates. The banner is shown to users on the app homepage.",
     uploadHint:
       "Choose a banner image (e.g. PNG, JPG). Recommended size: 1920×1080 (16:9). Non-16:9 uploads are center-cropped to fill the hero frame.",
-    headerNavMode: "fullHome",
   },
   homeSmall: {
     queryKey: BANNER_ADMIN_SURFACES.homeSmall.queryKey,
@@ -59,7 +55,6 @@ const VARIANT_CONFIG: Record<
       "Edit small-banner slot {slot} on the homepage: upload a compact image, set the link, and optional start/end dates.",
     uploadHint:
       "Smaller tiles or icons work well here (e.g. square or short-wide ratio), separate from the main hero banners.",
-    headerNavMode: "minimal",
   },
   allBrand: {
     queryKey: BANNER_ADMIN_SURFACES.allBrand.queryKey,
@@ -71,7 +66,6 @@ const VARIANT_CONFIG: Record<
       "Edit banner slot {slot} for the app’s all-brands listing: upload an image, set the link, and optional start/end dates.",
     uploadHint:
       "Choose a banner image (e.g. PNG, JPG). Wide assets work best at the top of the brands list.",
-    headerNavMode: "fullAllBrand",
   },
 };
 
@@ -220,38 +214,6 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {cfg.headerNavMode === "fullHome" ? (
-            <Link
-              href="/banner/all-brand-page"
-              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-            >
-              All Brand Page banner
-            </Link>
-          ) : null}
-          {cfg.headerNavMode === "fullAllBrand" ? (
-            <Link
-              href="/banner"
-              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-            >
-              Home Page Banner
-            </Link>
-          ) : null}
-          {cfg.headerNavMode === "fullHome" || cfg.headerNavMode === "fullAllBrand" ? (
-            <>
-              <Link
-                href="/banner/modal-popups"
-                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-              >
-                Modal popups
-              </Link>
-              <Link
-                href="/banner/popup-history"
-                className="inline-flex items-center justify-center rounded-lg border border-transparent px-4 py-2 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-950/30"
-              >
-                Popup history
-              </Link>
-            </>
-          ) : null}
           <input
             type="search"
             placeholder="Search slots, links, image id…"
