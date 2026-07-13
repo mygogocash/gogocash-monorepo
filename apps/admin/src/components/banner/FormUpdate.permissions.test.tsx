@@ -24,7 +24,7 @@ vi.mock("@/hooks/usePermissions", () => ({
 }));
 
 vi.mock("@/hooks/useDataSession", () => ({
-  useDataSession: () => ({ accessToken: "test-token" }),
+  useDataSession: () => ({ user: { email: "admin@gogocash.co" } }),
 }));
 
 vi.mock("@/hooks/useObjectUrl", () => ({

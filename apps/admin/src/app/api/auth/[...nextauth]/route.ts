@@ -91,7 +91,9 @@ const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken;
+      // Keep Nest JWT on the encrypted NextAuth JWT only — never expose
+      // accessToken via getSession() / client JS. Browser API calls go through
+      // `/api/backend`, which attaches Bearer via getToken().
       if (token.id) session.user.id = token.id;
       if (token.name) session.user.name = token.name;
       if (token.email) session.user.email = token.email;
@@ -106,10 +108,8 @@ const authOptions: NextAuthOptions = {
     // P1-SESS: tightened from 30d -> 7d idle window for an admin panel that gates
     // money/user data. The session still rolls forward on activity (updateAge),
     // so active admins stay signed in; an idle/leaked session now expires in 7d
-    // instead of 30d (shrinks stolen-token blast radius). NOTE: the backend
-    // accessToken is still attached to the client session below — eliminating
-    // that exposure needs a server-side relay (BFF) and is tracked separately;
-    // revocation (token-version vs denylist) is an open owner decision.
+    // instead of 30d (shrinks stolen-token blast radius). Nest accessToken stays
+    // server-side (BFF). Revocation (token-version vs denylist) remains #43b.
     maxAge: 7 * 24 * 60 * 60,
     updateAge: 60 * 60,
   },

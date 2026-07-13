@@ -12,7 +12,6 @@ import NoData from "@/components/common/NoData";
 import { pathImage } from "@/utils/helper";
 import { buildBannerClearSlotFormData, buildBannerSlotFormState } from "./bannerFormPayload";
 import { type BannerRequestForm, type BannerTableVariant, type BannerSlotId, type BannerData } from "@/types/banner";
-import { useDataSession } from "@/hooks/useDataSession";
 import { usePermissions } from "@/hooks/usePermissions";
 import toast from "react-hot-toast";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
@@ -82,7 +81,6 @@ type BannerTableProps = {
 
 export default function BannerTable({ variant = "home" }: BannerTableProps) {
   const cfg = VARIANT_CONFIG[variant];
-  const session = useDataSession();
   const { can } = usePermissions();
   const canManageBanners = can("banner:manage");
   const [openModal, setOpenModal] = useState<boolean>(false);
@@ -186,7 +184,7 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
       await client.post(
         cfg.savePath,
         buildBannerClearSlotFormData(slot),
-        multipartPostConfig(session?.accessToken),
+        multipartPostConfig(),
       );
       await refetch();
       toast.success(`Slot ${slot} cleared`);
@@ -196,7 +194,7 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
     } finally {
       setClearingSlot(null);
     }
-  }, [canManageBanners, cfg.savePath, refetch, session]);
+  }, [canManageBanners, cfg.savePath, refetch]);
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">

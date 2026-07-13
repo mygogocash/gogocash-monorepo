@@ -5,7 +5,7 @@ import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 import Checkbox from "@/components/form/input/Checkbox";
 import { RewardTransactionSummaryTable } from "@/components/reward/RewardTransactionSummaryTable";
-import { useDataSession } from "@/hooks/useDataSession";
+import { useSession } from "next-auth/react";
 import apiClient from "@/lib/api";
 import { parseAmount } from "@/lib/formValidation";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
@@ -22,7 +22,7 @@ import {
 const ALLOWED_CURRENCIES = new Set(["THB", "USD"]);
 
 export default function CreateRewardForm() {
-  const session = useDataSession();
+  const { status } = useSession();
   const [rewardName, setRewardName] = useState("");
   const [rewardAmount, setRewardAmount] = useState("");
   const [rewardCurrency, setRewardCurrency] = useState("THB");
@@ -63,8 +63,7 @@ export default function CreateRewardForm() {
       return;
     }
 
-    const token = session.accessToken;
-    if (!token) {
+    if (status !== "authenticated") {
       setSubmitError("You must be signed in to create a reward.");
       return;
     }
@@ -76,15 +75,12 @@ export default function CreateRewardForm() {
 
     if (!skipApi) {
       try {
-        await apiClient.createConversionReward(
-          {
-            reward_type: trimmedName,
-            reward_amount: amount,
-            reward_currency: currency,
-            user: trimmedUser,
-          },
-          token,
-        );
+        await apiClient.createConversionReward({
+          reward_type: trimmedName,
+          reward_amount: amount,
+          reward_currency: currency,
+          user: trimmedUser,
+        });
         apiSuccess = true;
       } catch (error) {
         errorMessage = getApiErrorMessage(error, "Failed to create reward");

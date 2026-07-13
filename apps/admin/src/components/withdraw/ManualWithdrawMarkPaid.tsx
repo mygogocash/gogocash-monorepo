@@ -20,15 +20,12 @@ import { useState } from "react";
 
 type Props = {
   withdraw: WithdrawList;
-  /** Auth token for admin API calls (reuses the same session storage other admin components use). */
-  token: string;
   /** Called after a successful mark-paid so the page can refetch the row. */
   onMarkedPaid?: () => void;
 };
 
 export function ManualWithdrawMarkPaid({
   withdraw,
-  token,
   onMarkedPaid,
 }: Props) {
   const [txHash, setTxHash] = useState("");
@@ -58,7 +55,7 @@ export function ManualWithdrawMarkPaid({
     setError(null);
     setSubmitting(true);
     try {
-      await apiClient.markWithdrawPaid(withdraw._id, txHash.trim(), token);
+      await apiClient.markWithdrawPaid(withdraw._id, txHash.trim());
       onMarkedPaid?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to mark paid");

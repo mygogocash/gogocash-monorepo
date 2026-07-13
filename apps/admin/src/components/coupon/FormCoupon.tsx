@@ -5,7 +5,6 @@ import TextArea from "../form/input/TextArea";
 import TimeFieldHM from "../form/input/TimeFieldHM";
 import Switch from "../form/switch/Switch";
 import client, { fetcher } from "@/lib/axios/client";
-import { useDataSession } from "@/hooks/useDataSession";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
@@ -88,7 +87,6 @@ const FormCoupon = ({
   isLoading,
   setIsLoading,
 }: IProp) => {
-  const session = useDataSession();
   const [brandSearch, setBrandSearch] = useState("");
   const [selectedBrand, setSelectedBrand] = useState<BrandSelectOption | null>(
     null,
@@ -322,11 +320,7 @@ const FormCoupon = ({
 
     setIsLoading(true);
     client
-      .post(`/offer/update-coupon`, payload, {
-        headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
-        },
-      })
+      .post(`/offer/update-coupon`, payload)
       .then(() => {
         fetchData();
         closeModal();

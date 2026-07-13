@@ -7,7 +7,6 @@ import type {
   GlobalMaxCapMode,
   ResponseFee,
 } from "@/types/api";
-import { useDataSession } from "@/hooks/useDataSession";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import NoData from "@/components/common/NoData";
@@ -29,7 +28,6 @@ import {
 import { COMMON_CURRENCIES, FEE_REGION_PRESETS } from "@/data/feeRegionPresets";
 import toast from "react-hot-toast";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
-import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import { isDirty } from "@/lib/isDirty";
 
 function isCommonCurrency(code: string): boolean {
@@ -74,7 +72,6 @@ function newRegion(overrides?: Partial<FeeWithdrawRegion>): FeeWithdrawRegion {
 }
 
 export default function FeeForm() {
-  const session = useDataSession();
 
   const [forms, setForms] = useState<FeeSettingsForm>({
     system: 0,
@@ -112,8 +109,6 @@ export default function FeeForm() {
     return m;
   }, [feeCountryOptions]);
 
-  const token = session?.accessToken ?? DEFAULT_MOCK_ACCESS_TOKEN;
-
   const applyFeeResponse = useCallback((res: ResponseFee) => {
     const fromApi = res.withdraw_regions?.length
       ? ensureRegionIds(res.withdraw_regions, legacyRegionsFromResponse(res))
@@ -146,7 +141,7 @@ export default function FeeForm() {
     (async () => {
       setFetching(true);
       try {
-        const response = await apiClient.getFee(token);
+        const response = await apiClient.getFee();
         if (cancelled) return;
         const res = response?.[0];
         if (!res) {
@@ -166,7 +161,7 @@ export default function FeeForm() {
     return () => {
       cancelled = true;
     };
-  }, [token, applyFeeResponse]);
+  }, [applyFeeResponse]);
 
   const regions = forms.withdraw_regions ?? [];
 
@@ -286,14 +281,11 @@ export default function FeeForm() {
     const savedSnapshot = structuredClone(forms);
     setSaving(true);
     try {
-      await apiClient.updateFee(
-        {
-          ...forms,
-          ...legacy,
-          withdraw_regions: normalized,
-        },
-        token,
-      );
+      await apiClient.updateFee({
+        ...forms,
+        ...legacy,
+        withdraw_regions: normalized,
+      });
       // Refresh baseline so Save disables again until the next edit.
       setInitialForms(savedSnapshot);
       toast.success("Fee settings updated successfully");
