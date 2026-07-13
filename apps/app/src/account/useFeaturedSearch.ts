@@ -24,13 +24,16 @@ function fixtureFeaturedTerms(): string[] {
 }
 
 // Popular-terms chain: curated featured terms → live brand catalog (capped to
-// the fixture panel size) → fixture brands. Staging's featured endpoint is
-// empty today, so without the live fallback the demo fixture brands leak into
-// backend-mode UI.
+// the fixture panel size) → fixtures (fixtures-mode only). Staging's featured
+// endpoint is empty today; without the live fallback demo brands leak into
+// backend-mode UI. Backend mode never falls through to fixtures (#254) so
+// suggestions stay searchable against the live offer index.
 export function resolveFeaturedSearchTerms({
+  allowFixtureFallback = true,
   backendTerms,
   fallbackTerms,
 }: {
+  allowFixtureFallback?: boolean;
   backendTerms: readonly string[] | null;
   fallbackTerms?: readonly string[];
 }): string[] {
@@ -44,12 +47,17 @@ export function resolveFeaturedSearchTerms({
     return live.slice(0, webHomeSearchPopularPanel.items.length);
   }
 
+  if (!allowFixtureFallback) {
+    return [];
+  }
+
   return fixtureFeaturedTerms();
 }
 
 export function useFeaturedSearchTerms(fallbackTerms?: readonly string[]) {
   const env = useMemo(() => getMobileEnv(), []);
   const shouldFetch = env.accountDataSource === "backend";
+  const allowFixtureFallback = !shouldFetch;
 
   const featuredQuery = useQuery<FeaturedSearchResponse, Error>({
     enabled: shouldFetch,
@@ -65,12 +73,16 @@ export function useFeaturedSearchTerms(fallbackTerms?: readonly string[]) {
   });
 
   if (!shouldFetch || featuredQuery.isError || !isFeaturedSearchResponse(featuredQuery.data)) {
-    return resolveFeaturedSearchTerms({ backendTerms: null, fallbackTerms });
+    return resolveFeaturedSearchTerms({
+      allowFixtureFallback,
+      backendTerms: null,
+      fallbackTerms,
+    });
   }
 
   const backendTerms = (featuredQuery.data.data ?? [])
     .map((row) => (typeof row.term === "string" ? row.term.trim() : ""))
     .filter(Boolean);
 
-  return resolveFeaturedSearchTerms({ backendTerms, fallbackTerms });
+  return resolveFeaturedSearchTerms({ allowFixtureFallback, backendTerms, fallbackTerms });
 }

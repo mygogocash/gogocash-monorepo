@@ -86,7 +86,9 @@ describe("GoGoCash web design parity", () => {
       "trending",
       "categoryHome",
     ]);
-    expect(spacing.homeStackGap).toBe(16);
+    // Issue #256: 16px between home sections read as cramped; bump for clearer
+    // section separation on mobile (desktop keeps desktopHomeStackGap: 40).
+    expect(spacing.homeStackGap).toBe(24);
     expect(mobileShellLayout).toMatchObject({
       contentMaxWidth: 1440,
       contentHorizontalPadding: 16,

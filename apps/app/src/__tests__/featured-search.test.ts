@@ -82,9 +82,17 @@ describe("useFeaturedSearch > resolveFeaturedSearchTerms", () => {
     expect(terms[0]).toBe("Brand 1");
   });
 
-  it("given neither backend terms nor live brands > then the fixture panel remains the last resort", () => {
-    expect(resolveFeaturedSearchTerms({ backendTerms: null })).toEqual(
-      webHomeSearchPopularPanel.items.map((item) => item.brand),
-    );
+  it("given neither backend terms nor live brands in fixtures mode > then the fixture panel remains the last resort", () => {
+    expect(
+      resolveFeaturedSearchTerms({ allowFixtureFallback: true, backendTerms: null }),
+    ).toEqual(webHomeSearchPopularPanel.items.map((item) => item.brand));
+  });
+
+  // Issue #254: backend mode must not recommend fixture brands the live search
+  // index cannot find (e.g. Grocery Galaxy on staging).
+  it("given neither backend terms nor live brands in backend mode > then returns empty instead of fixtures", () => {
+    expect(
+      resolveFeaturedSearchTerms({ allowFixtureFallback: false, backendTerms: null }),
+    ).toEqual([]);
   });
 });

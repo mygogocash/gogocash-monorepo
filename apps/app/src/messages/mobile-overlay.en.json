@@ -422,5 +422,8 @@
   "mobileSearchIdleHelper": "Start typing to search brands, stores, products, or cashback.",
   "mobileSearchTrendingHeading": "Trending searches",
   "mobileSearchSuggestionsHeading": "Search suggestions",
-  "mobileSearchSuggestionsSubtitle": "Tap a brand to search its cashback deals."
+  "mobileSearchSuggestionsSubtitle": "Tap a brand to search its cashback deals.",
+  "mobileSearchRecentHeading": "Recent searches",
+  "mobileSearchClearAll": "Clear all",
+  "mobileSearchClearRecentA11y": "Clear recent searches"
 }

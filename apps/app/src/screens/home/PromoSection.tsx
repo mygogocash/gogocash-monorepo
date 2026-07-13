@@ -88,6 +88,9 @@ export function PromoSection({
                 logoVisualHeight={homeLayout.compactBrandLogoVisualHeight}
                 key={`${title}-${card.brand}`}
                 {...card}
+                // Issue #253 (partial): favorite heart matches Top Brands; full-bleed
+                // size="L" deferred — conflicts with compact rail layout metrics.
+                showFavoriteHeart
                 size="S"
               />
             ))}
@@ -141,6 +144,7 @@ export function PromoSection({
                       logoVisualHeight={homeLayout.compactBrandLogoVisualHeight}
                       key={`${title}-${card.brand}`}
                       {...card}
+                      showFavoriteHeart
                       size="S"
                     />
                   ))}
@@ -158,6 +162,7 @@ export function PromoSection({
                       logoVisualHeight={homeLayout.compactBrandLogoVisualHeight}
                       key={`${title}-${card.brand}`}
                       {...card}
+                      showFavoriteHeart
                       size="S"
                     />
                   ))}

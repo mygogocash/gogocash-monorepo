@@ -422,5 +422,8 @@
   "mobileSearchIdleHelper": "พิมพ์เพื่อค้นหาแบรนด์ ร้านค้า สินค้า หรือเงินคืน",
   "mobileSearchTrendingHeading": "การค้นหายอดนิยม",
   "mobileSearchSuggestionsHeading": "ร้านค้าแนะนำ",
-  "mobileSearchSuggestionsSubtitle": "แตะแบรนด์เพื่อค้นหาดีลเงินคืน"
+  "mobileSearchSuggestionsSubtitle": "แตะแบรนด์เพื่อค้นหาดีลเงินคืน",
+  "mobileSearchRecentHeading": "การค้นหาล่าสุด",
+  "mobileSearchClearAll": "ล้างทั้งหมด",
+  "mobileSearchClearRecentA11y": "ล้างการค้นหาล่าสุด"
 }

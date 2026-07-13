@@ -94,16 +94,18 @@ describe("CustomerHomeScreen (render)", () => {
   });
 
   it("favorites a Top Brands card on heart press (and the press does not navigate)", () => {
-    // The large (size="L") Top Brands card exposes a heart 'Save brand' toggle; the
-    // compact (size="S") rails have no heart. Pressing it flips the brand to favorited
-    // (label changes) in place — it must NOT bubble to the card's <Link> navigation.
+    // size="L" Top Brands always expose a heart; promo rails also get
+    // showFavoriteHeart (#253 partial), so several Save brand buttons exist.
+    // Pressing one flips that brand to favorited in place — must NOT navigate.
     setViewportWidth(1280);
     renderHome();
     const saveButtons = screen.queryAllByRole("button", { name: /^Save brand:/ });
     expect(saveButtons.length).toBeGreaterThan(0);
     const brand = (saveButtons[0].getAttribute("aria-label") ?? "").replace(/^Save brand:\s*/, "");
     fireEvent.click(saveButtons[0]);
-    expect(screen.getByRole("button", { name: `Remove from saved brands: ${brand}` })).toBeTruthy();
+    expect(
+      screen.getAllByRole("button", { name: `Remove from saved brands: ${brand}` }).length,
+    ).toBeGreaterThan(0);
   });
 });
 

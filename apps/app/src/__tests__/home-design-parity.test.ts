@@ -799,12 +799,14 @@ describe("Expo home design parity", () => {
     expect(getTopBrandHref("Vitaline Spa")).toBe("/shop/brand-vitaline-spa-1068");
   });
 
-  it("home design parity > given lower staging home rails > then Expo uses compact brand logo cards", () => {
+  it("home design parity > given lower staging home rails > then Expo uses compact brand logo cards with favorite hearts (issue #253 partial)", () => {
     const homeFile = readHomeFile();
 
-    // Secondary brand rails render the shared BrandCard at its small/compact size.
+    // Secondary brand rails stay size="S" (compact layout metrics) but gain the
+    // same favorite heart as Top Brands. Full-bleed size="L" deferred.
     expect(homeFile).toContain("BrandCard");
     expect(homeFile).toContain('size="S"');
+    expect(homeFile).toContain("showFavoriteHeart");
     expect(homeFile).toContain("activeIndex={activePromoDot}");
     const brandCardFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/BrandCard.tsx"),
