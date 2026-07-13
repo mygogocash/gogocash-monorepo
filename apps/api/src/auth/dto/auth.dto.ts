@@ -1,8 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEmail,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   Matches,
@@ -118,15 +120,55 @@ export class SignInAiDto {
 }
 
 export class TelegramAuthDto {
+  @ApiProperty({ example: 123456789 })
+  @Type(() => Number)
+  @IsNumber()
   id: number;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   first_name: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   last_name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   username?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   photo_url?: string;
+
+  @ApiProperty({ example: 1700000000 })
+  @Type(() => Number)
+  @IsNumber()
   auth_date: number;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   hash: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   email?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   referral_id?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
   country?: string;
 }
 
