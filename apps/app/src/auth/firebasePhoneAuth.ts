@@ -4,6 +4,7 @@ import { Platform } from "react-native";
 
 import { FIREBASE_NOT_CONFIGURED_CODE } from "@mobile/auth/authSendErrorKind";
 import { getClientAuth, isFirebaseConfigured } from "@mobile/auth/firebaseClient";
+import { RECAPTCHA_INLINE_CONTAINER_ID } from "@mobile/auth/recaptchaSlot";
 
 export const FIREBASE_NATIVE_RECAPTCHA_REQUIRED_MESSAGE =
   "Firebase phone sign-in on native requires a reCAPTCHA application verifier.";
@@ -21,25 +22,66 @@ export type PhoneOtpConfirmation = {
   confirm(code: string): Promise<{ user: { getIdToken(): Promise<string> } } | null>;
 };
 
-// Phone OTP via Firebase — the only sign-in provider enabled on gogocash-staging.
-// Web uses the invisible DOM RecaptchaVerifier (parity with the Next.js client).
-// Native uses expo-firebase-recaptcha's ApplicationVerifier from the auth screen.
+// Phone OTP via Firebase. Web prefers a VISIBLE checkbox rendered in the auth
+// card's inline slot (founder 2026-07-13: the invisible badge floated clipped
+// at the viewport corner — and rendered Google's domain error there, unreadable).
+// The invisible body-appended verifier remains only as a fallback for web entry
+// points that don't mount the slot. Native uses expo-firebase-recaptcha's
+// ApplicationVerifier from the auth screen.
 const RECAPTCHA_CONTAINER_ID = "gogocash-recaptcha-container";
 
-let cachedVerifier: RecaptchaVerifier | null = null;
+export { RECAPTCHA_INLINE_CONTAINER_ID } from "@mobile/auth/recaptchaSlot";
 
-function getInvisibleRecaptcha(): RecaptchaVerifier {
-  if (cachedVerifier) {
+let cachedVerifier: RecaptchaVerifier | null = null;
+let cachedContainer: HTMLElement | null = null;
+
+function getWebRecaptcha(theme?: "dark" | "light"): RecaptchaVerifier {
+  const inline = document.getElementById(RECAPTCHA_INLINE_CONTAINER_ID);
+  let container = inline;
+  if (!container) {
+    container = document.getElementById(RECAPTCHA_CONTAINER_ID);
+    if (!container) {
+      container = document.createElement("div");
+      container.id = RECAPTCHA_CONTAINER_ID;
+      document.body.appendChild(container);
+    }
+  }
+  // A verifier is bound to its container — recreate when the preferred
+  // container changed (e.g. the auth card mounted its inline slot).
+  if (cachedVerifier && cachedContainer === container) {
     return cachedVerifier;
   }
-  let container = document.getElementById(RECAPTCHA_CONTAINER_ID);
-  if (!container) {
-    container = document.createElement("div");
-    container.id = RECAPTCHA_CONTAINER_ID;
-    document.body.appendChild(container);
-  }
-  cachedVerifier = new RecaptchaVerifier(getClientAuth(), container, { size: "invisible" });
+  cachedVerifier?.clear();
+  cachedVerifier = new RecaptchaVerifier(
+    getClientAuth(),
+    container,
+    inline ? { size: "normal", ...(theme ? { theme } : {}) } : { size: "invisible" },
+  );
+  cachedContainer = container;
   return cachedVerifier;
+}
+
+/**
+ * Render the visible checkbox as soon as the auth card's phone step mounts so
+ * users see the captcha before submitting (instead of it appearing mid-send).
+ * Safe no-op off web, when Firebase isn't configured, or without the slot.
+ */
+export async function preloadInlineRecaptcha(options?: {
+  theme?: "dark" | "light";
+}): Promise<void> {
+  if (!isWebPhoneAuthEnvironment() || !isFirebaseConfigured()) {
+    return;
+  }
+  if (!document.getElementById(RECAPTCHA_INLINE_CONTAINER_ID)) {
+    return;
+  }
+  try {
+    await getWebRecaptcha(options?.theme).render();
+  } catch {
+    // Widget-level failures (e.g. unauthorized domain) now surface INSIDE the
+    // visible slot where the admin/user can read them; sending still reports
+    // the mapped security-check copy via toSendErrorKind.
+  }
 }
 
 function isWebPhoneAuthEnvironment(): boolean {
@@ -50,7 +92,7 @@ function resolveApplicationVerifier(
   applicationVerifier?: ApplicationVerifier
 ): ApplicationVerifier {
   if (isWebPhoneAuthEnvironment()) {
-    return getInvisibleRecaptcha();
+    return getWebRecaptcha();
   }
   if (!applicationVerifier) {
     throw new Error(FIREBASE_NATIVE_RECAPTCHA_REQUIRED_MESSAGE);
@@ -78,6 +120,7 @@ export async function sendPhoneOtp(
     if (isWebPhoneAuthEnvironment()) {
       cachedVerifier?.clear();
       cachedVerifier = null;
+      cachedContainer = null;
     }
     throw error;
   }
