@@ -23,7 +23,8 @@ export type ToastErrorMessage = (typeof toastErrorMessages)[keyof typeof toastEr
 
 /** Auth OTP send failures — specific actionable copy outside the Could-not pattern. */
 export const authSendErrorMessages = {
-  rateLimit: "Too many attempts. Please wait a few minutes and try again.",
+  // Firebase's abuse backoff can last hours — never promise a short wait.
+  rateLimit: "Too many attempts. Please try again later.",
   securityCheck: "Security check failed. Please refresh the page and try again.",
   invalidPhone: "That phone number doesn't look valid. Check it and try again.",
   notConfigured: "Sign-in is temporarily unavailable. Please try again later.",
