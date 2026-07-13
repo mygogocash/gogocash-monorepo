@@ -243,7 +243,7 @@ export default function TopBrandManagementPanel() {
 
   const pickerNoOptionsText = useMemo(() => {
     if (offersPickLoading) return "Loading offers…";
-    if (offersPickError) return "Could not load offers";
+    if (offersPickError) return "Couldn't load offers. Please try again.";
     if (hiddenPickerMatches.length > 0 && pickerSearch.trim()) {
       const noun =
         hiddenPickerMatches.length === 1 ? "offer is" : "offers are";
@@ -271,7 +271,9 @@ export default function TopBrandManagementPanel() {
       toast.success("Top brands saved.");
     },
     onError: () => {
-      toast.error("Could not save top brands.");
+      toast.error(
+        "Couldn't save the top brands. Please try again, or contact an administrator if it continues.",
+      );
     },
   });
 

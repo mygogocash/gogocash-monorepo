@@ -5,7 +5,7 @@
  *
  * Renders inside WithdrawDetail only when the row is
  * `withdraw_mode === "manual"` and `status === "pending"`. Captures the
- * on-chain tx hash of the admin-initiated payout and POSTs to
+ * transaction hash of the admin-initiated payout and POSTs to
  * `PATCH /withdraw/:id/mark-paid` (admin-guarded on the backend).
  *
  * Confirm flow retyping the token ticker is handled server-side — this UI
@@ -48,7 +48,7 @@ export function ManualWithdrawMarkPaid({
     e.preventDefault();
     if (!isValidTxHash(txHash)) {
       setError(
-        "Enter a valid on-chain tx hash (0x followed by 64 hex characters).",
+        "Enter a valid transaction hash (0x followed by 64 hex characters).",
       );
       return;
     }
@@ -57,8 +57,12 @@ export function ManualWithdrawMarkPaid({
     try {
       await apiClient.markWithdrawPaid(withdraw._id, txHash.trim());
       onMarkedPaid?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to mark paid");
+    } catch {
+      // Money action: never surface the raw status/message — show a plain,
+      // actionable line and let the admin retry or escalate.
+      setError(
+        "Couldn't mark this withdrawal as paid. Please try again, or contact an administrator if it keeps failing.",
+      );
     } finally {
       setSubmitting(false);
     }

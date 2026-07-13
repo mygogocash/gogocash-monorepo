@@ -58,6 +58,46 @@ describe("apiClient auth headers", () => {
     expect(authKey).toBeUndefined();
   });
 
+  it("given an HTTP error with no backend message > then throws status-aware copy, never 'HTTP Error 403'", async () => {
+    const { apiClient } = await import("./api");
+    axiosMock.isAxiosError.mockReturnValue(true);
+    axiosMock.request.mockRejectedValue({
+      response: { status: 403, data: {} },
+    });
+
+    await expect(apiClient.getOffers({ limit: 10, page: 1 })).rejects.toThrow(
+      "You don't have permission to do that. Ask an administrator if you need access.",
+    );
+    await expect(
+      apiClient.getOffers({ limit: 10, page: 1 }),
+    ).rejects.not.toThrow(/HTTP Error/);
+  });
+
+  it("given an HTTP error WITH a backend message > then the real message is preferred", async () => {
+    const { apiClient } = await import("./api");
+    axiosMock.isAxiosError.mockReturnValue(true);
+    axiosMock.request.mockRejectedValue({
+      response: {
+        status: 403,
+        data: { message: "You do not have the manage_offers permission" },
+      },
+    });
+
+    await expect(apiClient.getOffers({ limit: 10, page: 1 })).rejects.toThrow(
+      "You do not have the manage_offers permission",
+    );
+  });
+
+  it("given no HTTP response reached us > then throws the friendly connection message", async () => {
+    const { apiClient } = await import("./api");
+    axiosMock.isAxiosError.mockReturnValue(false);
+    axiosMock.request.mockRejectedValue(new Error("Network Error"));
+
+    await expect(apiClient.getOffers({ limit: 10, page: 1 })).rejects.toThrow(
+      "Couldn't reach the server. Check your connection and try again.",
+    );
+  });
+
   it("given server-side login > then authorize still hits Nest directly", async () => {
     const windowDescriptor = Object.getOwnPropertyDescriptor(
       globalThis,

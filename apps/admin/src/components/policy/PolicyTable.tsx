@@ -603,7 +603,9 @@ export default function PolicyTable() {
       setEditingName(false);
       toast.success("Category name saved.");
     } catch {
-      toast.error("Failed to rename category.");
+      toast.error(
+        "Couldn't rename the category. Please try again, or contact an administrator if it continues.",
+      );
     } finally {
       setSavingName(false);
     }
@@ -734,7 +736,7 @@ export default function PolicyTable() {
         typeof (err as { data?: { message?: string } }).data?.message ===
           "string"
           ? (err as { data: { message: string } }).data.message
-          : "Failed to save.";
+          : "Couldn't save your changes. Please try again, or contact an administrator if it continues.";
       toast.error(message);
     } finally {
       setSaving(false);
