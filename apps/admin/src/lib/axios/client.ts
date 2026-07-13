@@ -107,10 +107,44 @@ client.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+/** NextAuth sign-in page (`pages.signIn` in the NextAuth route). */
+export const SIGN_IN_PATH = "/signin";
+
+/**
+ * Real-API mode only: a 401 through the BFF means the NextAuth session (or its
+ * embedded Nest JWT) is gone, so the browser should be sent back to sign-in.
+ * Never redirect in mock mode (mock login legitimately 401s bad credentials),
+ * outside the browser, or when already on the sign-in page (reload loop).
+ */
+export function shouldRedirectToSignInOn401(options: {
+  status: number | undefined;
+  realApi: boolean;
+  isBrowser: boolean;
+  pathname: string;
+}): boolean {
+  return (
+    options.realApi &&
+    options.isBrowser &&
+    options.status === 401 &&
+    !options.pathname.startsWith(SIGN_IN_PATH)
+  );
+}
+
 client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
+      if (
+        typeof window !== "undefined" &&
+        shouldRedirectToSignInOn401({
+          status: error.response.status,
+          realApi: isRealApi,
+          isBrowser: true,
+          pathname: window.location.pathname,
+        })
+      ) {
+        window.location.assign(SIGN_IN_PATH);
+      }
       return Promise.reject(error.response);
     }
     if (error.code === "ECONNABORTED") {

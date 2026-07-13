@@ -174,6 +174,12 @@ describe('Admin Phase-2 RBAC gap closures', () => {
     }
   });
 
+  it('policy category create requires support+ (mutation; a viewer must not mint categories)', () => {
+    expect(rolesOnMethod(AdminController, 'createCategory')).toContain(
+      'support',
+    );
+  });
+
   it('update banner home requires support+ to align with admin banner:manage', () => {
     expect(rolesOnMethod(AdminController, 'updateBannerHome')).toContain(
       'support',

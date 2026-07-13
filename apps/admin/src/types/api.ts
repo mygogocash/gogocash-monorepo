@@ -550,6 +550,11 @@ export interface Offer {
   tracking_period_mode?: "auto" | "manual";
   tracking_days?: number | null;
   confirm_days?: number | null;
+  /** Step-strip flow: 3-step (Purchase→Tracking→Confirm) or combined 2-step. */
+  flow_type?: "three_step" | "two_step";
+  /** Editable step captions; blank falls back to the platform defaults. */
+  tracking_subtitle?: string | null;
+  confirm_subtitle?: string | null;
   /**
    * API-derived windows (public GET /offer/:id attaches this and STRIPS the
    * raw fields above — the /brands/[id] route seeds from it instead).
@@ -558,6 +563,9 @@ export interface Offer {
     tracking_days: number;
     confirm_days: number;
     source: "partner" | "manual" | "default";
+    flow_type?: "three_step" | "two_step";
+    tracking_subtitle?: string;
+    confirm_subtitle?: string;
   };
   logo_desktop: string;
   logo_mobile: string;
@@ -668,6 +676,11 @@ export interface OfferRequestForm {
   tracking_period_mode: "auto" | "manual";
   tracking_days: number | null;
   confirm_days: number | null;
+  /** Step-strip flow: 3-step (Purchase→Tracking→Confirm) or combined 2-step. */
+  flow_type: "three_step" | "two_step";
+  /** Editable step captions; null/empty saves clear back to the defaults. */
+  tracking_subtitle: string | null;
+  confirm_subtitle: string | null;
 }
 
 export interface OffersQuery {

@@ -27,7 +27,15 @@ export type MerchantOfferResponse = {
   policy_category_id?: string;
   tracking_link?: string;
   /** API-derived tracking windows (GET /offer/:id attaches this; raw config stays admin-only). */
-  tracking_period?: { tracking_days?: number; confirm_days?: number };
+  tracking_period?: {
+    tracking_days?: number;
+    confirm_days?: number;
+    /** 'two_step' collapses Tracking+Confirm into one step; absent = three_step (older API). */
+    flow_type?: string;
+    /** Per-step captions (admin-editable; API sends defaults when unset). */
+    tracking_subtitle?: string;
+    confirm_subtitle?: string;
+  };
 };
 
 /** Narrow an unknown backend payload to a single offer doc. */

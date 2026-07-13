@@ -80,6 +80,18 @@ export function assertProxyBodyWithinLimit(
   return null;
 }
 
+/**
+ * 401 for a missing/expired NextAuth session (or one without a Nest JWT).
+ * Answered by the BFF itself — the request must never be forwarded upstream
+ * unauthenticated. The axios client keys its sign-in redirect off this 401.
+ */
+export function sessionExpiredResponse(): Response {
+  return Response.json(
+    { message: "Session expired. Please sign in again." },
+    { status: 401 },
+  );
+}
+
 export type ProxyToBackendArgs = {
   method: string;
   pathSegments: string[];
@@ -97,7 +109,7 @@ export async function proxyToBackend(
   const accessToken =
     typeof args.accessToken === "string" ? args.accessToken.trim() : "";
   if (!accessToken) {
-    return Response.json({ message: "Unauthorized" }, { status: 401 });
+    return sessionExpiredResponse();
   }
 
   const headers = filterOutgoingRequestHeaders(args.requestHeaders);

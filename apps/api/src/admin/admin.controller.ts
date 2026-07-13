@@ -31,12 +31,14 @@ import {
 } from './dto/create-admin.dto';
 import {
   ApproveOfferDto,
+  CreateCategoryDto,
   GetConversionInWithdrawDto,
   RejectOfferDto,
   SaveTopBrandsDto,
   UpdateAdminDto,
   UpdateBannerHomeBodyDto,
   UpdateBannerHomeDto,
+  UpdateCategoryBodyDto,
   UpdateFeeRateDto,
   UpdateOfferAdminDto,
   UpdateRequestWithdrawDto,
@@ -549,6 +551,9 @@ export class AdminController {
         updateAdminDto.confirm_days,
         'confirm_days',
       ),
+      flow_type: updateAdminDto.flow_type,
+      tracking_subtitle: coerceOptionalText(updateAdminDto.tracking_subtitle),
+      confirm_subtitle: coerceOptionalText(updateAdminDto.confirm_subtitle),
       policy_category_id: coerceOptionalPolicyCategoryId(
         updateAdminDto.policy_category_id,
       ),
@@ -589,17 +594,39 @@ export class AdminController {
     return this.adminService.rejectOffer(id, adminId, body.reason);
   }
 
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: CreateCategoryDto })
+  @Roles('support')
+  @Post('create-category')
+  createCategory(@Body() body: CreateCategoryDto) {
+    // fetcherPost's tuple quirk sends `{ data: { name } }`; accept flat too.
+    const rawName = body?.data?.name ?? body?.name;
+    const name = typeof rawName === 'string' ? rawName.trim() : '';
+    if (!name) {
+      throw new BadRequestException('name is required');
+    }
+    return this.adminService.createCategory(name);
+  }
+
   @UseInterceptors(FileFieldsInterceptor([{ name: 'image', maxCount: 1 }]))
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token')
   @ApiBearerAuth()
+  @ApiBody({ type: UpdateCategoryBodyDto })
   @Roles('support')
   @Patch('update-category/:id')
   updateCategory(
     @Param('id') id: string,
+    @Body() body: UpdateCategoryBodyDto,
     @UploadedFiles() files: { image?: Express.Multer.File[] },
   ) {
+    // Optional rename; works for both the JSON PATCH the UI sends and
+    // multipart. Absent/blank/"undefined" sentinel = keep the current name.
+    const name = coerceOptionalText(body?.name)?.trim() || undefined;
     return this.adminService.updateCategory(id, {
+      name,
       image: files?.image ? files?.image?.[0] : null,
     });
   }

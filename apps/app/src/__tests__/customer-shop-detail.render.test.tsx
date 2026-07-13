@@ -164,6 +164,55 @@ describe("CustomerShopDetailScreen (render)", () => {
     expect(screen.getByText("within 45 day")).toBeTruthy();
     expect(screen.queryByText("within 30 day")).toBeNull();
   });
+
+  it("renders subtitle lines beneath the tracking steps when the API provides them", () => {
+    merchantResourceState.data = {
+      _id: "6a49f3e6ce2e0da81d6dc375",
+      offer_name: "Shopee Affiliate Program",
+      offer_name_display: "Shopee",
+      commissions: [{ Commission: "2.02%" }],
+      tracking_link: "https://tracking.example/shopee",
+      tracking_period: {
+        tracking_days: 7,
+        confirm_days: 45,
+        flow_type: "three_step",
+        tracking_subtitle: "from the following month",
+        confirm_subtitle: "after validation",
+      },
+    };
+    merchantResourceState.source = "backend";
+
+    renderScreen();
+
+    expect(screen.getByText("from the following month")).toBeTruthy();
+    expect(screen.getByText("after validation")).toBeTruthy();
+  });
+
+  it("renders the combined two-step cell (Purchase + Tracking and confirm) when the live offer is two_step", () => {
+    merchantResourceState.data = {
+      _id: "6a49f3e6ce2e0da81d6dc375",
+      offer_name: "Shopee Affiliate Program",
+      offer_name_display: "Shopee",
+      commissions: [{ Commission: "2.02%" }],
+      tracking_link: "https://tracking.example/shopee",
+      tracking_period: {
+        tracking_days: 7,
+        confirm_days: 45,
+        flow_type: "two_step",
+        tracking_subtitle: "from the following month",
+        confirm_subtitle: "after validation",
+      },
+    };
+    merchantResourceState.source = "backend";
+
+    renderScreen();
+
+    expect(screen.getByText("Tracking and confirm")).toBeTruthy();
+    expect(screen.getByText("within 45 day")).toBeTruthy();
+    expect(screen.getByText("after validation")).toBeTruthy();
+    // The tracking window collapses into the combined step.
+    expect(screen.queryByText("within 7 day")).toBeNull();
+  });
 });
 
 describe("CustomerShopDetailScreen — Wave B foundations adopted (source signals)", () => {

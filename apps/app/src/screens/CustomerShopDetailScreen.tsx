@@ -636,6 +636,10 @@ function TrackingStepItem({ showConnector, step }: { showConnector: boolean; ste
         <TrackingIcon name={step.icon} />
         <Text style={styles.trackingLabel}>{tc(step.label)}</Text>
         <Text style={styles.trackingDetail}>{translateTrackingDetail(step.detail, tc)}</Text>
+        {/* Default subtitles ("from the following month" / "after validation")
+            have catalog entries so tc() localizes them; admin-entered custom
+            subtitles miss the catalog and render as-typed. */}
+        {step.subtitle ? <Text style={styles.trackingSubtitle}>{tc(step.subtitle)}</Text> : null}
       </View>
       {showConnector ? <View style={styles.trackingConnector} /> : null}
     </View>
@@ -1253,6 +1257,14 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     fontSize: 12,
     fontWeight: typography.bodyWeight,
     lineHeight: 15,
+    textAlign: "center",
+  },
+  trackingSubtitle: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 10,
+    fontWeight: typography.bodyWeight,
+    lineHeight: 13,
     textAlign: "center",
   },
   referralCard: {

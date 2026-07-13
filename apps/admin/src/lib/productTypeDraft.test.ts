@@ -33,6 +33,25 @@ describe("productTypeDraftToEntry > cashback draft", () => {
   });
 });
 
+describe("productTypeDraftToEntry / productTypeEntryToDraft > explicit fee percent", () => {
+  it("nets the cashback draft with the given Fee Structure rate instead of 30", () => {
+    const entry = productTypeDraftToEntry(
+      draft({ name: "Electronics", pay_in: "cashback", commission_raw: "10" }),
+      20,
+    );
+    expect(entry.commission_info).toBe("8");
+    expect(entry.commission_raw).toBe("10");
+  });
+
+  it("derives the raw from the saved net at the given fee when commission_raw is missing", () => {
+    const d = productTypeEntryToDraft(
+      { name: "X", pay_in: "cashback", commission_info: "8" },
+      20,
+    );
+    expect(d.commission_raw).toBe("10");
+  });
+});
+
 describe("productTypeDraftToEntry > cash draft", () => {
   it("stores a numeric amount and currency, no commission", () => {
     const entry = productTypeDraftToEntry(

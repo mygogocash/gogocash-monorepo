@@ -45,6 +45,8 @@ type LiveShopDetailFields = {
 export type TrackingPeriodStep = {
   label: string;
   detail: string;
+  /** Optional third line under the day count (e.g. "from the following month"). */
+  subtitle?: string;
   icon: "shopping" | "check" | "bank";
 };
 
@@ -54,11 +56,21 @@ function isValidTrackingDays(value: unknown): value is number {
   );
 }
 
+/** Non-empty trimmed subtitle or undefined (no third line). */
+function stepSubtitle(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 /**
- * API-derived tracking windows → the shop page's 3-step strip, in the exact
+ * API-derived tracking windows → the shop page's step strip, in the exact
  * fixture format (`within N day` is the web-parity copy). Returns null when
  * either window is missing/invalid so the fixture steps pass through — older
  * API payloads without tracking_period keep today's behavior.
+ *
+ * flow_type 'two_step' collapses Tracking+Confirm into a combined
+ * "Tracking and confirm" step; anything else (incl. missing on older APIs)
+ * renders the classic 3 steps. Subtitles ride through as-typed — the default
+ * captions have Thai catalog entries, admin-custom text renders verbatim.
  */
 export function buildTrackingPeriodSteps(
   period: MerchantOfferResponse["tracking_period"],
@@ -70,10 +82,36 @@ export function buildTrackingPeriodSteps(
   ) {
     return null;
   }
+  const purchase: TrackingPeriodStep = {
+    label: "Purchase",
+    detail: "with GoGoCash",
+    icon: "shopping",
+  };
+  if (period.flow_type === "two_step") {
+    return [
+      purchase,
+      {
+        label: "Tracking and confirm",
+        detail: `within ${period.confirm_days} day`,
+        subtitle: stepSubtitle(period.confirm_subtitle) ?? "after validation",
+        icon: "bank",
+      },
+    ];
+  }
   return [
-    { label: "Purchase", detail: "with GoGoCash", icon: "shopping" },
-    { label: "Tracking", detail: `within ${period.tracking_days} day`, icon: "check" },
-    { label: "Confirm", detail: `within ${period.confirm_days} day`, icon: "bank" },
+    purchase,
+    {
+      label: "Tracking",
+      detail: `within ${period.tracking_days} day`,
+      subtitle: stepSubtitle(period.tracking_subtitle),
+      icon: "check",
+    },
+    {
+      label: "Confirm",
+      detail: `within ${period.confirm_days} day`,
+      subtitle: stepSubtitle(period.confirm_subtitle),
+      icon: "bank",
+    },
   ];
 }
 

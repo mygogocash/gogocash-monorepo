@@ -4,6 +4,13 @@ import {
   resolveTrackingPeriod,
 } from './tracking-period.util';
 
+// Default flow/subtitle shape every legacy resolution must now carry.
+const DEFAULT_FLOW_FIELDS = {
+  flow_type: 'three_step',
+  tracking_subtitle: 'from the following month',
+  confirm_subtitle: 'after validation',
+} as const;
+
 describe('resolveTrackingPeriod', () => {
   it('given auto mode and partner validation_terms 15 > then confirm 15, tracking 30, source partner', () => {
     expect(
@@ -11,7 +18,12 @@ describe('resolveTrackingPeriod', () => {
         tracking_period_mode: 'auto',
         validation_terms: 15,
       }),
-    ).toEqual({ tracking_days: 30, confirm_days: 15, source: 'partner' });
+    ).toEqual({
+      tracking_days: 30,
+      confirm_days: 15,
+      source: 'partner',
+      ...DEFAULT_FLOW_FIELDS,
+    });
   });
 
   it('given auto mode and validation_terms 0, missing, or negative > then defaults 30/30 with source default', () => {
@@ -25,6 +37,7 @@ describe('resolveTrackingPeriod', () => {
         tracking_days: DEFAULT_TRACKING_DAYS,
         confirm_days: DEFAULT_CONFIRM_DAYS,
         source: 'default',
+        ...DEFAULT_FLOW_FIELDS,
       });
     }
   });
@@ -34,6 +47,7 @@ describe('resolveTrackingPeriod', () => {
       tracking_days: 30,
       confirm_days: 45,
       source: 'partner',
+      ...DEFAULT_FLOW_FIELDS,
     });
   });
 
@@ -45,7 +59,12 @@ describe('resolveTrackingPeriod', () => {
         confirm_days: 45,
         validation_terms: 15,
       }),
-    ).toEqual({ tracking_days: 7, confirm_days: 45, source: 'manual' });
+    ).toEqual({
+      tracking_days: 7,
+      confirm_days: 45,
+      source: 'manual',
+      ...DEFAULT_FLOW_FIELDS,
+    });
   });
 
   it('given manual mode with invalid stored days > then each field falls back to its default', () => {
@@ -59,7 +78,49 @@ describe('resolveTrackingPeriod', () => {
         tracking_days: DEFAULT_TRACKING_DAYS,
         confirm_days: DEFAULT_CONFIRM_DAYS,
         source: 'manual',
+        ...DEFAULT_FLOW_FIELDS,
       });
+    }
+  });
+
+  it('given a stored two_step flow_type > then it is carried through in both modes', () => {
+    expect(
+      resolveTrackingPeriod({ flow_type: 'two_step', validation_terms: 15 })
+        .flow_type,
+    ).toBe('two_step');
+    expect(
+      resolveTrackingPeriod({
+        tracking_period_mode: 'manual',
+        flow_type: 'two_step',
+        tracking_days: 7,
+        confirm_days: 45,
+      }).flow_type,
+    ).toBe('two_step');
+  });
+
+  it('given a missing or invalid flow_type > then it falls back to three_step', () => {
+    for (const flow_type of [undefined, '', 'weekly', 'four_step']) {
+      expect(resolveTrackingPeriod({ flow_type }).flow_type).toBe('three_step');
+    }
+  });
+
+  it('given stored subtitles > then they are returned trimmed', () => {
+    const resolved = resolveTrackingPeriod({
+      tracking_subtitle: '  after the return window closes  ',
+      confirm_subtitle: ' once the store approves ',
+    });
+    expect(resolved.tracking_subtitle).toBe('after the return window closes');
+    expect(resolved.confirm_subtitle).toBe('once the store approves');
+  });
+
+  it('given empty or whitespace-only subtitles > then each falls back to its default', () => {
+    for (const blank of ['', '   ', undefined]) {
+      const resolved = resolveTrackingPeriod({
+        tracking_subtitle: blank,
+        confirm_subtitle: blank,
+      });
+      expect(resolved.tracking_subtitle).toBe('from the following month');
+      expect(resolved.confirm_subtitle).toBe('after validation');
     }
   });
 });

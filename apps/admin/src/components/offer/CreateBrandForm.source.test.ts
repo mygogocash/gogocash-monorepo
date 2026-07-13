@@ -17,13 +17,15 @@ describe("CreateBrandForm — bug cluster #102–#105 (source signals)", () => {
     );
   });
 
-  it("#103 > commission auto mode button uses 30% fee copy", () => {
-    expect(formSource).toContain("Auto applying with 30% fee");
+  it("#103 > commission auto mode button uses the configurable fee copy", () => {
+    expect(formSource).toContain("Auto applying with ${feePercent}% fee");
   });
 
   it("#104 > product type section is hidden when all product types is on", () => {
+    // Space between SCROLL_CLASS and the conditional class — without it the
+    // "hidden" token glues onto the scroll class and never applies.
     expect(formSource).toMatch(
-      /allProductTypes \? "hidden" : ""/,
+      /\$\{SCROLL_CLASS\} \$\{\s*allProductTypes \? "hidden" : ""\s*\}/,
     );
     expect(formSource).toMatch(
       /link\.id !== "create-brand-section-product" \|\| !allProductTypes/,
@@ -45,5 +47,74 @@ describe("CreateBrandForm — bug cluster #102–#105 (source signals)", () => {
     expect(formSource).toContain(
       'getApiErrorMessage(err, "Could not create brand.")',
     );
+  });
+});
+
+describe("CreateBrandForm — #274/#275/#276 (source signals)", () => {
+  it("#275 > auto mode renders a raw % input beside a disabled derived net box", () => {
+    expect(formSource).toContain('name="commission_raw"');
+    expect(formSource).toContain("% after {feePercent}% fee");
+    expect(formSource).toMatch(/name="commission_store"[\s\S]{0,200}?disabled/);
+  });
+
+  it("#275 > auto-mode submit appends the computed net as commission_store", () => {
+    expect(formSource).toContain("applyPlatformFee(n, feePercent)");
+    expect(formSource).toMatch(
+      /if \(commission_store != null\) \{\s*formData\.append\("commission_store", String\(commission_store\)\);/,
+    );
+  });
+
+  it("#275 > switching commission modes clears the other mode's input", () => {
+    expect(formSource).toMatch(
+      /setCommissionEntryMode\("manual"\);\s*setCommissionRawInput\(""\)/,
+    );
+    expect(formSource).toMatch(
+      /setCommissionEntryMode\("auto"\);\s*setCommissionPercentInput\(""\)/,
+    );
+  });
+
+  it("#276 > turning off all-product-types seeds one empty row", () => {
+    expect(formSource).toMatch(
+      /setAllProductTypes\(on\);[\s\S]{0,400}?prev\.length === 0\s*\?/,
+    );
+  });
+
+  it("#276 > product type header renders Add before Save changes", () => {
+    const productSection = formSource.slice(
+      formSource.indexOf('id="create-brand-section-product"'),
+      formSource.indexOf('id="create-brand-section-offer-copy"'),
+    );
+    expect(productSection).toMatch(
+      />\s*Add\s*<\/Button>[\s\S]*?>\s*Save changes\s*<\/Button>/,
+    );
+  });
+
+  it("#276 > per-row auto mode writes the net percent string into commission_info", () => {
+    expect(formSource).toContain("netCommissionFromRaw(v, feePercent)");
+    expect(formSource).toContain('net === "" ? "" : `${net}%`');
+  });
+
+  it("#274 > default-country picker and state are gone", () => {
+    expect(formSource).not.toContain("create-brand-default-country");
+    expect(formSource).not.toContain("defaultCountry");
+  });
+
+  it("#274 > global brands still send the fixed Thailand default_country with rationale", () => {
+    expect(formSource).toMatch(
+      /formData\.append\("default_country", "Thailand"\)/,
+    );
+    expect(formSource).toContain("BrandService requires it");
+  });
+});
+
+describe("PR #283 review fixes — fee-resolution race (HIGH-1) + fallback notice", () => {
+
+  it("submit recomputes auto product-type rows with the submit-time fee", () => {
+    expect(formSource).toContain("finalizeProductTypeRows(productTypes, feePercent)");
+  });
+
+  it("surfaces the fee fallback to the admin instead of silently using 30%", () => {
+    expect(formSource).toContain("Fee Structure rate unavailable");
+    expect(formSource).toContain("isFallback: feeIsFallback");
   });
 });

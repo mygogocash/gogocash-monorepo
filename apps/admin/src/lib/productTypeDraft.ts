@@ -1,3 +1,4 @@
+import { DEFAULT_PLATFORM_FEE_PERCENT } from "@/lib/commissionFee";
 import {
   netCommissionFromRaw,
   rawCommissionFromNet,
@@ -10,7 +11,7 @@ export type ProductTypeDraft = {
   /** Optional free-text subtitle shown under the name in the product-types table. */
   description: string;
   pay_in: "cashback" | "cash";
-  /** Cashback %: raw partner number (net = raw × 0.7). */
+  /** Cashback %: raw partner number (net = raw × (1 − fee/100)). */
   commission_raw: string;
   /** Cash: amount (string for clean typing). */
   amount: string;
@@ -33,6 +34,7 @@ export const EMPTY_PRODUCT_TYPE_DRAFT: ProductTypeDraft = {
 /** Build the persisted product-type row from a draft (name trimmed; cash amount coerced to a number or null). */
 export function productTypeDraftToEntry(
   draft: ProductTypeDraft,
+  feePercent: number = DEFAULT_PLATFORM_FEE_PERCENT,
 ): OfferProductTypeEntry {
   const name = draft.name.trim();
   const description = draft.description.trim();
@@ -53,7 +55,7 @@ export function productTypeDraftToEntry(
   return {
     name,
     pay_in: "cashback",
-    commission_info: netCommissionFromRaw(draft.commission_raw),
+    commission_info: netCommissionFromRaw(draft.commission_raw, feePercent),
     commission_raw: draft.commission_raw,
     deeplink: draft.deeplink,
     description,
@@ -63,13 +65,15 @@ export function productTypeDraftToEntry(
 /** Re-populate the draft frame from a saved row (for Edit); derives the raw % from the net when absent. */
 export function productTypeEntryToDraft(
   entry: OfferProductTypeEntry,
+  feePercent: number = DEFAULT_PLATFORM_FEE_PERCENT,
 ): ProductTypeDraft {
   return {
     name: entry.name,
     description: entry.description ?? "",
     pay_in: entry.pay_in === "cash" ? "cash" : "cashback",
     commission_raw:
-      entry.commission_raw ?? rawCommissionFromNet(entry.commission_info ?? ""),
+      entry.commission_raw ??
+      rawCommissionFromNet(entry.commission_info ?? "", feePercent),
     amount: entry.amount != null ? String(entry.amount) : "",
     currency: entry.currency || "THB",
     deeplink: entry.deeplink ?? "",

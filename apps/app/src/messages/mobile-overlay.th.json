@@ -425,5 +425,8 @@
   "mobileSearchSuggestionsSubtitle": "แตะแบรนด์เพื่อค้นหาดีลเงินคืน",
   "mobileSearchRecentHeading": "การค้นหาล่าสุด",
   "mobileSearchClearAll": "ล้างทั้งหมด",
-  "mobileSearchClearRecentA11y": "ล้างการค้นหาล่าสุด"
+  "mobileSearchClearRecentA11y": "ล้างการค้นหาล่าสุด",
+  "mobileTrackingSubtitleFollowingMonth": "ตั้งแต่เดือนถัดไป",
+  "mobileTrackingSubtitleAfterValidation": "หลังการตรวจสอบ",
+  "mobileTrackingStepTrackingAndConfirm": "ติดตามและยืนยัน"
 }

@@ -93,6 +93,7 @@ describe('AdminService', () => {
       findByIdAndUpdate: jest.fn(),
     };
     categoryModel = {
+      create: jest.fn(),
       findById: jest.fn(),
       findByIdAndUpdate: jest.fn(),
     };
@@ -532,6 +533,45 @@ describe('AdminService', () => {
       expect(persisted).not.toHaveProperty('confirm_days');
     });
 
+    it('updateOffer > given flow_type and step subtitles > then the $set persists all three fields', async () => {
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        product_type: [],
+        flow_type: 'two_step',
+        tracking_subtitle: 'after the return window closes',
+        confirm_subtitle: '',
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.flow_type).toBe('two_step');
+      expect(persisted.tracking_subtitle).toBe(
+        'after the return window closes',
+      );
+      // Empty string persists as an explicit clear (resolver falls back to default).
+      expect(persisted.confirm_subtitle).toBe('');
+    });
+
+    it('updateOffer > given a payload without flow/subtitle fields > then the $set contains none of them', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          flow_type: 'two_step',
+          tracking_subtitle: 'custom tracking caption',
+          confirm_subtitle: 'custom confirm caption',
+        }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, { product_type: [] });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted).not.toHaveProperty('flow_type');
+      expect(persisted).not.toHaveProperty('tracking_subtitle');
+      expect(persisted).not.toHaveProperty('confirm_subtitle');
+    });
+
     it('updateOffer > given mode switched to auto only > then stored manual day counts are not cleared', async () => {
       offerModel.findById.mockReturnValue(
         makeQuery({ _id: offerId, tracking_days: 7, confirm_days: 14 }),
@@ -660,6 +700,107 @@ describe('AdminService', () => {
       expect(persisted.extra_store).toBe(true);
       expect(persisted.commission_store).toBe(0);
       expect(persisted.max_cap).toBe(0);
+    });
+  });
+
+  describe('createCategory', () => {
+    it('createCategory > given a name > then it creates the category and returns the created document', async () => {
+      const created = { _id: 'cat-1', name: 'Fashion', image: '' };
+      categoryModel.create.mockResolvedValue(created);
+
+      const result = await service.createCategory('Fashion');
+
+      expect(categoryModel.create).toHaveBeenCalledWith({ name: 'Fashion' });
+      expect(result).toBe(created);
+    });
+
+    it('createCategory > given an empty/whitespace name > then it rejects with 400 "name is required"', async () => {
+      await expect(service.createCategory('   ')).rejects.toMatchObject({
+        status: 400,
+        message: 'name is required',
+      });
+      expect(categoryModel.create).not.toHaveBeenCalled();
+    });
+
+    it('createCategory > given a Mongo duplicate-key error (unique name index) > then it rejects with a clear 400', async () => {
+      categoryModel.create.mockRejectedValue(
+        Object.assign(new Error('E11000 duplicate key error'), {
+          code: 11000,
+        }),
+      );
+
+      await expect(service.createCategory('Fashion')).rejects.toMatchObject({
+        status: 400,
+        message: expect.stringContaining('already exists'),
+      });
+    });
+
+    it('createCategory > given a non-duplicate database error > then it rethrows untouched (no silent 400)', async () => {
+      const dbError = new Error('connection reset');
+      categoryModel.create.mockRejectedValue(dbError);
+
+      await expect(service.createCategory('Fashion')).rejects.toBe(dbError);
+    });
+  });
+
+  describe('updateCategory', () => {
+    const categoryId = new Types.ObjectId().toHexString();
+
+    it('updateCategory > given a name > then it persists the rename', async () => {
+      categoryModel.findById.mockReturnValue(
+        makeQuery({ _id: categoryId, name: 'Old name', image: 'old.png' }),
+      );
+      categoryModel.findByIdAndUpdate.mockReturnValue(
+        makeQuery({ _id: categoryId, name: 'New name' }),
+      );
+
+      await service.updateCategory(categoryId, { name: 'New name' });
+
+      const persisted = categoryModel.findByIdAndUpdate.mock.calls[0][1];
+      expect(persisted.name).toBe('New name');
+      expect(persisted.image).toBe('old.png');
+    });
+
+    it('updateCategory > given an image-only payload > then the update carries no name key (existing name untouched)', async () => {
+      categoryModel.findById.mockReturnValue(
+        makeQuery({ _id: categoryId, name: 'Keep me', image: 'old.png' }),
+      );
+      categoryModel.findByIdAndUpdate.mockReturnValue(
+        makeQuery({ _id: categoryId }),
+      );
+      storedMediaService.replace.mockResolvedValue(
+        'https://storage.googleapis.com/gogocash-catalog-staging/categories/new.png',
+      );
+
+      await service.updateCategory(categoryId, {
+        image: { originalname: 'new.png' } as Express.Multer.File,
+      });
+
+      const persisted = categoryModel.findByIdAndUpdate.mock.calls[0][1];
+      expect(persisted).not.toHaveProperty('name');
+      expect(persisted.image).toBe(
+        'https://storage.googleapis.com/gogocash-catalog-staging/categories/new.png',
+      );
+    });
+
+    it('updateCategory > given a rename that hits the unique name index > then it rejects with a clear 400', async () => {
+      categoryModel.findById.mockReturnValue(
+        makeQuery({ _id: categoryId, name: 'Old name', image: '' }),
+      );
+      const query = makeQuery(null);
+      query.exec = jest.fn().mockRejectedValue(
+        Object.assign(new Error('E11000 duplicate key error'), {
+          code: 11000,
+        }),
+      );
+      categoryModel.findByIdAndUpdate.mockReturnValue(query);
+
+      await expect(
+        service.updateCategory(categoryId, { name: 'Taken' }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: expect.stringContaining('already exists'),
+      });
     });
   });
 

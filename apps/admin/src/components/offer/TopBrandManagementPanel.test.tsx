@@ -182,6 +182,38 @@ describe("TopBrandManagementPanel", () => {
     });
   });
 
+  // #278 resilience: a failed load must NOT replace the whole panel — the
+  // picker and order list stay usable, with a non-blocking banner up top.
+  it("given the top-brands load fails > then keeps the management UI and shows an error banner", async () => {
+    apiClientMock.getTopBrands.mockRejectedValue({ status: 403, data: {} });
+
+    renderPanel();
+
+    expect(
+      await screen.findByText("Could not load top brands."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Homepage top brands" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "Search offers to add" }),
+    ).not.toBeDisabled();
+  });
+
+  it("given the top-brands load fails with an API message > then the banner surfaces it", async () => {
+    apiClientMock.getTopBrands.mockRejectedValue({
+      status: 403,
+      data: { message: "Forbidden resource" },
+    });
+
+    renderPanel();
+
+    expect(await screen.findByText("Forbidden resource")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Homepage top brands" }),
+    ).toBeInTheDocument();
+  });
+
   it("given a viewer role > then renders top brand controls read-only", async () => {
     permissionsMock.canManageBrands = false;
     renderPanel();
