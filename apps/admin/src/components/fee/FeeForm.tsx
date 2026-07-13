@@ -484,6 +484,19 @@ export default function FeeForm() {
                 </div>
               )}
             </div>
+            <div className="pt-2">
+              {/* Founder: the platform-fee block needs its own Save, not just
+                  the button far below the country list. Reuses saveSettings
+                  (persists the whole form) with the same dirty/loaded guard. */}
+              <button
+                type="button"
+                onClick={() => void saveSettings()}
+                disabled={saving || fetching || !forms.id || !dirty}
+                className="h-11 w-full rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[12rem]"
+              >
+                {saving ? "Saving…" : "Save platform fee"}
+              </button>
+            </div>
           </section>
 
           <section className="space-y-4 border-t border-gray-100 pt-8 dark:border-gray-800">
