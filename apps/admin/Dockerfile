@@ -28,7 +28,10 @@ COPY apps/admin/.npmrc ./apps/admin/.npmrc
 COPY apps/admin/scripts ./apps/admin/scripts
 # --legacy-peer-deps: the lockfile carries a peerOptional conflict
 # (@types/node vs vite) that strict `npm ci` rejects; mirrored in .npmrc.
-RUN npm ci --legacy-peer-deps
+# --include=dev: Railway injects NODE_ENV=production into the image build,
+# which would otherwise omit typescript (devDependency). Next then tries to
+# auto-install TS via yarn and dies on Corepack / packageManager mismatch.
+RUN npm ci --legacy-peer-deps --include=dev
 
 # 2) Copy the admin source and build the standalone bundle.
 COPY apps/admin ./apps/admin
@@ -37,6 +40,8 @@ RUN test -n "$NEXT_PUBLIC_API_URL" || (echo "ERROR: NEXT_PUBLIC_API_URL build-ar
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV STANDALONE=1
 ENV NEXT_TELEMETRY_DISABLED=1
+# Production mode for the Next compile only — after deps are fully installed.
+ENV NODE_ENV=production
 RUN npm run build:standalone -w gogocash-admin
 
 FROM node:24-slim AS runner
