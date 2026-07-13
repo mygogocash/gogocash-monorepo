@@ -104,11 +104,14 @@ const OFFER_DETAIL_DERIVATION_FIELDS = [
   'tracking_period_mode',
   'tracking_days',
   'confirm_days',
+  'flow_type',
+  'tracking_subtitle',
+  'confirm_subtitle',
 ] as const;
 // Exclusion projection for the public LIST endpoints (which otherwise return
 // whole docs): raw tracking-period config stays admin-only there too.
 const PUBLIC_LIST_EXCLUDED_FIELDS_SELECT =
-  '-tracking_period_mode -tracking_days -confirm_days';
+  '-tracking_period_mode -tracking_days -confirm_days -flow_type -tracking_subtitle -confirm_subtitle';
 const PUBLIC_OFFER_DETAIL_SELECT = [
   ...PUBLIC_OFFER_DETAIL_FIELDS,
   ...OFFER_DETAIL_DERIVATION_FIELDS,

@@ -773,6 +773,9 @@ const FormOffer = ({
     tracking_period_mode: "auto" | "manual";
     tracking_days: number | null;
     confirm_days: number | null;
+    flow_type: "three_step" | "two_step";
+    tracking_subtitle: string | null;
+    confirm_subtitle: string | null;
   } | null>(null);
   const [trackingPeriodSaveError, setTrackingPeriodSaveError] = useState<
     string | null
@@ -783,6 +786,9 @@ const FormOffer = ({
       tracking_period_mode: form.tracking_period_mode,
       tracking_days: form.tracking_days,
       confirm_days: form.confirm_days,
+      flow_type: form.flow_type,
+      tracking_subtitle: form.tracking_subtitle,
+      confirm_subtitle: form.confirm_subtitle,
     });
     setTrackingPeriodSaveError(null);
     setEditingTrackingPeriod(true);
@@ -820,6 +826,11 @@ const FormOffer = ({
         fd.append("tracking_days", String(form.tracking_days));
         fd.append("confirm_days", String(form.confirm_days));
       }
+      // Flow + subtitles always travel: an empty subtitle is an explicit
+      // clear back to the default caption (coerceOptionalText semantics).
+      fd.append("flow_type", form.flow_type);
+      fd.append("tracking_subtitle", form.tracking_subtitle ?? "");
+      fd.append("confirm_subtitle", form.confirm_subtitle ?? "");
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -832,6 +843,9 @@ const FormOffer = ({
           tracking_period_mode: form.tracking_period_mode,
           tracking_days: form.tracking_days,
           confirm_days: form.confirm_days,
+          flow_type: form.flow_type,
+          tracking_subtitle: form.tracking_subtitle,
+          confirm_subtitle: form.confirm_subtitle,
         },
       }));
       setEditingTrackingPeriod(false);
@@ -4218,6 +4232,9 @@ const FormOffer = ({
                 tracking_days: form.tracking_days,
                 confirm_days: form.confirm_days,
                 validation_terms: offer?.validation_terms ?? null,
+                flow_type: form.flow_type,
+                tracking_subtitle: form.tracking_subtitle,
+                confirm_subtitle: form.confirm_subtitle,
               },
               offer?.tracking_period ?? null,
             );
@@ -4238,22 +4255,44 @@ const FormOffer = ({
                       with GoGoCash
                     </dd>
                   </div>
-                  <div>
-                    <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                      Tracking
-                    </dt>
-                    <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                      {formatTrackingDays(preview.tracking_days)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                      Confirm
-                    </dt>
-                    <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
-                      {formatTrackingDays(preview.confirm_days)}
-                    </dd>
-                  </div>
+                  {preview.flow_type === "two_step" ? (
+                    <div>
+                      <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                        Tracking and confirm
+                      </dt>
+                      <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                        {formatTrackingDays(preview.confirm_days)}
+                      </dd>
+                      <dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {preview.confirm_subtitle}
+                      </dd>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                          Tracking
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                          {formatTrackingDays(preview.tracking_days)}
+                        </dd>
+                        <dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          {preview.tracking_subtitle}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                          Confirm
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                          {formatTrackingDays(preview.confirm_days)}
+                        </dd>
+                        <dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          {preview.confirm_subtitle}
+                        </dd>
+                      </div>
+                    </>
+                  )}
                 </dl>
                 <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
                   {sourceLabel} · Partner reference:{" "}
@@ -4298,6 +4337,16 @@ const FormOffer = ({
                   Manual
                 </label>
               </div>
+              <Switch
+                label="Combined 2-step flow (Tracking and confirm)"
+                checked={form.flow_type === "two_step"}
+                onChange={(checked) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    flow_type: checked ? "two_step" : "three_step",
+                  }))
+                }
+              />
               {form.tracking_period_mode === "manual" && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
@@ -4342,6 +4391,45 @@ const FormOffer = ({
                   </div>
                 </div>
               )}
+              {/* Step subtitles: empty = the placeholder default copy. */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Tracking subtitle
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={200}
+                    placeholder="from the following month"
+                    value={form.tracking_subtitle ?? ""}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        tracking_subtitle: e.target.value || null,
+                      }))
+                    }
+                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Confirm subtitle
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={200}
+                    placeholder="after validation"
+                    value={form.confirm_subtitle ?? ""}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        confirm_subtitle: e.target.value || null,
+                      }))
+                    }
+                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>

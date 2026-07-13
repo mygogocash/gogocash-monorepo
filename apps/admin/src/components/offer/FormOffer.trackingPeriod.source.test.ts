@@ -40,4 +40,34 @@ describe("FormOffer — Cashback tracking period section", () => {
     expect(formSource).toContain("resolveTrackingPeriodPreview");
     expect(formSource).toContain("formatTrackingDays");
   });
+
+  it("saveTrackingPeriodEdit always appends flow_type and both subtitles (empty string = clear to default)", () => {
+    const handler = formSource.slice(
+      formSource.indexOf("const saveTrackingPeriodEdit"),
+      formSource.indexOf("const saveTrackingPeriodEdit") + 3000,
+    );
+    expect(handler).toContain('fd.append("flow_type", form.flow_type)');
+    expect(handler).toContain(
+      'fd.append("tracking_subtitle", form.tracking_subtitle ?? "")',
+    );
+    expect(handler).toContain(
+      'fd.append("confirm_subtitle", form.confirm_subtitle ?? "")',
+    );
+  });
+
+  it("edit mode offers a two-step flow Switch above the day inputs", () => {
+    expect(formSource).toContain(
+      'label="Combined 2-step flow (Tracking and confirm)"',
+    );
+    expect(formSource).toContain('form.flow_type === "two_step"');
+  });
+
+  it("edit mode has subtitle inputs whose placeholders are the default captions", () => {
+    expect(formSource).toContain('placeholder="from the following month"');
+    expect(formSource).toContain('placeholder="after validation"');
+  });
+
+  it("read mode collapses to a combined Tracking and confirm cell when two_step", () => {
+    expect(formSource).toContain("Tracking and confirm");
+  });
 });

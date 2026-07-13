@@ -431,6 +431,9 @@ export class AdminService {
       tracking_period_mode?: 'auto' | 'manual';
       tracking_days?: number;
       confirm_days?: number;
+      flow_type?: 'three_step' | 'two_step';
+      tracking_subtitle?: string;
+      confirm_subtitle?: string;
       policy_category_id?: string;
       custom_terms?: string;
       note_to_user?: string;
@@ -533,6 +536,15 @@ export class AdminService {
             : {}),
           ...(updateData.confirm_days !== undefined
             ? { confirm_days: updateData.confirm_days }
+            : {}),
+          ...(updateData.flow_type !== undefined
+            ? { flow_type: updateData.flow_type }
+            : {}),
+          ...(updateData.tracking_subtitle !== undefined
+            ? { tracking_subtitle: updateData.tracking_subtitle }
+            : {}),
+          ...(updateData.confirm_subtitle !== undefined
+            ? { confirm_subtitle: updateData.confirm_subtitle }
             : {}),
           ...(updateData.policy_category_id !== undefined
             ? { policy_category_id: updateData.policy_category_id }

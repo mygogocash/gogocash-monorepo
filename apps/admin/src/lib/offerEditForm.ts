@@ -6,6 +6,10 @@ import {
 } from "@/types/api";
 import { resolveDeeplinkStoreId } from "@/data/deeplinkStores";
 import { resolveAffiliateNetworkIdForOffer } from "@/data/affiliateNetworks";
+import {
+  DEFAULT_CONFIRM_SUBTITLE,
+  DEFAULT_TRACKING_SUBTITLE,
+} from "@/lib/offerTrackingPeriod";
 
 export function emptyOfferRequestForm(): OfferRequestForm {
   return {
@@ -42,6 +46,9 @@ export function emptyOfferRequestForm(): OfferRequestForm {
     tracking_period_mode: "auto",
     tracking_days: null,
     confirm_days: null,
+    flow_type: "three_step",
+    tracking_subtitle: null,
+    confirm_subtitle: null,
   };
 }
 
@@ -93,6 +100,9 @@ function seedTrackingPeriodFields(offer: Offer): {
   tracking_period_mode: "auto" | "manual";
   tracking_days: number | null;
   confirm_days: number | null;
+  flow_type: "three_step" | "two_step";
+  tracking_subtitle: string | null;
+  confirm_subtitle: string | null;
 } {
   if (offer.tracking_period_mode !== undefined) {
     return {
@@ -100,15 +110,58 @@ function seedTrackingPeriodFields(offer: Offer): {
         offer.tracking_period_mode === "manual" ? "manual" : "auto",
       tracking_days: offer.tracking_days ?? null,
       confirm_days: offer.confirm_days ?? null,
+      ...seedFlowFields(offer),
     };
   }
   const derived = offer.tracking_period;
+  const flowFields = seedFlowFields(derived ?? {});
   if (derived?.source === "manual") {
     return {
       tracking_period_mode: "manual",
       tracking_days: derived.tracking_days,
       confirm_days: derived.confirm_days,
+      ...flowFields,
     };
   }
-  return { tracking_period_mode: "auto", tracking_days: null, confirm_days: null };
+  return {
+    tracking_period_mode: "auto",
+    tracking_days: null,
+    confirm_days: null,
+    ...flowFields,
+  };
+}
+
+/**
+ * Flow + subtitles seed from the same source object as the day counts (raw
+ * offer fields on the admin list route, the derived tracking_period on the
+ * public-detail /brands/[id] route — the API now carries them there too).
+ */
+function seedFlowFields(source: {
+  flow_type?: string | null;
+  tracking_subtitle?: string | null;
+  confirm_subtitle?: string | null;
+}): {
+  flow_type: "three_step" | "two_step";
+  tracking_subtitle: string | null;
+  confirm_subtitle: string | null;
+} {
+  return {
+    flow_type: source.flow_type === "two_step" ? "two_step" : "three_step",
+    // The public-detail resolver always returns subtitle strings — for
+    // never-customized offers they equal the live defaults. Seed those as
+    // null so saving the section stores an explicit clear (which resolves to
+    // the live default) instead of pinning today's default copy verbatim.
+    tracking_subtitle: seedSubtitle(source.tracking_subtitle, DEFAULT_TRACKING_SUBTITLE),
+    confirm_subtitle: seedSubtitle(source.confirm_subtitle, DEFAULT_CONFIRM_SUBTITLE),
+  };
+}
+
+function seedSubtitle(
+  value: string | null | undefined,
+  liveDefault: string,
+): string | null {
+  if (!value || value === liveDefault) {
+    return null;
+  }
+  return value;
 }
