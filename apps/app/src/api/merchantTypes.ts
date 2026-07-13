@@ -12,6 +12,9 @@ export type MerchantOfferResponse = {
   offer_name: string;
   banner?: string;
   categories?: string;
+  /** Affiliate-network ids — Shop Now needs both to mint a per-user link. */
+  offer_id?: number;
+  merchant_id?: number;
   commission_store?: number | string;
   commissions?: MerchantCommission[];
   custom_terms?: string;
@@ -23,6 +26,8 @@ export type MerchantOfferResponse = {
   offer_name_display?: string;
   policy_category_id?: string;
   tracking_link?: string;
+  /** API-derived tracking windows (GET /offer/:id attaches this; raw config stays admin-only). */
+  tracking_period?: { tracking_days?: number; confirm_days?: number };
 };
 
 /** Narrow an unknown backend payload to a single offer doc. */

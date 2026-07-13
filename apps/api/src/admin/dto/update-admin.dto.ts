@@ -1,6 +1,12 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { CreateAdminDto } from './create-admin.dto';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class UpdateAdminDto extends PartialType(CreateAdminDto) {}
 
@@ -131,6 +137,39 @@ export class UpdateOfferAdminDto {
   @ApiProperty({ type: [ProductTypeDto] })
   @IsOptional()
   product_type: ProductTypeDto[];
+
+  @ApiProperty({ required: false, enum: ['auto', 'manual'] })
+  @IsIn(['auto', 'manual'])
+  @IsOptional()
+  tracking_period_mode?: 'auto' | 'manual';
+
+  /** Multipart day counts arrive as strings; the controller coerces + bounds-checks. */
+  @ApiProperty({ required: false })
+  @IsOptional()
+  tracking_days?: number | string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  confirm_days?: number | string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @MaxLength(64)
+  @IsOptional()
+  policy_category_id?: string;
+
+  /** Cap mirrors the policy write path's MAX_TRANSLATION_LENGTH (50k). */
+  @ApiProperty({ required: false })
+  @IsString()
+  @MaxLength(50_000)
+  @IsOptional()
+  custom_terms?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @MaxLength(2_000)
+  @IsOptional()
+  note_to_user?: string;
 }
 
 export class UpdateUserDto {

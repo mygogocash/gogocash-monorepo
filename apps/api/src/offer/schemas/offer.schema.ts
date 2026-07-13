@@ -49,6 +49,21 @@ export class Offer {
   @Prop()
   payment_terms: number;
 
+  /**
+   * Cashback tracking-period config (customer "Tracking/Confirm within N day"
+   * strip). 'auto' derives the confirm window from validation_terms; 'manual'
+   * uses the admin-entered day counts below. Resolution lives in
+   * tracking-period.util.ts — these raw fields never reach public payloads.
+   */
+  @Prop({ type: String, enum: ['auto', 'manual'], default: 'auto' })
+  tracking_period_mode: 'auto' | 'manual';
+
+  @Prop()
+  tracking_days?: number;
+
+  @Prop()
+  confirm_days?: number;
+
   @Prop()
   datetime_updated: Date;
 

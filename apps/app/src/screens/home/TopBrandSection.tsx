@@ -15,7 +15,6 @@ import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { prefetchRemoteImages } from "@mobile/lib/prefetchRemoteImages";
 import { getCarouselDotCount, webTopBrandCards } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
-import { viewAllLabel } from "./homeAssets";
 import {
   chunkTopBrandCards,
   getPagedScrollIndex,
@@ -83,7 +82,8 @@ export function TopBrandSection({
         </View>
         <Link asChild href="/brand">
           <MotionPressable pressScale={motion.scale.subtlePress}>
-            <Text style={styles.sectionAction}>{tc(viewAllLabel)}</Text>
+            {/* Only the words go through tc — the arrow suffix breaks the catalog match. */}
+            <Text style={styles.sectionAction}>{`${tc("View all")}  →`}</Text>
           </MotionPressable>
         </Link>
       </View>

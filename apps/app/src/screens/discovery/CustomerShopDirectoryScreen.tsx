@@ -147,7 +147,7 @@ export function CustomerShopDirectoryScreen() {
   const totalPages = Math.max(1, Math.ceil(shopResults.length / pageSize));
   const activePage = Math.min(currentPage, totalPages);
   const visibleStores = shopResults.slice((activePage - 1) * pageSize, activePage * pageSize);
-  const resultsLabel = `${shopResults.length} ${webShopDirectory.resultsUnit}`;
+  const resultsLabel = `${shopResults.length} ${tc(webShopDirectory.resultsUnit)}`;
 
   const updateSearchQuery = (value: string) => {
     setSearchQuery(value);
@@ -193,7 +193,7 @@ export function CustomerShopDirectoryScreen() {
       <View style={styles.searchPill}>
         <SearchIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
         <Text numberOfLines={1} style={styles.searchText}>
-          {webHomeSearchPlaceholder}
+          {tc(webHomeSearchPlaceholder)}
         </Text>
       </View>
     </View>

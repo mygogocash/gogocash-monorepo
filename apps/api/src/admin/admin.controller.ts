@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -16,7 +17,12 @@ import {
   ValidationPipe,
   Res,
 } from '@nestjs/common';
+import {
+  MAX_TRACKING_PERIOD_DAYS,
+  MIN_TRACKING_PERIOD_DAYS,
+} from 'src/offer/tracking-period.util';
 import { Request, Response } from 'express';
+import { Types } from 'mongoose';
 import { AdminService } from './admin.service';
 import {
   CreateAdminDto,
@@ -83,6 +89,60 @@ function coerceOptionalNumber(value: unknown): number | undefined {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
+}
+
+/**
+ * Tracking-period day counts: absent stays undefined (partial saves must not
+ * touch the field), but a present-and-invalid value REJECTS rather than being
+ * silently dropped — an admin who typed a number must not see it vanish.
+ */
+function coerceOptionalDayCount(
+  value: unknown,
+  label: string,
+): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    if (!normalized || normalized === 'undefined') return undefined;
+    value = Number(normalized);
+  }
+  if (
+    typeof value !== 'number' ||
+    !Number.isInteger(value) ||
+    value < MIN_TRACKING_PERIOD_DAYS ||
+    value > MAX_TRACKING_PERIOD_DAYS
+  ) {
+    throw new BadRequestException(
+      `Invalid ${label}: expected a whole number of days between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS}`,
+    );
+  }
+  return value;
+}
+
+/**
+ * Multipart optional text: absent or the "undefined" sentinel stays undefined
+ * (partial saves must not touch the field). An empty string passes through —
+ * it is an explicit clear from the admin form.
+ */
+function coerceOptionalText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  if (value.trim() === 'undefined') return undefined;
+  return value;
+}
+
+/**
+ * policy_category_id must be a real category ObjectId or a clear. The admin
+ * form's "Custom" option sends the literal string "custom" (meaning: no
+ * category, custom terms only) — that and any other non-ObjectId value maps to
+ * '' so garbage ids never persist and the app never fires doomed
+ * /policy/category/<junk> lookups.
+ */
+function coerceOptionalPolicyCategoryId(value: unknown): string | undefined {
+  const text = coerceOptionalText(value);
+  if (text === undefined) return undefined;
+  const trimmed = text.trim();
+  if (!trimmed) return '';
+  return Types.ObjectId.isValid(trimmed) ? trimmed : '';
 }
 
 type AdminRoleDef = {
@@ -480,6 +540,20 @@ export class AdminController {
           ? updateAdminDto.tracking_link
           : undefined,
       product_type: updateAdminDto.product_type,
+      tracking_period_mode: updateAdminDto.tracking_period_mode,
+      tracking_days: coerceOptionalDayCount(
+        updateAdminDto.tracking_days,
+        'tracking_days',
+      ),
+      confirm_days: coerceOptionalDayCount(
+        updateAdminDto.confirm_days,
+        'confirm_days',
+      ),
+      policy_category_id: coerceOptionalPolicyCategoryId(
+        updateAdminDto.policy_category_id,
+      ),
+      custom_terms: coerceOptionalText(updateAdminDto.custom_terms),
+      note_to_user: coerceOptionalText(updateAdminDto.note_to_user),
     });
   }
 

@@ -4,6 +4,7 @@ import { Cookie as CookieIcon } from "@mobile/theme/icons";
 import { Platform, StyleSheet, Text, View } from "react-native";
 
 import { webCookieConsentBanner } from "@mobile/design/webDesignParity";
+import { useCopy } from "@mobile/i18n/useCopy";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import {
   readCookieConsentDismissed,
@@ -36,6 +37,7 @@ function dispatchCookieDismissedEvent() {
 
 export function CustomerCookieConsentBanner({ isDesktop }: { isDesktop: boolean }) {
   const styles = useThemedStyles(createCookieConsentBannerStyles);
+  const tc = useCopy();
   const router = useRouter();
   const [visible, setVisible] = useState(resolveInitialVisible);
   const [hydrated, setHydrated] = useState(Platform.OS === "web");
@@ -108,7 +110,7 @@ export function CustomerCookieConsentBanner({ isDesktop }: { isDesktop: boolean 
 
   return (
     <View
-      accessibilityLabel={webCookieConsentBanner.title}
+      accessibilityLabel={tc(webCookieConsentBanner.title)}
       accessibilityRole="alert"
       style={styles.cookieBanner}
     >
@@ -129,14 +131,14 @@ export function CustomerCookieConsentBanner({ isDesktop }: { isDesktop: boolean 
           </View>
           <View style={styles.cookieCopy}>
             <Text style={[styles.cookieTitle, isDesktop ? null : styles.cookieTitleMobile]}>
-              {webCookieConsentBanner.title}
+              {tc(webCookieConsentBanner.title)}
             </Text>
             <Text style={[styles.cookieBody, isDesktop ? null : styles.cookieBodyMobile]}>
-              {webCookieConsentBanner.bodyPart1}
+              {tc(webCookieConsentBanner.bodyPart1)}
               <Text onPress={openPrivacyPolicy} style={styles.cookiePrivacyLink}>
-                {webCookieConsentBanner.privacyPolicyLabel}
+                {tc(webCookieConsentBanner.privacyPolicyLabel)}
               </Text>
-              {webCookieConsentBanner.bodyPart2}
+              {tc(webCookieConsentBanner.bodyPart2)}
             </Text>
           </View>
         </View>
@@ -147,7 +149,7 @@ export function CustomerCookieConsentBanner({ isDesktop }: { isDesktop: boolean 
             pressScale={motion.scale.subtlePress}
             style={styles.cookieSettingsButton}
           >
-            <Text style={styles.cookieSettingsText}>{webCookieConsentBanner.decline}</Text>
+            <Text style={styles.cookieSettingsText}>{tc(webCookieConsentBanner.decline)}</Text>
           </MotionPressable>
           <MotionPressable
             accessibilityRole="button"
@@ -155,7 +157,7 @@ export function CustomerCookieConsentBanner({ isDesktop }: { isDesktop: boolean 
             pressScale={motion.scale.subtlePress}
             style={styles.cookieAcceptButton}
           >
-            <Text style={styles.cookieAcceptText}>{webCookieConsentBanner.allow}</Text>
+            <Text style={styles.cookieAcceptText}>{tc(webCookieConsentBanner.allow)}</Text>
           </MotionPressable>
         </View>
       </View>

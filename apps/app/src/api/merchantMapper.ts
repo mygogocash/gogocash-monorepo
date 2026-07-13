@@ -32,11 +32,50 @@ type LiveShopDetailFields = {
   extraCashback: string;
   logoText: string;
   logoUri?: string;
+  /** Affiliate-network ids for minting per-user tracked links on Shop Now. */
+  merchantId?: number;
+  offerId?: number;
   note: string;
   noteToUser?: string;
   policyCategoryId?: string;
   productRates: ProductRate[];
+  trackingPeriod: readonly TrackingPeriodStep[];
 };
+
+export type TrackingPeriodStep = {
+  label: string;
+  detail: string;
+  icon: "shopping" | "check" | "bank";
+};
+
+function isValidTrackingDays(value: unknown): value is number {
+  return (
+    typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 365
+  );
+}
+
+/**
+ * API-derived tracking windows → the shop page's 3-step strip, in the exact
+ * fixture format (`within N day` is the web-parity copy). Returns null when
+ * either window is missing/invalid so the fixture steps pass through — older
+ * API payloads without tracking_period keep today's behavior.
+ */
+export function buildTrackingPeriodSteps(
+  period: MerchantOfferResponse["tracking_period"],
+): TrackingPeriodStep[] | null {
+  if (
+    !period ||
+    !isValidTrackingDays(period.tracking_days) ||
+    !isValidTrackingDays(period.confirm_days)
+  ) {
+    return null;
+  }
+  return [
+    { label: "Purchase", detail: "with GoGoCash", icon: "shopping" },
+    { label: "Tracking", detail: `within ${period.tracking_days} day`, icon: "check" },
+    { label: "Confirm", detail: `within ${period.confirm_days} day`, icon: "bank" },
+  ];
+}
 
 function formatCashback(offer: MerchantOfferResponse): string | null {
   const store = offer.commission_store;
@@ -84,10 +123,14 @@ function firstImageUri(
   return undefined;
 }
 
-export function mapMerchantOfferToShopDetail<TShop extends ShopDetailIdentity>(
+export function mapMerchantOfferToShopDetail<
+  TShop extends ShopDetailIdentity & { trackingPeriod: readonly TrackingPeriodStep[] },
+>(
   offer: MerchantOfferResponse,
   fixtureShop: TShop
-): Omit<TShop, keyof ShopDetailIdentity> & ShopDetailIdentity & LiveShopDetailFields {
+): Omit<TShop, keyof ShopDetailIdentity | "trackingPeriod"> &
+  ShopDetailIdentity &
+  LiveShopDetailFields {
   const brand =
     offer.offer_name_display?.trim() || offer.offer_name?.trim() || fixtureShop.brand;
   // Never fall back to fixture cashback on a live offer — that leaks Grocery Galaxy
@@ -102,19 +145,27 @@ export function mapMerchantOfferToShopDetail<TShop extends ShopDetailIdentity>(
     cashback,
     category: offer.categories?.trim() || fixtureShop.category,
     customTerms: offer.custom_terms?.trim() || undefined,
+    // Brand-less constants (not `${brand} …` templates) so tc() can reverse-look-up
+    // the exact English catalog value and render Thai in Thai mode.
     disclaimer:
-      `${brand} cashback rates, tracking windows, exclusions, and availability can change. ` +
+      "Cashback rates, tracking windows, exclusions, and availability can change. " +
       "Final approval remains subject to the merchant and partner network.",
     extraCashback: cashback,
     id: offer._id,
     logoText: initialsFromBrand(brand),
     logoUri: firstImageUri(apiBaseUrl, BRAND_LOGO_IMAGE_WIDTH, resolvePublicOfferLogo(offer)),
+    merchantId: typeof offer.merchant_id === "number" ? offer.merchant_id : undefined,
+    offerId: typeof offer.offer_id === "number" ? offer.offer_id : undefined,
     note:
       offer.note_to_user?.trim() ||
-      `${brand} cashback is tracked through GoGoCash after you open the merchant link and complete an eligible order.`,
+      "Cashback is tracked through GoGoCash after you open the merchant link and complete an eligible order.",
     noteToUser: offer.note_to_user?.trim() || undefined,
     policyCategoryId: offer.policy_category_id?.trim() || undefined,
     productRates: [{ name: brand, rate: cashback }],
+    // Admin/partner-configured windows when the API sends them; otherwise the
+    // fixture's default 30/30 steps.
+    trackingPeriod:
+      buildTrackingPeriodSteps(offer.tracking_period) ?? fixtureShop.trackingPeriod,
     trackingUrl: offer.tracking_link?.trim() || fixtureShop.trackingUrl,
   };
 }

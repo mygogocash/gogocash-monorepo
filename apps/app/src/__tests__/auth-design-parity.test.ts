@@ -194,7 +194,7 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("styles.socialGridMobile");
     expect(authFile).toContain("styles.socialButtonMobile");
     expect(authFile).toContain("authSocialProviders.map");
-    expect(authFile).toContain("usesMobileFormLayout ? dividerText.toUpperCase() : dividerText");
+    expect(authFile).toContain("usesMobileFormLayout ? tc(dividerText).toUpperCase() : tc(dividerText)");
     expect(authFile).toContain("<CustomerCookieConsentBanner isDesktop={isDesktopShell} />");
     expectStyleBlock(authFile, "pageAuthMobile", ["paddingHorizontal: 24"]);
     expectStyleBlock(authFile, "cardInnerMobile", ["paddingHorizontal: 16", "paddingTop: 24"]);

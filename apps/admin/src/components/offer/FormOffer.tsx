@@ -63,6 +63,13 @@ import {
   serializeOfferProductTypes,
 } from "@/lib/productTypeDraft";
 import { appendCashbackPatchFields } from "@/lib/offerCashbackSave";
+import {
+  formatTrackingDays,
+  isValidTrackingDayCount,
+  MAX_TRACKING_PERIOD_DAYS,
+  MIN_TRACKING_PERIOD_DAYS,
+  resolveTrackingPeriodPreview,
+} from "@/lib/offerTrackingPeriod";
 import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
 import {
   brandSectionSaveBlockedMessage,
@@ -174,6 +181,7 @@ function OfferFormSectionNav({ showReference }: { showReference: boolean }) {
         { id: "offer-section-media", label: "Logo & Medias" },
         { id: "offer-section-policy", label: "Terms & Conditions" },
         { id: "offer-section-tracking", label: "Partner & Tracking link" },
+        { id: "offer-section-tracking-period", label: "Cashback tracking period" },
       ] as const,
     [showReference],
   );
@@ -714,6 +722,89 @@ const FormOffer = ({
       setPolicySaveError("Could not update policy. Please try again.");
     } finally {
       setSavingPolicy(false);
+    }
+  };
+
+  // Cashback tracking period: the "Purchase → Tracking → Confirm" steps
+  // customers see. Auto follows partner validation terms; Manual is per-brand.
+  const [editingTrackingPeriod, setEditingTrackingPeriod] = useState(false);
+  const [savingTrackingPeriod, setSavingTrackingPeriod] = useState(false);
+  const [trackingPeriodSnapshot, setTrackingPeriodSnapshot] = useState<{
+    tracking_period_mode: "auto" | "manual";
+    tracking_days: number | null;
+    confirm_days: number | null;
+  } | null>(null);
+  const [trackingPeriodSaveError, setTrackingPeriodSaveError] = useState<
+    string | null
+  >(null);
+
+  const beginEditTrackingPeriod = () => {
+    setTrackingPeriodSnapshot({
+      tracking_period_mode: form.tracking_period_mode,
+      tracking_days: form.tracking_days,
+      confirm_days: form.confirm_days,
+    });
+    setTrackingPeriodSaveError(null);
+    setEditingTrackingPeriod(true);
+  };
+
+  const cancelEditTrackingPeriod = () => {
+    if (trackingPeriodSnapshot) {
+      setForm((prev) => ({ ...prev, ...trackingPeriodSnapshot }));
+    }
+    setTrackingPeriodSaveError(null);
+    setEditingTrackingPeriod(false);
+  };
+
+  const saveTrackingPeriodEdit = async () => {
+    if (!form.id) return;
+    if (form.tracking_period_mode === "manual") {
+      if (
+        !isValidTrackingDayCount(form.tracking_days ?? undefined) ||
+        !isValidTrackingDayCount(form.confirm_days ?? undefined)
+      ) {
+        setTrackingPeriodSaveError(
+          `Enter whole day counts between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS} for both windows.`,
+        );
+        return;
+      }
+    }
+    setSavingTrackingPeriod(true);
+    setTrackingPeriodSaveError(null);
+    try {
+      const fd = new FormData();
+      fd.append("tracking_period_mode", form.tracking_period_mode);
+      if (form.tracking_period_mode === "manual") {
+        // Day counts only travel in manual mode — auto saves leave the stored
+        // manual values untouched server-side (absent key = no change).
+        fd.append("tracking_days", String(form.tracking_days));
+        fd.append("confirm_days", String(form.confirm_days));
+      }
+      await client.patch(`/admin/update-offer/${form.id}`, fd, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setFormBaseline((prev) => ({
+        ...prev,
+        snapshot: {
+          ...prev.snapshot,
+          tracking_period_mode: form.tracking_period_mode,
+          tracking_days: form.tracking_days,
+          confirm_days: form.confirm_days,
+        },
+      }));
+      setEditingTrackingPeriod(false);
+      fetchOffers();
+      toast.success("Tracking period updated successfully");
+    } catch (err) {
+      devError("Failed to update tracking period:", err);
+      setTrackingPeriodSaveError(
+        "Could not update tracking period. Please try again.",
+      );
+    } finally {
+      setSavingTrackingPeriod(false);
     }
   };
 
@@ -3998,6 +4089,193 @@ const FormOffer = ({
                       value={offerDeeplinkDraft}
                       title="Copy tracking link"
                       iconClassName="h-3.5 w-3.5"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div
+          id="offer-section-tracking-period"
+          className={`relative rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+        >
+          <div className="absolute top-4 right-4 z-10 sm:top-5 sm:right-5">
+            {!editingTrackingPeriod ? (
+              <SecondaryButton onClick={beginEditTrackingPeriod} disabled={!offer}>
+                Edit
+              </SecondaryButton>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={cancelEditTrackingPeriod}
+                  disabled={savingTrackingPeriod}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveTrackingPeriodEdit()}
+                  disabled={savingTrackingPeriod}
+                  className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {savingTrackingPeriod ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            )}
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+              Cashback tracking period
+            </h4>
+            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+              The Purchase → Tracking → Confirm steps customers see on this
+              brand&apos;s shop page.{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                Auto
+              </span>{" "}
+              follows the affiliate partner&apos;s validation terms;{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                Manual
+              </span>{" "}
+              sets the windows for this brand.
+            </p>
+          </div>
+          {trackingPeriodSaveError && (
+            <p className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+              {trackingPeriodSaveError}
+            </p>
+          )}
+          {(() => {
+            const preview = resolveTrackingPeriodPreview(
+              {
+                tracking_period_mode: form.tracking_period_mode,
+                tracking_days: form.tracking_days,
+                confirm_days: form.confirm_days,
+                validation_terms: offer?.validation_terms ?? null,
+              },
+              offer?.tracking_period ?? null,
+            );
+            const sourceLabel =
+              preview.source === "manual"
+                ? "Manual — set for this brand"
+                : preview.source === "partner"
+                  ? "Auto — from partner validation terms"
+                  : "Auto — platform default (no partner terms on file)";
+            return (
+              <>
+                <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                      Purchase
+                    </dt>
+                    <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                      with GoGoCash
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                      Tracking
+                    </dt>
+                    <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                      {formatTrackingDays(preview.tracking_days)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                      Confirm
+                    </dt>
+                    <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                      {formatTrackingDays(preview.confirm_days)}
+                    </dd>
+                  </div>
+                </dl>
+                <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                  {sourceLabel} · Partner reference:{" "}
+                  {typeof offer?.validation_terms === "number" && offer.validation_terms > 0
+                    ? `validation ${offer.validation_terms} days`
+                    : "validation —"}
+                  {typeof offer?.payment_terms === "number" && offer.payment_terms > 0
+                    ? `, payment ${offer.payment_terms} days`
+                    : ""}
+                </p>
+              </>
+            );
+          })()}
+          {editingTrackingPeriod && (
+            <div className="mt-4 space-y-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+              <div className="flex flex-wrap gap-4">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                  <input
+                    type="radio"
+                    name="tracking_period_mode"
+                    className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+                    checked={form.tracking_period_mode === "auto"}
+                    onChange={() =>
+                      setForm((prev) => ({ ...prev, tracking_period_mode: "auto" }))
+                    }
+                  />
+                  Auto — fetch from affiliate partner
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                  <input
+                    type="radio"
+                    name="tracking_period_mode"
+                    className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+                    checked={form.tracking_period_mode === "manual"}
+                    onChange={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        tracking_period_mode: "manual",
+                      }))
+                    }
+                  />
+                  Manual
+                </label>
+              </div>
+              {form.tracking_period_mode === "manual" && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Tracking window (days)
+                    </label>
+                    <input
+                      type="number"
+                      min={MIN_TRACKING_PERIOD_DAYS}
+                      max={MAX_TRACKING_PERIOD_DAYS}
+                      value={form.tracking_days ?? ""}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          tracking_days: e.target.value
+                            ? Number(e.target.value)
+                            : null,
+                        }))
+                      }
+                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Confirm window (days)
+                    </label>
+                    <input
+                      type="number"
+                      min={MIN_TRACKING_PERIOD_DAYS}
+                      max={MAX_TRACKING_PERIOD_DAYS}
+                      value={form.confirm_days ?? ""}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          confirm_days: e.target.value
+                            ? Number(e.target.value)
+                            : null,
+                        }))
+                      }
+                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                     />
                   </div>
                 </div>

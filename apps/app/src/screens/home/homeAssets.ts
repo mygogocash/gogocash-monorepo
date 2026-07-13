@@ -88,8 +88,6 @@ export const mobileTabletHeaderGradient = {
   backgroundImage: "linear-gradient(135deg, #006B52 0%, #009D78 48%, #20C7A1 100%)",
 } as unknown as ViewStyle;
 
-export const viewAllLabel = "View all  →";
-
 export const homeGoLinkShopNowRoute = "/shop/brand-orbit-airways-1003?golinkContinue=1";
 
 export { ShoppingBagIcon, HomeIcon };
