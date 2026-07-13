@@ -46,6 +46,7 @@ export function affiliateNetworkIdForSource(
   source: string,
 ): AffiliateNetworkId {
   if (source === 'optimise') return 'optimise';
+  if (source === 'accesstrade') return 'accesstrade';
   if (source === 'involve') return 'involve_asia';
   return 'involve_asia';
 }

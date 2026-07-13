@@ -2,17 +2,17 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CommissionManagementService } from './commission-management.service';
 
 describe('CommissionManagementService', () => {
-  const involveService = {
-    findOfferByOfferId: jest.fn(),
-  };
   const offerModel = {
     find: jest.fn(),
     findById: jest.fn(),
     updateOne: jest.fn(),
   };
-  // Registry mock for the new seam-dispatch tests. The existing suite (above)
-  // constructs the service with the `involveService` mock in the 2nd slot and
-  // must keep passing unchanged — that is the involve-behavior regression proof.
+  // Registry mock for the affiliate seam. Production injects the
+  // AffiliateProviderRegistry in the 2nd constructor slot, and mergePartnerFeed
+  // dispatches through registry.providerFor(source).refreshOffer(); the whole
+  // suite constructs with this registry (not a bare involveService) so the
+  // involve-behavior tests actually exercise the dispatch, not the
+  // no-provider fallthrough.
   const registry = {
     providerFor: jest.fn(),
     enabledProviders: jest.fn(),
@@ -24,7 +24,7 @@ describe('CommissionManagementService', () => {
     jest.clearAllMocks();
     service = new CommissionManagementService(
       offerModel as any,
-      involveService as any,
+      registry as any,
     );
   });
 
@@ -95,7 +95,15 @@ describe('CommissionManagementService', () => {
         commission_tracking: 'CPS',
       }),
     });
-    involveService.findOfferByOfferId.mockResolvedValue(null);
+    // Enabled involve provider whose live refresh yields nothing, so fetchBest
+    // falls back to the offer's own stored commissions (6.5%). This genuinely
+    // exercises the registry dispatch (providerFor -> refreshOffer), which the
+    // old stale involveService mock silently skipped.
+    registry.providerFor.mockReturnValue({
+      source: 'involve',
+      isEnabled: jest.fn().mockReturnValue(true),
+      refreshOffer: jest.fn().mockResolvedValue(null),
+    });
 
     const result = await service.fetchBest({
       offerId: '507f1f77bcf86cd799439011',

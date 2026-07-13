@@ -17,7 +17,10 @@ export class InvolveAffiliateProvider implements AffiliateNetworkProvider {
   constructor(private readonly involveService: InvolveService) {}
 
   isEnabled(): boolean {
-    return Boolean(process.env.INVOLVE_SECRET);
+    // Match the whitespace-tolerant check every other INVOLVE_SECRET consumer
+    // uses (listAffiliateNetworks connected flag, the original mergePartnerFeed
+    // gate) so a blank-but-set env var reads as "not configured", not enabled.
+    return Boolean(process.env.INVOLVE_SECRET?.trim());
   }
 
   async syncOffers(): Promise<{ upserted: number }> {
