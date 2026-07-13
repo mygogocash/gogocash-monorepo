@@ -48,9 +48,11 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL \
 # Install from the single root lockfile that pins the whole workspace.
 # --ignore-scripts skips the root postinstall (patches admin assets not copied
 # here) and native postinstalls that a web-only export does not need.
+# --include=dev: Railway injects NODE_ENV=production into builds; Expo export
+# still needs typescript and other build-time workspace deps.
 COPY package.json package-lock.json .npmrc ./
 COPY apps/app/package.json ./apps/app/package.json
-RUN npm ci --legacy-peer-deps --ignore-scripts
+RUN npm ci --legacy-peer-deps --ignore-scripts --include=dev
 
 # Build only the mobile workspace's web export → apps/app/dist.
 COPY apps/app ./apps/app

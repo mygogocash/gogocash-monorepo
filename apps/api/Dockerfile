@@ -18,9 +18,11 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 # pass it explicitly too as a guard against an unread .npmrc. Ignore lifecycle
 # scripts because the root postinstall patches admin assets that are not copied
 # into this API-only image.
+# --include=dev: Railway/Cloud Run may inject NODE_ENV=production into the
+# build stage; without this, npm omits build tools (typescript/@swc/cli).
 COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json ./apps/api/package.json
-RUN npm ci --legacy-peer-deps --ignore-scripts
+RUN npm ci --legacy-peer-deps --ignore-scripts --include=dev
 
 # Copy the api source and build only its workspace (@swc/cli + .swcrc drive the
 # build; type-checking is a separate native `tsc --noEmit` gate in CI).
