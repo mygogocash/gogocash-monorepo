@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
 import { InvolveModule } from 'src/involve/involve.module';
+import { AffiliateModule } from 'src/affiliate/affiliate.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { MongooseModule } from '@nestjs/mongoose';
 import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
@@ -44,7 +45,11 @@ import { PointModule } from 'src/point/point.module';
   imports: [
     CacheModule.register(),
     PointModule,
+    // InvolveModule stays: JobService (a provider here) uses InvolveService for
+    // conversion pulls. AffiliateModule adds the seam the update-offers route
+    // dispatches through.
     InvolveModule,
+    AffiliateModule,
     // TasksController is guarded by AuthAdminGuard, which injects JwtService.
     // Without this registration Nest cannot resolve the guard's dependency and
     // the whole app fails to boot (UnknownDependenciesException). Mirrors the

@@ -5,7 +5,6 @@ import { TasksService } from './tasksService';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { Point, PointSchema } from './schemas/point.schema';
-import { InvolveService } from 'src/involve/involve.service';
 import { CacheModule } from '@nestjs/cache-manager';
 import { Offer, OfferSchema } from 'src/offer/schemas/offer.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
@@ -42,13 +41,10 @@ import { AnalyticsService } from 'src/analytics/analytics.service';
     ]),
   ],
   controllers: [PointController],
-  providers: [
-    PointService,
-    TasksService,
-    InvolveService,
-    JwtService,
-    AnalyticsService,
-  ],
+  // InvolveService removed: the point cron's only reference to it was
+  // fully commented-out dead code, so the provider (and its injection into
+  // TasksService) was vestigial.
+  providers: [PointService, TasksService, JwtService, AnalyticsService],
   exports: [PointService],
 })
 export class PointModule {}

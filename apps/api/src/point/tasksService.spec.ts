@@ -7,18 +7,12 @@ jest.mock('src/utils/helper', () => ({
 describe('Point TasksService', () => {
   let service: TasksService;
   let pointService: { addPointsToUser: jest.Mock };
-  let involveService: Record<string, never>;
   let conversionModel: { find: jest.Mock };
 
   beforeEach(() => {
     pointService = { addPointsToUser: jest.fn() };
-    involveService = {};
     conversionModel = { find: jest.fn() };
-    service = new TasksService(
-      pointService as never,
-      involveService as never,
-      conversionModel as never,
-    );
+    service = new TasksService(pointService as never, conversionModel as never);
   });
 
   it('handleCron > given conversion lookup > then it only awards approved conversions that have not already received points', async () => {
