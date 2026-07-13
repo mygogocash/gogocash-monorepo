@@ -12,7 +12,7 @@ import NoData from "@/components/common/NoData";
 import { useApi } from "@/hooks/useApi";
 import { formatDateTime } from "@/lib/dateFormat";
 import type { DataConversion, DataWithdrawsList } from "@/types/api";
-import { useDataSession } from "@/hooks/useDataSession";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import React, { useEffect, useState, startTransition } from "react";
 
@@ -36,17 +36,16 @@ function statusColor(status: string): "success" | "warning" | "error" {
 export default function RecentActivity() {
   const api = useApi();
   const apiRef = React.useRef(api);
-  const dataSession = useDataSession();
+  const { status } = useSession();
 
   React.useEffect(() => {
     apiRef.current = api;
   }, [api]);
-  const token = dataSession.accessToken ?? "";
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!token) {
+    if (status !== "authenticated") {
       startTransition(() => setLoading(false));
       return;
     }
@@ -54,10 +53,10 @@ export default function RecentActivity() {
     startTransition(() => setLoading(true));
     const { getConversion, getWithdraws } = apiRef.current;
     Promise.allSettled([
-      getConversion({ limit: LIMIT, page: 1 }, token).then((r) =>
+      getConversion({ limit: LIMIT, page: 1 }).then((r) =>
         (r?.data ?? []).map((c) => ({ type: "conversion" as const, data: c })),
       ),
-      getWithdraws({ limit: LIMIT, page: 1 }, token).then((r) =>
+      getWithdraws({ limit: LIMIT, page: 1 }).then((r) =>
         (r?.data ?? []).map((w) => ({ type: "withdrawal" as const, data: w })),
       ),
     ])
@@ -85,7 +84,7 @@ export default function RecentActivity() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [status]);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pt-4 pb-3 sm:px-6 dark:border-gray-800 dark:bg-white/[0.03]">

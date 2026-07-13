@@ -21,4 +21,6 @@ runs:
       shell: bash
       env:
         NODE_OPTIONS: ${{ inputs.node-options }}
-      run: npm ci
+        # Force devDependencies even if a runner/image injects NODE_ENV=production
+        # (same class of bug as Railway Docker builds omitting typescript).
+      run: npm ci --include=dev
