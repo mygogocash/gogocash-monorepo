@@ -107,6 +107,37 @@ describe('UpdateOfferAdminDto validation (integration)', () => {
     expect(response.status).toBe(400);
   });
 
+  it('given flow_type=two_step with step subtitles > then they pass validation', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/offer-test/update-offer/offer-1')
+      .field('flow_type', 'two_step')
+      .field('tracking_subtitle', 'after the return window closes')
+      .field('confirm_subtitle', 'once the store approves');
+
+    expect(response.status).toBe(200);
+    expect(response.body.body.flow_type).toBe('two_step');
+    expect(response.body.body.tracking_subtitle).toBe(
+      'after the return window closes',
+    );
+    expect(response.body.body.confirm_subtitle).toBe('once the store approves');
+  });
+
+  it('given flow_type=four_step > then validation rejects with 400', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/offer-test/update-offer/offer-1')
+      .field('flow_type', 'four_step');
+
+    expect(response.status).toBe(400);
+  });
+
+  it('given an oversized tracking_subtitle > then validation rejects with 400', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/offer-test/update-offer/offer-1')
+      .field('tracking_subtitle', 'x'.repeat(201));
+
+    expect(response.status).toBe(400);
+  });
+
   it('given terms-and-conditions multipart fields > then policy/custom terms/note pass validation', async () => {
     const response = await request(app.getHttpServer())
       .patch('/offer-test/update-offer/offer-1')

@@ -549,6 +549,9 @@ export class AdminController {
         updateAdminDto.confirm_days,
         'confirm_days',
       ),
+      flow_type: updateAdminDto.flow_type,
+      tracking_subtitle: coerceOptionalText(updateAdminDto.tracking_subtitle),
+      confirm_subtitle: coerceOptionalText(updateAdminDto.confirm_subtitle),
       policy_category_id: coerceOptionalPolicyCategoryId(
         updateAdminDto.policy_category_id,
       ),

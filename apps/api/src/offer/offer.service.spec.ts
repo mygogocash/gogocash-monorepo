@@ -182,7 +182,7 @@ describe('OfferService', () => {
       await service.findAll(1, 10, '', '');
 
       expect(query.select).toHaveBeenCalledWith(
-        '-tracking_period_mode -tracking_days -confirm_days',
+        '-tracking_period_mode -tracking_days -confirm_days -flow_type -tracking_subtitle -confirm_subtitle',
       );
     });
 
@@ -443,6 +443,9 @@ describe('OfferService', () => {
             tracking_days: 7,
             confirm_days: 45,
             source: 'manual',
+            flow_type: 'three_step',
+            tracking_subtitle: 'from the following month',
+            confirm_subtitle: 'after validation',
           },
         }),
       );
@@ -451,6 +454,42 @@ describe('OfferService', () => {
       expect(result).not.toHaveProperty('tracking_days');
       expect(result).not.toHaveProperty('confirm_days');
       expect(result).not.toHaveProperty('validation_terms');
+      expect(result).not.toHaveProperty('flow_type');
+      expect(result).not.toHaveProperty('tracking_subtitle');
+      expect(result).not.toHaveProperty('confirm_subtitle');
+    });
+
+    it('findOne > given a stored two_step flow with custom subtitles > then the derived tracking_period carries them', async () => {
+      const offerId = new Types.ObjectId().toHexString();
+      const query = makeQuery({
+        _id: offerId,
+        offer_name: 'Nike',
+        tracking_period_mode: 'manual',
+        tracking_days: 7,
+        confirm_days: 45,
+        flow_type: 'two_step',
+        tracking_subtitle: 'after the return window closes',
+        confirm_subtitle: 'once the store approves',
+      });
+      offerModel.findOne.mockReturnValue(query);
+
+      const result = await service.findOne(offerId);
+
+      expect(query.select).toHaveBeenCalledWith(
+        expect.stringContaining('flow_type'),
+      );
+      expect(result).toEqual(
+        expect.objectContaining({
+          tracking_period: {
+            tracking_days: 7,
+            confirm_days: 45,
+            source: 'manual',
+            flow_type: 'two_step',
+            tracking_subtitle: 'after the return window closes',
+            confirm_subtitle: 'once the store approves',
+          },
+        }),
+      );
     });
 
     it('findOne > given an involve offer in auto mode > then tracking_period.confirm_days mirrors validation_terms', async () => {
@@ -473,6 +512,9 @@ describe('OfferService', () => {
             tracking_days: 30,
             confirm_days: 60,
             source: 'partner',
+            flow_type: 'three_step',
+            tracking_subtitle: 'from the following month',
+            confirm_subtitle: 'after validation',
           },
         }),
       );

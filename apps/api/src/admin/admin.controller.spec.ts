@@ -408,6 +408,42 @@ describe('AdminController', () => {
       expect(arg.tracking_period_mode).toBeUndefined();
       expect(arg.tracking_days).toBeUndefined();
       expect(arg.confirm_days).toBeUndefined();
+      expect(arg.flow_type).toBeUndefined();
+      expect(arg.tracking_subtitle).toBeUndefined();
+      expect(arg.confirm_subtitle).toBeUndefined();
+    });
+
+    it('updateOffer > given flow_type and step subtitles > then they are forwarded (subtitles keep empty-string clears)', () => {
+      controller.updateOffer(
+        'offer-1',
+        {
+          flow_type: 'two_step' as never,
+          tracking_subtitle: 'after the return window closes' as never,
+          confirm_subtitle: '' as never,
+        } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.flow_type).toBe('two_step');
+      expect(arg.tracking_subtitle).toBe('after the return window closes');
+      // Empty string = explicit clear back to the default subtitle.
+      expect(arg.confirm_subtitle).toBe('');
+    });
+
+    it('updateOffer > given the "undefined" sentinel for subtitles > then they are omitted', () => {
+      controller.updateOffer(
+        'offer-1',
+        {
+          tracking_subtitle: 'undefined' as never,
+          confirm_subtitle: 'undefined' as never,
+        } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.tracking_subtitle).toBeUndefined();
+      expect(arg.confirm_subtitle).toBeUndefined();
     });
 
     it('updateOffer > given terms-and-conditions fields > then policy/custom terms/note are forwarded (regression: admin T&C saves silently no-oped)', () => {

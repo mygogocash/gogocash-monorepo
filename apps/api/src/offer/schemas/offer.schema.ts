@@ -64,6 +64,25 @@ export class Offer {
   @Prop()
   confirm_days?: number;
 
+  /**
+   * Step-strip flow: 'three_step' (Purchase → Tracking → Confirm) or
+   * 'two_step' (Purchase → combined "Tracking and confirm"). Subtitles are
+   * the editable per-step captions; blank falls back to the defaults in
+   * tracking-period.util.ts.
+   */
+  @Prop({
+    type: String,
+    enum: ['three_step', 'two_step'],
+    default: 'three_step',
+  })
+  flow_type: 'three_step' | 'two_step';
+
+  @Prop()
+  tracking_subtitle?: string;
+
+  @Prop()
+  confirm_subtitle?: string;
+
   @Prop()
   datetime_updated: Date;
 
