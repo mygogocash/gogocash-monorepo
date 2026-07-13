@@ -6,6 +6,10 @@ import {
   FIREBASE_NATIVE_RECAPTCHA_REQUIRED_MESSAGE,
   sendPhoneOtp,
 } from "@mobile/auth/firebasePhoneAuth";
+import {
+  preloadInlineRecaptcha,
+  RECAPTCHA_INLINE_CONTAINER_ID,
+} from "@mobile/auth/firebasePhoneAuth";
 import { FIREBASE_NOT_CONFIGURED_CODE } from "@mobile/auth/authSendErrorKind";
 
 const platformOS = vi.hoisted(() => ({ current: "web" as string }));
@@ -20,10 +24,12 @@ vi.mock("react-native", () => ({
 
 const signInWithPhoneNumber = vi.fn();
 const recaptchaVerifierCtor = vi.fn();
+const recaptchaVerifierRender = vi.fn();
 
 vi.mock("firebase/auth", () => ({
   RecaptchaVerifier: class RecaptchaVerifier {
     clear = vi.fn();
+    render = (...args: unknown[]) => recaptchaVerifierRender(...args);
     constructor(...args: unknown[]) {
       recaptchaVerifierCtor(...args);
     }
@@ -44,6 +50,8 @@ describe("firebasePhoneAuth > sendPhoneOtp", () => {
     platformOS.current = "web";
     signInWithPhoneNumber.mockReset();
     recaptchaVerifierCtor.mockReset();
+    recaptchaVerifierRender.mockReset();
+    recaptchaVerifierRender.mockResolvedValue(0);
     isFirebaseConfigured.mockReturnValue(true);
     signInWithPhoneNumber.mockResolvedValue({ confirm: vi.fn() });
     document.body.innerHTML = "";
@@ -79,6 +87,54 @@ describe("firebasePhoneAuth > sendPhoneOtp", () => {
     await expect(sendPhoneOtp("+66812345678", verifier)).rejects.toMatchObject({
       code: FIREBASE_NOT_CONFIGURED_CODE,
     });
+  });
+
+  it("given the inline card container exists > then renders a VISIBLE (size normal) captcha in it", async () => {
+    // Founder 2026-07-13: the invisible badge floated clipped at the viewport
+    // corner (and showed Google's tiny domain error there). When the auth card
+    // mounts its inline slot, the captcha must be the visible checkbox inside
+    // the card — easy to see on both breakpoints.
+    platformOS.current = "web";
+    const slot = document.createElement("div");
+    slot.id = RECAPTCHA_INLINE_CONTAINER_ID;
+    document.body.appendChild(slot);
+
+    await sendPhoneOtp("+66812345678");
+
+    expect(recaptchaVerifierCtor).toHaveBeenCalledWith(
+      getClientAuth(),
+      slot,
+      expect.objectContaining({ size: "normal" }),
+    );
+  });
+
+  it("preloadInlineRecaptcha > given the inline slot > then renders the widget upfront so users see it before submitting", async () => {
+    platformOS.current = "web";
+    const slot = document.createElement("div");
+    slot.id = RECAPTCHA_INLINE_CONTAINER_ID;
+    document.body.appendChild(slot);
+
+    await preloadInlineRecaptcha({ theme: "dark" });
+
+    expect(recaptchaVerifierCtor).toHaveBeenCalledWith(
+      getClientAuth(),
+      slot,
+      expect.objectContaining({ size: "normal", theme: "dark" }),
+    );
+    expect(recaptchaVerifierRender).toHaveBeenCalled();
+  });
+
+  it("preloadInlineRecaptcha > given no inline slot or non-web platform > then it is a safe no-op", async () => {
+    platformOS.current = "web";
+    await preloadInlineRecaptcha({ theme: "light" });
+    expect(recaptchaVerifierCtor).not.toHaveBeenCalled();
+
+    platformOS.current = "android";
+    const slot = document.createElement("div");
+    slot.id = RECAPTCHA_INLINE_CONTAINER_ID;
+    document.body.appendChild(slot);
+    await preloadInlineRecaptcha({ theme: "light" });
+    expect(recaptchaVerifierCtor).not.toHaveBeenCalled();
   });
 
   it("given web platform > then uses the invisible DOM RecaptchaVerifier", async () => {
@@ -123,5 +179,21 @@ describe("firebasePhoneAuth > confirmPhoneOtp", () => {
     await expect(confirmPhoneOtp({ confirm }, "123456")).rejects.toThrow(
       "Phone sign-in did not return a credential."
     );
+  });
+});
+
+describe("visible captcha wiring (source signals)", () => {
+  it("the auth screen mounts the inline slot and preloads the visible widget on the phone step", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const screenSource = readFileSync(
+      resolve(__dirname, "../screens/CustomerAuthScreen.tsx"),
+      "utf8",
+    );
+
+    expect(screenSource).toContain("nativeID={RECAPTCHA_INLINE_CONTAINER_ID}");
+    expect(screenSource).toContain("preloadInlineRecaptcha({ theme:");
+    // Web + live mode only — fixtures/parity and native are untouched.
+    expect(screenSource).toContain('liveAuth && Platform.OS === "web"');
   });
 });
