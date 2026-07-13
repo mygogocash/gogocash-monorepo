@@ -86,6 +86,31 @@ describe("search suggestion UI wiring", () => {
     expect(gridSource).not.toContain("function resolveSuggestionItem");
   });
 
+  it("CustomerSearchScreen > given an empty featured endpoint > then live brands feed trending + suggestions (issue #248)", () => {
+    // Staging's /offer/search/featured returns {"data":[]}; without the live
+    // fallback the screen rendered fixture demo brands (Grocery Galaxy, ...).
+    const searchScreen = readMobileFile("src/screens/CustomerSearchScreen.tsx");
+
+    expect(searchScreen).toMatch(/useFeaturedSearchTerms\(\s*liveFallbackTerms\s*\)/);
+    expect(searchScreen).toContain("rankPopularLiveBrandTerms(");
+  });
+
+  it("SearchSuggestionsGrid > given a live logo > then the real logo wins over the fallback initials (issue #248)", () => {
+    // BrandCard's compact branch suppresses the image whenever logoFallbackText
+    // is provided; the grid passed one unconditionally, so live brands rendered
+    // as tinted initials even with a valid logo URL.
+    const gridSource = readMobileFile("src/screens/search/SearchSuggestionsGrid.tsx");
+
+    expect(gridSource).toContain("logoFallbackText={item.logoUri ? undefined : logoFallbackText}");
+  });
+
+  it("SearchSuggestionsGrid > given its own subtitle > then it no longer duplicates the popular-banner sentence (issue #248)", () => {
+    const gridSource = readMobileFile("src/screens/search/SearchSuggestionsGrid.tsx");
+
+    expect(gridSource).not.toContain("webHomeSearchPopularPanel.subtitle");
+    expect(gridSource).toContain('tc("Tap a brand to search its cashback deals.")');
+  });
+
   it("CustomerSearchScreen > given brand catalog resource > then passes live cards to the grid", () => {
     const searchScreen = readMobileFile("src/screens/CustomerSearchScreen.tsx");
 

@@ -41,12 +41,19 @@ describe("Thai locale sweep — catalog coverage", () => {
       "That email already has an account. Sign in instead.",
       "Password must be at least 6 characters.",
       "That email doesn't look valid. Check it and try again.",
-      "Too many attempts. Please wait a few minutes and try again.",
+      "Too many attempts. Please try again later.",
       "Security check failed. Please refresh the page and try again.",
       "That phone number doesn't look valid. Check it and try again.",
       "Sign-in is temporarily unavailable. Please try again later.",
       "Social sign-in is available on Expo web. Use your browser to continue.",
       "Could not save GoGoTrack settings. Please try again.",
+      // Issue #249: search screen headings + idle helper leaked English in Thai mode.
+      "Start typing to search brands, stores, products, or cashback.",
+      "Trending searches",
+      "Search suggestions",
+      // Issue #248: the suggestions grid gets its own subtitle instead of
+      // duplicating the popular-banner sentence.
+      "Tap a brand to search its cashback deals.",
     ]);
   });
 

@@ -36,6 +36,14 @@ vi.mock("@mobile/auth/firebaseLogin", () => ({
   exchangeFirebaseIdToken: (...args: unknown[]) => exchangeFirebaseIdToken(...args),
 }));
 
+// Issue #250: every OTP failure must be logged with the step that failed —
+// mock the redacting telemetry client so the assertions can see the calls
+// (and keep the real Sentry SDK out of the render suite).
+const captureHandledException = vi.fn();
+vi.mock("@mobile/observability/client", () => ({
+  captureHandledException: (...args: unknown[]) => captureHandledException(...args),
+}));
+
 import { CustomerAuthScreen } from "@mobile/screens/CustomerAuthScreen";
 import { mobileSessionStorageKey } from "@mobile/auth/session";
 
@@ -62,6 +70,7 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     sendPhoneOtp.mockReset();
     confirmPhoneOtp.mockReset();
     exchangeFirebaseIdToken.mockReset();
+    captureHandledException.mockClear();
     sendPhoneOtp.mockResolvedValue({ confirm: vi.fn() });
   });
 
@@ -154,17 +163,43 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     expect(routerPush).not.toHaveBeenCalled();
   });
 
-  it("backend mode > given the backend exchange fails > shows the OTP error, persists nothing, does not navigate", async () => {
+  it("backend mode > given the backend exchange fails > shows the sign-in failure copy (never 'code incorrect') and logs the step", async () => {
+    // Issue #250: a correct code failed at the /auth/log-in exchange and the
+    // user was told their code was wrong. The exchange step must surface the
+    // neutral sign-in failure copy and record which step failed.
     confirmPhoneOtp.mockResolvedValue({ idToken: "firebase-id-token" });
     exchangeFirebaseIdToken.mockRejectedValue(new Error("Login failed with status 503."));
 
     await reachOtpStepAndSubmit("654321");
 
     await waitFor(() => {
-      expect(screen.getByText(/verification code is incorrect/i)).toBeTruthy();
+      expect(screen.getByText("Could not sign in. Please try again.")).toBeTruthy();
     });
+    expect(screen.queryByText(/verification code is incorrect/i)).toBeNull();
+    expect(captureHandledException).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ feature: "phone-otp-login", step: "exchange" }),
+    );
     expect(readStoredSession()).toBeNull();
     expect(routerPush).not.toHaveBeenCalled();
+  });
+
+  it("backend mode > given confirm fails for a non-code reason (network) > shows the sign-in failure copy, not 'code incorrect'", async () => {
+    confirmPhoneOtp.mockRejectedValue(
+      Object.assign(new Error("network down"), { code: "auth/network-request-failed" }),
+    );
+
+    await reachOtpStepAndSubmit("654321");
+
+    await waitFor(() => {
+      expect(screen.getByText("Could not sign in. Please try again.")).toBeTruthy();
+    });
+    expect(screen.queryByText(/verification code is incorrect/i)).toBeNull();
+    expect(captureHandledException).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ feature: "phone-otp-login", step: "confirm" }),
+    );
+    expect(readStoredSession()).toBeNull();
   });
 
   it("backend mode > pressing resend > requests a fresh OTP and the next submit confirms against the new confirmation", async () => {
