@@ -19,6 +19,7 @@ import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
 import SearchBar from "@/components/ui/button/SearchBar";
 import { useQuery } from "@tanstack/react-query";
 import client from "@/lib/axios/client";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
 export default function CouponTable() {
   const [openModal, setOpenModal] = useState<boolean | CouponRequestForm>(
@@ -56,18 +57,12 @@ export default function CouponTable() {
         .then((res) => res.data),
   });
 
-  const err = error as unknown as {
-    data?: { message?: string };
-    status?: number;
-    statusText?: string;
-  } | null | undefined;
-  const errorMessage =
-    error instanceof Error
-      ? error.message
-      : err?.data?.message ||
-        err?.statusText ||
-        (err?.status != null ? `Request failed (${err.status})` : null) ||
-        "Failed to load coupons";
+  // Prefer the backend's own message; otherwise a plain, actionable line —
+  // never a raw HTTP status number or status text.
+  const errorMessage = getApiErrorMessage(
+    error,
+    "Couldn't load coupons. Please refresh the page, or contact an administrator if it continues.",
+  );
 
   useEffect(() => {
     if (!openActionsId) return;

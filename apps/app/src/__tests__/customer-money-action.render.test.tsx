@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // The withdraw mode now renders inside AccountPageShell, whose chrome reaches
@@ -125,10 +125,12 @@ describe("evaluateWithdraw", () => {
 
   it("rejects an amount below the minimum withdrawal (web parity: 300 THB floor)", () => {
     // Assert the specific min-floor error so the test fails if the `amount < min` branch is
-    // removed (a bare `ok:false` could pass via another guard and false-green).
+    // removed (a bare `ok:false` could pass via another guard and false-green). The error is a
+    // parameterized template ({min} placeholder) so tc() can reverse-resolve it to Thai; the screen
+    // interpolates the amount AFTER translation.
     expect(evaluateWithdraw("100", 3180.24, true, false, 300)).toEqual({
       ok: false,
-      error: "Minimum withdrawal is 300.00 THB.",
+      error: "Minimum withdrawal is {min} THB.",
     });
   });
 
@@ -169,6 +171,18 @@ describe("CustomerMoneyActionScreen (render)", () => {
   it("renders the withdrawal amount field so the keyboard-avoidance wrapper has a target", () => {
     renderWithdrawScreen();
     expect(screen.getAllByPlaceholderText("0.00").length).toBeGreaterThan(0);
+  });
+
+  it("interpolates the minimum-withdrawal amount into the error AFTER translation (no bare {min})", () => {
+    // tc() is a passthrough in the render harness, so the localized template still carries {min};
+    // the screen must substitute the real floor so the banner never shows the raw placeholder.
+    renderWithdrawScreen();
+    const amountInput = screen.getAllByPlaceholderText("0.00")[0];
+    fireEvent.change(amountInput, { target: { value: "100" } });
+    fireEvent.click(screen.getByRole("button", { name: "Withdraw" }));
+
+    expect(screen.getByText(/Minimum withdrawal is 300\.00 THB\./)).toBeTruthy();
+    expect(screen.queryByText(/\{min\}/)).toBeNull();
   });
 });
 

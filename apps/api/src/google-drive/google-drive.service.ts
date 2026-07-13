@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   CreateGoogleDriveDto,
   FileGoogleDriveDto,
@@ -9,6 +9,7 @@ import { readMulterUploadBuffer } from 'src/common/multer-upload-buffer';
 import { Readable } from 'stream';
 @Injectable()
 export class GoogleDriveService {
+  private readonly logger = new Logger(GoogleDriveService.name);
   private driveClient;
   private folderId = '1IEy_ICq0l2oxYHyS-E2jSxUVJOK79zH1'; // Replace with your folder ID
 
@@ -36,8 +37,12 @@ export class GoogleDriveService {
       'GOOGLE_REFRESH_TOKEN',
     ].filter((key) => !process.env[key]?.trim());
     if (missing.length === 0) return;
+    // Preserve the missing-credential detail server-side; clients get generic copy.
+    this.logger.error(
+      `Google Drive image uploads are not configured (missing: ${missing.join(', ')}).`,
+    );
     throw new HttpException(
-      `Google Drive is not configured (missing: ${missing.join(', ')}). Brand/category/quest image uploads require GOOGLE_* credentials in the API environment.`,
+      'Image uploads are temporarily unavailable. Please try again later or contact an administrator.',
       HttpStatus.SERVICE_UNAVAILABLE,
     );
   }

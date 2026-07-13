@@ -18,6 +18,25 @@ export class Conversion {
   @Prop({ required: true, index: true })
   merchant_id: number;
 
+  /**
+   * Affiliate network of origin. `'involve'` default keeps every pre-existing
+   * conversion valid without a backfill migration — the source-scoped balance
+   * joins read a missing field as 'involve', so legacy money math is unchanged.
+   * New networks namespace their `conversion_id` as `'opt:<id>'` / `'act:<id>'`
+   * (string-prefixed) so the existing unique `conversion_id` index stays
+   * collision-free even when two networks reuse the same numeric id.
+   */
+  @Prop({ default: 'involve', enum: ['involve', 'optimise', 'accesstrade'] })
+  source: string;
+
+  /**
+   * Optional network sub-account / publisher id this conversion was attributed
+   * to (Optimise & Accesstrade support multiple accounts per network). No
+   * default: absent for legacy Involve rows, set only by the new-network sync.
+   */
+  @Prop({ required: false })
+  network_account?: string;
+
   // Affiliate subs
   @Prop({ required: false })
   aff_sub1: string; // "user_id:68bf99fed9667685c1637607"

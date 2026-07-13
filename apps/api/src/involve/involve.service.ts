@@ -62,7 +62,8 @@ export class InvolveService {
       ).response;
       throw new HttpException(
         {
-          message: 'GoGoTrack affiliate network sign-in failed.',
+          message:
+            "We couldn't complete your request right now. Please try again in a moment or contact support if it keeps happening.",
           code: GOGOSENSE_UPSTREAM_AUTH_FAILED,
           upstreamStatusCode: response?.data?.status_code ?? response?.status,
         },
@@ -308,15 +309,33 @@ export class InvolveService {
     const ids = [];
     for (const offer of offers) {
       ids.push(offer.offer_id);
+      // Scope the upsert to the Involve namespace: offer_id is only unique
+      // WITHIN a source, so an Optimise/manual doc that happens to share this
+      // numeric offer_id must never be clobbered. `$in: ['involve', null]`
+      // matches legacy docs that predate the `source` field too. On insert,
+      // $set stamps source:'involve' (the $in filter can't seed it).
       await this.offerModel.updateOne(
-        { offer_id: offer.offer_id }, // Assuming offer_id is unique
-        { $set: { ...offer, type: 'new', disabled: false } },
+        { source: { $in: ['involve', null] }, offer_id: offer.offer_id },
+        { $set: { ...offer, source: 'involve', type: 'new', disabled: false } },
         { upsert: true },
       );
     }
-    for (const offerId of ids) {
-      await this.offerModel.updateOne(
-        { offer_id: { $ne: offerId } },
+    // Disable stale Involve offers in ONE pass. The previous loop ran a
+    // updateOne({ offer_id: { $ne: id } }) per id, which disabled ONE arbitrary
+    // doc whose offer_id differed from the current id on each iteration —
+    // including offers that ARE in `ids` and any Optimise/manual docs. That was
+    // a pre-existing bug. A single source-scoped updateMany with offer_id $nin
+    // ids disables exactly the Involve offers that vanished from this sync.
+    //
+    // GUARD: only run the disable pass when this sync actually returned offers.
+    // `{ $nin: [] }` matches EVERY document, so an empty `ids` (a transient
+    // upstream hiccup, a filter momentarily matching nothing, or a changed
+    // response shape) would otherwise disable the ENTIRE live catalog in one
+    // write — blacking out cashback platform-wide. The old per-id loop was a
+    // no-op when ids was empty; this preserves that safety.
+    if (ids.length > 0) {
+      await this.offerModel.updateMany(
+        { source: { $in: ['involve', null] }, offer_id: { $nin: ids } },
         { $set: { type: 'old', disabled: true } },
       );
     }
@@ -647,19 +666,22 @@ export class InvolveService {
         },
         {
           // Source-constrained lookup: offer_id is only unique WITHIN a source
-          // (Involve vs Optimise can share a numeric offer_id). A naive
-          // localField/foreignField join would match both and $unwind would
-          // double-count the conversion's payout. Match on source + offer_id
-          // and take the single Involve offer.
+          // (Involve vs Optimise/Accesstrade can share a numeric offer_id). A
+          // naive localField/foreignField join would match both and $unwind
+          // would double-count the conversion's payout. Pin offer.source to the
+          // CONVERSION's own source ($ifNull -> 'involve' for legacy rows that
+          // predate the schema field) so each conversion joins only its own
+          // network's offer. For Involve-only data $$src === 'involve', i.e.
+          // byte-identical to the previous hardcoded literal.
           $lookup: {
             from: 'offers',
-            let: { oid: '$offer_id' },
+            let: { oid: '$offer_id', src: { $ifNull: ['$source', 'involve'] } },
             pipeline: [
               {
                 $match: {
                   $expr: {
                     $and: [
-                      { $eq: ['$source', 'involve'] },
+                      { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
                       { $eq: ['$offer_id', '$$oid'] },
                     ],
                   },

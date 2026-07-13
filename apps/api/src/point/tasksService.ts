@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PointService } from './point.service';
-import { InvolveService } from 'src/involve/involve.service';
 import { delay } from 'rxjs';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { InjectModel } from '@nestjs/mongoose';
@@ -13,7 +12,6 @@ import { parseUserIdFromAffSub1 } from 'src/withdraw/conversion-user-id.util';
 export class TasksService {
   constructor(
     private readonly pointService: PointService,
-    private readonly involveService: InvolveService,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
   ) {}
   // @Cron('45 * * * * *')
@@ -21,30 +19,8 @@ export class TasksService {
   // @Cron('0 31 0 7 * *')
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleCron() {
-    // const conversions = await this.involveService.getConversionAll({
-    //   page: 1,
-    //   limit: 10,
-    // });
-
-    // let allConversions = conversions.data.data;
-    // let currentPage = 1;
-
-    // while (conversions.data.nextPage) {
-    //   currentPage++;
-    //   const nextConversions = await this.involveService.getConversionAll({
-    //     page: currentPage,
-    //     limit: 10,
-    //   });
-    //   allConversions = allConversions.concat(nextConversions.data.data);
-    //   conversions.data.nextPage = nextConversions.data.nextPage;
-    //   await delay(1000);
-    // }
-    // const filterAff = allConversions.filter((item) => {
-    //   return item.aff_sub1 && item.aff_sub1.startsWith('user_id:');
-    // });
-    // const filterApproved = filterAff.filter((item) => {
-    //   return item.conversion_status === 'approved';
-    // });
+    // Conversion points are awarded from conversions already ingested into the
+    // local store (the network pull lives in withdraw/cronjob/job.service.ts).
     const filterApproved = await this.conversionModel
       .find({
         conversion_status: 'approved',

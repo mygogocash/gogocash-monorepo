@@ -14,6 +14,13 @@ export class Deeplink {
   deeplink: string;
   @Prop({ type: [Date], required: false })
   click_date: Date[];
+  /**
+   * Affiliate network that issued this tracking link. `'involve'` default keeps
+   * every pre-existing deeplink valid without a backfill migration; new-network
+   * deeplinks stamp their own source ('optimise' / 'accesstrade').
+   */
+  @Prop({ type: String, default: 'involve' })
+  source: string;
 }
 
 export const DeeplinkSchema = SchemaFactory.createForClass(Deeplink);

@@ -545,7 +545,8 @@ export class GototrackService {
       // affiliate-network failure is a gateway problem — surface it as 502.
       throw new HttpException(
         {
-          message: 'GoGoTrack affiliate network is unavailable.',
+          message:
+            'This service is temporarily unavailable. Please try again in a moment or contact support if it keeps happening.',
           code: GOGOSENSE_UPSTREAM_UNAVAILABLE,
           upstreamStatusCode,
         },

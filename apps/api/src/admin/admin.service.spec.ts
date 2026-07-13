@@ -329,6 +329,88 @@ describe('AdminService', () => {
       const match = pipeline.find((s: any) => s.$match).$match;
       expect(match.conversion_id).toEqual({ $eq: 'CV123' });
     });
+
+    // offer_id is unique only WITHIN a source (Involve vs Optimise/Accesstrade
+    // can share a numeric offer_id). A naive localField/foreignField join would
+    // $unwind-duplicate the conversion by matching a same-id offer from another
+    // network — double-counting the payout/max_cap. The join must be scoped to
+    // the conversion's own source. For Involve-only data $$src === 'involve',
+    // i.e. byte-identical to the previous behaviour.
+    it('getConversionAll > offers $lookup is source-constrained (no cross-network double-join)', async () => {
+      feeRateModel.findOne.mockReturnValue(
+        makeQuery({ system: 10, max_cap: 100 }),
+      );
+      conversionModel.aggregate.mockReturnValue(makeQuery([]));
+      conversionModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.getConversionAll(1, 10);
+
+      const pipeline = conversionModel.aggregate.mock.calls[0][0];
+      const offerLookup = pipeline.find(
+        (s: any) => s.$lookup && s.$lookup.from === 'offers',
+      ).$lookup;
+      expect(offerLookup.localField).toBeUndefined();
+      expect(offerLookup.foreignField).toBeUndefined();
+      expect(offerLookup.let).toEqual({
+        oid: '$offer_id',
+        src: { $ifNull: ['$source', 'involve'] },
+      });
+      const innerMatch = offerLookup.pipeline.find((s: any) => s.$match).$match;
+      expect(innerMatch.$expr.$and).toEqual(
+        expect.arrayContaining([
+          { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
+          { $eq: ['$offer_id', '$$oid'] },
+        ]),
+      );
+      expect(offerLookup.pipeline.some((s: any) => s.$limit === 1)).toBe(true);
+      // The single-offer join keeps $unwind (preserveNullAndEmptyArrays) and
+      // the max_cap $ifNull fallback unchanged.
+      const unwind = pipeline.find(
+        (s: any) => s.$unwind && s.$unwind.path === '$offer',
+      ).$unwind;
+      expect(unwind.preserveNullAndEmptyArrays).toBe(true);
+      const capFields = pipeline.find(
+        (s: any) => s.$addFields && s.$addFields.max_cap,
+      ).$addFields;
+      expect(capFields.max_cap).toEqual({ $ifNull: ['$offer.max_cap', 100] });
+    });
+  });
+
+  describe('getDeepLinkList', () => {
+    // Same collision hazard as getConversionAll: a deeplink joins its offer by
+    // offer_id, which is unique only within a source. Key the join off the
+    // deeplink's own source (defaulted to 'involve') so a same-id offer from a
+    // different network can't be $unwind-joined. Involve-only data is unchanged.
+    it('getDeepLinkList > offers $lookup is source-constrained keyed off the deeplink source', async () => {
+      deeplinkModel.aggregate.mockReturnValue(makeQuery([]));
+
+      await service.getDeepLinkList();
+
+      const pipeline = deeplinkModel.aggregate.mock.calls[0][0];
+      const offerLookup = pipeline.find(
+        (s: any) => s.$lookup && s.$lookup.from === 'offers',
+      ).$lookup;
+      expect(offerLookup.localField).toBeUndefined();
+      expect(offerLookup.foreignField).toBeUndefined();
+      expect(offerLookup.let).toEqual({
+        oid: '$offer_id',
+        src: { $ifNull: ['$source', 'involve'] },
+      });
+      const innerMatch = offerLookup.pipeline.find((s: any) => s.$match).$match;
+      expect(innerMatch.$expr.$and).toEqual(
+        expect.arrayContaining([
+          { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
+          { $eq: ['$offer_id', '$$oid'] },
+        ]),
+      );
+      expect(offerLookup.pipeline.some((s: any) => s.$limit === 1)).toBe(true);
+      // The users join is a different collection (no source dimension) and
+      // stays a plain localField/foreignField lookup.
+      const userLookup = pipeline.find(
+        (s: any) => s.$lookup && s.$lookup.from === 'users',
+      ).$lookup;
+      expect(userLookup.localField).toBe('user_id');
+    });
   });
 
   describe('getConversionInvolveAll', () => {

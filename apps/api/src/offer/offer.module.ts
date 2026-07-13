@@ -17,7 +17,7 @@ import {
   TopBrandConfig,
   TopBrandConfigSchema,
 } from './schemas/top-brand-config.schema';
-import { InvolveService } from 'src/involve/involve.service';
+import { AffiliateModule } from 'src/affiliate/affiliate.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import {
   Conversion,
@@ -48,6 +48,8 @@ import {
   imports: [
     CacheModule.register(),
     MediaModule,
+    // The offer-sync cron (TasksService) dispatches through the affiliate seam.
+    AffiliateModule,
     MongooseModule.forFeature([
       { name: Offer.name, schema: OfferSchema },
       {
@@ -70,6 +72,9 @@ import {
     ]),
   ],
   controllers: [OfferController],
-  providers: [OfferService, JwtService, TasksService, InvolveService],
+  // InvolveService removed here: it was a second, module-local instance. The
+  // offer-sync cron now reaches Involve through the AffiliateModule registry
+  // (which shares the InvolveModule singleton), so no duplicate is needed.
+  providers: [OfferService, JwtService, TasksService],
 })
 export class OfferModule {}

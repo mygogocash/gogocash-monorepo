@@ -4,7 +4,7 @@ import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 export type OfferDocument = HydratedDocument<Offer>;
 
 /** Affiliate network the offer was ingested from (or `'manual'` for admin-created brands). */
-export type OfferSource = 'involve' | 'optimise' | 'manual';
+export type OfferSource = 'involve' | 'optimise' | 'manual' | 'accesstrade';
 
 /** Admin curation state. `'approved'` is the default so legacy Involve offers stay visible. */
 export type OfferStatus = 'pending_review' | 'approved' | 'rejected';
@@ -162,10 +162,13 @@ export class Offer {
    * Affiliate network of origin. `'involve'` default keeps every pre-existing
    * document valid without a backfill migration.
    */
+  // 'accesstrade' added ahead of the Accesstrade provider so its sync can write
+  // offers without a second schema migration once that adapter lands; existing
+  // documents keep the 'involve' default and stay valid.
   @Prop({
     type: String,
     default: 'involve',
-    enum: ['involve', 'optimise', 'manual'],
+    enum: ['involve', 'optimise', 'manual', 'accesstrade'],
   })
   source: OfferSource;
 

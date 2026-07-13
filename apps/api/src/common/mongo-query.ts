@@ -6,7 +6,7 @@ import { escapeRegexLiteral } from './escape-regex';
 /** Validate and coerce a user-supplied id before it reaches a Mongo query. */
 export function requireObjectId(id: string, label = 'id'): Types.ObjectId {
   if (!Types.ObjectId.isValid(id)) {
-    throw new BadRequestException(`Invalid ${label}`);
+    throw new BadRequestException(`The ${label} you provided is not valid.`);
   }
   return new Types.ObjectId(id);
 }
@@ -29,7 +29,7 @@ export function requireOneOf<T extends string>(
   label: string,
 ): T {
   if (!allowed.includes(value as T)) {
-    throw new BadRequestException(`Invalid ${label}`);
+    throw new BadRequestException(`The ${label} you provided is not valid.`);
   }
   return value as T;
 }
@@ -42,7 +42,7 @@ export function requireTrimmedString(
 ): string {
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > maxLength) {
-    throw new BadRequestException(`Invalid ${label}`);
+    throw new BadRequestException(`The ${label} you provided is not valid.`);
   }
   return trimmed;
 }
@@ -51,7 +51,7 @@ export function requireTrimmedString(
 export function requireFiniteNumber(value: unknown, label = 'value'): number {
   const num = Number(value);
   if (!Number.isFinite(num)) {
-    throw new BadRequestException(`Invalid ${label}`);
+    throw new BadRequestException(`The ${label} you provided is not valid.`);
   }
   return num;
 }

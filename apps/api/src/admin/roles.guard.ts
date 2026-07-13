@@ -40,9 +40,7 @@ export class RolesGuard implements CanActivate {
     const ok = required.some((r) => roleHasAccess(user?.role, r));
     if (!ok) {
       throw new ForbiddenException(
-        `Insufficient admin role: this action requires ${required.join(
-          ' or ',
-        )}${user?.role ? ` (your role: ${user.role})` : ''}.`,
+        "You don't have permission for this action. Ask an administrator if you need access.",
       );
     }
     return true;

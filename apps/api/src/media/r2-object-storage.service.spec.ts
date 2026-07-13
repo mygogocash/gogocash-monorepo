@@ -78,12 +78,47 @@ describe('R2ObjectStorageService', () => {
   });
 
   describe('uploadFile', () => {
-    it('throws 503 when R2 is not configured', async () => {
+    it('throws 503 with leak-free copy when R2 is not configured', async () => {
       delete process.env.R2_ACCESS_KEY_ID;
       await expect(
         service.uploadFile(file('logo.png'), 'brands'),
-      ).rejects.toBeInstanceOf(HttpException);
+      ).rejects.toThrow(
+        'Media storage is temporarily unavailable. Please try again later or contact support.',
+      );
       expect(send).not.toHaveBeenCalled();
+    });
+
+    it('throws leak-free copy when uploads are disabled by env flag', async () => {
+      process.env.MEDIA_UPLOAD_DISABLED = 'true';
+      try {
+        await expect(
+          service.uploadFile(file('logo.png'), 'brands'),
+        ).rejects.toThrow(
+          'Media uploads are currently disabled. Please try again later or contact an administrator.',
+        );
+        expect(send).not.toHaveBeenCalled();
+      } finally {
+        delete process.env.MEDIA_UPLOAD_DISABLED;
+      }
+    });
+
+    it('rejects oversized uploads with a friendly MB limit (no raw byte count)', async () => {
+      const prev = process.env.MEDIA_MAX_UPLOAD_BYTES;
+      process.env.MEDIA_MAX_UPLOAD_BYTES = String(1024 * 1024);
+      const big = {
+        originalname: 'big.png',
+        mimetype: 'image/png',
+        buffer: Buffer.alloc(1024 * 1024 + 1),
+      } as Express.Multer.File;
+      try {
+        await expect(service.uploadFile(big, 'brands')).rejects.toThrow(
+          'This file is too large. Please upload a file under 1 MB.',
+        );
+        expect(send).not.toHaveBeenCalled();
+      } finally {
+        if (prev === undefined) delete process.env.MEDIA_MAX_UPLOAD_BYTES;
+        else process.env.MEDIA_MAX_UPLOAD_BYTES = prev;
+      }
     });
 
     it('PUTs the object and returns a public URL under the R2 base', async () => {

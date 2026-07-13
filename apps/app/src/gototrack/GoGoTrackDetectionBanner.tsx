@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AppState, StyleSheet, Text, View } from "react-native";
 
-import { ApiError } from "@mobile/api/client";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -121,12 +120,10 @@ function GoGoTrackDetectionBannerLoaded({
           setActivatedMatchKey(matchKey);
         });
       })
-      .catch((error: unknown) => {
-        const message =
-          error instanceof ApiError && error.message
-            ? error.message
-            : tc(toastErrorMessages.cashbackActivationFailed);
-        setActivationError(message);
+      .catch(() => {
+        // Never surface the raw upstream error (e.g. "Request failed with status 500") in the
+        // on-screen banner — always show the already-localized activation-failure copy.
+        setActivationError(tc(toastErrorMessages.cashbackActivationFailed));
       })
       .finally(() => {
         activationInFlightRef.current = false;

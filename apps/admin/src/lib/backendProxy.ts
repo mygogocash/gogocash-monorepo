@@ -66,7 +66,10 @@ export function assertProxyBodyWithinLimit(
     const declared = Number(contentLength);
     if (Number.isFinite(declared) && declared > MAX_PROXY_BODY_BYTES) {
       return Response.json(
-        { message: "Request body too large" },
+        {
+          message:
+            "The file you're uploading is too large. Please use a smaller file (under 32 MB).",
+        },
         { status: 413 },
       );
     }

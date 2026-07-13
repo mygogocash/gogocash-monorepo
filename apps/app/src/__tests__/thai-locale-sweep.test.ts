@@ -46,10 +46,10 @@ describe("Thai locale sweep — catalog coverage", () => {
       "Password must be at least 6 characters.",
       "That email doesn't look valid. Check it and try again.",
       "Too many attempts. Please try again later.",
-      "Security check failed. Please refresh the page and try again.",
+      "Security check failed. Please close and reopen the app, then try again.",
       "That phone number doesn't look valid. Check it and try again.",
       "Sign-in is temporarily unavailable. Please try again later.",
-      "Social sign-in is available on Expo web. Use your browser to continue.",
+      "Social sign-in isn't available in the app yet. Open GoGoCash in your web browser to continue.",
       "Could not save GoGoTrack settings. Please try again.",
       // Issue #249: search screen headings + idle helper leaked English in Thai mode.
       "Start typing to search brands, stores, products, or cashback.",
@@ -62,6 +62,18 @@ describe("Thai locale sweep — catalog coverage", () => {
       // Issue #248: the suggestions grid gets its own subtitle instead of
       // duplicating the popular-banner sentence.
       "Tap a brand to search its cashback deals.",
+    ]);
+  });
+
+  it("error-copy sweep additions translate (fix/app-error-copy)", () => {
+    expectAllTranslatedToThai([
+      // Parameterized withdraw minimum — template keeps the {min} placeholder so tc() reverse-
+      // resolves; the screen interpolates the amount AFTER translation.
+      "Minimum withdrawal is {min} THB.",
+      // Catalog product-detail not-found + profile photo web-only + social-link next step.
+      "We couldn't find this product. It may no longer be available.",
+      "Photo upload isn't available in the app yet. You can update your photo on the GoGoCash website.",
+      "Try another option or check back later.",
     ]);
   });
 

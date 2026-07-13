@@ -1,6 +1,7 @@
 import {
   HttpException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -52,6 +53,8 @@ import {
 
 @Injectable()
 export class WithdrawService {
+  private readonly logger = new Logger(WithdrawService.name);
+
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Withdraw.name) private withdrawModel: Model<Withdraw>,
@@ -188,11 +191,21 @@ export class WithdrawService {
       _id: new Types.ObjectId(id),
     });
     if (!user) {
-      throw new UnauthorizedException({ message: 'User not found' });
+      throw new UnauthorizedException({
+        message: 'Your session has expired. Please sign in again.',
+      });
     }
     const fee = await this.feeRateModel.findOne().exec();
     if (!fee) {
-      throw new HttpException({ message: 'Fee rate not found' }, 400);
+      // Missing fee-rate config is an operational problem, not a client one.
+      this.logger.error('Withdrawal blocked: no FeeRate document configured.');
+      throw new HttpException(
+        {
+          message:
+            'Withdrawals are temporarily unavailable. Please try again later or contact support.',
+        },
+        400,
+      );
     }
     // console.log('Checking withdraw for user:', user._id.toString());
     const conversionIdsWithdrawedPolygon =
@@ -382,7 +395,14 @@ export class WithdrawService {
       throw new UnauthorizedException({ message: 'User not found' });
     }
     if (!fee) {
-      throw new HttpException({ message: 'Fee rate not found' }, 400);
+      this.logger.error('Withdrawal blocked: no FeeRate document configured.');
+      throw new HttpException(
+        {
+          message:
+            'Withdrawals are temporarily unavailable. Please try again later or contact support.',
+        },
+        400,
+      );
     }
 
     const [allConversions, withdrawList] = await Promise.all([
@@ -619,7 +639,14 @@ export class WithdrawService {
     }
     const fee = await this.feeRateModel.findOne().exec();
     if (!fee) {
-      throw new HttpException({ message: 'Fee rate not found' }, 400);
+      this.logger.error('Withdrawal blocked: no FeeRate document configured.');
+      throw new HttpException(
+        {
+          message:
+            'Withdrawals are temporarily unavailable. Please try again later or contact support.',
+        },
+        400,
+      );
     }
 
     const withdrawList = await this.withdrawModel
@@ -887,7 +914,14 @@ export class WithdrawService {
     }
     const fee = await this.feeRateModel.findOne().exec();
     if (!fee) {
-      throw new HttpException({ message: 'Fee rate not found' }, 400);
+      this.logger.error('Withdrawal blocked: no FeeRate document configured.');
+      throw new HttpException(
+        {
+          message:
+            'Withdrawals are temporarily unavailable. Please try again later or contact support.',
+        },
+        400,
+      );
     }
 
     const withdrawList = await this.withdrawModel
@@ -909,10 +943,31 @@ export class WithdrawService {
           $match: buildUserConversionScopeFilter(user._id),
         },
         {
+          // Source-constrained lookup: offer_id is only unique WITHIN a source
+          // (Involve vs Optimise/Accesstrade can share a numeric offer_id). The
+          // old naive localField/foreignField join matched offers regardless of
+          // source, so once a second network shares an offer_id, $unwind fans
+          // the conversion into multiple rows and the displayed cashback
+          // DOUBLES. Pin offer.source to the CONVERSION's own source ($ifNull ->
+          // 'involve' for legacy rows) and take a single match. For Involve-only
+          // data (every offer carrying source:'involve' after the backfill /
+          // next sync) this is byte-identical to the naive join.
           $lookup: {
             from: 'offers',
-            localField: 'offer_id',
-            foreignField: 'offer_id',
+            let: { oid: '$offer_id', src: { $ifNull: ['$source', 'involve'] } },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: [{ $ifNull: ['$source', 'involve'] }, '$$src'] },
+                      { $eq: ['$offer_id', '$$oid'] },
+                    ],
+                  },
+                },
+              },
+              { $limit: 1 },
+            ],
             as: 'offer',
           },
         },
@@ -1688,7 +1743,12 @@ export class WithdrawService {
       await this.withdrawModel.findByIdAndUpdate(dt._id, {
         $set: { tx_hash_record: hash_record || '' },
       });
-    } catch {
+    } catch (error) {
+      this.logger.error(
+        `Withdrawal on-chain record failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
       await this.withdrawModel.findByIdAndUpdate(dt._id, {
         $set: {
           status: 'rejected',
@@ -1696,7 +1756,10 @@ export class WithdrawService {
         },
       });
       throw new HttpException(
-        { message: 'Failed to record withdrawal on chain' },
+        {
+          message:
+            "We couldn't complete your withdrawal right now. No funds were moved — please try again shortly or contact support.",
+        },
         502,
       );
     }
@@ -1831,7 +1894,7 @@ export class WithdrawService {
     if (existing.status !== 'pending') {
       throw new HttpException(
         {
-          message: `Only pending withdrawals can be marked paid (current: ${existing.status})`,
+          message: `This withdrawal can only be marked paid while it is pending (it is currently ${existing.status}).`,
         },
         409,
       );
@@ -1963,7 +2026,14 @@ export class WithdrawService {
     //   .lean();
     const fee = await this.feeRateModel.findOne().exec();
     if (!fee) {
-      throw new HttpException({ message: 'Fee rate not found' }, 400);
+      this.logger.error('Withdrawal blocked: no FeeRate document configured.');
+      throw new HttpException(
+        {
+          message:
+            'Withdrawals are temporarily unavailable. Please try again later or contact support.',
+        },
+        400,
+      );
     }
     const feeRateMinimum =
       createWithdrawDto.currency === 'THB'
@@ -2232,7 +2302,13 @@ export class WithdrawService {
         : await this.rewardListModel.findOne({ name: 'quest' });
 
     if (!rewardList) {
-      throw new HttpException({ message: 'Reward list not found' }, 400);
+      throw new HttpException(
+        {
+          message:
+            "Rewards for this quest aren't set up yet. Please contact an administrator.",
+        },
+        400,
+      );
     }
 
     const list = [];

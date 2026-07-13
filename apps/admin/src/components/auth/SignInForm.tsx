@@ -48,7 +48,7 @@ export default function SignInForm() {
         return;
       }
     } catch (err) {
-      setError("An error occurred during sign in");
+      setError("Something went wrong during sign in. Please try again.");
       devError("Sign in error:", err);
     } finally {
       setIsLoading(false);
@@ -66,13 +66,13 @@ export default function SignInForm() {
       });
       if (result?.error) {
         setError(
-          "Mock sign-in is unavailable. Use email/password or enable ALLOW_MOCK_ADMIN_PASSWORD / run in development.",
+          "Demo sign-in isn't available here. Please sign in with your email and password.",
         );
       } else if (result?.ok) {
         redirectAfterSignIn();
       }
     } catch (err) {
-      setError("An error occurred during sign in");
+      setError("Something went wrong during sign in. Please try again.");
       devError("Mock sign in error:", err);
     } finally {
       setIsLoading(false);

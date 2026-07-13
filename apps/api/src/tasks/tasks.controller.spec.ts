@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
-import { InvolveService } from 'src/involve/involve.service';
+import { AffiliateProviderRegistry } from 'src/affiliate/affiliate-provider.registry';
 import { PointService } from 'src/point/point.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { WithdrawService } from 'src/withdraw/withdraw.service';
@@ -33,7 +33,8 @@ describe('TasksController', () => {
       | 'getSpacialPointNextRound'
     >
   >;
-  let involveService: { findAll: jest.Mock };
+  let involveProvider: { source: string; syncOffers: jest.Mock };
+  let registry: { enabledProviders: jest.Mock };
   let pointService: { addPointsToUser: jest.Mock };
   let jobService: { syncConversion: jest.Mock };
   let withdrawService: { adminAddRewardConversionForQuest: jest.Mock };
@@ -56,7 +57,13 @@ describe('TasksController', () => {
       updateStatusConversionIsPending: jest.fn().mockResolvedValue(undefined),
       getSpacialPointNextRound: jest.fn().mockResolvedValue(undefined),
     };
-    involveService = { findAll: jest.fn().mockResolvedValue([{ id: 1 }]) };
+    involveProvider = {
+      source: 'involve',
+      syncOffers: jest.fn().mockResolvedValue({ upserted: 1 }),
+    };
+    registry = {
+      enabledProviders: jest.fn().mockReturnValue([involveProvider]),
+    };
     pointService = { addPointsToUser: jest.fn().mockResolvedValue(undefined) };
     jobService = { syncConversion: jest.fn().mockResolvedValue(undefined) };
     withdrawService = {
@@ -68,7 +75,7 @@ describe('TasksController', () => {
       controllers: [TasksController],
       providers: [
         { provide: TasksService, useValue: tasksService },
-        { provide: InvolveService, useValue: involveService },
+        { provide: AffiliateProviderRegistry, useValue: registry },
         { provide: PointService, useValue: pointService },
         { provide: JobService, useValue: jobService },
         { provide: WithdrawService, useValue: withdrawService },
@@ -97,19 +104,21 @@ describe('TasksController', () => {
   });
 
   describe('updateOffers', () => {
-    it('updateOffers > given the correct api key > then it fetches all offers', async () => {
+    it('updateOffers > given the correct api key > then it syncs every enabled affiliate provider', async () => {
       await controller.updateOffers(VALID_KEY);
 
-      expect(involveService.findAll).toHaveBeenCalledTimes(1);
+      expect(registry.enabledProviders).toHaveBeenCalledTimes(1);
+      expect(involveProvider.syncOffers).toHaveBeenCalledTimes(1);
     });
 
     // The previous gate was a PUBLIC client key, so any caller could trigger
     // these admin break-glass routes. A wrong key must be fully inert.
-    it('updateOffers > given a wrong api key > then it returns an error and never fetches', async () => {
+    it('updateOffers > given a wrong api key > then it returns an error and never syncs', async () => {
       const result = await controller.updateOffers(WRONG_KEY);
 
       expect(result).toEqual({ message: 'error' });
-      expect(involveService.findAll).not.toHaveBeenCalled();
+      expect(registry.enabledProviders).not.toHaveBeenCalled();
+      expect(involveProvider.syncOffers).not.toHaveBeenCalled();
     });
   });
 
