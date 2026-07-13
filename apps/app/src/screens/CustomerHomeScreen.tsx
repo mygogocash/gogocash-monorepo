@@ -21,6 +21,13 @@ import { IntroAfterLoginModal } from "@mobile/components/IntroAfterLoginModal";
 import { CustomerLineOfficialFab } from "@mobile/components/CustomerLineOfficialFab";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
+import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
+import { buildLoginRedirectWithCallback } from "@mobile/auth/routeGuard";
+import { getMobileEnv } from "@mobile/config/env";
+import {
+  openGoLinkTracked,
+  useGoLinkResolution,
+} from "@mobile/features/useGoLinkResolution";
 import { resolveHomePromoSections, resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { usePublicCatalogPullToRefresh } from "@mobile/account/usePublicCatalogPullToRefresh";
@@ -74,6 +81,14 @@ export function CustomerHomeScreen() {
   const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
   const [desktopGoLinkGuidelineOpen, setDesktopGoLinkGuidelineOpen] = useState(false);
   const [desktopGoLinkResultHref, setDesktopGoLinkResultHref] = useState("");
+  // The home hero card renders the same result dialog as the /golink screen —
+  // it MUST carry the live resolution wiring too (regression: unwired, it fell
+  // back to the fixtures demo product in backend mode).
+  const { isAuthed } = useAuthGuardSession();
+  const { live: liveGoLink, match: goLinkMatch } = useGoLinkResolution(
+    Boolean(desktopGoLinkResultHref),
+    desktopGoLinkResultHref,
+  );
   const [searchPopoverOpen, setSearchPopoverOpen] = useState(false);
   const [searchPopoverMounted, setSearchPopoverMounted] = useState(false);
   const [goLinkSheetOpen, setGoLinkSheetOpen] = useState(false);
@@ -121,9 +136,26 @@ export function CustomerHomeScreen() {
     setSearchPopoverMounted(false);
   }, []);
   const handleDesktopGoLinkShopNow = useCallback(() => {
+    const pastedUrl = desktopGoLinkResultHref;
+    const offer = goLinkMatch.offer;
     setDesktopGoLinkResultHref("");
-    router.push(homeGoLinkShopNowRoute as never);
-  }, [router]);
+    if (!liveGoLink) {
+      router.push(homeGoLinkShopNowRoute as never);
+      return;
+    }
+    if (!offer) {
+      return;
+    }
+    if (!isAuthed) {
+      router.push(buildLoginRedirectWithCallback("/") as never);
+      return;
+    }
+    void openGoLinkTracked(offer, pastedUrl, {
+      accessToken:
+        typeof session?.access_token === "string" ? session.access_token : undefined,
+      apiUrl: getMobileEnv().apiUrl,
+    });
+  }, [desktopGoLinkResultHref, goLinkMatch.offer, isAuthed, liveGoLink, router, session]);
 
   useEffect(() => {
     goLinkToggleProgress.stopAnimation();
@@ -230,6 +262,8 @@ export function CustomerHomeScreen() {
           {desktopGoLinkResultHref ? (
             <GoLinkResultDialog
               href={desktopGoLinkResultHref}
+              live={liveGoLink}
+              match={goLinkMatch}
               onClose={() => setDesktopGoLinkResultHref("")}
               onShopNow={handleDesktopGoLinkShopNow}
             />
@@ -344,6 +378,8 @@ export function CustomerHomeScreen() {
           {desktopGoLinkResultHref ? (
             <GoLinkResultDialog
               href={desktopGoLinkResultHref}
+              live={liveGoLink}
+              match={goLinkMatch}
               onClose={() => setDesktopGoLinkResultHref("")}
               onShopNow={handleDesktopGoLinkShopNow}
             />
