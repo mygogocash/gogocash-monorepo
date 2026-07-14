@@ -1,5 +1,7 @@
 import { Types } from 'mongoose';
 import { BadRequestException, HttpException } from '@nestjs/common';
+import { fromBuffer } from 'yauzl';
+import type { Entry } from 'yauzl';
 import { PdpaExportService } from './pdpa-export.service';
 import type { PdpaDataBundle } from './pdpa-gather.service';
 
@@ -21,6 +23,45 @@ const minimalBundle = (): PdpaDataBundle => ({
   deeplinks: [],
   gototrackSettings: null,
 });
+
+async function readZipEntries(zip: Buffer): Promise<Map<string, Buffer>> {
+  return new Promise((resolve, reject) => {
+    fromBuffer(zip, { lazyEntries: true }, (openError, zipFile) => {
+      if (openError || !zipFile) {
+        reject(openError ?? new Error('ZIP archive could not be opened.'));
+        return;
+      }
+
+      const entries = new Map<string, Buffer>();
+      const fail = (error: Error) => {
+        zipFile.close();
+        reject(error);
+      };
+
+      zipFile.on('error', fail);
+      zipFile.on('entry', (entry: Entry) => {
+        zipFile.openReadStream(entry, (streamError, stream) => {
+          if (streamError || !stream) {
+            fail(
+              streamError ?? new Error(`${entry.fileName} could not be read.`),
+            );
+            return;
+          }
+
+          const chunks: Buffer[] = [];
+          stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+          stream.on('error', fail);
+          stream.on('end', () => {
+            entries.set(entry.fileName, Buffer.concat(chunks));
+            zipFile.readEntry();
+          });
+        });
+      });
+      zipFile.on('end', () => resolve(entries));
+      zipFile.readEntry();
+    });
+  });
+}
 
 function makeExportService(
   opts: {
@@ -63,8 +104,7 @@ function makeExportService(
     .fn()
     .mockResolvedValue('https://signed.example/export.zip?sig=1');
 
-  // Inject a controllable zip builder via the service's buildZipForTest hook
-  // when present; otherwise real archiver builds a tiny zip.
+  // Override the real ZIP builder when a delivery test needs a controlled size.
   const service = new PdpaExportService(
     requestModel as never,
     { gatherForUser } as never,
@@ -175,8 +215,9 @@ describe('PdpaExportService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('buildZipArchive > includes data.json and summary.html', async () => {
+  it('buildZipArchive > creates the exact export files with readable content', async () => {
     const { service } = makeExportService();
+    const bundle = minimalBundle();
     const zip = await (
       service as never as {
         buildZipArchive: (
@@ -184,11 +225,15 @@ describe('PdpaExportService', () => {
           locale: 'en' | 'th',
         ) => Promise<Buffer>;
       }
-    ).buildZipArchive(minimalBundle(), 'en');
+    ).buildZipArchive(bundle, 'en');
+    const entries = await readZipEntries(zip);
 
-    // ZIP local file headers start with PK\x03\x04; both entry names appear as raw strings.
-    const asText = zip.toString('binary');
-    expect(asText).toContain('data.json');
-    expect(asText).toContain('summary.html');
+    expect([...entries.keys()]).toEqual(['data.json', 'summary.html']);
+    expect(entries.get('data.json')?.toString('utf8')).toBe(
+      JSON.stringify(bundle, null, 2),
+    );
+    expect(entries.get('summary.html')?.toString('utf8')).toBe(
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>GoGoCash data export summary</title></head><body><h1>GoGoCash data export summary</h1><ul><li>myCashbacks: 0</li><li>withdrawMethods: 0</li><li>withdrawals: 0</li><li>favoriteOffers: 0</li><li>missionOrders: 0</li><li>points: 0</li><li>socialRewards: 0</li><li>deeplinks: 0</li></ul><p>Full records are in data.json.</p></body></html>',
+    );
   });
 });

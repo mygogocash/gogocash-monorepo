@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import archiver from 'archiver';
 import { PassThrough } from 'stream';
 import { EmailService } from 'src/email/email.service';
 import { R2ObjectStorageService } from 'src/media/r2-object-storage.service';
@@ -136,7 +135,8 @@ export class PdpaExportService {
     bundle: PdpaDataBundle,
     locale: 'en' | 'th',
   ): Promise<Buffer> {
-    const archive = archiver('zip', { zlib: { level: 9 } });
+    const { ZipArchive } = await import('archiver');
+    const archive = new ZipArchive({ zlib: { level: 9 } });
     const pass = new PassThrough();
     const chunks: Buffer[] = [];
     pass.on('data', (chunk: Buffer) => chunks.push(chunk));
