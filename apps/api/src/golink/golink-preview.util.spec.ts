@@ -68,17 +68,24 @@ describe('isPublicGoLinkPreviewAddress', () => {
     'fd00::1',
     'fe80::1',
     'ff02::1',
+    '2001:10::1',
+    '2001:1ff:ffff::1',
     '2001:db8::1',
+    '3fff::1',
+    '3fff:fff::1',
   ])('rejects non-public address %s', (address) => {
     expect(isPublicGoLinkPreviewAddress(address)).toBe(false);
   });
 
-  it.each(['8.8.8.8', '1.1.1.1', '2606:4700:4700::1111'])(
-    'allows public address %s',
-    (address) => {
-      expect(isPublicGoLinkPreviewAddress(address)).toBe(true);
-    },
-  );
+  it.each([
+    '8.8.8.8',
+    '1.1.1.1',
+    '2001:200::1',
+    '2606:4700:4700::1111',
+    '3fff:1000::1',
+  ])('allows public address %s', (address) => {
+    expect(isPublicGoLinkPreviewAddress(address)).toBe(true);
+  });
 });
 
 describe('extractOpenGraphPreview', () => {

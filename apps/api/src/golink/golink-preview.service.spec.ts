@@ -261,7 +261,7 @@ describe('requestPinnedHttps', () => {
       headers: {},
     });
     const request = Object.assign(new EventEmitter(), { end: jest.fn() });
-    mockedHttpsRequest.mockImplementation(((_url, _options, callback) => {
+    mockedHttpsRequest.mockImplementation(((options, callback) => {
       callback?.(responseStream as never);
       return request;
     }) as unknown as typeof httpsRequest);
@@ -272,20 +272,19 @@ describe('requestPinnedHttps', () => {
       new AbortController().signal,
     );
 
-    const [requestedUrl, options] = mockedHttpsRequest.mock.calls[0];
-    expect(requestedUrl).toEqual(new URL('https://s.shopee.co.th/item/1'));
+    const [options] = mockedHttpsRequest.mock.calls[0];
     expect(options).toEqual(
       expect.objectContaining({
         agent: false,
         family: 4,
+        headers: expect.objectContaining({ Host: 's.shopee.co.th' }),
+        hostname: '93.184.216.34',
+        path: '/item/1',
+        port: 443,
+        rejectUnauthorized: true,
         servername: 's.shopee.co.th',
       }),
     );
-    const lookup = options?.lookup;
-    expect(lookup).toEqual(expect.any(Function));
-    const callback = jest.fn();
-    lookup?.('s.shopee.co.th', { family: 4, all: false }, callback);
-    expect(callback).toHaveBeenCalledWith(null, '93.184.216.34', 4);
     expect(request.end).toHaveBeenCalledTimes(1);
   });
 });

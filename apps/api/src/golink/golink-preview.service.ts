@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { lookup } from 'node:dns/promises';
 import { request as httpsRequest } from 'node:https';
-import { isIP, type LookupFunction } from 'node:net';
+import { isIP } from 'node:net';
 import {
   extractOpenGraphPreview,
   isPublicGoLinkPreviewAddress,
@@ -58,26 +58,23 @@ export function requestPinnedHttps(
   address: GoLinkPreviewResolvedAddress,
   signal: AbortSignal,
 ): Promise<GoLinkPreviewNetworkResponse> {
-  const pinnedLookup: LookupFunction = (_hostname, options, callback) => {
-    if (options.all) {
-      callback(null, [address]);
-      return;
-    }
-    callback(null, address.address, address.family);
-  };
   return new Promise((resolve, reject) => {
     const request = httpsRequest(
-      url,
       {
         agent: false,
         family: address.family,
         headers: {
           Accept: 'text/html,application/xhtml+xml',
+          Host: url.host,
           'User-Agent': 'GoGoCash-GoLinkPreview/1.0',
         },
-        lookup: pinnedLookup,
+        hostname: address.address,
         maxHeaderSize: 16 * 1024,
         method: 'GET',
+        path: `${url.pathname}${url.search}`,
+        port: 443,
+        protocol: 'https:',
+        rejectUnauthorized: true,
         servername: url.hostname,
         signal,
       },

@@ -218,21 +218,34 @@ function hasPrefix(
   return (bytes[wholeBytes] & mask) === (prefix[wholeBytes] & mask);
 }
 
+/**
+ * Non-global ranges inside IPv6's 2000::/3 global-unicast allocation.
+ * Keep this conservative list aligned with the IANA IPv6 Special-Purpose
+ * Address Registry when that registry changes.
+ */
+const BLOCKED_IPV6_RANGES: ReadonlyArray<
+  readonly [prefix: readonly number[], prefixLength: number]
+> = [
+  [[0x20, 0x01, 0x00], 23], // IETF protocol assignments and transition space.
+  [[0x20, 0x01, 0x0d, 0xb8], 32], // Documentation.
+  [[0x20, 0x02], 16], // 6to4.
+  [[0x3f, 0xfe], 16], // Deprecated 6bone.
+  [[0x3f, 0xff, 0x00], 20], // Documentation.
+];
+
 function isPublicIpv6(address: string): boolean {
   const bytes = parseIpv6(address);
   if (!bytes) {
     return false;
   }
 
-  // Only globally routable unicast space is valid. Explicit exclusions cover
-  // documentation and transition ranges that can tunnel IPv4 destinations.
+  // Only global-unicast space is eligible. The explicit exclusions remove
+  // IANA special-purpose ranges that are not globally reachable.
   return (
     hasPrefix(bytes, [0x20], 3) &&
-    !hasPrefix(bytes, [0x20, 0x01, 0x00, 0x00], 32) && // Teredo.
-    !hasPrefix(bytes, [0x20, 0x01, 0x00, 0x02, 0x00, 0x00], 48) && // Benchmark.
-    !hasPrefix(bytes, [0x20, 0x01, 0x0d, 0xb8], 32) && // Documentation.
-    !hasPrefix(bytes, [0x20, 0x02], 16) && // 6to4.
-    !hasPrefix(bytes, [0x3f, 0xfe], 16) // Deprecated 6bone.
+    !BLOCKED_IPV6_RANGES.some(([prefix, prefixLength]) =>
+      hasPrefix(bytes, prefix, prefixLength),
+    )
   );
 }
 
