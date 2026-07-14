@@ -4,6 +4,69 @@ A money/auth hardening pass over the monorepo, driven from a full project analys
 (grade C+, 5 confirmed findings, 0 refuted). Every change is TDD'd and verified;
 this doc is the durable record. The work landed on **`main`** (the `migrate/monorepo` integration branch has since been retired).
 
+For vulnerability reporting and supported-scope information, see
+[`SECURITY.md`](SECURITY.md).
+
+## Current engineering security invariants
+
+### Server-side URL previews and other outbound requests
+
+Any URL supplied by a client is untrusted, even when the feature intends to
+contact only known merchant sites. An outbound preview implementation must:
+
+- accept only the required protocol (HTTPS for internet previews) and reject
+  credentials or unsupported ports in the URL;
+- compare normalized hostnames against an explicit allowlist using exact-host
+  or dot-boundary subdomain matching — never substring matching;
+- resolve every destination and reject loopback, private, link-local,
+  multicast, unspecified, metadata-service, and IPv4-mapped private addresses;
+- handle redirects manually with a small hop limit, applying the complete URL,
+  hostname, DNS, and address policy again before every request;
+- prevent DNS rebinding by ensuring the connection uses an address that was
+  validated for the current hop;
+- enforce connection/read timeouts and a streaming response-size limit before
+  buffering the body; and
+- log only the minimum normalized destination information needed for
+  operations, without credentials, query strings, or response bodies.
+
+Tests for outbound request code must cover lookalike domains, alternate IP
+notations, IPv4 and IPv6 private ranges, redirect hops, DNS changes, timeout
+handling, and responses over the byte limit. A post-response hostname check is
+not a substitute for validating each hop before the connection is opened.
+The network connection destination must be the independently resolved and
+validated public IP address; preserve the original hostname only for the HTTP
+Host header and TLS server-name/certificate verification.
+
+### CodeQL findings in generated native dependencies
+
+Expo native analysis compiles generated Android/iOS projects, so CodeQL can
+report findings inside `node_modules/**` and `apps/app/ios/Pods/**`. Treat these
+as dependency findings rather than editing generated files:
+
+1. Record the alert ID, package and resolved version, generated path, build
+   profile, and whether the code is reachable in a shipped build.
+2. Compare the generated line with the matching upstream source and version.
+3. If exploitable in GoGoCash, upgrade or pin the dependency and verify the
+   generated output. If it is debug-only, unreachable, or safely constrained,
+   dismiss the alert only with that evidence in the GitHub comment.
+4. Re-check dismissed dependency alerts after Expo, React Native, Firebase, or
+   native package upgrades.
+
+Do not patch `node_modules` or `Pods` directly. Do not exclude the full native
+build or disable a rule merely to remove dependency noise: CodeQL `paths` and
+`paths-ignore` do not limit the source compiled and analyzed for manual
+Kotlin/Swift builds. The first-party GoGoTrack Android and live-activity iOS
+modules must remain in native analysis.
+
+### GitHub security alert disposition (2026-07-14)
+
+| Alert | Disposition | Evidence |
+| --- | --- | --- |
+| CodeQL #88, GoGoLink request forgery | Remediated in this change | The public preview route now applies exact host boundaries, public-address DNS validation, pinned HTTPS connections, manual redirect validation, a shared timeout, and a streaming size limit. Focused regression tests cover the original substring-host and automatic-redirect bypasses. |
+| CodeQL #81, #82, #83, #86, #87 | Dismissed as false positives | The findings are respectively generated `react-native-svg` numeric math, Expo development LogBox, an explicit non-exported GoGoTrack receiver with immutable PendingIntents on Android S+, and Firebase Auth code whose cleartext branch is reachable only when the emulator is explicitly configured. Each GitHub dismissal records its source-level evidence. |
+| CodeQL #84 | Dismissed as won't fix | The finding stores Expo developer-session state in generated `expo-dev-launcher` code used by the development-client profile, not GoGoCash customer or admin authentication. Preview and production profiles do not enable `developmentClient`; reassess after Expo upgrades. |
+| Secret scanning #3 and #4 | Open, needs cloud verification | These are public Firebase native client identifiers for the staging project, but repository metadata cannot prove their Google Cloud application restrictions, API target restrictions, quotas, or signing-certificate coverage. Do not resolve them until those controls are verified in Google Cloud. |
+
 ## What shipped
 
 | PR | Contents | State |
