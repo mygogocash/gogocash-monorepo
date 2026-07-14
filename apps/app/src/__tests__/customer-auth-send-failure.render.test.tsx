@@ -18,7 +18,6 @@ const sendPhoneOtp = vi.fn();
 vi.mock("@mobile/auth/firebasePhoneAuth", () => ({
   sendPhoneOtp: (...args: unknown[]) => sendPhoneOtp(...args),
   confirmPhoneOtp: vi.fn(),
-  preloadInlineRecaptcha: vi.fn(),
 }));
 vi.mock("@mobile/auth/firebaseLogin", () => ({
   exchangeFirebaseIdToken: vi.fn(),
@@ -94,6 +93,14 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
         screen.getByText(authSendErrorMessages.securityCheck)
       ).toBeTruthy();
     });
+    expect(screen.getByText("00:15")).toBeTruthy();
+    fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
+      target: { value: "0899999999" },
+    });
+    expect(screen.getByText("00:15")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Sign in" }).getAttribute("aria-disabled")
+    ).toBe("true");
     expect(screen.queryByText(toastErrorMessages.requestFailed)).toBeNull();
   });
 
