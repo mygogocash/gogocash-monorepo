@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   OTP_RATE_LIMIT_COOLDOWN_SECONDS,
+  OTP_SECURITY_CHECK_COOLDOWN_SECONDS,
   canAttemptPhoneOtpSend,
   nextOtpSendCooldownSeconds,
 } from "@mobile/auth/otpSendCooldown";
@@ -10,6 +11,14 @@ describe("otpSendCooldown", () => {
   it("nextOtpSendCooldownSeconds > given rate-limit > then applies 5 minute client gate", () => {
     expect(nextOtpSendCooldownSeconds("rate-limit", 0)).toBe(OTP_RATE_LIMIT_COOLDOWN_SECONDS);
     expect(OTP_RATE_LIMIT_COOLDOWN_SECONDS).toBe(5 * 60);
+  });
+
+  it("nextOtpSendCooldownSeconds > given security-check > then applies a short retry gate", () => {
+    expect(nextOtpSendCooldownSeconds("security-check", 0)).toBe(
+      OTP_SECURITY_CHECK_COOLDOWN_SECONDS,
+    );
+    expect(OTP_SECURITY_CHECK_COOLDOWN_SECONDS).toBe(15);
+    expect(nextOtpSendCooldownSeconds("security-check", 30)).toBe(30);
   });
 
   it("nextOtpSendCooldownSeconds > given other errors > then keeps current cooldown", () => {
