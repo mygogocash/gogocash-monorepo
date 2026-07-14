@@ -6,8 +6,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import * as https from 'https';
-// Crossmint deprecated — auth now flows via Firebase + SIWE only.
 import { UserService } from 'src/user/user.service';
 import {
   LineAuthDto,
@@ -29,12 +27,6 @@ import { toIso2Server } from 'src/utils/country';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private baseUrl: string;
-  private projectId: string;
-  private secret: string;
-  private httpsAgent: https.Agent;
-  private crossmint: any;
-  private crossmintAuth: any;
 
   constructor(
     private readonly config: ConfigService,
@@ -43,89 +35,15 @@ export class AuthService {
     @InjectModel(Point.name) private pointModel: Model<PointDocument>,
     @InjectModel(SiweNonce.name)
     private siweNonceModel: Model<SiweNonceDocument>,
-  ) {
-    this.baseUrl = this.config.get<string>('env.CROSSMINT_BASE_URL') ?? '';
-    this.projectId = this.config.get<string>('env.CROSSMINT_PROJECT_ID') ?? '';
-    this.secret = this.config.get<string>('env.CROSSMINT_SECRET') ?? '';
-    this.httpsAgent = new https.Agent({ rejectUnauthorized: true });
-    // Crossmint SDK removed; signIn() path will throw if invoked.
-    this.crossmint = null;
-    this.crossmintAuth = null;
-  }
-
-  private headers() {
-    return { Authorization: `Bearer ${this.secret}` };
-  }
-
-  async signUp(email: string, password: string) {
-    const res = await axios.post(
-      `${this.baseUrl}/signup`,
-      { email, password, projectId: this.projectId },
-      { headers: this.headers() },
-    );
-    return res.data;
-  }
+  ) {}
 
   async signIn(payload: SignInDto): Promise<never> {
-    // Crossmint deprecated. Callers should use Firebase or SIWE sign-in flows.
+    // Retained only so old clients fail closed instead of falling through to an
+    // unverified identity path. Do not perform provider or database access.
     void payload;
     throw new UnauthorizedException(
-      'Crossmint sign-in is disabled. Use /auth/log-in (Firebase) or /auth/minipay-siwe instead.',
+      'This sign-in method is no longer available. Please sign in with your usual method.',
     );
-    // unreachable code preserved below for reference during migration
-    /*
-    const data = await this.crossmintAuth.getUser(payload.id_crossmint);
-    // console.log('data', data);
-    if (!data.id) {
-      throw new Error('User not found in Crossmint');
-    }
-    // console.log('payload', data.id);
-    const userExist = await this.userService.findOne({
-      id_crossmint: data.id,
-    });
-    // console.log('userExist', userExist);
-    if (userExist) {
-      if (userExist.address) {
-        const user = await this.userService.update(userExist._id, {
-          email: data.email,
-          username: data?.twitter
-            ? data.twitter.username
-            : data?.email?.split('@')[0],
-          id_twitter: data?.twitter ? data.twitter.id : '',
-          address: payload.address,
-        });
-        return user;
-      }
-      return userExist;
-    }
-    const user = await this.userService.createFromCrossmint({
-      address: payload.address,
-      id_crossmint: data.id,
-      email: data.email,
-      username: data?.twitter
-        ? data.twitter.username
-        : data?.email?.split('@')[0],
-      id_twitter: data?.twitter ? data.twitter.id : '',
-    });
-
-    if (
-      payload.referral_id &&
-      payload?.referral_id != 'undefined' &&
-      payload?.referral_id != 'null'
-    ) {
-      const refData = await this.userService.findOne({
-        _id: new Types.ObjectId(payload.referral_id),
-      });
-      if (refData && user._id?.toString() !== payload.referral_id?.toString()) {
-        await this.updatePoint({
-          user_id: user._id.toString(),
-          referral_id: payload.referral_id,
-        });
-      }
-    }
-    // Update points for referral if referral_id is provided
-    return user; // { accessToken, refreshToken, user }
-    */
   }
 
   async signInFirebase(token: string, payload: SignInFirebaseDto) {
@@ -449,24 +367,6 @@ export class AuthService {
     });
     return res;
   }
-  async signOut(refreshToken: string) {
-    const res = await axios.post(
-      `${this.baseUrl}/signout`,
-      { refreshToken },
-      { headers: this.headers() },
-    );
-    return res.data;
-  }
-
-  async refresh(refreshToken: string) {
-    const res = await axios.post(
-      `${this.baseUrl}/refresh`,
-      { refreshToken, projectId: this.projectId },
-      { headers: this.headers() },
-    );
-    return res.data; // { accessToken, refreshToken }
-  }
-
   async verifyPhone(token: string, id: string) {
     try {
       const user = await this.userService.findOne({

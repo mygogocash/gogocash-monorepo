@@ -32,7 +32,6 @@ railway variables --set 'NODE_ENV=production' --service gogocash-api
 # minimum to be USABLE (auth + Mongo-touching routes)
 railway variables --set 'JWT_SECRET=<SET_ME: openssl rand -hex 32 — customer JWT>' --service gogocash-api
 railway variables --set 'JWT_ADMIN_SECRET=<SET_ME: openssl rand -hex 32 — admin JWT>' --service gogocash-api
-railway variables --set 'CROSSMINT_SECRET=<SET_ME: Crossmint backend JWT secret>' --service gogocash-api
 
 # non-secret config (safe defaults — already applied by the migration)
 railway variables --set 'MAIL_FROM=GoGoCash <noreply@gogocash.co>' --service gogocash-api
@@ -52,8 +51,6 @@ railway variables --set 'CUSTOMER_FRONTEND_URL=https://app.gogocash.co' --servic
 
 # secrets for full functionality (user-entered)
 railway variables --set 'FIREBASE_PROJECT_ID=<SET_ME: e.g. gogocash-staging-637d5>' --service gogocash-api
-railway variables --set 'CROSSMINT_AUTH_BASE=<SET_ME>' --service gogocash-api
-railway variables --set 'CROSSMINT_PROJECT_ID=<SET_ME>' --service gogocash-api
 railway variables --set 'INVOLVE_SECRET=<SET_ME>' --service gogocash-api
 railway variables --set 'INVOLVE_POSTBACK_SECRET=<SET_ME: openssl rand -hex 32 — FAILS CLOSED if empty>' --service gogocash-api
 railway variables --set 'INVOLVE_AI_API_KEY=<SET_ME: FAILS CLOSED on /involve/create-affiliate-ai>' --service gogocash-api

@@ -142,6 +142,9 @@ jobs:
           node-version: "24"
           cache: npm
 
+      - name: Use repository npm version
+        run: npm install --global npm@10.9.8
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
         with:

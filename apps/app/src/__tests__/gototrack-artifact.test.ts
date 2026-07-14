@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -15,7 +22,9 @@ async function tempDir() {
 }
 
 afterEach(async () => {
-  await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { force: true, recursive: true })));
+  await Promise.all(
+    tempDirs.splice(0).map((dir) => rm(dir, { force: true, recursive: true })),
+  );
 });
 
 describe("GoGoTrack artifact helper", () => {
@@ -23,7 +32,8 @@ describe("GoGoTrack artifact helper", () => {
     expect(artifact.parseArgs(["--run-id", "28014696785"])).toMatchObject({
       artifactName: "gogocash-development-android",
       authTokenEnv: "GOGOTRACK_AUTH_TOKEN",
-      commandFile: "/tmp/gogocash-eas-artifacts-28014696785/gototrack-preflight-command.sh",
+      commandFile:
+        "/tmp/gogocash-eas-artifacts-28014696785/gototrack-preflight-command.sh",
       evidenceDir:
         "/tmp/gogocash-eas-artifacts-28014696785/gototrack-acceptance-evidence",
       outputDir: "/tmp/gogocash-eas-artifacts-28014696785",
@@ -39,7 +49,7 @@ describe("GoGoTrack artifact helper", () => {
         artifactName: "gogocash-development-android",
         outputDir: "/tmp/gogocash-eas-artifacts-28014696785",
         runId: "28014696785",
-      })
+      }),
     ).toEqual([
       "run",
       "download",
@@ -56,13 +66,15 @@ describe("GoGoTrack artifact helper", () => {
       artifact.parseArgs([
         "--gcs-prefix",
         "gs://gogocash-native-artifacts/gototrack/development",
-      ])
+      ]),
     ).toMatchObject({
       gcsPrefix: "gs://gogocash-native-artifacts/gototrack/development",
       gcsUri:
         "gs://gogocash-native-artifacts/gototrack/development/gogocash-development-android.apk",
-      commandFile: "/tmp/gogocash-eas-artifacts-gcs/gototrack-preflight-command.sh",
-      evidenceDir: "/tmp/gogocash-eas-artifacts-gcs/gototrack-acceptance-evidence",
+      commandFile:
+        "/tmp/gogocash-eas-artifacts-gcs/gototrack-preflight-command.sh",
+      evidenceDir:
+        "/tmp/gogocash-eas-artifacts-gcs/gototrack-acceptance-evidence",
       outputDir: "/tmp/gogocash-eas-artifacts-gcs",
       source: "gcs",
     });
@@ -77,7 +89,7 @@ describe("GoGoTrack artifact helper", () => {
         "/tmp/custom-gototrack-command.sh",
         "--evidence-dir",
         "/tmp/custom-gototrack-evidence",
-      ])
+      ]),
     ).toMatchObject({
       commandFile: "/tmp/custom-gototrack-command.sh",
       evidenceDir: "/tmp/custom-gototrack-evidence",
@@ -87,18 +99,24 @@ describe("GoGoTrack artifact helper", () => {
 
   it("writes a replayable preflight command file", async () => {
     const outputDir = await tempDir();
-    const commandFile = join(outputDir, "nested", "gototrack-preflight-command.sh");
+    const commandFile = join(
+      outputDir,
+      "nested",
+      "gototrack-preflight-command.sh",
+    );
     const preflightCommand =
-      "PATH=/opt/homebrew/bin:$PATH /opt/homebrew/bin/npx npm@10.9.0 run gototrack:preflight -w @gogocash/mobile -- --require-auth";
+      "PATH=/opt/homebrew/bin:$PATH /opt/homebrew/bin/npx npm@10.9.8 run gototrack:preflight -w @gogocash/mobile -- --require-auth";
 
-    expect(artifact.writePreflightCommandFile(commandFile, preflightCommand)).toBe(commandFile);
+    expect(
+      artifact.writePreflightCommandFile(commandFile, preflightCommand),
+    ).toBe(commandFile);
 
     await expect(readFile(commandFile, "utf8")).resolves.toBe(
       `#!/usr/bin/env bash
 set -euo pipefail
 
 ${preflightCommand}
-`
+`,
     );
     expect((await stat(commandFile)).mode & 0o111).toBeGreaterThan(0);
   });
@@ -109,9 +127,10 @@ ${preflightCommand}
         gcsUri:
           "gs://gogocash-native-artifacts/gototrack/development/gogocash-development-android.apk",
         outputDir: "/tmp/gogocash-eas-artifacts-gcs",
-      })
+      }),
     ).toEqual({
-      apkPath: "/tmp/gogocash-eas-artifacts-gcs/gogocash-development-android.apk",
+      apkPath:
+        "/tmp/gogocash-eas-artifacts-gcs/gogocash-development-android.apk",
       commands: [
         [
           "storage",
@@ -126,7 +145,8 @@ ${preflightCommand}
           "/tmp/gogocash-eas-artifacts-gcs/gogocash-development-android.apk.sha256",
         ],
       ],
-      shaPath: "/tmp/gogocash-eas-artifacts-gcs/gogocash-development-android.apk.sha256",
+      shaPath:
+        "/tmp/gogocash-eas-artifacts-gcs/gogocash-development-android.apk.sha256",
     });
   });
 
@@ -139,13 +159,16 @@ ${preflightCommand}
 
     await mkdir(artifactDir, { recursive: true });
     await writeFile(apkPath, "apk-bytes");
-    await writeFile(`${apkPath}.sha256`, `${sha256}  gogocash-development-android.apk\n`);
+    await writeFile(
+      `${apkPath}.sha256`,
+      `${sha256}  gogocash-development-android.apk\n`,
+    );
 
     expect(
       artifact.resolveDownloadedArtifact({
         artifactName: "gogocash-development-android",
         outputDir,
-      })
+      }),
     ).toEqual({
       apkPath,
       artifactDir: outputDir,
@@ -165,7 +188,7 @@ ${preflightCommand}
       artifact.resolveDownloadedArtifact({
         artifactName: "gogocash-development-android",
         outputDir,
-      })
+      }),
     ).toMatchObject({
       apkPath,
       sha256: expectedSha,
@@ -176,7 +199,8 @@ ${preflightCommand}
   it("prints the acceptance preflight command with install, nudge, and deeplink gates", () => {
     const command = artifact.buildPreflightCommand({
       apiUrl: "https://api.dev.gogocash.co",
-      apkPath: "/tmp/gogocash-eas-artifacts-28014696785/gogocash-development-android/gogocash-development-android.apk",
+      apkPath:
+        "/tmp/gogocash-eas-artifacts-28014696785/gogocash-development-android/gogocash-development-android.apk",
       authTokenEnv: "GOGOTRACK_AUTH_TOKEN",
       checkpointDelayMs: "1500",
       detectPackage: "com.shopee.th",
@@ -185,20 +209,27 @@ ${preflightCommand}
       merchantApks: "/tmp/com.shopee.th.apk,/tmp/config.arm64_v8a.apk",
       merchantPackages: "com.shopee.th,com.lazada.android",
       metroPort: "8081",
-      sha256: "5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a",
+      sha256:
+        "5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a",
     });
 
     expect(command).toContain("run gototrack:preflight -w @gogocash/mobile --");
-    expect(command).toContain("--auth-token \"$GOGOTRACK_AUTH_TOKEN\"");
+    expect(command).toContain('--auth-token "$GOGOTRACK_AUTH_TOKEN"');
     expect(command).toContain("--require-auth");
     expect(command).toContain("--api-url 'https://api.dev.gogocash.co'");
     expect(command).toContain("--device 'emulator-5554'");
-    expect(command).toContain("--install-apk '/tmp/gogocash-eas-artifacts-28014696785/");
     expect(command).toContain(
-      "--install-apk-sha256 5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a"
+      "--install-apk '/tmp/gogocash-eas-artifacts-28014696785/",
     );
-    expect(command).toContain("--merchant-apks '/tmp/com.shopee.th.apk,/tmp/config.arm64_v8a.apk'");
-    expect(command).toContain("--merchant-packages 'com.shopee.th,com.lazada.android'");
+    expect(command).toContain(
+      "--install-apk-sha256 5bdad05fe54f21e7b583966a2204f67b0029856d73b01c702585eaa71d909e7a",
+    );
+    expect(command).toContain(
+      "--merchant-apks '/tmp/com.shopee.th.apk,/tmp/config.arm64_v8a.apk'",
+    );
+    expect(command).toContain(
+      "--merchant-packages 'com.shopee.th,com.lazada.android'",
+    );
     expect(command).toContain("--configure-metro-reverse");
     expect(command).toContain("--launch-dev-client");
     expect(command).toContain("--metro-port 8081");

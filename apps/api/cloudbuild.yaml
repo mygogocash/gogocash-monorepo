@@ -64,15 +64,15 @@ steps:
       - managed
       - --allow-unauthenticated
       - --port
-      - "8080"
+      - '8080'
       - --min-instances
-      - "0"
+      - '0'
       - --max-instances
-      - "5"
+      - '5'
       - --memory
       - 512Mi
       - --cpu
-      - "1"
+      - '1'
       - --set-env-vars
       - >-
         NODE_ENV=production,
@@ -89,10 +89,7 @@ steps:
         INVOLVE_SECRET=gogocash-staging-involve-secret:latest,
         INVOLVE_POSTBACK_SECRET=gogocash-staging-involve-postback-secret:latest,
         POSTHOG_KEY=gogocash-staging-posthog-key:latest,
-        TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest,
-        CROSSMINT_AUTH_BASE=gogocash-staging-crossmint-auth-base:latest,
-        CROSSMINT_PROJECT_ID=gogocash-staging-crossmint-project-id:latest,
-        CROSSMINT_SECRET=gogocash-staging-crossmint-secret:latest
+        TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest
     waitFor: [push-sha]
 
 images:

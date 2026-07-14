@@ -3,7 +3,9 @@
 // .ts configs — under TS7 that resolves a version stub and crashes on
 // `ts.ModuleKind`. A .js config skips the TS transpile path entirely.
 // (Expo's native stripTypeScriptTypes fallback only engages when the
-// typescript package is absent, which it never is here.)
+// typescript package is absent, which it never is here.) TypeScript therefore
+// remains an intentional `expo.install.exclude`: it is a build-tool exception,
+// while every native/runtime dependency stays aligned to Expo SDK 57.
 
 /** @typedef {import("expo/config").ConfigContext} ConfigContext */
 /** @typedef {import("expo/config").ExpoConfig} ExpoConfig */
@@ -15,7 +17,8 @@ const appIdentity = {
   androidPackage: "co.gogocash.app",
 };
 
-const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd().replace(/\/apps\/app$/, "");
+const workspaceRoot =
+  process.env.GITHUB_WORKSPACE || process.cwd().replace(/\/apps\/app$/, "");
 
 // Native Firebase (phone OTP via @react-native-firebase/auth) needs the
 // platform config files at prebuild. They come from an EAS file secret
@@ -30,8 +33,11 @@ const localConfigFile = (name) =>
 const googleServicesAndroid =
   process.env.GOOGLE_SERVICES_JSON ?? localConfigFile("google-services.json");
 const googleServicesIos =
-  process.env.GOOGLE_SERVICE_INFO_PLIST ?? localConfigFile("GoogleService-Info.plist");
-const nativeFirebaseEnabled = Boolean(googleServicesAndroid || googleServicesIos);
+  process.env.GOOGLE_SERVICE_INFO_PLIST ??
+  localConfigFile("GoogleService-Info.plist");
+const nativeFirebaseEnabled = Boolean(
+  googleServicesAndroid || googleServicesIos,
+);
 
 // Preserves the original app.config.ts semantics: use a global require if the
 // eval context provides one, else fall back to root-hoisted node_modules paths.
@@ -56,18 +62,30 @@ const envDefaults = {
 const fontPath = (specifier) => requireShim.resolve(specifier);
 
 const dmSansFonts = {
-  regular: fontPath("@expo-google-fonts/dm-sans/400Regular/DMSans_400Regular.ttf"),
+  regular: fontPath(
+    "@expo-google-fonts/dm-sans/400Regular/DMSans_400Regular.ttf",
+  ),
   medium: fontPath("@expo-google-fonts/dm-sans/500Medium/DMSans_500Medium.ttf"),
-  semiBold: fontPath("@expo-google-fonts/dm-sans/600SemiBold/DMSans_600SemiBold.ttf"),
+  semiBold: fontPath(
+    "@expo-google-fonts/dm-sans/600SemiBold/DMSans_600SemiBold.ttf",
+  ),
   bold: fontPath("@expo-google-fonts/dm-sans/700Bold/DMSans_700Bold.ttf"),
-  extraBold: fontPath("@expo-google-fonts/dm-sans/800ExtraBold/DMSans_800ExtraBold.ttf"),
+  extraBold: fontPath(
+    "@expo-google-fonts/dm-sans/800ExtraBold/DMSans_800ExtraBold.ttf",
+  ),
   black: fontPath("@expo-google-fonts/dm-sans/900Black/DMSans_900Black.ttf"),
 };
 
 const anuphanFonts = {
-  regular: fontPath("@expo-google-fonts/anuphan/400Regular/Anuphan_400Regular.ttf"),
-  medium: fontPath("@expo-google-fonts/anuphan/500Medium/Anuphan_500Medium.ttf"),
-  semiBold: fontPath("@expo-google-fonts/anuphan/600SemiBold/Anuphan_600SemiBold.ttf"),
+  regular: fontPath(
+    "@expo-google-fonts/anuphan/400Regular/Anuphan_400Regular.ttf",
+  ),
+  medium: fontPath(
+    "@expo-google-fonts/anuphan/500Medium/Anuphan_500Medium.ttf",
+  ),
+  semiBold: fontPath(
+    "@expo-google-fonts/anuphan/600SemiBold/Anuphan_600SemiBold.ttf",
+  ),
   bold: fontPath("@expo-google-fonts/anuphan/700Bold/Anuphan_700Bold.ttf"),
 };
 
@@ -91,21 +109,28 @@ const toGoogleIosUrlScheme = (iosClientId) => {
   return `com.googleusercontent.apps.${trimmed}`;
 };
 
-const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? "";
-const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? "";
+const googleWebClientId =
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? "";
+const googleIosClientId =
+  process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? "";
 const googleIosUrlScheme = googleIosClientId
   ? toGoogleIosUrlScheme(googleIosClientId)
   : undefined;
 
 /** @type {string | [string, { iosUrlScheme: string }]} */
 const googleSignInPlugin = googleIosUrlScheme
-  ? ["@react-native-google-signin/google-signin", { iosUrlScheme: googleIosUrlScheme }]
+  ? [
+      "@react-native-google-signin/google-signin",
+      { iosUrlScheme: googleIosUrlScheme },
+    ]
   : "@react-native-google-signin/google-signin";
 
 /** @param {ConfigContext} context @returns {ExpoConfig} */
 const enableGototrack =
   (process.env.EXPO_PUBLIC_ENABLE_GOTOTRACK ??
-    ((process.env.EXPO_PUBLIC_APP_ENV ?? envDefaults.appEnv) === "production" ? "0" : "1")) === "1";
+    ((process.env.EXPO_PUBLIC_APP_ENV ?? envDefaults.appEnv) === "production"
+      ? "0"
+      : "1")) === "1";
 
 const mobileExpoConfig = ({ config }) => ({
   ...config,
@@ -137,7 +162,10 @@ const mobileExpoConfig = ({ config }) => ({
     bundleIdentifier: appIdentity.iosBundleIdentifier,
     supportsTablet: false,
     ...(googleServicesIos ? { googleServicesFile: googleServicesIos } : {}),
-    associatedDomains: ["applinks:app.gogocash.co", "applinks:app-staging.gogocash.co"],
+    associatedDomains: [
+      "applinks:app.gogocash.co",
+      "applinks:app-staging.gogocash.co",
+    ],
   },
   android: {
     adaptiveIcon: {
@@ -160,7 +188,9 @@ const mobileExpoConfig = ({ config }) => ({
       },
     ],
     package: appIdentity.androidPackage,
-    ...(googleServicesAndroid ? { googleServicesFile: googleServicesAndroid } : {}),
+    ...(googleServicesAndroid
+      ? { googleServicesFile: googleServicesAndroid }
+      : {}),
   },
   web: {
     bundler: "metro",
@@ -200,7 +230,10 @@ const mobileExpoConfig = ({ config }) => ({
       "expo-font",
       {
         ios: {
-          fonts: [...Object.values(dmSansFonts), ...Object.values(anuphanFonts)],
+          fonts: [
+            ...Object.values(dmSansFonts),
+            ...Object.values(anuphanFonts),
+          ],
         },
         android: {
           fonts: [
@@ -250,17 +283,21 @@ const mobileExpoConfig = ({ config }) => ({
     googleSignInPlugin,
   ],
   extra: {
-    accountDataSource: process.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE ?? envDefaults.accountDataSource,
+    accountDataSource:
+      process.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE ??
+      envDefaults.accountDataSource,
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? envDefaults.apiUrl,
     appEnv: process.env.EXPO_PUBLIC_APP_ENV ?? envDefaults.appEnv,
-    frontendUrl: process.env.EXPO_PUBLIC_FRONTEND_URL ?? envDefaults.frontendUrl,
+    frontendUrl:
+      process.env.EXPO_PUBLIC_FRONTEND_URL ?? envDefaults.frontendUrl,
     googleWebClientId,
     googleIosClientId,
     posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST ?? "",
     posthogKey: process.env.EXPO_PUBLIC_POSTHOG_KEY ?? "",
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? "",
     eas: {
-      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim() || EAS_PROJECT_ID,
+      projectId:
+        process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim() || EAS_PROJECT_ID,
     },
   },
 });
