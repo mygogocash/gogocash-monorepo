@@ -78,7 +78,7 @@ Authoritative list: `.github/workflows/deploy-api-staging.yml` + `apps/*/.env.ex
 
 **`api` (seal the secrets):** `MONGO_URI=${{ MongoDB.MONGO_URL }}`, `JWT_SECRET`,
 `JWT_ADMIN_SECRET`, `FIREBASE_PROJECT_ID`, `INVOLVE_SECRET`, `INVOLVE_POSTBACK_SECRET`,
-`POSTHOG_KEY`, `TELEGRAM_BOT_TOKEN`, `CROSSMINT_*`, `RESEND_API_KEY`, `STRIPE_*`,
+`POSTHOG_KEY`, `TELEGRAM_BOT_TOKEN`, `RESEND_API_KEY`, `STRIPE_*`,
 `OPTIMISE_*`, `PRIVATE_KEY_WITHDRAW`, `RPC_URL_*`, plus the GCS file mount (below).
 
 **`admin` — build-time** (declared as `ARG` in the Dockerfile, injected by Railway as build

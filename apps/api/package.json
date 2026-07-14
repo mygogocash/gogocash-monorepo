@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "build": "swc src -d dist --strip-leading-paths",
@@ -45,9 +45,8 @@
     "media:migrate-gcs-to-r2:dry": "node -r @swc-node/register scripts/migrate-stored-media-gcs-to-r2.ts --dry-run"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1085.0",
-    "@aws-sdk/s3-request-presigner": "^3.1085.0",
-    "@crossmint/server-sdk": "^1.2.76",
+    "@aws-sdk/client-s3": "^3.1086.0",
+    "@aws-sdk/s3-request-presigner": "^3.1086.0",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.1.28",
     "@nestjs/core": "^11.1.28",
@@ -86,7 +85,7 @@
     "resend": "^6.17.1",
     "rxjs": "^7.8.2",
     "sharp": "^0.35.3",
-    "stripe": "^22.3.0",
+    "stripe": "^22.3.1",
     "swagger-ui-express": "^5.0.1",
     "telegraf": "^4.16.3"
   },
@@ -97,14 +96,14 @@
     "@swc/cli": "^0.8.1",
     "@swc/core": "^1.15.43",
     "@swc/jest": "^0.2.39",
-    "@types/archiver": "^6.0.3",
+    "@types/archiver": "^6.0.4",
     "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
-    "@types/node": "^26.1.0",
-    "@types/supertest": "^7.0.0",
+    "@types/node": "^24.13.3",
+    "@types/supertest": "^7.2.1",
     "jest": "^30.0.0",
-    "oxlint": "^1.73.0",
+    "oxlint": "^1.74.0",
     "prettier": "^3.9.4",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",

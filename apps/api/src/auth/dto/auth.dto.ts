@@ -39,18 +39,6 @@ export class SignInDto {
   referral_id?: string;
 }
 
-export class SignUpDto {
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsEmail()
-  email: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  password: string;
-}
-
 export class SignInFirebaseDto {
   @ApiProperty()
   @IsString()

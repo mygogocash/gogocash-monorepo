@@ -225,12 +225,10 @@ export class PointService {
       .populate({
         path: 'user_id',
         model: 'User',
-        // select: 'id_crossmint',
       })
       .populate({
         path: 'referral_id',
         model: 'User',
-        // select: 'id_crossmint',
       })
       .exec();
   }

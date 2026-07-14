@@ -22,7 +22,7 @@ const otpService = {
   verifyOtpAndCreateToken: jest.fn(),
 };
 const emailService = { sendOtp: jest.fn() };
-const authService = { generateTempToken: jest.fn() };
+const authService = { generateTempToken: jest.fn(), signIn: jest.fn() };
 const analytics = { capture: jest.fn() };
 const allow = { canActivate: () => true };
 
@@ -60,6 +60,21 @@ describe('AuthController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  describe('POST /auth/sign-in > retired provider compatibility route', () => {
+    it('returns 401 before AuthService or provider logic can run', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/sign-in')
+        .send({
+          address: '0xabc',
+          id_crossmint: 'historical-id',
+          email: 'user@example.com',
+        });
+
+      expect(res.status).toBe(401);
+      expect(authService.signIn).not.toHaveBeenCalled();
+    });
   });
 
   describe('POST /auth/email/request-otp > given a NoSQL operator object as email', () => {

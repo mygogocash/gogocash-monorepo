@@ -12,7 +12,7 @@ App Hosting builds and runs your full Next.js app (including API routes), so the
 
 - Firebase project with [Blaze (pay-as-you-go)](https://firebase.google.com/docs/app-hosting/configure#billing) enabled
 - GitHub repo: `mygogocash/gogocash-monorepo` (or your fork) — the admin app lives at `apps/admin`
-- Node.js 22+ (the workspace `engines` field requires `>=22`)
+- Node.js 24 LTS (the workspace `engines` field requires `>=24`)
 
 ### One-time setup
 

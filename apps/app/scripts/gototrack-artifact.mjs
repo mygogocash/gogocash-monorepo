@@ -28,7 +28,10 @@ function nextValue(argv, index, flag) {
   return value;
 }
 
-export function artifactNameFor({ profile = defaultProfile, platform = defaultPlatform } = {}) {
+export function artifactNameFor({
+  profile = defaultProfile,
+  platform = defaultPlatform,
+} = {}) {
   return `gogocash-${profile}-${platform}`;
 }
 
@@ -45,28 +48,40 @@ export function parseArgs(argv = process.argv.slice(2)) {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
 
-    if (arg === "--artifact-name") options.artifactName = nextValue(argv, index++, arg);
-    else if (arg === "--api-url") options.apiUrl = nextValue(argv, index++, arg);
-    else if (arg === "--auth-token-env") options.authTokenEnv = nextValue(argv, index++, arg);
-    else if (arg === "--checkpoint-delay-ms") options.checkpointDelayMs = nextValue(argv, index++, arg);
-    else if (arg === "--command-file") options.commandFile = nextValue(argv, index++, arg);
-    else if (arg === "--detect-package") options.detectPackage = nextValue(argv, index++, arg);
+    if (arg === "--artifact-name")
+      options.artifactName = nextValue(argv, index++, arg);
+    else if (arg === "--api-url")
+      options.apiUrl = nextValue(argv, index++, arg);
+    else if (arg === "--auth-token-env")
+      options.authTokenEnv = nextValue(argv, index++, arg);
+    else if (arg === "--checkpoint-delay-ms")
+      options.checkpointDelayMs = nextValue(argv, index++, arg);
+    else if (arg === "--command-file")
+      options.commandFile = nextValue(argv, index++, arg);
+    else if (arg === "--detect-package")
+      options.detectPackage = nextValue(argv, index++, arg);
     else if (arg === "--device") options.device = nextValue(argv, index++, arg);
-    else if (arg === "--evidence-dir") options.evidenceDir = nextValue(argv, index++, arg);
+    else if (arg === "--evidence-dir")
+      options.evidenceDir = nextValue(argv, index++, arg);
     else if (arg === "--gcs-prefix") {
       options.gcsPrefix = nextValue(argv, index++, arg);
       options.source = "gcs";
     } else if (arg === "--gcs-uri") {
       options.gcsUri = nextValue(argv, index++, arg);
       options.source = "gcs";
-    }
-    else if (arg === "--json") options.outputJson = true;
-    else if (arg === "--merchant-apks") options.merchantApks = nextValue(argv, index++, arg);
-    else if (arg === "--merchant-packages") options.merchantPackages = nextValue(argv, index++, arg);
-    else if (arg === "--metro-port") options.metroPort = nextValue(argv, index++, arg);
-    else if (arg === "--output-dir") options.outputDir = nextValue(argv, index++, arg);
-    else if (arg === "--platform") options.platform = nextValue(argv, index++, arg);
-    else if (arg === "--profile") options.profile = nextValue(argv, index++, arg);
+    } else if (arg === "--json") options.outputJson = true;
+    else if (arg === "--merchant-apks")
+      options.merchantApks = nextValue(argv, index++, arg);
+    else if (arg === "--merchant-packages")
+      options.merchantPackages = nextValue(argv, index++, arg);
+    else if (arg === "--metro-port")
+      options.metroPort = nextValue(argv, index++, arg);
+    else if (arg === "--output-dir")
+      options.outputDir = nextValue(argv, index++, arg);
+    else if (arg === "--platform")
+      options.platform = nextValue(argv, index++, arg);
+    else if (arg === "--profile")
+      options.profile = nextValue(argv, index++, arg);
     else if (arg === "--run-id") options.runId = nextValue(argv, index++, arg);
     else if (arg === "--source") options.source = nextValue(argv, index++, arg);
     else if (arg === "--skip-download") options.skipDownload = true;
@@ -89,10 +104,15 @@ export function parseArgs(argv = process.argv.slice(2)) {
   }
 
   if (!options.help && options.source === "gcs" && !options.gcsUri) {
-    throw new Error("--gcs-uri or --gcs-prefix is required for GCS artifact downloads");
+    throw new Error(
+      "--gcs-uri or --gcs-prefix is required for GCS artifact downloads",
+    );
   }
 
-  options.outputDir ??= join("/tmp", `gogocash-eas-artifacts-${options.runId ?? "gcs"}`);
+  options.outputDir ??= join(
+    "/tmp",
+    `gogocash-eas-artifacts-${options.runId ?? "gcs"}`,
+  );
   options.commandFile ??= defaultCommandFileFor(options);
   options.evidenceDir ??= defaultEvidenceDirFor(options);
 
@@ -100,7 +120,15 @@ export function parseArgs(argv = process.argv.slice(2)) {
 }
 
 export function buildGhDownloadArgs({ artifactName, outputDir, runId }) {
-  return ["run", "download", String(runId), "--name", artifactName, "--dir", outputDir];
+  return [
+    "run",
+    "download",
+    String(runId),
+    "--name",
+    artifactName,
+    "--dir",
+    outputDir,
+  ];
 }
 
 export function defaultEvidenceDirFor({ outputDir }) {
@@ -167,7 +195,8 @@ export function resolveDownloadedArtifact({ artifactName, outputDir }) {
   const apkFiles = files.filter((path) => path.endsWith(".apk"));
 
   const preferredApk =
-    apkFiles.find((path) => basename(path) === `${artifactName}.apk`) ?? apkFiles[0];
+    apkFiles.find((path) => basename(path) === `${artifactName}.apk`) ??
+    apkFiles[0];
 
   if (!preferredApk) {
     throw new Error(`No APK found under ${artifactRoot}`);
@@ -175,10 +204,13 @@ export function resolveDownloadedArtifact({ artifactName, outputDir }) {
 
   const shaFiles = files.filter((path) => path.endsWith(".sha256"));
   const pairedShaFile =
-    shaFiles.find((path) => basename(path) === `${basename(preferredApk)}.sha256`) ??
-    shaFiles[0];
+    shaFiles.find(
+      (path) => basename(path) === `${basename(preferredApk)}.sha256`,
+    ) ?? shaFiles[0];
 
-  const sha256 = pairedShaFile ? parseSha256(readFileSync(pairedShaFile, "utf8")) : null;
+  const sha256 = pairedShaFile
+    ? parseSha256(readFileSync(pairedShaFile, "utf8"))
+    : null;
 
   return {
     apkPath: preferredApk,
@@ -209,7 +241,7 @@ export function buildPreflightCommand({
   const command = [
     "PATH=/opt/homebrew/bin:$PATH",
     "/opt/homebrew/bin/npx",
-    "npm@10.9.0",
+    "npm@10.9.8",
     "run",
     "gototrack:preflight",
     "-w",
@@ -250,7 +282,9 @@ export function buildPreflightCommand({
   );
 
   appendOptionalFlag(command, "--evidence-dir", evidenceDir);
-  appendOptionalFlag(command, "--checkpoint-delay-ms", checkpointDelayMs, { quote: false });
+  appendOptionalFlag(command, "--checkpoint-delay-ms", checkpointDelayMs, {
+    quote: false,
+  });
 
   return command.join(" ");
 }
@@ -299,7 +333,11 @@ Options:
 `);
 }
 
-export function main(argv = process.argv.slice(2), env = process.env, logger = console) {
+export function main(
+  argv = process.argv.slice(2),
+  env = process.env,
+  logger = console,
+) {
   const options = parseArgs(argv);
 
   if (options.help) {
@@ -318,16 +356,22 @@ export function main(argv = process.argv.slice(2), env = process.env, logger = c
       });
 
       for (const [index, args] of plan.commands.entries()) {
-        const result = spawnSync(gcloud, args, { encoding: "utf8", stdio: "pipe" });
+        const result = spawnSync(gcloud, args, {
+          encoding: "utf8",
+          stdio: "pipe",
+        });
 
         if (result.status !== 0) {
-          const message = result.stderr || result.stdout || "gcloud storage cp failed";
+          const message =
+            result.stderr || result.stdout || "gcloud storage cp failed";
           if (index === 1) {
             logger.warn?.(
-              `[gototrack:artifact] SHA sidecar download failed; will compute SHA from APK. ${message}`.trim()
+              `[gototrack:artifact] SHA sidecar download failed; will compute SHA from APK. ${message}`.trim(),
             );
           } else {
-            throw new Error(`Failed to download GCS artifact ${options.gcsUri}: ${message}`.trim());
+            throw new Error(
+              `Failed to download GCS artifact ${options.gcsUri}: ${message}`.trim(),
+            );
           }
         }
       }
@@ -340,7 +384,7 @@ export function main(argv = process.argv.slice(2), env = process.env, logger = c
         throw new Error(
           `Failed to download artifact ${options.artifactName} from run ${options.runId}: ${
             result.stderr || result.stdout || "gh run download failed"
-          }`.trim()
+          }`.trim(),
         );
       }
     }

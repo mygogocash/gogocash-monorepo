@@ -2,8 +2,8 @@ import { UnauthorizedException } from '@nestjs/common';
 import { createHash, createHmac } from 'crypto';
 
 // --- Module-level mocks for external SDKs / network / firebase ---------------
-// AuthService talks to four things we must never hit for real in a unit test:
-//   - axios   (Crossmint signup/signout/refresh + LINE verification HTTP)
+// AuthService talks to three things we must never hit for real in a unit test:
+//   - axios   (LINE verification HTTP)
 //   - ethers  (SIWE signature recovery)
 //   - firebase-admin + getAdminAuth (ID-token verification)
 // crypto stays REAL: the Telegram HMAC check and SIWE nonce generation are
@@ -77,7 +77,6 @@ function makeService(
     findOne: jest.fn(),
     update: jest.fn(),
     createFromFirebase: jest.fn(),
-    createFromCrossmint: jest.fn(),
     ...overrides.userService,
   };
 
@@ -145,12 +144,12 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
-  // --- signIn (Crossmint, deprecated) ---------------------------------------
+  // --- signIn (retired legacy provider) -------------------------------------
   describe('signIn', () => {
-    // The Crossmint path is intentionally dead. It must HARD-FAIL so no caller
-    // can accidentally authenticate through a disabled provider.
-    it('signIn > given any payload > then it always throws UnauthorizedException', async () => {
-      const { service } = makeService();
+    // The legacy path is intentionally dead. It must hard-fail generically and
+    // perform no user lookup or provider HTTP call.
+    it('signIn > given any payload > then it rejects before provider or user access', async () => {
+      const { service, userService } = makeService();
 
       await expect(
         service.signIn({
@@ -158,7 +157,11 @@ describe('AuthService', () => {
           id_crossmint: 'cm-1',
           email: 'x@y.co',
         } as any),
-      ).rejects.toBeInstanceOf(UnauthorizedException);
+      ).rejects.toThrow(
+        'This sign-in method is no longer available. Please sign in with your usual method.',
+      );
+      expect(axios.post).not.toHaveBeenCalled();
+      expect(userService.findOne).not.toHaveBeenCalled();
     });
   });
 
@@ -696,19 +699,6 @@ describe('AuthService', () => {
       await expect(service.verifyTempToken('temp')).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
-    });
-  });
-
-  // --- signUp / signOut / refresh (Crossmint HTTP passthrough) --------------
-  describe('signUp', () => {
-    it('signUp > given email and password > then it returns the upstream response data', async () => {
-      const { service } = makeService();
-      (axios.post as jest.Mock).mockResolvedValue({ data: { id: 'cm-user' } });
-
-      await expect(service.signUp('a@b.co', 'pw')).resolves.toEqual({
-        id: 'cm-user',
-      });
-      expect(axios.post).toHaveBeenCalledTimes(1);
     });
   });
 

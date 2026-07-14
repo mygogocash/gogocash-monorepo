@@ -2,6 +2,9 @@
   "name": "@gogocash/gototrack-mcp",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "bin": {
     "gototrack-mcp": "./dist/index.js"
@@ -17,7 +20,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
+    "@types/node": "^24.13.3",
     "typescript": "^7.0.2"
   }
 }

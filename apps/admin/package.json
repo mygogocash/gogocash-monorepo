@@ -3,9 +3,9 @@
   "version": "2.0.2",
   "description": "GoGoCash internal admin dashboard built with Next.js",
   "private": true,
-  "packageManager": "npm@10.9.0",
+  "packageManager": "npm@10.9.8",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "next dev",
@@ -52,7 +52,7 @@
     "apexcharts": "^5.16.0",
     "autoprefixer": "^10.5.2",
     "axios": "^1.18.1",
-    "firebase": "^12.15.0",
+    "firebase": "^12.16.0",
     "flatpickr": "^4.6.13",
     "libphonenumber-js": "^1.13.8",
     "next": "16.2.10",
@@ -77,7 +77,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/node": "^26.1.0",
+    "@types/node": "^24.13.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/react-transition-group": "^4.4.12",
@@ -85,8 +85,8 @@
     "cross-env": "^10.1.0",
     "firebase-tools": "^15.23.0",
     "happy-dom": "^20.10.6",
-    "oxlint": "^1.73.0",
-    "postcss": "^8.5.18",
+    "oxlint": "^1.74.0",
+    "postcss": "^8.5.19",
     "prettier": "^3.9.4",
     "tailwindcss": "^4.3.2",
     "typescript": "~5.9.3",

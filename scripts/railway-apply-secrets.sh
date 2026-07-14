@@ -86,9 +86,6 @@ echo
 set_var gogocash-api MONGO_URI
 set_var gogocash-api JWT_SECRET
 set_var gogocash-api JWT_ADMIN_SECRET
-set_var gogocash-api CROSSMINT_SECRET
-set_var gogocash-api CROSSMINT_AUTH_BASE
-set_var gogocash-api CROSSMINT_PROJECT_ID
 set_var gogocash-api FIREBASE_PROJECT_ID
 set_var gogocash-api INVOLVE_SECRET
 set_var gogocash-api INVOLVE_POSTBACK_SECRET

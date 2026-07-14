@@ -1,121 +1,178 @@
-# GoGoCash Monorepo — Dependency Upgrade Plan
+# GoGoCash dependency and runtime upgrade plan
 
-> Generated 2026-06-14 from `npm outdated --workspaces`. Monorepo = 3 apps: `admin` (Next.js), `api` (NestJS), `app` (Expo).
-> **Do NOT blanket-upgrade to latest.** Most "outdated" entries are framework majors or Expo-SDK-managed packages — bumping them together breaks things. Upgrade one framework major per PR, per app, with the build/boot CI gates green between each.
+> Last refreshed: 2026-07-14. This file records the current repository state,
+> completed local upgrade work, verification evidence, and the remaining
+> staging-gated migrations. Do not blanket-upgrade the monorepo.
 
-## Progress (updated 2026-06-14; status refreshed 2026-06-21)
+## Current stack
 
-> **Update (2026-06-21, merged in PR #1):** The remaining Tier 1 majors have since
-> landed — verified against the workspace manifests: api now on `mongoose ^9.7.0` +
-> `mongodb ^7.3.0` + `firebase-admin ^14.0.0`; admin on `firebase ^12.14.0`,
-> `@mui/material ^9.1.1` + `@mui/x-data-grid ^9.5.0`, `recharts ^3.8.1`,
-> `apexcharts ^5.15.0` + `react-apexcharts ^2.1.0`, `swiper ^12.2.0`,
-> `react-dropzone ^15.0.0`, `tailwind-merge ^3.6.0`, `vitest ^4.1.8`; api small
-> majors `customerio-node ^5.0.1`, `jwks-rsa ^4.0.1`, `eslint-config-prettier ^10`.
-> **Update (2026-07-10):** the app is on **Expo SDK 57 / react-native 0.86** — the note
-> below predates that move. The recurring SDK-train item (next: SDK 58, which also
-> unlocks zod 4 and `@sentry/react-native` 8 per the Tier 3 notes) remains the only
-> outstanding track.
+| Surface         | Supported baseline                                   |
+| --------------- | ---------------------------------------------------- |
+| Runtime         | Node.js 24 LTS                                       |
+| Package manager | npm 10.9.8                                           |
+| API             | NestJS 11, Express 5, Mongoose 9, MongoDB driver 7   |
+| Admin           | Next.js 16.2.10, React 19.2.7, MUI 9, Tailwind CSS 4 |
+| Customer app    | Expo SDK 57, React Native 0.86, React 19.2.7         |
+| Shared tooling  | Turbo 2.10.5, Jest 30, Vitest 4                      |
+| TypeScript      | 7.0.2 for API/app/MCP; 5.9.3 for Next.js admin       |
 
-| Tier / item | Status | PR |
-|---|---|---|
-| **Tier 0** — safe bumps (@types/node→22, class-validator, googleapis, prettier-plugin-tailwindcss, remove @types/next-auth) | ✅ done | #2 (merged) |
-| **Tier 1 #1** — eslint 8→9 flat config + unpin `@typescript-eslint`→8 (api) | ✅ done | #3 (merged) |
-| **Tier 1 #2** — TypeScript 5.9→6 (admin + api) | ✅ done | #4 (merged) |
-| **Tier 1 #3** — NestJS 10→11 (api) | ✅ done | #5 (merged) |
-| **Tier 1 #6** — jest 29→30 + repair the 13 scaffold suites | ✅ done | #7 (CI-green) |
-| **Tier 1 #4** — mongoose 8→9 + mongodb 6→7 (api) | ✅ done | — |
-| **Tier 1 #5** — firebase-admin 13→14 (api) + firebase 11→12 (admin) | ✅ done | — |
-| **Tier 1 #7** — MUI 7→9 + `@mui/x-data-grid` 8→9 (admin) | ✅ done | — |
-| **Tier 1 #8** — recharts 2→3, apexcharts 4→5, swiper 11→12, react-dropzone 14→15, tailwind-merge 2→3 (admin) | ✅ done | — |
-| **Tier 1 #9** — vitest 3→4 (admin) | ✅ done | — |
-| **Tier 1 #10** — customerio-node 4→5, jwks-rsa 3→4, eslint-config-prettier 9→10 (api) | ✅ done | — |
-| **Tier 2** — Expo SDK (app): 56 → **57** landed; recurs per SDK release (next: 58) | ✅ done | — |
-| **Tier 3** — TypeScript 6.0 → **7.0.2 (native compiler)**, all workspaces | ✅ done | — |
+## Implemented locally
 
-**Tier 3 notes (TS 7 native):** TS 7 ships no JS compiler API, so every consumer was
-replaced: api build is `swc src -d dist` (~100ms vs the old 2GB-heap nest build; @nestjs/cli
-removed), ts-jest → `@swc/jest`, ts-node scripts → `@swc-node/register`, typescript-eslint →
-**oxlint** (no type-aware rules until typescript-eslint ports — recorded degradation), and 16
-union-typed `@Prop` fields gained explicit `type:` (SWC metadata limitation). tsconfigs
-migrated off removed `baseUrl`/`ignoreDeprecations` (api → `node16` + relative `paths`).
-**One forced deviation:** `apps/admin` keeps `typescript ~6.0.3` as Next 16's internal
-library (Next hard-requires the JS API; its build-time type-check stays alive as the admin
-type gate). The 128 pre-existing standalone `tsc --noEmit` errors were cleared 2026-07-10
-(jest-dom type augmentation via the `/vitest` entrypoint, the `Offer.commissions` type
-corrected to the real API's object rows — which exposed and fixed an `[object Object]`
-render on pending-offer review — and fixture typing) and admin typecheck is now a CI gate.
-New CI gates: `gototrack-mcp` (was uncovered) + admin typecheck.
+### 1. Reproducible dependency baseline
 
-**Knock-on wins landed alongside:** all three api CI jobs (`api lint`, `api unit tests`, `api build + boot smoke`) are now **required gates** (lint repaired in #3, tests repaired in #7); the api test suite went from 13 failing scaffold stubs to **30 suites / 385 behavior tests green**; a real `addPointsToUser` idempotency bug was fixed (TDD) during the test repair.
+- A clean root `npm ci --include=dev` succeeds.
+- `npm ls --depth=0` has no invalid or missing direct dependencies.
+- The root lockfile is the only dependency lock for all workspaces.
+- The previously observed invalid-package list was stale `node_modules`, not a
+  manifest failure.
 
-## Ground rules (read first)
+### 2. Expo SDK 57 compatibility
 
-1. **`apps/app` is Expo-SDK-managed.** `react-native`, `@sentry/react-native`, `react-native-screens`, `react-native-safe-area-context`, `@testing-library/react-native`, `phosphor-react-native`, etc. are pinned by **Expo SDK 56** to mutually-compatible versions. Hand-bumping them **desyncs the SDK and breaks native builds**. Upgrade the **Expo SDK** as a unit, then `npx expo install --fix`. (See Tier 2.)
-2. **`@types/node` → `^22`, not 25.** Match the Node 22 runtime; 25 types a newer Node than you run.
-3. **Intentional pins — do not "bump to latest" casually:**
-   - ~~`apps/api` `@typescript-eslint/* 7.18.0`~~ — **RESOLVED in Tier 1 #1** (eslint 8→9 migration unpinned it; now unified `typescript-eslint ^8`).
-   - `apps/admin` `next 16.2.9` — still pinned; a lower resolve broke `next build` in CI.
-   - `apps/api` `typescript ~6.0.3` (and admin/app) — pinned in Tier 1 #2 to match across all three apps. TS 6 is a config migration (it flips `strict`/`types`/`rootDir`/`esModuleInterop`/`moduleResolution` defaults) — the api tsconfig explicitly pins those back to preserve TS 5.9 behavior.
-4. **Execution discipline:** one framework major = one PR. Keep the required `api build + boot smoke` gate + the per-app build gates green between upgrades so any regression is isolated and attributable.
+- SDK-managed packages are aligned with Expo 57:
+  - `@sentry/react-native ~7.11.0`
+  - `@shopify/flash-list 2.0.2`
+  - `react-native-safe-area-context ~5.7.0`
+  - `react-native-screens 4.25.2`
+  - `react-native-svg 15.15.4`
+- The root pins `react-native-screens 4.25.2` so npm workspaces do not hoist a
+  second native version through Expo Router.
+- Local GoGoTrack modules import `requireOptionalNativeModule` from `expo`; the
+  app no longer declares `expo-modules-core` directly.
+- React, React DOM, and TypeScript remain explicit Expo validation exclusions:
+  React stays on the tested 19.2.7 pair, while the app intentionally uses the
+  TypeScript 7 native compiler and a plain JavaScript Expo config.
+- `npx expo install --check` reports dependencies up to date.
+- `npx expo-doctor@latest` passes all 20 checks.
 
----
+Native dependency changes require an EAS preview rebuild. An OTA update alone
+is not sufficient proof.
 
-## Tier 0 — safe now (one small PR) — ✅ DONE (PR #2, merged)
+### 3. Retired Crossmint integration removal
 
-| Package | App(s) | Current → Target | Notes |
-|---------|--------|------------------|-------|
-| `@types/node` | admin, api, app | 20 → **^22** | align to Node 22 runtime |
-| `@types/next-auth` | admin | **remove** | deprecated stub; next-auth ships its own types |
-| `class-validator` | api | 0.14.4 → 0.15.1 | pre-1.0 minor, low risk |
-| `googleapis` | api | 166 → 173 | frequent additive releases |
-| `prettier-plugin-tailwindcss` | admin | 0.7.4 → 0.8.0 | formatter only |
-| `@tanstack/react-query`, `posthog-react-native`, `react-native-screens` | app | patch/minor | **via `npx expo install`**, not npm — keep SDK-aligned |
+- Removed `@crossmint/server-sdk` and its transitive dependency tree.
+- Removed obsolete `CROSSMINT_*` configuration from Railway templates/scripts,
+  GitHub workflows, and legacy Cloud Build bindings.
+- Removed dormant provider calls and write paths.
+- Preserved historical `id_crossmint` schema/DTO/PDPA export compatibility.
+- Preserved `/auth/sign-in` as a deprecated, fail-closed compatibility route;
+  both its guard and service boundary reject it without provider calls.
+- Local `npm audit` fell from 26 to 20 moderate findings after removal.
 
-**Gate:** `turbo run build` for admin/api green; app `expo export --platform web` green.
+### 4. Safe maintenance updates
 
----
+- AWS SDK S3 packages: 3.1086.0
+- MongoDB driver: 7.5.0 (within the existing 7.x range)
+- Firebase web SDK: 12.16.0
+- Stripe: 22.3.1
+- Turbo: 2.10.5
+- PostCSS: 8.5.19
+- Oxlint: 1.74.0
+- Knip: 6.26.0 (the existing root quality-gate script is now reproducible on a
+  clean checkout)
+- Direct Node types: 24.13.3
+- Archiver types remain on the compatible 6.x line; Archiver itself remains 7.x.
 
-## Tier 1 — framework majors (each its OWN PR, in this order)
+### 5. Node and npm standardization
 
-| # | Upgrade | App | Risk | Effort | Why this order |
-|---|---------|-----|------|--------|----------------|
-| 1 ✅ | **eslint 8→9 (flat config) + `@typescript-eslint` 7.18→8** | api | med | M | **DONE (#3).** Removed the pin; `eslint.config.mjs` flat config; api-lint flipped to a gate. |
-| 2 ✅ | **TypeScript 5.9→6** | admin + api | med | M | **DONE (#4).** Config migration — pinned `strict`/`types`/`rootDir`/`esModuleInterop`/`moduleResolution` back to preserve 5.9 behavior. All three apps now on `~6.0.3`. |
-| 3 ✅ | **NestJS 10→11** (`@nestjs/common`,`core`,`schematics`,`testing`) | api | med-high | M-L | **DONE (#5).** Express 5 was already absorbed; the bump resolved live unmet-peer mismatches. Zero source changes. |
-| 4 ✅ | **mongoose 8→9 + mongodb 6→7** | api | **HIGH** | L | **DONE (merged in PR #1).** Data layer — query/schema breaking changes. Test net in place (385 tests) + the real-Mongo integration gate. Now on `mongoose ^9.7.0` / `mongodb ^7.3.0`; `@nestjs/mongoose 11.0.4` peers mongoose `^9`. |
-| 5 ✅ | **firebase-admin 13→14** (api) + **firebase 11→12** (admin) | api, admin | med | M | **DONE (merged in PR #1).** Auth SDK majors — now on `firebase-admin ^14.0.0` (api) / `firebase ^12.14.0` (admin). |
-| 6 ✅ | **jest 29→30** (+ `@types/jest` 30, `@types/supertest` 7) | api | low-med | M | **DONE (#7).** Replaced the 13 `nest g` scaffold stubs with 310 real behavior tests (30 suites / 385 tests green); api-test flipped to a gate. ts-jest 29.4.11 already peers jest 30. |
-| 7 ✅ | **MUI 7→9** (`@mui/material`,`@mui/system`,`@mui/x-data-grid` 8→9) | admin | med-high | **L** | **DONE (merged in PR #1).** Now on `@mui/material ^9.1.1` / `@mui/x-data-grid ^9.5.0`. |
-| 8 ✅ | Chart/UI libs: `recharts 2→3`, `apexcharts 4→5` (+`react-apexcharts 1→2`), `swiper 11→12`, `react-dropzone 14→15`, `tailwind-merge 2→3` | admin | med | M | **DONE (merged in PR #1).** Now on `recharts ^3.8.1`, `apexcharts ^5.15.0` + `react-apexcharts ^2.1.0`, `swiper ^12.2.0`, `react-dropzone ^15.0.0`, `tailwind-merge ^3.6.0`. |
-| 9 ✅ | `vitest 3→4` (+ `@vitejs/plugin-react 4→6`, `happy-dom 15→20`) | admin (+ app vitest) | low-med | M | **DONE (merged in PR #1).** Admin now on `vitest ^4.1.8`. |
-| 10 ✅ | `customerio-node 4→5`, `jwks-rsa 3→4`, `eslint-config-prettier 9→10` | api | low | S | **DONE (merged in PR #1).** Now on `customerio-node ^5.0.1`, `jwks-rsa ^4.0.1`, `eslint-config-prettier ^10`. |
+- Active `.nvmrc`, CI, CodeQL, staging workflows, Cloud Build, App Engine, and
+  Railway Docker build paths now use Node 24.
+- GitHub and Docker install paths activate npm 10.9.8 explicitly.
+- Cloud Build `_NPM_VERSION` is 10.9.8.
+- Workspace `engines.node` require Node 24 or newer.
+- Direct `@types/node` dependencies target Node 24. Transitive tools may carry
+  their own newer type packages without changing the application's compile
+  target.
 
----
+### 6. ApexCharts post-install compatibility
 
-## Tier 2 — Expo SDK (the app, as one unit)
+The admin still needs its stacked-bar radius behavior. ApexCharts 5.16 changed
+the generated bundle layout, so the old patch only emitted warnings and left
+runtime bundles unpatched. The replacement:
 
-Upgrade the **Expo SDK** (56 → latest), then:
-```bash
-cd apps/app
-npx expo install expo@latest
-npx expo install --fix      # realigns react-native (→0.86), @sentry/react-native (→8),
-                            # @testing-library/react-native (→14), phosphor-react-native (→3), etc.
-npx expo-doctor            # verify SDK compatibility
-```
-Then re-run the web export + an EAS preview build. **Never** bump these RN/expo-* packages individually.
+- patches CommonJS, ESM, minified, and browser bundles;
+- is idempotent;
+- fails installation when a future unsupported bundle layout is detected;
+- has a regression test that checks every published runtime entry point.
 
----
+## Verification evidence
 
-## Reference — full outdated list (2026-06-14)
+All commands below passed locally on Node 24:
 
-**api** (`gogocash-api`): @nestjs/* 10.4→11.1, @nestjs/schematics 10.2→11.1, mongoose 8.24→9.7, mongodb 6.21→7.3, typescript 5.9→6.0, eslint 8.57→10.5, @typescript-eslint 7.18→8.61 (pinned), eslint-config-prettier 9.1→10.1, jest 29.7→30.4, @types/jest 29→30, @types/supertest 6→7, firebase-admin 13.10→14.0, googleapis 166→173, customerio-node 4.5→5.0, jwks-rsa 3.2→4.0, class-validator 0.14→0.15, @types/node 20→25(→22).
+| Gate                                | Result                            |
+| ----------------------------------- | --------------------------------- |
+| API typecheck                       | passed                            |
+| API unit tests                      | 90 suites, 990 tests passed       |
+| API SWC build                       | 341 files compiled                |
+| Admin typecheck                     | passed                            |
+| Admin unit tests                    | 107 files, 737 tests passed       |
+| Admin Next.js production build      | passed, 69 static pages generated |
+| Mobile unit tests                   | 198 files, 1,320 tests passed     |
+| Mobile render tests                 | 71 files, 476 tests passed        |
+| Mobile typecheck                    | passed                            |
+| Mobile Expo web export              | passed                            |
+| GoGoTrack MCP typecheck/build/tests | passed, 3 tests                   |
+| Expo Doctor                         | 20/20 checks passed               |
+| Knip static analysis                | passed                            |
+| Docker build configuration checks   | API, admin, app passed            |
+| Modified YAML parsing               | passed                            |
 
-**admin** (`gogocash-admin`): @mui/material+system 7.3→9.1, @mui/x-data-grid 8.29→9.5, eslint 9.39→10.5, firebase 11.10→12.14, firebase-tools 13.35→15.20, recharts 2.15→3.8, apexcharts 4.7→5.15, react-apexcharts 1.9→2.1, swiper 11.2→12.2, react-dropzone 14.4→15.0, tailwind-merge 2.6→3.6, vitest 3.2→4.1, @vitejs/plugin-react 4.7→6.0, happy-dom 15→20, typescript 5.9→6.0, prettier-plugin-tailwindcss 0.7→0.8, @types/node 20→25(→22), @types/next-auth (remove), next 16.2.9 (pinned).
+## Security audit interpretation
 
-**app** (`@gogocash/mobile`, Expo 56 — upgrade via SDK, not individually): react-native 0.85→0.86, @sentry/react-native 7.11→8.14, @tanstack/react-query 5.100→5.101, @testing-library/react-native 13→14, phosphor-react-native 2.3→3.0, posthog-react-native 4.45→4.47, react-native-safe-area-context 5.7→5.8, react-native-screens 4.25.1→4.25.2, vitest 3.2→4.1, typescript ~6.0 (already current).
+Local npm audit currently reports 20 moderate findings and no high or critical
+findings. The remaining direct report roots are Expo, Expo Splash Screen,
+Firebase Admin, Firebase Tools, Next.js, and NextAuth. npm's automated remedies
+propose unsafe downgrades such as Expo 57 to 46 or Next.js 16 to 9; do not run
+`npm audit fix --force`.
 
----
+Track these paths through supported upstream releases and GitHub Dependabot.
+Do not override UUID or framework internals across majors without their owning
+package's compatibility tests.
 
-## Suggested sequencing
-Tier 0 (1 PR) → Tier 1 #1 (eslint/ts-eslint — pays down today's pin) → #2 (TS 6, aligns all) → then the api data/framework majors (#3, #4) and admin UI majors (#7, #8) in parallel tracks → Tier 2 (Expo SDK) on its own cadence. Keep CI gates green between each.
+## Staging acceptance gate
+
+Before starting the major migrations below:
+
+1. Build an EAS Android preview with the aligned Expo native dependencies.
+2. Promote this branch through the normal staging flow.
+3. Verify Railway API, admin, and customer app health.
+4. Verify admin login and role/permission loading.
+5. Verify Top Brands reads and saves against the real staging API (#278).
+6. Verify Firebase phone send/resend/reCAPTCHA behavior (#290).
+7. Verify Wallet/Profile protected navigation and session restoration.
+8. Verify GoGoTrack native module loading and background-monitor entry points.
+9. Observe authentication and API error rates before the next major.
+
+## Remaining major migrations
+
+Each item gets its own branch, PR, staging observation period, and rollback.
+
+### NextAuth 4 to Auth.js
+
+Inventory credentials providers, session/JWT callbacks, middleware, admin role
+claims, invitation flows, and staging-domain cookies before changing packages.
+Add regression coverage first. Acceptance requires existing admin credentials,
+role claims, refresh behavior, and unauthorized-route blocking to remain intact.
+
+### Archiver 7 to 8
+
+Add tests for PDPA/export filenames, directory layout, streaming, empty archives,
+large archives, and cleanup errors before the major bump. Keep this separate
+from auth and database changes.
+
+### Zod 3 to 4
+
+Limit the migration to `packages/gototrack-mcp`. Verify validation semantics,
+serialized MCP errors, typecheck, build output, and client tests.
+
+## Rollback boundaries
+
+- Expo package alignment: revert the app manifest/lock and rebuild the preview
+  binary; OTA cannot roll back native dependency changes.
+- Crossmint removal: revert the API cleanup only if a verified external caller
+  still needs the retired route; never re-enable token decoding without remote
+  signature verification.
+- Node 24: revert runtime/workflow pins to Node 22 without reverting application
+  package changes.
+- Safe patches: revert the manifest and lockfile together.
+- ApexCharts: retain the regression test when updating the patch for a future
+  bundle layout.

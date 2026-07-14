@@ -27,12 +27,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  // @UseGuards(FirebaseAuthGuard)
-  // @Post()
-  // create(@Body() createUserDto: CreateUserDto) {
-  //   return this.userService.createFromCrossmint(createUserDto);
-  // }
-
   @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication

@@ -68,8 +68,12 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         if: ${{ inputs.prebuild_command != '' }}
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
+
+      - name: Use repository npm version
+        if: ${{ inputs.prebuild_command != '' }}
+        run: npm install --global npm@10.9.8
 
       - name: Install (root, workspace-aware)
         if: ${{ inputs.prebuild_command != '' }}

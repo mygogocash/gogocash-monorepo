@@ -39,7 +39,7 @@ This API lives in the `gogocash-monorepo` Turborepo alongside the apps that cons
 
 This service is a **modular NestJS monolith** that handles:
 
-- User authentication (Firebase, Crossmint, Telegram)
+- User authentication (Firebase, Telegram, LINE, email OTP, and MiniPay SIWE)
 - User profile and MyCashback balance lookup
 - Offer ingestion from Involve Asia and offer browsing
 - Affiliate deeplink generation per user
@@ -70,11 +70,11 @@ A money/auth hardening pass landed — see [`/SECURITY_HARDENING.md`](../../SECU
 ## 2. Tech Stack
 
 - **Framework**: NestJS
-- **Runtime**: Node.js 22 (`engines.node >= 22`; Docker image `node:22-alpine`)
+- **Runtime**: Node.js 24 LTS (`engines.node >= 24`; Docker image `node:24-alpine`)
 - **Language**: TypeScript
 - **DB**: MongoDB via Mongoose (mongoose 9)
 - **Scheduler**: `@nestjs/schedule` cron jobs
-- **Auth**: JWT, Firebase Admin SDK, Crossmint integration
+- **Auth**: backend JWT, Firebase Admin SDK, Telegram, LINE, email OTP, and MiniPay SIWE
 - **External APIs**: Involve Asia, Google Drive API, ExchangeRate API
 - **Bot**: Telegraf (`nestjs-telegraf`)
 - **API Docs**: Swagger (`/doc_68bf99fed9667685c1637607`)
@@ -162,9 +162,6 @@ These are referenced in code and should be defined in `.env` for local/prod:
 ### 5.2 Auth + Identity
 
 - `FIREBASE_PROJECT_ID`
-- `CROSSMINT_AUTH_BASE`
-- `CROSSMINT_PROJECT_ID`
-- `CROSSMINT_SECRET`
 - `TELEGRAM_BOT_TOKEN`
 - `WEB_APP_URL`
 - `API_BASE_URL`
@@ -232,7 +229,8 @@ These are referenced in code and should be defined in `.env` for local/prod:
 - `AuthAdminGuard`
   - Verifies admin JWT with `JWT_ADMIN_SECRET`
 - `CrossmintAuthGuard`
-  - Currently decodes JWT payload (does not enforce remote signature verification)
+  - Retains the obsolete `/auth/sign-in` route as a fail-closed compatibility boundary
+  - Always returns `401` before provider, token, or user lookup logic can run
 
 ### 6.2 Token Issuance
 
@@ -245,7 +243,8 @@ These are referenced in code and should be defined in `.env` for local/prod:
 ### 7.1 Identity and Users
 
 - `users`
-  - Identity fields: `id_firebase` (unique), `id_crossmint`, `id_telegram`
+  - Identity fields: `id_firebase` (unique), `id_telegram`, and historical
+    `id_crossmint` values retained only for existing-record compatibility
   - Profile fields: `email`, `username`, `mobile`, `country`, `provider`, `disabled`
 - `useradmins`
   - `email` (unique), `username`, `password` (bcrypt hash)
@@ -288,13 +287,13 @@ Key files:
 
 - `auth.controller.ts`
 - `auth.service.ts`
-- `jwt-auth.guard.ts` (Crossmint)
+- `jwt-auth.guard.ts` (fail-closed retired-auth compatibility guard)
 - `firebase-auth.guard.ts` (JWT user guard)
 - `firebase-admin.provider.ts`
 
 Important endpoints:
 
-- `POST /auth/sign-in` (Crossmint guard)
+- `POST /auth/sign-in` (retired compatibility route; always returns `401`)
 - `POST /auth/log-in` (Firebase token based)
 - `POST /auth/register`
 - `POST /auth/log-in/telegram`
@@ -572,7 +571,8 @@ flowchart LR
 - Swagger UI path is custom: `/doc_68bf99fed9667685c1637607`.
 - Some placeholder methods still return template strings (`create/update/remove` in several services).
 - Several endpoints are intentionally broad and rely on service-side checks rather than strict DTO validation.
-- `CrossmintAuthGuard` currently decodes token payload without strict remote signature validation logic.
+- The retired `/auth/sign-in` route intentionally always returns `401`; do not
+  re-enable it or add provider/network calls behind it.
 - Currency conversion uses public ExchangeRate API at runtime.
 
 ## 12. Local Development
@@ -639,5 +639,4 @@ docker run --env-file .env -p 8080:8080 gogocash-api
 - Centralize currency conversion and fee logic into shared domain service.
 - Move hardcoded Google Drive folder IDs to env config.
 - Add integration tests for withdraw and conversion sync pipelines.
-- Strengthen Crossmint token verification path.
 - Reduce commented legacy code blocks to improve maintainability.

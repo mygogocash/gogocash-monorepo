@@ -11,7 +11,7 @@
 # Dockerfile declares a matching ARG — hence the explicit ARG list below.
 
 # ── Stage 1: build the web export ────────────────────────────────────────────
-FROM node:22-slim AS build
+FROM node:24-slim AS build
 WORKDIR /app
 
 # Metro/Expo web export exceeds Node's default container heap.
@@ -54,7 +54,8 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL \
 # still needs typescript and other build-time workspace deps.
 COPY package.json package-lock.json .npmrc ./
 COPY apps/app/package.json ./apps/app/package.json
-RUN npm ci --legacy-peer-deps --ignore-scripts --include=dev
+RUN npm install --global npm@10.9.8 \
+ && npm ci --legacy-peer-deps --ignore-scripts --include=dev
 
 # Build only the mobile workspace's web export → apps/app/dist.
 COPY apps/app ./apps/app

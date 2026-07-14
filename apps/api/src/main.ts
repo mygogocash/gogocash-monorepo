@@ -112,8 +112,8 @@ async function bootstrap() {
     ],
   });
   const config = new DocumentBuilder()
-    .setTitle('Crossmint Auth API')
-    .setDescription('API for authentication with Crossmint (full mode)')
+    .setTitle('GoGoCash API')
+    .setDescription('GoGoCash customer, affiliate, and operations API')
     .setVersion('1.0')
     // กำหนด Security Scheme สำหรับ Admin Token
     // .addSecurity('admin-token', {

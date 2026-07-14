@@ -72,16 +72,6 @@ export class UserService {
     private readonly storedMediaService: StoredMediaService,
   ) {}
 
-  async createFromCrossmint(createUserDto: CreateUserDto) {
-    // Find or create the user in the database
-    const user = await this.userModel.findOneAndUpdate(
-      { id_crossmint: createUserDto.id_crossmint },
-      withCanonicalCountry(createUserDto),
-      { upsert: true, new: true },
-    );
-
-    return user;
-  }
   async createFromFirebase(createUserDto: CreateUserDto) {
     // Find or create the user in the database
     const user = await this.userModel.findOneAndUpdate(

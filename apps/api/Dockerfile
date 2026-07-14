@@ -22,7 +22,8 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 # build stage; without this, npm omits build tools (typescript/@swc/cli).
 COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json ./apps/api/package.json
-RUN npm ci --legacy-peer-deps --ignore-scripts --include=dev
+RUN npm install --global npm@10.9.8 \
+ && npm ci --legacy-peer-deps --ignore-scripts --include=dev
 
 # Copy the api source and build only its workspace (@swc/cli + .swcrc drive the
 # build; type-checking is a separate native `tsc --noEmit` gate in CI).

@@ -7,9 +7,9 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
-  "packageManager": "npm@10.9.0",
+  "packageManager": "npm@10.9.8",
   "scripts": {
     "build": "turbo run build",
     "lint": "turbo run lint",
@@ -38,14 +38,16 @@
     "@playwright/test": "^1.55.0",
     "cache-manager": "^7.2.9",
     "happy-dom": "^20.10.6",
+    "knip": "^6.26.0",
     "expo": "^57.0.4",
     "mongoose": "9.7.4",
     "react": "19.2.7",
     "react-dom": "19.2.7",
+    "react-native-screens": "4.25.2",
     "react-test-renderer": "19.2.7",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
-    "turbo": "^2.10.4"
+    "turbo": "^2.10.5"
   },
   "overrides": {
     "undici": "^6.27.0",

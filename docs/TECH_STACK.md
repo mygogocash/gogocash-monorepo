@@ -1,7 +1,7 @@
 # GoGoCash — Tech Stack & Architecture
 
 > Thailand cashback platform. Turborepo monorepo with three apps sharing one NestJS API and MongoDB.
-> **Verified against workspace manifests:** 2026-06-28 (`package.json` × 3, `app.module.ts`, CI/deploy workflows).
+> **Dependency pins verified against workspace manifests:** 2026-07-14 (`package.json` × 4, lockfile, CI/deploy workflows).
 
 ---
 
@@ -79,10 +79,10 @@ gogocash-monorepo/
 | Concern | Choice |
 |---------|--------|
 | Workspaces | **npm workspaces** (`apps/*`, `packages/*`) |
-| Task runner | **Turborepo ^2.3** — `build`, `lint`, `typecheck`, `test` |
-| Node | **≥ 22** |
-| Package manager | **npm 10.9.0** |
-| Language | **TypeScript ~6.0.3** (all apps) |
+| Task runner | **Turborepo ^2.10** — `build`, `lint`, `typecheck`, `test` |
+| Node | **≥ 24 (LTS)** |
+| Package manager | **npm 10.9.8** |
+| Language | **TypeScript 7** (API/app/MCP), **5.9** (admin) |
 | Branch policy | **`main`** canonical; staging-first deploys |
 
 ---
@@ -94,7 +94,7 @@ gogocash-monorepo/
 | Layer | Technology |
 |-------|------------|
 | Framework | **NestJS 11.1.x** on **Express 5.1** |
-| Database | **MongoDB** via **Mongoose 9.7.x** / driver **7.3.x** |
+| Database | **MongoDB** via **Mongoose 9.7.x** / driver **7.5.x** |
 | Auth | **JWT** (`JWT_SECRET`, `JWT_ADMIN_SECRET`), **Firebase Admin 14**, Passport |
 | Validation | **class-validator 0.15** + global **ValidationPipe** |
 | Security headers | **helmet 8** |
@@ -102,9 +102,9 @@ gogocash-monorepo/
 | Caching | **cache-manager 7** (in-memory) |
 | API docs | **Swagger** at `/doc_68bf99fed9667685c1637607` |
 | Testing | **Jest 30**, Supertest 7, real-Mongo integration tests |
-| Lint | **ESLint 10**, typescript-eslint 8 |
+| Lint | **Oxlint 1.74** |
 | Package manager | **npm** (monorepo root lockfile; build via `npm run build -w gogocash-api`) |
-| Container | **node:22-alpine** multi-stage Dockerfile (`apps/api/Dockerfile`) |
+| Container | **node:24-alpine** multi-stage Dockerfile (`apps/api/Dockerfile`) |
 
 **Key integrations:** Involve Asia, Optimise Media, Stripe, Resend, PostHog, GCS, Google Drive (legacy), Telegraf, ethers (on-chain withdraw).
 
@@ -112,15 +112,15 @@ gogocash-monorepo/
 
 | Layer | Technology |
 |-------|------------|
-| Framework | **Next.js 16.2.9** (App Router, Turbopack dev) |
-| UI | **React 19.2.3** |
-| Styling | **Tailwind CSS 4** + **MUI 9.1** + **Data Grid 9.6** |
-| Charts | ApexCharts 5.15, Recharts 3.8, FullCalendar 6.1 |
+| Framework | **Next.js 16.2.10** (App Router, Turbopack dev) |
+| UI | **React 19.2.7** |
+| Styling | **Tailwind CSS 4** + **MUI 9.2** + **Data Grid 9.8** |
+| Charts | ApexCharts 5.16, Recharts 3.9, FullCalendar 6.1 |
 | Data | **TanStack React Query 5.101**, Axios 1.18 |
 | Auth | **NextAuth 4.24** (Credentials → JWT session, 7-day max age) |
-| Firebase client | **firebase 12.15** (optional static-hosting builds) |
-| Lint | **ESLint 9**, eslint-config-next 16.2.9 |
-| Testing | **Vitest 4.1.9**, Testing Library, happy-dom |
+| Firebase client | **firebase 12.16** (optional static-hosting builds) |
+| Lint | **Oxlint 1.74** |
+| Testing | **Vitest 4.1.10**, Testing Library, happy-dom |
 
 **Data modes:** real API when `NEXT_PUBLIC_API_URL` is set; in-memory `/api/mock` otherwise.
 
@@ -130,18 +130,18 @@ gogocash-monorepo/
 
 | Layer | Technology |
 |-------|------------|
-| Framework | **Expo SDK 56** (`expo ^56.0.0`, root hoists `^56.0.12`) |
+| Framework | **Expo SDK 57** (`expo ^57.0.4`) |
 | Native | **React Native 0.86.0** |
 | Web | **react-native-web 0.21.2** |
-| UI | **React 19.2.3** |
-| Routing | **expo-router ~56.2.5** |
+| UI | **React 19.2.7** |
+| Routing | **expo-router ~57.0.4** |
 | Data | TanStack React Query 5.101, custom API client |
-| Auth | **Firebase 12.14** phone OTP → `POST /auth/log-in` → API session |
+| Auth | **Firebase 12.16** phone OTP → `POST /auth/log-in` → API session |
 | Storage | expo-secure-store (native), localStorage (web) |
 | i18n | react-intl 10 + web ICU catalogs |
-| Observability | Sentry RN 8.14, PostHog RN 4.47 |
+| Observability | Sentry RN 7.11 (Expo-compatible), PostHog RN 4.55 |
 | Native | **GoGoTrack** detector module (Android, EAS dev client) |
-| Testing | Vitest 4.1.8 (logic + render), Playwright (Expo web) |
+| Testing | Vitest 4.1.10 (logic + render), Playwright (Expo web) |
 | Builds | **EAS** (`eas.json`: dev/preview → staging API; production → `disabled` data source) |
 
 **Data modes:** `fixtures` | `backend` | `disabled` via `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE`.
@@ -168,7 +168,7 @@ Cloud Run services:
 
 CI/CD:
 
-- **CI:** GitHub Actions `ci.yml` — path-filtered per app (Node 22, `npm ci` at root)
+- **CI:** GitHub Actions `ci.yml` — path-filtered per app (Node 24 LTS, `npm ci` at root)
 - **Image build:** `build-staging.yml` on push to `main` (+ manual) — builds `:staging-candidate` images
 - **Deploy:** `release-staging.yml` — **manual `workflow_dispatch`** only (pick app + tag → Cloud Run)
 - **Alternative:** Cloud Build configs in `cloudbuild/` (see `docs/gcp-cicd.md`)
@@ -193,7 +193,7 @@ Staging API reads from **GCP Secret Manager**, including:
 - `gogocash-staging-mongo-uri`
 - `gogocash-staging-jwt-secret` / `gogocash-staging-jwt-admin-secret`
 - `gogocash-staging-involve-secret`, `gogocash-staging-involve-postback-secret`
-- Firebase, PostHog, Telegram, Crossmint, Resend, etc.
+- Firebase, PostHog, Telegram, Resend, etc.
 
 Runtime env (non-secret): `GCS_CATALOG_BUCKET=gogocash-catalog-staging`, staging URLs for `WEB_APP_URL`, `API_BASE_URL`, `ADMIN_APP_URL`.
 
@@ -486,35 +486,35 @@ See [`SECURITY_HARDENING.md`](../SECURITY_HARDENING.md) for full register.
 
 ---
 
-## 15. Key version pins (from `package.json`, 2026-06-28)
+## 15. Key version pins (from `package.json`, 2026-07-14)
 
 | Package | Version |
 |---------|---------|
-| Node | ≥ 22 |
-| npm | 10.9.0 |
-| TypeScript | ~6.0.3 |
-| React / React DOM | 19.2.3 |
-| NestJS (`@nestjs/common` etc.) | ^11.1.27 |
-| Mongoose | ^9.7.1 |
-| mongodb driver | ^7.3.0 |
+| Node | ≥ 24 (LTS) |
+| npm | 10.9.8 |
+| TypeScript | ^7.0.2 / ~5.9.3 |
+| React / React DOM | 19.2.7 |
+| NestJS (`@nestjs/common` etc.) | ^11.1.28 |
+| Mongoose | ^9.7.4 |
+| mongodb driver | ^7.4.0 (7.5 resolved) |
 | Express | ^5.1.0 |
-| firebase-admin (api) | ^14.0.0 |
-| Next.js (admin) | 16.2.9 (pinned) |
+| firebase-admin (api) | ^14.1.0 |
+| Next.js (admin) | 16.2.10 (pinned) |
 | next-auth | ^4.24.13 |
-| firebase (admin / app) | ^12.15.0 / ^12.14.0 |
-| @mui/material | ^9.1.1 |
-| @mui/x-data-grid | ^9.6.0 |
+| firebase (admin / app) | ^12.16.0 / ^12.16.0 |
+| @mui/material | ^9.2.0 |
+| @mui/x-data-grid | ^9.8.0 |
 | Tailwind CSS (admin) | ^4.0.0 |
-| Expo (app) | ^56.0.0 |
-| expo-router | ~56.2.5 |
+| Expo (app) | ^57.0.4 |
+| expo-router | ~57.0.4 |
 | React Native | 0.86.0 |
 | react-native-web | ^0.21.2 |
 | Jest (api) | ^30.0.0 |
-| Vitest (admin / app) | ^4.1.9 / ^4.1.8 |
-| Turbo (root) | ^2.3.0 |
-| ESLint (api / admin) | ^10.5.0 / ^9.39.4 |
+| Vitest (admin / app) | ^4.1.10 / ^4.1.9 |
+| Turbo (root) | ^2.10.5 |
+| Lint (API / admin) | Oxlint ^1.74.0 |
 
-Full upgrade history: [`UPGRADE_PLAN.md`](../UPGRADE_PLAN.md). Note: `UPGRADE_PLAN.md` Tier 2 (Expo SDK bump) predates the current Expo 56 pin — treat manifests above as source of truth.
+Full upgrade history and staged rollout gates: [`UPGRADE_PLAN.md`](../UPGRADE_PLAN.md).
 
 ---
 
