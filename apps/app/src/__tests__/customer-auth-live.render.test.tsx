@@ -1,5 +1,5 @@
 import { createElement, type ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Same seam stubs as customer-auth-signin.render.test.tsx: device locale and
@@ -29,14 +29,23 @@ const confirmPhoneOtp = vi.fn();
 vi.mock("@mobile/auth/firebasePhoneAuth", () => ({
   sendPhoneOtp: (...args: unknown[]) => sendPhoneOtp(...args),
   confirmPhoneOtp: (...args: unknown[]) => confirmPhoneOtp(...args),
-  // The phone step preloads the inline reCAPTCHA widget on web; the render
-  // suite only needs the call to resolve, not a real verifier.
-  preloadInlineRecaptcha: vi.fn(),
 }));
 
 const exchangeFirebaseIdToken = vi.fn();
 vi.mock("@mobile/auth/firebaseLogin", () => ({
   exchangeFirebaseIdToken: (...args: unknown[]) => exchangeFirebaseIdToken(...args),
+}));
+
+const signInWithSocialProvider = vi.fn();
+vi.mock("@mobile/auth/firebaseSocialAuth", () => ({
+  isFirebaseSocialProviderId: () => true,
+  signInWithSocialProvider: (...args: unknown[]) => signInWithSocialProvider(...args),
+}));
+
+const signInWithEmail = vi.fn();
+vi.mock("@mobile/auth/emailPasswordAuth", () => ({
+  registerWithEmail: vi.fn(),
+  signInWithEmail: (...args: unknown[]) => signInWithEmail(...args),
 }));
 
 // Issue #250: every OTP failure must be logged with the step that failed —
@@ -47,6 +56,15 @@ vi.mock("@mobile/observability/client", () => ({
   captureHandledException: (...args: unknown[]) => captureHandledException(...args),
 }));
 
+const persistMobileSession = vi.hoisted(() => vi.fn());
+vi.mock("@mobile/auth/session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@mobile/auth/session")>();
+  return {
+    ...actual,
+    persistMobileSession: (...args: unknown[]) => persistMobileSession(...args),
+  };
+});
+
 import { CustomerAuthScreen } from "@mobile/screens/CustomerAuthScreen";
 import { mobileSessionStorageKey } from "@mobile/auth/session";
 
@@ -55,12 +73,43 @@ function readStoredSession(): Record<string, unknown> | null {
   return raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
 }
 
-function submitPhone() {
+function enterPhoneAndConsent() {
   fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
     target: { value: "0812346789" },
   });
   fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+}
+
+function submitPhone() {
+  enterPhoneAndConsent();
   fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+}
+
+function advanceResendCountdown() {
+  for (let elapsed = 0; elapsed < 59; elapsed += 1) {
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+  }
+}
+
+function advanceSeconds(seconds: number) {
+  for (let elapsed = 0; elapsed < seconds; elapsed += 1) {
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+  }
+}
+
+function expectButtonDisabled(button: HTMLElement, disabled: boolean) {
+  if (disabled) {
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    return;
+  }
+
+  // React Native Web omits false ARIA attributes instead of serializing
+  // `aria-disabled="false"`; enabled means it is anything except true.
+  expect(button.getAttribute("aria-disabled")).not.toBe("true");
 }
 
 describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow", () => {
@@ -73,11 +122,18 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     sendPhoneOtp.mockReset();
     confirmPhoneOtp.mockReset();
     exchangeFirebaseIdToken.mockReset();
+    signInWithSocialProvider.mockReset();
+    signInWithEmail.mockReset();
     captureHandledException.mockClear();
+    persistMobileSession.mockReset();
+    persistMobileSession.mockImplementation(async (session: Record<string, unknown>) => {
+      window.localStorage.setItem(mobileSessionStorageKey, JSON.stringify(session));
+    });
     sendPhoneOtp.mockResolvedValue({ confirm: vi.fn() });
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     window.localStorage.clear();
   });
@@ -97,6 +153,170 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     });
     // No session may exist yet — the OTP has not been confirmed.
     expect(readStoredSession()).toBeNull();
+  });
+
+  it("backend mode > while the initial send is in flight > ignores a second submit", async () => {
+    let resolveSend!: (confirmation: { confirm: ReturnType<typeof vi.fn> }) => void;
+    sendPhoneOtp.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSend = resolve;
+      }),
+    );
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    enterPhoneAndConsent();
+    const submitButton = screen.getByRole("button", { name: "Sign in" });
+
+    fireEvent.click(submitButton);
+    fireEvent.click(submitButton);
+
+    expect(sendPhoneOtp).toHaveBeenCalledTimes(1);
+    expectButtonDisabled(submitButton, true);
+
+    await act(async () => {
+      resolveSend({ confirm: vi.fn() });
+    });
+    expect(screen.getByLabelText("Verification code")).toBeTruthy();
+  });
+
+  it("backend mode > while the initial send is pending > locks transitions and binds the OTP to the submitted identity", async () => {
+    const confirmation = { confirm: vi.fn() };
+    let resolveSend!: (value: typeof confirmation) => void;
+    sendPhoneOtp.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSend = resolve;
+      }),
+    );
+    confirmPhoneOtp.mockResolvedValue({ idToken: "firebase-id-token" });
+    exchangeFirebaseIdToken.mockResolvedValue({ access_token: "t", provider: "firebase" });
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    enterPhoneAndConsent();
+    const phoneInput = screen.getByPlaceholderText("Phone Number");
+    const countryButton = screen.getByRole("button", { name: "Shopping in…" });
+    const emailSwitch = screen.getByRole("button", { name: "Sign in with email" });
+    const socialButton = screen.getByRole("button", { name: "Gmail" });
+
+    // Leave the menu open so a same-tick selection is available after submit.
+    fireEvent.click(countryButton);
+    const singaporeOption = screen.getByRole("menuitem", { name: "Singapore +65" });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect((phoneInput as HTMLInputElement).readOnly).toBe(true);
+    expectButtonDisabled(countryButton, true);
+    expectButtonDisabled(singaporeOption, true);
+    expectButtonDisabled(emailSwitch, true);
+    expectButtonDisabled(socialButton, true);
+
+    // Programmatic events still reach handlers in tests, so ref guards must
+    // reject these even before React's disabled state can protect the UI.
+    fireEvent.change(phoneInput, { target: { value: "0999999999" } });
+    fireEvent.click(singaporeOption);
+    fireEvent.click(emailSwitch);
+    fireEvent.click(socialButton);
+
+    expect((phoneInput as HTMLInputElement).value).toBe("0812346789");
+    expect(screen.queryByLabelText("Email address")).toBeNull();
+    expect(signInWithSocialProvider).not.toHaveBeenCalled();
+    expect(sendPhoneOtp).toHaveBeenCalledWith("+66812346789");
+
+    await act(async () => {
+      resolveSend(confirmation);
+    });
+
+    expect(screen.getByText("+66 ******6789")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Verification code"), {
+      target: { value: "654321" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    await waitFor(() => {
+      expect(exchangeFirebaseIdToken).toHaveBeenCalledWith(
+        expect.objectContaining({ country: "TH", idToken: "firebase-id-token" }),
+      );
+    });
+  });
+
+  it("backend mode > while social sign-in is pending > blocks a phone send and phone/email edits", async () => {
+    let resolveSocial!: (value: { idToken: string }) => void;
+    signInWithSocialProvider.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSocial = resolve;
+      }),
+    );
+    exchangeFirebaseIdToken.mockResolvedValue({ access_token: "social-token" });
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    enterPhoneAndConsent();
+    const phoneInput = screen.getByPlaceholderText("Phone Number");
+    const submitButton = screen.getByRole("button", { name: "Sign in" });
+    const emailSwitch = screen.getByRole("button", { name: "Sign in with email" });
+    const socialButton = screen.getByRole("button", { name: "Gmail" });
+
+    fireEvent.click(socialButton);
+    await waitFor(() => {
+      expect(signInWithSocialProvider).toHaveBeenCalledWith("google");
+    });
+
+    expect((phoneInput as HTMLInputElement).readOnly).toBe(true);
+    expectButtonDisabled(submitButton, true);
+    expectButtonDisabled(emailSwitch, true);
+    fireEvent.change(phoneInput, { target: { value: "0999999999" } });
+    fireEvent.click(submitButton);
+    fireEvent.click(emailSwitch);
+
+    expect((phoneInput as HTMLInputElement).value).toBe("0812346789");
+    expect(sendPhoneOtp).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Email address")).toBeNull();
+
+    await act(async () => {
+      resolveSocial({ idToken: "social-id-token" });
+    });
+    await waitFor(() => {
+      expect(routerReplace).toHaveBeenCalledWith("/link-mycashback");
+    });
+  });
+
+  it("backend mode > while email sign-in is pending > blocks switching back to phone or starting social auth", async () => {
+    let resolveEmail!: (value: { idToken: string }) => void;
+    signInWithEmail.mockReturnValue(
+      new Promise((resolve) => {
+        resolveEmail = resolve;
+      }),
+    );
+    exchangeFirebaseIdToken.mockResolvedValue({ access_token: "email-token" });
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with email" }));
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "user@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(signInWithEmail).toHaveBeenCalledWith("user@example.com", "password123");
+    });
+    const phoneSwitch = screen.getByRole("button", { name: "Use phone number instead" });
+    const socialButton = screen.getByRole("button", { name: "Gmail" });
+    expectButtonDisabled(phoneSwitch, true);
+    expectButtonDisabled(socialButton, true);
+
+    fireEvent.click(phoneSwitch);
+    fireEvent.click(socialButton);
+    expect(screen.getByLabelText("Email address")).toBeTruthy();
+    expect(screen.queryByPlaceholderText("Phone Number")).toBeNull();
+    expect(signInWithSocialProvider).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveEmail({ idToken: "email-id-token" });
+    });
+    await waitFor(() => {
+      expect(routerReplace).toHaveBeenCalledWith("/link-mycashback");
+    });
   });
 
   it("backend mode > submitting the received code > confirms it, exchanges the Firebase token, persists the session, and navigates", async () => {
@@ -139,6 +359,52 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     expect(routerReplace).toHaveBeenCalledWith("/link-mycashback");
   });
 
+  it("backend mode > while persistence is pending > blocks change-phone and social transitions until the session finishes", async () => {
+    let resolvePersist!: () => void;
+    persistMobileSession.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolvePersist = resolve;
+      }),
+    );
+    confirmPhoneOtp.mockResolvedValue({ idToken: "firebase-id-token" });
+    exchangeFirebaseIdToken.mockResolvedValue({
+      access_token: "backend-access-token",
+      provider: "firebase",
+    });
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    submitPhone();
+    await waitFor(() => {
+      expect(screen.getByLabelText("Verification code")).toBeTruthy();
+    });
+    fireEvent.change(screen.getByLabelText("Verification code"), {
+      target: { value: "654321" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    await waitFor(() => {
+      expect(persistMobileSession).toHaveBeenCalledTimes(1);
+    });
+    const changePhoneButton = screen.getByRole("button", { name: "Change phone number" });
+    const socialButton = screen.getByRole("button", { name: "Gmail" });
+    expectButtonDisabled(changePhoneButton, true);
+    expectButtonDisabled(socialButton, true);
+
+    fireEvent.click(changePhoneButton);
+    fireEvent.click(socialButton);
+
+    expect(screen.getByLabelText("Verification code")).toBeTruthy();
+    expect(screen.queryByPlaceholderText("Phone Number")).toBeNull();
+    expect(signInWithSocialProvider).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolvePersist();
+    });
+    await waitFor(() => {
+      expect(routerReplace).toHaveBeenCalledWith("/link-mycashback");
+    });
+  });
+
   async function reachOtpStepAndSubmit(code: string) {
     render(createElement(CustomerAuthScreen, { mode: "login" }));
     submitPhone();
@@ -166,12 +432,14 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     expect(routerPush).not.toHaveBeenCalled();
   });
 
-  it("backend mode > given the backend exchange fails > shows the sign-in failure copy (never 'code incorrect') and logs the step", async () => {
+  it("backend mode > given the backend exchange fails > retrying Next reuses the verified ID token", async () => {
     // Issue #250: a correct code failed at the /auth/log-in exchange and the
     // user was told their code was wrong. The exchange step must surface the
     // neutral sign-in failure copy and record which step failed.
     confirmPhoneOtp.mockResolvedValue({ idToken: "firebase-id-token" });
-    exchangeFirebaseIdToken.mockRejectedValue(new Error("Login failed with status 503."));
+    exchangeFirebaseIdToken
+      .mockRejectedValueOnce(new Error("Login failed with status 503."))
+      .mockResolvedValueOnce({ access_token: "retried-token", provider: "firebase" });
 
     await reachOtpStepAndSubmit("654321");
 
@@ -185,6 +453,48 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     );
     expect(readStoredSession()).toBeNull();
     expect(routerPush).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    await waitFor(() => {
+      expect(readStoredSession()?.access_token).toBe("retried-token");
+    });
+    expect(confirmPhoneOtp).toHaveBeenCalledTimes(1);
+    expect(exchangeFirebaseIdToken).toHaveBeenCalledTimes(2);
+    expect(sendPhoneOtp).toHaveBeenCalledTimes(1);
+    expect(routerReplace).toHaveBeenCalledWith("/link-mycashback");
+  });
+
+  it("backend mode > given session persistence fails > retrying Next persists the cached session without reconfirming or re-exchanging", async () => {
+    confirmPhoneOtp.mockResolvedValue({ idToken: "firebase-id-token" });
+    exchangeFirebaseIdToken.mockResolvedValue({
+      access_token: "backend-access-token",
+      provider: "firebase",
+    });
+    persistMobileSession
+      .mockRejectedValueOnce(new Error("storage unavailable"))
+      .mockImplementationOnce(async (session: Record<string, unknown>) => {
+        window.localStorage.setItem(mobileSessionStorageKey, JSON.stringify(session));
+      });
+
+    await reachOtpStepAndSubmit("654321");
+
+    await waitFor(() => {
+      expect(screen.getByText("Could not sign in. Please try again.")).toBeTruthy();
+    });
+    expect(captureHandledException).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ feature: "phone-otp-login", step: "persist" }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    await waitFor(() => {
+      expect(readStoredSession()?.access_token).toBe("backend-access-token");
+    });
+    expect(confirmPhoneOtp).toHaveBeenCalledTimes(1);
+    expect(exchangeFirebaseIdToken).toHaveBeenCalledTimes(1);
+    expect(persistMobileSession).toHaveBeenCalledTimes(2);
   });
 
   it("backend mode > given confirm fails for a non-code reason (network) > shows the sign-in failure copy, not 'code incorrect'", async () => {
@@ -205,28 +515,47 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     expect(readStoredSession()).toBeNull();
   });
 
-  it("backend mode > pressing resend > requests a fresh OTP and the next submit confirms against the new confirmation", async () => {
+  it("backend mode > resend waits for the countdown and ignores a second click while sending", async () => {
+    vi.useFakeTimers();
     const firstConfirmation = { confirm: vi.fn(), id: "first" };
     const secondConfirmation = { confirm: vi.fn(), id: "second" };
-    sendPhoneOtp
-      .mockResolvedValueOnce(firstConfirmation)
-      .mockResolvedValueOnce(secondConfirmation);
+    let resolveResend!: (confirmation: typeof secondConfirmation) => void;
+    sendPhoneOtp.mockResolvedValueOnce(firstConfirmation);
     confirmPhoneOtp.mockResolvedValue({ idToken: "firebase-id-token" });
     exchangeFirebaseIdToken.mockResolvedValue({ access_token: "t", provider: "firebase" });
 
     render(createElement(CustomerAuthScreen, { mode: "login" }));
     submitPhone();
-    await waitFor(() => {
-      expect(screen.getByLabelText("Verification code")).toBeTruthy();
+    await act(async () => {
+      await Promise.resolve();
     });
+    expect(screen.getByLabelText("Verification code")).toBeTruthy();
 
-    fireEvent.click(screen.getByText("Resend ?"));
+    const resendButton = screen.getByRole("button", { name: "Resend ?" });
+    expectButtonDisabled(resendButton, true);
+    fireEvent.click(resendButton);
+    expect(sendPhoneOtp).toHaveBeenCalledTimes(1);
+
+    advanceResendCountdown();
+    expectButtonDisabled(resendButton, false);
+
+    sendPhoneOtp.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveResend = resolve;
+      }),
+    );
+    fireEvent.click(resendButton);
+    fireEvent.click(resendButton);
 
     // A fresh OTP goes to the same normalized number…
-    await waitFor(() => {
-      expect(sendPhoneOtp).toHaveBeenCalledTimes(2);
-    });
+    expect(sendPhoneOtp).toHaveBeenCalledTimes(2);
+    expectButtonDisabled(resendButton, true);
     expect(sendPhoneOtp).toHaveBeenLastCalledWith("+66812346789");
+
+    await act(async () => {
+      resolveResend(secondConfirmation);
+    });
+    vi.useRealTimers();
 
     // …and the replacement confirmation is what the next submit verifies against.
     fireEvent.change(screen.getByLabelText("Verification code"), {
@@ -236,5 +565,120 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     await waitFor(() => {
       expect(confirmPhoneOtp).toHaveBeenCalledWith(secondConfirmation, "654321");
     });
+  });
+
+  it("backend mode > a rate-limited resend > shows the error on the OTP step and blocks more sends", async () => {
+    vi.useFakeTimers();
+    sendPhoneOtp
+      .mockResolvedValueOnce({ confirm: vi.fn() })
+      .mockRejectedValueOnce(
+        Object.assign(new Error("blocked"), { code: "auth/too-many-requests" }),
+      );
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    submitPhone();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const resendButton = screen.getByRole("button", { name: "Resend ?" });
+    advanceResendCountdown();
+
+    fireEvent.click(resendButton);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("Too many attempts. Please try again later.")).toBeTruthy();
+    expect(screen.getByText("05:00")).toBeTruthy();
+    expectButtonDisabled(resendButton, true);
+    fireEvent.click(resendButton);
+    expect(sendPhoneOtp).toHaveBeenCalledTimes(2);
+  });
+
+  it("backend mode > a failed security check on resend > shows a 15 second retry gate", async () => {
+    vi.useFakeTimers();
+    sendPhoneOtp
+      .mockResolvedValueOnce({ confirm: vi.fn(), id: "first" })
+      .mockRejectedValueOnce(
+        Object.assign(new Error("challenge failed"), {
+          code: "auth/captcha-check-failed",
+        }),
+      )
+      .mockResolvedValueOnce({ confirm: vi.fn(), id: "third" });
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    submitPhone();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const resendButton = screen.getByRole("button", { name: "Resend ?" });
+    advanceResendCountdown();
+
+    fireEvent.click(resendButton);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(
+      screen.getByText("Security check failed. Please close and reopen the app, then try again."),
+    ).toBeTruthy();
+    expect(screen.getByText("00:15")).toBeTruthy();
+    expectButtonDisabled(resendButton, true);
+    fireEvent.click(resendButton);
+    expect(sendPhoneOtp).toHaveBeenCalledTimes(2);
+
+    advanceSeconds(14);
+    expect(screen.getByText("00:01")).toBeTruthy();
+    expectButtonDisabled(resendButton, true);
+
+    advanceSeconds(1);
+    expectButtonDisabled(resendButton, false);
+    fireEvent.click(resendButton);
+    expect(sendPhoneOtp).toHaveBeenCalledTimes(3);
+  });
+
+  it("backend mode > after a verified attempt fails downstream > a fresh resend clears the cached ID token", async () => {
+    vi.useFakeTimers();
+    const firstConfirmation = { confirm: vi.fn(), id: "first" };
+    const secondConfirmation = { confirm: vi.fn(), id: "second" };
+    sendPhoneOtp
+      .mockResolvedValueOnce(firstConfirmation)
+      .mockResolvedValueOnce(secondConfirmation);
+    confirmPhoneOtp.mockResolvedValue({ idToken: "firebase-id-token" });
+    exchangeFirebaseIdToken
+      .mockRejectedValueOnce(new Error("temporary backend failure"))
+      .mockResolvedValueOnce({ access_token: "t", provider: "firebase" });
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    submitPhone();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    fireEvent.change(screen.getByLabelText("Verification code"), {
+      target: { value: "654321" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(confirmPhoneOtp).toHaveBeenCalledTimes(1);
+
+    advanceResendCountdown();
+    fireEvent.click(screen.getByRole("button", { name: "Resend ?" }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    vi.useRealTimers();
+
+    fireEvent.change(screen.getByLabelText("Verification code"), {
+      target: { value: "123123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => {
+      expect(confirmPhoneOtp).toHaveBeenCalledWith(secondConfirmation, "123123");
+    });
+    expect(confirmPhoneOtp).toHaveBeenCalledTimes(2);
+    expect(sendPhoneOtp).toHaveBeenCalledTimes(2);
   });
 });

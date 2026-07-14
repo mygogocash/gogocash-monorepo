@@ -5,7 +5,6 @@ import {
   toSendErrorKind,
   type SendErrorKind,
 } from "@mobile/auth/authSendErrorKind";
-import { RECAPTCHA_INLINE_CONTAINER_ID } from "@mobile/auth/recaptchaSlot";
 import { emailAuthErrorCopy, type EmailAuthErrorKind } from "@mobile/auth/emailAuthErrorKind";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { Check, ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
@@ -104,6 +103,14 @@ const webCountryMenuShadowStyle = {
 type AuthPhase = "phone" | "otp" | "email";
 type SocialProvider = (typeof webAuthPage.socialProviders)[number];
 type AuthCountry = (typeof webAuthPage.countries)[number];
+type PhoneOtpAttemptSnapshot = {
+  countryCode: AuthCountry["code"];
+  maskedDestination: string;
+  phoneE164: string;
+};
+type PhoneOtpAttempt = PhoneOtpAttemptSnapshot & {
+  confirmation: PhoneOtpConfirmation | null;
+};
 
 function formatOtpCountdown(totalSeconds: number) {
   const clampedSeconds = Math.max(0, totalSeconds);
@@ -113,9 +120,26 @@ function formatOtpCountdown(totalSeconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+function createPhoneOtpAttemptSnapshot(
+  country: AuthCountry,
+  phoneDigits: string,
+): PhoneOtpAttemptSnapshot {
+  const maskedDestination = phoneDigits.length <= 4
+    ? `${country.dialCode} ${phoneDigits}`
+    : `${country.dialCode} ${"*".repeat(
+        Math.max(2, phoneDigits.length - 4)
+      )}${phoneDigits.slice(-4)}`;
+
+  return {
+    countryCode: country.code,
+    maskedDestination: phoneDigits ? maskedDestination : country.dialCode,
+    phoneE164: toPhoneE164(country.dialCode, phoneDigits),
+  };
+}
+
 export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const styles = useThemedStyles(createAuthScreenStyles);
-  const { colors, resolved } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { callbackUrl: callbackUrlParam } = useLocalSearchParams<{ callbackUrl?: string | string[] }>();
@@ -130,6 +154,8 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const [otpFailure, setOtpFailure] = useState<"code" | "system" | null>(null);
   const [sendError, setSendError] = useState<SendErrorKind | null>(null);
   const [sendCooldownSeconds, setSendCooldownSeconds] = useState(0);
+  const [otpSendBusy, setOtpSendBusy] = useState(false);
+  const [otpSubmitBusy, setOtpSubmitBusy] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [emailMode, setEmailMode] = useState<"signin" | "signup">("signin");
@@ -149,7 +175,17 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   // non-serializable object — held in a ref between OTP send and confirm.
   const liveAuth = getMobileEnv().accountDataSource === "backend";
   const { sendPhoneOtpWithRecaptcha, recaptchaModal } = useFirebasePhoneRecaptcha();
-  const confirmationRef = useRef<PhoneOtpConfirmation | null>(null);
+  const [activePhoneOtpSnapshot, setActivePhoneOtpSnapshot] =
+    useState<PhoneOtpAttemptSnapshot | null>(null);
+  const activePhoneOtpAttemptRef = useRef<PhoneOtpAttempt | null>(null);
+  const authOperationInFlightRef = useRef(false);
+  const otpSendInFlightRef = useRef(false);
+  const otpSubmitInFlightRef = useRef(false);
+  // Once Firebase accepts the OTP, downstream retries must resume at the
+  // exchange/persist step instead of consuming another SMS + reCAPTCHA check.
+  // These credentials stay in memory only and are cleared for every fresh SMS.
+  const verifiedIdTokenRef = useRef<string | null>(null);
+  const pendingSessionRef = useRef<MobileSession | null>(null);
   const consentCheckProgress = useMemo(() => new Animated.Value(0), []);
   useEffect(() => {
     Animated.timing(consentCheckProgress, {
@@ -243,63 +279,131 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   );
   const title = tc(webAuthPage.titleByMode[mode]);
   const phoneDigits = phoneLocal.replace(/\D/g, "");
-  const canSubmitPhone = canAttemptPhoneOtpSend({
-    cooldownSecondsRemaining: sendCooldownSeconds,
-    privacyAccepted,
-    phoneDigitCount: phoneDigits.length,
-  });
+  const phoneOtpOperationBusy = otpSendBusy || otpSubmitBusy;
+  const authOperationBusy =
+    phoneOtpOperationBusy || emailBusy || socialBusyProviderId !== null;
+  const canSubmitPhone =
+    !authOperationBusy &&
+    canAttemptPhoneOtpSend({
+      cooldownSecondsRemaining: sendCooldownSeconds,
+      privacyAccepted,
+      phoneDigitCount: phoneDigits.length,
+    });
+  const canResendOtp =
+    resendSecondsRemaining <= 0 &&
+    sendCooldownSeconds <= 0 &&
+    !authOperationBusy;
+  const canSubmitOtp = !authOperationBusy;
   const dividerText = webAuthPage.socialDividerByMode[mode];
   const primarySocialProviders = authSocialProviders.slice(0, 4);
   const secondarySocialProviders = authSocialProviders.slice(4);
   const resendCountdownLabel = formatOtpCountdown(resendSecondsRemaining);
   const sendCooldownLabel = formatOtpCountdown(sendCooldownSeconds);
-  const maskedPhone = useMemo(() => {
-    if (!phoneDigits) {
-      return selectedCountry.dialCode;
-    }
+  const maskedPhone = activePhoneOtpSnapshot?.maskedDestination ?? selectedCountry.dialCode;
 
-    if (phoneDigits.length <= 4) {
-      return `${selectedCountry.dialCode} ${phoneDigits}`;
-    }
+  const isAuthOperationInFlight = () => authOperationInFlightRef.current;
 
-    return `${selectedCountry.dialCode} ${"*".repeat(
-      Math.max(2, phoneDigits.length - 4)
-    )}${phoneDigits.slice(-4)}`;
-  }, [phoneDigits, selectedCountry.dialCode]);
+  const installPhoneOtpAttempt = (attempt: PhoneOtpAttempt) => {
+    activePhoneOtpAttemptRef.current = attempt;
+    setActivePhoneOtpSnapshot({
+      countryCode: attempt.countryCode,
+      maskedDestination: attempt.maskedDestination,
+      phoneE164: attempt.phoneE164,
+    });
+  };
+
+  const clearPhoneOtpAttempt = () => {
+    activePhoneOtpAttemptRef.current = null;
+    setActivePhoneOtpSnapshot(null);
+  };
 
   const handlePhoneChange = (nextValue: string) => {
+    if (isAuthOperationInFlight()) {
+      return;
+    }
     setSendError(null);
     setPhoneLocal(nextValue.replace(/\D/g, "").slice(0, 10));
   };
 
-  // Render the visible captcha checkbox as soon as the phone step mounts so
-  // users see it inside the card (the invisible badge used to float clipped at
-  // the viewport corner — and showed Google's domain error there, unreadable).
-  useEffect(() => {
-    if (!liveAuth || authPhase !== "phone" || Platform.OS !== "web") {
+  const handleCountryMenuToggle = () => {
+    if (isAuthOperationInFlight()) {
       return;
     }
-    void (async () => {
-      const { preloadInlineRecaptcha } = await import("@mobile/auth/firebasePhoneAuth");
-      await preloadInlineRecaptcha({ theme: resolved === "dark" ? "dark" : "light" });
-    })();
-  }, [liveAuth, authPhase, resolved]);
+    setCountryMenuOpen((open) => !open);
+  };
+
+  const handleCountrySelect = (country: AuthCountry) => {
+    if (isAuthOperationInFlight()) {
+      return;
+    }
+    setSelectedCountry(country);
+    setCountryMenuOpen(false);
+  };
+
+  const handleOpenEmailAuth = () => {
+    if (isAuthOperationInFlight()) {
+      return;
+    }
+    setEmailError(null);
+    setAuthPhase("email");
+  };
+
+  const handleOpenPhoneAuth = () => {
+    if (isAuthOperationInFlight()) {
+      return;
+    }
+    setEmailError(null);
+    setAuthPhase("phone");
+  };
+
+  const handleEmailChange = (value: string) => {
+    if (isAuthOperationInFlight()) {
+      return;
+    }
+    setEmailInput(value);
+  };
+
+  const handlePasswordChange = (value: string) => {
+    if (isAuthOperationInFlight()) {
+      return;
+    }
+    setPasswordInput(value);
+  };
+
+  const handleEmailModeToggle = () => {
+    if (isAuthOperationInFlight()) {
+      return;
+    }
+    setEmailMode((current) => (current === "signin" ? "signup" : "signin"));
+    setEmailError(null);
+  };
+
+  const clearVerifiedPhoneAttempt = () => {
+    verifiedIdTokenRef.current = null;
+    pendingSessionRef.current = null;
+  };
 
   const handlePhoneSubmit = () => {
-    if (!canSubmitPhone) {
+    if (!canSubmitPhone || isAuthOperationInFlight()) {
       return;
     }
+    const attemptSnapshot = createPhoneOtpAttemptSnapshot(selectedCountry, phoneDigits);
 
     if (liveAuth) {
       // Real flow: request a Firebase SMS OTP first; only advance once it sent.
       // Dynamic import keeps the firebase package out of fixtures-mode bundles
       // and the render-test transform path.
+      authOperationInFlightRef.current = true;
+      otpSendInFlightRef.current = true;
+      setOtpSendBusy(true);
       setSendError(null);
       void (async () => {
         try {
-          confirmationRef.current = await sendPhoneOtpWithRecaptcha(
-            toPhoneE164(selectedCountry.dialCode, phoneDigits)
+          const confirmation = await sendPhoneOtpWithRecaptcha(
+            attemptSnapshot.phoneE164
           );
+          installPhoneOtpAttempt({ ...attemptSnapshot, confirmation });
+          clearVerifiedPhoneAttempt();
           setAuthPhase("otp");
           setOtpInput("");
           setOtpFailure(null);
@@ -312,11 +416,16 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           setSendError(kind);
           setSendCooldownSeconds((current) => nextOtpSendCooldownSeconds(kind, current));
           haptics.error();
+        } finally {
+          authOperationInFlightRef.current = false;
+          otpSendInFlightRef.current = false;
+          setOtpSendBusy(false);
         }
       })();
       return;
     }
 
+    installPhoneOtpAttempt({ ...attemptSnapshot, confirmation: null });
     setAuthPhase("otp");
     setOtpInput("");
     setOtpFailure(null);
@@ -324,6 +433,11 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   };
 
   const handleChangePhone = () => {
+    if (isAuthOperationInFlight()) {
+      return;
+    }
+    clearPhoneOtpAttempt();
+    clearVerifiedPhoneAttempt();
     setAuthPhase("phone");
     setOtpInput("");
     setOtpFailure(null);
@@ -355,6 +469,9 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   }, [sendCooldownSeconds]);
 
   const handleOtpChange = (nextValue: string) => {
+    if (isAuthOperationInFlight()) {
+      return;
+    }
     const nextDigits = nextValue.replace(/\D/g, "").slice(0, 6);
     // In live auth only Firebase knows whether the code is right, so the
     // demo-stub instant check applies to fixtures mode alone.
@@ -374,38 +491,65 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
 
   const handleOtpSubmit = () => {
     if (liveAuth) {
-      if (otpInput.length !== 6) {
+      if (isAuthOperationInFlight()) {
+        return;
+      }
+      const hasVerifiedProgress =
+        verifiedIdTokenRef.current !== null || pendingSessionRef.current !== null;
+      if (!hasVerifiedProgress && otpInput.length !== 6) {
         setOtpFailure("code");
+        haptics.error();
+        return;
+      }
+      const attempt = activePhoneOtpAttemptRef.current;
+      if (!attempt) {
+        setOtpFailure("system");
         haptics.error();
         return;
       }
       // Issue #250: track which step fails so a backend/exchange failure is
       // never presented as a wrong code (a correct OTP was once rejected as
-      // "incorrect" with no way to diagnose why).
-      let step: "confirm" | "exchange" | "persist" = "confirm";
+      // "incorrect" with no way to diagnose why). Once confirm succeeds, keep
+      // its ID token in-memory so a downstream retry never requires a new SMS.
+      let step: "confirm" | "exchange" | "persist" = pendingSessionRef.current
+        ? "persist"
+        : verifiedIdTokenRef.current
+          ? "exchange"
+          : "confirm";
+      authOperationInFlightRef.current = true;
+      otpSubmitInFlightRef.current = true;
+      setOtpSubmitBusy(true);
+      setOtpFailure(null);
       void (async () => {
         try {
-          const confirmation = confirmationRef.current;
-          if (!confirmation) {
-            // No in-flight confirmation (e.g. page reloaded on the OTP step) —
-            // the code cannot be verified; surface the system failure state.
-            setOtpFailure("system");
-            haptics.error();
-            return;
+          let session = pendingSessionRef.current;
+          if (!session) {
+            let idToken = verifiedIdTokenRef.current;
+            if (!idToken) {
+              const confirmation = attempt.confirmation;
+              if (!confirmation) {
+                throw new Error("Phone OTP confirmation is unavailable.");
+              }
+              const { confirmPhoneOtp } = await import("@mobile/auth/firebasePhoneAuth");
+              ({ idToken } = await confirmPhoneOtp(confirmation, otpInput));
+              verifiedIdTokenRef.current = idToken;
+            }
+
+            step = "exchange";
+            const { exchangeFirebaseIdToken } = await import("@mobile/auth/firebaseLogin");
+            session = await exchangeFirebaseIdToken({
+              apiUrl: getMobileEnv().apiUrl,
+              country: attempt.countryCode,
+              idToken,
+            });
+            pendingSessionRef.current = session;
           }
-          const { confirmPhoneOtp } = await import("@mobile/auth/firebasePhoneAuth");
-          const { exchangeFirebaseIdToken } = await import("@mobile/auth/firebaseLogin");
-          const { idToken } = await confirmPhoneOtp(confirmation, otpInput);
-          step = "exchange";
-          const session = await exchangeFirebaseIdToken({
-            apiUrl: getMobileEnv().apiUrl,
-            country: selectedCountry.code,
-            idToken,
-          });
+
           step = "persist";
+          await persistMobileSession(session);
+          clearVerifiedPhoneAttempt();
           haptics.success();
           markIntroModalPending();
-          await persistMobileSession(session);
           router.replace(postLoginPath as never);
         } catch (error) {
           // No session is written, no navigation happens. Record the failing
@@ -415,6 +559,10 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           captureHandledException(error, { feature: "phone-otp-login", step });
           setOtpFailure(step === "confirm" && isOtpCodeError(error) ? "code" : "system");
           haptics.error();
+        } finally {
+          authOperationInFlightRef.current = false;
+          otpSubmitInFlightRef.current = false;
+          setOtpSubmitBusy(false);
         }
       })();
       return;
@@ -446,6 +594,57 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     }
   };
 
+  const handleOtpResend = () => {
+    if (!canResendOtp || isAuthOperationInFlight()) {
+      return;
+    }
+
+    if (liveAuth) {
+      const currentAttempt = activePhoneOtpAttemptRef.current;
+      if (!currentAttempt) {
+        setOtpFailure("system");
+        haptics.error();
+        return;
+      }
+      authOperationInFlightRef.current = true;
+      otpSendInFlightRef.current = true;
+      setOtpSendBusy(true);
+      setSendError(null);
+      void (async () => {
+        try {
+          const confirmation = await sendPhoneOtpWithRecaptcha(
+            currentAttempt.phoneE164
+          );
+          // A fresh SMS creates a new Firebase verification attempt. Only now,
+          // after the send succeeds, discard any token/session from the prior
+          // attempt; a failed resend can still recover downstream without SMS.
+          installPhoneOtpAttempt({ ...currentAttempt, confirmation });
+          clearVerifiedPhoneAttempt();
+          setOtpInput("");
+          setOtpFailure(null);
+          setSendError(null);
+          setResendSecondsRemaining(otpResendDurationSeconds);
+        } catch (error) {
+          const kind = toSendErrorKind(error);
+          setSendError(kind);
+          setSendCooldownSeconds((current) =>
+            nextOtpSendCooldownSeconds(kind, current),
+          );
+          haptics.error();
+        } finally {
+          authOperationInFlightRef.current = false;
+          otpSendInFlightRef.current = false;
+          setOtpSendBusy(false);
+        }
+      })();
+      return;
+    }
+
+    setOtpInput("");
+    setOtpFailure(null);
+    setResendSecondsRemaining(otpResendDurationSeconds);
+  };
+
   const completeSocialSession = async (session: MobileSession) => {
     haptics.success();
     markIntroModalPending();
@@ -454,16 +653,20 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   };
 
   const canSubmitEmail =
-    emailInput.trim().length > 0 && passwordInput.length > 0 && privacyAccepted && !emailBusy;
+    emailInput.trim().length > 0 &&
+    passwordInput.length > 0 &&
+    privacyAccepted &&
+    !authOperationBusy;
 
   const handleEmailSubmit = () => {
-    if (!canSubmitEmail) {
+    if (!canSubmitEmail || isAuthOperationInFlight()) {
       return;
     }
     if (!liveAuth) {
       toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
       return;
     }
+    authOperationInFlightRef.current = true;
     setEmailBusy(true);
     setEmailError(null);
     void (async () => {
@@ -490,13 +693,14 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
         setEmailError(toEmailAuthErrorKind(error));
         haptics.error();
       } finally {
+        authOperationInFlightRef.current = false;
         setEmailBusy(false);
       }
     })();
   };
 
   const handleSocialSignIn = (provider: SocialProvider) => {
-    if (socialBusyProviderId) {
+    if (socialBusyProviderId || isAuthOperationInFlight()) {
       return;
     }
 
@@ -510,6 +714,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
         toastCtx?.show(tc(authSendErrorMessages.webOnly));
         return;
       }
+      authOperationInFlightRef.current = true;
       setSocialBusyProviderId(provider.id);
       void (async () => {
         try {
@@ -548,6 +753,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           toastCtx?.show(tc(sendErrorCopy[toSendErrorKind(error)]));
           haptics.error();
         } finally {
+          authOperationInFlightRef.current = false;
           setSocialBusyProviderId(null);
         }
       })();
@@ -564,6 +770,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
       return;
     }
 
+    authOperationInFlightRef.current = true;
     setSocialBusyProviderId(provider.id);
     void (async () => {
       try {
@@ -635,12 +842,13 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
         toastCtx?.show(tc(sendErrorCopy[toSendErrorKind(error)]));
         haptics.error();
       } finally {
+        authOperationInFlightRef.current = false;
         setSocialBusyProviderId(null);
       }
     })();
   };
 
-  const socialSignInDisabled = socialBusyProviderId !== null;
+  const socialSignInDisabled = authOperationBusy;
 
   // Shared by the phone and email forms — consent is one screen-level state.
   const privacyConsentRow = (
@@ -678,6 +886,23 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       </Link>
                     </MotionPressable>
   );
+
+  // Send failures can happen both before the OTP screen and during resend.
+  // Keep the same actionable notice beside the control that can recover.
+  const sendErrorNotice = sendError || sendCooldownSeconds > 0 ? (
+    <View>
+      {sendError ? (
+        <Text accessibilityRole="alert" style={styles.otpError}>
+          {tc(sendErrorCopy[sendError])}
+        </Text>
+      ) : null}
+      {sendCooldownSeconds > 0 ? (
+        <Text accessibilityRole="timer" style={styles.otpError}>
+          {sendCooldownLabel}
+        </Text>
+      ) : null}
+    </View>
+  ) : null;
 
   return (
     <View style={styles.viewport} testID={mode === "login" ? "login-screen" : "register-screen"}>
@@ -794,14 +1019,19 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         <MotionPressable
                           accessibilityLabel={webAuthPage.countryPlaceholder}
                           accessibilityRole="button"
-                          accessibilityState={{ expanded: countryMenuOpen }}
+                          accessibilityState={{
+                            disabled: authOperationBusy,
+                            expanded: countryMenuOpen,
+                          }}
+                          disabled={authOperationBusy}
                           hoverLift={false}
-                          onPress={() => setCountryMenuOpen((open) => !open)}
+                          onPress={handleCountryMenuToggle}
                           pressScale={motion.scale.subtlePress}
                           style={[
                             styles.countrySelect,
                             usesMobileFormLayout ? styles.countrySelectMobile : null,
                             countryMenuOpen ? styles.countrySelectOpen : null,
+                            authOperationBusy ? styles.phoneOtpTransitionDisabled : null,
                           ]}
                         >
                           <Text style={styles.countryFlag}>{selectedCountry.flag}</Text>
@@ -821,17 +1051,21 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                                 <MotionPressable
                                   accessibilityLabel={`${country.label} ${country.dialCode}`}
                                   accessibilityRole="menuitem"
-                                  accessibilityState={{ selected: isSelected }}
+                                  accessibilityState={{
+                                    disabled: authOperationBusy,
+                                    selected: isSelected,
+                                  }}
+                                  disabled={authOperationBusy}
                                   hoverLift={false}
                                   key={country.code}
-                                  onPress={() => {
-                                    setSelectedCountry(country);
-                                    setCountryMenuOpen(false);
-                                  }}
+                                  onPress={() => handleCountrySelect(country)}
                                   pressScale={motion.scale.subtlePress}
                                   style={[
                                     styles.countryMenuItem,
                                     isSelected ? styles.countryMenuItemSelected : null,
+                                    authOperationBusy
+                                      ? styles.phoneOtpTransitionDisabled
+                                      : null,
                                   ]}
                                 >
                                   <Text style={styles.countryMenuFlag}>{country.flag}</Text>
@@ -860,7 +1094,9 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         </View>
                         <TextInput
                           accessibilityLabel={tc(webAuthPage.phonePlaceholder)}
+                          accessibilityState={{ disabled: authOperationBusy }}
                           autoComplete="tel"
+                          editable={!authOperationBusy}
                           keyboardType="phone-pad"
                           onBlur={() => setPhoneFocused(false)}
                           onChangeText={handlePhoneChange}
@@ -869,29 +1105,18 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                           placeholder={tc(webAuthPage.phonePlaceholder)}
                           placeholderTextColor="#B9B9B9"
                           returnKeyType="done"
-                          style={[styles.phoneInput, phoneFocused ? styles.phoneInputFocused : null]}
+                          style={[
+                            styles.phoneInput,
+                            phoneFocused ? styles.phoneInputFocused : null,
+                            authOperationBusy ? styles.phoneOtpTransitionDisabled : null,
+                          ]}
                           value={phoneLocal}
                         />
                       </View>
-                      {sendError ? (
-                        <View>
-                          <Text accessibilityRole="alert" style={styles.otpError}>
-                            {tc(sendErrorCopy[sendError])}
-                          </Text>
-                          {sendError === "rate-limit" && sendCooldownSeconds > 0 ? (
-                            <Text accessibilityRole="timer" style={styles.otpError}>
-                              {sendCooldownLabel}
-                            </Text>
-                          ) : null}
-                        </View>
-                      ) : null}
+                      {sendErrorNotice}
                     </View>
 
                     {privacyConsentRow}
-
-                    {liveAuth && Platform.OS === "web" ? (
-                      <View nativeID={RECAPTCHA_INLINE_CONTAINER_ID} style={styles.recaptchaSlot} />
-                    ) : null}
 
                     <MotionPressable
                       accessibilityRole="button"
@@ -918,14 +1143,16 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
 
                     <MotionPressable
                       accessibilityRole="button"
+                      accessibilityState={{ disabled: authOperationBusy }}
+                      disabled={authOperationBusy}
                       hitSlop={8}
                       hoverLift={false}
-                      onPress={() => {
-                        setEmailError(null);
-                        setAuthPhase("email");
-                      }}
+                      onPress={handleOpenEmailAuth}
                       pressScale={motion.scale.subtlePress}
-                      style={styles.changePhoneButton}
+                      style={[
+                        styles.changePhoneButton,
+                        authOperationBusy ? styles.phoneOtpTransitionDisabled : null,
+                      ]}
                     >
                       <Text style={styles.changePhoneText}>{tc("Sign in with email")}</Text>
                     </MotionPressable>
@@ -943,11 +1170,13 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       </Text>
                       <TextInput
                         accessibilityLabel={tc("Email address")}
+                        accessibilityState={{ disabled: authOperationBusy }}
                         autoCapitalize="none"
                         autoComplete="email"
+                        editable={!authOperationBusy}
                         inputMode="email"
                         keyboardType="email-address"
-                        onChangeText={setEmailInput}
+                        onChangeText={handleEmailChange}
                         placeholder={tc("Email address")}
                         placeholderTextColor={colors.muted}
                         style={styles.emailField}
@@ -955,9 +1184,11 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       />
                       <TextInput
                         accessibilityLabel={tc("Password")}
+                        accessibilityState={{ disabled: authOperationBusy }}
                         autoCapitalize="none"
                         autoComplete={emailMode === "signup" ? "new-password" : "current-password"}
-                        onChangeText={setPasswordInput}
+                        editable={!authOperationBusy}
+                        onChangeText={handlePasswordChange}
                         placeholder={tc("Password")}
                         placeholderTextColor={colors.muted}
                         secureTextEntry
@@ -998,14 +1229,16 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
 
                     <MotionPressable
                       accessibilityRole="button"
+                      accessibilityState={{ disabled: authOperationBusy }}
+                      disabled={authOperationBusy}
                       hitSlop={8}
                       hoverLift={false}
-                      onPress={() => {
-                        setEmailMode((current) => (current === "signin" ? "signup" : "signin"));
-                        setEmailError(null);
-                      }}
+                      onPress={handleEmailModeToggle}
                       pressScale={motion.scale.subtlePress}
-                      style={styles.changePhoneButton}
+                      style={[
+                        styles.changePhoneButton,
+                        authOperationBusy ? styles.phoneOtpTransitionDisabled : null,
+                      ]}
                     >
                       <Text style={styles.changePhoneText}>
                         {tc(
@@ -1018,14 +1251,16 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
 
                     <MotionPressable
                       accessibilityRole="button"
+                      accessibilityState={{ disabled: authOperationBusy }}
+                      disabled={authOperationBusy}
                       hitSlop={8}
                       hoverLift={false}
-                      onPress={() => {
-                        setEmailError(null);
-                        setAuthPhase("phone");
-                      }}
+                      onPress={handleOpenPhoneAuth}
                       pressScale={motion.scale.subtlePress}
-                      style={styles.changePhoneButton}
+                      style={[
+                        styles.changePhoneButton,
+                        authOperationBusy ? styles.phoneOtpTransitionDisabled : null,
+                      ]}
                     >
                       <Text style={styles.changePhoneText}>{tc("Use phone number instead")}</Text>
                     </MotionPressable>
@@ -1039,15 +1274,21 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                     </View>
                     <MotionPressable
                       accessibilityRole="button"
+                      accessibilityState={{ disabled: authOperationBusy }}
+                      disabled={authOperationBusy}
                       hitSlop={8}
                       hoverLift={false}
                       onPress={handleChangePhone}
                       pressScale={motion.scale.subtlePress}
-                      style={styles.changePhoneButton}
+                      style={[
+                        styles.changePhoneButton,
+                        authOperationBusy ? styles.phoneOtpTransitionDisabled : null,
+                      ]}
                     >
                       <Text style={styles.changePhoneText}>{tc(webAuthPage.otp.changeNumber)}</Text>
                     </MotionPressable>
                     <PhoneOtpBoxes
+                      disabled={authOperationBusy}
                       hasError={otpFailure !== null}
                       onChangeText={handleOtpChange}
                       value={otpInput}
@@ -1061,57 +1302,49 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         )}
                       </Text>
                     ) : null}
+                    {sendErrorNotice}
                     <View style={styles.resendRow}>
                       <MotionPressable
                         accessibilityRole="button"
+                        accessibilityState={{ disabled: !canResendOtp }}
+                        disabled={!canResendOtp}
                         hitSlop={8}
                         hoverLift={false}
-                        onPress={() => {
-                          if (liveAuth) {
-                            // A fresh Firebase OTP must actually be requested; the
-                            // replacement confirmation is what the next submit verifies.
-                            void (async () => {
-                              try {
-                                confirmationRef.current = await sendPhoneOtpWithRecaptcha(
-                                  toPhoneE164(selectedCountry.dialCode, phoneDigits)
-                                );
-                                setOtpInput("");
-                                setOtpFailure(null);
-                                setResendSecondsRemaining(otpResendDurationSeconds);
-                              } catch (error) {
-                                // Resend failed — keep the current countdown/state and
-                                // surface error feedback instead of pretending it sent.
-                                const kind = toSendErrorKind(error);
-                                setSendError(kind);
-                                setSendCooldownSeconds((current) =>
-                                  nextOtpSendCooldownSeconds(kind, current),
-                                );
-                                haptics.error();
-                              }
-                            })();
-                            return;
-                          }
-                          setOtpInput("");
-                          setOtpFailure(null);
-                          setResendSecondsRemaining(otpResendDurationSeconds);
-                        }}
+                        onPress={handleOtpResend}
                         pressScale={motion.scale.subtlePress}
                       >
-                        <Text style={styles.resendText}>{tc(webAuthPage.otp.resend)}</Text>
+                        <Text
+                          style={[
+                            styles.resendText,
+                            !canResendOtp ? styles.resendTextDisabled : null,
+                          ]}
+                        >
+                          {tc(webAuthPage.otp.resend)}
+                        </Text>
                       </MotionPressable>
                       <Text style={styles.resendCountdown}>{resendCountdownLabel}</Text>
                     </View>
                     <MotionPressable
                       accessibilityRole="button"
+                      accessibilityState={{ disabled: !canSubmitOtp }}
+                      disabled={!canSubmitOtp}
                       hoverLift={false}
                       onPress={handleOtpSubmit}
                       pressScale={motion.scale.subtlePress}
                       style={[
                         styles.primaryAction,
                         usesFullWidthPrimaryAction ? styles.primaryActionMobile : null,
+                        !canSubmitOtp ? styles.primaryActionDisabled : null,
                       ]}
                     >
-                      <Text style={styles.primaryActionText}>{tc(webAuthPage.otp.next)}</Text>
+                      <Text
+                        style={[
+                          styles.primaryActionText,
+                          !canSubmitOtp ? styles.primaryActionTextDisabled : null,
+                        ]}
+                      >
+                        {tc(webAuthPage.otp.next)}
+                      </Text>
                     </MotionPressable>
                   </View>
                 )}
@@ -1208,10 +1441,12 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
 }
 
 function PhoneOtpBoxes({
+  disabled,
   hasError,
   onChangeText,
   value,
 }: {
+  disabled: boolean;
   hasError: boolean;
   onChangeText: (value: string) => void;
   value: string;
@@ -1226,6 +1461,8 @@ function PhoneOtpBoxes({
       <TextInput
         accessibilityHint={hasError ? webAuthPage.otp.errorAria : undefined}
         accessibilityLabel={webAuthPage.otp.label}
+        accessibilityState={{ disabled }}
+        editable={!disabled}
         keyboardType="number-pad"
         maxLength={6}
         onBlur={() => setIsFocused(false)}
@@ -1801,10 +2038,6 @@ function createAuthScreenStyles(colors: ThemeColors) {
   phoneInputFocused: {
     borderColor: "#00CC99",
   },
-  recaptchaSlot: {
-    alignItems: "center",
-    width: "100%",
-  },
   privacyWrap: {
     alignItems: "center",
     borderColor: colors.border,
@@ -1915,6 +2148,9 @@ function createAuthScreenStyles(colors: ThemeColors) {
     minHeight: 28,
     justifyContent: "center",
   },
+  phoneOtpTransitionDisabled: {
+    opacity: 0.45,
+  },
   changePhoneText: {
     color: "#55C99E",
     fontFamily: typography.family,
@@ -1987,6 +2223,9 @@ function createAuthScreenStyles(colors: ThemeColors) {
     fontFamily: typography.family,
     fontSize: 13,
     fontWeight: "400",
+  },
+  resendTextDisabled: {
+    opacity: 0.45,
   },
   resendCountdown: {
     color: "#8D8D8D",
