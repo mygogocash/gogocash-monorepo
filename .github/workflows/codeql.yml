@@ -49,7 +49,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
-      - name: Wire local mongo sanitizer model pack (JS/TS)
+      - name: Wire local sanitizer model pack (JS/TS)
         if: matrix.language == 'javascript-typescript'
         run: |
           echo "CODEQL_ACTION_EXTRA_OPTIONS={\"database\":{\"run-queries\":[\"--additional-packs=${GITHUB_WORKSPACE}/.github/codeql\",\"--extension-packs=mygogocash/gogocash-mongo-sanitizers\"]}}" >> "$GITHUB_ENV"

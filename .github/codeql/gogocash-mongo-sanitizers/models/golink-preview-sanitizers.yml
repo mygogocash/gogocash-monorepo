@@ -1,0 +1,13 @@
+extensions:
+  - addsTo:
+      pack: codeql/javascript-all
+      extensible: barrierModel
+    data:
+      # parseGoLinkPreviewUrl returns a URL only after the HTTPS, credentials,
+      # port, IP-literal, and exact/dot-boundary host policy succeeds. Keep this
+      # model coupled to the GoLink security regression tests.
+      - [
+          "src/golink/golink-preview.util",
+          "Member[parseGoLinkPreviewUrl].ReturnValue",
+          "request-forgery",
+        ]

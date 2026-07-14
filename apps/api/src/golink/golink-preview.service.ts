@@ -7,7 +7,7 @@ import {
   isPublicGoLinkPreviewAddress,
   parseGoLinkPreviewUrl,
   type GoLinkOpenGraphPreview,
-} from './golink-preview.util';
+} from 'src/golink/golink-preview.util';
 
 const FETCH_TIMEOUT_MS = 5_000;
 const MAX_BODY_BYTES = 512 * 1024;

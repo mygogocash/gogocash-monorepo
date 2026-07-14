@@ -33,6 +33,9 @@ Tests for outbound request code must cover lookalike domains, alternate IP
 notations, IPv4 and IPv6 private ranges, redirect hops, DNS changes, timeout
 handling, and responses over the byte limit. A post-response hostname check is
 not a substitute for validating each hop before the connection is opened.
+The local CodeQL model treats only the tested return value of
+`parseGoLinkPreviewUrl` as a `request-forgery` barrier; keep that model and
+these regression tests coupled whenever the URL policy changes.
 
 ### CodeQL findings in generated native dependencies
 
