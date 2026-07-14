@@ -5,6 +5,12 @@ import type {
   MatchMerchantInput,
 } from './client.js';
 import {
+  advertisedActivateCashbackSchema,
+  advertisedEmptyInputSchema,
+  advertisedMatchMerchantSchema,
+  advertisedSearchMerchantsSchema,
+} from './advertisedToolSchemas.js';
+import {
   activateCashbackSchema,
   emptyInputSchema,
   matchMerchantSchema,
@@ -24,10 +30,10 @@ type CreateGototrackMcpServerOptions = {
 };
 
 function asMcpSchema(schema: unknown): AnySchema {
-  // npm hoists the SDK beside Expo's Zod 3 compatibility package while this
-  // workspace owns Zod 4. The two copies' private types are nominally
-  // incompatible, although the SDK explicitly supports both at runtime.
-  // Keep the bridge at this boundary and parse again in each typed handler.
+  // npm hoists the SDK beside a different Zod package instance. The SDK
+  // supports this compatibility schema at runtime, but the copies' private
+  // types are nominally incompatible. Keep the cast at this one boundary and
+  // parse again with the workspace's Zod 4 schema in every typed handler.
   return schema as AnySchema;
 }
 
@@ -76,7 +82,7 @@ export function createGototrackMcpServer({
     {
       description:
         'Search enabled GoGoTrack merchants and return structured cashback option cards.',
-      inputSchema: asMcpSchema(searchMerchantsSchema),
+      inputSchema: asMcpSchema(advertisedSearchMerchantsSchema),
     },
     async (input: unknown) => {
       const { query } = searchMerchantsSchema.parse(input);
@@ -89,7 +95,7 @@ export function createGototrackMcpServer({
     {
       description:
         'Match a merchant from chat context and record a GoGoTrack detection event.',
-      inputSchema: asMcpSchema(matchMerchantSchema),
+      inputSchema: asMcpSchema(advertisedMatchMerchantSchema),
     },
     async (input: unknown) => {
       const parsedInput = matchMerchantSchema.parse(input);
@@ -104,7 +110,7 @@ export function createGototrackMcpServer({
     {
       description:
         'Activate GoGoTrack cashback tracking and return affiliate + app deeplinks.',
-      inputSchema: asMcpSchema(activateCashbackSchema),
+      inputSchema: asMcpSchema(advertisedActivateCashbackSchema),
     },
     async (input: unknown) => {
       const parsedInput = activateCashbackSchema.parse(input);
@@ -119,7 +125,7 @@ export function createGototrackMcpServer({
     {
       description:
         'Fetch the authenticated user GoGoTrack detection and activation history.',
-      inputSchema: asMcpSchema(emptyInputSchema),
+      inputSchema: asMcpSchema(advertisedEmptyInputSchema),
     },
     async (input: unknown) => {
       emptyInputSchema.parse(input);

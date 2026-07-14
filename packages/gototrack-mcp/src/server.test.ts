@@ -50,10 +50,74 @@ describe('createGototrackMcpServer', () => {
           'get_timeline',
         ],
       );
-      assert.equal(
-        result.tools.every((tool) => tool.inputSchema.type === 'object'),
-        true,
+      const schemas = Object.fromEntries(
+        result.tools.map((tool) => [tool.name, tool.inputSchema]),
       );
+      assert.deepEqual(schemas.search_merchants, {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'Merchant name filter, e.g. "Shopee"',
+          },
+        },
+        additionalProperties: false,
+        $schema: 'http://json-schema.org/draft-07/schema#',
+      });
+      assert.deepEqual(schemas.match_merchant, {
+        type: 'object',
+        properties: {
+          merchantHint: {
+            type: 'string',
+            description: 'Natural-language merchant name',
+          },
+          url: { type: 'string', description: 'Merchant URL if known' },
+          packageName: {
+            type: 'string',
+            description: 'Android package name if known',
+          },
+          platform: {
+            type: 'string',
+            enum: ['android', 'ios', 'web', 'line'],
+            description: 'Customer platform (default web)',
+          },
+          conversationId: {
+            type: 'string',
+            description: 'Optional agent conversation id for analytics',
+          },
+        },
+        additionalProperties: false,
+        $schema: 'http://json-schema.org/draft-07/schema#',
+      });
+      assert.deepEqual(schemas.activate_cashback, {
+        type: 'object',
+        properties: {
+          detectionEventId: {
+            type: 'string',
+            description: 'Detection event id from match_merchant',
+          },
+          merchantId: { type: 'string' },
+          offerId: { type: 'number' },
+          networkMerchantId: { type: 'number' },
+          merchantName: { type: 'string' },
+          packageName: { type: 'string' },
+          conversationId: { type: 'string' },
+        },
+        required: [
+          'detectionEventId',
+          'merchantId',
+          'offerId',
+          'networkMerchantId',
+        ],
+        additionalProperties: false,
+        $schema: 'http://json-schema.org/draft-07/schema#',
+      });
+      assert.deepEqual(schemas.get_timeline, {
+        type: 'object',
+        properties: {},
+        additionalProperties: false,
+        $schema: 'http://json-schema.org/draft-07/schema#',
+      });
     } finally {
       await pair.close();
     }
@@ -76,6 +140,26 @@ describe('createGototrackMcpServer', () => {
         {
           type: 'text',
           text: JSON.stringify({ query: 'Shopee' }, null, 2),
+        },
+      ]);
+    } finally {
+      await pair.close();
+    }
+  });
+
+  it('calls the zero-argument timeline tool through the MCP transport', async () => {
+    const pair = await createTestPair();
+    try {
+      const result = await pair.client.callTool({
+        name: 'get_timeline',
+        arguments: {},
+      });
+
+      assert.equal(pair.gototrackClient.getTimeline.mock.calls.length, 1);
+      assert.deepEqual(result.content, [
+        {
+          type: 'text',
+          text: JSON.stringify({ events: [] }, null, 2),
         },
       ]);
     } finally {
