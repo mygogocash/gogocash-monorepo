@@ -506,6 +506,10 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     }
 
     if (provider.id === "line") {
+      if (Platform.OS !== "web") {
+        toastCtx?.show(tc(authSendErrorMessages.webOnly));
+        return;
+      }
       setSocialBusyProviderId(provider.id);
       void (async () => {
         try {
@@ -516,10 +520,6 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           } = await import("@mobile/auth/lineLogin");
           if (!isLineLoginConfigured()) {
             toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
-            return;
-          }
-          if (Platform.OS !== "web") {
-            toastCtx?.show(tc(authSendErrorMessages.webOnly));
             return;
           }
           const { accessToken, profile } = await requestLineLogin();
@@ -2103,4 +2103,3 @@ function resolvePostLoginPath(callbackUrlParam: string | string[] | undefined): 
 
   return sanitized === "/" ? "/link-mycashback" : sanitized;
 }
-
