@@ -23,17 +23,23 @@ would be misleading.
   public, rate-limited, contains no customer identity, and requires an
   idempotency `eventId`.
 - `GET /offer/coupons/:couponId/insights` requires an admin token.
-- `POST /offer/coupons/:couponId/redemptions` requires an admin token and an
-  integration-unique `referenceId`. Repeating the reference is a no-op.
+- `POST /offer/coupons/:couponId/redemptions` requires an admin with at least
+  the support role and an integration-unique `referenceId`. Repeating the
+  reference is a no-op.
 
 The `coupon_activities.dedupe_key` unique index is part of correctness, not
 only performance. Confirm that the index is present after the first deployment
 before sending production traffic.
 
-## Operational limitation
+## Recording a confirmed redemption
 
-The API now provides a trusted redemption-ingestion seam, but a merchant or
-operations integration must call it when redemption is actually confirmed.
-Until that integration is connected, the admin shows existing
-`quantity_used` as the legacy usage baseline and honestly shows no auditable
-redemption rows. No sample analytics are presented as live data.
+Support users can open a coupon's **Redemptions** tab and use **Record confirmed
+redemption** after a merchant order has been verified. The merchant or
+operations reference and actual redemption time are required. The reference is
+idempotent, and the activity row records the acting admin for audit. Customer
+identity is not exposed in the admin response. The form refreshes the coupon's
+usage amount and history immediately.
+
+Merchant integrations can automate the same endpoint later. Until then, the
+operations action is the trusted producer, existing `quantity_used` remains a
+legacy floor, and no sample analytics are presented as live data.

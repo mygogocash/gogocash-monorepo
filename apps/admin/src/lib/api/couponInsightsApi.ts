@@ -5,8 +5,6 @@ export type CouponInsightRedemption = {
   referenceId: string;
   status: "redeemed";
   usedAt: string;
-  userEmail: string;
-  userId: string;
 };
 
 export type CouponInsightsResponse = {
@@ -33,6 +31,15 @@ export type CouponInsightsResponse = {
   };
 };
 
+export type RecordCouponRedemptionInput = {
+  occurredAt: string;
+  referenceId: string;
+};
+
+export type RecordCouponRedemptionResponse = {
+  recorded: boolean;
+};
+
 export async function getCouponInsights(
   couponId: string,
   params: { limit: number; page: number },
@@ -40,6 +47,17 @@ export async function getCouponInsights(
   const { data } = await client.get<CouponInsightsResponse>(
     `/offer/coupons/${encodeURIComponent(couponId)}/insights`,
     { params },
+  );
+  return data;
+}
+
+export async function recordCouponRedemption(
+  couponId: string,
+  input: RecordCouponRedemptionInput,
+): Promise<RecordCouponRedemptionResponse> {
+  const { data } = await client.post<RecordCouponRedemptionResponse>(
+    `/offer/coupons/${encodeURIComponent(couponId)}/redemptions`,
+    input,
   );
   return data;
 }

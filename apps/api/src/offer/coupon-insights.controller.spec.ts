@@ -1,5 +1,7 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { ROLES_KEY } from 'src/admin/roles.decorator';
+import { RolesGuard } from 'src/admin/roles.guard';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 import { CouponInsightsController } from './coupon-insights.controller';
 
@@ -23,6 +25,13 @@ describe('CouponInsightsController', () => {
     expect(guardsFor('recordEngagement')).toContain(RateLimitGuard);
     expect(guardsFor('getInsights')).toContain(AuthAdminGuard);
     expect(guardsFor('recordRedemption')).toContain(AuthAdminGuard);
+    expect(guardsFor('recordRedemption')).toContain(RolesGuard);
+    expect(
+      Reflect.getMetadata(
+        ROLES_KEY,
+        CouponInsightsController.prototype.recordRedemption,
+      ),
+    ).toEqual(['support']);
   });
 
   it('delegates using the coupon id and validated DTOs', async () => {
@@ -34,7 +43,12 @@ describe('CouponInsightsController', () => {
     const query = { limit: 25, page: 2 };
 
     await controller.recordEngagement('coupon-1', engagement);
-    await controller.recordRedemption('coupon-1', redemption);
+    await controller.recordRedemption('coupon-1', redemption, {
+      user: {
+        email: 'operator@gogocash.co',
+        sub: 'admin-42',
+      },
+    } as never);
     await controller.getInsights('coupon-1', query);
 
     expect(service.recordEngagement).toHaveBeenCalledWith(
@@ -44,7 +58,22 @@ describe('CouponInsightsController', () => {
     expect(service.recordRedemption).toHaveBeenCalledWith(
       'coupon-1',
       redemption,
+      {
+        adminEmail: 'operator@gogocash.co',
+        adminId: 'admin-42',
+      },
     );
     expect(service.getInsights).toHaveBeenCalledWith('coupon-1', query);
+  });
+
+  it('fails closed when an authenticated token has no auditable operator id', () => {
+    expect(() =>
+      controller.recordRedemption(
+        'coupon-1',
+        { referenceId: 'merchant-order-42' },
+        { user: { email: 'operator@gogocash.co' } } as never,
+      ),
+    ).toThrow('missing an operator identity');
+    expect(service.recordRedemption).not.toHaveBeenCalled();
   });
 });

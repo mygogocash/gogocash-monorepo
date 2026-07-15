@@ -5,6 +5,8 @@ import {
   Param,
   Post,
   Query,
+  Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -14,9 +16,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { Roles } from 'src/admin/roles.decorator';
+import { RolesGuard } from 'src/admin/roles.guard';
 import { RateLimit } from 'src/auth/rate-limit.decorator';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 import { CouponInsightsService } from './coupon-insights.service';
+import type { Request } from 'express';
 import {
   CouponInsightsQueryDto,
   RecordCouponEngagementDto,
@@ -43,7 +48,8 @@ export class CouponInsightsController {
   }
 
   @Post(':couponId/redemptions')
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('support')
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @ApiOperation({
@@ -53,8 +59,20 @@ export class CouponInsightsController {
   recordRedemption(
     @Param('couponId') couponId: string,
     @Body() dto: RecordCouponRedemptionDto,
+    @Req() request: Request,
   ) {
-    return this.couponInsights.recordRedemption(couponId, dto);
+    const admin = request['user'] as
+      { email?: unknown; sub?: unknown } | undefined;
+    const adminId = String(admin?.sub ?? '').trim();
+    if (!adminId) {
+      throw new UnauthorizedException(
+        'Your admin session is missing an operator identity. Please sign in again.',
+      );
+    }
+    return this.couponInsights.recordRedemption(couponId, dto, {
+      adminEmail: typeof admin?.email === 'string' ? admin.email : undefined,
+      adminId,
+    });
   }
 
   @Get(':couponId/insights')

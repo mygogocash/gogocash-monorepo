@@ -55,6 +55,7 @@ import {
 import { CouponInsightsController } from './coupon-insights.controller';
 import { CouponInsightsService } from './coupon-insights.service';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { RolesGuard } from 'src/admin/roles.guard';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 
 @Module({
@@ -98,6 +99,7 @@ import { RateLimitGuard } from 'src/auth/rate-limit.guard';
     OfferService,
     CouponInsightsService,
     AuthAdminGuard,
+    RolesGuard,
     RateLimitGuard,
     JwtService,
     TasksService,

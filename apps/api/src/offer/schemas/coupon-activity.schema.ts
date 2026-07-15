@@ -41,6 +41,12 @@ export class CouponActivity {
   @Prop({ required: false, type: String })
   user_email?: string;
 
+  @Prop({ required: false, type: String })
+  recorded_by_admin_id?: string;
+
+  @Prop({ required: false, type: String })
+  recorded_by_admin_email?: string;
+
   @Prop({ default: Date.now, index: true, required: true, type: Date })
   occurred_at: Date;
 }

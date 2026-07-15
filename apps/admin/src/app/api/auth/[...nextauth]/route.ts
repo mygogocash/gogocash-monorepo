@@ -6,8 +6,8 @@ import { apiClient } from "@/lib/api";
 import { devError } from "@/lib/devConsole";
 import { isMockAdminPasswordAllowed } from "@/lib/mockAuthPolicy";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
+import { resolveAdminAuthRoleClaims } from "@/lib/adminAuthRoleClaims";
 import { mockRoleForEmail, resolveTokenRole } from "@/lib/mockAdminRole";
-import { fromApiRole } from "@/lib/rbac";
 
 const authOptions: NextAuthOptions = {
   providers: [
@@ -26,13 +26,16 @@ const authOptions: NextAuthOptions = {
         if (password === "1234" && isMockAdminPasswordAllowed()) {
           const mockEmail =
             (email ?? "").trim().toLowerCase() || "admin@gogocash.co";
+          const roleClaims = resolveAdminAuthRoleClaims(
+            mockRoleForEmail(mockEmail),
+          );
           return {
             id: "a1",
             name: "admin",
             email: mockEmail,
             image: undefined,
             accessToken: DEFAULT_MOCK_ACCESS_TOKEN,
-            role: mockRoleForEmail(mockEmail),
+            ...roleClaims,
           };
         }
 
@@ -41,6 +44,8 @@ const authOptions: NextAuthOptions = {
             email: credentials.email,
             password: credentials.password,
           });
+          const apiRole = (userData as { role?: string }).role;
+          const roleClaims = resolveAdminAuthRoleClaims(apiRole);
           return {
             id: userData._id,
             name: userData.username,
@@ -50,7 +55,7 @@ const authOptions: NextAuthOptions = {
             // Translate the API role vocabulary (superadmin/approver/support)
             // into the frontend Role the UI gates on. The API token above still
             // carries the original role for API-side guards.
-            role: fromApiRole((userData as { role?: string }).role),
+            ...roleClaims,
           };
         } catch (error) {
           const message =
@@ -75,6 +80,7 @@ const authOptions: NextAuthOptions = {
     }) {
       if (user) {
         token.accessToken = user.accessToken;
+        token.apiRole = user.apiRole;
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
@@ -97,6 +103,9 @@ const authOptions: NextAuthOptions = {
       if (token.id) session.user.id = token.id;
       if (token.name) session.user.name = token.name;
       if (token.email) session.user.email = token.email;
+      if (typeof token.apiRole === "string") {
+        session.user.apiRole = token.apiRole;
+      }
       session.user.role =
         typeof token.role === "string" ? token.role : "viewer";
       return session;

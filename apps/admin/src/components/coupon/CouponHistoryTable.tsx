@@ -1,20 +1,43 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { AdminPaginationBar } from "@/components/common/AdminPaginationBar";
 import NoData from "@/components/common/NoData";
+import DatePicker from "@/components/form/date-picker";
+import { usePermissions } from "@/hooks/usePermissions";
+import {
+  ADMIN_DATETIME_ALT_FORMAT,
+  ADMIN_DATETIME_VALUE_FORMAT,
+} from "@/lib/adminDateTimeFormat";
 import {
   getCouponInsights,
+  recordCouponRedemption,
   type CouponInsightRedemption,
 } from "@/lib/api/couponInsightsApi";
 import { formatDateTime } from "@/lib/dateFormat";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
 type InsightTab = "redemptions" | "insight";
+const API_REDEMPTION_WRITE_ROLES = new Set([
+  "support",
+  "approver",
+  "superadmin",
+]);
+
+function localDateTimeInputValue(date = new Date()): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
 
 export default function CouponHistoryTable({ couponId }: { couponId: string }) {
+  const permissions = usePermissions();
+  const canRecordRedemption =
+    Boolean(process.env.NEXT_PUBLIC_API_URL) &&
+    permissions.ready &&
+    (permissions.can("coupon:manage") ||
+      API_REDEMPTION_WRITE_ROLES.has(permissions.apiRole ?? ""));
   const [activeTab, setActiveTab] = useState<InsightTab>("redemptions");
   const [page, setPage] = useState(1);
   const limit = 25;
@@ -71,6 +94,8 @@ export default function CouponHistoryTable({ couponId }: { couponId: string }) {
 
       {activeTab === "redemptions" ? (
         <RedemptionPanel
+          canRecordRedemption={canRecordRedemption}
+          couponId={couponId}
           limit={redemptions.limit}
           onPageChange={setPage}
           page={redemptions.page}
@@ -129,6 +154,8 @@ function CouponInsightTabs({
 }
 
 function RedemptionPanel({
+  canRecordRedemption,
+  couponId,
   limit,
   onPageChange,
   page,
@@ -136,6 +163,8 @@ function RedemptionPanel({
   total,
   totalPages,
 }: {
+  canRecordRedemption: boolean;
+  couponId: string;
   limit: number;
   onPageChange: (page: number) => void;
   page: number;
@@ -154,21 +183,25 @@ function RedemptionPanel({
         Confirmed coupon usage reported by a trusted merchant or operations
         integration. Duplicate reference IDs are ignored.
       </p>
+      {canRecordRedemption ? (
+        <RecordRedemptionForm
+          couponId={couponId}
+          onRecorded={() => onPageChange(1)}
+        />
+      ) : null}
       {rows.length > 0 ? (
         <div className="min-w-0 overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                {["#", "Reference", "User", "Used at", "Status"].map(
-                  (label) => (
-                    <th
-                      className="px-5 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-                      key={label}
-                    >
-                      {label}
-                    </th>
-                  ),
-                )}
+                {["#", "Reference", "Used at", "Status"].map((label) => (
+                  <th
+                    className="px-5 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+                    key={label}
+                  >
+                    {label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
@@ -200,6 +233,129 @@ function RedemptionPanel({
   );
 }
 
+function RecordRedemptionForm({
+  couponId,
+  onRecorded,
+}: {
+  couponId: string;
+  onRecorded: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [referenceId, setReferenceId] = useState("");
+  const [occurredAt, setOccurredAt] = useState(() => localDateTimeInputValue());
+  const [successMessage, setSuccessMessage] = useState("");
+  const normalizedReferenceId = referenceId.trim();
+  const referenceIsValid =
+    normalizedReferenceId.length >= 3 &&
+    normalizedReferenceId.length <= 128 &&
+    /^[A-Za-z0-9._:-]+$/.test(normalizedReferenceId);
+  const mutation = useMutation({
+    mutationFn: () =>
+      recordCouponRedemption(couponId, {
+        occurredAt: new Date(occurredAt).toISOString(),
+        referenceId: normalizedReferenceId,
+      }),
+    onMutate: () => {
+      setSuccessMessage("");
+    },
+    onSuccess: async ({ recorded }) => {
+      setReferenceId("");
+      setOccurredAt(localDateTimeInputValue());
+      setSuccessMessage(
+        recorded
+          ? "Confirmed redemption recorded."
+          : "This redemption was already recorded; no duplicate was added.",
+      );
+      onRecorded();
+      await queryClient.invalidateQueries({
+        queryKey: ["coupon-insights", couponId],
+      });
+    },
+  });
+  const errorMessage = mutation.isError
+    ? getApiErrorMessage(
+        mutation.error,
+        "Couldn't record this redemption. Check the details and try again.",
+      )
+    : "";
+
+  return (
+    <details className="mb-6 rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+      <summary className="cursor-pointer text-sm font-semibold text-gray-900 dark:text-white">
+        Record confirmed redemption
+      </summary>
+      <form
+        className="mt-4 grid gap-4 lg:grid-cols-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (referenceIsValid && occurredAt && !mutation.isPending) {
+            mutation.mutate();
+          }
+        }}
+      >
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Reference ID
+          <input
+            autoComplete="off"
+            className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+            maxLength={128}
+            onBlur={() => setReferenceId(normalizedReferenceId)}
+            onChange={(event) => setReferenceId(event.target.value)}
+            placeholder="merchant-order-123"
+            required
+            value={referenceId}
+          />
+        </label>
+        <div className="lg:col-span-2">
+          <DatePicker
+            altFormat={ADMIN_DATETIME_ALT_FORMAT}
+            altInput
+            ariaLabel="Redemption time"
+            dateFormat={ADMIN_DATETIME_VALUE_FORMAT}
+            enableTime
+            id={`coupon-redemption-time-${couponId}`}
+            label="Redemption time"
+            minuteIncrement={1}
+            onValueChange={setOccurredAt}
+            required
+            value={occurredAt}
+          />
+        </div>
+        <div className="lg:col-span-3">
+          <button
+            className="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!referenceIsValid || !occurredAt || mutation.isPending}
+            type="submit"
+          >
+            {mutation.isPending ? "Recording…" : "Record redemption"}
+          </button>
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Use the merchant order or operations reference. Reusing it will not
+            increase usage twice.
+          </p>
+          {successMessage ? (
+            <p
+              aria-live="polite"
+              className="mt-2 text-sm text-green-700 dark:text-green-300"
+            >
+              {successMessage}
+            </p>
+          ) : null}
+          {errorMessage ? (
+            <p
+              aria-live="assertive"
+              className="mt-2 text-sm text-red-700 dark:text-red-300"
+              role="alert"
+            >
+              {errorMessage}
+            </p>
+          ) : null}
+        </div>
+      </form>
+    </details>
+  );
+}
+
 function RedemptionRow({
   index,
   row,
@@ -207,7 +363,6 @@ function RedemptionRow({
   index: number;
   row: CouponInsightRedemption;
 }) {
-  const user = row.userEmail || row.userId || "Not supplied";
   return (
     <tr>
       <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
@@ -215,9 +370,6 @@ function RedemptionRow({
       </td>
       <td className="px-5 py-4 font-mono text-sm text-gray-800 dark:text-gray-200">
         {row.referenceId}
-      </td>
-      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
-        {user}
       </td>
       <td className="px-5 py-4 text-sm whitespace-nowrap text-gray-600 dark:text-gray-400">
         {formatDateTime(row.usedAt, { fallback: row.usedAt })}
