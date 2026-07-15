@@ -8,8 +8,12 @@ import Image from "next/image";
 import React, { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { DEFAULT_POST_LOGIN_PATH, safeAppPathFromCallback } from "@/lib/safeCallbackUrl";
+import {
+  DEFAULT_POST_LOGIN_PATH,
+  safeAppPathFromCallback,
+} from "@/lib/safeCallbackUrl";
 import { devError } from "@/lib/devConsole";
+import { isAdminApiConfigured } from "@/lib/adminApiMode";
 
 export default function SignInForm() {
   const emailInputId = "admin-signin-email";
@@ -22,7 +26,9 @@ export default function SignInForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const searchParams = useSearchParams();
-  const showMockQuickAccess = !process.env.NEXT_PUBLIC_API_URL;
+  const showMockQuickAccess = !isAdminApiConfigured(
+    process.env.NEXT_PUBLIC_API_URL,
+  );
 
   const redirectAfterSignIn = () => {
     const safe = safeAppPathFromCallback(searchParams.get("callbackUrl"));
@@ -106,7 +112,7 @@ export default function SignInForm() {
             <>
               {/* Quick access for internal use */}
               <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-700 dark:bg-amber-900/20">
-                <p className="mb-3 text-center text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                <p className="mb-3 text-center text-xs font-medium tracking-wide text-amber-700 uppercase dark:text-amber-400">
                   Quick access (internal use)
                 </p>
                 <button
@@ -123,7 +129,7 @@ export default function SignInForm() {
               </div>
 
               <div className="border-t border-gray-200 pt-6 dark:border-gray-700">
-                <p className="mb-4 text-center text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <p className="mb-4 text-center text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                   Or sign in with credentials
                 </p>
               </div>
@@ -159,14 +165,14 @@ export default function SignInForm() {
                     Password <span className="text-error-500">*</span>{" "}
                   </Label>
                   <div className="relative">
-	                    <Input
-	                      id={passwordInputId}
-	                      name="password"
-	                      type={showPassword ? "text" : "password"}
-	                      placeholder={
-	                        showMockQuickAccess ? "Mock: 1234" : "Enter password"
-	                      }
-	                      value={password}
+                    <Input
+                      id={passwordInputId}
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder={
+                        showMockQuickAccess ? "Mock: 1234" : "Enter password"
+                      }
+                      value={password}
                       autoComplete="current-password"
                       required
                       onChange={(e) => setPassword(e.target.value)}

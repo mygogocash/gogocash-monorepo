@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api";
+import { isAdminApiConfigured } from "@/lib/adminApiMode";
 import type {
   DashboardInsightRangeValue,
   DashboardInsightsResponse,
@@ -34,7 +35,7 @@ export async function fetchDashboardUserStats(): Promise<DashboardStatsResponse>
 }
 
 export function isRealApiConfigured(): boolean {
-  return !!process.env.NEXT_PUBLIC_API_URL;
+  return isAdminApiConfigured(process.env.NEXT_PUBLIC_API_URL);
 }
 
 export async function fetchDashboardWithdrawSummary(): Promise<DashboardSummaryResponse> {

@@ -29,13 +29,28 @@ describe("fetchDashboardWithdrawSummary", () => {
     const apiError = { message: "Dashboard summary unavailable" };
     apiClientMock.getDashboardSummary.mockRejectedValue(apiError);
 
-    const { fetchDashboardWithdrawSummary } = await import("./dashboardQueries");
+    const { fetchDashboardWithdrawSummary } =
+      await import("./dashboardQueries");
 
     await expect(fetchDashboardWithdrawSummary()).rejects.toEqual(apiError);
   });
 
   it("given no API URL and API error > then returns MOCK_DASHBOARD_SUMMARY", async () => {
     delete process.env.NEXT_PUBLIC_API_URL;
+    apiClientMock.getDashboardSummary.mockRejectedValue(
+      new Error("mock route failed"),
+    );
+
+    const { fetchDashboardWithdrawSummary, MOCK_DASHBOARD_SUMMARY } =
+      await import("./dashboardQueries");
+
+    await expect(fetchDashboardWithdrawSummary()).resolves.toEqual(
+      MOCK_DASHBOARD_SUMMARY,
+    );
+  });
+
+  it("given a whitespace-only API URL and API error > then returns mock summary", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "   ";
     apiClientMock.getDashboardSummary.mockRejectedValue(
       new Error("mock route failed"),
     );
@@ -61,7 +76,8 @@ describe("fetchDashboardWithdrawSummary", () => {
     };
     apiClientMock.getDashboardSummary.mockResolvedValue(summary);
 
-    const { fetchDashboardWithdrawSummary } = await import("./dashboardQueries");
+    const { fetchDashboardWithdrawSummary } =
+      await import("./dashboardQueries");
 
     await expect(fetchDashboardWithdrawSummary()).resolves.toEqual(summary);
   });

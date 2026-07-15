@@ -7,6 +7,7 @@ import {
   filterOutgoingRequestHeaders,
   proxyToBackend,
   resolveAdminApiBaseURL,
+  resolveAdminRuntimeApiUrl,
   resolveUpstreamBaseUrl,
   sessionExpiredResponse,
 } from "./backendProxy";
@@ -35,6 +36,12 @@ describe("resolveUpstreamBaseUrl", () => {
     delete process.env.API_URL;
     process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080/";
     expect(resolveUpstreamBaseUrl()).toBe("http://localhost:8080");
+  });
+
+  it("given a blank private URL > then falls back to the configured public URL", () => {
+    process.env.API_URL = "   ";
+    process.env.NEXT_PUBLIC_API_URL = "https://api.public.example/";
+    expect(resolveUpstreamBaseUrl()).toBe("https://api.public.example");
   });
 
   it("given no upstream env > then returns null", () => {
@@ -85,6 +92,48 @@ describe("resolveAdminApiBaseURL", () => {
   });
 });
 
+describe("resolveAdminRuntimeApiUrl", () => {
+  it("given server runtime API_URL > then it wins over a preview-baked public URL", () => {
+    expect(
+      resolveAdminRuntimeApiUrl({
+        isBrowser: false,
+        publicApiUrl: "https://preview-api.example",
+        serverApiUrl: "http://staging-api.railway.internal:8080",
+      }),
+    ).toBe("http://staging-api.railway.internal:8080");
+  });
+
+  it("given a browser > then it ignores the private server URL", () => {
+    expect(
+      resolveAdminRuntimeApiUrl({
+        isBrowser: true,
+        publicApiUrl: "https://api-staging.example",
+        serverApiUrl: "http://staging-api.railway.internal:8080",
+      }),
+    ).toBe("https://api-staging.example");
+  });
+
+  it("given no server API_URL > then server rendering falls back to the public URL", () => {
+    expect(
+      resolveAdminRuntimeApiUrl({
+        isBrowser: false,
+        publicApiUrl: "https://api-staging.example",
+        serverApiUrl: undefined,
+      }),
+    ).toBe("https://api-staging.example");
+  });
+
+  it("given a whitespace-only public URL > then treats it as unconfigured", () => {
+    expect(
+      resolveAdminRuntimeApiUrl({
+        isBrowser: true,
+        publicApiUrl: "   ",
+        serverApiUrl: undefined,
+      }),
+    ).toBeUndefined();
+  });
+});
+
 describe("filterOutgoingRequestHeaders", () => {
   it("given client Authorization > then strips it and hop-by-hop headers", () => {
     const incoming = new Headers({
@@ -111,7 +160,9 @@ describe("filterOutgoingRequestHeaders", () => {
 
 describe("assertProxyBodyWithinLimit", () => {
   it("given Content-Length over the cap > then returns 413", () => {
-    const headers = new Headers({ "content-length": String(MAX_PROXY_BODY_BYTES + 1) });
+    const headers = new Headers({
+      "content-length": String(MAX_PROXY_BODY_BYTES + 1),
+    });
     const rejected = assertProxyBodyWithinLimit(headers, null);
     expect(rejected?.status).toBe(413);
   });
@@ -213,11 +264,48 @@ describe("proxyToBackend", () => {
     expect(headers.get("Accept")).toBe("application/json");
   });
 
+  it("given a protected media GET > then preserves the encoded ref and attaches the server JWT", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response("image-bytes", {
+        status: 200,
+        headers: { "Content-Type": "image/png" },
+      }),
+    );
+    const encodedRef = encodeURIComponent(
+      "https://storage.googleapis.com/gogocash/withdraw-slips/slip.png",
+    );
+
+    const response = await proxyToBackend({
+      method: "GET",
+      pathSegments: ["admin", "stored-media", "stream"],
+      search: `?ref=${encodedRef}`,
+      requestHeaders: new Headers(),
+      body: null,
+      accessToken: "server-jwt",
+      upstreamBase: "http://gogocash-api.railway.internal:8080",
+      fetchImpl,
+    });
+
+    expect(response.status).toBe(200);
+    const [url, init] = fetchImpl.mock.calls[0] as [
+      string,
+      RequestInit & { headers: Headers },
+    ];
+    expect(url).toBe(
+      `http://gogocash-api.railway.internal:8080/admin/stored-media/stream?ref=${encodedRef}`,
+    );
+    expect(new Headers(init.headers).get("Authorization")).toBe(
+      "Bearer server-jwt",
+    );
+  });
+
   it("given multipart POST body > then forwards body and content-type", async () => {
     const body = new TextEncoder().encode("form-bytes").buffer;
-    const fetchImpl = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 201 }),
-    );
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), { status: 201 }),
+      );
 
     await proxyToBackend({
       method: "POST",

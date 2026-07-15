@@ -32,7 +32,9 @@ describe("apiClient auth headers", () => {
   });
 
   afterEach(() => {
+    delete process.env.API_URL;
     delete process.env.NEXT_PUBLIC_API_URL;
+    delete process.env.NEXT_PUBLIC_FIREBASE_STATIC;
     vi.clearAllMocks();
   });
 
@@ -56,6 +58,16 @@ describe("apiClient auth headers", () => {
       (key) => key.toLowerCase() === "authorization",
     );
     expect(authKey).toBeUndefined();
+  });
+
+  it("given a whitespace-only public API URL > then static hosting stays in mock mode", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "   ";
+    process.env.NEXT_PUBLIC_FIREBASE_STATIC = "1";
+    const { apiClient } = await import("./api");
+
+    await apiClient.getOffers({ limit: 10, page: 1 });
+
+    expect(axiosMock.request).not.toHaveBeenCalled();
   });
 
   it("given an HTTP error with no backend message > then throws status-aware copy, never 'HTTP Error 403'", async () => {
@@ -105,6 +117,8 @@ describe("apiClient auth headers", () => {
     );
     // @ts-expect-error delete window for server-side path
     delete globalThis.window;
+    process.env.API_URL = "http://gogocash-api.railway.internal:8080";
+    process.env.NEXT_PUBLIC_API_URL = "https://preview-api.example";
 
     try {
       const { apiClient } = await import("./api");
@@ -125,7 +139,7 @@ describe("apiClient auth headers", () => {
       expect(axiosMock.request).toHaveBeenCalledWith(
         expect.objectContaining({
           method: "POST",
-          url: "http://localhost:8080/admin/login",
+          url: "http://gogocash-api.railway.internal:8080/admin/login",
         }),
       );
     } finally {

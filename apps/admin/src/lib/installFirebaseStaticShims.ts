@@ -9,6 +9,7 @@
  */
 import { handleMockApiRequest } from "@/lib/mockApiCore";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
+import { isAdminApiConfigured, normalizeAdminApiUrl } from "@/lib/adminApiMode";
 import {
   isStaticExportBuild,
   isStaticHostingClient,
@@ -90,11 +91,14 @@ async function handleRealCredentialsLogin(
     }
   }
 
-  const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  const apiBase = normalizeAdminApiUrl(process.env.NEXT_PUBLIC_API_URL) ?? "";
   try {
     const res = await fetch(`${apiBase}/admin/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json().catch(() => null);
@@ -139,7 +143,7 @@ async function staticAuthResponse(
   method: string,
   bodyText: string | undefined,
 ): Promise<Response> {
-  const hasRealApi = !!process.env.NEXT_PUBLIC_API_URL;
+  const hasRealApi = isAdminApiConfigured(process.env.NEXT_PUBLIC_API_URL);
   let rest = "";
   if (pathname.startsWith("/api/auth/")) {
     rest = pathname.slice("/api/auth/".length).split("?")[0];

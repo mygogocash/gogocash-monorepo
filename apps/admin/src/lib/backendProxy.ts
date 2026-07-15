@@ -4,6 +4,8 @@
  * from the NextAuth JWT cookie and never trusts a client Authorization header.
  */
 
+import { normalizeAdminApiUrl } from "@/lib/adminApiMode";
+
 /** Cap for buffered proxy bodies (banner/brand multipart). Reject before reading. */
 export const MAX_PROXY_BODY_BYTES = 32 * 1024 * 1024;
 
@@ -21,9 +23,26 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 export function resolveUpstreamBaseUrl(): string | null {
-  const raw = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
-  if (!raw) return null;
-  return raw.replace(/\/+$/, "");
+  return (
+    normalizeAdminApiUrl(process.env.API_URL) ??
+    normalizeAdminApiUrl(process.env.NEXT_PUBLIC_API_URL) ??
+    null
+  );
+}
+
+/**
+ * Resolve the real API without letting a build-inlined public URL override the
+ * server's environment-local Railway/private upstream. Browser traffic still
+ * uses the public value only as the real-API/BFF mode signal.
+ */
+export function resolveAdminRuntimeApiUrl(options: {
+  isBrowser: boolean;
+  publicApiUrl: string | undefined;
+  serverApiUrl: string | undefined;
+}): string | undefined {
+  const publicApiUrl = normalizeAdminApiUrl(options.publicApiUrl);
+  const serverApiUrl = normalizeAdminApiUrl(options.serverApiUrl);
+  return !options.isBrowser && serverApiUrl ? serverApiUrl : publicApiUrl;
 }
 
 export function buildUpstreamUrl(
@@ -32,11 +51,7 @@ export function buildUpstreamUrl(
   search: string,
 ): string {
   const path = pathSegments.map(encodeURIComponent).join("/");
-  const query = search.startsWith("?")
-    ? search
-    : search
-      ? `?${search}`
-      : "";
+  const query = search.startsWith("?") ? search : search ? `?${search}` : "";
   return `${upstreamBase}/${path}${query}`;
 }
 
@@ -154,7 +169,7 @@ export function resolveAdminApiBaseURL(options: {
   isBrowser: boolean;
   appOrigin?: string;
 }): string {
-  const realApi = options.realApiUrl?.replace(/\/+$/, "");
+  const realApi = normalizeAdminApiUrl(options.realApiUrl);
   if (realApi) {
     return options.isBrowser ? "/api/backend" : realApi;
   }
