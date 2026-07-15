@@ -10,6 +10,10 @@ import {
 import { FIREBASE_NOT_CONFIGURED_CODE } from "@mobile/auth/authSendErrorKind";
 
 const platformOS = vi.hoisted(() => ({ current: "web" as string }));
+const recaptchaMockState = vi.hoisted(() => ({
+  delayedInjections: [] as Array<() => void>,
+  mode: "sync" as "sync" | "manual" | "throw",
+}));
 
 vi.mock("react-native", () => ({
   Platform: {
@@ -28,12 +32,29 @@ vi.mock("firebase/auth", () => ({
     clear = recaptchaVerifierClear;
     constructor(...args: unknown[]) {
       recaptchaVerifierCtor(...args);
+      if (recaptchaMockState.mode === "throw") {
+        throw new Error("constructor failed");
+      }
+
       const container = args[1];
+      const parameters = args[2] as { badge?: string } | undefined;
       if (container instanceof HTMLElement) {
-        const badge = document.createElement("div");
-        badge.className = "grecaptcha-badge";
-        badge.appendChild(document.createElement("iframe"));
-        container.appendChild(badge);
+        const inject = () => {
+          // With `badge: "inline"`, Google's visible iframe is owned by the
+          // container passed to RecaptchaVerifier instead of a body-level,
+          // fixed bottom-right wrapper.
+          const badge = document.createElement("div");
+          badge.className = "grecaptcha-badge";
+          badge.dataset.style = parameters?.badge ?? "bottomright";
+          const frame = document.createElement("iframe");
+          frame.title = "reCAPTCHA";
+          frame.setAttribute("src", "about:blank#/recaptcha/enterprise/anchor");
+          badge.appendChild(frame);
+          container.appendChild(badge);
+        };
+
+        if (recaptchaMockState.mode === "sync") inject();
+        else recaptchaMockState.delayedInjections.push(inject);
       }
     }
   },
@@ -48,10 +69,35 @@ vi.mock("@mobile/auth/firebaseClient", () => ({
   isFirebaseConfigured: () => isFirebaseConfigured(),
 }));
 
+function runDelayedRecaptchaInjections(): void {
+  for (const inject of recaptchaMockState.delayedInjections.splice(0)) {
+    inject();
+  }
+}
+
+function appendFirebaseShapedBadge(
+  root: Element,
+  style = "bottomright",
+): HTMLElement {
+  const badge = document.createElement("div");
+  badge.className = "grecaptcha-badge";
+  badge.dataset.style = style;
+  if (style === "none") badge.style.visibility = "hidden";
+  const frame = document.createElement("iframe");
+  frame.title = "reCAPTCHA";
+  frame.setAttribute("src", "about:blank#/recaptcha/enterprise/anchor");
+  badge.appendChild(frame);
+  root.appendChild(badge);
+  return badge;
+}
+
 describe("firebasePhoneAuth > sendPhoneOtp", () => {
   beforeEach(() => {
     clearPhoneOtpRecaptcha();
+    document.getElementById("gogocash-phone-recaptcha-placement")?.remove();
     platformOS.current = "web";
+    recaptchaMockState.delayedInjections.length = 0;
+    recaptchaMockState.mode = "sync";
     signInWithPhoneNumber.mockReset();
     recaptchaVerifierCtor.mockReset();
     recaptchaVerifierClear.mockReset();
@@ -92,36 +138,37 @@ describe("firebasePhoneAuth > sendPhoneOtp", () => {
     });
   });
 
-  it("given successful web sends > then removes each invisible verifier before returning", async () => {
-    platformOS.current = "web";
-
+  it("given successful web sends > then removes each owned inline verifier before returning", async () => {
     await sendPhoneOtp("+66812345678");
     await sendPhoneOtp("+66812345678");
 
-    const container = document.getElementById("gogocash-recaptcha-container");
-    expect(container).toBeNull();
+    expect(
+      document.querySelector('[data-gogocash-recaptcha="phone-otp"]'),
+    ).toBeNull();
     expect(document.querySelector(".grecaptcha-badge")).toBeNull();
     expect(recaptchaVerifierCtor).toHaveBeenCalledTimes(2);
     expect(recaptchaVerifierCtor).toHaveBeenCalledWith(
       getClientAuth(),
       expect.any(HTMLElement),
-      { size: "invisible" },
+      { badge: "inline", size: "invisible" },
     );
     expect(recaptchaVerifierClear).toHaveBeenCalledTimes(2);
     expect(signInWithPhoneNumber).toHaveBeenCalledTimes(2);
   });
 
-  it("given a failed web send > then removes the verifier badge and owned container", async () => {
+  it("given a failed web send > then removes the inline badge and owned container", async () => {
     signInWithPhoneNumber.mockRejectedValueOnce(new Error("send failed"));
 
     await expect(sendPhoneOtp("+66812345678")).rejects.toThrow("send failed");
 
     expect(recaptchaVerifierClear).toHaveBeenCalledTimes(1);
-    expect(document.getElementById("gogocash-recaptcha-container")).toBeNull();
+    expect(
+      document.querySelector('[data-gogocash-recaptcha="phone-otp"]'),
+    ).toBeNull();
     expect(document.querySelector(".grecaptcha-badge")).toBeNull();
   });
 
-  it("given overlapping sends > then each request owns and clears only its verifier", async () => {
+  it("given overlapping sends > then each owner clears only its inline verifier", async () => {
     let resolveFirst!: (value: { confirm: ReturnType<typeof vi.fn> }) => void;
     let resolveSecond!: (value: { confirm: ReturnType<typeof vi.fn> }) => void;
     const firstResult = new Promise<{ confirm: ReturnType<typeof vi.fn> }>(
@@ -137,21 +184,122 @@ describe("firebasePhoneAuth > sendPhoneOtp", () => {
     signInWithPhoneNumber
       .mockImplementationOnce(() => firstResult)
       .mockImplementationOnce(() => secondResult);
+    const firstOwner = {};
+    const secondOwner = {};
 
-    const firstSend = sendPhoneOtp("+66812345678");
-    const secondSend = sendPhoneOtp("+66812345678");
+    const firstSend = sendPhoneOtp("+66812345678", undefined, firstOwner);
+    const secondSend = sendPhoneOtp("+66812345678", undefined, secondOwner);
 
-    expect(recaptchaVerifierCtor).toHaveBeenCalledTimes(2);
-    expect(document.querySelectorAll(".grecaptcha-badge")).toHaveLength(2);
+    expect(
+      document.querySelectorAll('.grecaptcha-badge[data-style="inline"]'),
+    ).toHaveLength(2);
+    clearPhoneOtpRecaptcha(firstOwner);
+    expect(
+      document.querySelectorAll('.grecaptcha-badge[data-style="inline"]'),
+    ).toHaveLength(1);
+    expect(recaptchaVerifierClear).toHaveBeenCalledTimes(1);
 
     resolveFirst({ confirm: vi.fn() });
     await firstSend;
-    expect(document.querySelectorAll(".grecaptcha-badge")).toHaveLength(1);
+    expect(
+      document.querySelectorAll('.grecaptcha-badge[data-style="inline"]'),
+    ).toHaveLength(1);
 
     resolveSecond({ confirm: vi.fn() });
     await secondSend;
-    expect(document.querySelectorAll(".grecaptcha-badge")).toHaveLength(0);
+    expect(
+      document.querySelectorAll('.grecaptcha-badge[data-style="inline"]'),
+    ).toHaveLength(0);
     expect(recaptchaVerifierClear).toHaveBeenCalledTimes(2);
+  });
+
+  it("given an unrelated CAPTCHA mounts during a phone send > then phone cleanup preserves it", async () => {
+    let resolveSend!: (value: { confirm: ReturnType<typeof vi.fn> }) => void;
+    signInWithPhoneNumber.mockImplementationOnce(
+      () =>
+        new Promise<{ confirm: ReturnType<typeof vi.fn> }>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+    const send = sendPhoneOtp("+66812345678");
+    const unrelatedRoot = document.createElement("div");
+    unrelatedRoot.dataset.owner = "unrelated-firebase-flow";
+    const unrelatedBadge = appendFirebaseShapedBadge(unrelatedRoot);
+    const unrelatedForm = document.createElement("form");
+    unrelatedRoot.appendChild(unrelatedForm);
+    document.body.appendChild(unrelatedRoot);
+
+    resolveSend({ confirm: vi.fn() });
+    await send;
+
+    expect(document.body.contains(unrelatedRoot)).toBe(true);
+    expect(unrelatedRoot.contains(unrelatedBadge)).toBe(true);
+    expect(unrelatedRoot.contains(unrelatedForm)).toBe(true);
+  });
+
+  it("given Firebase's separate Enterprise widget is hidden > then phone cleanup leaves it provider-managed", async () => {
+    const providerRoot = document.createElement("div");
+    const providerBadge = appendFirebaseShapedBadge(providerRoot, "none");
+    document.body.appendChild(providerRoot);
+
+    await sendPhoneOtp("+66812345678");
+
+    expect(document.body.contains(providerRoot)).toBe(true);
+    expect(providerRoot.contains(providerBadge)).toBe(true);
+    expect(providerBadge.style.visibility).toBe("hidden");
+  });
+
+  it("given owner cleanup happens before inline rendering > then delayed content stays detached", async () => {
+    recaptchaMockState.mode = "manual";
+    let resolveSend!: (value: { confirm: ReturnType<typeof vi.fn> }) => void;
+    signInWithPhoneNumber.mockImplementationOnce(
+      () =>
+        new Promise<{ confirm: ReturnType<typeof vi.fn> }>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+    const owner = {};
+    const send = sendPhoneOtp("+66812345678", undefined, owner);
+
+    clearPhoneOtpRecaptcha(owner);
+    runDelayedRecaptchaInjections();
+    expect(
+      document.querySelector('[data-gogocash-recaptcha="phone-otp"]'),
+    ).toBeNull();
+    expect(document.querySelector(".grecaptcha-badge")).toBeNull();
+
+    resolveSend({ confirm: vi.fn() });
+    await send;
+    expect(recaptchaVerifierClear).toHaveBeenCalledTimes(1);
+  });
+
+  it("given the verifier constructor fails > then removes its owned container", async () => {
+    recaptchaMockState.mode = "throw";
+
+    await expect(sendPhoneOtp("+66812345678")).rejects.toThrow(
+      "constructor failed",
+    );
+
+    expect(
+      document.querySelector('[data-gogocash-recaptcha="phone-otp"]'),
+    ).toBeNull();
+    expect(signInWithPhoneNumber).not.toHaveBeenCalled();
+  });
+
+  it("positions owned and Enterprise verifiers above the mobile bottom nav", async () => {
+    await sendPhoneOtp("+66812345678");
+
+    const style = document.getElementById("gogocash-phone-recaptcha-placement");
+    expect(style?.textContent).toContain(
+      '[data-gogocash-recaptcha="phone-otp"]',
+    );
+    expect(style?.textContent).toContain("@media (max-width: 1023px)");
+    expect(style?.textContent).toContain(
+      "bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important",
+    );
+    expect(style?.textContent).toContain(
+      '.grecaptcha-badge[data-style="bottomright"]',
+    );
   });
 });
 

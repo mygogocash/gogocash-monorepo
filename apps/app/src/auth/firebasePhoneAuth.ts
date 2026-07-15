@@ -31,6 +31,7 @@ export type PhoneOtpConfirmation = {
 // still evaluates every fresh SMS request and may escalate verification when
 // risk requires it; native uses its platform ApplicationVerifier.
 const RECAPTCHA_CONTAINER_ID = "gogocash-recaptcha-container";
+const RECAPTCHA_PLACEMENT_STYLE_ID = "gogocash-phone-recaptcha-placement";
 
 export type PhoneOtpRecaptchaOwner = object;
 
@@ -44,6 +45,32 @@ const defaultRecaptchaOwner: PhoneOtpRecaptchaOwner = {};
 const activeRecaptchaHandles = new Set<WebRecaptchaHandle>();
 let recaptchaContainerSequence = 0;
 
+function ensureRecaptchaPlacementStyle(): void {
+  if (document.getElementById(RECAPTCHA_PLACEMENT_STYLE_ID)) return;
+
+  const style = document.createElement("style");
+  style.id = RECAPTCHA_PLACEMENT_STYLE_ID;
+  // Firebase's internal Enterprise verifier has no caller-owned container or
+  // badge-position option. Keep its standard badge visible and interactive,
+  // but move it above the app's <1024px bottom navigation.
+  style.textContent = `
+    [data-gogocash-recaptcha="phone-otp"] {
+      bottom: 14px;
+      position: fixed;
+      right: 0;
+      z-index: 2147483646;
+    }
+
+    @media (max-width: 1023px) {
+      [data-gogocash-recaptcha="phone-otp"],
+      .grecaptcha-badge[data-style="bottomright"] {
+        bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function clearWebRecaptchaHandle(handle: WebRecaptchaHandle): void {
   if (!activeRecaptchaHandles.delete(handle)) return;
 
@@ -53,8 +80,8 @@ function clearWebRecaptchaHandle(handle: WebRecaptchaHandle): void {
     // Cleanup must not turn a successful OTP send into a sign-in failure when
     // the SDK has already destroyed its widget.
   } finally {
-    // Firebase does not remove children for an invisible verifier in clear().
-    // Removing our dedicated container also removes the fixed badge iframe.
+    // `badge: "inline"` keeps the visible badge inside this owned container,
+    // so removing it cannot disturb another Firebase security challenge.
     handle.container.remove();
   }
 }
@@ -71,6 +98,7 @@ export function clearPhoneOtpRecaptcha(owner?: PhoneOtpRecaptchaOwner): void {
 function createInvisibleRecaptcha(
   owner: PhoneOtpRecaptchaOwner,
 ): WebRecaptchaHandle {
+  ensureRecaptchaPlacementStyle();
   const container = document.createElement("div");
   recaptchaContainerSequence += 1;
   container.id = `${RECAPTCHA_CONTAINER_ID}-${recaptchaContainerSequence}`;
@@ -79,6 +107,7 @@ function createInvisibleRecaptcha(
 
   try {
     const verifier = new RecaptchaVerifier(getClientAuth(), container, {
+      badge: "inline",
       size: "invisible",
     });
     const handle = { owner, verifier, container };
