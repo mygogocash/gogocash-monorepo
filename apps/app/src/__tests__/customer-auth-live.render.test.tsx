@@ -1,5 +1,11 @@
 import { createElement, type ReactNode } from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Same seam stubs as customer-auth-signin.render.test.tsx: device locale and
@@ -27,13 +33,15 @@ vi.mock("expo-router", () => ({
 const sendPhoneOtp = vi.fn();
 const confirmPhoneOtp = vi.fn();
 vi.mock("@mobile/auth/firebasePhoneAuth", () => ({
-  sendPhoneOtp: (...args: unknown[]) => sendPhoneOtp(...args),
+  clearPhoneOtpRecaptcha: vi.fn(),
+  sendPhoneOtp: (phoneE164: string) => sendPhoneOtp(phoneE164),
   confirmPhoneOtp: (...args: unknown[]) => confirmPhoneOtp(...args),
 }));
 
 const exchangeFirebaseIdToken = vi.fn();
 vi.mock("@mobile/auth/firebaseLogin", () => ({
-  exchangeFirebaseIdToken: (...args: unknown[]) => exchangeFirebaseIdToken(...args),
+  exchangeFirebaseIdToken: (...args: unknown[]) =>
+    exchangeFirebaseIdToken(...args),
 }));
 
 const checkPhoneLoginEligibility = vi.fn();
@@ -45,7 +53,8 @@ vi.mock("@mobile/auth/phoneLoginEligibility", () => ({
 const signInWithSocialProvider = vi.fn();
 vi.mock("@mobile/auth/firebaseSocialAuth", () => ({
   isFirebaseSocialProviderId: () => true,
-  signInWithSocialProvider: (...args: unknown[]) => signInWithSocialProvider(...args),
+  signInWithSocialProvider: (...args: unknown[]) =>
+    signInWithSocialProvider(...args),
 }));
 
 const signInWithEmail = vi.fn();
@@ -59,7 +68,8 @@ vi.mock("@mobile/auth/emailPasswordAuth", () => ({
 // (and keep the real Sentry SDK out of the render suite).
 const captureHandledException = vi.fn();
 vi.mock("@mobile/observability/client", () => ({
-  captureHandledException: (...args: unknown[]) => captureHandledException(...args),
+  captureHandledException: (...args: unknown[]) =>
+    captureHandledException(...args),
 }));
 
 const persistMobileSession = vi.hoisted(() => vi.fn());
@@ -83,7 +93,9 @@ function enterPhoneAndConsent() {
   fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
     target: { value: "0812346789" },
   });
-  fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+  fireEvent.click(
+    screen.getByRole("checkbox", { name: "I have read and understand" }),
+  );
 }
 
 function submitPhone() {
@@ -134,9 +146,14 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     signInWithEmail.mockReset();
     captureHandledException.mockClear();
     persistMobileSession.mockReset();
-    persistMobileSession.mockImplementation(async (session: Record<string, unknown>) => {
-      window.localStorage.setItem(mobileSessionStorageKey, JSON.stringify(session));
-    });
+    persistMobileSession.mockImplementation(
+      async (session: Record<string, unknown>) => {
+        window.localStorage.setItem(
+          mobileSessionStorageKey,
+          JSON.stringify(session),
+        );
+      },
+    );
     sendPhoneOtp.mockResolvedValue({ confirm: vi.fn() });
   });
 
@@ -185,7 +202,9 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
   });
 
   it("#325 > eligibility request fails > sends no SMS, keeps the phone step, and records the failing step", async () => {
-    checkPhoneLoginEligibility.mockRejectedValue(new Error("network unavailable"));
+    checkPhoneLoginEligibility.mockRejectedValue(
+      new Error("network unavailable"),
+    );
 
     render(createElement(CustomerAuthScreen, { mode: "login" }));
     submitPhone();
@@ -219,7 +238,9 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText("Too many attempts. Please try again later.")).toBeTruthy();
+      expect(
+        screen.getByText("Too many attempts. Please try again later."),
+      ).toBeTruthy();
     });
     expectButtonDisabled(submitButton, true);
     fireEvent.click(submitButton);
@@ -263,7 +284,9 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
   });
 
   it("backend mode > while the initial send is in flight > ignores a second submit", async () => {
-    let resolveSend!: (confirmation: { confirm: ReturnType<typeof vi.fn> }) => void;
+    let resolveSend!: (confirmation: {
+      confirm: ReturnType<typeof vi.fn>;
+    }) => void;
     sendPhoneOtp.mockReturnValue(
       new Promise((resolve) => {
         resolveSend = resolve;
@@ -298,18 +321,25 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
       }),
     );
     confirmPhoneOtp.mockResolvedValue({ idToken: "firebase-id-token" });
-    exchangeFirebaseIdToken.mockResolvedValue({ access_token: "t", provider: "firebase" });
+    exchangeFirebaseIdToken.mockResolvedValue({
+      access_token: "t",
+      provider: "firebase",
+    });
 
     render(createElement(CustomerAuthScreen, { mode: "login" }));
     enterPhoneAndConsent();
     const phoneInput = screen.getByPlaceholderText("Phone Number");
     const countryButton = screen.getByRole("button", { name: "Shopping in…" });
-    const emailSwitch = screen.getByRole("button", { name: "Sign in with email" });
+    const emailSwitch = screen.getByRole("button", {
+      name: "Sign in with email",
+    });
     const socialButton = screen.getByRole("button", { name: "Gmail" });
 
     // Leave the menu open so a same-tick selection is available after submit.
     fireEvent.click(countryButton);
-    const singaporeOption = screen.getByRole("menuitem", { name: "Singapore +65" });
+    const singaporeOption = screen.getByRole("menuitem", {
+      name: "Singapore +65",
+    });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     expect((phoneInput as HTMLInputElement).readOnly).toBe(true);
@@ -344,7 +374,10 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
 
     await waitFor(() => {
       expect(exchangeFirebaseIdToken).toHaveBeenCalledWith(
-        expect.objectContaining({ country: "TH", idToken: "firebase-id-token" }),
+        expect.objectContaining({
+          country: "TH",
+          idToken: "firebase-id-token",
+        }),
       );
     });
   });
@@ -362,7 +395,9 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     enterPhoneAndConsent();
     const phoneInput = screen.getByPlaceholderText("Phone Number");
     const submitButton = screen.getByRole("button", { name: "Sign in" });
-    const emailSwitch = screen.getByRole("button", { name: "Sign in with email" });
+    const emailSwitch = screen.getByRole("button", {
+      name: "Sign in with email",
+    });
     const socialButton = screen.getByRole("button", { name: "Gmail" });
 
     fireEvent.click(socialButton);
@@ -399,7 +434,9 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     exchangeFirebaseIdToken.mockResolvedValue({ access_token: "email-token" });
 
     render(createElement(CustomerAuthScreen, { mode: "login" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "I have read and understand" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Sign in with email" }));
     fireEvent.change(screen.getByLabelText("Email address"), {
       target: { value: "user@example.com" },
@@ -410,9 +447,14 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
-      expect(signInWithEmail).toHaveBeenCalledWith("user@example.com", "password123");
+      expect(signInWithEmail).toHaveBeenCalledWith(
+        "user@example.com",
+        "password123",
+      );
     });
-    const phoneSwitch = screen.getByRole("button", { name: "Use phone number instead" });
+    const phoneSwitch = screen.getByRole("button", {
+      name: "Use phone number instead",
+    });
     const socialButton = screen.getByRole("button", { name: "Gmail" });
     expectButtonDisabled(phoneSwitch, true);
     expectButtonDisabled(socialButton, true);
@@ -498,7 +540,9 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     await waitFor(() => {
       expect(persistMobileSession).toHaveBeenCalledTimes(1);
     });
-    const changePhoneButton = screen.getByRole("button", { name: "Change phone number" });
+    const changePhoneButton = screen.getByRole("button", {
+      name: "Change phone number",
+    });
     const socialButton = screen.getByRole("button", { name: "Gmail" });
     expectButtonDisabled(changePhoneButton, true);
     expectButtonDisabled(socialButton, true);
@@ -532,7 +576,9 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
 
   it("backend mode > given Firebase rejects the code > shows the OTP error, persists nothing, does not navigate", async () => {
     confirmPhoneOtp.mockRejectedValue(
-      Object.assign(new Error("invalid"), { code: "auth/invalid-verification-code" })
+      Object.assign(new Error("invalid"), {
+        code: "auth/invalid-verification-code",
+      }),
     );
 
     await reachOtpStepAndSubmit("999999");
@@ -552,12 +598,17 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     confirmPhoneOtp.mockResolvedValue({ idToken: "firebase-id-token" });
     exchangeFirebaseIdToken
       .mockRejectedValueOnce(new Error("Login failed with status 503."))
-      .mockResolvedValueOnce({ access_token: "retried-token", provider: "firebase" });
+      .mockResolvedValueOnce({
+        access_token: "retried-token",
+        provider: "firebase",
+      });
 
     await reachOtpStepAndSubmit("654321");
 
     await waitFor(() => {
-      expect(screen.getByText("Could not sign in. Please try again.")).toBeTruthy();
+      expect(
+        screen.getByText("Could not sign in. Please try again."),
+      ).toBeTruthy();
     });
     expect(screen.queryByText(/verification code is incorrect/i)).toBeNull();
     expect(captureHandledException).toHaveBeenCalledWith(
@@ -587,13 +638,18 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     persistMobileSession
       .mockRejectedValueOnce(new Error("storage unavailable"))
       .mockImplementationOnce(async (session: Record<string, unknown>) => {
-        window.localStorage.setItem(mobileSessionStorageKey, JSON.stringify(session));
+        window.localStorage.setItem(
+          mobileSessionStorageKey,
+          JSON.stringify(session),
+        );
       });
 
     await reachOtpStepAndSubmit("654321");
 
     await waitFor(() => {
-      expect(screen.getByText("Could not sign in. Please try again.")).toBeTruthy();
+      expect(
+        screen.getByText("Could not sign in. Please try again."),
+      ).toBeTruthy();
     });
     expect(captureHandledException).toHaveBeenCalledWith(
       expect.any(Error),
@@ -612,13 +668,17 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
 
   it("backend mode > given confirm fails for a non-code reason (network) > shows the sign-in failure copy, not 'code incorrect'", async () => {
     confirmPhoneOtp.mockRejectedValue(
-      Object.assign(new Error("network down"), { code: "auth/network-request-failed" }),
+      Object.assign(new Error("network down"), {
+        code: "auth/network-request-failed",
+      }),
     );
 
     await reachOtpStepAndSubmit("654321");
 
     await waitFor(() => {
-      expect(screen.getByText("Could not sign in. Please try again.")).toBeTruthy();
+      expect(
+        screen.getByText("Could not sign in. Please try again."),
+      ).toBeTruthy();
     });
     expect(screen.queryByText(/verification code is incorrect/i)).toBeNull();
     expect(captureHandledException).toHaveBeenCalledWith(
@@ -635,7 +695,10 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     let resolveResend!: (confirmation: typeof secondConfirmation) => void;
     sendPhoneOtp.mockResolvedValueOnce(firstConfirmation);
     confirmPhoneOtp.mockResolvedValue({ idToken: "firebase-id-token" });
-    exchangeFirebaseIdToken.mockResolvedValue({ access_token: "t", provider: "firebase" });
+    exchangeFirebaseIdToken.mockResolvedValue({
+      access_token: "t",
+      provider: "firebase",
+    });
 
     render(createElement(CustomerAuthScreen, { mode: "login" }));
     submitPhone();
@@ -676,7 +739,10 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     });
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await waitFor(() => {
-      expect(confirmPhoneOtp).toHaveBeenCalledWith(secondConfirmation, "654321");
+      expect(confirmPhoneOtp).toHaveBeenCalledWith(
+        secondConfirmation,
+        "654321",
+      );
     });
   });
 
@@ -701,7 +767,9 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
       await Promise.resolve();
     });
 
-    expect(screen.getByText("Too many attempts. Please try again later.")).toBeTruthy();
+    expect(
+      screen.getByText("Too many attempts. Please try again later."),
+    ).toBeTruthy();
     expect(screen.getByText("05:00")).toBeTruthy();
     expectButtonDisabled(resendButton, true);
     fireEvent.click(resendButton);
@@ -733,7 +801,9 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     });
 
     expect(
-      screen.getByText("Security check failed. Please close and reopen the app, then try again."),
+      screen.getByText(
+        "Security check failed. Please close and reopen the app, then try again.",
+      ),
     ).toBeTruthy();
     expect(screen.getByText("00:15")).toBeTruthy();
     expectButtonDisabled(resendButton, true);
@@ -789,7 +859,10 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     });
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await waitFor(() => {
-      expect(confirmPhoneOtp).toHaveBeenCalledWith(secondConfirmation, "123123");
+      expect(confirmPhoneOtp).toHaveBeenCalledWith(
+        secondConfirmation,
+        "123123",
+      );
     });
     expect(confirmPhoneOtp).toHaveBeenCalledTimes(2);
     expect(sendPhoneOtp).toHaveBeenCalledTimes(2);

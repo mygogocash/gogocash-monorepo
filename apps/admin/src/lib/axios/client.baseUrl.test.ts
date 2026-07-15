@@ -26,4 +26,10 @@ describe("axios client baseURL", () => {
     const { default: client } = await import("./client");
     expect(client.defaults.baseURL).toBe("/api/mock");
   });
+
+  it("given a whitespace-only API URL > then uses mock base", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "   ";
+    const { default: client } = await import("./client");
+    expect(client.defaults.baseURL).toBe("/api/mock");
+  });
 });
