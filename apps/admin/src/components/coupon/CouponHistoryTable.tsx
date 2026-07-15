@@ -5,7 +5,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { AdminPaginationBar } from "@/components/common/AdminPaginationBar";
 import NoData from "@/components/common/NoData";
+import DatePicker from "@/components/form/date-picker";
 import { usePermissions } from "@/hooks/usePermissions";
+import {
+  ADMIN_DATETIME_ALT_FORMAT,
+  ADMIN_DATETIME_VALUE_FORMAT,
+} from "@/lib/adminDateTimeFormat";
 import {
   getCouponInsights,
   recordCouponRedemption,
@@ -301,16 +306,21 @@ function RecordRedemptionForm({
             value={referenceId}
           />
         </label>
-        <label className="text-sm font-medium text-gray-700 lg:col-span-2 dark:text-gray-300">
-          Redemption time
-          <input
-            className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-            onChange={(event) => setOccurredAt(event.target.value)}
+        <div className="lg:col-span-2">
+          <DatePicker
+            altFormat={ADMIN_DATETIME_ALT_FORMAT}
+            altInput
+            ariaLabel="Redemption time"
+            dateFormat={ADMIN_DATETIME_VALUE_FORMAT}
+            enableTime
+            id={`coupon-redemption-time-${couponId}`}
+            label="Redemption time"
+            minuteIncrement={1}
+            onValueChange={setOccurredAt}
             required
-            type="datetime-local"
             value={occurredAt}
           />
-        </label>
+        </div>
         <div className="lg:col-span-3">
           <button
             className="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"

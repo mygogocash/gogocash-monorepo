@@ -18,6 +18,41 @@ vi.mock("@/hooks/usePermissions", () => ({
     ready: true,
   }),
 }));
+vi.mock("@/components/form/date-picker", () => ({
+  default: ({
+    altFormat,
+    ariaLabel,
+    dateFormat,
+    enableTime,
+    id,
+    label,
+    onValueChange,
+    value,
+  }: {
+    altFormat?: string;
+    ariaLabel?: string;
+    dateFormat?: string;
+    enableTime?: boolean;
+    id: string;
+    label?: string;
+    onValueChange?: (value: string) => void;
+    value?: string;
+  }) => (
+    <label>
+      {label}
+      <input
+        aria-label={ariaLabel}
+        data-alt-format={altFormat}
+        data-date-format={dateFormat}
+        data-datepicker-component="true"
+        data-enable-time={enableTime ? "true" : "false"}
+        data-testid={id}
+        onChange={(event) => onValueChange?.(event.currentTarget.value)}
+        value={value ?? ""}
+      />
+    </label>
+  ),
+}));
 
 import CouponHistoryTable from "./CouponHistoryTable";
 
@@ -120,8 +155,13 @@ describe("CouponHistoryTable per-coupon real insights", () => {
       screen.getByLabelText("Reference ID"),
       "  merchant-order-99  ",
     );
+    const redemptionTime = screen.getByLabelText("Redemption time");
+    expect(redemptionTime).toHaveAttribute("data-datepicker-component", "true");
+    expect(redemptionTime).toHaveAttribute("data-enable-time", "true");
+    expect(redemptionTime).toHaveAttribute("data-alt-format", "d/m/Y, H:i");
+    expect(redemptionTime).not.toHaveAttribute("type", "datetime-local");
     const occurredAt = new Date(
-      (screen.getByLabelText("Redemption time") as HTMLInputElement).value,
+      (redemptionTime as HTMLInputElement).value,
     ).toISOString();
     await user.click(screen.getByRole("button", { name: "Record redemption" }));
 
