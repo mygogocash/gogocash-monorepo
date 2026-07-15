@@ -3,10 +3,7 @@ import { Metadata } from "next";
 import { mockCoupons } from "@/app/api/mock/data";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import CouponHistoryTable from "@/components/coupon/CouponHistoryTable";
-import {
-  awaitPageDynamicProps,
-  type DefaultAppPageProps,
-} from "@/lib/nextAppPageProps";
+import type { DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
   title: "Coupon Insight | GoGoCash Admin",
@@ -18,7 +15,6 @@ export function generateStaticParams() {
 }
 
 export default async function CouponInsightPage(props: DefaultAppPageProps) {
-  await awaitPageDynamicProps(props);
   const params = await props.params;
   const rawCouponId = params.couponId;
   const couponId = Array.isArray(rawCouponId)
