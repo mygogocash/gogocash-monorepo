@@ -42,6 +42,18 @@ const exchangeFirebaseIdToken = vi.fn();
 vi.mock("@mobile/auth/firebaseLogin", () => ({
   exchangeFirebaseIdToken: (...args: unknown[]) =>
     exchangeFirebaseIdToken(...args),
+  getFirebaseLoginExchangeErrorKind: (error: unknown) =>
+    typeof error === "object" &&
+    error !== null &&
+    "kind" in error &&
+    typeof error.kind === "string"
+      ? error.kind
+      : null,
+  isPhoneLinkRequiredError: (error: unknown) =>
+    typeof error === "object" &&
+    error !== null &&
+    "kind" in error &&
+    error.kind === "phone-link-required",
 }));
 
 const checkPhoneLoginEligibility = vi.fn();
@@ -193,7 +205,7 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     await waitFor(() => {
       expect(
         screen.getByText(
-          "We can't sign you in with this phone number. Use the method you used when creating your account, or sign up.",
+          "We can't sign you in with this phone number yet. Sign in with the method you used when creating your account, then link your phone from Profile > Verify Phone.",
         ),
       ).toBeTruthy();
     });
@@ -628,6 +640,65 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     expect(sendPhoneOtp).toHaveBeenCalledTimes(1);
     expect(routerReplace).toHaveBeenCalledWith("/link-mycashback");
   });
+
+  it("#332 > given a verified phone is not linked > shows original-method recovery instead of an OTP or system error", async () => {
+    confirmPhoneOtp.mockResolvedValue({ idToken: "verified-phone-token" });
+    exchangeFirebaseIdToken.mockRejectedValue(
+      Object.assign(new Error("Phone sign-in needs account linking."), {
+        kind: "phone-link-required",
+        status: 401,
+      }),
+    );
+
+    await reachOtpStepAndSubmit("654321");
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "We can't sign you in with this phone number yet. Sign in with the method you used when creating your account, then link your phone from Profile > Verify Phone.",
+        ),
+      ).toBeTruthy();
+    });
+    expect(screen.queryByText(/verification code is incorrect/i)).toBeNull();
+    expect(
+      screen.queryByText("Could not sign in. Please try again."),
+    ).toBeNull();
+    expect(readStoredSession()).toBeNull();
+    expect(routerReplace).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "identity-verification",
+      "We couldn't verify this sign-in. Please sign in again.",
+    ],
+    [
+      "service-unavailable",
+      "Sign-in is temporarily unavailable. Please try again.",
+    ],
+  ] as const)(
+    "#332 > given a %s exchange failure > shows its distinct recovery copy",
+    async (kind, expectedCopy) => {
+      confirmPhoneOtp.mockResolvedValue({ idToken: "verified-phone-token" });
+      exchangeFirebaseIdToken.mockRejectedValue(
+        Object.assign(new Error("safe typed exchange failure"), {
+          kind,
+          status: kind === "identity-verification" ? 401 : 503,
+        }),
+      );
+
+      await reachOtpStepAndSubmit("654321");
+
+      await waitFor(() => {
+        expect(screen.getByText(expectedCopy)).toBeTruthy();
+      });
+      expect(
+        screen.queryByText("Could not sign in. Please try again."),
+      ).toBeNull();
+      expect(readStoredSession()).toBeNull();
+      expect(routerReplace).not.toHaveBeenCalled();
+    },
+  );
 
   it("backend mode > given session persistence fails > retrying Next persists the cached session without reconfirming or re-exchanging", async () => {
     confirmPhoneOtp.mockResolvedValue({ idToken: "firebase-id-token" });

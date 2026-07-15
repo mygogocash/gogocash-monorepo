@@ -27,7 +27,7 @@ export const authSendErrorMessages = {
   rateLimit: "Too many attempts. Please try again later.",
   securityCheck: "Security check failed. Please close and reopen the app, then try again.",
   invalidPhone: "That phone number doesn't look valid. Check it and try again.",
-  unlinkedPhone: "We can't sign you in with this phone number. Use the method you used when creating your account, or sign up.",
+  unlinkedPhone: "We can't sign you in with this phone number yet. Sign in with the method you used when creating your account, then link your phone from Profile > Verify Phone.",
   notConfigured: "Sign-in is temporarily unavailable. Please try again later.",
   webOnly: "Social sign-in isn't available in the app yet. Open GoGoCash in your web browser to continue.",
   generic: toastErrorMessages.requestFailed,
