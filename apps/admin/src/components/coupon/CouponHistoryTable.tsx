@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { AdminPaginationBar } from "@/components/common/AdminPaginationBar";
 import NoData from "@/components/common/NoData";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   getCouponInsights,
+  recordCouponRedemption,
   type CouponInsightRedemption,
 } from "@/lib/api/couponInsightsApi";
 import { formatDateTime } from "@/lib/dateFormat";
@@ -15,6 +17,9 @@ import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 type InsightTab = "redemptions" | "insight";
 
 export default function CouponHistoryTable({ couponId }: { couponId: string }) {
+  const permissions = usePermissions();
+  const canRecordRedemption =
+    permissions.ready && permissions.can("coupon:manage");
   const [activeTab, setActiveTab] = useState<InsightTab>("redemptions");
   const [page, setPage] = useState(1);
   const limit = 25;
@@ -71,6 +76,8 @@ export default function CouponHistoryTable({ couponId }: { couponId: string }) {
 
       {activeTab === "redemptions" ? (
         <RedemptionPanel
+          canRecordRedemption={canRecordRedemption}
+          couponId={couponId}
           limit={redemptions.limit}
           onPageChange={setPage}
           page={redemptions.page}
@@ -129,6 +136,8 @@ function CouponInsightTabs({
 }
 
 function RedemptionPanel({
+  canRecordRedemption,
+  couponId,
   limit,
   onPageChange,
   page,
@@ -136,6 +145,8 @@ function RedemptionPanel({
   total,
   totalPages,
 }: {
+  canRecordRedemption: boolean;
+  couponId: string;
   limit: number;
   onPageChange: (page: number) => void;
   page: number;
@@ -154,6 +165,12 @@ function RedemptionPanel({
         Confirmed coupon usage reported by a trusted merchant or operations
         integration. Duplicate reference IDs are ignored.
       </p>
+      {canRecordRedemption ? (
+        <RecordRedemptionForm
+          couponId={couponId}
+          onRecorded={() => onPageChange(1)}
+        />
+      ) : null}
       {rows.length > 0 ? (
         <div className="min-w-0 overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -197,6 +214,138 @@ function RedemptionPanel({
         />
       ) : null}
     </div>
+  );
+}
+
+function RecordRedemptionForm({
+  couponId,
+  onRecorded,
+}: {
+  couponId: string;
+  onRecorded: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [referenceId, setReferenceId] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [userId, setUserId] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const normalizedReferenceId = referenceId.trim();
+  const referenceIsValid =
+    normalizedReferenceId.length >= 3 &&
+    normalizedReferenceId.length <= 128 &&
+    /^[A-Za-z0-9._:-]+$/.test(normalizedReferenceId);
+  const mutation = useMutation({
+    mutationFn: () =>
+      recordCouponRedemption(couponId, {
+        referenceId: normalizedReferenceId,
+        ...(userEmail.trim() ? { userEmail: userEmail.trim() } : {}),
+        ...(userId.trim() ? { userId: userId.trim() } : {}),
+      }),
+    onMutate: () => {
+      setSuccessMessage("");
+    },
+    onSuccess: async ({ recorded }) => {
+      setReferenceId("");
+      setUserEmail("");
+      setUserId("");
+      setSuccessMessage(
+        recorded
+          ? "Confirmed redemption recorded."
+          : "This redemption was already recorded; no duplicate was added.",
+      );
+      onRecorded();
+      await queryClient.invalidateQueries({
+        queryKey: ["coupon-insights", couponId],
+      });
+    },
+  });
+  const errorMessage = mutation.isError
+    ? getApiErrorMessage(
+        mutation.error,
+        "Couldn't record this redemption. Check the details and try again.",
+      )
+    : "";
+
+  return (
+    <details className="mb-6 rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+      <summary className="cursor-pointer text-sm font-semibold text-gray-900 dark:text-white">
+        Record confirmed redemption
+      </summary>
+      <form
+        className="mt-4 grid gap-4 lg:grid-cols-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (referenceIsValid && !mutation.isPending) mutation.mutate();
+        }}
+      >
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Reference ID
+          <input
+            autoComplete="off"
+            className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+            maxLength={128}
+            onChange={(event) => setReferenceId(event.target.value)}
+            pattern="[A-Za-z0-9._:-]+"
+            placeholder="merchant-order-123"
+            required
+            value={referenceId}
+          />
+        </label>
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Customer email (optional)
+          <input
+            autoComplete="off"
+            className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+            maxLength={254}
+            onChange={(event) => setUserEmail(event.target.value)}
+            placeholder="member@example.com"
+            type="email"
+            value={userEmail}
+          />
+        </label>
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Customer ID (optional)
+          <input
+            autoComplete="off"
+            className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+            maxLength={128}
+            onChange={(event) => setUserId(event.target.value)}
+            placeholder="customer-123"
+            value={userId}
+          />
+        </label>
+        <div className="lg:col-span-3">
+          <button
+            className="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!referenceIsValid || mutation.isPending}
+            type="submit"
+          >
+            {mutation.isPending ? "Recording…" : "Record redemption"}
+          </button>
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Use the merchant order or operations reference. Reusing it will not
+            increase usage twice.
+          </p>
+          {successMessage ? (
+            <p
+              aria-live="polite"
+              className="mt-2 text-sm text-green-700 dark:text-green-300"
+            >
+              {successMessage}
+            </p>
+          ) : null}
+          {errorMessage ? (
+            <p
+              aria-live="assertive"
+              className="mt-2 text-sm text-red-700 dark:text-red-300"
+              role="alert"
+            >
+              {errorMessage}
+            </p>
+          ) : null}
+        </div>
+      </form>
+    </details>
   );
 }
 

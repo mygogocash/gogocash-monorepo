@@ -14,6 +14,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { Roles } from 'src/admin/roles.decorator';
+import { RolesGuard } from 'src/admin/roles.guard';
 import { RateLimit } from 'src/auth/rate-limit.decorator';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 import { CouponInsightsService } from './coupon-insights.service';
@@ -43,7 +45,8 @@ export class CouponInsightsController {
   }
 
   @Post(':couponId/redemptions')
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('support')
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @ApiOperation({

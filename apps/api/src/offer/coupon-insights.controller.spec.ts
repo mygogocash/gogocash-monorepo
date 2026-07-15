@@ -1,5 +1,7 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { ROLES_KEY } from 'src/admin/roles.decorator';
+import { RolesGuard } from 'src/admin/roles.guard';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 import { CouponInsightsController } from './coupon-insights.controller';
 
@@ -23,6 +25,13 @@ describe('CouponInsightsController', () => {
     expect(guardsFor('recordEngagement')).toContain(RateLimitGuard);
     expect(guardsFor('getInsights')).toContain(AuthAdminGuard);
     expect(guardsFor('recordRedemption')).toContain(AuthAdminGuard);
+    expect(guardsFor('recordRedemption')).toContain(RolesGuard);
+    expect(
+      Reflect.getMetadata(
+        ROLES_KEY,
+        CouponInsightsController.prototype.recordRedemption,
+      ),
+    ).toEqual(['support']);
   });
 
   it('delegates using the coupon id and validated DTOs', async () => {

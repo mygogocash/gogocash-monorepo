@@ -1,12 +1,19 @@
 // @vitest-environment happy-dom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const api = vi.hoisted(() => ({ getCouponInsights: vi.fn() }));
+const api = vi.hoisted(() => ({
+  getCouponInsights: vi.fn(),
+  recordCouponRedemption: vi.fn(),
+}));
+const permissions = vi.hoisted(() => ({ can: vi.fn() }));
 
 vi.mock("@/lib/api/couponInsightsApi", () => api);
+vi.mock("@/hooks/usePermissions", () => ({
+  usePermissions: () => ({ can: permissions.can, ready: true }),
+}));
 
 import CouponHistoryTable from "./CouponHistoryTable";
 
@@ -55,7 +62,11 @@ function renderTable() {
 }
 
 describe("CouponHistoryTable per-coupon real insights", () => {
-  beforeEach(() => api.getCouponInsights.mockResolvedValue(response));
+  beforeEach(() => {
+    api.getCouponInsights.mockResolvedValue(response);
+    api.recordCouponRedemption.mockResolvedValue({ recorded: true });
+    permissions.can.mockReturnValue(true);
+  });
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -86,5 +97,85 @@ describe("CouponHistoryTable per-coupon real insights", () => {
     expect(screen.getByText("Usage amount")).toBeInTheDocument();
     expect(screen.getByText("3 redemptions")).toBeInTheDocument();
     expect(screen.queryByText(/sample data/i)).not.toBeInTheDocument();
+  });
+
+  it("lets operations record one idempotent confirmed redemption", async () => {
+    const user = userEvent.setup();
+    renderTable();
+
+    await screen.findByText("Save ten");
+    await user.click(screen.getByText("Record confirmed redemption"));
+    await user.type(screen.getByLabelText("Reference ID"), "merchant-order-99");
+    await user.type(
+      screen.getByLabelText("Customer email (optional)"),
+      "member99@example.com",
+    );
+    await user.type(
+      screen.getByLabelText("Customer ID (optional)"),
+      "customer-99",
+    );
+    await user.click(screen.getByRole("button", { name: "Record redemption" }));
+
+    await waitFor(() =>
+      expect(api.recordCouponRedemption).toHaveBeenCalledWith(
+        response.coupon.id,
+        {
+          referenceId: "merchant-order-99",
+          userEmail: "member99@example.com",
+          userId: "customer-99",
+        },
+      ),
+    );
+    expect(
+      await screen.findByText("Confirmed redemption recorded."),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(api.getCouponInsights).toHaveBeenCalledTimes(2));
+  });
+
+  it("does not submit an invalid redemption reference", async () => {
+    const user = userEvent.setup();
+    renderTable();
+
+    await screen.findByText("Save ten");
+    await user.click(screen.getByText("Record confirmed redemption"));
+    await user.type(screen.getByLabelText("Reference ID"), "bad reference");
+
+    expect(
+      screen.getByRole("button", { name: "Record redemption" }),
+    ).toBeDisabled();
+    expect(api.recordCouponRedemption).not.toHaveBeenCalled();
+  });
+
+  it("shows the real API reason when a redemption cannot be recorded", async () => {
+    api.recordCouponRedemption.mockRejectedValueOnce({
+      response: {
+        data: {
+          message: "You do not have permission to record this redemption.",
+        },
+      },
+    });
+    const user = userEvent.setup();
+    renderTable();
+
+    await screen.findByText("Save ten");
+    await user.click(screen.getByText("Record confirmed redemption"));
+    await user.type(screen.getByLabelText("Reference ID"), "merchant-order-99");
+    await user.click(screen.getByRole("button", { name: "Record redemption" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You do not have permission to record this redemption.",
+    );
+  });
+
+  it("keeps redemption writes hidden from read-only coupon viewers", async () => {
+    permissions.can.mockReturnValue(false);
+    renderTable();
+
+    await screen.findByText("Save ten");
+
+    expect(permissions.can).toHaveBeenCalledWith("coupon:manage");
+    expect(
+      screen.queryByText("Record confirmed redemption"),
+    ).not.toBeInTheDocument();
   });
 });
