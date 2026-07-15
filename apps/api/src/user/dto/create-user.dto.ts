@@ -44,6 +44,12 @@ export class CreateUserDto {
   @IsString()
   mobile?: string;
 
+  /** Server-controlled canonical phone identity set after Firebase verification. */
+  @ApiProperty({ required: false, example: '+66812345678' })
+  @IsOptional()
+  @IsString()
+  verified_phone_e164?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()

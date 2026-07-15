@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
-import { UnauthorizedException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { UserService } from './user.service';
 import { User } from './schemas/user.schema';
 import { UserMyCashback } from './schemas/user-my-cashback.schema';
@@ -53,6 +53,61 @@ describe('UserService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('claimVerifiedPhone', () => {
+    const id = new Types.ObjectId();
+    const phoneE164 = '+66812345678';
+
+    it('claimVerifiedPhone > given an available canonical phone > then atomically persists identity and display fields', async () => {
+      const updated = {
+        _id: id,
+        mobile: phoneE164,
+        verified_phone_e164: phoneE164,
+      };
+      findByIdAndUpdate.mockResolvedValue(updated);
+
+      await expect(service.claimVerifiedPhone(id, phoneE164)).resolves.toEqual(
+        updated,
+      );
+
+      expect(findByIdAndUpdate).toHaveBeenCalledWith(
+        id,
+        {
+          $set: {
+            mobile: phoneE164,
+            verified_phone_e164: phoneE164,
+          },
+        },
+        { new: true, runValidators: true },
+      );
+    });
+
+    it('claimVerifiedPhone > given another account owns the canonical phone > then returns a safe conflict', async () => {
+      findByIdAndUpdate.mockRejectedValue(
+        Object.assign(new Error('E11000 duplicate key with sensitive data'), {
+          code: 11000,
+          keyPattern: { verified_phone_e164: 1 },
+        }),
+      );
+
+      await expect(service.claimVerifiedPhone(id, phoneE164)).rejects.toEqual(
+        expect.objectContaining({
+          constructor: ConflictException,
+          message:
+            'This phone number is already linked to another account. Sign in with that account or use a different phone number.',
+        }),
+      );
+    });
+
+    it('claimVerifiedPhone > given an unrelated persistence failure > then preserves the original failure', async () => {
+      const failure = new Error('database unavailable');
+      findByIdAndUpdate.mockRejectedValue(failure);
+
+      await expect(service.claimVerifiedPhone(id, phoneE164)).rejects.toBe(
+        failure,
+      );
+    });
   });
 
   describe('updateProfile', () => {

@@ -63,6 +63,10 @@ export class User {
   @Prop()
   mobile: string;
 
+  /** Canonical E.164 identity claimed only after Firebase phone verification. */
+  @Prop({ type: String, required: false })
+  verified_phone_e164?: string;
+
   @Prop()
   birthdate: string;
 
@@ -151,3 +155,11 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+UserSchema.index(
+  { verified_phone_e164: 1 },
+  {
+    name: 'uniq_user_verified_phone_e164',
+    sparse: true,
+    unique: true,
+  },
+);

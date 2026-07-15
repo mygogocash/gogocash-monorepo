@@ -26,6 +26,76 @@ export type BackendLoginResponse = {
   };
 };
 
+export type FirebaseLoginExchangeErrorKind =
+  | "account-disabled"
+  | "identity-verification"
+  | "phone-link-required"
+  | "service-unavailable"
+  | "unknown";
+
+const firebaseLoginExchangeMessages: Record<
+  FirebaseLoginExchangeErrorKind,
+  string
+> = {
+  "account-disabled": "This account is disabled. Contact support.",
+  "identity-verification":
+    "We couldn't verify this sign-in. Please sign in again.",
+  "phone-link-required":
+    "This verified phone number must be linked to an existing account.",
+  "service-unavailable":
+    "Sign-in is temporarily unavailable. Please try again.",
+  unknown: "We couldn't finish signing you in. Please try again.",
+};
+
+export class FirebaseLoginExchangeError extends Error {
+  constructor(
+    public readonly kind: FirebaseLoginExchangeErrorKind,
+    public readonly status: number,
+  ) {
+    super(firebaseLoginExchangeMessages[kind]);
+    this.name = "FirebaseLoginExchangeError";
+  }
+}
+
+export function getFirebaseLoginExchangeErrorKind(
+  error: unknown,
+): FirebaseLoginExchangeErrorKind | null {
+  return error instanceof FirebaseLoginExchangeError ? error.kind : null;
+}
+
+export function isPhoneLinkRequiredError(error: unknown): boolean {
+  return getFirebaseLoginExchangeErrorKind(error) === "phone-link-required";
+}
+
+function toFirebaseLoginExchangeError(
+  status: number,
+  payload: { code?: unknown; message?: unknown } | undefined,
+): FirebaseLoginExchangeError {
+  const code = typeof payload?.code === "string" ? payload.code : "";
+  const message =
+    typeof payload?.message === "string" ? payload.message.toLowerCase() : "";
+  const phoneLinkRequired =
+    code === "PHONE_LINK_REQUIRED" ||
+    (status === 401 &&
+      (message.includes("not linked") ||
+        message.includes("original method") ||
+        (message.includes("link") && message.includes("profile"))));
+
+  if (phoneLinkRequired) {
+    return new FirebaseLoginExchangeError("phone-link-required", status);
+  }
+  if (status === 403) {
+    return new FirebaseLoginExchangeError("account-disabled", status);
+  }
+  if (status === 401) {
+    return new FirebaseLoginExchangeError("identity-verification", status);
+  }
+  if (status === 429 || status >= 500) {
+    return new FirebaseLoginExchangeError("service-unavailable", status);
+  }
+  return new FirebaseLoginExchangeError("unknown", status);
+}
+
 // Maps the backend envelope into the persisted mobile session.
 export function mapLoginResponseToMobileSession(response: BackendLoginResponse): MobileSession {
   const token = response.token?.trim();
@@ -86,10 +156,11 @@ export async function exchangeFirebaseIdToken({
   });
 
   const payload = (await response.json().catch(() => ({}))) as BackendLoginResponse & {
+    code?: string;
     message?: string;
   };
   if (!response.ok) {
-    throw new Error(payload?.message || `Login failed with status ${response.status}.`);
+    throw toFirebaseLoginExchangeError(response.status, payload);
   }
 
   return mapLoginResponseToMobileSession(payload);

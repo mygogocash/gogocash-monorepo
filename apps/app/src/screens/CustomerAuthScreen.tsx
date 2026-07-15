@@ -101,6 +101,16 @@ const webCountryMenuShadowStyle = {
 } as unknown as ViewStyle;
 
 type AuthPhase = "phone" | "otp" | "email";
+type FirebaseExchangeFailureKind =
+  | "account-disabled"
+  | "identity-verification"
+  | "service-unavailable"
+  | "unknown";
+type OtpFailureKind =
+  | "code"
+  | "link-required"
+  | "system"
+  | FirebaseExchangeFailureKind;
 type SocialProvider = (typeof webAuthPage.socialProviders)[number];
 type AuthCountry = (typeof webAuthPage.countries)[number];
 type PhoneOtpAttemptSnapshot = {
@@ -118,6 +128,25 @@ function formatOtpCountdown(totalSeconds: number) {
   const seconds = clampedSeconds % 60;
 
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function getOtpFailureCopy(failure: OtpFailureKind): string {
+  switch (failure) {
+    case "code":
+      return webAuthPage.otp.errorAria;
+    case "link-required":
+      return authSendErrorMessages.unlinkedPhone;
+    case "account-disabled":
+      return "This account is disabled. Contact support.";
+    case "identity-verification":
+      return "We couldn't verify this sign-in. Please sign in again.";
+    case "service-unavailable":
+      return "Sign-in is temporarily unavailable. Please try again.";
+    case "unknown":
+      return "We couldn't finish signing you in. Please try again.";
+    default:
+      return toastErrorMessages.signInFailed;
+  }
 }
 
 function createPhoneOtpAttemptSnapshot(
@@ -151,7 +180,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   // of easing. MotionPressable already handles its own press-feedback reduction.
   const reducedMotion = useReducedMotion();
   const [authPhase, setAuthPhase] = useState<AuthPhase>("phone");
-  const [otpFailure, setOtpFailure] = useState<"code" | "system" | null>(null);
+  const [otpFailure, setOtpFailure] = useState<OtpFailureKind | null>(null);
   const [sendError, setSendError] = useState<SendErrorKind | null>(null);
   const [sendCooldownSeconds, setSendCooldownSeconds] = useState(0);
   const [otpSendBusy, setOtpSendBusy] = useState(false);
@@ -577,7 +606,19 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           // only blame the entered code when Firebase actually rejected it.
           const { captureHandledException } = await import("@mobile/observability/client");
           captureHandledException(error, { feature: "phone-otp-login", step });
-          setOtpFailure(step === "confirm" && isOtpCodeError(error) ? "code" : "system");
+          const { getFirebaseLoginExchangeErrorKind } =
+            await import("@mobile/auth/firebaseLogin");
+          let failure: OtpFailureKind = "system";
+          if (step === "confirm" && isOtpCodeError(error)) {
+            failure = "code";
+          } else if (step === "exchange") {
+            const exchangeFailure = getFirebaseLoginExchangeErrorKind(error);
+            failure =
+              exchangeFailure === "phone-link-required"
+                ? "link-required"
+                : (exchangeFailure ?? "system");
+          }
+          setOtpFailure(failure);
           haptics.error();
         } finally {
           authOperationInFlightRef.current = false;
@@ -771,7 +812,14 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           ) {
             return;
           }
-          toastCtx?.show(tc(sendErrorCopy[toSendErrorKind(error)]));
+          const { getLineAuthUserMessage } =
+            await import("@mobile/auth/lineLogin");
+          toastCtx?.show(
+            tc(
+              getLineAuthUserMessage(error) ??
+                sendErrorCopy[toSendErrorKind(error)],
+            ),
+          );
           haptics.error();
         } finally {
           authOperationInFlightRef.current = false;
@@ -1317,11 +1365,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                     />
                     {otpFailure ? (
                       <Text accessibilityRole="alert" style={styles.otpError}>
-                        {tc(
-                          otpFailure === "code"
-                            ? webAuthPage.otp.errorAria
-                            : toastErrorMessages.signInFailed
-                        )}
+                        {tc(getOtpFailureCopy(otpFailure))}
                       </Text>
                     ) : null}
                     {sendErrorNotice}

@@ -212,11 +212,11 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   {
     appFile: "app/profile/cf-phone.tsx",
     expectedLinks: ["/profile/verify-phone"],
-    landmarks: ["Verification Code", "Please wait for 1 minute", "Back"],
+    landmarks: ["Verification Code", "Enter the code we sent", "Didn't receive a code?", "Back"],
     routeId: "profileConfirmPhone",
     routeMarkers: ["CustomerProfilePhoneScreen", 'mode="otp"'],
     screenFiles: ["src/screens/CustomerProfilePhoneScreen.tsx"],
-    userFlow: "Customer enters phone OTP, resends code, or changes number.",
+    userFlow: "Customer confirms phone OTP, links the verified number, or returns to request a new code.",
   },
   {
     appFile: "app/profile/my-rating.tsx",

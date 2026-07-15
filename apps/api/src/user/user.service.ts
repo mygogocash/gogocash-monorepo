@@ -1,5 +1,10 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { getAdminAuth } from 'src/auth/firebase-admin.provider';
 import { CreateUserDto, UpdateCountryDto } from './dto/create-user.dto';
@@ -118,6 +123,37 @@ export class UserService {
   findOne(data: { [key: string]: string | Types.ObjectId }) {
     return this.userModel.findOne(data);
   }
+
+  /**
+   * Atomically claims a Firebase-verified canonical phone for one user.
+   *
+   * `verified_phone_e164` is protected by a sparse unique Mongo index. The
+   * database therefore arbitrates concurrent claims across app instances;
+   * the legacy `mobile` field is written in the same document operation for
+   * existing readers and display surfaces.
+   */
+  async claimVerifiedPhone(id: Types.ObjectId | string, phoneE164: string) {
+    try {
+      return await this.userModel.findByIdAndUpdate(
+        id,
+        {
+          $set: {
+            mobile: phoneE164,
+            verified_phone_e164: phoneE164,
+          },
+        },
+        { new: true, runValidators: true },
+      );
+    } catch (error) {
+      if ((error as { code?: number })?.code === 11000) {
+        throw new ConflictException(
+          'This phone number is already linked to another account. Sign in with that account or use a different phone number.',
+        );
+      }
+      throw error;
+    }
+  }
+
   async update(id: Types.ObjectId, updateUserDto: UpdateUserDto) {
     // delete updateUserDto.mobile; // prevent updating mobile directly;
     // Order matters: unwrap the legacy { data: {...} } envelope FIRST, THEN

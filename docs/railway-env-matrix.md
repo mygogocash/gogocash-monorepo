@@ -38,6 +38,7 @@ railway variables --set 'MAIL_FROM=GoGoCash <noreply@gogocash.co>' --service gog
 railway variables --set 'WEB_APP_URL=https://app-staging.gogocash.co' --service gogocash-api
 railway variables --set 'API_BASE_URL=https://api-staging.gogocash.co' --service gogocash-api
 railway variables --set 'ADMIN_APP_URL=https://admin-staging.gogocash.co' --service gogocash-api
+railway variables --set 'LINE_CHANNEL_ID=2008237916' --service gogocash-api # must match the staging LIFF channel
 railway variables --set 'POSTHOG_HOST=https://us.i.posthog.com' --service gogocash-api
 railway variables --set 'POSTHOG_ENABLED=true' --service gogocash-api
 railway variables --set 'R2_BUCKET=gogocash-catalog-staging' --service gogocash-api

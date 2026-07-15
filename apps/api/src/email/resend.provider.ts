@@ -23,26 +23,29 @@ export interface ResendLike {
         content: Buffer | string;
         contentType?: string;
       }>;
-    }) => Promise<{ data: unknown; error: { message: string } | null }>;
+    }) => Promise<{
+      data: { id: string } | null;
+      error: { message: string } | null;
+    }>;
   };
 }
 
 /**
- * No-op Resend client used when RESEND_API_KEY is not configured (local dev, or
- * any environment where email is intentionally disabled). Email is a non-critical
- * side channel: a missing key must NOT crash the API at bootstrap (the real
- * Resend SDK throws on an empty key). Each skipped send is logged so a
- * missing OTP/invite email is diagnosable rather than silent.
+ * Unavailable Resend client used when RESEND_API_KEY is not configured. A
+ * missing key must not crash the whole API at bootstrap, but an attempted
+ * transactional send must fail explicitly instead of returning a success-shaped
+ * result. The warning intentionally excludes recipient and subject data.
  */
-const createNoopResendClient = (logger: Logger): ResendLike => ({
+const createUnavailableResendClient = (logger: Logger): ResendLike => ({
   emails: {
-    send: async (payload) => {
+    send: async () => {
       logger.warn(
-        `RESEND_API_KEY not configured — skipping email to ${String(
-          payload.to,
-        )} ("${payload.subject}")`,
+        'Transactional email attempt rejected because RESEND_API_KEY is not configured.',
       );
-      return { data: null, error: null };
+      return {
+        data: null,
+        error: { message: 'Transactional email provider is not configured' },
+      };
     },
   },
 });
@@ -54,9 +57,9 @@ export const resendClientProvider: Provider = {
     const logger = new Logger('ResendClient');
     if (!apiKey) {
       logger.warn(
-        'RESEND_API_KEY not set — using a no-op email client; outbound emails will be skipped.',
+        'RESEND_API_KEY not set — transactional email attempts will fail until it is configured.',
       );
-      return createNoopResendClient(logger);
+      return createUnavailableResendClient(logger);
     }
     return new Resend(apiKey) as unknown as ResendLike;
   },

@@ -11,6 +11,10 @@ import { UserAdminService } from './user-admin/user-admin-service';
 import { AdminInviteService } from './admin-invite.service';
 import { EmailModule } from 'src/email/email.module';
 import { AdminToken, AdminTokenSchema } from './schemas/admin-token.schema';
+import {
+  AdminInviteState,
+  AdminInviteStateSchema,
+} from './schemas/admin-invite-state.schema';
 import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardService } from './dashboard/dashboard.service';
 
@@ -170,6 +174,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     MongooseModule.forFeature([
       { name: UserAdmin.name, schema: UserAdminSchema },
       { name: AdminToken.name, schema: AdminTokenSchema },
+      { name: AdminInviteState.name, schema: AdminInviteStateSchema },
       { name: User.name, schema: UserSchema },
       { name: Withdraw.name, schema: WithdrawSchema },
       { name: FeeRate.name, schema: FeeRateSchema },
