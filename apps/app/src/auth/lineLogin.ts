@@ -2,6 +2,7 @@ import { Platform } from "react-native";
 
 import type { BackendLoginResponse } from "@mobile/auth/firebaseLogin";
 import { mapLoginResponseToMobileSession } from "@mobile/auth/firebaseLogin";
+import { sanitizeCallbackPath } from "@mobile/auth/routeGuard";
 import type { MobileSession } from "@mobile/auth/session";
 
 export type LineProfilePayload = {
@@ -25,6 +26,26 @@ declare global {
 }
 
 const LIFF_SDK_SCRIPT = "https://static.line-scdn.net/liff/edge/2/sdk.js";
+export const LINE_AUTH_CALLBACK_PATH = "/auth/line-callback";
+export const LINE_AUTH_DEFAULT_POST_LOGIN_PATH = "/link-mycashback";
+
+export type LineAuthExchangeErrorKind =
+  | "account-disabled"
+  | "account-link-failed"
+  | "provider-unavailable"
+  | "session-expired"
+  | "unknown";
+
+const lineAuthExchangeErrorMessages: Record<LineAuthExchangeErrorKind, string> =
+  {
+    "account-disabled": "This GoGoCash account is disabled. Contact support.",
+    "account-link-failed":
+      "We couldn't link your LINE account. Please try again or contact support.",
+    "provider-unavailable":
+      "LINE sign-in is temporarily unavailable. Please try again.",
+    "session-expired": "Your LINE sign-in expired. Start LINE sign-in again.",
+    unknown: "We couldn't finish LINE sign-in. Please try again.",
+  };
 
 export class LineLoginNotConfiguredError extends Error {
   constructor(message = "LINE login is not configured") {
@@ -33,12 +54,63 @@ export class LineLoginNotConfiguredError extends Error {
   }
 }
 
+export class LineLoginRedirectStartedError extends Error {
+  readonly code = "auth/popup-closed-by-user";
+
+  constructor() {
+    super("Redirecting to LINE login");
+    this.name = "LineLoginRedirectStartedError";
+  }
+}
+
+export class LineLoginSessionMissingError extends Error {
+  constructor() {
+    super("LINE login session missing after callback");
+    this.name = "LineLoginSessionMissingError";
+  }
+}
+
+export class LineAuthExchangeError extends Error {
+  constructor(
+    public readonly kind: LineAuthExchangeErrorKind,
+    public readonly status: number,
+    public readonly code?: string,
+  ) {
+    super(lineAuthExchangeErrorMessages[kind]);
+    this.name = "LineAuthExchangeError";
+  }
+}
+
+export function getLineAuthUserMessage(error: unknown): string | null {
+  return error instanceof LineAuthExchangeError ? error.message : null;
+}
+
 export function getLiffId(): string {
   return process.env.EXPO_PUBLIC_LIFF_ID?.trim() || "";
 }
 
 export function isLineLoginConfigured(): boolean {
   return getLiffId().length > 0;
+}
+
+/**
+ * Builds the browser handoff URL without forwarding LIFF/OAuth parameters from
+ * the login page. Only a known relative in-app destination survives.
+ */
+export function buildLineLoginCallbackUrl(currentHref: string): string {
+  const currentUrl = new URL(currentHref);
+  if (currentUrl.protocol !== "http:" && currentUrl.protocol !== "https:") {
+    throw new Error("LINE login requires an HTTP origin.");
+  }
+
+  const postLoginPath = sanitizeCallbackPath(
+    currentUrl.searchParams.get("callbackUrl"),
+    LINE_AUTH_DEFAULT_POST_LOGIN_PATH,
+  );
+  const callbackUrl = new URL(LINE_AUTH_CALLBACK_PATH, currentUrl.origin);
+  callbackUrl.searchParams.set("callbackUrl", postLoginPath);
+
+  return callbackUrl.toString();
 }
 
 async function loadLiffSdk(): Promise<LiffSdk> {
@@ -51,12 +123,18 @@ async function loadLiffSdk(): Promise<LiffSdk> {
   }
 
   await new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${LIFF_SDK_SCRIPT}"]`);
+    const existing = document.querySelector<HTMLScriptElement>(
+      `script[src="${LIFF_SDK_SCRIPT}"]`,
+    );
     if (existing) {
       existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error("LINE SDK failed to load")), {
-        once: true,
-      });
+      existing.addEventListener(
+        "error",
+        () => reject(new Error("LINE SDK failed to load")),
+        {
+          once: true,
+        },
+      );
       if (window.liff) {
         resolve();
       }
@@ -86,7 +164,9 @@ export async function requestLineLogin(liffId = getLiffId()): Promise<{
   profile: LineProfilePayload;
 }> {
   if (Platform.OS !== "web") {
-    return Promise.reject(new Error("LINE login currently supports Expo web only."));
+    return Promise.reject(
+      new Error("LINE login currently supports Expo web only."),
+    );
   }
   if (!liffId) {
     throw new LineLoginNotConfiguredError();
@@ -97,17 +177,50 @@ export async function requestLineLogin(liffId = getLiffId()): Promise<{
 
   if (!liff.isLoggedIn()) {
     liff.login({
-      redirectUri: typeof window !== "undefined" ? window.location.href : undefined,
+      redirectUri: buildLineLoginCallbackUrl(window.location.href),
     });
     // Redirect in progress — reject so the caller does not keep a busy spinner forever.
-    throw Object.assign(new Error("Redirecting to LINE login"), {
-      code: "auth/popup-closed-by-user",
-    });
+    throw new LineLoginRedirectStartedError();
   }
 
+  return readLineCredentials(liff);
+}
+
+/**
+ * Completes the external-browser return path. Unlike requestLineLogin(), this
+ * never calls liff.login(): a missing LIFF session is terminal so the callback
+ * route cannot bounce between GoGoCash and LINE forever.
+ */
+export async function resumeLineLogin(liffId = getLiffId()): Promise<{
+  accessToken: string;
+  profile: LineProfilePayload;
+}> {
+  if (Platform.OS !== "web") {
+    return Promise.reject(
+      new Error("LINE login currently supports Expo web only."),
+    );
+  }
+  if (!liffId) {
+    throw new LineLoginNotConfiguredError();
+  }
+
+  const liff = await loadLiffSdk();
+  await liff.init({ liffId });
+
+  if (!liff.isLoggedIn()) {
+    throw new LineLoginSessionMissingError();
+  }
+
+  return readLineCredentials(liff);
+}
+
+async function readLineCredentials(liff: LiffSdk): Promise<{
+  accessToken: string;
+  profile: LineProfilePayload;
+}> {
   const accessToken = liff.getAccessToken();
   if (!accessToken) {
-    throw new Error("LINE access token missing after login");
+    throw new LineLoginSessionMissingError();
   }
 
   const profile = await liff.getProfile();
@@ -132,27 +245,81 @@ export async function exchangeLineAuth({
   profile: LineProfilePayload;
 }): Promise<MobileSession> {
   const baseUrl = apiUrl.replace(/\/+$/, "");
-  const response = await fetchImpl(`${baseUrl}/auth/line-login`, {
-    body: JSON.stringify({
-      id_line: profile.userId,
-      ...(profile.displayName ? { username: profile.displayName } : {}),
-      ...(profile.pictureUrl ? { picture_url: profile.pictureUrl } : {}),
-      ...(country ? { country } : {}),
-    }),
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-  });
-
-  const body = (await response.json().catch(() => ({}))) as BackendLoginResponse & {
-    message?: string;
-  };
-  if (!response.ok) {
-    throw new Error(body?.message || `LINE login failed with status ${response.status}.`);
+  let response: Response;
+  try {
+    response = await fetchImpl(`${baseUrl}/auth/line-login`, {
+      body: JSON.stringify({
+        id_line: profile.userId,
+        ...(profile.displayName ? { username: profile.displayName } : {}),
+        ...(profile.pictureUrl ? { picture_url: profile.pictureUrl } : {}),
+        ...(country ? { country } : {}),
+      }),
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+  } catch {
+    throw new LineAuthExchangeError("provider-unavailable", 0);
   }
 
-  return mapLoginResponseToMobileSession(body);
+  const body = (await response
+    .json()
+    .catch(() => ({}))) as BackendLoginResponse & {
+    code?: unknown;
+  };
+  if (!response.ok) {
+    throw createLineAuthExchangeError(response.status, body.code);
+  }
+
+  try {
+    return mapLoginResponseToMobileSession(body);
+  } catch {
+    throw new LineAuthExchangeError("account-link-failed", response.status);
+  }
+}
+
+function createLineAuthExchangeError(
+  status: number,
+  responseCode: unknown,
+): LineAuthExchangeError {
+  const code = typeof responseCode === "string" ? responseCode : undefined;
+
+  if (
+    code === "LINE_TOKEN_MISSING" ||
+    code === "LINE_TOKEN_INVALID" ||
+    code === "LINE_IDENTITY_MISMATCH" ||
+    code === "LINE_CHANNEL_MISMATCH"
+  ) {
+    return new LineAuthExchangeError("session-expired", status, code);
+  }
+  if (code === "ACCOUNT_DISABLED" || code === "LINE_ACCOUNT_DISABLED") {
+    return new LineAuthExchangeError("account-disabled", status, code);
+  }
+  if (
+    code === "LINE_PROVIDER_UNAVAILABLE" ||
+    code === "LINE_CHANNEL_NOT_CONFIGURED"
+  ) {
+    return new LineAuthExchangeError("provider-unavailable", status, code);
+  }
+  if (code === "LINE_ACCOUNT_LINK_FAILED" || code === "LINE_ACCOUNT_CONFLICT") {
+    return new LineAuthExchangeError("account-link-failed", status, code);
+  }
+
+  if (status === 400 || status === 401) {
+    return new LineAuthExchangeError("session-expired", status);
+  }
+  if (status === 403) {
+    return new LineAuthExchangeError("account-disabled", status);
+  }
+  if (status === 409 || status === 422 || status === 500) {
+    return new LineAuthExchangeError("account-link-failed", status);
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return new LineAuthExchangeError("provider-unavailable", status);
+  }
+
+  return new LineAuthExchangeError("unknown", status);
 }

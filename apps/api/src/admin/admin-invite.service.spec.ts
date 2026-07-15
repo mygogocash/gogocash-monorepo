@@ -13,6 +13,7 @@ function mockQuery<T>(value: T) {
 function makeService(over: {
   userAdmin?: Partial<Record<string, jest.Mock>>;
   token?: Partial<Record<string, jest.Mock>>;
+  inviteState?: Partial<Record<string, jest.Mock>>;
   sendEmail?: jest.Mock;
 }) {
   const sendEmail = over.sendEmail ?? jest.fn().mockResolvedValue(undefined);
@@ -23,10 +24,20 @@ function makeService(over: {
   } as unknown as never;
   const tokenModel = {
     deleteMany: mockQuery({}),
+    deleteOne: mockQuery({}),
     create: jest.fn().mockResolvedValue({ _id: 't1' }),
     findOne: mockQuery(null),
     updateOne: mockQuery({}),
     ...over.token,
+  } as unknown as never;
+  const inviteStateModel = {
+    findOneAndUpdate: mockQuery({
+      email: 'new@gogocash.co',
+      activeTokenHash: 'previous-active-hash',
+    }),
+    findOne: mockQuery(null),
+    updateOne: mockQuery({ matchedCount: 1 }),
+    ...over.inviteState,
   } as unknown as never;
   const config = {
     get: (k: string) =>
@@ -37,10 +48,17 @@ function makeService(over: {
   const service = new AdminInviteService(
     userAdminModel,
     tokenModel,
+    inviteStateModel,
     sendEmailService(sendEmail),
     config,
   );
-  return { service, sendEmail, userAdminModel, tokenModel };
+  return {
+    service,
+    sendEmail,
+    userAdminModel,
+    tokenModel,
+    inviteStateModel,
+  };
 }
 
 // EmailService stand-in (only sendEmail is used).
@@ -49,13 +67,47 @@ const sendEmailService = (sendEmail: jest.Mock) =>
 
 describe('AdminInviteService', () => {
   describe('invite', () => {
-    it('stores an invite token and emails an accept-invite link', async () => {
-      const { service, sendEmail, tokenModel } = makeService({});
+    it('holds a per-email lease, then atomically promotes the acknowledged token as authoritative', async () => {
+      const { service, sendEmail, tokenModel, inviteStateModel } = makeService(
+        {},
+      );
       const res = await service.invite('New@GoGoCash.co', 'editor');
 
-      expect(
-        (tokenModel as unknown as { deleteMany: jest.Mock }).deleteMany,
-      ).toHaveBeenCalled();
+      const findOneAndUpdate = (
+        inviteStateModel as unknown as { findOneAndUpdate: jest.Mock }
+      ).findOneAndUpdate;
+      expect(findOneAndUpdate).toHaveBeenCalledTimes(2);
+
+      const [acquireFilter, acquireUpdate, acquireOptions] =
+        findOneAndUpdate.mock.calls[0];
+      expect(acquireFilter).toEqual(
+        expect.objectContaining({
+          email: 'new@gogocash.co',
+          $or: expect.any(Array),
+        }),
+      );
+      expect(acquireUpdate).toEqual(
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            leaseOwner: expect.any(String),
+            leaseExpiresAt: expect.any(Date),
+          }),
+          $setOnInsert: expect.objectContaining({
+            email: 'new@gogocash.co',
+            activeTokenHash: null,
+          }),
+        }),
+      );
+      expect(acquireOptions).toEqual(
+        expect.objectContaining({
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert: true,
+        }),
+      );
+
+      const deleteMany = (tokenModel as unknown as { deleteMany: jest.Mock })
+        .deleteMany;
       const created = (tokenModel as unknown as { create: jest.Mock }).create
         .mock.calls[0][0];
       expect(created).toEqual(
@@ -69,8 +121,136 @@ describe('AdminInviteService', () => {
       expect(mail.to).toBe('new@gogocash.co');
       expect(`${mail.html} ${mail.text}`).toContain('/accept-invite?token=');
       expect(`${mail.html} ${mail.text}`).toContain('email=new%40gogocash.co');
+
+      const [promoteFilter, promoteUpdate] = findOneAndUpdate.mock.calls[1];
+      expect(promoteFilter).toEqual({
+        email: 'new@gogocash.co',
+        leaseOwner: acquireUpdate.$set.leaseOwner,
+      });
+      expect(promoteUpdate).toEqual({
+        $set: {
+          activeTokenHash: created.tokenHash,
+          leaseOwner: null,
+          leaseExpiresAt: null,
+        },
+      });
+      expect(sendEmail.mock.invocationCallOrder[0]).toBeLessThan(
+        findOneAndUpdate.mock.invocationCallOrder[1],
+      );
+      expect(deleteMany).toHaveBeenCalledWith({
+        purpose: 'invite',
+        email: 'new@gogocash.co',
+        tokenHash: 'previous-active-hash',
+      });
+      expect(findOneAndUpdate.mock.invocationCallOrder[1]).toBeLessThan(
+        deleteMany.mock.invocationCallOrder[0],
+      );
       expect(res).toEqual(
-        expect.objectContaining({ message: expect.any(String) }),
+        expect.objectContaining({
+          message: expect.stringMatching(/accepted for delivery/i),
+          deliveryStatus: 'accepted',
+        }),
+      );
+    });
+
+    it('when two resends overlap > only the lease owner sends and the loser gets actionable 409', async () => {
+      const duplicateKey = Object.assign(new Error('duplicate key'), {
+        code: 11000,
+      });
+      let acquireCount = 0;
+      const queryChain = <T>(result: Promise<T>) => {
+        const exec = jest.fn(() => result);
+        return { exec, collation: jest.fn().mockReturnValue({ exec }) };
+      };
+      const findOneAndUpdate = jest.fn((filter: Record<string, unknown>) => {
+        if ('$or' in filter) {
+          acquireCount += 1;
+          return acquireCount === 1
+            ? queryChain(
+                Promise.resolve({
+                  email: 'new@gogocash.co',
+                  activeTokenHash: 'previous-active-hash',
+                }),
+              )
+            : queryChain(Promise.reject(duplicateKey));
+        }
+        return queryChain(
+          Promise.resolve({
+            email: 'new@gogocash.co',
+            activeTokenHash: 'promoted-hash',
+          }),
+        );
+      });
+      let markSendStarted: () => void = () => undefined;
+      const sendStarted = new Promise<void>((resolve) => {
+        markSendStarted = resolve;
+      });
+      let acknowledgeSend: () => void = () => undefined;
+      const sendAcknowledged = new Promise<void>((resolve) => {
+        acknowledgeSend = resolve;
+      });
+      const sendEmail = jest.fn(async () => {
+        markSendStarted();
+        await sendAcknowledged;
+      });
+      const { service, tokenModel } = makeService({
+        sendEmail,
+        inviteState: {
+          findOneAndUpdate,
+        },
+      });
+
+      const leaseOwnerRequest = service.invite('new@gogocash.co', 'editor');
+      await sendStarted;
+      const error = await service
+        .invite('new@gogocash.co', 'editor')
+        .catch((caught: unknown) => caught);
+
+      expect(error).toEqual(
+        expect.objectContaining({
+          getStatus: expect.any(Function),
+          message: expect.stringMatching(/already being sent|try again/i),
+        }),
+      );
+      expect((error as { getStatus: () => number }).getStatus()).toBe(409);
+      expect(
+        (tokenModel as unknown as { create: jest.Mock }).create,
+      ).toHaveBeenCalledTimes(1);
+      expect(sendEmail).toHaveBeenCalledTimes(1);
+
+      acknowledgeSend();
+      await expect(leaseOwnerRequest).resolves.toEqual(
+        expect.objectContaining({ deliveryStatus: 'accepted' }),
+      );
+    });
+
+    it('when delivery fails > deletes only the candidate token and preserves prior valid invites', async () => {
+      const deliveryError = new Error('provider unavailable');
+      const sendEmail = jest.fn().mockRejectedValue(deliveryError);
+      const { service, tokenModel, inviteStateModel } = makeService({
+        sendEmail,
+      });
+
+      await expect(service.invite('new@gogocash.co', 'editor')).rejects.toBe(
+        deliveryError,
+      );
+
+      expect(
+        (tokenModel as unknown as { deleteOne: jest.Mock }).deleteOne,
+      ).toHaveBeenCalledWith({ _id: 't1' });
+      expect(
+        (tokenModel as unknown as { deleteMany: jest.Mock }).deleteMany,
+      ).not.toHaveBeenCalled();
+      const findOneAndUpdate = (
+        inviteStateModel as unknown as { findOneAndUpdate: jest.Mock }
+      ).findOneAndUpdate;
+      expect(findOneAndUpdate).toHaveBeenCalledTimes(1);
+      const leaseOwner = findOneAndUpdate.mock.calls[0][1].$set.leaseOwner;
+      expect(
+        (inviteStateModel as unknown as { updateOne: jest.Mock }).updateOne,
+      ).toHaveBeenCalledWith(
+        { email: 'new@gogocash.co', leaseOwner },
+        { $set: { leaseOwner: null, leaseExpiresAt: null } },
       );
     });
 
@@ -149,6 +329,119 @@ describe('AdminInviteService', () => {
       );
     });
 
+    it('rejects a stale invite role when authoritative state points at a replacement token', async () => {
+      const raw = 'older-super-admin-token';
+      const { service, userAdminModel } = makeService({
+        token: {
+          findOne: mockQuery({
+            _id: 'old-token',
+            email: 'new@gogocash.co',
+            role: 'super_admin',
+          }),
+        },
+        inviteState: {
+          findOne: mockQuery({
+            email: 'new@gogocash.co',
+            activeTokenHash: sha256('newer-viewer-token'),
+          }),
+        },
+      });
+
+      await expect(
+        service.acceptInvite({
+          token: raw,
+          email: 'new@gogocash.co',
+          password: 'sup3rsecret',
+        }),
+      ).rejects.toThrow('Invalid or expired invitation');
+      expect(
+        (userAdminModel as unknown as { create: jest.Mock }).create,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('accepts the token selected by authoritative state', async () => {
+      const raw = 'current-editor-token';
+      const { service } = makeService({
+        token: {
+          findOne: mockQuery({
+            _id: 'current-token',
+            email: 'new@gogocash.co',
+            role: 'editor',
+          }),
+        },
+        inviteState: {
+          findOne: mockQuery({
+            email: 'new@gogocash.co',
+            activeTokenHash: sha256(raw),
+          }),
+        },
+      });
+
+      await expect(
+        service.acceptInvite({
+          token: raw,
+          email: 'new@gogocash.co',
+          password: 'sup3rsecret',
+        }),
+      ).resolves.toEqual(
+        expect.objectContaining({ message: expect.any(String) }),
+      );
+    });
+
+    it('rejects an otherwise valid token while authoritative state has not promoted one', async () => {
+      const raw = 'unpromoted-editor-token';
+      const { service, userAdminModel } = makeService({
+        token: {
+          findOne: mockQuery({
+            _id: 'unpromoted-token',
+            email: 'new@gogocash.co',
+            role: 'editor',
+          }),
+        },
+        inviteState: {
+          findOne: mockQuery({
+            email: 'new@gogocash.co',
+            activeTokenHash: null,
+          }),
+        },
+      });
+
+      await expect(
+        service.acceptInvite({
+          token: raw,
+          email: 'new@gogocash.co',
+          password: 'sup3rsecret',
+        }),
+      ).rejects.toThrow('Invalid or expired invitation');
+      expect(
+        (userAdminModel as unknown as { create: jest.Mock }).create,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('keeps a legacy pending invite usable when no authoritative state exists', async () => {
+      const raw = 'legacy-editor-token';
+      const { service } = makeService({
+        token: {
+          findOne: mockQuery({
+            _id: 'legacy-token',
+            email: 'new@gogocash.co',
+            role: 'editor',
+          }),
+        },
+        inviteState: { findOne: mockQuery(null) },
+      });
+
+      await expect(
+        service.acceptInvite({
+          token: raw,
+          email: 'new@gogocash.co',
+          password: 'sup3rsecret',
+        }),
+      ).resolves.toEqual(
+        expect.objectContaining({ message: expect.any(String) }),
+      );
+    });
+
     it('rejects an invalid/expired invite token', async () => {
       const { service } = makeService({});
       await expect(
@@ -181,6 +474,19 @@ describe('AdminInviteService', () => {
       expect(res).toEqual(
         expect.objectContaining({ message: expect.any(String) }),
       );
+    });
+
+    it('returns the same generic success when delivery fails for a registered admin', async () => {
+      const { service } = makeService({
+        userAdmin: {
+          findOne: mockQuery({ _id: 'a1', email: 'me@gogocash.co' }),
+        },
+        sendEmail: jest.fn().mockRejectedValue(new Error('provider failure')),
+      });
+
+      await expect(service.forgotPassword('me@gogocash.co')).resolves.toEqual({
+        message: 'If that email is registered, a reset link has been sent.',
+      });
     });
   });
 

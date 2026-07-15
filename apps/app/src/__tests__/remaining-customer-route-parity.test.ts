@@ -232,9 +232,11 @@ describe("Remaining customer route parity", () => {
     expect(offerScreen).toContain("createdAt");
     expect(offerScreen).toContain("copyToClipboard");
 
-    expect(phoneScreen).toContain("Change Your Phone Number");
+    expect(phoneScreen).toContain("Link Your Phone Number");
     expect(phoneScreen).toContain("Verification Code");
     expect(phoneScreen).toContain("Invalid phone number");
+    expect(phoneScreen).toContain("sendPhoneOtpWithRecaptcha(phoneE164)");
+    expect(phoneScreen).toContain("linkVerifiedPhone");
     expect(phoneScreen).toContain("/profile/cf-phone");
     expect(phoneScreen).toContain("#00B14F");
   });

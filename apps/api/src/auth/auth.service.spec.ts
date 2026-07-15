@@ -1,4 +1,12 @@
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  InternalServerErrorException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { createHash, createHmac } from 'crypto';
 
 // --- Module-level mocks for external SDKs / network / firebase ---------------
@@ -44,8 +52,10 @@ const USER_ID = '507f191e810c19729de860ea';
 type MockUser = {
   _id: { toString: () => string };
   id_firebase?: string;
+  id_line?: string;
   disabled?: boolean;
   email?: string;
+  mobile?: string;
   username?: string;
   provider?: string;
   id_telegram?: string;
@@ -76,6 +86,7 @@ function makeService(
   const userService = {
     findOne: jest.fn(),
     update: jest.fn(),
+    claimVerifiedPhone: jest.fn(),
     createFromFirebase: jest.fn(),
     ...overrides.userService,
   };
@@ -105,6 +116,7 @@ function makeService(
 
   const configStore: Record<string, string> = {
     'env.JWT_SECRET': 'test-jwt-secret',
+    'env.LINE_CHANNEL_ID': 'channel',
     ...overrides.config,
   };
   const config = {
@@ -190,15 +202,26 @@ describe('AuthService', () => {
     });
 
     it('signInFirebase > given a linked Thai legacy phone > then login resolves the same account accepted by eligibility', async () => {
-      const linked = makeUser({ id_firebase: 'legacy-firebase-id' });
+      const linked = makeUser({
+        id_firebase: 'original-line-identity',
+        mobile: '0812345678',
+        provider: 'line',
+      });
+      const updated = makeUser({
+        id_firebase: 'original-line-identity',
+        mobile: '+66812345678',
+        provider: 'line',
+      });
       const { service, userService } = makeService({
         userService: {
           findOne: jest
             .fn()
             .mockResolvedValueOnce(null)
             .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null)
             .mockResolvedValueOnce(linked),
-          update: jest.fn().mockResolvedValue(linked),
+          claimVerifiedPhone: jest.fn().mockResolvedValue(updated),
+          update: jest.fn().mockResolvedValue(updated),
         },
       });
       verifyIdTokenMock.mockResolvedValue({
@@ -214,10 +237,40 @@ describe('AuthService', () => {
       );
 
       expect(result.auth_flow).toBe('login');
-      expect(userService.findOne).toHaveBeenNthCalledWith(3, {
+      expect(userService.findOne).toHaveBeenNthCalledWith(4, {
         mobile: '0812345678',
       });
+      expect(userService.claimVerifiedPhone).toHaveBeenCalledWith(
+        linked._id,
+        '+66812345678',
+      );
+      expect(userService.update).toHaveBeenCalledWith(
+        updated._id,
+        expect.objectContaining({
+          id_firebase: 'original-line-identity',
+          provider: 'line',
+        }),
+      );
       expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
+    it('signInFirebase > given an unlinked phone login > then it returns an actionable recovery path', async () => {
+      const { service } = makeService({
+        userService: { findOne: jest.fn().mockResolvedValue(null) },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'unlinked-phone',
+        phone_number: '+66812345678',
+        firebase: { sign_in_provider: 'phone' },
+      });
+
+      await expect(
+        service.signInFirebase('id-token', { country: 'TH' } as any, {
+          allowPhoneRegistration: false,
+        }),
+      ).rejects.toThrow(
+        'This phone number is not linked to your GoGoCash account. Sign in with your original method, then link it from Profile.',
+      );
     });
 
     it('signInFirebase > given an unknown phone identity and omitted options > then it fails closed', async () => {
@@ -260,6 +313,12 @@ describe('AuthService', () => {
 
       expect(result.auth_flow).toBe('register');
       expect(userService.createFromFirebase).toHaveBeenCalledTimes(1);
+      expect(userService.createFromFirebase).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mobile: '+66812345678',
+          verified_phone_e164: '+66812345678',
+        }),
+      );
     });
 
     it('signInFirebase > given a new user > then it registers and returns the register envelope with a token', async () => {
@@ -380,7 +439,7 @@ describe('AuthService', () => {
 
     // A disabled account must never receive a session token, even with a valid
     // Firebase ID token — this is the account-suspension kill switch.
-    it('signInFirebase > given a disabled existing account > then it throws UnauthorizedException and issues no token', async () => {
+    it('signInFirebase > given a disabled existing account > then it throws ForbiddenException and issues no token', async () => {
       const existing = makeUser({ disabled: true });
       const { service, jwtService, userService } = makeService({
         userService: {
@@ -398,7 +457,7 @@ describe('AuthService', () => {
           address: '',
           referral_id: '',
         } as any),
-      ).rejects.toBeInstanceOf(UnauthorizedException);
+      ).rejects.toBeInstanceOf(ForbiddenException);
       expect(userService.update).not.toHaveBeenCalled();
       expect(jwtService.sign).not.toHaveBeenCalled();
     });
@@ -516,7 +575,7 @@ describe('AuthService', () => {
         true,
       );
       expect(userService.findOne).toHaveBeenCalledWith({
-        mobile: '+66812345678',
+        verified_phone_e164: '+66812345678',
       });
     });
 
@@ -527,6 +586,7 @@ describe('AuthService', () => {
           findOne: jest
             .fn()
             .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null)
             .mockResolvedValueOnce(linked),
         },
       });
@@ -534,8 +594,28 @@ describe('AuthService', () => {
       await expect(service.isPhoneLoginEligible('+66812345678')).resolves.toBe(
         true,
       );
-      expect(userService.findOne).toHaveBeenNthCalledWith(2, {
+      expect(userService.findOne).toHaveBeenNthCalledWith(3, {
         mobile: '0812345678',
+      });
+    });
+
+    it('given 063 and +6663 forms > resolves both to the same account identity', async () => {
+      const linked = makeUser({ mobile: '0631234567' });
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(linked),
+        },
+      });
+
+      await expect(service.isPhoneLoginEligible('+66631234567')).resolves.toBe(
+        true,
+      );
+      expect(userService.findOne).toHaveBeenNthCalledWith(3, {
+        mobile: '0631234567',
       });
     });
 
@@ -555,6 +635,268 @@ describe('AuthService', () => {
       await expect(
         disabled.service.isPhoneLoginEligible('+6591234567'),
       ).resolves.toBe(false);
+    });
+  });
+
+  describe('verifyPhone', () => {
+    it('given a verified Thai phone > stores one canonical E.164 identity', async () => {
+      const currentUser = makeUser({ mobile: '' });
+      const updatedUser = makeUser({ mobile: '+66812345678' });
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest
+            .fn()
+            .mockResolvedValueOnce(currentUser)
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null),
+          claimVerifiedPhone: jest.fn().mockResolvedValue(updatedUser),
+        },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'phone-uid',
+        phone_number: '+66812345678',
+        firebase: { sign_in_provider: 'phone' },
+      });
+
+      await expect(
+        service.verifyPhone('phone-token', USER_ID),
+      ).resolves.toEqual({ uid: 'phone-uid', user: updatedUser });
+      expect(userService.claimVerifiedPhone).toHaveBeenCalledWith(
+        currentUser._id,
+        '+66812345678',
+      );
+    });
+
+    it('given the canonical or legacy phone belongs to another account > refuses the link', async () => {
+      const currentUser = makeUser({ mobile: '' });
+      const otherUser = makeUser({
+        _id: { toString: () => REF_ID },
+        mobile: '0812345678',
+      });
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest
+            .fn()
+            .mockResolvedValueOnce(currentUser)
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(otherUser),
+        },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'phone-uid',
+        phone_number: '+66812345678',
+        firebase: { sign_in_provider: 'phone' },
+      });
+
+      await expect(
+        service.verifyPhone('phone-token', USER_ID),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(userService.claimVerifiedPhone).not.toHaveBeenCalled();
+    });
+
+    it('given a non-phone identity token > refuses to link it as a phone', async () => {
+      const { service } = makeService({
+        userService: { findOne: jest.fn().mockResolvedValue(makeUser()) },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'google-uid',
+        email: 'member@gogocash.co',
+        firebase: { sign_in_provider: 'google.com' },
+      });
+
+      await expect(
+        service.verifyPhone('google-token', USER_ID),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('given an invalid or expired verification token > requests a fresh code', async () => {
+      const { service, userService } = makeService();
+      verifyIdTokenMock.mockRejectedValue(new Error('provider token details'));
+
+      await expect(
+        service.verifyPhone('expired-token', USER_ID),
+      ).rejects.toThrow(
+        'Your phone verification expired. Request a new code and try again.',
+      );
+      expect(userService.findOne).not.toHaveBeenCalled();
+      expect(userService.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('signInLine', () => {
+    const payload = {
+      id_line: 'U123456789',
+      username: 'LINE Member',
+      country: 'TH',
+    } as any;
+
+    it('given no access token > returns a safe session error before user access', async () => {
+      const { service, userService } = makeService();
+
+      await expect(service.signInLine(payload)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(userService.findOne).not.toHaveBeenCalled();
+    });
+
+    it('given LINE rejects an expired token > returns an actionable 401', async () => {
+      const { service } = makeService();
+      (axios.get as jest.Mock).mockRejectedValueOnce({
+        response: { status: 401 },
+      });
+
+      await expect(service.signInLine(payload, 'expired')).rejects.toThrow(
+        'Your LINE sign-in session expired. Start LINE sign-in again.',
+      );
+    });
+
+    it('given LINE is unavailable > returns a retryable provider failure', async () => {
+      const { service } = makeService();
+      (axios.get as jest.Mock).mockRejectedValueOnce(new Error('network down'));
+
+      await expect(service.signInLine(payload, 'token')).rejects.toBeInstanceOf(
+        BadGatewayException,
+      );
+    });
+
+    it('given the expected LINE channel is not configured > fails closed before profile or user access', async () => {
+      const { service, userService } = makeService({
+        config: { 'env.LINE_CHANNEL_ID': '' },
+      });
+      (axios.get as jest.Mock).mockResolvedValueOnce({
+        data: { client_id: 'channel' },
+      });
+
+      await expect(service.signInLine(payload, 'token')).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
+      expect(axios.get).toHaveBeenCalledTimes(1);
+      expect(userService.findOne).not.toHaveBeenCalled();
+    });
+
+    it('given a valid token issued for another LINE channel > refuses it before profile or user access', async () => {
+      const { service, userService } = makeService();
+      (axios.get as jest.Mock).mockResolvedValueOnce({
+        data: { client_id: 'attacker-channel' },
+      });
+
+      await expect(service.signInLine(payload, 'token')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(axios.get).toHaveBeenCalledTimes(1);
+      expect(userService.findOne).not.toHaveBeenCalled();
+    });
+
+    it('given the verified profile does not match the claimed LINE user > refuses the identity', async () => {
+      const { service } = makeService();
+      (axios.get as jest.Mock)
+        .mockResolvedValueOnce({ data: { client_id: 'channel' } })
+        .mockResolvedValueOnce({ data: { userId: 'U-other' } });
+
+      await expect(service.signInLine(payload, 'token')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+    });
+
+    it('given the LINE account is disabled > does not mutate it or issue a token', async () => {
+      const disabled = makeUser({ disabled: true, id_line: payload.id_line });
+      const { service, userService, jwtService } = makeService({
+        userService: { findOne: jest.fn().mockResolvedValue(disabled) },
+      });
+      (axios.get as jest.Mock)
+        .mockResolvedValueOnce({ data: { client_id: 'channel' } })
+        .mockResolvedValueOnce({ data: { userId: payload.id_line } });
+
+      await expect(service.signInLine(payload, 'token')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(userService.update).not.toHaveBeenCalled();
+      expect(jwtService.sign).not.toHaveBeenCalled();
+    });
+
+    it('given email linking lacks its OTP token > preserves the specific 400 error', async () => {
+      const { service } = makeService();
+      (axios.get as jest.Mock)
+        .mockResolvedValueOnce({ data: { client_id: 'channel' } })
+        .mockResolvedValueOnce({ data: { userId: payload.id_line } });
+
+      await expect(
+        service.signInLine(
+          { ...payload, email: 'member@gogocash.co' },
+          'token',
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('given account persistence fails > returns a safe system error', async () => {
+      const existing = makeUser({ id_line: payload.id_line });
+      const { service } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(existing),
+          update: jest.fn().mockRejectedValue(new Error('mongo host details')),
+        },
+      });
+      (axios.get as jest.Mock)
+        .mockResolvedValueOnce({ data: { client_id: 'channel' } })
+        .mockResolvedValueOnce({ data: { userId: payload.id_line } });
+
+      await expect(service.signInLine(payload, 'token')).rejects.toBeInstanceOf(
+        InternalServerErrorException,
+      );
+    });
+
+    it('given a valid token for an existing account > returns a backend session', async () => {
+      const existing = makeUser({ id_line: payload.id_line });
+      const updated = makeUser({ id_line: payload.id_line });
+      const { service } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(existing),
+          update: jest.fn().mockResolvedValue(updated),
+        },
+      });
+      (axios.get as jest.Mock)
+        .mockResolvedValueOnce({ data: { client_id: 'channel' } })
+        .mockResolvedValueOnce({ data: { userId: payload.id_line } });
+
+      await expect(service.signInLine(payload, 'token')).resolves.toEqual({
+        user: updated,
+        token: 'signed.jwt.token',
+      });
+    });
+
+    it('given a legacy LINE account without a stored Firebase id > persists the synthetic session identity used by the auth guard', async () => {
+      const existing = makeUser({
+        id_firebase: '',
+        id_line: payload.id_line,
+        provider: 'line',
+      });
+      const updated = makeUser({
+        id_firebase: `line_${payload.id_line}`,
+        id_line: payload.id_line,
+        provider: 'line',
+      });
+      const { service, userService, jwtService } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(existing),
+          update: jest.fn().mockResolvedValue(updated),
+        },
+      });
+      (axios.get as jest.Mock)
+        .mockResolvedValueOnce({ data: { client_id: 'channel' } })
+        .mockResolvedValueOnce({ data: { userId: payload.id_line } });
+
+      await service.signInLine(payload, 'token');
+
+      expect(userService.update).toHaveBeenCalledWith(
+        existing._id,
+        expect.objectContaining({ id_firebase: `line_${payload.id_line}` }),
+      );
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ firebaseId: `line_${payload.id_line}` }),
+        expect.any(Object),
+      );
     });
   });
 

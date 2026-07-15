@@ -1,6 +1,12 @@
 import {
+  BadGatewayException,
+  ConflictException,
+  ForbiddenException,
+  HttpException,
   Injectable,
+  InternalServerErrorException,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
@@ -64,11 +70,28 @@ export class AuthService {
     payload: SignInFirebaseDto,
     options: FirebaseSignInOptions = {},
   ) {
+    let data: Awaited<
+      ReturnType<ReturnType<typeof getAdminAuth>['verifyIdToken']>
+    >;
     try {
-      const data = await getAdminAuth().verifyIdToken(token);
-      if (!data) {
-        throw new Error('User not found in Gogocash');
-      }
+      data = await getAdminAuth().verifyIdToken(token);
+    } catch (error: any) {
+      this.logger.warn(
+        `Firebase sign-in verification failed: ${error?.message ?? 'unknown error'}`,
+      );
+      throw new UnauthorizedException(
+        "Your sign-in couldn't be verified. Please sign in again.",
+      );
+    }
+
+    if (!data) {
+      throw new UnauthorizedException(
+        "Your sign-in couldn't be verified. Please sign in again.",
+      );
+    }
+
+    try {
+      const isPhoneSignIn = data.firebase?.sign_in_provider === 'phone';
       // console.log('payload', data.id);
       let userExist = await this.userService.findOne({
         id_firebase: data.uid,
@@ -84,28 +107,55 @@ export class AuthService {
 
       if (userExist) {
         if (userExist.disabled) {
-          throw new Error('Your account has been disabled');
+          throw new ForbiddenException(
+            'This account is disabled. Contact support.',
+          );
         }
 
-        const user = await this.userService.update(userExist._id, {
-          email: userExist?.email || data.email,
-          username: userExist?.username
-            ? userExist?.username
+        // A verified phone is an additional sign-in method for an existing
+        // account. Do not replace the original Firebase/social identity or
+        // provider when the account was resolved by its linked phone number.
+        const preserveOriginalIdentity =
+          isPhoneSignIn && Boolean(userExist.id_firebase);
+
+        // Firebase has already proved ownership of this E.164 number. Claim it
+        // through the database's sparse unique index before issuing a session;
+        // this closes the check-then-update race across API replicas and also
+        // backfills legacy mobile-only accounts as they sign in.
+        const verifiedPhoneUser =
+          isPhoneSignIn && data.phone_number
+            ? (await this.userService.claimVerifiedPhone(
+                userExist._id,
+                data.phone_number,
+              )) || userExist
+            : userExist;
+
+        const user = await this.userService.update(verifiedPhoneUser._id, {
+          email: verifiedPhoneUser?.email || data.email,
+          username: verifiedPhoneUser?.username
+            ? verifiedPhoneUser?.username
             : data?.twitter
               ? data.twitter.username
               : data?.name || data?.email?.split('@')[0],
           id_twitter:
-            userExist?.id_twitter || (data?.twitter ? data.twitter.id : ''),
+            verifiedPhoneUser?.id_twitter ||
+            (data?.twitter ? data.twitter.id : ''),
           address:
             payload?.address && payload?.address !== 'undefined'
               ? payload?.address
               : '',
-          id_firebase: data.uid,
+          id_firebase: preserveOriginalIdentity
+            ? verifiedPhoneUser.id_firebase
+            : data.uid,
           country: toIso2Server(payload?.country),
-          provider: data?.firebase?.sign_in_provider,
+          provider: preserveOriginalIdentity
+            ? verifiedPhoneUser.provider || 'phone'
+            : data?.firebase?.sign_in_provider,
         });
         if (user?.disabled) {
-          throw new Error('Your account has been disabled');
+          throw new ForbiddenException(
+            'This account is disabled. Contact support.',
+          );
         }
         const accessToken = await this.generateToken({
           userId: user._id.toString(),
@@ -119,9 +169,12 @@ export class AuthService {
         };
       }
 
-      const isPhoneSignIn = data.firebase?.sign_in_provider === 'phone';
       if (isPhoneSignIn && options.allowPhoneRegistration !== true) {
-        throw new Error('Phone identity is not linked to a GoGoCash account');
+        throw new UnauthorizedException({
+          code: 'PHONE_LINK_REQUIRED',
+          message:
+            'This phone number is not linked to your GoGoCash account. Sign in with your original method, then link it from Profile.',
+        });
       }
 
       const user = await this.userService.createFromFirebase({
@@ -138,12 +191,17 @@ export class AuthService {
         id_firebase: data.uid,
         country: toIso2Server(payload?.country),
         mobile: data?.phone_number ? data.phone_number : '',
+        ...(isPhoneSignIn && data.phone_number
+          ? { verified_phone_e164: data.phone_number }
+          : {}),
         provider: data?.firebase?.sign_in_provider,
       });
       await this.awardReferralOnRegistration(user, payload?.referral_id);
 
       if (user?.disabled) {
-        throw new Error('Your account has been disabled');
+        throw new ForbiddenException(
+          'This account is disabled. Contact support.',
+        );
       }
       const accessToken = await this.generateToken({
         userId: user._id.toString(),
@@ -156,12 +214,16 @@ export class AuthService {
         auth_flow: 'register' as const,
       };
     } catch (error: any) {
-      // Log the raw provider error for ops; never expose it to the client.
-      this.logger.warn(
-        `Firebase sign-in verification failed: ${error?.message ?? 'unknown error'}`,
+      if (error instanceof HttpException) throw error;
+
+      // The identity token was already verified above, so failures here are
+      // account-system failures rather than bad credentials.
+      this.logger.error(
+        `Firebase account sign-in failed: ${error?.message ?? 'unknown error'}`,
+        error?.stack,
       );
-      throw new UnauthorizedException(
-        "Your sign-in couldn't be verified. Please sign in again.",
+      throw new InternalServerErrorException(
+        "We couldn't finish signing you in. Please try again or contact support.",
       );
     }
   }
@@ -172,6 +234,11 @@ export class AuthService {
   }
 
   private async findUserByPhone(phoneE164: string) {
+    const canonicalUser = await this.userService.findOne({
+      verified_phone_e164: phoneE164,
+    });
+    if (canonicalUser) return canonicalUser;
+
     for (const mobile of phoneLoginLookupCandidates(phoneE164)) {
       const user = await this.userService.findOne({ mobile });
       if (user) return user;
@@ -407,40 +474,62 @@ export class AuthService {
     return res;
   }
   async verifyPhone(token: string, id: string) {
+    let decoded: Awaited<
+      ReturnType<ReturnType<typeof getAdminAuth>['verifyIdToken']>
+    >;
+    try {
+      decoded = await getAdminAuth().verifyIdToken(token);
+    } catch (error: any) {
+      this.logger.warn(
+        `Phone verification token failed: ${error?.message ?? 'unknown error'}`,
+      );
+      throw new UnauthorizedException(
+        'Your phone verification expired. Request a new code and try again.',
+      );
+    }
+
+    if (
+      decoded.firebase?.sign_in_provider !== 'phone' ||
+      typeof decoded.phone_number !== 'string' ||
+      !/^\+[1-9]\d{7,14}$/.test(decoded.phone_number)
+    ) {
+      throw new BadRequestException(
+        'Verify this phone number with a new code before linking it.',
+      );
+    }
+
     try {
       const user = await this.userService.findOne({
         _id: new Types.ObjectId(id),
       });
       if (!user) {
-        throw new UnauthorizedException('user not found');
+        throw new UnauthorizedException(
+          'Your session has expired. Sign in again before linking a phone number.',
+        );
       }
-      // console.log('token', token);
-      // const admin = getAdminAuth();
-      const decoded = await getAdminAuth().verifyIdToken(token); // const decoded = verifyIdToken(token);
-      // console.log('decode', decoded);
-      // console.log('user', user);
-      const checkMobileDup = await this.userService.findOne({
-        mobile: decoded.phone_number,
-      });
-      if (
-        checkMobileDup &&
-        checkMobileDup._id.toString() !== user._id.toString()
-      ) {
-        throw new UnauthorizedException('Mobile number already in use');
+
+      const phoneOwner = await this.findUserByPhone(decoded.phone_number);
+      if (phoneOwner && phoneOwner._id.toString() !== user._id.toString()) {
+        throw new ConflictException(
+          'This phone number is already linked to another account. Use a different number or contact support.',
+        );
       }
-      const userUpdate = await this.userService.update(user._id, {
-        mobile: decoded.phone_number,
-      });
-      // console.log('userUpdate', userUpdate);
+
+      const userUpdate = await this.userService.claimVerifiedPhone(
+        user._id,
+        decoded.phone_number,
+      );
 
       return { uid: decoded.uid, user: userUpdate };
     } catch (error: any) {
-      // Log the raw provider error for ops; never expose it to the client.
-      this.logger.warn(
-        `Firebase sign-in verification failed: ${error?.message ?? 'unknown error'}`,
+      if (error instanceof HttpException) throw error;
+
+      this.logger.error(
+        `Phone account linking failed: ${error?.message ?? 'unknown error'}`,
+        error?.stack,
       );
-      throw new UnauthorizedException(
-        "Your sign-in couldn't be verified. Please sign in again.",
+      throw new InternalServerErrorException(
+        "We couldn't link this phone number right now. Please try again or contact support.",
       );
     }
   }
@@ -669,24 +758,37 @@ export class AuthService {
     try {
       // STEP 0: Verify LINE access token and user identity
       // CRITICAL: Must verify token belongs to the claimed user ID
-      if (accessToken) {
-        try {
-          // First, verify the token is valid
-          await this.verifyLineAccessToken(accessToken);
+      if (!accessToken) {
+        throw new UnauthorizedException(
+          'Your LINE sign-in session is missing. Start LINE sign-in again.',
+        );
+      }
 
-          // CRITICAL: Verify the token belongs to the claimed LINE user ID
-          // This prevents attackers from using their valid token with someone else's LINE ID
-          const lineProfile = await this.getLineProfile(accessToken);
-          if (lineProfile.userId !== payload.id_line) {
-            throw new Error(
-              'LINE User ID mismatch - token does not belong to claimed user',
-            );
-          }
-        } catch (verifyError: any) {
-          throw new Error(verifyError?.message || 'Invalid LINE access token');
-        }
-      } else {
-        throw new Error('LINE access token is required for authentication');
+      // First, verify the token is valid and was issued for GoGoCash's
+      // environment-specific LINE Login channel. A token from another LINE
+      // channel is valid LINE identity, but not valid GoGoCash identity.
+      const verifiedLineToken = await this.verifyLineAccessToken(accessToken);
+      const expectedLineChannelId = this.config
+        .get<string>('env.LINE_CHANNEL_ID')
+        ?.trim();
+      if (!expectedLineChannelId) {
+        throw new ServiceUnavailableException(
+          'LINE sign-in is not configured. Please try another sign-in method.',
+        );
+      }
+      if (verifiedLineToken?.client_id !== expectedLineChannelId) {
+        throw new UnauthorizedException(
+          "We couldn't verify this LINE sign-in session. Start LINE sign-in again.",
+        );
+      }
+
+      // CRITICAL: Verify the token belongs to the claimed LINE user ID.
+      // This prevents attackers from using their valid token with someone else's LINE ID.
+      const lineProfile = await this.getLineProfile(accessToken);
+      if (lineProfile.userId !== payload.id_line) {
+        throw new UnauthorizedException(
+          "We couldn't verify this LINE account. Start LINE sign-in again.",
+        );
       }
 
       // STEP 1: Verify temporary OTP token if email is provided
@@ -732,16 +834,28 @@ export class AuthService {
       }
 
       if (userExist) {
+        if (userExist.disabled) {
+          throw new ForbiddenException(
+            'This account is disabled. Contact support.',
+          );
+        }
+
         // Update existing user - link LINE ID to account if not already linked
         const user = await this.userService.update(userExist._id, {
           username: userExist.username || payload.username,
           id_line: payload.id_line, // Link LINE ID to account
+          // Backend JWTs are bound to both the Mongo user id and this identity
+          // by FirebaseAuthGuard. Persist the same synthetic value used in the
+          // JWT for legacy LINE rows that predate id_firebase population.
+          id_firebase: userExist.id_firebase || `line_${payload.id_line}`,
           provider: userExist.provider || 'line',
           email_verified: payload.email ? true : userExist.email_verified,
         });
 
         if (user?.disabled) {
-          throw new Error('Your account has been disabled');
+          throw new ForbiddenException(
+            'This account is disabled. Contact support.',
+          );
         }
 
         const jwtToken = await this.generateToken({
@@ -783,7 +897,9 @@ export class AuthService {
       }
 
       if (user?.disabled) {
-        throw new Error('Your account has been disabled');
+        throw new ForbiddenException(
+          'This account is disabled. Contact support.',
+        );
       }
 
       const jwtToken = await this.generateToken({
@@ -792,8 +908,16 @@ export class AuthService {
       });
 
       return { user, token: jwtToken };
-    } catch (error) {
-      throw new Error(error?.message || 'LINE login failed');
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+
+      this.logger.error(
+        `LINE account sign-in failed: ${error?.message ?? 'unknown error'}`,
+        error?.stack,
+      );
+      throw new InternalServerErrorException(
+        "We couldn't finish LINE sign-in. Try another sign-in method or contact support.",
+      );
     }
   }
 
@@ -810,8 +934,16 @@ export class AuthService {
         },
       );
       return response.data;
-    } catch {
-      throw new Error('Invalid LINE access token');
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (status === 400 || status === 401) {
+        throw new UnauthorizedException(
+          'Your LINE sign-in session expired. Start LINE sign-in again.',
+        );
+      }
+      throw new BadGatewayException(
+        'LINE sign-in is temporarily unavailable. Please try again later.',
+      );
     }
   }
 
@@ -826,8 +958,16 @@ export class AuthService {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       return response.data;
-    } catch {
-      throw new Error('Failed to verify LINE user identity');
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (status === 400 || status === 401) {
+        throw new UnauthorizedException(
+          'Your LINE sign-in session expired. Start LINE sign-in again.',
+        );
+      }
+      throw new BadGatewayException(
+        'LINE sign-in is temporarily unavailable. Please try again later.',
+      );
     }
   }
 
