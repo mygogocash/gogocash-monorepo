@@ -21,6 +21,8 @@ vi.mock("@/hooks/usePermissions", () => ({
 
 import CouponHistoryTable from "./CouponHistoryTable";
 
+const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;
+
 const response = {
   coupon: {
     code: "SAVE10",
@@ -65,6 +67,7 @@ function renderTable() {
 
 describe("CouponHistoryTable per-coupon real insights", () => {
   beforeEach(() => {
+    process.env.NEXT_PUBLIC_API_URL = "https://api.example.com";
     api.getCouponInsights.mockResolvedValue(response);
     api.recordCouponRedemption.mockResolvedValue({ recorded: true });
     permissions.apiRole = "viewer";
@@ -73,6 +76,11 @@ describe("CouponHistoryTable per-coupon real insights", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    if (originalApiUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_API_URL;
+    } else {
+      process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
+    }
   });
 
   it("loads one coupon and lands on its redemption history", async () => {
@@ -178,6 +186,18 @@ describe("CouponHistoryTable per-coupon real insights", () => {
     expect(
       screen.queryByText("Record confirmed redemption"),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps redemption writes hidden when only the read-only mock API is available", async () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    renderTable();
+
+    await screen.findByText("Save ten");
+
+    expect(
+      screen.queryByText("Record confirmed redemption"),
+    ).not.toBeInTheDocument();
+    expect(api.recordCouponRedemption).not.toHaveBeenCalled();
   });
 
   it("shows the producer to an API support operator despite conservative frontend mapping", async () => {

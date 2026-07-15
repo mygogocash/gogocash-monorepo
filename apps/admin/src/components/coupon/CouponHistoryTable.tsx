@@ -29,6 +29,7 @@ function localDateTimeInputValue(date = new Date()): string {
 export default function CouponHistoryTable({ couponId }: { couponId: string }) {
   const permissions = usePermissions();
   const canRecordRedemption =
+    Boolean(process.env.NEXT_PUBLIC_API_URL) &&
     permissions.ready &&
     (permissions.can("coupon:manage") ||
       API_REDEMPTION_WRITE_ROLES.has(permissions.apiRole ?? ""));
