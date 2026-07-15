@@ -880,14 +880,20 @@ describe('PointService', () => {
   });
 
   describe('getQuestOpen', () => {
-    it('getQuestOpen > then it only returns currently active open quests', async () => {
-      questModel.findOne.mockReturnValue(makeQuery({ _id: 'q1' }));
+    it('getQuestOpen > then it selects the current date window without trusting stored status', async () => {
+      questModel.findOne.mockReturnValue(
+        makeQuery({
+          _id: 'q1',
+          start_date: new Date('2026-01-01'),
+          end_date: new Date('2099-01-01'),
+          status: 'close',
+        }),
+      );
 
       await service.getQuestOpen();
 
       expect(questModel.findOne).toHaveBeenCalledWith(
         expect.objectContaining({
-          status: 'open',
           $and: expect.arrayContaining([
             expect.objectContaining({ $or: expect.any(Array) }),
             expect.objectContaining({ $or: expect.any(Array) }),
@@ -905,10 +911,24 @@ describe('PointService', () => {
     });
 
     it('getQuestAll > given quests exist > then it returns them', async () => {
-      const quests = [{ _id: 'q1' }, { _id: 'q2' }];
+      const quests = [
+        {
+          _id: 'q1',
+          start_date: new Date('2026-01-01'),
+          end_date: new Date('2099-01-01'),
+        },
+        {
+          _id: 'q2',
+          start_date: new Date('2099-02-01'),
+          end_date: new Date('2099-03-01'),
+        },
+      ];
       questModel.find.mockReturnValue(makeQuery(quests));
 
-      await expect(service.getQuestAll()).resolves.toBe(quests);
+      await expect(service.getQuestAll()).resolves.toEqual([
+        expect.objectContaining({ _id: 'q1', status: 'open' }),
+        expect.objectContaining({ _id: 'q2', status: 'scheduled' }),
+      ]);
     });
   });
 
@@ -992,15 +1012,15 @@ describe('PointService', () => {
   });
 
   describe('createQuest', () => {
-    it('createQuest > given no _id > then upserts on a fresh ObjectId instead of matching status open', async () => {
+    it('createQuest > given no _id > then upserts with status derived from dates', async () => {
       questModel.findById.mockResolvedValue(null);
       const saved = { _id: new Types.ObjectId().toHexString(), status: 'open' };
       questModel.findByIdAndUpdate.mockResolvedValue(saved);
 
       const result = await service.createQuest(
         {
-          start_date: new Date('2026-06-27'),
-          end_date: new Date('2026-06-30'),
+          start_date: new Date('2099-06-27'),
+          end_date: new Date('2099-06-30'),
           status: 'open',
           facebook_post: '',
           facebook_page: '',
@@ -1016,7 +1036,7 @@ describe('PointService', () => {
       expect(questId).toBeInstanceOf(Types.ObjectId);
       expect(update).toEqual({
         $set: expect.objectContaining({
-          status: 'open',
+          status: 'scheduled',
           facebook_post: '',
         }),
       });

@@ -1,3 +1,5 @@
+import type { OfferDisplayTags } from "@mobile/api/offerDisplayCategory";
+
 // Backend DTO for GET /offer/:id (public): a single offer doc. Shape verified
 // against the live staging response (2026-06-12): detail docs carry neither
 // offer_name_display nor commission_store; the headline rate lives in
@@ -23,6 +25,8 @@ export type MerchantOfferResponse = {
   logo_desktop?: string;
   logo_mobile?: string;
   note_to_user?: string;
+  /** Admin-controlled customer category override; partner `categories` remains the feed snapshot. */
+  offer_display_tags?: OfferDisplayTags | null;
   offer_name_display?: string;
   policy_category_id?: string;
   tracking_link?: string;

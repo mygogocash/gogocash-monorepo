@@ -12,7 +12,12 @@ import {
   FavoriteOffer,
   FavoriteOfferSchema,
 } from './schemas/favorite-offer.schema';
-import { Banner, BannerSchema } from './schemas/banner.schema';
+import {
+  ALL_BRAND_BANNER_COLLECTION,
+  ALL_BRAND_BANNER_MODEL,
+  Banner,
+  BannerSchema,
+} from './schemas/banner.schema';
 import {
   TopBrandConfig,
   TopBrandConfigSchema,
@@ -24,6 +29,10 @@ import {
   ConversionSchema,
 } from 'src/withdraw/schemas/conversion.schema';
 import { Coupon, CouponSchema } from './schemas/coupon.schema';
+import {
+  CouponActivity,
+  CouponActivitySchema,
+} from './schemas/coupon-activity.schema';
 import { FeeRate, FeeRateSchema } from 'src/withdraw/schemas/feeRate.schema';
 import {
   MissionOrder,
@@ -43,6 +52,11 @@ import {
   SearchBlacklist,
   SearchBlacklistSchema,
 } from 'src/admin/search/schemas/blacklist.schema';
+import { CouponInsightsController } from './coupon-insights.controller';
+import { CouponInsightsService } from './coupon-insights.service';
+import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { RolesGuard } from 'src/admin/roles.guard';
+import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 
 @Module({
   imports: [
@@ -60,9 +74,15 @@ import {
       { name: Category.name, schema: CategorySchema },
       { name: FavoriteOffer.name, schema: FavoriteOfferSchema },
       { name: Banner.name, schema: BannerSchema },
+      {
+        name: ALL_BRAND_BANNER_MODEL,
+        schema: BannerSchema,
+        collection: ALL_BRAND_BANNER_COLLECTION,
+      },
       { name: TopBrandConfig.name, schema: TopBrandConfigSchema },
       { name: Conversion.name, schema: ConversionSchema },
       { name: Coupon.name, schema: CouponSchema },
+      { name: CouponActivity.name, schema: CouponActivitySchema },
       { name: FeeRate.name, schema: FeeRateSchema },
       { name: MissionOrder.name, schema: MissionOrderSchema },
       { name: Quest.name, schema: QuestSchema },
@@ -71,10 +91,18 @@ import {
       { name: SearchBlacklist.name, schema: SearchBlacklistSchema },
     ]),
   ],
-  controllers: [OfferController],
+  controllers: [OfferController, CouponInsightsController],
   // InvolveService removed here: it was a second, module-local instance. The
   // offer-sync cron now reaches Involve through the AffiliateModule registry
   // (which shares the InvolveModule singleton), so no duplicate is needed.
-  providers: [OfferService, JwtService, TasksService],
+  providers: [
+    OfferService,
+    CouponInsightsService,
+    AuthAdminGuard,
+    RolesGuard,
+    RateLimitGuard,
+    JwtService,
+    TasksService,
+  ],
 })
 export class OfferModule {}

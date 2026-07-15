@@ -28,6 +28,12 @@ import Input from "@/components/form/input/InputField";
 import TextArea from "@/components/form/input/TextArea";
 import { fetcher } from "@/lib/axios/client";
 import type { ResCategoryList } from "@/types/category";
+import { OfferPolicyModeSwitch } from "./OfferPolicyModeSwitch";
+import {
+  CUSTOM_POLICY_CATEGORY_ID,
+  type OfferPolicyMode,
+} from "@/lib/offerPolicyMode";
+import { resolveConfiguredOfferPolicyTerms } from "@/lib/offerPolicyTerms";
 import {
   DEFAULT_OFFER_DISPLAY_TAGS,
   type OfferDisplayTags,
@@ -133,13 +139,12 @@ const CREATE_BRAND_INITIAL_SNAPSHOT = {
   maxCapInput: "",
   noteToUser: "",
   offerDisplayTags: { ...DEFAULT_OFFER_DISPLAY_TAGS } as OfferDisplayTags,
+  policyMode: "template" as OfferPolicyMode,
   policyCategoryId: "",
+  templateTerms: "",
   customTerms: "",
-  hasLogoDesktop: false,
-  hasLogoMobile: false,
-  hasLogoCircle: false,
-  hasBannerDesktop: false,
-  hasBannerMobile: false,
+  hasLogo: false,
+  hasBanner: false,
 };
 
 const COUNTRY_OPTIONS = [
@@ -192,7 +197,10 @@ export default function CreateBrandForm() {
   const [offerDisplayTags, setOfferDisplayTags] = useState<OfferDisplayTags>({
     ...DEFAULT_OFFER_DISPLAY_TAGS,
   });
+  const [policyMode, setPolicyMode] = useState<OfferPolicyMode>("template");
   const [policyCategoryId, setPolicyCategoryId] = useState("");
+  const [templateTerms, setTemplateTerms] = useState("");
+  const [templateTermsTouched, setTemplateTermsTouched] = useState(false);
   const [customTerms, setCustomTerms] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // When true, after a successful save the form keeps the brand-level fields (name, logos,
@@ -217,18 +225,18 @@ export default function CreateBrandForm() {
     setProductTypes([]);
     setAllProductTypes(true);
     setDeeplinkStoreId("global");
+    setPolicyMode("template");
     setPolicyCategoryId("");
+    setTemplateTerms("");
+    setTemplateTermsTouched(false);
     setCustomTerms("");
     setOfferDisplayTags({ ...DEFAULT_OFFER_DISPLAY_TAGS });
     setDisabledOffer(false);
     setTopBrands(false);
     // Brand-level fields kept: brandName, logos, banners, description, isGlobal.
   };
-  const [logoDesktop, setLogoDesktop] = useState<File | null>(null);
-  const [logoMobile, setLogoMobile] = useState<File | null>(null);
-  const [logoCircle, setLogoCircle] = useState<File | null>(null);
-  const [bannerDesktop, setBannerDesktop] = useState<File | null>(null);
-  const [bannerMobile, setBannerMobile] = useState<File | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
 
   // Drives "disable Save until something changed": dirty the moment any editable
   // field departs from the empty-create baseline, clean again if reverted.
@@ -257,13 +265,12 @@ export default function CreateBrandForm() {
           maxCapInput,
           noteToUser,
           offerDisplayTags,
+          policyMode,
           policyCategoryId,
+          templateTerms,
           customTerms,
-          hasLogoDesktop: logoDesktop != null,
-          hasLogoMobile: logoMobile != null,
-          hasLogoCircle: logoCircle != null,
-          hasBannerDesktop: bannerDesktop != null,
-          hasBannerMobile: bannerMobile != null,
+          hasLogo: logoFile != null,
+          hasBanner: bannerFile != null,
         },
         CREATE_BRAND_INITIAL_SNAPSHOT,
       ),
@@ -289,13 +296,12 @@ export default function CreateBrandForm() {
       maxCapInput,
       noteToUser,
       offerDisplayTags,
+      policyMode,
       policyCategoryId,
+      templateTerms,
       customTerms,
-      logoDesktop,
-      logoMobile,
-      logoCircle,
-      bannerDesktop,
-      bannerMobile,
+      logoFile,
+      bannerFile,
     ],
   );
 
@@ -352,6 +358,22 @@ export default function CreateBrandForm() {
     [policyCategories],
   );
 
+  const configuredTemplateTerms = useMemo(
+    () =>
+      resolveConfiguredOfferPolicyTerms(
+        policyCategoryId,
+        CREATE_BRAND_INITIAL_CATEGORY,
+        policyCategories,
+        policiesList,
+      ),
+    [policyCategoryId, policyCategories, policiesList],
+  );
+
+  useEffect(() => {
+    if (templateTermsTouched) return;
+    setTemplateTerms(configuredTemplateTerms);
+  }, [configuredTemplateTerms, templateTermsTouched]);
+
   const legacyBrandCategoryLabel = useMemo(() => {
     const cur = offerDisplayTags.brand_category_label.trim();
     if (!cur) return null;
@@ -368,11 +390,8 @@ export default function CreateBrandForm() {
     [offerDisplayTags],
   );
 
-  const logoDesktopPreview = useObjectPreviewUrl(logoDesktop);
-  const logoMobilePreview = useObjectPreviewUrl(logoMobile);
-  const logoCirclePreview = useObjectPreviewUrl(logoCircle);
-  const bannerDesktopPreview = useObjectPreviewUrl(bannerDesktop);
-  const bannerMobilePreview = useObjectPreviewUrl(bannerMobile);
+  const logoPreview = useObjectPreviewUrl(logoFile);
+  const bannerPreview = useObjectPreviewUrl(bannerFile);
 
   useEffect(() => {
     if (!syncLookupFromBrandCountry) return;
@@ -476,8 +495,14 @@ export default function CreateBrandForm() {
     if (max_cap != null) formData.append("max_cap", String(max_cap));
     formData.append("note_to_user", noteToUser.trim());
     formData.append("offer_display_tags", JSON.stringify(offerDisplayTags));
-    formData.append("policy_category_id", policyCategoryId);
-    formData.append("custom_terms", customTerms);
+    formData.append(
+      "policy_category_id",
+      policyMode === "custom" ? CUSTOM_POLICY_CATEGORY_ID : policyCategoryId,
+    );
+    formData.append(
+      "custom_terms",
+      policyMode === "custom" ? customTerms : templateTerms,
+    );
     formData.append("is_global", String(isGlobal));
     if (isGlobal) {
       // default_country is only relevant for global brands; sending it for country-specific
@@ -494,11 +519,8 @@ export default function CreateBrandForm() {
     if (lookup) formData.append("lookup_value", lookup);
     const app = appDeeplink.trim();
     if (app) formData.append("app_deeplink", app);
-    if (logoDesktop) formData.append("logo_desktop", logoDesktop);
-    if (logoMobile) formData.append("logo_mobile", logoMobile);
-    if (logoCircle) formData.append("logo_circle", logoCircle);
-    if (bannerDesktop) formData.append("banner", bannerDesktop);
-    if (bannerMobile) formData.append("banner_mobile", bannerMobile);
+    if (logoFile) formData.append("logo_desktop", logoFile);
+    if (bannerFile) formData.append("banner", bannerFile);
 
     setSubmitting(true);
     try {
@@ -1426,57 +1448,90 @@ export default function CreateBrandForm() {
           <h2 className="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
             Terms &amp; conditions (policy)
           </h2>
-          <FieldLabel
-            label="Which category policy applies"
-            description="Pick the category whose terms you configured under Policy Management. “Automatic” uses this offer’s own category label to resolve T&C in the app."
+          <OfferPolicyModeSwitch
+            aria-label="Policy authoring mode"
+            templateLabel="Provided Template"
+            customLabel="Custom Writing"
+            mode={policyMode}
+            onChange={setPolicyMode}
           />
-          <select
-            id="create-brand-policy-category"
-            className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            value={policyCategoryId}
-            onChange={(e) => setPolicyCategoryId(e.target.value)}
-          >
-            <option value="">
-              Automatic — use offer category ({CREATE_BRAND_INITIAL_CATEGORY})
-            </option>
-            {policyCategoriesSorted.map((cat) => {
-              const policyText = policiesList[cat._id] ?? "";
-              const hasPolicy = policyText.trim().length > 0;
-              return (
-                <option key={cat._id} value={cat._id}>
-                  {cat.name}
-                  {hasPolicy ? " — T&C configured" : " — no T&C yet"}
+
+          {policyMode === "template" ? (
+            <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-600">
+              <FieldLabel
+                label="Which category policy applies"
+                description="Pick the category whose terms you configured under Policy Management. “Automatic” uses this offer’s own category label."
+              />
+              <select
+                id="create-brand-policy-category"
+                className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                value={policyCategoryId}
+                onChange={(e) => {
+                  const nextCategoryId = e.target.value;
+                  setPolicyCategoryId(nextCategoryId);
+                  setTemplateTermsTouched(false);
+                  setTemplateTerms(
+                    resolveConfiguredOfferPolicyTerms(
+                      nextCategoryId,
+                      CREATE_BRAND_INITIAL_CATEGORY,
+                      policyCategories,
+                      policiesList,
+                    ),
+                  );
+                }}
+              >
+                <option value="">
+                  Automatic — use offer category ({CREATE_BRAND_INITIAL_CATEGORY})
                 </option>
-              );
-            })}
-          </select>
-          {policyCategoryId ? (
-            <p className="text-xs text-gray-600 dark:text-gray-400">
-              This brand will be pinned to the selected category’s policy text
-              when created.
-            </p>
+                {policyCategoriesSorted.map((cat) => {
+                  const hasPolicy = Boolean(policiesList[cat._id]?.trim());
+                  return (
+                    <option key={cat._id} value={cat._id}>
+                      {cat.name}
+                      {hasPolicy ? " — T&C configured" : " — no T&C yet"}
+                    </option>
+                  );
+                })}
+              </select>
+
+              {!configuredTemplateTerms ? (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                  No T&amp;C configured for this category yet — edit it under
+                  Policy Management, or switch to Custom Writing.
+                </p>
+              ) : (
+                <div>
+                  <FieldLabel
+                    label="Template preview (editable)"
+                    description="Review the provided policy and adjust it for this brand before saving."
+                  />
+                  <TextArea
+                    rows={8}
+                    value={templateTerms}
+                    onChange={(terms) => {
+                      setTemplateTermsTouched(true);
+                      setTemplateTerms(terms);
+                    }}
+                    className="min-h-[10rem] resize-y !text-base !text-gray-800 placeholder:text-gray-400 sm:!text-sm dark:!text-white/90"
+                  />
+                </div>
+              )}
+            </div>
           ) : (
-            <p className="text-xs text-gray-600 dark:text-gray-400">
-              No override: the app can match{" "}
-              <span className="font-medium">
-                {CREATE_BRAND_INITIAL_CATEGORY}
-              </span>{" "}
-              to a category and load its policy.
-            </p>
+            <div className="border-t border-gray-200 pt-4 dark:border-gray-600">
+              <FieldLabel
+                label="Custom terms"
+                description="Write the complete Terms & Conditions shown for this brand."
+              />
+              <TextArea
+                rows={8}
+                placeholder="Write the complete Terms & Conditions for this brand…"
+                value={customTerms}
+                onChange={setCustomTerms}
+                className="min-h-[10rem] resize-y !text-base !text-gray-800 placeholder:text-gray-400 sm:!text-sm dark:!text-white/90"
+              />
+            </div>
           )}
-          <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-600">
-            <FieldLabel
-              label="Custom terms (this merchant)"
-              description="Optional terms for this offer only, shown in addition to the category policy above. Use for merchant-specific rules or legal supplements; your app should merge or append with Policy Management text."
-            />
-            <TextArea
-              rows={5}
-              placeholder="e.g. Brand-specific eligibility · stacked promotions not allowed · see partner site for full rules"
-              value={customTerms}
-              onChange={setCustomTerms}
-              className="min-h-[6rem] resize-y !text-base !text-gray-800 placeholder:text-gray-400 sm:!text-sm dark:!text-white/90"
-            />
-          </div>
         </section>
 
         {/* Logos & media — same structure as FormOffer `offer-section-media` */}
@@ -1488,121 +1543,52 @@ export default function CreateBrandForm() {
             Logos &amp; media
           </h4>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Upload images for desktop, mobile, and banners. Leave empty to use
-            defaults after the brand is created.
+            Upload one square logo and one wide banner. Each asset is reused by
+            desktop, mobile, and legacy customer surfaces.
           </p>
 
           <div>
             <FieldLabel
-              label="Logo (desktop)"
-              description="Main logo for desktop layout."
+              label="Brand logo"
+              description="Square (1:1) image used anywhere the brand logo appears."
             />
             <Input
-              id="create-brand-logo-desktop"
+              id="create-brand-logo"
               type="file"
               name="logo_desktop"
               accept="image/*"
-              onChange={(e) => setLogoDesktop(e.target.files?.[0] ?? null)}
+              onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
             />
-            {logoDesktop && logoDesktopPreview ? (
+            {logoFile && logoPreview ? (
               <RemoteOrBlobImage
-                src={logoDesktopPreview}
-                alt="Preview"
+                src={logoPreview}
+                alt="Brand logo preview"
                 width={256}
                 height={256}
-                className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
+                className="mt-2 h-32 w-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
               />
             ) : null}
           </div>
 
           <div>
             <FieldLabel
-              label="Logo (mobile)"
-              description="Logo for mobile layout."
+              label="Brand banner"
+              description="Wide (16:9) hero image used on the brand page."
             />
             <Input
-              id="create-brand-logo-mobile"
-              type="file"
-              name="logo_mobile"
-              accept="image/*"
-              onChange={(e) => setLogoMobile(e.target.files?.[0] ?? null)}
-            />
-            {logoMobile && logoMobilePreview ? (
-              <RemoteOrBlobImage
-                src={logoMobilePreview}
-                alt="Preview"
-                width={256}
-                height={256}
-                className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
-              />
-            ) : null}
-          </div>
-
-          <div>
-            <FieldLabel
-              label="Banner (desktop)"
-              description="Hero or banner image on desktop."
-            />
-            <Input
-              id="create-brand-banner-desktop"
+              id="create-brand-banner"
               type="file"
               name="banner"
               accept="image/*"
-              onChange={(e) => setBannerDesktop(e.target.files?.[0] ?? null)}
+              onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)}
             />
-            {bannerDesktop && bannerDesktopPreview ? (
+            {bannerFile && bannerPreview ? (
               <RemoteOrBlobImage
-                src={bannerDesktopPreview}
-                alt="Preview"
-                width={256}
-                height={256}
-                className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
-              />
-            ) : null}
-          </div>
-
-          <div>
-            <FieldLabel
-              label="Banner (mobile)"
-              description="Banner image on mobile."
-            />
-            <Input
-              id="create-brand-banner-mobile"
-              type="file"
-              name="banner_mobile"
-              accept="image/*"
-              onChange={(e) => setBannerMobile(e.target.files?.[0] ?? null)}
-            />
-            {bannerMobile && bannerMobilePreview ? (
-              <RemoteOrBlobImage
-                src={bannerMobilePreview}
-                alt="Preview"
-                width={256}
-                height={256}
-                className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
-              />
-            ) : null}
-          </div>
-
-          <div>
-            <FieldLabel
-              label="Logo (circle)"
-              description="Circular or avatar-style logo."
-            />
-            <Input
-              id="create-brand-logo-circle"
-              type="file"
-              name="logo_circle"
-              accept="image/*"
-              onChange={(e) => setLogoCircle(e.target.files?.[0] ?? null)}
-            />
-            {logoCircle && logoCirclePreview ? (
-              <RemoteOrBlobImage
-                src={logoCirclePreview}
-                alt="Preview"
-                width={256}
-                height={256}
-                className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
+                src={bannerPreview}
+                alt="Brand banner preview"
+                width={800}
+                height={450}
+                className="mt-2 aspect-video h-auto w-[320px] max-w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
               />
             ) : null}
           </div>

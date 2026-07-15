@@ -78,7 +78,7 @@ export const navItems: NavItem[] = [
       { name: "Policy Management", path: "/brands?tab=policy", pro: false, permission: "brands:view" },
       { name: "User tracking link", path: "/brands?tab=deeplink", pro: false, permission: "brands:view" },
       { name: "Top brands", path: "/brands?tab=top-brands", pro: false, permission: "brands:view" },
-      { name: "Missing orders", path: "/missing-orders", pro: false, permission: "brands:view" },
+      { name: "Missing conversions", path: "/missing-orders", pro: false, permission: "brands:view" },
       { name: "Search Management", path: "/search-config", pro: false, permission: "brands:view" },
     ],
   },
@@ -129,8 +129,12 @@ export const navItems: NavItem[] = [
     icon: <ListIcon />,
     name: "Coupon Management",
     subItems: [
-      { name: "Coupon", path: "/coupon", pro: false, permission: "coupon:view" },
-      { name: "Coupon History", path: "/coupon/history", pro: false, permission: "coupon:view" },
+      {
+        name: "Coupon History",
+        path: "/coupon",
+        pro: false,
+        permission: "coupon:view",
+      },
     ],
   },
   {

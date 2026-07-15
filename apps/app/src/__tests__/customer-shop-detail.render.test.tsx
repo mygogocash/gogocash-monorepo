@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // CustomerShopDetailScreen reaches i18n/LocaleProvider (via useCopy/AccountPageShell-free
 // path it still uses tc()), which touches expo-localization (-> expo-modules-core) and the
@@ -17,7 +17,13 @@ vi.mock("expo-localization", () => ({
 
 const merchantResourceState = vi.hoisted(() => ({
   data: null as unknown,
-  status: "ready" as const,
+  status: "ready" as "ready" | "loading" | "empty" | "error" | "offline",
+  source: "fixtures" as "fixtures" | "backend",
+}));
+
+const couponResourceState = vi.hoisted(() => ({
+  data: null as unknown,
+  status: "empty" as "ready" | "loading" | "empty" | "error" | "offline",
   source: "fixtures" as "fixtures" | "backend",
 }));
 
@@ -44,6 +50,19 @@ vi.mock("@mobile/account/customerAccountResource", async (importOriginal) => {
           retry: vi.fn(),
           source: merchantResourceState.source,
           status: "ready" as const,
+        };
+      }
+      if (options.resourceId === "merchantCoupons") {
+        return {
+          data: couponResourceState.data,
+          endpoint: "/offer/get-coupon-id/test",
+          error:
+            couponResourceState.status === "error"
+              ? new Error("coupon request failed")
+              : null,
+          retry: vi.fn(),
+          source: couponResourceState.source,
+          status: couponResourceState.status,
         };
       }
       if (options.resourceId === "brandCatalog") {
@@ -110,6 +129,15 @@ function renderScreen() {
 }
 
 describe("CustomerShopDetailScreen (render)", () => {
+  beforeEach(() => {
+    merchantResourceState.data = null;
+    merchantResourceState.status = "ready";
+    merchantResourceState.source = "fixtures";
+    couponResourceState.data = null;
+    couponResourceState.status = "empty";
+    couponResourceState.source = "fixtures";
+  });
+
   it("mounts the shop detail page without throwing inside the providers", () => {
     expect(() => renderScreen()).not.toThrow();
   });
@@ -145,6 +173,57 @@ describe("CustomerShopDetailScreen (render)", () => {
     expect(screen.queryByTestId("shop-detail-brand-logo")).toBeNull();
     expect(screen.queryByTestId("shop-detail-brand-logo-fallback")).toBeNull();
     expect(screen.queryByText("Grocery Galaxy")).toBeNull();
+  });
+
+  it("renders the active GoDaddy code-less coupon without a fake code or copy action", () => {
+    merchantResourceState.data = {
+      _id: "6a5647ed535424c5c9370c0a",
+      offer_name: "GoDaddy - CPS",
+      offer_name_display: "GoDaddy",
+      categories: "Digital Services",
+      commissions: [{ Commission: "5%" }],
+      tracking_link: "https://tracking.example/godaddy",
+    };
+    merchantResourceState.source = "backend";
+    couponResourceState.data = [
+      {
+        _id: "6a564de4535424c5c9370c0e",
+        name: "Love U",
+        description: "10% off eligible orders",
+        code: "",
+        discount: 10,
+        min_spend: "100",
+        start_date: "2026-07-10",
+        end_date: "2026-07-22",
+      },
+    ];
+    couponResourceState.status = "ready";
+    couponResourceState.source = "backend";
+
+    renderScreen();
+
+    expect(screen.getByText("Love U")).toBeTruthy();
+    expect(screen.getByText("10% off")).toBeTruthy();
+    expect(screen.getByText("Minimum spend 100")).toBeTruthy();
+    expect(screen.queryByText("Copy code")).toBeNull();
+    expect(screen.queryByText("No deals available right now")).toBeNull();
+  });
+
+  it("renders the deals empty state only when the coupon resource is empty", () => {
+    couponResourceState.status = "empty";
+
+    renderScreen();
+
+    expect(screen.getByText("No deals available right now")).toBeTruthy();
+  });
+
+  it("renders a load failure instead of claiming that no deals exist", () => {
+    couponResourceState.status = "error";
+
+    renderScreen();
+
+    expect(screen.getByText("We could not load deals right now.")).toBeTruthy();
+    expect(screen.queryByText("No deals available right now")).toBeNull();
   });
 
   it("renders API-derived tracking windows when the live offer carries tracking_period", () => {

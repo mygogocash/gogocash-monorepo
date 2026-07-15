@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "@mobile/theme/icons";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { resolveAllBrandPromo } from "@mobile/account/allBrandBannerResource";
 import { useDirectoryOfferSearch } from "@mobile/account/useDirectoryOfferSearch";
 import {
   filterDirectoryStores,
@@ -84,6 +85,15 @@ export function CustomerBrandDirectoryScreen() {
     fixtureData: webBrandDirectory.categories,
     resourceId: "categoryList",
   });
+  const allBrandBannerResource = useCustomerAccountResource({
+    fixtureData: webBrandDirectory.promo,
+    resourceId: "allBrandBanner",
+  });
+  const allBrandPromo = resolveAllBrandPromo(
+    allBrandBannerResource.source,
+    allBrandBannerResource.data,
+    webBrandDirectory.promo,
+  );
   const directoryCategories = resolveCategoryList(
     categoryResource.source,
     categoryResource.data,
@@ -160,8 +170,9 @@ export function CustomerBrandDirectoryScreen() {
     setCurrentPage(1);
     catalogResource.retry();
     categoryResource.retry();
+    allBrandBannerResource.retry();
     requestAnimationFrame(() => setRefreshing(false));
-  }, [catalogResource, categoryResource]);
+  }, [allBrandBannerResource, catalogResource, categoryResource]);
   const brandDirectoryRowHeight = getDirectoryStoreCardHeight(gridMetrics.cardWidth);
   const renderBrandDirectoryCard = useCallback(
     (store: BrandDirectoryStore) => (
@@ -192,11 +203,13 @@ export function CustomerBrandDirectoryScreen() {
 
   const brandContent = (
     <>
-      <ShopDirectoryPromo
-        contentWidth={homeLayout.contentWidth}
-        isDesktop={homeLayout.isDesktop}
-        promo={webBrandDirectory.promo}
-      />
+      {allBrandPromo ? (
+        <ShopDirectoryPromo
+          contentWidth={homeLayout.contentWidth}
+          isDesktop={homeLayout.isDesktop}
+          promo={allBrandPromo}
+        />
+      ) : null}
 
       <View style={styles.shopDirectoryHeader}>
         <View style={styles.shopDirectoryTitleRow}>

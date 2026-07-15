@@ -13,6 +13,7 @@ import { AuthService } from './auth.service';
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiOperation,
   ApiResponse,
   ApiSecurity,
   ApiTags,
@@ -21,6 +22,7 @@ import {
   FirebaseIdTokenDto,
   LineAuthDto,
   MiniPaySiweDto,
+  PhoneLoginEligibilityDto,
   RequestOtpDto,
   SignInAiDto,
   SignInDto,
@@ -40,6 +42,7 @@ import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { EmailService } from '../email/email.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { extractAnalyticsContext } from 'src/analytics/analytics-context';
+import { CrossmintAuthGuard } from './jwt-auth.guard';
 
 // Route-scoped strict validation for the UNAUTHENTICATED OTP endpoints. These
 // take `email` straight into a Mongo selector (otp.service `findOne({ email })`),
@@ -64,12 +67,16 @@ export class AuthController {
   ) {}
 
   @Post('sign-in')
+  @UseGuards(CrossmintAuthGuard)
+  @ApiOperation({
+    deprecated: true,
+    summary: 'Retired legacy sign-in endpoint (always returns 401)',
+  })
   @ApiBody({ type: SignInDto })
-  @ApiSecurity('access-token') // Apply the security scheme defined globally
-  @ApiBearerAuth() // This directly applies Bearer authentication
-  @ApiResponse({ status: 201, description: 'User login successfully' })
+  @ApiResponse({ status: 401, description: 'Legacy sign-in is disabled' })
   async login(@Body() body: SignInDto) {
-    // The guard has already validated the token and added the user payload to the request
+    // Defense in depth: the guard rejects before this method and signIn() also
+    // rejects if invoked directly by internal code.
     const user = await this.auth.signIn(body);
     return { message: 'Login successful!', user };
   }
@@ -93,7 +100,9 @@ export class AuthController {
     }
 
     // Sign in the user
-    const user = await this.auth.signInFirebase(token, body);
+    const user = await this.auth.signInFirebase(token, body, {
+      allowPhoneRegistration: false,
+    });
 
     // Track login event
     if (user.user?._id) {
@@ -136,7 +145,9 @@ export class AuthController {
     }
 
     // Register/sign in the user
-    const user = await this.auth.signInFirebase(token, body);
+    const user = await this.auth.signInFirebase(token, body, {
+      allowPhoneRegistration: true,
+    });
 
     // Track registration event
     if (user.user?._id) {
@@ -145,7 +156,9 @@ export class AuthController {
         region: body.country,
       });
 
-      void this.analytics.capture('user_registered', analyticsCtx, {
+      const eventName =
+        user.auth_flow === 'register' ? 'user_registered' : 'user_login';
+      void this.analytics.capture(eventName, analyticsCtx, {
         method: 'firebase',
         provider: user.user.provider || 'unknown',
         pathname: body.pathname,
@@ -158,6 +171,19 @@ export class AuthController {
     }
 
     return { message: 'Registration successful!', ...user };
+  }
+
+  @Post('phone-sign-in/eligibility')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiBody({ type: PhoneLoginEligibilityDto })
+  @ApiResponse({ status: 201, description: 'Phone login eligibility checked' })
+  async phoneSignInEligibility(
+    @Body(otpBodyValidation) body: PhoneLoginEligibilityDto,
+  ) {
+    return {
+      eligible: await this.auth.isPhoneLoginEligible(body.phone_e164),
+    };
   }
 
   /**

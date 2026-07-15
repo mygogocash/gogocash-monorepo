@@ -21,6 +21,8 @@ import {
   UpdateBoostRuleDto,
   CreateBlacklistDto,
   BulkImportBlacklistDto,
+  CreateSearchRuleDto,
+  UpdateSearchRuleDto,
 } from './dto/search.dto';
 
 @ApiTags('Search Config')
@@ -33,6 +35,30 @@ import {
 @ApiBearerAuth()
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
+
+  // ── Persistent, offer-targeted rules ──
+  @Get('rules')
+  getRules() {
+    return this.searchService.getRules();
+  }
+
+  @Post('rules')
+  @Roles('support')
+  createRule(@Body() dto: CreateSearchRuleDto) {
+    return this.searchService.createRule(dto);
+  }
+
+  @Put('rules/:id')
+  @Roles('support')
+  updateRule(@Param('id') id: string, @Body() dto: UpdateSearchRuleDto) {
+    return this.searchService.updateRule(id, dto);
+  }
+
+  @Delete('rules/:id')
+  @Roles('support')
+  deleteRule(@Param('id') id: string) {
+    return this.searchService.deleteRule(id);
+  }
 
   // ── Featured Terms ──
   @Get('featured-terms')

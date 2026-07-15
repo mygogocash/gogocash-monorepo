@@ -9,21 +9,38 @@ vi.mock("expo-localization", () => ({
 const routerPush = vi.fn();
 vi.mock("expo-router", () => ({
   Link: ({ children }: { children: ReactNode }) => children,
-  useRouter: () => ({ push: routerPush, replace: vi.fn(), back: vi.fn(), navigate: vi.fn() }),
+  useRouter: () => ({
+    push: routerPush,
+    replace: vi.fn(),
+    back: vi.fn(),
+    navigate: vi.fn(),
+  }),
   usePathname: () => "/login",
   useLocalSearchParams: () => ({}),
 }));
 
 const sendPhoneOtp = vi.fn();
 vi.mock("@mobile/auth/firebasePhoneAuth", () => ({
-  sendPhoneOtp: (...args: unknown[]) => sendPhoneOtp(...args),
+  clearPhoneOtpRecaptcha: vi.fn(),
+  sendPhoneOtp: (phoneE164: string) => sendPhoneOtp(phoneE164),
   confirmPhoneOtp: vi.fn(),
+}));
+const checkPhoneLoginEligibility = vi.fn();
+vi.mock("@mobile/auth/phoneLoginEligibility", () => ({
+  checkPhoneLoginEligibility: (...args: unknown[]) =>
+    checkPhoneLoginEligibility(...args),
 }));
 vi.mock("@mobile/auth/firebaseLogin", () => ({
   exchangeFirebaseIdToken: vi.fn(),
 }));
+vi.mock("@mobile/observability/client", () => ({
+  captureHandledException: vi.fn(),
+}));
 
-import { authSendErrorMessages, toastErrorMessages } from "@mobile/i18n/toastMessages";
+import {
+  authSendErrorMessages,
+  toastErrorMessages,
+} from "@mobile/i18n/toastMessages";
 import { CustomerAuthScreen } from "@mobile/screens/CustomerAuthScreen";
 
 describe("CustomerAuthScreen — live send failure is visible", () => {
@@ -31,6 +48,8 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
     vi.stubEnv("EXPO_PUBLIC_ACCOUNT_DATA_SOURCE", "backend");
     window.localStorage.clear();
     sendPhoneOtp.mockReset();
+    checkPhoneLoginEligibility.mockReset();
+    checkPhoneLoginEligibility.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -45,7 +64,9 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
     fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
       target: { value: "0812346789" },
     });
-    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "I have read and understand" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
@@ -58,39 +79,43 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
 
   it("given sendPhoneOtp rejects with auth/too-many-requests > then shows the rate-limit copy", async () => {
     sendPhoneOtp.mockRejectedValue(
-      Object.assign(new Error("blocked"), { code: "auth/too-many-requests" })
+      Object.assign(new Error("blocked"), { code: "auth/too-many-requests" }),
     );
 
     render(createElement(CustomerAuthScreen, { mode: "login" }));
     fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
       target: { value: "0812346789" },
     });
-    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "I have read and understand" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(authSendErrorMessages.rateLimit)
-      ).toBeTruthy();
+      expect(screen.getByText(authSendErrorMessages.rateLimit)).toBeTruthy();
     });
     expect(screen.queryByText(toastErrorMessages.requestFailed)).toBeNull();
   });
 
   it("given sendPhoneOtp rejects with auth/invalid-app-credential > then shows the security-check copy", async () => {
     sendPhoneOtp.mockRejectedValue(
-      Object.assign(new Error("rejected"), { code: "auth/invalid-app-credential" })
+      Object.assign(new Error("rejected"), {
+        code: "auth/invalid-app-credential",
+      }),
     );
 
     render(createElement(CustomerAuthScreen, { mode: "login" }));
     fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
       target: { value: "0812346789" },
     });
-    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "I have read and understand" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
       expect(
-        screen.getByText(authSendErrorMessages.securityCheck)
+        screen.getByText(authSendErrorMessages.securityCheck),
       ).toBeTruthy();
     });
     expect(screen.getByText("00:15")).toBeTruthy();
@@ -99,40 +124,50 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
     });
     expect(screen.getByText("00:15")).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Sign in" }).getAttribute("aria-disabled")
+      screen
+        .getByRole("button", { name: "Sign in" })
+        .getAttribute("aria-disabled"),
     ).toBe("true");
     expect(screen.queryByText(toastErrorMessages.requestFailed)).toBeNull();
   });
 
   it("given sendPhoneOtp rejects with auth/captcha-check-failed > then shows the security-check copy", async () => {
     sendPhoneOtp.mockRejectedValue(
-      Object.assign(new Error("rejected"), { code: "auth/captcha-check-failed" })
+      Object.assign(new Error("rejected"), {
+        code: "auth/captcha-check-failed",
+      }),
     );
 
     render(createElement(CustomerAuthScreen, { mode: "login" }));
     fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
       target: { value: "0812346789" },
     });
-    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "I have read and understand" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
       expect(
-        screen.getByText(authSendErrorMessages.securityCheck)
+        screen.getByText(authSendErrorMessages.securityCheck),
       ).toBeTruthy();
     });
   });
 
   it("given sendPhoneOtp rejects with auth/invalid-phone-number > then shows the invalid-phone copy", async () => {
     sendPhoneOtp.mockRejectedValue(
-      Object.assign(new Error("invalid"), { code: "auth/invalid-phone-number" })
+      Object.assign(new Error("invalid"), {
+        code: "auth/invalid-phone-number",
+      }),
     );
 
     render(createElement(CustomerAuthScreen, { mode: "login" }));
     fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
       target: { value: "0812346789" },
     });
-    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "I have read and understand" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
@@ -144,18 +179,22 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
     sendPhoneOtp.mockRejectedValue(
       Object.assign(new Error("Firebase is not configured"), {
         code: "gogocash/firebase-not-configured",
-      })
+      }),
     );
 
     render(createElement(CustomerAuthScreen, { mode: "login" }));
     fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
       target: { value: "0812346789" },
     });
-    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "I have read and understand" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
-      expect(screen.getByText(authSendErrorMessages.notConfigured)).toBeTruthy();
+      expect(
+        screen.getByText(authSendErrorMessages.notConfigured),
+      ).toBeTruthy();
     });
   });
 
@@ -166,7 +205,9 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
     fireEvent.change(screen.getByPlaceholderText("Phone Number"), {
       target: { value: "0812346789" },
     });
-    fireEvent.click(screen.getByRole("checkbox", { name: "I have read and understand" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "I have read and understand" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     await waitFor(() => {
       expect(screen.getByText(toastErrorMessages.requestFailed)).toBeTruthy();

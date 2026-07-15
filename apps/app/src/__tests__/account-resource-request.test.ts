@@ -43,11 +43,36 @@ describe("resolveCustomerAccountResourceRequest", () => {
       path: "/offer/brand%20a",
     });
   });
+
+  it("merchantCoupons > then requests public coupons for the encoded merchant id", () => {
+    expect(
+      resolveCustomerAccountResourceRequest({
+        merchantId: "brand a",
+        resourceId: "merchantCoupons",
+      })
+    ).toEqual({
+      method: "GET",
+      path: "/offer/get-coupon-id/brand%20a",
+    });
+  });
+
+  it("allBrandBanner > then requests the separate public directory banner", () => {
+    expect(resolveCustomerAccountResourceRequest({ resourceId: "allBrandBanner" })).toEqual({
+      method: "GET",
+      path: "/offer/banner-all-brand-page",
+    });
+  });
 });
 
 describe("PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS", () => {
-  it("includes topBrand, homeBanner, and merchant as public admin-curated resources", () => {
-    expect(PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS).toEqual(["homeBanner", "merchant", "topBrand"]);
+  it("includes merchant coupons with the public admin-curated resources", () => {
+    expect(PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS).toEqual([
+      "allBrandBanner",
+      "homeBanner",
+      "merchant",
+      "merchantCoupons",
+      "topBrand",
+    ]);
   });
 });
 
@@ -81,6 +106,17 @@ describe("shouldFetchCustomerAccountResourceFromBackend", () => {
       shouldFetchCustomerAccountResourceFromBackend({
         accountDataSource: "fixtures",
         resourceId: "merchant",
+        enabled: true,
+        apiUrl,
+      }),
+    ).toBe(true);
+  });
+
+  it("fixtures mode + merchantCoupons + apiUrl > then fetches from backend", () => {
+    expect(
+      shouldFetchCustomerAccountResourceFromBackend({
+        accountDataSource: "fixtures",
+        resourceId: "merchantCoupons",
         enabled: true,
         apiUrl,
       }),

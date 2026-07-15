@@ -23,6 +23,7 @@ import {
   EmailOtpVerificationSchema,
 } from './schemas/email-otp.schema';
 import { AnalyticsModule } from 'src/analytics/analytics.module';
+import { CrossmintAuthGuard } from './jwt-auth.guard';
 
 @Module({
   imports: [
@@ -43,8 +44,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
       { name: EmailOtpVerification.name, schema: EmailOtpVerificationSchema }, // email-OTP subsystem
     ]),
     JwtModule.register({
-      // Backend-issued tokens; Crossmint verification is a separate process.
-      secret: process.env.CROSSMINT_SECRET,
+      secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '60m' },
     }),
     // Email is sent via Resend through EmailService (see EmailModule). The old
@@ -52,6 +52,12 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     // transport — both OTP flows now go through one provider + verified domain.
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtService, OtpService, RateLimitGuard],
+  providers: [
+    AuthService,
+    JwtService,
+    OtpService,
+    RateLimitGuard,
+    CrossmintAuthGuard,
+  ],
 })
 export class AuthModule {}

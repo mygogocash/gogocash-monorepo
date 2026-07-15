@@ -39,18 +39,6 @@ export class SignInDto {
   referral_id?: string;
 }
 
-export class SignUpDto {
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsEmail()
-  email: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  password: string;
-}
-
 export class SignInFirebaseDto {
   @ApiProperty()
   @IsString()
@@ -110,6 +98,16 @@ export class SignInFirebaseDto {
   @IsString()
   @IsOptional()
   token?: string;
+}
+
+export class PhoneLoginEligibilityDto {
+  @ApiProperty({ example: '+66812345678' })
+  @IsString()
+  @MaxLength(16)
+  @Matches(/^\+[1-9]\d{7,14}$/, {
+    message: 'phone_e164 must be a valid E.164 phone number',
+  })
+  phone_e164: string;
 }
 
 export class SignInAiDto {

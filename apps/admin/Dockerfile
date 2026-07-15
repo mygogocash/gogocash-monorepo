@@ -31,7 +31,8 @@ COPY apps/admin/scripts ./apps/admin/scripts
 # --include=dev: Railway injects NODE_ENV=production into the image build,
 # which would otherwise omit typescript (devDependency). Next then tries to
 # auto-install TS via yarn and dies on Corepack / packageManager mismatch.
-RUN npm ci --legacy-peer-deps --include=dev
+RUN npm install --global npm@10.9.8 \
+ && npm ci --legacy-peer-deps --include=dev
 
 # 2) Copy the admin source and build the standalone bundle.
 COPY apps/admin ./apps/admin

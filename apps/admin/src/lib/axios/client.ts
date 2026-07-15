@@ -1,6 +1,7 @@
 import { handleMockApiRequest } from "@/lib/mockApiCore";
 import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
 import { resolveAdminApiBaseURL } from "@/lib/backendProxy";
+import { isAdminApiConfigured, normalizeAdminApiUrl } from "@/lib/adminApiMode";
 import { stripDefaultJsonContentTypeForFormData } from "@/lib/multipartFormHeaders";
 import axios, {
   AxiosRequestConfig,
@@ -11,9 +12,10 @@ import xhrAdapter from "axios/lib/adapters/xhr.js";
 
 // Real API in the browser goes through the same-origin BFF so the Nest JWT
 // never reaches client JS. Mock mode is unchanged.
-const isRealApi = !!process.env.NEXT_PUBLIC_API_URL;
+const publicApiUrl = normalizeAdminApiUrl(process.env.NEXT_PUBLIC_API_URL);
+const isRealApi = isAdminApiConfigured(publicApiUrl);
 const baseURL = resolveAdminApiBaseURL({
-  realApiUrl: process.env.NEXT_PUBLIC_API_URL,
+  realApiUrl: publicApiUrl,
   isBrowser: true,
 });
 
@@ -25,7 +27,9 @@ const firebaseStaticMockAdapter: AxiosAdapter = async (
   const mockMarker = "/api/mock";
   const idx = u.pathname.indexOf(mockMarker);
   if (idx === -1) {
-    return Promise.reject(new Error("Static mock: expected URL under /api/mock"));
+    return Promise.reject(
+      new Error("Static mock: expected URL under /api/mock"),
+    );
   }
   const rest = u.pathname.slice(idx + mockMarker.length).replace(/^\/+/, "");
   const pathSegments = rest ? rest.split("/").filter(Boolean) : [];

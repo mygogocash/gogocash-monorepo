@@ -112,6 +112,60 @@ describe("mapMerchantOfferToShopDetail", () => {
     expect(shop.shopNowLabel).toBe("Shop Now");
   });
 
+  it("#310 > given the custom-writing sentinel > then no category policy endpoint is requested", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      { ...liveOffer, policy_category_id: "custom" },
+      fixtureShop,
+    );
+
+    expect(shop.customTerms).toBe("1. Custom merchant term\n2. No stacking");
+    expect(shop.policyCategoryId).toBeUndefined();
+  });
+
+  it("#316 > given an enabled admin brand-category override > then customer detail uses it instead of the partner feed category", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        categories: "Shopping",
+        offer_display_tags: {
+          brand_category_enabled: true,
+          brand_category_label: "Digital Services",
+        },
+      },
+      fixtureShop,
+    );
+
+    expect(shop.category).toBe("Digital Services");
+  });
+
+  it("#316 > given a disabled or blank admin category override > then customer detail keeps the partner feed category", () => {
+    const disabled = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        categories: "Shopping",
+        offer_display_tags: {
+          brand_category_enabled: false,
+          brand_category_label: "Digital Services",
+        },
+      },
+      fixtureShop,
+    );
+    const blank = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        categories: "Shopping",
+        offer_display_tags: {
+          brand_category_enabled: true,
+          brand_category_label: "  ",
+        },
+      },
+      fixtureShop,
+    );
+
+    expect(disabled.category).toBe("Shopping");
+    expect(blank.category).toBe("Shopping");
+  });
+
   it("given tracking_period with tracking 7 and confirm 15 > then steps read within N day with fixture labels and icons", () => {
     const shop = mapMerchantOfferToShopDetail(
       { ...liveOffer, tracking_period: { tracking_days: 7, confirm_days: 15 } },

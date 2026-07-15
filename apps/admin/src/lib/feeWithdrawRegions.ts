@@ -1,8 +1,44 @@
-import type { FeeWithdrawRegion, GlobalMaxCapMode, ResponseFee } from "@/types/api";
+import type {
+  FeeWithdrawRegion,
+  GlobalMaxCapMode,
+  ResponseFee,
+} from "@/types/api";
 
-export function withRegionMaxCapDefaults(r: FeeWithdrawRegion): FeeWithdrawRegion {
+export type GlobalWithdrawalDefaults = {
+  fee: number;
+  minimum: number;
+  currency: string;
+};
+
+export function resolveGlobalWithdrawalDefaults(
+  response: ResponseFee,
+): GlobalWithdrawalDefaults {
+  return {
+    fee: response.global_withdraw_fee ?? response.fee_withdraw_thb ?? 0,
+    minimum:
+      response.global_minimum_withdraw ?? response.minimum_withdraw_thb ?? 0,
+    currency: (response.global_withdraw_currency ?? "THB").trim().toUpperCase(),
+  };
+}
+
+export function validateGlobalWithdrawalDefaults(
+  defaults: GlobalWithdrawalDefaults,
+): string | null {
+  if (defaults.fee < 0 || defaults.minimum < 0) {
+    return "Global withdrawal fee and minimum must be zero or greater.";
+  }
+  if (!/^[A-Z]{3,8}$/.test(defaults.currency.trim().toUpperCase())) {
+    return "Select or enter a valid global withdrawal currency (ISO 4217).";
+  }
+  return null;
+}
+
+export function withRegionMaxCapDefaults(
+  r: FeeWithdrawRegion,
+): FeeWithdrawRegion {
   const cur = (r.currency ?? "THB").trim().toUpperCase() || "THB";
-  const mode: GlobalMaxCapMode = r.max_cap_mode === "fixed" ? "fixed" : "percent";
+  const mode: GlobalMaxCapMode =
+    r.max_cap_mode === "fixed" ? "fixed" : "percent";
   return {
     ...r,
     max_cap_mode: mode,
@@ -12,7 +48,9 @@ export function withRegionMaxCapDefaults(r: FeeWithdrawRegion): FeeWithdrawRegio
   };
 }
 
-export function legacyRegionsFromResponse(res: ResponseFee): FeeWithdrawRegion[] {
+export function legacyRegionsFromResponse(
+  res: ResponseFee,
+): FeeWithdrawRegion[] {
   return [
     withRegionMaxCapDefaults({
       id: "legacy-th",
@@ -39,7 +77,10 @@ export function ensureRegionIds(
   return base.map((r, i) =>
     withRegionMaxCapDefaults({
       ...r,
-      id: r.id && r.id.length > 0 ? r.id : `region-${i}-${r.countryCode}-${r.currency}`,
+      id:
+        r.id && r.id.length > 0
+          ? r.id
+          : `region-${i}-${r.countryCode}-${r.currency}`,
     }),
   );
 }
@@ -75,12 +116,17 @@ export function normalizeRegionsForSave(
       ...r,
       countryCode,
       currency,
-      max_cap_currency: (r.max_cap_currency ?? currency).trim().toUpperCase().slice(0, 8),
+      max_cap_currency: (r.max_cap_currency ?? currency)
+        .trim()
+        .toUpperCase()
+        .slice(0, 8),
     });
   });
 }
 
-export function validateWithdrawRegions(regions: FeeWithdrawRegion[]): string | null {
+export function validateWithdrawRegions(
+  regions: FeeWithdrawRegion[],
+): string | null {
   const seen = new Set<string>();
   for (const r of regions) {
     const code = r.countryCode.trim().toUpperCase();
@@ -100,7 +146,9 @@ export function validateWithdrawRegions(regions: FeeWithdrawRegion[]): string | 
   return null;
 }
 
-export function validateRegionMaxCaps(regions: FeeWithdrawRegion[]): string | null {
+export function validateRegionMaxCaps(
+  regions: FeeWithdrawRegion[],
+): string | null {
   for (const r of regions) {
     const mode = r.max_cap_mode === "fixed" ? "fixed" : "percent";
     const label = `${r.countryCode.trim().toUpperCase() || "?"}/${r.currency.trim().toUpperCase() || "?"}`;

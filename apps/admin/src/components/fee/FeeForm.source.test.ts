@@ -9,22 +9,18 @@ const formSource = readFileSync(
   "utf8",
 );
 
-describe("FeeForm — System section save (founder feedback)", () => {
-  it("renders a Save control inside the System section, not only at the bottom", () => {
-    // Founder: 'on fee structure should have save button as well'. The System
-    // (platform fee) block sat far above the only Save button (bottom of the
-    // long country list), so it looked unsaveable. A Save control must appear
-    // within the System section.
-    const systemSection = formSource.slice(
-      formSource.indexOf("Global platform fee and optional"),
-      formSource.indexOf("Withdrawal fees by country"),
+describe("FeeForm — cashback section save (founder feedback)", () => {
+  it("renders a Save control inside cashback management, not only at the bottom", () => {
+    const cashbackSection = formSource.slice(
+      formSource.indexOf("Cashback transaction fee management"),
+      formSource.indexOf("Withdrawal fee management"),
     );
-    expect(systemSection).toContain("Save platform fee");
+    expect(cashbackSection).toContain("Save cashback fees");
   });
 
-  it("the System-section Save reuses saveSettings and the dirty/loaded guard", () => {
+  it("the cashback Save reuses saveSettings and the dirty/loaded guard", () => {
     expect(formSource).toMatch(
-      /onClick=\{\(\) => void saveSettings\(\)\}[\s\S]*?disabled=\{saving \|\| fetching \|\| !forms\.id \|\| !dirty\}[\s\S]*?Save platform fee/,
+      /onClick=\{\(\) => void saveSettings\(\)\}[\s\S]*?disabled=\{saving \|\| fetching \|\| !forms\.id \|\| !dirty\}[\s\S]*?Save cashback fees/,
     );
   });
 });

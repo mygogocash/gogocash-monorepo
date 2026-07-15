@@ -393,9 +393,7 @@ export const mockWithdraws = Array.from({ length: 550 }, (_, i) => {
   // i === 0 is u1's demo crypto withdrawal ("w1"); keep it pending so u1's
   // Total Withdrawn reflects only the approved THB bank withdrawal below.
   const status = (i === 0 ? "pending" : statuses[i % 4]) as
-    | "approved"
-    | "pending"
-    | "rejected";
+    "approved" | "pending" | "rejected";
   const method = i % 5 === 0 ? "crypto" : "bank_transfer";
   const currency = i % 3 === 0 ? "USD" : "THB";
   const dt = i % 3 === 0 ? lastWeek : i % 3 === 1 ? yesterday : now;
@@ -537,7 +535,8 @@ export function addManualCashbackConversion(
 ): number {
   const user = userRefs.find((u) => u._id === userId) ?? userRefs[0];
   const conversionId =
-    mockConversions.reduce((max, c) => Math.max(max, c.conversion_id), 5000) + 1;
+    mockConversions.reduce((max, c) => Math.max(max, c.conversion_id), 5000) +
+    1;
   const ts = new Date().toISOString();
   mockConversions.push({
     conversion_id: conversionId,
@@ -580,7 +579,8 @@ export function setManualCashbackStatus(
   reason?: string,
 ): { userId: string; amount: number } | null {
   const c = mockConversions.find(
-    (x) => x.conversion_id === conversionId && x.offer_name === "Extra cashback",
+    (x) =>
+      x.conversion_id === conversionId && x.offer_name === "Extra cashback",
   );
   if (!c) return null;
   c.conversion_status = status;
@@ -598,6 +598,9 @@ export const mockFee = [
     global_max_cap_percent: 0,
     global_max_cap_amount: 0,
     global_max_cap_currency: "THB",
+    global_withdraw_fee: 30,
+    global_minimum_withdraw: 100,
+    global_withdraw_currency: "THB",
     createdAt: lastWeek,
     updatedAt: now,
     __v: 0,

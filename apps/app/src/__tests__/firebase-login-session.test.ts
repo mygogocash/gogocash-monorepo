@@ -114,6 +114,25 @@ describe("firebase login > exchangeFirebaseIdToken", () => {
     });
   });
 
+  it("given registration intent > posts to the explicit /auth/register endpoint", async () => {
+    const fetchImpl = okFetch({
+      ...fullResponse,
+      auth_flow: "register",
+      is_new_user: true,
+    });
+
+    await exchangeFirebaseIdToken({
+      apiUrl: "https://api-staging.gogocash.co",
+      fetchImpl,
+      idToken: "firebase-id-token",
+      intent: "register",
+    });
+
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe(
+      "https://api-staging.gogocash.co/auth/register",
+    );
+  });
+
   it("returns the mapped session on success", async () => {
     const session = await exchangeFirebaseIdToken({
       apiUrl: "https://api-staging.gogocash.co",

@@ -225,8 +225,8 @@ src/
 
 ### Prerequisites
 
-- Node.js 20+
-- Yarn (recommended) or npm
+- Node.js 24 LTS
+- npm 10.9.8 (managed from the monorepo root)
 
 ### Install & Run
 
@@ -647,7 +647,7 @@ The repo ships a multi-stage [`Dockerfile`](./Dockerfile) that builds the Next.j
   docker build -f apps/admin/Dockerfile -t gogocash-admin .
   docker run -p 8080:8080 --env-file .env gogocash-admin
   ```
-- Base image **`node:22-slim`**; install via **`npm ci --legacy-peer-deps`**; build
+- Base image **`node:24-slim`**; install via **`npm ci --legacy-peer-deps`**; build
   via `npm run build:standalone -w gogocash-admin`.
 - Runs as non-root (`nextjs:nodejs`); entrypoint `node apps/admin/server.js`; listens on **port 8080**.
 - Target image/region: `asia-southeast1-docker.pkg.dev/gogocash-staging/gogocash/gogocash-admin` (Cloud Run, asia-southeast1).
@@ -664,7 +664,7 @@ The repo ships a multi-stage [`Dockerfile`](./Dockerfile) that builds the Next.j
 
 An [`app.yaml`](./app.yaml) is present:
 
-- Runtime: **Node.js 22**
+- Runtime: **Node.js 24 LTS**
 - Auto-scaling: 0–10 instances, CPU target 60%
 - Resources: 1 CPU, 0.5 GB RAM
 
@@ -717,23 +717,23 @@ Others
 
 | Library | Version | Purpose |
 | --- | --- | --- |
-| `next` | 16.2.9 | React framework (App Router, SSR) |
-| `react` | 19.2.0 | UI library |
+| `next` | 16.2.10 | React framework (App Router, SSR) |
+| `react` | 19.2.7 | UI library |
 | `next-auth` | 4.24.13 | Authentication (JWT + Credentials) |
-| `@tanstack/react-query` | 5.101.0 | Server state management |
-| `axios` | 1.18.0 | HTTP client |
+| `@tanstack/react-query` | 5.101.2 | Server state management |
+| `axios` | 1.18.1 | HTTP client |
 | `tailwindcss` | 4.0.0 | Utility-first CSS |
-| `@mui/material` | 9.1.1 | Component library |
-| `apexcharts` | 5.15.0 | Interactive charts |
-| `@fullcalendar/react` | 6.1.15 | Calendar component |
+| `@mui/material` | 9.2.0 | Component library |
+| `apexcharts` | 5.16.0 | Interactive charts |
+| `@fullcalendar/react` | 6.1.21 | Calendar component |
 | `@react-jvectormap/world` | - | World map visualization |
 | `react-hot-toast` | 2.6.0 | Toast notifications |
 | `flatpickr` | - | Date/time picker |
-| `react-dropzone` | 14.3.5 | File upload drag & drop |
+| `react-dropzone` | 17.0.0 | File upload drag & drop |
 | `react-dnd` | 16.0.1 | Drag and drop |
-| `libphonenumber-js` | 1.12.33 | Phone number formatting |
-| `swiper` | 11.2.0 | Touch slider/carousel |
-| `tailwind-merge` | 2.6.0 | Merge Tailwind classes |
+| `libphonenumber-js` | 1.13.8 | Phone number formatting |
+| `swiper` | 14.0.5 | Touch slider/carousel |
+| `tailwind-merge` | 3.6.0 | Merge Tailwind classes |
 
 ---
 

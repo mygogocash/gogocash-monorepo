@@ -26,7 +26,7 @@ steps:
       - .
 
   - id: export-app-web
-    name: node:22-bookworm
+    name: node:24-bookworm
     entrypoint: bash
     args:
       - -ceu
@@ -61,7 +61,7 @@ images:
 
 substitutions:
   _ARTIFACT_REPO: gogocash
-  _NPM_VERSION: "10.9.0"
+  _NPM_VERSION: "10.9.8"
   _REGION: asia-southeast1
 
 options:

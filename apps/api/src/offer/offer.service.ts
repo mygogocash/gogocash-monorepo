@@ -16,7 +16,7 @@ import { join } from 'path';
 import { promises as fs } from 'fs';
 import { Category } from './schemas/category.schema';
 import { FavoriteOffer } from './schemas/favorite-offer.schema';
-import { Banner } from './schemas/banner.schema';
+import { ALL_BRAND_BANNER_MODEL, Banner } from './schemas/banner.schema';
 import { TopBrandConfig } from './schemas/top-brand-config.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { UpdateCouponDto } from './dto/update-offer.dto';
@@ -31,9 +31,18 @@ import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
 import { SearchBlacklist } from 'src/admin/search/schemas/blacklist.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
 import { countryFilterRegex } from 'src/utils/country';
-import { normalizeCustomerCashbackLabel } from 'src/common/normalize-customer-cashback-label';
 import { requireObjectId, mongoSetUpdate } from 'src/common/mongo-query';
 import { resolveTrackingPeriod } from './tracking-period.util';
+import {
+  MAX_CUSTOM_TERMS_LENGTH,
+  MAX_NOTE_TO_USER_LENGTH,
+} from './offer-text-limits';
+import { rankOffersWithSearchRules } from './search-ranking';
+import { normalizeSearchRuleKeywords } from 'src/admin/search/search-rule.contract';
+import {
+  MAX_TOP_BRANDS,
+  resolveOfferCashbackLabel,
+} from './top-brand.contract';
 
 const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
@@ -96,6 +105,7 @@ const PUBLIC_OFFER_DETAIL_FIELDS = [
   'policy_category_id',
   'custom_terms',
   'note_to_user',
+  'offer_display_tags',
 ] as const;
 // Selected for the tracking_period derivation only — never whitelisted into
 // the response (pickPublicOfferDetail filters them back out).
@@ -115,6 +125,26 @@ const PUBLIC_LIST_EXCLUDED_FIELDS_SELECT =
 const PUBLIC_OFFER_DETAIL_SELECT = [
   ...PUBLIC_OFFER_DETAIL_FIELDS,
   ...OFFER_DETAIL_DERIVATION_FIELDS,
+].join(' ');
+
+const PUBLIC_COUPON_FIELDS = [
+  '_id',
+  'name',
+  'description',
+  'code',
+  'offer_id',
+  'start_date',
+  'end_date',
+  'eligibility',
+  'min_spend',
+  'discount',
+  'quantity',
+  'link',
+] as const;
+const PUBLIC_COUPON_SELECT = [
+  ...PUBLIC_COUPON_FIELDS,
+  'disabled',
+  'quantity_used',
 ].join(' ');
 
 function pickPublicOfferDetail(offer: Record<string, any> | null) {
@@ -147,6 +177,53 @@ function parseOptionalNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function couponCalendarDate(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  return value.trim().match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? null;
+}
+
+function isPublicCouponEligible(
+  coupon: Record<string, any>,
+  today: string,
+): boolean {
+  const startDate = couponCalendarDate(coupon.start_date);
+  const endDate = couponCalendarDate(coupon.end_date);
+  if (
+    parseBoolean(coupon.disabled) ||
+    !startDate ||
+    !endDate ||
+    startDate > today ||
+    endDate < today
+  ) {
+    return false;
+  }
+
+  const quantity = parseOptionalNumber(coupon.quantity) ?? 0;
+  const quantityUsed = parseOptionalNumber(coupon.quantity_used) ?? 0;
+  return quantity <= 0 || quantityUsed < quantity;
+}
+
+function pickPublicCoupon(coupon: Record<string, any>) {
+  return PUBLIC_COUPON_FIELDS.reduce<Record<string, any>>((result, field) => {
+    if (coupon[field] !== undefined) result[field] = coupon[field];
+    return result;
+  }, {});
+}
+
+function parseBoundedOptionalText(
+  value: unknown,
+  field: string,
+  maxLength: number,
+): string | undefined {
+  const text = String(value ?? '').trim();
+  if (text.length > maxLength) {
+    throw new BadRequestException(
+      `${field} must be ${maxLength} characters or fewer`,
+    );
+  }
+  return text || undefined;
 }
 
 function slugifyOfferLookup(value: string): string {
@@ -186,6 +263,8 @@ export class OfferService implements OnApplicationBootstrap {
     private favoriteOfferModel: Model<FavoriteOffer>,
     @InjectModel(Banner.name)
     private bannerModel: Model<Banner>,
+    @InjectModel(ALL_BRAND_BANNER_MODEL)
+    private allBrandBannerModel: Model<Banner>,
     @InjectModel(TopBrandConfig.name)
     private topBrandConfigModel: Model<TopBrandConfig>,
     @InjectModel(MissionOrder.name)
@@ -347,42 +426,29 @@ export class OfferService implements OnApplicationBootstrap {
     const filtered = offers.filter((offer) => {
       const haystack =
         `${offer.offer_name_display ?? ''} ${offer.offer_name ?? ''} ${offer.categories ?? ''}`.toLowerCase();
-      if (!haystack.includes(normalizedQuery)) {
-        return false;
-      }
       return !blacklist.some((entry) =>
         haystack.includes(String(entry.term).toLowerCase()),
       );
     });
-
-    const boostMap = new Map(
-      boosts.map((rule) => [
-        String(rule.offer_id),
-        Number(rule.boost_weight ?? 1),
-      ]),
-    );
     const featuredTerms = featured.map((entry) =>
       String(entry.term).toLowerCase(),
     );
 
-    return [...filtered].sort((left, right) => {
-      const scoreFor = (offer: OfferDocument) => {
-        const id = String(offer._id);
-        const haystack =
-          `${offer.offer_name_display ?? ''} ${offer.offer_name ?? ''}`.toLowerCase();
-        let score = boostMap.get(id) ?? 0;
-        if (
-          featuredTerms.some(
-            (term) => normalizedQuery.includes(term) && haystack.includes(term),
-          )
-        ) {
-          score += 1000;
-        }
-        return score;
-      };
-
-      return scoreFor(right) - scoreFor(left);
-    });
+    return rankOffersWithSearchRules(
+      normalizedQuery,
+      filtered,
+      boosts.map((rule) => ({
+        offerId: String(rule.offer_id),
+        treatment:
+          rule.treatment === 'pinned' || rule.treatment === 'blocked'
+            ? rule.treatment
+            : 'boost',
+        keywords: normalizeSearchRuleKeywords(rule.keywords),
+        weight: Number(rule.weight ?? rule.boost_weight ?? 1),
+        active: rule.is_active !== false,
+      })),
+      featuredTerms,
+    );
   }
 
   async getFeaturedSearchTerms() {
@@ -474,6 +540,17 @@ export class OfferService implements OnApplicationBootstrap {
     if (!trackingLink) {
       throw new BadRequestException('affiliate_tracking_link is required');
     }
+    const policyCategoryId = String(body.policy_category_id ?? '').trim();
+    const customTerms = parseBoundedOptionalText(
+      body.custom_terms,
+      'custom_terms',
+      MAX_CUSTOM_TERMS_LENGTH,
+    );
+    const noteToUser = parseBoundedOptionalText(
+      body.note_to_user,
+      'note_to_user',
+      MAX_NOTE_TO_USER_LENGTH,
+    );
 
     const upload = async (label: string, file?: Express.Multer.File) => {
       if (!file) return '';
@@ -486,14 +563,15 @@ export class OfferService implements OnApplicationBootstrap {
         );
       }
     };
-    const [logoDesktop, logoMobile, banner, bannerMobile, logoCircle] =
-      await Promise.all([
-        upload('logo (desktop)', files.logo_desktop?.[0]),
-        upload('logo (mobile)', files.logo_mobile?.[0]),
-        upload('banner', files.banner?.[0]),
-        upload('banner (mobile)', files.banner_mobile?.[0]),
-        upload('logo (circle)', files.logo_circle?.[0]),
-      ]);
+    // The admin exposes two physical assets. Older clients may still send a
+    // legacy field, so accept it as a fallback but upload each chosen file once.
+    const logoFile = files.logo_desktop?.[0] ?? files.logo_mobile?.[0];
+    const bannerFile =
+      files.banner?.[0] ?? files.banner_mobile?.[0] ?? files.logo_circle?.[0];
+    const [logoAsset, bannerAsset] = await Promise.all([
+      upload('logo (desktop)', logoFile),
+      upload('banner', bannerFile),
+    ]);
 
     const now = new Date();
     const manualId = Date.now();
@@ -508,7 +586,7 @@ export class OfferService implements OnApplicationBootstrap {
       description: String(body.description ?? '').trim(),
       preview_url: trackingLink,
       currency: String(body.currency ?? 'THB').trim() || 'THB',
-      logo: logoDesktop || logoMobile || String(body.logo ?? ''),
+      logo: logoAsset || String(body.logo ?? ''),
       lookup_value:
         String(body.lookup_value ?? '').trim() ||
         slugifyOfferLookup(brandName) ||
@@ -533,11 +611,11 @@ export class OfferService implements OnApplicationBootstrap {
       commission_tracking: 'CPS',
       tracking_type: 'link',
       directory_page: trackingLink,
-      logo_desktop: logoDesktop,
-      logo_mobile: logoMobile,
-      banner,
-      banner_mobile: bannerMobile,
-      logo_circle: logoCircle,
+      logo_desktop: logoAsset,
+      logo_mobile: logoAsset,
+      banner: bannerAsset,
+      banner_mobile: bannerAsset,
+      logo_circle: bannerAsset,
       disabled: parseBoolean(body.disabled, false),
       commission_store: commissionStore,
       max_cap: maxCap,
@@ -552,6 +630,13 @@ export class OfferService implements OnApplicationBootstrap {
       default_country: String(body.default_country ?? '').trim() || undefined,
       app_deeplink: String(body.app_deeplink ?? '').trim() || undefined,
       offer_display_tags: parseOfferDisplayTagsField(body.offer_display_tags),
+      policy_category_id:
+        policyCategoryId === 'custom' ||
+        Types.ObjectId.isValid(policyCategoryId)
+          ? policyCategoryId
+          : undefined,
+      custom_terms: customTerms,
+      note_to_user: noteToUser,
     });
   }
 
@@ -661,6 +746,10 @@ export class OfferService implements OnApplicationBootstrap {
     return this.bannerModel.findOne().exec();
   }
 
+  async getAllBrandBanner() {
+    return this.allBrandBannerModel.findOne().exec();
+  }
+
   /**
    * Public home "top brands": the admin-curated, ordered list (saveTopBrands).
    * Resolves each saved offerId to live brand name + logo, pairs it with the
@@ -669,7 +758,7 @@ export class OfferService implements OnApplicationBootstrap {
    */
   async getDisplayTopBrands() {
     const config = await this.topBrandConfigModel.findOne().exec();
-    const entries = config?.brands ?? [];
+    const entries = (config?.brands ?? []).slice(0, MAX_TOP_BRANDS);
     if (entries.length === 0) {
       return { data: [] };
     }
@@ -680,7 +769,7 @@ export class OfferService implements OnApplicationBootstrap {
         ...ACTIVE_OFFER_FILTER,
       } as any)
       .select(
-        'offer_id offer_name offer_name_display logo logo_desktop logo_mobile logo_circle',
+        'offer_id offer_name offer_name_display logo logo_desktop logo_mobile logo_circle commission_store commissions',
       )
       .exec();
     const offerById = new Map(
@@ -702,13 +791,15 @@ export class OfferService implements OnApplicationBootstrap {
           logo_desktop?: string;
           logo_mobile?: string;
           logo_circle?: string;
+          commission_store?: unknown;
+          commissions?: unknown[];
         };
         return {
           _id: String(row._id),
           offer_id: row.offer_id,
           brand: row.offer_name_display?.trim() || row.offer_name,
           logo: resolvePublicOfferLogo(row),
-          cashback: normalizeCustomerCashbackLabel(entry.cashback),
+          cashback: resolveOfferCashbackLabel(row),
         };
       })
       .filter((brand) => brand !== null);
@@ -783,10 +874,19 @@ export class OfferService implements OnApplicationBootstrap {
     return { page, limit, total, totalPages, data };
   }
 
-  async getCouponId(id: string) {
-    return this.couponModel
-      .find({ offer_id: new Types.ObjectId(id) })
-      .populate('offer_id', ['offer_name']);
+  async getCouponId(id: string, now = new Date()) {
+    const offerId = requireObjectId(id, 'offer id');
+    const coupons = (await this.couponModel
+      .find({ offer_id: offerId })
+      .populate('offer_id', ['offer_name', 'offer_name_display'])
+      .select(PUBLIC_COUPON_SELECT)
+      .sort({ end_date: 1, createdAt: -1 })
+      .lean()) as unknown as Record<string, any>[];
+    const today = now.toISOString().slice(0, 10);
+
+    return coupons
+      .filter((coupon) => isPublicCouponEligible(coupon, today))
+      .map(pickPublicCoupon);
   }
 
   private questTaskOfferObjectId(

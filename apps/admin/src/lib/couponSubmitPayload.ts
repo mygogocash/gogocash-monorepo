@@ -32,7 +32,9 @@ export function buildCouponSubmitPayload(
     min_spend: form.min_spend_enabled ? form.min_spend : "",
     discount: options.discount,
     quantity: options.quantity,
-    link: form.link ?? "",
+    // Coupons open within their selected brand detail; legacy external URLs
+    // are intentionally cleared on both create and edit (#314).
+    link: "",
     disabled: Boolean(form.disabled),
   };
 
