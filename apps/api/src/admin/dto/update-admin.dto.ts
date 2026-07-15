@@ -1,7 +1,8 @@
-import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { CreateAdminDto } from './create-admin.dto';
 import {
+  ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
   IsIn,
@@ -9,45 +10,184 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Length,
+  Matches,
+  Max,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
+import { MAX_TOP_BRANDS } from 'src/offer/top-brand.contract';
+import {
+  MAX_CUSTOM_TERMS_LENGTH,
+  MAX_NOTE_TO_USER_LENGTH,
+} from 'src/offer/offer-text-limits';
 
 export class UpdateAdminDto extends PartialType(CreateAdminDto) {}
 
+export const FEE_MAX_CAP_MODES = ['percent', 'fixed'] as const;
+
+export class FeeWithdrawRegionDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  id: string;
+
+  @ApiProperty()
+  @IsString()
+  @Length(2, 2)
+  @Matches(/^[A-Za-z]{2}$/)
+  countryCode: string;
+
+  @ApiProperty()
+  @IsString()
+  @Matches(/^[A-Za-z]{3,8}$/)
+  currency: string;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  feeWithdraw: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  minimumWithdraw: number;
+
+  @ApiPropertyOptional({ enum: FEE_MAX_CAP_MODES })
+  @IsOptional()
+  @IsIn(FEE_MAX_CAP_MODES)
+  max_cap_mode?: (typeof FEE_MAX_CAP_MODES)[number];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  max_cap_percent?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  max_cap_amount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z]{3,8}$/)
+  max_cap_currency?: string;
+}
+
 export class UpdateFeeRateDto {
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsString()
-  system: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  system?: number;
 
-  @ApiProperty()
-  @IsString()
-  store: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  store?: number;
 
-  @ApiProperty()
-  @IsString()
-  minimum_withdraw: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  minimum_withdraw?: number;
 
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsString()
-  minimum_withdraw_thb: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  minimum_withdraw_thb?: number;
 
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsString()
-  minimum_withdraw_usd: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  minimum_withdraw_usd?: number;
 
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsString()
-  fee_withdraw_thb: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  fee_withdraw_thb?: number;
 
-  @ApiProperty()
-  @IsNotEmpty()
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  fee_withdraw_usd?: number;
+
+  @ApiPropertyOptional({ type: [FeeWithdrawRegionDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(250)
+  @ValidateNested({ each: true })
+  @Type(() => FeeWithdrawRegionDto)
+  withdraw_regions?: FeeWithdrawRegionDto[];
+
+  @ApiPropertyOptional({ enum: FEE_MAX_CAP_MODES })
+  @IsOptional()
+  @IsIn(FEE_MAX_CAP_MODES)
+  global_max_cap_mode?: (typeof FEE_MAX_CAP_MODES)[number];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  global_max_cap_percent?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  global_max_cap_amount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  fee_withdraw_usd: number;
+  @Matches(/^[A-Za-z]{3,8}$/)
+  global_max_cap_currency?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  global_withdraw_fee?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  global_minimum_withdraw?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z]{3,8}$/)
+  global_withdraw_currency?: string;
 }
 
 export class UpdateRequestWithdrawDto {
@@ -184,13 +324,13 @@ export class UpdateOfferAdminDto {
   /** Cap mirrors the policy write path's MAX_TRANSLATION_LENGTH (50k). */
   @ApiProperty({ required: false })
   @IsString()
-  @MaxLength(50_000)
+  @MaxLength(MAX_CUSTOM_TERMS_LENGTH)
   @IsOptional()
   custom_terms?: string;
 
   @ApiProperty({ required: false })
   @IsString()
-  @MaxLength(2_000)
+  @MaxLength(MAX_NOTE_TO_USER_LENGTH)
   @IsOptional()
   note_to_user?: string;
 }
@@ -324,11 +464,11 @@ export class UpdateBannerHomeBodyDto {
 
 /** Merged multipart payload (body fields + uploaded files). Not validated on @Body(). */
 export type UpdateBannerHomeDto = UpdateBannerHomeBodyDto & {
-  image_1?: string | File | null;
-  image_2?: string | File | null;
-  image_3?: string | File | null;
-  image_4?: string | File | null;
-  image_5?: string | File | null;
+  image_1?: string | Express.Multer.File | null;
+  image_2?: string | Express.Multer.File | null;
+  image_3?: string | Express.Multer.File | null;
+  image_4?: string | Express.Multer.File | null;
+  image_5?: string | Express.Multer.File | null;
 };
 
 /**
@@ -367,6 +507,7 @@ export class TopBrandConfigEntryDto {
 export class SaveTopBrandsDto {
   @ApiProperty({ type: [TopBrandConfigEntryDto] })
   @IsArray()
+  @ArrayMaxSize(MAX_TOP_BRANDS)
   @ValidateNested({ each: true })
   @Type(() => TopBrandConfigEntryDto)
   brands: TopBrandConfigEntryDto[];

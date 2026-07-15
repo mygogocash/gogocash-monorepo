@@ -107,6 +107,7 @@ describe("CustomerAuthScreen — email/password (backend mode)", () => {
         apiUrl: "https://api-staging.gogocash.co",
         country: "TH",
         idToken: "email-id-token",
+        intent: "login",
       });
     });
     await waitFor(() => {
@@ -146,6 +147,12 @@ describe("CustomerAuthScreen — email/password (backend mode)", () => {
 
     await waitFor(() => {
       expect(registerWithEmail).toHaveBeenCalledWith("new@example.com", "hunter22");
+    });
+    expect(exchangeFirebaseIdToken).toHaveBeenCalledWith({
+      apiUrl: "https://api-staging.gogocash.co",
+      country: "TH",
+      idToken: "new-id-token",
+      intent: "register",
     });
     await waitFor(() => {
       expect(readStoredSession()?.access_token).toBe("new-backend-token");

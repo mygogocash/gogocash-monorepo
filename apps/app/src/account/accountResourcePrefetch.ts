@@ -21,8 +21,10 @@ const AUTHED_PREFETCH_RESOURCE_IDS = ["profile", "wallet"] as const satisfies re
 const PUBLIC_PREFETCH_RESOURCE_IDS = ["homeBanner", "topBrand", "brandCatalog"] as const satisfies readonly CustomerAccountResourceId[];
 
 export const PUBLIC_CATALOG_REFETCH_RESOURCE_IDS = [
+  "allBrandBanner",
   "homeBanner",
   "topBrand",
+  "merchantCoupons",
   "brandCatalog",
   "categoryList",
   "catalog",

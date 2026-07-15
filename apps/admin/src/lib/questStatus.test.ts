@@ -1,20 +1,17 @@
 import { describe, expect, it } from "vitest";
-import {
-  questStatusBadgeColor,
-  questStatusLabel,
-} from "./questStatus";
+import { deriveQuestStatus } from "./questStatus";
 
-describe("questStatus", () => {
-  it("questStatusLabel > maps API values to admin labels", () => {
-    expect(questStatusLabel("open")).toBe("Active");
-    expect(questStatusLabel("close")).toBe("Closed");
-    expect(questStatusLabel("closed")).toBe("Closed");
-    expect(questStatusLabel("scheduled")).toBe("Scheduled");
-  });
+describe("deriveQuestStatus", () => {
+  const now = new Date("2026-07-15T05:00:00.000Z");
 
-  it("questStatusBadgeColor > maps statuses to badge colors", () => {
-    expect(questStatusBadgeColor("open")).toBe("success");
-    expect(questStatusBadgeColor("scheduled")).toBe("info");
-    expect(questStatusBadgeColor("close")).toBe("warning");
-  });
+  it.each([
+    ["scheduled", "2026-07-16T00:00:00.000Z", "2026-07-31T00:00:00.000Z"],
+    ["open", "2026-07-01T00:00:00.000Z", "2026-07-31T00:00:00.000Z"],
+    ["close", "2026-06-01T00:00:00.000Z", "2026-06-30T00:00:00.000Z"],
+  ] as const)(
+    "returns %s from the campaign window",
+    (expected, startDate, endDate) => {
+      expect(deriveQuestStatus(startDate, endDate, now)).toBe(expected);
+    },
+  );
 });

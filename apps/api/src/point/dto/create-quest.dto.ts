@@ -33,10 +33,11 @@ export class CreateQuestDto {
   @IsDate()
   end_date: Date;
 
-  @ApiProperty({ example: 'open|close|scheduled' })
+  @ApiProperty({ example: 'open|close|scheduled', required: false })
+  @IsOptional()
   @IsString()
   @IsIn(['open', 'close', 'scheduled'])
-  status: string;
+  status?: string;
 
   @ApiProperty({ example: false, required: false })
   @IsOptional()

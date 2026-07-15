@@ -120,6 +120,7 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
         apiUrl: "https://api.dev.gogocash.co",
         country: "TH",
         idToken: "google-id-token",
+        intent: "login",
       });
     });
     await waitFor(() => {
@@ -144,6 +145,7 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
         apiUrl: "https://api.dev.gogocash.co",
         country: "TH",
         idToken: "native-google-id-token",
+        intent: "login",
       });
     });
     await waitFor(() => {
@@ -183,6 +185,7 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
         apiUrl: "https://api.dev.gogocash.co",
         country: "TH",
         idToken: "native-facebook-id-token",
+        intent: "login",
       });
     });
     await waitFor(() => {

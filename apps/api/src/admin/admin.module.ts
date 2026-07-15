@@ -67,7 +67,12 @@ import {
   UserMyCashback,
   UserMyCashbackSchema,
 } from 'src/user/schemas/user-my-cashback.schema';
-import { Banner, BannerSchema } from 'src/offer/schemas/banner.schema';
+import {
+  ALL_BRAND_BANNER_COLLECTION,
+  ALL_BRAND_BANNER_MODEL,
+  Banner,
+  BannerSchema,
+} from 'src/offer/schemas/banner.schema';
 import {
   TopBrandConfig,
   TopBrandConfigSchema,
@@ -173,6 +178,11 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
       { name: Conversion.name, schema: ConversionSchema },
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
       { name: Banner.name, schema: BannerSchema },
+      {
+        name: ALL_BRAND_BANNER_MODEL,
+        schema: BannerSchema,
+        collection: ALL_BRAND_BANNER_COLLECTION,
+      },
       { name: TopBrandConfig.name, schema: TopBrandConfigSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },

@@ -36,6 +36,12 @@ vi.mock("@mobile/auth/firebaseLogin", () => ({
   exchangeFirebaseIdToken: (...args: unknown[]) => exchangeFirebaseIdToken(...args),
 }));
 
+const checkPhoneLoginEligibility = vi.fn();
+vi.mock("@mobile/auth/phoneLoginEligibility", () => ({
+  checkPhoneLoginEligibility: (...args: unknown[]) =>
+    checkPhoneLoginEligibility(...args),
+}));
+
 const signInWithSocialProvider = vi.fn();
 vi.mock("@mobile/auth/firebaseSocialAuth", () => ({
   isFirebaseSocialProviderId: () => true,
@@ -122,6 +128,8 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     sendPhoneOtp.mockReset();
     confirmPhoneOtp.mockReset();
     exchangeFirebaseIdToken.mockReset();
+    checkPhoneLoginEligibility.mockReset();
+    checkPhoneLoginEligibility.mockResolvedValue(true);
     signInWithSocialProvider.mockReset();
     signInWithEmail.mockReset();
     captureHandledException.mockClear();
@@ -146,6 +154,10 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     // Live mode must request a real OTP (leading trunk 0 stripped for E164)
     // before showing the code-entry step.
     await waitFor(() => {
+      expect(checkPhoneLoginEligibility).toHaveBeenCalledWith({
+        apiUrl: "https://api-staging.gogocash.co",
+        phoneE164: "+66812346789",
+      });
       expect(sendPhoneOtp).toHaveBeenCalledWith("+66812346789");
     });
     await waitFor(() => {
@@ -153,6 +165,101 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     });
     // No session may exist yet — the OTP has not been confirmed.
     expect(readStoredSession()).toBeNull();
+  });
+
+  it("#325 > login with an unlinked phone > sends no SMS and shows an actionable original-method message", async () => {
+    checkPhoneLoginEligibility.mockResolvedValue(false);
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    submitPhone();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "We can't sign you in with this phone number. Use the method you used when creating your account, or sign up.",
+        ),
+      ).toBeTruthy();
+    });
+    expect(sendPhoneOtp).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Verification code")).toBeNull();
+  });
+
+  it("#325 > eligibility request fails > sends no SMS, keeps the phone step, and records the failing step", async () => {
+    checkPhoneLoginEligibility.mockRejectedValue(new Error("network unavailable"));
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    submitPhone();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Could not complete your request. Please try again."),
+      ).toBeTruthy();
+    });
+    expect(sendPhoneOtp).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Verification code")).toBeNull();
+    expect(captureHandledException).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        feature: "phone-otp-login",
+        step: "eligibility",
+      }),
+    );
+  });
+
+  it("#325 > eligibility is rate-limited > shows wait guidance and blocks another request", async () => {
+    checkPhoneLoginEligibility.mockRejectedValue(
+      Object.assign(new Error("rate limited"), {
+        code: "auth/too-many-requests",
+      }),
+    );
+
+    render(createElement(CustomerAuthScreen, { mode: "login" }));
+    enterPhoneAndConsent();
+    const submitButton = screen.getByRole("button", { name: "Sign in" });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Too many attempts. Please try again later.")).toBeTruthy();
+    });
+    expectButtonDisabled(submitButton, true);
+    fireEvent.click(submitButton);
+    expect(checkPhoneLoginEligibility).toHaveBeenCalledTimes(1);
+    expect(sendPhoneOtp).not.toHaveBeenCalled();
+  });
+
+  it("#325 > explicit registration with a new phone > skips eligibility and exchanges the verified token with register intent", async () => {
+    checkPhoneLoginEligibility.mockResolvedValue(false);
+    const confirmation = { confirm: vi.fn() };
+    sendPhoneOtp.mockResolvedValue(confirmation);
+    confirmPhoneOtp.mockResolvedValue({ idToken: "new-phone-id-token" });
+    exchangeFirebaseIdToken.mockResolvedValue({
+      access_token: "new-phone-session",
+      provider: "phone",
+    });
+
+    render(createElement(CustomerAuthScreen, { mode: "register" }));
+    enterPhoneAndConsent();
+    fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
+
+    await waitFor(() => {
+      expect(sendPhoneOtp).toHaveBeenCalledWith("+66812346789");
+    });
+    expect(checkPhoneLoginEligibility).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Verification code")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Verification code"), {
+      target: { value: "654321" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    await waitFor(() => {
+      expect(exchangeFirebaseIdToken).toHaveBeenCalledWith({
+        apiUrl: "https://api-staging.gogocash.co",
+        country: "TH",
+        idToken: "new-phone-id-token",
+        intent: "register",
+      });
+    });
   });
 
   it("backend mode > while the initial send is in flight > ignores a second submit", async () => {
@@ -170,7 +277,10 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     fireEvent.click(submitButton);
     fireEvent.click(submitButton);
 
-    expect(sendPhoneOtp).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(sendPhoneOtp).toHaveBeenCalledTimes(1);
+    });
+    expect(checkPhoneLoginEligibility).toHaveBeenCalledTimes(1);
     expectButtonDisabled(submitButton, true);
 
     await act(async () => {
@@ -218,7 +328,9 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     expect((phoneInput as HTMLInputElement).value).toBe("0812346789");
     expect(screen.queryByLabelText("Email address")).toBeNull();
     expect(signInWithSocialProvider).not.toHaveBeenCalled();
-    expect(sendPhoneOtp).toHaveBeenCalledWith("+66812346789");
+    await waitFor(() => {
+      expect(sendPhoneOtp).toHaveBeenCalledWith("+66812346789");
+    });
 
     await act(async () => {
       resolveSend(confirmation);
@@ -351,6 +463,7 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
         apiUrl: "https://api-staging.gogocash.co",
         country: "TH",
         idToken: "firebase-id-token",
+        intent: "login",
       });
     });
     await waitFor(() => {

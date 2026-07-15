@@ -26,7 +26,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import sideWatchImage from "../../assets/home-side-watch.png";
 import questBannerImage from "../../assets/quest-banner-en.png";
-import walletNoDataImage from "../../assets/wallet-no-data.png";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
@@ -41,6 +40,7 @@ import {
   type ShopTermsViewModel,
 } from "@mobile/account/policyResource";
 import { mintUserTrackingLink } from "@mobile/api/affiliateDeeplink";
+import { mapPublicShopCoupons } from "@mobile/api/shopCouponMapper";
 import {
   mapMerchantOfferToShopDetail,
   type TrackingPeriodStep,
@@ -60,6 +60,7 @@ import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFoo
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { ShopCashbackTipsPanel } from "@mobile/components/shop/ShopCashbackTipsPanel";
+import { ShopCouponDeals } from "@mobile/components/shop/ShopCouponDeals";
 import { ShopRedirectOverlay } from "@mobile/components/ShopRedirectOverlay";
 import { Skeleton, SkeletonText } from "@mobile/components/Skeleton";
 import { useToast } from "@mobile/hooks/useToast";
@@ -144,6 +145,13 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
     merchantId: shop.policyCategoryId ?? "policy-unset",
     resourceId: "policyCategory",
   });
+  const couponResource = useCustomerAccountResource<never[], unknown>({
+    enabled: merchantResource.status === "ready" && merchantResource.source === "backend",
+    fixtureData: [],
+    merchantId: shop.id,
+    resourceId: "merchantCoupons",
+  });
+  const coupons = mapPublicShopCoupons(couponResource.data);
   const shopTerms = resolveShopTerms({
     customTerms: shop.customTerms,
     fallback: shop.terms,
@@ -244,7 +252,14 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
         </View>
         <View style={[styles.rightColumn, isDesktop ? styles.rightColumnDesktop : null]}>
           <ShopQuestBanner shop={shop} />
-          <ShopDealsEmptyState shop={shop} />
+          <ShopCouponDeals
+            coupons={coupons}
+            emptySubtitle={shop.deals.emptySubtitle}
+            emptyTitle={shop.deals.emptyTitle}
+            onRetry={couponResource.retry}
+            status={couponResource.status}
+            title={shop.deals.title}
+          />
           <ShopCashbackTipsPanel shop={shop} />
         </View>
       </View>
@@ -253,9 +268,13 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
     </>
   );
 
+  const handleRefresh = () => {
+    merchantResource.retry();
+    couponResource.retry();
+  };
   const refreshControl = (
     <RefreshControl
-      onRefresh={merchantResource.retry}
+      onRefresh={handleRefresh}
       refreshing={false}
       title={tc("Loading…")}
     />
@@ -712,27 +731,6 @@ function ShopQuestBanner({ shop }: { shop: ShopDetail }) {
         />
       </MotionPressable>
     </Link>
-  );
-}
-
-function ShopDealsEmptyState({ shop }: { shop: ShopDetail }) {
-  const styles = useThemedStyles(createShopDetailScreenStyles);
-  const tc = useCopy();
-  return (
-    <View style={styles.dealsSection}>
-      <Text style={styles.sectionTitle}>{tc(shop.deals.title)}</Text>
-      <View style={styles.dealsEmptyCard}>
-        <Image
-          accessibilityLabel="No deals available"
-          alt="No deals available"
-          resizeMode="contain"
-          source={walletNoDataImage}
-          style={styles.emptyImage}
-        />
-        <Text style={styles.emptyTitle}>{tc(shop.deals.emptyTitle)}</Text>
-        <Text style={styles.emptySubtitle}>{tc(shop.deals.emptySubtitle)}</Text>
-      </View>
-    </View>
   );
 }
 
@@ -1331,33 +1329,6 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
     height: "100%",
     width: "100%",
   },
-  dealsSection: {
-    gap: 24,
-  },
-  dealsEmptyCard: {
-    alignItems: "center",
-    gap: 12,
-  },
-  emptyImage: {
-    height: 220,
-    width: 220,
-  },
-  emptyTitle: {
-    color: colors.primary,
-    fontFamily: typography.family,
-    fontSize: 20,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  emptySubtitle: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 15,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 22,
-    maxWidth: 360,
-    textAlign: "center",
-  },
   termsPanel: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -1422,4 +1393,3 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
   },
 });
 }
-

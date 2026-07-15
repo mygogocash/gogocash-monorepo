@@ -1,9 +1,6 @@
 import { type ViewStyle } from "react-native";
 
-import {
-  webCategoryDirectory,
-  webShopDirectory,
-} from "@mobile/design/webDesignParity";
+import { webCategoryDirectory } from "@mobile/design/webDesignParity";
 import { type MobileRouteId } from "@mobile/navigation/routes";
 
 export type DiscoveryVariant = Extract<MobileRouteId, "brand" | "category" | "discover" | "shops">;
@@ -37,7 +34,17 @@ export type BrandDirectoryStore = {
 };
 
 export type ShopDirectoryStore = BrandDirectoryStore;
-export type DirectoryPromo = typeof webShopDirectory.promo;
+export type DirectoryPromo = {
+  aspectRatio: number;
+  title: string;
+  slides: readonly {
+    accessibilityLabel: string;
+    href: string;
+    id: string;
+    imageAsset?: string;
+    imageUri?: string;
+  }[];
+};
 export type WebViewStyle = ViewStyle & {
   transitionDuration?: string;
   transitionProperty?: string;

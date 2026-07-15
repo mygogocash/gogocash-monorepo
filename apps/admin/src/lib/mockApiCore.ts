@@ -34,6 +34,7 @@ import {
 import {
   bestPercentFromPartnerRates,
   buildSuggestedAppDeeplink,
+  resolveTopBrandCashbackLabel,
 } from "@/lib/offerDeeplink";
 import {
   normalizeOfferDisplayTags,
@@ -63,6 +64,7 @@ import {
   buildDashboardSummaryExtended,
 } from "@/lib/dashboardInsightsBuilder";
 import { tryMockAdminFeaturesRequest } from "@/lib/mockAdminFeatures";
+import { deriveQuestStatus } from "@/lib/questStatus";
 
 export type MockApiInput = {
   method: string;
@@ -81,6 +83,8 @@ const jsonErr = (status: number, body: unknown): MockApiResult => ({
   status,
   body,
 });
+
+const MAX_TOP_BRANDS = 16;
 
 const OFFER_NAMES: Record<number, string> = {
   1001: "Banana IT TH - CPS",
@@ -631,8 +635,15 @@ function handleMockGET(
       .filter((o) => o != null);
     return ok({
       order: topBrandHomepageBrands.map((entry) => entry.offerId),
-      brands: topBrandHomepageBrands.map((entry) => ({ ...entry })),
+      brands: topBrandHomepageBrands.map((entry) => {
+        const offer = mockOffers.find((row) => row._id === entry.offerId);
+        return {
+          offerId: entry.offerId,
+          cashback: resolveTopBrandCashbackLabel(offer, ""),
+        };
+      }),
       items,
+      maxBrands: MAX_TOP_BRANDS,
     });
   }
 
@@ -717,7 +728,12 @@ function handleMockGET(
   }
 
   if (joined === "point/admin-get-quest") {
-    return ok(mockQuestStore);
+    return ok(
+      mockQuestStore.map((quest) => ({
+        ...quest,
+        status: deriveQuestStatus(quest.start_date, quest.end_date),
+      })),
+    );
   }
 
   if (
@@ -841,6 +857,35 @@ function handleMockGET(
     const offerId = path[2];
     const coupons = mockCoupons.filter((c) => c.offer_id._id === offerId);
     return ok(coupons);
+  }
+
+  if (path[0] === "offer" && path[1] === "coupons" && path[3] === "insights") {
+    const coupon = mockCoupons.find((item) => item._id === path[2]);
+    if (!coupon) return jsonErr(404, { message: "Coupon not found." });
+    return ok({
+      coupon: {
+        code: coupon.code,
+        discount: coupon.discount,
+        id: coupon._id,
+        name: coupon.name,
+        offerName:
+          coupon.offer_id.offer_name_display ?? coupon.offer_id.offer_name,
+      },
+      metrics: {
+        codeCopies: 0,
+        copyRate: 0,
+        detailViews: 0,
+        usageAmount: coupon.quantity_used ?? 0,
+        usageUnit: "redemptions",
+      },
+      redemptions: {
+        data: [],
+        limit,
+        page,
+        total: 0,
+        totalPages: 0,
+      },
+    });
   }
 
   if (joined === "offer/get-coupon") {
@@ -1140,7 +1185,7 @@ async function handleMockPOST(
 
     quest.start_date = mockBodyField(body, "start_date") || quest.start_date;
     quest.end_date = mockBodyField(body, "end_date") || quest.end_date;
-    quest.status = mockBodyField(body, "status") || quest.status || "open";
+    quest.status = deriveQuestStatus(quest.start_date, quest.end_date);
     const rewardStatus = mockBodyField(body, "reward_status");
     quest.reward_status =
       rewardStatus === ""
@@ -1879,6 +1924,11 @@ async function handleMockPUT(
           ).trim(),
         }))
       : [];
+    if (brands.length > MAX_TOP_BRANDS) {
+      return jsonErr(400, {
+        message: `Top brands is limited to ${MAX_TOP_BRANDS} offers.`,
+      });
+    }
     const seen = new Set<string>();
     const next: TopBrandConfigEntry[] = [];
     for (const entry of brands) {
@@ -1890,7 +1940,7 @@ async function handleMockPUT(
         continue;
       }
       seen.add(entry.offerId);
-      next.push(entry);
+      next.push({ offerId: entry.offerId, cashback: "" });
     }
     topBrandHomepageBrands = next;
     return ok({

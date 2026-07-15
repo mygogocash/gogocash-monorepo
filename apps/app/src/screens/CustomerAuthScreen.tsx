@@ -398,7 +398,24 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
       setOtpSendBusy(true);
       setSendError(null);
       void (async () => {
+        let step: "eligibility" | "send" = "eligibility";
         try {
+          if (mode === "login") {
+            const { checkPhoneLoginEligibility } = await import(
+              "@mobile/auth/phoneLoginEligibility"
+            );
+            const eligible = await checkPhoneLoginEligibility({
+              apiUrl: env.apiUrl,
+              phoneE164: attemptSnapshot.phoneE164,
+            });
+            if (!eligible) {
+              setSendError("unlinked-phone");
+              haptics.error();
+              return;
+            }
+          }
+
+          step = "send";
           const confirmation = await sendPhoneOtpWithRecaptcha(
             attemptSnapshot.phoneE164
           );
@@ -415,6 +432,8 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           const kind = toSendErrorKind(error);
           setSendError(kind);
           setSendCooldownSeconds((current) => nextOtpSendCooldownSeconds(kind, current));
+          const { captureHandledException } = await import("@mobile/observability/client");
+          captureHandledException(error, { feature: "phone-otp-login", step });
           haptics.error();
         } finally {
           authOperationInFlightRef.current = false;
@@ -541,6 +560,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
               apiUrl: getMobileEnv().apiUrl,
               country: attempt.countryCode,
               idToken,
+              intent: mode,
             });
             pendingSessionRef.current = session;
           }
@@ -685,6 +705,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           apiUrl: env.apiUrl,
           country: selectedCountry.code,
           idToken,
+          intent: emailMode === "signup" ? "register" : "login",
         });
         await completeSocialSession(session);
       } catch (error) {
@@ -824,6 +845,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           apiUrl: env.apiUrl,
           country: selectedCountry.code,
           idToken,
+          intent: mode,
         });
         await completeSocialSession(session);
       } catch (error) {

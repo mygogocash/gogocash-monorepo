@@ -25,7 +25,7 @@ interface IProp {
   setForm: React.Dispatch<React.SetStateAction<BannerRequestForm>>;
   isLoading: boolean;
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  /** POST target (mock: `/admin/banner-home` or `/admin/banner-all-brand-page`). */
+  /** Live API POST target: `/admin/banner-home` or `/admin/banner-all-brand-page`. */
   savePath?: string;
   headerTitle?: string;
   headerDescription?: string;
@@ -99,9 +99,9 @@ const FormUpdate = ({
     end_forever_5: f.end_forever_5,
     id: f.id,
   });
-  const [initialSnapshot, setInitialSnapshot] = useState<
-    ReturnType<typeof snapshotForm> | null
-  >(null);
+  const [initialSnapshot, setInitialSnapshot] = useState<ReturnType<
+    typeof snapshotForm
+  > | null>(null);
   useEffect(() => {
     if (!openModal) return;
     startTransition(() => {
@@ -143,11 +143,7 @@ const FormUpdate = ({
 
     setIsLoading(true);
     try {
-      await client.post(
-        savePath,
-        formData,
-        multipartPostConfig(),
-      );
+      await client.post(savePath, formData, multipartPostConfig());
       await Promise.resolve(fetchData());
       setOpenModal(false);
       toast.success("Banner saved successfully");
@@ -298,15 +294,14 @@ const FormUpdate = ({
                 Slot enabled
               </p>
               <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                Turn this slot off to hide it without removing the banner content.
+                Turn this slot off to hide it without removing the banner
+                content.
               </p>
               <Switch
                 label="Enabled"
                 checked={slotEnabled}
                 disabled={!canManageBanners}
-                onChange={(checked) =>
-                  setSlotField(slotEnabledKey, checked)
-                }
+                onChange={(checked) => setSlotField(slotEnabledKey, checked)}
               />
             </div>
             <div className="min-w-0 flex-1">
@@ -322,12 +317,7 @@ const FormUpdate = ({
                 name={slotStartDateKey as string}
                 value={slotStartDate}
                 disabled={!canManageBanners}
-                onChange={(e) =>
-                  setSlotField(
-                    slotStartDateKey,
-                    e.target.value,
-                  )
-                }
+                onChange={(e) => setSlotField(slotStartDateKey, e.target.value)}
               />
             </div>
             <div className="min-w-0 flex-1">
@@ -343,18 +333,18 @@ const FormUpdate = ({
                   type="checkbox"
                   checked={slotEndForever}
                   disabled={!canManageBanners}
-                onChange={(e) => {
-                  const forever = e.target.checked;
-                  setSlotField(slotEndForeverKey, forever);
-                  setSlotField(
-                    slotEndDateKey,
-                    forever
-                      ? ""
-                      : slotEndDate ||
-                          slotStartDate ||
-                          new Date().toISOString().slice(0, 10),
-                  );
-                }}
+                  onChange={(e) => {
+                    const forever = e.target.checked;
+                    setSlotField(slotEndForeverKey, forever);
+                    setSlotField(
+                      slotEndDateKey,
+                      forever
+                        ? ""
+                        : slotEndDate ||
+                            slotStartDate ||
+                            new Date().toISOString().slice(0, 10),
+                    );
+                  }}
                   className="text-brand-500 h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800"
                 />
                 Forever (no end date)

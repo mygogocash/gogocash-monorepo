@@ -65,14 +65,17 @@ export async function exchangeFirebaseIdToken({
   country,
   fetchImpl = fetch,
   idToken,
+  intent = "login",
 }: {
   apiUrl: string;
   country?: string;
   fetchImpl?: typeof fetch;
   idToken: string;
+  intent?: "login" | "register";
 }): Promise<MobileSession> {
   const baseUrl = apiUrl.replace(/\/+$/, "");
-  const response = await fetchImpl(`${baseUrl}/auth/log-in`, {
+  const endpoint = intent === "register" ? "register" : "log-in";
+  const response = await fetchImpl(`${baseUrl}/auth/${endpoint}`, {
     body: JSON.stringify({ token: idToken, ...(country ? { country } : {}) }),
     headers: {
       Accept: "application/json",

@@ -21,6 +21,26 @@ describe("resolveCustomerAccountResourceQueryOptions", () => {
     });
   });
 
+  it("given merchantCoupons > then refreshes the public deal feed on focus", () => {
+    expect(
+      resolveCustomerAccountResourceQueryOptions("merchantCoupons"),
+    ).toEqual({
+      staleTime: PUBLIC_CATALOG_QUERY_STALE_TIME_MS,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    });
+  });
+
+  it("given allBrandBanner > then refreshes the public directory carousel on focus", () => {
+    expect(
+      resolveCustomerAccountResourceQueryOptions("allBrandBanner"),
+    ).toEqual({
+      staleTime: PUBLIC_CATALOG_QUERY_STALE_TIME_MS,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    });
+  });
+
   it("given wallet > then uses default stale time and no catalog refetch flags", () => {
     expect(resolveCustomerAccountResourceQueryOptions("wallet")).toEqual({
       staleTime: CUSTOMER_QUERY_STALE_TIME_MS,
@@ -33,7 +53,14 @@ describe("resolveCustomerAccountResourceQueryOptions", () => {
 describe("PUBLIC_CATALOG_REFETCH_RESOURCE_IDS", () => {
   it("includes top brands and catalog feeds", () => {
     expect(PUBLIC_CATALOG_REFETCH_RESOURCE_IDS).toEqual(
-      expect.arrayContaining(["topBrand", "brandCatalog", "homeBanner", "categoryList", "catalog"]),
+      expect.arrayContaining([
+        "allBrandBanner",
+        "topBrand",
+        "brandCatalog",
+        "homeBanner",
+        "categoryList",
+        "catalog",
+      ]),
     );
   });
 });
@@ -52,8 +79,7 @@ describe("refetchPublicCatalogResources", () => {
     });
 
     const predicate = refetchQueries.mock.calls[0]?.[0]?.predicate as
-      | ((query: { queryKey: readonly unknown[] }) => boolean)
-      | undefined;
+      ((query: { queryKey: readonly unknown[] }) => boolean) | undefined;
     expect(predicate).toBeDefined();
 
     const topBrandKey = resolveCustomerAccountResourceQueryKey({

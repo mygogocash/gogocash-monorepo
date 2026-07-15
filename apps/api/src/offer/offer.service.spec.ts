@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { OfferService } from './offer.service';
 import { Offer } from './schemas/offer.schema';
@@ -44,6 +44,7 @@ describe('OfferService', () => {
   let couponModel: any;
   let favoriteOfferModel: any;
   let bannerModel: any;
+  let allBrandBannerModel: any;
   let topBrandConfigModel: any;
   let missionOrderModel: any;
   let questModel: any;
@@ -82,6 +83,7 @@ describe('OfferService', () => {
       countDocuments: jest.fn().mockResolvedValue(0),
     };
     bannerModel = { findOne: jest.fn() };
+    allBrandBannerModel = { findOne: jest.fn() };
     topBrandConfigModel = {
       findOne: jest.fn(),
       updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
@@ -132,6 +134,10 @@ describe('OfferService', () => {
           useValue: favoriteOfferModel,
         },
         { provide: getModelToken(Banner.name), useValue: bannerModel },
+        {
+          provide: getModelToken('AllBrandBanner'),
+          useValue: allBrandBannerModel,
+        },
         {
           provide: getModelToken(TopBrandConfig.name),
           useValue: topBrandConfigModel,
@@ -382,6 +388,105 @@ describe('OfferService', () => {
     });
   });
 
+  describe('getCouponId (public merchant coupons)', () => {
+    it('getCouponId > given an invalid offer id > then rejects before querying Mongo', async () => {
+      await expect(
+        service.getCouponId('not-an-object-id'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(couponModel.find).not.toHaveBeenCalled();
+    });
+
+    it('getCouponId > given mixed coupon states > then returns only active coupons with remaining inventory', async () => {
+      const offerId = new Types.ObjectId().toHexString();
+      const query = makeQuery([
+        {
+          _id: 'love-u',
+          name: 'Love U',
+          code: '',
+          offer_id: { _id: offerId, offer_name: 'GoDaddy - CPS' },
+          start_date: '2026-07-10',
+          end_date: '2026-07-22',
+          discount: 10,
+          min_spend: '100',
+          quantity: 0,
+          quantity_used: null,
+          disabled: false,
+        },
+        {
+          _id: 'disabled',
+          name: 'Disabled deal',
+          start_date: '2026-07-10',
+          end_date: '2026-07-22',
+          quantity: 0,
+          disabled: true,
+        },
+        {
+          _id: 'future',
+          name: 'Future deal',
+          start_date: '2026-07-16',
+          end_date: '2026-07-22',
+          quantity: 0,
+          disabled: false,
+        },
+        {
+          _id: 'expired',
+          name: 'Expired deal',
+          start_date: '2026-07-01',
+          end_date: '2026-07-14',
+          quantity: 0,
+          disabled: false,
+        },
+        {
+          _id: 'exhausted',
+          name: 'Exhausted deal',
+          start_date: '2026-07-01',
+          end_date: '2026-07-31',
+          quantity: 5,
+          quantity_used: 5,
+          disabled: false,
+        },
+        {
+          _id: 'remaining',
+          name: 'Still available',
+          start_date: '2026-07-01',
+          end_date: '2026-07-31',
+          quantity: 5,
+          quantity_used: 4,
+          disabled: false,
+        },
+      ]);
+      couponModel.find.mockReturnValue(query);
+
+      const result = await service.getCouponId(
+        offerId,
+        new Date('2026-07-15T12:00:00.000Z'),
+      );
+
+      expect(couponModel.find).toHaveBeenCalledWith({
+        offer_id: new Types.ObjectId(offerId),
+      });
+      expect(query.populate).toHaveBeenCalledWith('offer_id', [
+        'offer_name',
+        'offer_name_display',
+      ]);
+      expect(result.map((coupon) => coupon._id)).toEqual([
+        'love-u',
+        'remaining',
+      ]);
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          code: '',
+          discount: 10,
+          min_spend: '100',
+          name: 'Love U',
+        }),
+      );
+      expect(result[0]).not.toHaveProperty('disabled');
+      expect(result[0]).not.toHaveProperty('quantity_used');
+    });
+  });
+
   describe('findOne (public detail)', () => {
     it('findOne > given a live offer id > then it returns customer-safe fields including tracking_link', async () => {
       const offerId = new Types.ObjectId().toHexString();
@@ -389,6 +494,14 @@ describe('OfferService', () => {
         _id: offerId,
         offer_name: 'Nike',
         tracking_link: 'https://track.example/nike',
+        offer_display_tags: {
+          brand_category_enabled: true,
+          brand_category_label: 'Digital Services',
+          extra_cashback_tag: false,
+          grab_coupon_tag: false,
+          expire_in_days_enabled: false,
+          expire_in_days: null,
+        },
         reviewed_by: 'admin-1',
         reviewed_at: new Date('2026-01-01T00:00:00.000Z'),
         rejection_reason: 'old reason',
@@ -405,11 +518,25 @@ describe('OfferService', () => {
       expect(query.select).toHaveBeenCalledWith(
         expect.stringContaining('tracking_link'),
       );
+      expect(query.select).toHaveBeenCalledWith(
+        expect.stringContaining('offer_display_tags'),
+      );
+      expect(query.select).toHaveBeenCalledWith(
+        expect.stringContaining('note_to_user'),
+      );
       expect(result).toEqual(
         expect.objectContaining({
           _id: offerId,
           offer_name: 'Nike',
           tracking_link: 'https://track.example/nike',
+          offer_display_tags: {
+            brand_category_enabled: true,
+            brand_category_label: 'Digital Services',
+            extra_cashback_tag: false,
+            grab_coupon_tag: false,
+            expire_in_days_enabled: false,
+            expire_in_days: null,
+          },
         }),
       );
       expect(result).not.toHaveProperty('reviewed_by');
@@ -572,6 +699,9 @@ describe('OfferService', () => {
         max_cap: '500',
         is_global: 'true',
         default_country: 'Thailand',
+        note_to_user: '  Book through GoGoCash for eligible cashback.  ',
+        policy_category_id: '507f1f77bcf86cd799439011',
+        custom_terms: '  New customers only.  ',
         product_types: JSON.stringify([
           {
             name: 'Flights',
@@ -596,6 +726,9 @@ describe('OfferService', () => {
           source: 'manual',
           is_global: true,
           default_country: 'Thailand',
+          note_to_user: 'Book through GoGoCash for eligible cashback.',
+          policy_category_id: '507f1f77bcf86cd799439011',
+          custom_terms: 'New customers only.',
           product_type: [
             {
               name: 'Flights',
@@ -607,6 +740,48 @@ describe('OfferService', () => {
       );
       expect(result).toEqual({ _id: 'created-offer' });
     });
+
+    it('createAdminOffer > given custom-writing mode > then persists the sentinel for mode inference', async () => {
+      await service.createAdminOffer({
+        brand_name: 'Custom Policy Brand',
+        affiliate_tracking_link: 'https://track.example/custom-policy',
+        policy_category_id: 'custom',
+        custom_terms: 'A deliberately authored custom policy.',
+      });
+
+      expect(offerModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          policy_category_id: 'custom',
+          custom_terms: 'A deliberately authored custom policy.',
+        }),
+      );
+    });
+
+    it.each([
+      ['custom_terms', 'x'.repeat(50_001)],
+      ['note_to_user', 'x'.repeat(2_001)],
+    ])(
+      'createAdminOffer > given oversized %s > then rejects before persistence',
+      async (field, value) => {
+        await expect(
+          service.createAdminOffer(
+            {
+              brand_name: 'Oversized Brand',
+              affiliate_tracking_link: 'https://track.example/oversized',
+              [field]: value,
+            },
+            {
+              logo_desktop: [
+                { originalname: 'logo.png' } as Express.Multer.File,
+              ],
+            },
+          ),
+        ).rejects.toBeInstanceOf(BadRequestException);
+
+        expect(storedMediaService.upload).not.toHaveBeenCalled();
+        expect(offerModel.create).not.toHaveBeenCalled();
+      },
+    );
 
     it('createAdminOffer > given app_deeplink > then persists it on the offer', async () => {
       await service.createAdminOffer({
@@ -639,6 +814,59 @@ describe('OfferService', () => {
         message: expect.stringContaining('Failed to upload logo (desktop)'),
       });
       expect(offerModel.create).not.toHaveBeenCalled();
+    });
+
+    it('createAdminOffer > given canonical media > then uploads two files once and aliases their stored references', async () => {
+      storedMediaService.upload
+        .mockResolvedValueOnce('stored-logo')
+        .mockResolvedValueOnce('stored-banner');
+
+      await service.createAdminOffer(
+        {
+          brand_name: 'Two Asset Brand',
+          affiliate_tracking_link: 'https://track.example/two-assets',
+        },
+        {
+          logo_desktop: [{ originalname: 'logo.png' } as Express.Multer.File],
+          banner: [{ originalname: 'banner.png' } as Express.Multer.File],
+        },
+      );
+
+      expect(storedMediaService.upload).toHaveBeenCalledTimes(2);
+      expect(offerModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          logo: 'stored-logo',
+          logo_desktop: 'stored-logo',
+          logo_mobile: 'stored-logo',
+          banner: 'stored-banner',
+          banner_mobile: 'stored-banner',
+          logo_circle: 'stored-banner',
+        }),
+      );
+    });
+
+    it('createAdminOffer > given duplicated legacy media fields > then uploads each physical asset only once', async () => {
+      const logo = { originalname: 'logo.png' } as Express.Multer.File;
+      const banner = { originalname: 'banner.png' } as Express.Multer.File;
+
+      await service.createAdminOffer(
+        {
+          brand_name: 'Legacy Media Brand',
+          affiliate_tracking_link: 'https://track.example/legacy-media',
+        },
+        {
+          logo_desktop: [logo],
+          logo_mobile: [logo],
+          banner: [banner],
+          banner_mobile: [banner],
+          logo_circle: [banner],
+        },
+      );
+
+      expect(storedMediaService.upload).toHaveBeenCalledTimes(2);
+      expect(
+        storedMediaService.upload.mock.calls.map(([file]) => file),
+      ).toEqual([logo, banner]);
     });
 
     it('createAdminOffer > given no tracking link > then it rejects without creating an offer', async () => {
@@ -953,7 +1181,7 @@ describe('OfferService', () => {
       expect(offerModel.find).not.toHaveBeenCalled();
     });
 
-    it('getDisplayTopBrands > given saved entries > then resolves offers in the saved order with admin cashback', async () => {
+    it('getDisplayTopBrands > given saved entries > then resolves saved order with live offer cashback', async () => {
       topBrandConfigModel.findOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue({
           brands: [
@@ -965,8 +1193,20 @@ describe('OfferService', () => {
       // Returned out of order on purpose: the admin-saved order must win.
       offerModel.find.mockReturnValue(
         makeQuery([
-          { _id: 'id1', offer_id: 1, offer_name: 'Alpha', logo: 'a.png' },
-          { _id: 'id2', offer_id: 2, offer_name: 'Bravo', logo: 'b.png' },
+          {
+            _id: 'id1',
+            offer_id: 1,
+            offer_name: 'Alpha',
+            logo: 'a.png',
+            commission_store: 12.5,
+          },
+          {
+            _id: 'id2',
+            offer_id: 2,
+            offer_name: 'Bravo',
+            logo: 'b.png',
+            commission_store: 10,
+          },
         ]),
       );
 
@@ -984,7 +1224,7 @@ describe('OfferService', () => {
             offer_id: 2,
             brand: 'Bravo',
             logo: 'b.png',
-            cashback: '10.0%',
+            cashback: '10%',
           },
           {
             _id: 'id1',
@@ -997,7 +1237,7 @@ describe('OfferService', () => {
       });
     });
 
-    it('getDisplayTopBrands > given saved Up to cashback labels > then compacts labels for cards', async () => {
+    it('getDisplayTopBrands > given stale saved cashback > then uses the live offer rate', async () => {
       topBrandConfigModel.findOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue({
           brands: [{ offerId: 'id1', cashback: 'Up to 2.02%' }],
@@ -1005,7 +1245,13 @@ describe('OfferService', () => {
       });
       offerModel.find.mockReturnValue(
         makeQuery([
-          { _id: 'id1', offer_id: 1, offer_name: 'Lazada', logo: 'a.png' },
+          {
+            _id: 'id1',
+            offer_id: 1,
+            offer_name: 'Lazada',
+            logo: 'a.png',
+            commission_store: 2.02,
+          },
         ]),
       );
 
@@ -1038,6 +1284,7 @@ describe('OfferService', () => {
             logo: 'https://involve/legacy.png',
             logo_desktop: 'https://media-staging.gogocash.co/shopee-square.png',
             logo_circle: 'https://media-staging.gogocash.co/shopee-circle.png',
+            commission_store: 5,
           },
         ]),
       );
@@ -1070,6 +1317,7 @@ describe('OfferService', () => {
             offer_name_display: 'Shopee',
             logo: 'https://involve/legacy.png',
             logo_circle: 'https://media-staging.gogocash.co/shopee-circle.png',
+            commission_store: 5,
           },
         ]),
       );
@@ -1098,7 +1346,13 @@ describe('OfferService', () => {
       });
       offerModel.find.mockReturnValue(
         makeQuery([
-          { _id: 'id1', offer_id: 1, offer_name: 'Alpha', logo: 'a.png' },
+          {
+            _id: 'id1',
+            offer_id: 1,
+            offer_name: 'Alpha',
+            logo: 'a.png',
+            commission_store: 12.5,
+          },
         ]),
       );
 
@@ -1148,6 +1402,18 @@ describe('OfferService', () => {
           end_date_2: '2026-07-31',
         }),
       );
+    });
+  });
+
+  describe('getAllBrandBanner', () => {
+    it('getAllBrandBanner > then reads the separate all-brand banner model', async () => {
+      const banner = { image_1: 'all-brand.png', link_1: '/brand/promo' };
+      allBrandBannerModel.findOne.mockReturnValue(makeQuery(banner));
+
+      await expect(service.getAllBrandBanner()).resolves.toEqual(banner);
+
+      expect(allBrandBannerModel.findOne).toHaveBeenCalledTimes(1);
+      expect(bannerModel.findOne).not.toHaveBeenCalled();
     });
   });
 

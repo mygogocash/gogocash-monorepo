@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -32,7 +33,7 @@ import {
   shouldReplaceQuestWording,
 } from "@/lib/questTaskWording";
 import {
-  QUEST_STATUS_VALUES,
+  deriveQuestStatus,
   questStatusBadgeColor,
   questStatusLabel,
 } from "@/lib/questStatus";
@@ -82,7 +83,6 @@ import { QuestTaskWordingFields } from "./QuestTaskWordingFields";
 type CampaignDraft = {
   startDate: string;
   endDate: string;
-  status: string;
   facebookPage: string;
   facebookPost: string;
   line: string;
@@ -293,7 +293,6 @@ function makeCampaignDraft(quest?: ResponseQuestDate | null): CampaignDraft {
   return {
     startDate: toBangkokDateTimeInput(quest?.start_date),
     endDate: toBangkokDateTimeInput(quest?.end_date),
-    status: quest?.status ?? "open",
     facebookPage: quest?.facebook_page ?? "",
     facebookPost: quest?.facebook_post ?? "",
     line: quest?.line ?? "",
@@ -403,14 +402,24 @@ function summaryForTask(
   );
 }
 
-export default function QuestTable() {
+export type QuestTableView = "list" | "create" | "edit";
+
+export default function QuestTable({
+  view = "list",
+  questId,
+}: {
+  view?: QuestTableView;
+  questId?: string;
+}) {
   const queryClient = useQueryClient();
   const { role } = usePermissions();
   const canEditCampaign = role === "super_admin";
   const canEditTasks = role === "super_admin";
 
-  const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
-  const [creatingNew, setCreatingNew] = useState(false);
+  const [selectedQuestId, setSelectedQuestId] = useState<string | null>(
+    questId ?? null,
+  );
+  const [creatingNew, setCreatingNew] = useState(view === "create");
   const [campaignDraft, setCampaignDraft] = useState<CampaignDraft>(
     makeCampaignDraft(null),
   );
@@ -431,18 +440,18 @@ export default function QuestTable() {
   const quests = questsQuery.data ?? EMPTY_QUESTS;
 
   const selectedQuest = useMemo(() => {
+    if (view === "list") return null;
     if (creatingNew) return null;
     if (selectedQuestId) {
       return quests.find((quest) => quest._id === selectedQuestId) ?? null;
     }
-    // selectedQuestId is null in this branch (the truthy case returns above),
-    // so the previous find() always missed — fall back to the first quest.
-    return quests[0] ?? null;
-  }, [creatingNew, quests, selectedQuestId]);
+    return null;
+  }, [creatingNew, quests, selectedQuestId, view]);
 
   const offersQuery = useQuery({
     queryKey: offersListQueryKey(OFFERS_QUERY),
     queryFn: () => fetchOffersList(OFFERS_QUERY),
+    enabled: view !== "list",
     staleTime: 30_000,
   });
   const offers = offersQuery.data?.data ?? EMPTY_OFFERS;
@@ -470,14 +479,14 @@ export default function QuestTable() {
   const deeplinkSummaryQuery = useQuery({
     queryKey: questTaskDeeplinkSummaryQueryKey(selectedQuest?._id ?? ""),
     queryFn: () => fetchQuestTaskDeeplinkSummary(selectedQuest?._id ?? ""),
-    enabled: Boolean(selectedQuest?._id),
+    enabled: view !== "list" && Boolean(selectedQuest?._id),
   });
   const deeplinkSummaries = deeplinkSummaryQuery.data?.data ?? [];
 
   const leaderboardQuery = useQuery({
     queryKey: questLeaderboardQueryKey(selectedQuest?._id ?? ""),
     queryFn: () => fetchQuestLeaderboard(selectedQuest?._id ?? ""),
-    enabled: Boolean(selectedQuest?._id),
+    enabled: view === "edit" && Boolean(selectedQuest?._id),
   });
   const leaderboardRows = leaderboardQuery.data?.data ?? [];
   const leaderboardRewards = leaderboardQuery.data?.rewards ?? [];
@@ -528,11 +537,20 @@ export default function QuestTable() {
   const rewardValidationError =
     validateQuestRewards(rewardDrafts) ??
     validateQuestRewardDistribution(rewardDistributionDraft);
+  const combinedDirty = campaignDirty || tasksDirty || rewardsDirty;
+  const derivedCampaignStatus =
+    campaignDraft.startDate && campaignDraft.endDate
+      ? deriveQuestStatus(
+          bangkokDateTimeInputToISOString(campaignDraft.startDate),
+          bangkokDateTimeInputToISOString(campaignDraft.endDate),
+        )
+      : "scheduled";
 
-  const campaignMutation = useMutation({
+  const saveAllMutation = useMutation({
     mutationFn: async () => {
       const fd = new FormData();
-      if (selectedQuest?._id) fd.append("_id", selectedQuest._id);
+      const questIdForSave = selectedQuest?._id ?? selectedQuestId;
+      if (questIdForSave) fd.append("_id", questIdForSave);
       fd.append(
         "start_date",
         bangkokDateTimeInputToISOString(campaignDraft.startDate),
@@ -541,7 +559,9 @@ export default function QuestTable() {
         "end_date",
         bangkokDateTimeInputToISOString(campaignDraft.endDate),
       );
-      fd.append("status", campaignDraft.status);
+      // Kept during rollout for compatibility with older API revisions. The
+      // current API ignores this field and derives status from the dates.
+      fd.append("status", derivedCampaignStatus);
       fd.append("facebook_page", campaignDraft.facebookPage.trim());
       fd.append("facebook_post", campaignDraft.facebookPost.trim());
       fd.append("line", campaignDraft.line.trim());
@@ -555,7 +575,33 @@ export default function QuestTable() {
       if (campaignDraft.subBannerTh) {
         fd.append("sub_banner_th", campaignDraft.subBannerTh);
       }
-      return saveQuestCampaign(fd);
+      const campaign = await saveQuestCampaign(fd);
+
+      // Pin the generated id immediately. If a settings request fails, retrying
+      // updates this campaign instead of creating a duplicate. Keep create mode
+      // active until every settings request succeeds so the in-progress task
+      // and reward drafts cannot be rehydrated from a partial server response.
+      setSelectedQuestId(campaign._id);
+      queryClient.setQueryData<ResponseQuestDate[]>(
+        questListQueryKey,
+        (current = []) => [
+          campaign,
+          ...current.filter((item) => item._id !== campaign._id),
+        ],
+      );
+
+      const taskQuest = await saveQuestTasks(
+        campaign._id,
+        buildQuestTaskPayloads(taskDrafts),
+      );
+      const rewardQuest = await saveQuestRewards(campaign._id, rewardsPayload);
+      return {
+        ...campaign,
+        ...taskQuest,
+        ...rewardQuest,
+        tasks: taskQuest.tasks ?? campaign.tasks,
+        rewards: rewardQuest.rewards ?? campaign.rewards,
+      };
     },
     onSuccess: (quest) => {
       queryClient.setQueryData<ResponseQuestDate[]>(
@@ -567,76 +613,25 @@ export default function QuestTable() {
       );
       setCreatingNew(false);
       setSelectedQuestId(quest._id);
+      setDraftSourceQuestId(null);
       setSaveError(null);
+      void queryClient.invalidateQueries({ queryKey: questListQueryKey });
+      void queryClient.invalidateQueries({
+        queryKey: questTaskDeeplinkSummaryQueryKey(quest._id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: questLeaderboardQueryKey(quest._id),
+      });
     },
     onError: (error) => {
       setSaveError(
         getApiErrorMessage(
           error,
-          "Couldn't save the quest campaign. Please review the fields and try again.",
+          "Couldn't save the complete quest. The campaign may have been created, so review the settings and retry to finish it.",
         ),
       );
     },
   });
-
-  const taskMutation = useMutation({
-    mutationFn: () =>
-      saveQuestTasks(
-        selectedQuest?._id ?? "",
-        buildQuestTaskPayloads(taskDrafts),
-      ),
-    onSuccess: () => {
-      setSaveError(null);
-      queryClient.invalidateQueries({ queryKey: questListQueryKey });
-      if (selectedQuest?._id) {
-        queryClient.invalidateQueries({
-          queryKey: questTaskDeeplinkSummaryQueryKey(selectedQuest._id),
-        });
-      }
-    },
-    onError: (error) => {
-      setSaveError(
-        getApiErrorMessage(
-          error,
-          "Couldn't save the quest tasks. Please review them and try again.",
-        ),
-      );
-    },
-  });
-
-  const rewardMutation = useMutation({
-    mutationFn: () =>
-      saveQuestRewards(selectedQuest?._id ?? "", rewardsPayload),
-    onSuccess: () => {
-      setSaveError(null);
-      queryClient.invalidateQueries({ queryKey: questListQueryKey });
-      if (selectedQuest?._id) {
-        queryClient.invalidateQueries({
-          queryKey: questLeaderboardQueryKey(selectedQuest._id),
-        });
-      }
-    },
-    onError: (error) => {
-      setSaveError(
-        getApiErrorMessage(
-          error,
-          "Couldn't save the quest rewards. Please review them and try again.",
-        ),
-      );
-    },
-  });
-
-  const beginCreate = () => {
-    setCreatingNew(true);
-    setSelectedQuestId(null);
-    setDraftSourceQuestId(null);
-    setCampaignDraft(makeCampaignDraft(null));
-    setTaskDrafts([]);
-    setRewardDrafts([]);
-    setRewardDistributionDraft(makeRewardDistributionDraft(null));
-    setSaveError(null);
-    setActiveDetailTab("tasks");
-  };
 
   const addTask = () => {
     const used = new Set(taskDrafts.map((task) => task.offer));
@@ -739,147 +734,167 @@ export default function QuestTable() {
     setRewardDrafts((current) => current.filter((_, i) => i !== index));
   };
 
+  if (view === "list") {
+    return (
+      <div className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+          <div className="min-w-0">
+            <h3 className="truncate text-base font-medium text-gray-800 dark:text-white/90">
+              Quest Management
+            </h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Total: {quests.length}
+            </p>
+          </div>
+          <Link
+            href="/quest/create"
+            aria-disabled={!canEditCampaign}
+            className={`bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-9 items-center justify-center rounded-lg px-4 text-sm font-medium text-white transition ${
+              canEditCampaign ? "" : "pointer-events-none opacity-50"
+            }`}
+          >
+            Create quest
+          </Link>
+        </div>
+
+        <div className="overflow-x-auto border-t border-gray-100 dark:border-gray-700">
+          {questsQuery.isLoading ? (
+            <div className="p-6 text-sm text-gray-500">Loading quests...</div>
+          ) : questsQuery.isError ? (
+            <div role="alert" className="p-6 text-sm text-red-600">
+              {getApiErrorMessage(
+                questsQuery.error,
+                "Couldn't load quests. Please retry or contact an administrator.",
+              )}
+            </div>
+          ) : quests.length === 0 ? (
+            <NoData>No quests found.</NoData>
+          ) : (
+            <Table className="min-w-[760px]">
+              <TableHeader>
+                <TableRow>
+                  <TableCell isHeader className="px-5 py-3">
+                    Campaign
+                  </TableCell>
+                  <TableCell isHeader className="px-5 py-3">
+                    Schedule
+                  </TableCell>
+                  <TableCell isHeader className="px-5 py-3">
+                    Status
+                  </TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-right">
+                    Tasks
+                  </TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-right">
+                    Action
+                  </TableCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {quests.map((quest) => {
+                  const status = deriveQuestStatus(
+                    quest.start_date,
+                    quest.end_date,
+                  );
+                  return (
+                    <TableRow key={quest._id}>
+                      <TableCell className="px-5 py-4 font-mono text-xs text-gray-600 dark:text-gray-300">
+                        {quest._id.slice(-8)}
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
+                        {formatDate(quest.start_date)} -{" "}
+                        {formatDate(quest.end_date)}
+                      </TableCell>
+                      <TableCell className="px-5 py-4">
+                        <Badge size="sm" color={questStatusBadgeColor(status)}>
+                          {questStatusLabel(status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-right text-sm text-gray-700 dark:text-gray-300">
+                        {quest.tasks?.length ?? 0}
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-right">
+                        <Link
+                          href={`/quest/${quest._id}/edit`}
+                          className="text-brand-600 hover:text-brand-700 dark:text-brand-400 text-sm font-medium hover:underline"
+                        >
+                          Edit
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "edit" && (questsQuery.isLoading || !selectedQuest)) {
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-white/[0.03]">
+        <p
+          role={!questsQuery.isLoading ? "alert" : undefined}
+          className="text-sm text-gray-600 dark:text-gray-300"
+        >
+          {questsQuery.isLoading
+            ? "Loading quest…"
+            : questsQuery.isError
+              ? getApiErrorMessage(
+                  questsQuery.error,
+                  "Couldn't load this quest. Please retry or return to the quest list.",
+                )
+              : "Quest not found. It may have been removed."}
+        </p>
+        {!questsQuery.isLoading && (
+          <Link
+            href="/quest"
+            className="text-brand-600 dark:text-brand-400 mt-4 inline-block text-sm font-medium hover:underline"
+          >
+            Back to quest list
+          </Link>
+        )}
+      </div>
+    );
+  }
+
   const selectedQuestLabel = selectedQuest
     ? `${formatDate(selectedQuest.start_date)} - ${formatDate(selectedQuest.end_date)}`
     : "New Quest";
 
   return (
     <div className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-      <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-medium text-gray-800 dark:text-white/90">
-            Quest Management
-          </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Total: {quests.length}
-          </p>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="primary"
-          onClick={beginCreate}
-          disabled={!canEditCampaign}
-        >
-          New Quest
-        </Button>
-      </div>
-
       <div className="border-t border-gray-100 dark:border-gray-700">
-        <div
-          data-testid="quest-campaign-selector"
-          aria-label="Quest campaigns"
-          className="border-b border-gray-100 p-4 sm:p-5 dark:border-gray-700"
-        >
-          {questsQuery.isLoading ? (
-            <div className="text-sm text-gray-500">Loading quests...</div>
-          ) : !creatingNew && quests.length === 0 ? (
-            <div className="rounded-xl border border-gray-100 dark:border-gray-700">
-              <NoData>No quests found.</NoData>
-            </div>
-          ) : (
-            <div className="flex gap-3 overflow-x-auto pb-1">
-              {creatingNew && (
-                <button
-                  type="button"
-                  aria-pressed="true"
-                  className="border-brand-300 bg-brand-50 shadow-theme-xs dark:border-brand-500/40 dark:bg-brand-500/10 min-w-[240px] rounded-xl border p-4 text-left transition"
-                  onClick={() => {
-                    setCreatingNew(true);
-                    setSelectedQuestId(null);
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-brand-700 dark:text-brand-300 truncate font-mono text-xs">
-                        unsaved
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-                        New Quest draft
-                      </div>
-                    </div>
-                    <Badge size="sm" color="warning">
-                      draft
-                    </Badge>
-                  </div>
-                  <div className="text-brand-700 dark:text-brand-300 mt-3 text-xs">
-                    {campaignDraft.startDate && campaignDraft.endDate
-                      ? `${formatDate(campaignDraft.startDate)} - ${formatDate(campaignDraft.endDate)}`
-                      : "Set dates and save to create this campaign."}
-                  </div>
-                </button>
-              )}
-              {quests.map((quest) => {
-                const active = !creatingNew && selectedQuest?._id === quest._id;
-                return (
-                  <button
-                    key={quest._id}
-                    type="button"
-                    aria-pressed={active}
-                    className={`min-w-[240px] rounded-xl border p-4 text-left transition ${
-                      active
-                        ? "border-brand-300 bg-brand-50 shadow-theme-xs dark:border-brand-500/40 dark:bg-brand-500/10"
-                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30 dark:hover:bg-gray-900/70"
-                    }`}
-                    onClick={() => {
-                      setCreatingNew(false);
-                      setSelectedQuestId(quest._id);
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate font-mono text-xs text-gray-500">
-                          {quest._id.slice(-8)}
-                        </div>
-                        <div className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-                          {formatDate(quest.start_date)} -{" "}
-                          {formatDate(quest.end_date)}
-                        </div>
-                      </div>
-                      <Badge
-                        size="sm"
-                        color={questStatusBadgeColor(quest.status)}
-                      >
-                        {questStatusLabel(quest.status)}
-                      </Badge>
-                    </div>
-                    <div
-                      className={`mt-3 text-xs ${
-                        active
-                          ? "text-brand-700 dark:text-brand-300"
-                          : "text-gray-500 dark:text-gray-400"
-                      }`}
-                    >
-                      {quest.tasks?.length ?? 0} task
-                      {(quest.tasks?.length ?? 0) === 1 ? "" : "s"}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
         <div data-testid="quest-detail-editor" className="min-w-0 p-4 sm:p-6">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {selectedQuestLabel}
+                {view === "create" ? "Create quest" : selectedQuestLabel}
               </h4>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Campaign saves and task point values require super admin access.
+                Configure the campaign, tasks, and rewards, then save once.
               </p>
             </div>
-            {selectedQuest && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setDetailsOpen(true)}
+            <div className="flex items-center gap-2">
+              <Link
+                href="/quest"
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900"
               >
-                Preview
-              </Button>
-            )}
+                Back to quest list
+              </Link>
+              {selectedQuest && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setDetailsOpen(true)}
+                >
+                  Preview
+                </Button>
+              )}
+            </div>
           </div>
 
           {saveError && (
@@ -935,26 +950,18 @@ export default function QuestTable() {
                 />
               </div>
               <div>
-                <Label htmlFor="quest-campaign-status">Status</Label>
-                <select
-                  id="quest-campaign-status"
-                  name="status"
-                  value={campaignDraft.status}
-                  disabled={!canEditCampaign}
-                  onChange={(e) =>
-                    setCampaignDraft((draft) => ({
-                      ...draft,
-                      status: e.target.value,
-                    }))
-                  }
-                  className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                <Label>Status derived from schedule</Label>
+                <div
+                  aria-label="Derived quest status"
+                  className="flex h-11 items-center rounded-lg border border-gray-200 bg-gray-50 px-4 dark:border-gray-700 dark:bg-gray-900"
                 >
-                  {QUEST_STATUS_VALUES.map((status) => (
-                    <option key={status} value={status}>
-                      {questStatusLabel(status)}
-                    </option>
-                  ))}
-                </select>
+                  <Badge
+                    size="sm"
+                    color={questStatusBadgeColor(derivedCampaignStatus)}
+                  >
+                    {questStatusLabel(derivedCampaignStatus)}
+                  </Badge>
+                </div>
               </div>
               <div>
                 <Label htmlFor="quest-campaign-facebook-page">
@@ -1037,32 +1044,18 @@ export default function QuestTable() {
                 );
               })}
             </div>
-
-            <div className="mt-4 flex justify-end">
-              <Button
-                type="button"
-                size="sm"
-                variant="primary"
-                disabled={
-                  !canEditCampaign ||
-                  !campaignDirty ||
-                  !campaignDraft.startDate ||
-                  !campaignDraft.endDate ||
-                  campaignMutation.isPending
-                }
-                onClick={() => campaignMutation.mutate()}
-              >
-                Save campaign
-              </Button>
-            </div>
           </section>
 
           <div
             role="tablist"
             aria-label="Quest campaign management"
-            className="mb-5 grid gap-2 rounded-xl bg-gray-100 p-1 sm:grid-cols-3 dark:bg-gray-900"
+            className={`mb-5 grid gap-2 rounded-xl bg-gray-100 p-1 dark:bg-gray-900 ${
+              view === "create" ? "sm:grid-cols-2" : "sm:grid-cols-3"
+            }`}
           >
-            {QUEST_DETAIL_TABS.map((tab) => {
+            {QUEST_DETAIL_TABS.filter(
+              (tab) => view !== "create" || tab.key !== "leaderboard",
+            ).map((tab) => {
               const active = activeDetailTab === tab.key;
               const count =
                 tab.key === "tasks"
@@ -1121,21 +1114,6 @@ export default function QuestTable() {
                     onClick={addTask}
                   >
                     Add brand
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="primary"
-                    disabled={
-                      !canEditTasks ||
-                      !selectedQuest ||
-                      !tasksDirty ||
-                      Boolean(taskValidationError) ||
-                      taskMutation.isPending
-                    }
-                    onClick={() => taskMutation.mutate()}
-                  >
-                    Save tasks
                   </Button>
                 </div>
               </div>
@@ -1523,21 +1501,6 @@ export default function QuestTable() {
                   >
                     Add rank reward
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="primary"
-                    disabled={
-                      !canEditTasks ||
-                      !selectedQuest ||
-                      !rewardsDirty ||
-                      Boolean(rewardValidationError) ||
-                      rewardMutation.isPending
-                    }
-                    onClick={() => rewardMutation.mutate()}
-                  >
-                    Save rewards
-                  </Button>
                 </div>
               </div>
 
@@ -1719,6 +1682,34 @@ export default function QuestTable() {
               </div>
             </section>
           )}
+
+          <div className="mt-8 flex flex-col items-end gap-2 border-t border-gray-200 pt-6 dark:border-gray-700">
+            <Button
+              type="button"
+              size="sm"
+              variant="primary"
+              disabled={
+                !canEditCampaign ||
+                !canEditTasks ||
+                !combinedDirty ||
+                !campaignDraft.startDate ||
+                !campaignDraft.endDate ||
+                Boolean(taskValidationError) ||
+                Boolean(rewardValidationError) ||
+                saveAllMutation.isPending
+              }
+              onClick={() => saveAllMutation.mutate()}
+            >
+              {saveAllMutation.isPending
+                ? "Saving complete quest…"
+                : view === "create"
+                  ? "Save and create quest"
+                  : "Save quest changes"}
+            </Button>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              One action saves the campaign, tasks, and reward settings.
+            </p>
+          </div>
         </div>
       </div>
 

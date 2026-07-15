@@ -34,6 +34,10 @@ describe("toSendErrorKind", () => {
     expect(sendErrorCopy["invalid-phone"]).toBe(authSendErrorMessages.invalidPhone);
   });
 
+  it("uses actionable copy for an unlinked phone", () => {
+    expect(sendErrorCopy["unlinked-phone"]).toBe(authSendErrorMessages.unlinkedPhone);
+  });
+
   it("given Firebase is not configured > then maps to not-configured", () => {
     expect(toSendErrorKind(firebaseError(FIREBASE_NOT_CONFIGURED_CODE))).toBe("not-configured");
     expect(

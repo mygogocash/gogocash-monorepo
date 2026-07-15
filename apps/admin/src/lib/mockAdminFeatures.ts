@@ -324,11 +324,7 @@ type MissingClaim = {
   submittedDate: string;
   remarks: string;
   status:
-    | "pending"
-    | "under_review"
-    | "approved"
-    | "rejected"
-    | "info_requested";
+    "pending" | "under_review" | "approved" | "rejected" | "info_requested";
   assignedTo: string | null;
   evidence: string[];
   notes: {
@@ -440,10 +436,7 @@ let transactions: TxRow[] = Array.from({ length: 60 }, (_, i) => ({
 }));
 
 type DiscoverType =
-  | "hero_banner"
-  | "featured_merchant"
-  | "featured_category"
-  | "trending_offer";
+  "hero_banner" | "featured_merchant" | "featured_category" | "trending_offer";
 
 type DiscoverItem = {
   id: string;
@@ -571,6 +564,32 @@ let blacklist: BlackRow[] = [
     addedBy: "a1",
     addedDate: "2026-03-01",
     notes: "Fraud pattern",
+  },
+];
+
+type SearchRuleRow = {
+  id: string;
+  offer_id: string;
+  offer_name?: string;
+  treatment: "pinned" | "boost" | "blocked";
+  keywords: string[];
+  weight?: number;
+  is_active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+let searchRules: SearchRuleRow[] = [
+  {
+    id: "sr1",
+    offer_id: "o1",
+    offer_name: "GadgetHub CPS",
+    treatment: "boost",
+    keywords: [],
+    weight: 5,
+    is_active: true,
+    createdAt: "2026-04-01T00:00:00.000Z",
+    updatedAt: "2026-04-01T00:00:00.000Z",
   },
 ];
 
@@ -1245,6 +1264,58 @@ export function tryMockAdminFeaturesRequest(
 
   /* ---------- Search ---------- */
   if (path[1] === "search") {
+    if (m === "GET" && path[2] === "rules") {
+      return ok({ data: searchRules });
+    }
+    if (m === "POST" && path[2] === "rules") {
+      const b = body as Omit<SearchRuleRow, "id" | "createdAt" | "updatedAt">;
+      const now = new Date().toISOString();
+      const row: SearchRuleRow = {
+        ...b,
+        id: `sr_${Date.now()}`,
+        keywords: [
+          ...new Set(
+            (b.keywords ?? [])
+              .map((k) => k.trim().toLowerCase())
+              .filter(Boolean),
+          ),
+        ],
+        is_active: b.is_active !== false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      searchRules = [...searchRules, row];
+      return ok(row);
+    }
+    if (m === "PUT" && path[2] === "rules" && path[3]) {
+      const id = path[3];
+      const b = body as Partial<SearchRuleRow>;
+      searchRules = searchRules.map((rule) =>
+        rule.id === id
+          ? {
+              ...rule,
+              ...b,
+              id,
+              keywords:
+                b.keywords === undefined
+                  ? rule.keywords
+                  : [
+                      ...new Set(
+                        b.keywords
+                          .map((k) => k.trim().toLowerCase())
+                          .filter(Boolean),
+                      ),
+                    ],
+              updatedAt: new Date().toISOString(),
+            }
+          : rule,
+      );
+      return ok(searchRules.find((rule) => rule.id === id));
+    }
+    if (m === "DELETE" && path[2] === "rules" && path[3]) {
+      searchRules = searchRules.filter((rule) => rule.id !== path[3]);
+      return ok({ success: true });
+    }
     if (m === "GET" && path[2] === "featured-terms")
       return ok({ data: featuredTerms });
     if (m === "POST" && path[2] === "featured-terms") {

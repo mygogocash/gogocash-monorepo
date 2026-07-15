@@ -5,6 +5,7 @@ export type SendErrorKind =
   | "rate-limit"
   | "security-check"
   | "invalid-phone"
+  | "unlinked-phone"
   | "not-configured"
   | "generic";
 
@@ -12,6 +13,7 @@ export const sendErrorCopy: Record<SendErrorKind, string> = {
   "rate-limit": authSendErrorMessages.rateLimit,
   "security-check": authSendErrorMessages.securityCheck,
   "invalid-phone": authSendErrorMessages.invalidPhone,
+  "unlinked-phone": authSendErrorMessages.unlinkedPhone,
   "not-configured": authSendErrorMessages.notConfigured,
   generic: authSendErrorMessages.generic,
 };

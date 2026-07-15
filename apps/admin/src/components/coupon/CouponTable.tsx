@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { ConversionQuery } from "@/types/api";
 import NoData from "@/components/common/NoData";
 import FormCoupon from "./FormCoupon";
@@ -122,7 +123,7 @@ export default function CouponTable() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
             <div className="min-w-0 shrink-0 lg:max-w-md">
               <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
-                Coupons
+                Coupon History
               </h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Total: {total.toLocaleString()} coupons
@@ -311,6 +312,17 @@ export default function CouponTable() {
                                   className="absolute top-full right-auto left-0 z-50 mt-1 max-w-[min(18rem,calc(100vw-1.5rem))] min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:right-0 sm:left-auto sm:max-w-none dark:border-gray-600 dark:bg-gray-800"
                                   role="menu"
                                 >
+                                  <Link
+                                    href={`/coupon/${list._id}/insight`}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setOpenActionsId(null);
+                                    }}
+                                    role="menuitem"
+                                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                                  >
+                                    View insight
+                                  </Link>
                                   <button
                                     type="button"
                                     role="menuitem"

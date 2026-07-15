@@ -54,6 +54,7 @@ describe('AdminService', () => {
   let conversionModel: any;
   let userMyCashbackModel: any;
   let bannerModel: any;
+  let allBrandBannerModel: any;
   let topBrandConfigModel: any;
   let deeplinkModel: any;
   let storedMediaService: {
@@ -108,6 +109,10 @@ describe('AdminService', () => {
       findOneAndUpdate: jest.fn(),
       updateOne: jest.fn(),
     };
+    allBrandBannerModel = {
+      findOne: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+    };
     topBrandConfigModel = { updateOne: jest.fn(), findOne: jest.fn() };
     deeplinkModel = { aggregate: jest.fn() };
     storedMediaService = {
@@ -143,6 +148,10 @@ describe('AdminService', () => {
           useValue: userMyCashbackModel,
         },
         { provide: getModelToken(Banner.name), useValue: bannerModel },
+        {
+          provide: getModelToken('AllBrandBanner'),
+          useValue: allBrandBannerModel,
+        },
         {
           provide: getModelToken(TopBrandConfig.name),
           useValue: topBrandConfigModel,
@@ -546,7 +555,72 @@ describe('AdminService', () => {
       expect(persisted.logo).toBe(
         'https://storage.googleapis.com/gogocash-catalog-staging/brands/new-logo.png',
       );
-      expect(persisted.logo_mobile).toBe('keep-mobile');
+      expect(persisted.logo_mobile).toBe(
+        'https://storage.googleapis.com/gogocash-catalog-staging/brands/new-logo.png',
+      );
+    });
+
+    it('updateOffer > given a new canonical banner > then it uploads once and aliases the stored reference to legacy banner fields', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          banner: 'old-banner',
+          banner_mobile: 'old-mobile-banner',
+          logo_circle: 'old-circle-cover',
+        }),
+      );
+      storedMediaService.replace.mockResolvedValue(
+        'https://storage.googleapis.com/gogocash-catalog-staging/brands/new-banner.png',
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        banner: { originalname: 'banner.png' } as Express.Multer.File,
+        product_type: [],
+      });
+
+      expect(storedMediaService.replace).toHaveBeenCalledTimes(1);
+      expect(storedMediaService.replace).toHaveBeenCalledWith(
+        expect.objectContaining({ originalname: 'banner.png' }),
+        'brands',
+        'old-banner',
+      );
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.banner).toBe(
+        'https://storage.googleapis.com/gogocash-catalog-staging/brands/new-banner.png',
+      );
+      expect(persisted.banner_mobile).toBe(persisted.banner);
+      expect(persisted.logo_circle).toBe(persisted.banner);
+    });
+
+    it('updateOffer > given duplicated legacy media fields > then replaces each physical asset only once', async () => {
+      const logo = { originalname: 'logo.png' } as Express.Multer.File;
+      const banner = { originalname: 'banner.png' } as Express.Multer.File;
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          logo_desktop: 'old-logo',
+          banner: 'old-banner',
+        }),
+      );
+      storedMediaService.replace
+        .mockResolvedValueOnce('stored-logo')
+        .mockResolvedValueOnce('stored-banner');
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        logo_desktop: logo,
+        logo_mobile: logo,
+        banner,
+        banner_mobile: banner,
+        logo_circle: banner,
+        product_type: [],
+      });
+
+      expect(storedMediaService.replace).toHaveBeenCalledTimes(2);
+      expect(
+        storedMediaService.replace.mock.calls.map(([file]) => file),
+      ).toEqual([logo, banner]);
     });
 
     it('updateOffer > given a stringified product_type > then it is JSON-parsed before persistence', async () => {
@@ -1134,6 +1208,48 @@ describe('AdminService', () => {
     });
   });
 
+  describe('all brand page banner', () => {
+    it('updateAllBrandBanner > given a slot update > then persists in the separate collection and media folder', async () => {
+      allBrandBannerModel.findOne.mockReturnValue(makeQuery(null));
+      allBrandBannerModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: 'all-brand-banner-doc' }),
+      );
+
+      await service.updateAllBrandBanner({
+        image_1: {
+          originalname: 'brands.png',
+          mimetype: 'image/png',
+          buffer: Buffer.from('png'),
+        },
+        link_1: '/brand/promo',
+      } as never);
+
+      expect(storedMediaService.replace).toHaveBeenCalledWith(
+        expect.objectContaining({ originalname: 'brands.png' }),
+        'banner-all-brand',
+        undefined,
+      );
+      expect(allBrandBannerModel.findOneAndUpdate).toHaveBeenCalledWith(
+        {},
+        expect.objectContaining({
+          $set: expect.objectContaining({ link_1: '/brand/promo' }),
+        }),
+        { upsert: true, new: true },
+      );
+      expect(bannerModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('getAllBrandBanner > then reads only the all-brand collection', async () => {
+      const banner = { image_1: 'all-brand.png' };
+      allBrandBannerModel.findOne.mockReturnValue(makeQuery(banner));
+
+      await expect(service.getAllBrandBanner()).resolves.toEqual(banner);
+
+      expect(allBrandBannerModel.findOne).toHaveBeenCalledTimes(1);
+      expect(bannerModel.findOne).not.toHaveBeenCalled();
+    });
+  });
+
   describe('updateUser', () => {
     // Mobile numbers must be unique across users; reassigning one already owned by a
     // DIFFERENT user must be rejected to prevent account-takeover via OTP collisions.
@@ -1183,10 +1299,9 @@ describe('AdminService', () => {
   });
 
   describe('saveTopBrands', () => {
-    // The curated top-brands list (ordered offer ids + admin cashback labels) is
-    // stored as a single upserted config doc in its own collection (empty filter
-    // = the singleton); upsert prevents duplicate config rows.
-    it('saveTopBrands > given curated brand entries > then it upserts a single config doc', async () => {
+    // Only ordered identities are persisted. Customer cashback is read from the
+    // live offer so stale or forged labels cannot reach the homepage.
+    it('saveTopBrands > given curated brand entries > then it upserts identities without editable cashback', async () => {
       topBrandConfigModel.updateOne.mockResolvedValue({ acknowledged: true });
       const brands = [
         { offerId: 'offer-1', cashback: '12.5%' },
@@ -1199,12 +1314,16 @@ describe('AdminService', () => {
       const [filter, update, opts] =
         topBrandConfigModel.updateOne.mock.calls[0];
       expect(filter).toEqual({});
-      expect(update.$set).toEqual({ brands });
+      const persistedBrands = [
+        { offerId: 'offer-1', cashback: '' },
+        { offerId: 'offer-2', cashback: '' },
+      ];
+      expect(update.$set).toEqual({ brands: persistedBrands });
       expect(opts).toEqual({ upsert: true });
-      expect(result).toEqual({ success: true, brands });
+      expect(result).toEqual({ success: true, brands: persistedBrands });
     });
 
-    it('saveTopBrands > given Up to cashback labels > then compacts before save', async () => {
+    it('saveTopBrands > given a forged cashback label > then discards it', async () => {
       topBrandConfigModel.updateOne.mockResolvedValue({ acknowledged: true });
 
       await service.saveTopBrands([
@@ -1213,8 +1332,20 @@ describe('AdminService', () => {
 
       const update = topBrandConfigModel.updateOne.mock.calls[0][1];
       expect(update.$set.brands).toEqual([
-        { offerId: 'offer-1', cashback: '2.02%' },
+        { offerId: 'offer-1', cashback: '' },
       ]);
+    });
+
+    it('saveTopBrands > given more than the configured maximum > then rejects before persistence', async () => {
+      await expect(
+        service.saveTopBrands(
+          Array.from({ length: 17 }, (_, index) => ({
+            offerId: `offer-${index}`,
+            cashback: '',
+          })),
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(topBrandConfigModel.updateOne).not.toHaveBeenCalled();
     });
   });
 
@@ -1229,11 +1360,13 @@ describe('AdminService', () => {
         _id: 'offer-1',
         offer_name: 'Banana IT',
         logo: 'banana.png',
+        commission_store: 8,
       };
       const offer2 = {
         _id: 'offer-2',
         offer_name: 'Adidas',
         logo: 'adidas.png',
+        commission_store: 12,
       };
 
       topBrandConfigModel.findOne.mockReturnValue(makeQuery({ brands }));
@@ -1246,8 +1379,13 @@ describe('AdminService', () => {
       });
       expect(result).toEqual({
         order: ['offer-2', 'missing-offer', 'offer-1'],
-        brands,
+        brands: [
+          { offerId: 'offer-2', cashback: '12%' },
+          { offerId: 'missing-offer', cashback: '' },
+          { offerId: 'offer-1', cashback: '8%' },
+        ],
         items: [offer2, offer1],
+        maxBrands: 16,
       });
     });
 
@@ -1258,6 +1396,7 @@ describe('AdminService', () => {
         order: [],
         brands: [],
         items: [],
+        maxBrands: 16,
       });
       expect(offerModel.find).not.toHaveBeenCalled();
     });

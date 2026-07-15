@@ -3,6 +3,7 @@ import { getMobileEnv } from "@mobile/config/env";
 import { resolvePublicOfferLogo } from "@mobile/api/offerLogo";
 import { resolveOfferMediaUrl } from "@mobile/api/mediaUrl";
 import { BRAND_LOGO_IMAGE_WIDTH } from "@mobile/api/optimizedImageUrl";
+import { resolveOfferDisplayCategory } from "@mobile/api/offerDisplayCategory";
 
 // View-model the brand cards consume — the same field shape as the
 // webFavoriteBrandsPage.recentBrands fixture rows, plus the live-only extras
@@ -84,7 +85,7 @@ export function mapOffersToCatalogBrands(response: OfferListResponse): CatalogBr
       {
         id: offer._id,
         name,
-        category: offer.categories?.trim() || "Others",
+        category: resolveOfferDisplayCategory(offer, "Others"),
         cashback: formatCashback(offer.commission_store),
         href: `/shop/${offer._id}`,
         showGrabCoupon: Boolean(offer.extra_store),

@@ -356,13 +356,6 @@ const FormCoupon = ({
       description: "Display name of the coupon shown to users in the app.",
     },
     {
-      filedName: "link",
-      type: "text",
-      placeholder: "https://example.com/promo",
-      description:
-        "Optional URL where users go when they open this coupon in the app (e.g. a brand promo or terms page).",
-    },
-    {
       filedName: "eligibility",
       type: "text",
       description:
@@ -1179,9 +1172,9 @@ const FormCoupon = ({
                     />
                   )}
                 </div>
-                {formItem.filedName === "name" ? brandPickerFields : null}
-                {formItem.filedName === "link" ? (
+                {formItem.filedName === "name" ? (
                   <>
+                    {brandPickerFields}
                     {validPeriodFields}
                     {discountFields}
                     <div className="flex flex-col gap-4">
