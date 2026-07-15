@@ -4,8 +4,76 @@ import {
   IsNumber,
   IsBoolean,
   IsArray,
+  IsIn,
+  IsMongoId,
+  Max,
+  MaxLength,
+  Min,
 } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  SEARCH_RULE_TREATMENTS,
+  type SearchRuleTreatment,
+} from '../search-rule.contract';
+
+export class CreateSearchRuleDto {
+  @ApiProperty()
+  @IsMongoId()
+  offer_id: string;
+
+  @ApiProperty({ enum: SEARCH_RULE_TREATMENTS })
+  @IsIn(SEARCH_RULE_TREATMENTS)
+  treatment: SearchRuleTreatment;
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  keywords: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1000)
+  weight?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
+}
+
+export class UpdateSearchRuleDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsMongoId()
+  offer_id?: string;
+
+  @ApiPropertyOptional({ enum: SEARCH_RULE_TREATMENTS })
+  @IsOptional()
+  @IsIn(SEARCH_RULE_TREATMENTS)
+  treatment?: SearchRuleTreatment;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  keywords?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1000)
+  weight?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
+}
 
 export class CreateFeaturedTermDto {
   @ApiPropertyOptional() @IsString() term: string;

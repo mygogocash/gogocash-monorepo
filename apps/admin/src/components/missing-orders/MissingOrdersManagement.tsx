@@ -191,7 +191,7 @@ export default function MissingOrdersManagement() {
   if (statsQ.isError || listQ.isError) {
     return (
       <AdminQueryError
-        title="Could not load missing orders"
+        title="Could not load missing conversions"
         onRetry={() => {
           void statsQ.refetch();
           void listQ.refetch();

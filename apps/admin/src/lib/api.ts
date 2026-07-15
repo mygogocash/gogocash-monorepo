@@ -31,21 +31,34 @@ import {
 } from "@/types/api";
 import type { Permission } from "@/lib/rbac";
 import { friendlyStatusMessage } from "@/lib/getApiErrorMessage";
-import { resolveAdminApiBaseURL } from "@/lib/backendProxy";
+import {
+  resolveAdminApiBaseURL,
+  resolveAdminRuntimeApiUrl,
+} from "@/lib/backendProxy";
 import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
 import { AxiosRequestConfig } from "axios";
 
 class ApiClient {
+  private getRuntimeApiUrl(): string | undefined {
+    const isBrowser = typeof window !== "undefined";
+    return resolveAdminRuntimeApiUrl({
+      isBrowser,
+      publicApiUrl: process.env.NEXT_PUBLIC_API_URL,
+      serverApiUrl: process.env["API_URL"],
+    });
+  }
+
   private getBaseURL(): string {
+    const isBrowser = typeof window !== "undefined";
     return resolveAdminApiBaseURL({
-      realApiUrl: process.env.NEXT_PUBLIC_API_URL,
-      isBrowser: typeof window !== "undefined",
+      realApiUrl: this.getRuntimeApiUrl(),
+      isBrowser,
       appOrigin: process.env.NEXTAUTH_URL || "http://localhost:3000",
     });
   }
 
   private get isRealApi(): boolean {
-    return !!process.env.NEXT_PUBLIC_API_URL;
+    return Boolean(this.getRuntimeApiUrl());
   }
 
   private async request<T>(
@@ -94,7 +107,7 @@ class ApiClient {
       isStaticHostingClient()
     ) {
       const { handleMockApiRequest } = await import("@/lib/mockApiCore");
-      const u = new URL(url);
+      const u = new URL(url, window.location.origin);
       const prefix = "/api/mock";
       const pathname = u.pathname;
       const rest = pathname.startsWith(prefix)
@@ -781,7 +794,10 @@ class ApiClient {
     });
   }
 
-  async updateFee(query: FeeSettingsForm, token?: string): Promise<ResponseFee> {
+  async updateFee(
+    query: FeeSettingsForm,
+    token?: string,
+  ): Promise<ResponseFee> {
     const { id, ...dt } = query;
     const headers: Record<string, string> = {};
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -892,8 +908,7 @@ class ApiClient {
       // instead of leaking a raw AxiosError on this one endpoint.
       if (axios.isAxiosError(err)) {
         const data = err.response?.data as
-          | { message?: string; errors?: unknown }
-          | undefined;
+          { message?: string; errors?: unknown } | undefined;
         // Prefer the backend message; otherwise friendly copy — status-aware
         // when a response arrived, connection copy when none did. Never leak
         // the raw axios error string ("Request failed with status code 403").

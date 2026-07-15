@@ -3,7 +3,7 @@ import { HydratedDocument } from 'mongoose';
 
 export type TopBrandConfigDocument = HydratedDocument<TopBrandConfig>;
 
-/** One ordered top-brands entry: which offer, and the admin-set cashback label. */
+/** One ordered top-brands entry. Cashback is a legacy field and is no longer trusted. */
 @Schema({ _id: false })
 export class TopBrandEntry {
   // Offer Mongo _id (the identity the admin panel curates by).

@@ -58,7 +58,7 @@ NOT solve this — it stands up the infra and proves one string round-trips. Pha
   `@formatjs/intl-locale`, `@formatjs/intl-pluralrules`, `@formatjs/intl-numberformat`,
   `@formatjs/intl-datetimeformat` — import the polyfills + locale-data for `en`,`th` at app entry,
   guarded so web (which has native `Intl`) skips them. Verify which Hermes build already ships `Intl`
-  before adding every polyfill (Expo SDK 56 / RN 0.86 — Hermes has partial Intl).
+  before adding every polyfill (Expo SDK 57 / RN 0.86 — Hermes has partial Intl).
 
 ### 2. Locale provider + persistence (new files under `src/i18n/`)
 - `src/i18n/locales.ts` — `SUPPORTED_LOCALES = ["en","th"] as const`, `type Locale`, `DEFAULT_LOCALE = "en"`.
@@ -201,4 +201,4 @@ Decide in Phase 1; Phase 2 depends on it.
 
 ---
 
-**Related:** Appearance (light/dark) is independent of locale — [dark-mode.md](./dark-mode.md). Stack: Expo SDK 56, RN 0.86.
+**Related:** Appearance (light/dark) is independent of locale — [dark-mode.md](./dark-mode.md). Stack: Expo SDK 57, RN 0.86.

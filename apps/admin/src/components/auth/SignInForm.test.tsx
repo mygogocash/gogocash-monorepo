@@ -142,4 +142,14 @@ describe("SignInForm", () => {
     ).toBeNull();
     expect(screen.getByRole("button", { name: /^sign in$/i })).toBeTruthy();
   });
+
+  it("given a whitespace-only API URL > then mock quick access stays visible", () => {
+    process.env.NEXT_PUBLIC_API_URL = "   ";
+
+    render(<SignInForm />);
+
+    expect(
+      screen.getByRole("button", { name: /sign in with mock account/i }),
+    ).toBeTruthy();
+  });
 });

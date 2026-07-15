@@ -5,8 +5,10 @@ import {
 } from "@mobile/query/queryDefaults";
 
 const PUBLIC_CATALOG_RESOURCE_IDS = new Set<CustomerAccountResourceId>([
+  "allBrandBanner",
   "topBrand",
   "homeBanner",
+  "merchantCoupons",
   "brandCatalog",
   "categoryList",
   "catalog",

@@ -149,10 +149,10 @@ describe("TopBrandManagementPanel", () => {
       success: true,
     });
     fetchOffersListMock.mockResolvedValue({
-      data: [offer],
+      data: [offer, shopeeOffer],
       limit: 80,
       page: 1,
-      total: 1,
+      total: 2,
       totalPages: 1,
     });
   });
@@ -162,22 +162,25 @@ describe("TopBrandManagementPanel", () => {
     vi.clearAllMocks();
   });
 
-  it("loads saved cashback and saves the ordered brands payload", async () => {
+  it("shows live cashback and saves ordered identities with derived copy", async () => {
     const user = userEvent.setup();
     renderPanel();
 
-    const cashbackInput = await screen.findByLabelText(
+    const cashbackLabel = await screen.findByLabelText(
       "Cashback for Banana IT",
     );
-    expect(cashbackInput).toHaveValue("12%");
+    expect(cashbackLabel).toHaveTextContent("7%");
 
-    await user.clear(cashbackInput);
-    await user.type(cashbackInput, "15%");
+    await user.selectOptions(
+      screen.getByLabelText("Select offer to add"),
+      "o-shopee",
+    );
     await user.click(screen.getByRole("button", { name: "Save top brands" }));
 
     await waitFor(() => {
       expect(apiClientMock.saveTopBrands).toHaveBeenCalledWith([
-        { offerId: "o1", cashback: "15%" },
+        { offerId: "o1", cashback: "7%" },
+        { offerId: "o-shopee", cashback: "5.6%" },
       ]);
     });
   });
@@ -218,7 +221,7 @@ describe("TopBrandManagementPanel", () => {
     permissionsMock.canManageBrands = false;
     renderPanel();
 
-    const cashbackInput = await screen.findByLabelText(
+    const cashbackLabel = await screen.findByLabelText(
       "Cashback for Banana IT",
     );
 
@@ -226,7 +229,7 @@ describe("TopBrandManagementPanel", () => {
       screen.getByRole("textbox", { name: "Search offers to add" }),
     ).toBeDisabled();
     expect(screen.getByLabelText("Select offer to add")).toBeDisabled();
-    expect(cashbackInput).toBeDisabled();
+    expect(cashbackLabel).toHaveTextContent("7%");
     expect(screen.getByRole("button", { name: "Save top brands" })).toBeDisabled();
     expect(screen.getByText(/read-only access/i)).toBeInTheDocument();
   });
@@ -240,8 +243,8 @@ describe("TopBrandManagementPanel", () => {
 
     renderPanel();
 
-    const cashbackInput = await screen.findByLabelText("Cashback for Shopee");
-    expect(cashbackInput).toHaveValue("5.6%");
+    const cashbackLabel = await screen.findByLabelText("Cashback for Shopee");
+    expect(cashbackLabel).toHaveTextContent("5.6%");
   });
 
   it("given a brand added from picker > when offer has commission_store > then prefills cashback", async () => {
@@ -278,8 +281,8 @@ describe("TopBrandManagementPanel", () => {
 
     await user.selectOptions(select, "o-shopee");
 
-    const cashbackInput = await screen.findByLabelText("Cashback for Shopee");
-    expect(cashbackInput).toHaveValue("5.6%");
+    const cashbackLabel = await screen.findByLabelText("Cashback for Shopee");
+    expect(cashbackLabel).toHaveTextContent("5.6%");
   });
 
   it("given typed search text > when fetch returns Shopee > then requests include the search term", async () => {

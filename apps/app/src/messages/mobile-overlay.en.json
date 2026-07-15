@@ -398,6 +398,7 @@
   "mobileAuthRateLimited": "Too many attempts. Please try again later.",
   "mobileAuthSecurityCheckFailed": "Security check failed. Please close and reopen the app, then try again.",
   "mobileAuthPhoneInvalid": "That phone number doesn't look valid. Check it and try again.",
+  "mobileAuthPhoneUnlinked": "We can't sign you in with this phone number. Use the method you used when creating your account, or sign up.",
   "mobileAuthSignInUnavailable": "Sign-in is temporarily unavailable. Please try again later.",
   "mobileAuthSocialWebOnly": "Social sign-in isn't available in the app yet. Open GoGoCash in your web browser to continue.",
   "mobileGoGoTrackSaveFailed": "Could not save GoGoTrack settings. Please try again.",

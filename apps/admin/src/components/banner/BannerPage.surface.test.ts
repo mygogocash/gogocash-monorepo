@@ -19,6 +19,10 @@ const bannerTableSource = readFileSync(
   resolve(process.cwd(), "src/components/banner/BannerTable.tsx"),
   "utf8",
 );
+const formUpdateSource = readFileSync(
+  resolve(process.cwd(), "src/components/banner/FormUpdate.tsx"),
+  "utf8",
+);
 
 describe("Banner sub-page navigation (issue #280 dedupe)", () => {
   it("BannerTable carries no headerNavMode variant config", () => {
@@ -37,16 +41,28 @@ describe("Banner sub-page navigation (issue #280 dedupe)", () => {
 
   const bannerPageFiles: Record<string, string> = {
     "home banner": "src/app/(admin)/(others-pages)/banner/page.tsx",
-    "all brand page banner": "src/app/(admin)/(others-pages)/banner/all-brand-page/page.tsx",
-    "modal popups": "src/app/(admin)/(others-pages)/banner/modal-popups/page.tsx",
-    "popup history": "src/app/(admin)/(others-pages)/banner/popup-history/page.tsx",
+    "all brand page banner":
+      "src/app/(admin)/(others-pages)/banner/all-brand-page/page.tsx",
+    "modal popups":
+      "src/app/(admin)/(others-pages)/banner/modal-popups/page.tsx",
+    "popup history":
+      "src/app/(admin)/(others-pages)/banner/popup-history/page.tsx",
   };
 
   for (const [name, relPath] of Object.entries(bannerPageFiles)) {
     it(`${name} page renders the top BannerSubNav tabs`, () => {
       const source = readFileSync(resolve(process.cwd(), relPath), "utf8");
-      expect(source).toContain('import BannerSubNav from "@/components/banner/BannerSubNav"');
+      expect(source).toContain(
+        'import BannerSubNav from "@/components/banner/BannerSubNav"',
+      );
       expect(source).toContain("<BannerSubNav />");
     });
   }
+});
+
+describe("Banner API documentation (issue #313)", () => {
+  it("describes both persisted banner endpoints as live API targets", () => {
+    expect(formUpdateSource).toContain("Live API POST target");
+    expect(formUpdateSource).not.toContain("POST target (mock:");
+  });
 });

@@ -41,7 +41,7 @@ E2E (non-gating)    ──►  e2e-weekly.yml, ci.yml → e2e-local (dispatch)
 
 Uses `dorny/paths-filter`: changes under `apps/<app>/**` run only that app’s jobs; root config changes fan out to all apps.
 
-Shared setup: **`.github/actions/setup-node-monorepo`** (Node 22, `npm ci`).
+Shared setup: **`.github/actions/setup-node-monorepo`** (Node 24 LTS, `npm ci`).
 
 | Job | When | Gate? |
 |-----|------|-------|

@@ -25,7 +25,6 @@ import { pathImage } from "@/utils/helper";
 import NoData from "@/components/common/NoData";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import Button from "@/components/ui/button/Button";
-import { ArrowDownIcon, ArrowUpIcon } from "@/icons/index";
 import toast from "react-hot-toast";
 import { OFFER_THUMB_SIZES } from "./offerMedia";
 
@@ -92,74 +91,12 @@ function ordersEqual(a: string[], b: string[]): boolean {
   return a.every((id, i) => id === b[i]);
 }
 
-function cashbackByOfferId(
-  brands: readonly TopBrandConfigEntry[],
-): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const entry of brands) {
-    out[entry.offerId] = entry.cashback;
-  }
-  return out;
-}
-
-function brandEntriesEqual(
-  order: readonly string[],
-  cashbackById: Record<string, string>,
-  serverBrands: readonly TopBrandConfigEntry[],
-): boolean {
-  if (order.length !== serverBrands.length) return false;
-  return order.every((id, i) => {
-    const server = serverBrands[i];
-    return (
-      server?.offerId === id &&
-      (cashbackById[id] ?? "") === (server.cashback ?? "")
-    );
-  });
-}
-
-function resolveRowCashback(
-  offerId: string,
-  offerById: ReadonlyMap<string, Offer>,
-  serverCashbackById: Record<string, string>,
-  draftCashbackById: Record<string, string> | null,
-): string {
-  if (draftCashbackById !== null && offerId in draftCashbackById) {
-    return draftCashbackById[offerId];
-  }
-  const saved = serverCashbackById[offerId];
-  if (String(saved ?? "").trim()) return saved;
-  return resolveTopBrandCashbackLabel(offerById.get(offerId), "");
-}
-
-function buildEffectiveCashbackMap(
-  order: readonly string[],
-  offerById: ReadonlyMap<string, Offer>,
-  serverCashbackById: Record<string, string>,
-  draftCashbackById: Record<string, string> | null,
-): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const offerId of order) {
-    out[offerId] = resolveRowCashback(
-      offerId,
-      offerById,
-      serverCashbackById,
-      draftCashbackById,
-    );
-  }
-  return out;
-}
-
 export default function TopBrandManagementPanel() {
   const queryClient = useQueryClient();
   const { can } = usePermissions();
   const canManageBrands = can("brands:manage");
   /** When non-null, unsaved edits; otherwise show server order from `data`. */
   const [draftOrder, setDraftOrder] = useState<string[] | null>(null);
-  /** When non-null, unsaved cashback edits keyed by offer `_id`. */
-  const [draftCashbackById, setDraftCashbackById] = useState<Record<
-    string,
-    string
-  > | null>(null);
   const [pickerSearch, setPickerSearch] = useState("");
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -177,11 +114,8 @@ export default function TopBrandManagementPanel() {
     () => data?.order ?? serverBrands.map((entry) => entry.offerId),
     [data?.order, serverBrands],
   );
-  const serverCashbackById = useMemo(
-    () => cashbackByOfferId(serverBrands),
-    [serverBrands],
-  );
   const localOrder = draftOrder ?? serverOrder;
+  const maxBrands = data?.maxBrands ?? 16;
 
   const pickerQuery = useMemo(
     () => ({
@@ -215,23 +149,13 @@ export default function TopBrandManagementPanel() {
     }
     return m;
   }, [data?.items, offersPick?.data]);
-  const effectiveCashbackById = useMemo(
-    () =>
-      buildEffectiveCashbackMap(
-        localOrder,
-        offerById,
-        serverCashbackById,
-        draftCashbackById,
-      ),
-    [draftCashbackById, localOrder, offerById, serverCashbackById],
-  );
   const localBrands = useMemo(
     () =>
       localOrder.map((offerId) => ({
         offerId,
-        cashback: effectiveCashbackById[offerId] ?? "",
+        cashback: resolveTopBrandCashbackLabel(offerById.get(offerId), ""),
       })),
-    [effectiveCashbackById, localOrder],
+    [localOrder, offerById],
   );
 
   const listedOfferIds = useMemo(() => new Set(localOrder), [localOrder]);
@@ -257,16 +181,13 @@ export default function TopBrandManagementPanel() {
     pickerSearch,
   ]);
 
-  const dirty =
-    !ordersEqual(localOrder, serverOrder) ||
-    !brandEntriesEqual(localOrder, effectiveCashbackById, serverBrands);
+  const dirty = !ordersEqual(localOrder, serverOrder);
 
   const saveMutation = useMutation({
     mutationFn: (brands: TopBrandConfigEntry[]) =>
       apiClient.saveTopBrands(brands),
     onSuccess: () => {
       setDraftOrder(null);
-      setDraftCashbackById(null);
       void queryClient.invalidateQueries({ queryKey: TOP_BRANDS_QUERY_KEY });
       toast.success("Top brands saved.");
     },
@@ -276,17 +197,6 @@ export default function TopBrandManagementPanel() {
       );
     },
   });
-
-  const move = useCallback(
-    (from: number, to: number) => {
-      setDraftOrder((d) => {
-        const prev = d ?? serverOrder;
-        if (to < 0 || to >= prev.length) return d;
-        return reorderIds(prev, from, to);
-      });
-    },
-    [serverOrder],
-  );
 
   const removeAt = useCallback(
     (index: number) => {
@@ -302,29 +212,17 @@ export default function TopBrandManagementPanel() {
     (offer: Offer) => {
       const id = offer._id.trim();
       if (!id) return;
-      const derivedCashback = resolveTopBrandCashbackLabel(offer, "");
       setDraftOrder((d) => {
         const prev = d ?? serverOrder;
-        return prev.includes(id) ? prev : [...prev, id];
+        if (prev.includes(id)) return prev;
+        if (prev.length >= maxBrands) {
+          toast.error(`You can select up to ${maxBrands} top brands.`);
+          return prev;
+        }
+        return [...prev, id];
       });
-      if (derivedCashback) {
-        setDraftCashbackById((draft) => ({
-          ...(draft ?? serverCashbackById),
-          [id]: derivedCashback,
-        }));
-      }
     },
-    [serverCashbackById, serverOrder],
-  );
-
-  const updateCashback = useCallback(
-    (offerId: string, cashback: string) => {
-      setDraftCashbackById((draft) => ({
-        ...(draft ?? serverCashbackById),
-        [offerId]: cashback,
-      }));
-    },
-    [serverCashbackById],
+    [maxBrands, serverOrder],
   );
 
   const handleRowDragStart = useCallback((e: DragEvent, index: number) => {
@@ -433,7 +331,7 @@ export default function TopBrandManagementPanel() {
         <div className="mt-3">
           <Autocomplete
             id="top-brand-add"
-            disabled={!canManageBrands}
+            disabled={!canManageBrands || localOrder.length >= maxBrands}
             options={pickerOptions}
             value={null}
             inputValue={pickerSearch}
@@ -482,6 +380,9 @@ export default function TopBrandManagementPanel() {
             }}
           />
         </div>
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          Top brands selected: {localOrder.length} / {maxBrands}
+        </p>
         {hiddenPickerMatches.length > 0 && pickerSearch.trim() ? (
           <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
             {hiddenPickerMatches.length} matching offer
@@ -510,8 +411,7 @@ export default function TopBrandManagementPanel() {
             className="text-xs text-gray-500 dark:text-gray-400"
           >
             Press, hold briefly, and drag a row to a new spot (or drag from the
-            grip). You can also use the arrow buttons. Touch devices may need
-            the arrows.
+            grip).
           </p>
         ) : null}
         {localOrder.length === 0 ? (
@@ -590,46 +490,16 @@ export default function TopBrandManagementPanel() {
                     Disabled
                   </span>
                 ) : null}
-                {offer?.extra_store ? (
-                  <span className="bg-brand-100 text-brand-800 dark:bg-brand-950/60 dark:text-brand-200 rounded px-2 py-0.5 text-xs">
-                    Top Brands on
-                  </span>
-                ) : null}
-                <input
+                <span
                   aria-label={`Cashback for ${offer ? offerLabel(offer) : id}`}
-                  type="text"
-                  value={effectiveCashbackById[id] ?? ""}
-                  onChange={(e) => updateCashback(id, e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  draggable={false}
-                  disabled={!canManageBrands}
-                  placeholder="Cashback"
-                  className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 min-w-32 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:outline-none sm:flex-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                />
+                  className="min-w-24 rounded-lg bg-white px-3 py-2 text-right text-sm font-medium text-gray-900 dark:bg-gray-800 dark:text-white"
+                >
+                  {resolveTopBrandCashbackLabel(offer, "") || "—"}
+                </span>
                 <div
                   className="flex shrink-0 items-center gap-1"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <button
-                    type="button"
-                    title="Move up"
-                    draggable={false}
-                    disabled={!canManageBrands || index === 0}
-                    onClick={() => move(index, index - 1)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200 disabled:opacity-30 dark:hover:bg-gray-700"
-                  >
-                    <ArrowUpIcon />
-                  </button>
-                  <button
-                    type="button"
-                    title="Move down"
-                    draggable={false}
-                    disabled={!canManageBrands || index >= localOrder.length - 1}
-                    onClick={() => move(index, index + 1)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200 disabled:opacity-30 dark:hover:bg-gray-700"
-                  >
-                    <ArrowDownIcon />
-                  </button>
                   <button
                     type="button"
                     title="Remove from homepage list"
@@ -663,7 +533,6 @@ export default function TopBrandManagementPanel() {
           disabled={!canManageBrands || !dirty || saveMutation.isPending}
           onClick={() => {
             setDraftOrder(null);
-            setDraftCashbackById(null);
           }}
         >
           Reset

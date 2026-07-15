@@ -16,6 +16,12 @@ export function normalizeE164(phone: string, country?: CountryCode) {
   return parsed?.format("E.164") ?? null;
 }
 
+const STORED_MEDIA_PROXY_PATH = "/api/backend/admin/stored-media/stream";
+
+function storedMediaStreamUrl(ref: string): string {
+  return `${STORED_MEDIA_PROXY_PATH}?ref=${encodeURIComponent(ref)}`;
+}
+
 /**
  * Resolves image URLs for admin previews.
  * - `http(s)://`, `/public` paths, `blob:`, `data:` — returned as-is.
@@ -38,19 +44,13 @@ export const pathImage = (
     trimmed.startsWith("data:")
   ) {
     if (isPrivateGcsMediaUrl(trimmed)) {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "");
-      if (apiBase) {
-        return `${apiBase}/admin/stored-media/stream?ref=${encodeURIComponent(trimmed)}`;
-      }
+      return storedMediaStreamUrl(trimmed);
     }
     return trimmed;
   }
 
   if (trimmed.startsWith("local-media:")) {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "");
-    if (apiBase) {
-      return `${apiBase}/admin/stored-media/stream?ref=${encodeURIComponent(trimmed)}`;
-    }
+    return storedMediaStreamUrl(trimmed);
   }
 
   if (/^[A-Za-z0-9_-]{10,}$/.test(trimmed)) {

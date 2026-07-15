@@ -2,8 +2,8 @@ import { UnauthorizedException } from '@nestjs/common';
 import { createHash, createHmac } from 'crypto';
 
 // --- Module-level mocks for external SDKs / network / firebase ---------------
-// AuthService talks to four things we must never hit for real in a unit test:
-//   - axios   (Crossmint signup/signout/refresh + LINE verification HTTP)
+// AuthService talks to three things we must never hit for real in a unit test:
+//   - axios   (LINE verification HTTP)
 //   - ethers  (SIWE signature recovery)
 //   - firebase-admin + getAdminAuth (ID-token verification)
 // crypto stays REAL: the Telegram HMAC check and SIWE nonce generation are
@@ -77,7 +77,6 @@ function makeService(
     findOne: jest.fn(),
     update: jest.fn(),
     createFromFirebase: jest.fn(),
-    createFromCrossmint: jest.fn(),
     ...overrides.userService,
   };
 
@@ -145,12 +144,12 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
-  // --- signIn (Crossmint, deprecated) ---------------------------------------
+  // --- signIn (retired legacy provider) -------------------------------------
   describe('signIn', () => {
-    // The Crossmint path is intentionally dead. It must HARD-FAIL so no caller
-    // can accidentally authenticate through a disabled provider.
-    it('signIn > given any payload > then it always throws UnauthorizedException', async () => {
-      const { service } = makeService();
+    // The legacy path is intentionally dead. It must hard-fail generically and
+    // perform no user lookup or provider HTTP call.
+    it('signIn > given any payload > then it rejects before provider or user access', async () => {
+      const { service, userService } = makeService();
 
       await expect(
         service.signIn({
@@ -158,12 +157,111 @@ describe('AuthService', () => {
           id_crossmint: 'cm-1',
           email: 'x@y.co',
         } as any),
-      ).rejects.toBeInstanceOf(UnauthorizedException);
+      ).rejects.toThrow(
+        'This sign-in method is no longer available. Please sign in with your usual method.',
+      );
+      expect(axios.post).not.toHaveBeenCalled();
+      expect(userService.findOne).not.toHaveBeenCalled();
     });
   });
 
   // --- signInFirebase -------------------------------------------------------
   describe('signInFirebase', () => {
+    it('signInFirebase > given login intent and an unknown phone identity > then it refuses to create a shadow account', async () => {
+      const { service, userService, jwtService } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(null),
+        },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'phone-new',
+        phone_number: '+66812345678',
+        firebase: { sign_in_provider: 'phone' },
+      });
+
+      await expect(
+        service.signInFirebase('id-token', { country: 'TH' } as any, {
+          allowPhoneRegistration: false,
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+      expect(jwtService.sign).not.toHaveBeenCalled();
+    });
+
+    it('signInFirebase > given a linked Thai legacy phone > then login resolves the same account accepted by eligibility', async () => {
+      const linked = makeUser({ id_firebase: 'legacy-firebase-id' });
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(linked),
+          update: jest.fn().mockResolvedValue(linked),
+        },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'phone-existing',
+        phone_number: '+66812345678',
+        firebase: { sign_in_provider: 'phone' },
+      });
+
+      const result = await service.signInFirebase(
+        'id-token',
+        { country: 'TH' } as any,
+        { allowPhoneRegistration: false },
+      );
+
+      expect(result.auth_flow).toBe('login');
+      expect(userService.findOne).toHaveBeenNthCalledWith(3, {
+        mobile: '0812345678',
+      });
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
+    it('signInFirebase > given an unknown phone identity and omitted options > then it fails closed', async () => {
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(null),
+        },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'phone-new',
+        phone_number: '+66812345678',
+        firebase: { sign_in_provider: 'phone' },
+      });
+
+      await expect(
+        service.signInFirebase('id-token', { country: 'TH' } as any),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
+    it('signInFirebase > given registration intent and an unknown phone identity > then it creates the explicit new account', async () => {
+      const created = makeUser({ id_firebase: 'phone-new' });
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(null),
+          createFromFirebase: jest.fn().mockResolvedValue(created),
+        },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'phone-new',
+        phone_number: '+66812345678',
+        firebase: { sign_in_provider: 'phone' },
+      });
+
+      const result = await service.signInFirebase(
+        'id-token',
+        { country: 'TH' } as any,
+        { allowPhoneRegistration: true },
+      );
+
+      expect(result.auth_flow).toBe('register');
+      expect(userService.createFromFirebase).toHaveBeenCalledTimes(1);
+    });
+
     it('signInFirebase > given a new user > then it registers and returns the register envelope with a token', async () => {
       const created = makeUser({ id_firebase: 'fb-new' });
       const { service, userService, jwtService } = makeService({
@@ -217,15 +315,76 @@ describe('AuthService', () => {
       expect(userService.update).toHaveBeenCalledTimes(1);
     });
 
+    it('signInFirebase > given an unverified email identity > then it cannot relink an existing account by email', async () => {
+      const victim = makeUser({ id_firebase: 'victim-line-id' });
+      const attacker = makeUser({
+        id_firebase: 'attacker-password-id',
+        email: 'member@gogocash.co',
+      });
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(victim),
+          createFromFirebase: jest.fn().mockResolvedValue(attacker),
+        },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'attacker-password-id',
+        email: 'member@gogocash.co',
+        email_verified: false,
+        firebase: { sign_in_provider: 'password' },
+      });
+
+      const result = await service.signInFirebase(
+        'id-token',
+        { country: 'TH' } as any,
+        { allowPhoneRegistration: false },
+      );
+
+      expect(result.auth_flow).toBe('register');
+      expect(userService.update).not.toHaveBeenCalled();
+      expect(userService.createFromFirebase).toHaveBeenCalledWith(
+        expect.objectContaining({ id_firebase: 'attacker-password-id' }),
+      );
+    });
+
+    it('signInFirebase > given a verified email identity > then it may link the matching account', async () => {
+      const existing = makeUser({ id_firebase: 'line-existing' });
+      const updated = makeUser({ id_firebase: 'verified-google-id' });
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(existing),
+          update: jest.fn().mockResolvedValue(updated),
+        },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'verified-google-id',
+        email: 'member@gogocash.co',
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
+      });
+
+      const result = await service.signInFirebase('id-token', {
+        country: 'TH',
+      } as any);
+
+      expect(result.auth_flow).toBe('login');
+      expect(userService.update).toHaveBeenCalledTimes(1);
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
     // A disabled account must never receive a session token, even with a valid
     // Firebase ID token — this is the account-suspension kill switch.
     it('signInFirebase > given a disabled existing account > then it throws UnauthorizedException and issues no token', async () => {
-      const existing = makeUser();
-      const disabled = makeUser({ disabled: true });
-      const { service, jwtService } = makeService({
+      const existing = makeUser({ disabled: true });
+      const { service, jwtService, userService } = makeService({
         userService: {
           findOne: jest.fn().mockResolvedValue(existing),
-          update: jest.fn().mockResolvedValue(disabled),
         },
       });
       verifyIdTokenMock.mockResolvedValue({
@@ -240,6 +399,7 @@ describe('AuthService', () => {
           referral_id: '',
         } as any),
       ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(userService.update).not.toHaveBeenCalled();
       expect(jwtService.sign).not.toHaveBeenCalled();
     });
 
@@ -280,7 +440,10 @@ describe('AuthService', () => {
       expect(result.auth_flow).toBe('register');
       expect(result.token).toBe('signed.jwt.token');
       expect(userService.createFromFirebase).toHaveBeenCalledTimes(1);
-      expect(userService.findOne).toHaveBeenCalledTimes(2);
+      expect(userService.findOne).toHaveBeenCalledTimes(1);
+      expect(userService.findOne).toHaveBeenCalledWith({
+        id_firebase: 'fb-new',
+      });
       expect(jwtService.sign).toHaveBeenCalledTimes(1);
     });
 
@@ -305,7 +468,10 @@ describe('AuthService', () => {
 
       expect(result.is_new_user).toBe(true);
       expect(result.auth_flow).toBe('register');
-      expect(userService.findOne).toHaveBeenCalledTimes(2);
+      expect(userService.findOne).toHaveBeenCalledTimes(1);
+      expect(userService.findOne).toHaveBeenCalledWith({
+        id_firebase: 'fb-new',
+      });
     });
 
     it('signInFirebase > given referral award throws > then registration still succeeds', async () => {
@@ -336,6 +502,59 @@ describe('AuthService', () => {
       expect(result.is_new_user).toBe(true);
       expect(result.auth_flow).toBe('register');
       expect(result.token).toBe('signed.jwt.token');
+    });
+  });
+
+  describe('isPhoneLoginEligible', () => {
+    it('given a canonical linked phone > returns true', async () => {
+      const linked = makeUser();
+      const { service, userService } = makeService({
+        userService: { findOne: jest.fn().mockResolvedValue(linked) },
+      });
+
+      await expect(service.isPhoneLoginEligible('+66812345678')).resolves.toBe(
+        true,
+      );
+      expect(userService.findOne).toHaveBeenCalledWith({
+        mobile: '+66812345678',
+      });
+    });
+
+    it('given a Thai legacy local-format phone > checks the bounded local candidate', async () => {
+      const linked = makeUser();
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(linked),
+        },
+      });
+
+      await expect(service.isPhoneLoginEligible('+66812345678')).resolves.toBe(
+        true,
+      );
+      expect(userService.findOne).toHaveBeenNthCalledWith(2, {
+        mobile: '0812345678',
+      });
+    });
+
+    it('given an unknown or disabled phone > returns the same false result', async () => {
+      const unknown = makeService({
+        userService: { findOne: jest.fn().mockResolvedValue(null) },
+      });
+      const disabled = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(makeUser({ disabled: true })),
+        },
+      });
+
+      await expect(
+        unknown.service.isPhoneLoginEligible('+6591234567'),
+      ).resolves.toBe(false);
+      await expect(
+        disabled.service.isPhoneLoginEligible('+6591234567'),
+      ).resolves.toBe(false);
     });
   });
 
@@ -696,19 +915,6 @@ describe('AuthService', () => {
       await expect(service.verifyTempToken('temp')).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
-    });
-  });
-
-  // --- signUp / signOut / refresh (Crossmint HTTP passthrough) --------------
-  describe('signUp', () => {
-    it('signUp > given email and password > then it returns the upstream response data', async () => {
-      const { service } = makeService();
-      (axios.post as jest.Mock).mockResolvedValue({ data: { id: 'cm-user' } });
-
-      await expect(service.signUp('a@b.co', 'pw')).resolves.toEqual({
-        id: 'cm-user',
-      });
-      expect(axios.post).toHaveBeenCalledTimes(1);
     });
   });
 

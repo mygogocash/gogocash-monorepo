@@ -20,8 +20,15 @@ import { SUPPORT_BUTTON_CLASS } from "../ui/button/SupportButton";
 import ProductTypeTable from "./ProductTypeTable";
 import {
   OFFER_MOCK_TERMS,
+  resolveConfiguredOfferPolicyTerms,
   resolveOfferPolicyBaseTerms,
 } from "@/lib/offerPolicyTerms";
+import {
+  CUSTOM_POLICY_CATEGORY_ID,
+  inferOfferPolicyMode,
+  type OfferPolicyMode,
+} from "@/lib/offerPolicyMode";
+import { OfferPolicyModeSwitch } from "./OfferPolicyModeSwitch";
 import Switch from "../form/switch/Switch";
 import {
   Offer,
@@ -49,6 +56,7 @@ import {
   formatPartnerRatesMinMax,
 } from "@/lib/offerDeeplink";
 import { defaultLookupFromBrandAndCountry } from "@/lib/createBrandLookupSlug";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import {
   applyPlatformFee,
   reconcileCommissionOnFeeChange,
@@ -325,8 +333,9 @@ const FormOffer = ({
   const { feePercent, isFallback: feeIsFallback } = useSystemFeePercent();
   const logoDesktopUrl = useObjectUrl(form.logo_desktop);
   const bannerUrl = useObjectUrl(form.banner);
-  const logoCircleUrl = useObjectUrl(form.logo_circle);
   const offer = openModal && typeof openModal === "object" ? openModal : null;
+  const persistedBannerPath =
+    offer?.banner ?? offer?.banner_mobile ?? offer?.logo_circle ?? "";
   const offerCountry = offer?.countries ?? "";
   // Lookup slug: when synced, the slug is derived from the offer name + country
   // (brandname_countrycode) and the input is read-only; off by default so an
@@ -686,33 +695,102 @@ const FormOffer = ({
     note_to_user: string;
   } | null>(null);
   const [policySaveError, setPolicySaveError] = useState<string | null>(null);
+  const [templatePolicyCategoryId, setTemplatePolicyCategoryId] = useState("");
+  const [templateTermsDraft, setTemplateTermsDraft] = useState("");
+  const [templateTermsTouched, setTemplateTermsTouched] = useState(false);
+  const [customWritingDraft, setCustomWritingDraft] = useState("");
   // "Add note to users" toggle inside the policy section (note_to_user field).
   const [showNoteToUser, setShowNoteToUser] = useState(() =>
     Boolean(form.note_to_user?.trim()),
   );
 
   const beginEditPolicy = () => {
+    const mode = inferOfferPolicyMode(form.policy_category_id);
+    const savedTerms = form.custom_terms ?? "";
+    const nextTemplateCategoryId =
+      mode === "template" ? (form.policy_category_id ?? "") : "";
+    const configuredTerms = resolveConfiguredOfferPolicyTerms(
+      nextTemplateCategoryId,
+      offer?.categories,
+      policyCategories,
+      policiesList,
+    );
     setPolicySnapshot({
       policy_category_id: form.policy_category_id ?? "",
-      custom_terms: form.custom_terms ?? "",
+      custom_terms: savedTerms,
       note_to_user: form.note_to_user ?? "",
     });
+    setTemplatePolicyCategoryId(nextTemplateCategoryId);
+    setTemplateTermsTouched(false);
+    setTemplateTermsDraft(
+      mode === "template" ? savedTerms || configuredTerms : configuredTerms,
+    );
+    setCustomWritingDraft(mode === "custom" ? savedTerms : "");
     setPolicySaveError(null);
     setShowNoteToUser(Boolean(form.note_to_user?.trim()));
-    // Seed the editable T&C from the resolved base when the brand has none yet,
-    // so admins start from the template and tweak it.
-    if (!form.custom_terms?.trim()) {
+    if (mode === "template" && !savedTerms.trim() && configuredTerms) {
       setForm((prev) => ({
         ...prev,
-        custom_terms: resolveOfferPolicyBaseTerms(
-          prev.policy_category_id ?? "",
-          offer?.categories,
-          policyCategories,
-          policiesList,
-        ),
+        custom_terms: configuredTerms,
       }));
     }
     setEditingPolicy(true);
+  };
+
+  const changePolicyMode = (nextMode: OfferPolicyMode) => {
+    const currentMode = inferOfferPolicyMode(form.policy_category_id);
+    if (nextMode === currentMode) return;
+
+    if (nextMode === "custom") {
+      setTemplatePolicyCategoryId(form.policy_category_id ?? "");
+      setTemplateTermsDraft(form.custom_terms ?? "");
+      setForm((prev) => ({
+        ...prev,
+        policy_category_id: CUSTOM_POLICY_CATEGORY_ID,
+        custom_terms: customWritingDraft,
+      }));
+      return;
+    }
+
+    setCustomWritingDraft(form.custom_terms ?? "");
+    const configuredTerms = resolveConfiguredOfferPolicyTerms(
+      templatePolicyCategoryId,
+      offer?.categories,
+      policyCategories,
+      policiesList,
+    );
+    setForm((prev) => ({
+      ...prev,
+      policy_category_id: templatePolicyCategoryId,
+      custom_terms: templateTermsDraft || configuredTerms,
+    }));
+  };
+
+  const changeTemplatePolicyCategory = (categoryId: string) => {
+    const configuredTerms = resolveConfiguredOfferPolicyTerms(
+      categoryId,
+      offer?.categories,
+      policyCategories,
+      policiesList,
+    );
+    setTemplatePolicyCategoryId(categoryId);
+    setTemplateTermsTouched(false);
+    setTemplateTermsDraft(configuredTerms);
+    setForm((prev) => ({
+      ...prev,
+      policy_category_id: categoryId,
+      custom_terms: configuredTerms,
+    }));
+  };
+
+  const changeActivePolicyTerms = (terms: string) => {
+    if (inferOfferPolicyMode(form.policy_category_id) === "custom") {
+      setCustomWritingDraft(terms);
+    } else {
+      setTemplateTermsTouched(true);
+      setTemplateTermsDraft(terms);
+    }
+    setForm((prev) => ({ ...prev, custom_terms: terms }));
   };
 
   const cancelEditPolicy = () => {
@@ -759,7 +837,12 @@ const FormOffer = ({
       toast.success("Policy updated successfully");
     } catch (err) {
       devError("Failed to update policy:", err);
-      setPolicySaveError("Could not update policy. Please try again.");
+      setPolicySaveError(
+        getApiErrorMessage(
+          err,
+          "Could not update policy. Please try again, or contact an administrator if it continues.",
+        ),
+      );
     } finally {
       setSavingPolicy(false);
     }
@@ -895,10 +978,7 @@ const FormOffer = ({
     try {
       const fd = new FormData();
       if (form.logo_desktop) fd.append("logo_desktop", form.logo_desktop);
-      if (form.logo_mobile) fd.append("logo_mobile", form.logo_mobile);
-      if (form.logo_circle) fd.append("logo_circle", form.logo_circle);
       if (form.banner) fd.append("banner", form.banner);
-      if (form.banner_mobile) fd.append("banner_mobile", form.banner_mobile);
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -1437,17 +1517,40 @@ const FormOffer = ({
     staleTime: 30_000,
   });
 
-  // Handle file change
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    key: string,
-  ) => {
-    const file = e.target.files?.[0] || null;
-    setForm((prev) => ({ ...prev, [key]: file }));
-  };
-
-  // The brand's effective Terms & Conditions: the edited text if present, else
-  // the resolved base for the selected source (category / automatic / sample).
+  const policyMode = inferOfferPolicyMode(form.policy_category_id);
+  const configuredTemplateTerms = resolveConfiguredOfferPolicyTerms(
+    policyMode === "template"
+      ? (form.policy_category_id ?? "")
+      : templatePolicyCategoryId,
+    offer?.categories,
+    policyCategories,
+    policiesList,
+  );
+  useEffect(() => {
+    if (
+      !editingPolicy ||
+      policyMode !== "template" ||
+      templateTermsTouched ||
+      form.custom_terms?.trim() ||
+      !configuredTemplateTerms
+    ) {
+      return;
+    }
+    setTemplateTermsDraft(configuredTemplateTerms);
+    setForm((prev) => ({
+      ...prev,
+      custom_terms: configuredTemplateTerms,
+    }));
+  }, [
+    configuredTemplateTerms,
+    editingPolicy,
+    form.custom_terms,
+    policyMode,
+    setForm,
+    templateTermsTouched,
+  ]);
+  // The brand's effective Terms & Conditions in read-only mode. Template mode
+  // can fall back to sample text; Custom Writing never does.
   const policyBaseTerms = resolveOfferPolicyBaseTerms(
     form.policy_category_id ?? "",
     offer?.categories,
@@ -1455,7 +1558,9 @@ const FormOffer = ({
     policiesList,
   );
   const policyPreviewText =
-    form.custom_terms?.trim() || policyBaseTerms || OFFER_MOCK_TERMS;
+    policyMode === "custom"
+      ? form.custom_terms?.trim() || "No custom terms have been written yet."
+      : form.custom_terms?.trim() || policyBaseTerms || OFFER_MOCK_TERMS;
   // Shared read-only preview box (heading + "Preview" badge + bordered box) so
   // the Terms & Conditions and Note-to-users previews look identical.
   const policyPreviewBox = (
@@ -3590,7 +3695,7 @@ const FormOffer = ({
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {editingMedia
-              ? "Upload images for the logo, brand cover, and banner. Leave empty to keep current."
+              ? "Upload one square logo and one wide banner. Each asset is reused on desktop, mobile, and legacy surfaces."
               : "Current images. Click Edit to replace them."}
           </p>
 
@@ -3606,59 +3711,26 @@ const FormOffer = ({
                     type="file"
                     name="logo_desktop"
                     onChange={(e) => {
-                      // One 1:1 logo for both surfaces: set desktop + mobile to it.
                       const file = e.target.files?.[0] || null;
                       setForm((prev) => ({
                         ...prev,
                         logo_desktop: file,
-                        logo_mobile: file,
+                        logo_mobile: null,
                       }));
                     }}
                   />
                 </div>
               )}
-              {(form.logo_desktop || (openModal as Offer).logo_desktop) && (
+              {(form.logo_desktop || resolveAdminOfferLogoPath(openModal as Offer)) && (
                 <RemoteOrBlobImage
                   src={
                     logoDesktopUrl ??
-                    pathImage((openModal as Offer).logo_desktop)
+                    pathImage(resolveAdminOfferLogoPath(openModal as Offer))
                   }
                   alt="Preview"
                   width={256}
                   height={256}
                   className="h-32 w-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
-                />
-              )}
-            </div>
-          </div>
-
-          <div>
-            <FieldLabel
-              label="Brand cover"
-              description="Cover image shown on the brand's shop page."
-            />
-            <div className="flex flex-wrap items-start gap-4">
-              {editingMedia && (
-                <div className="w-[320px] max-w-full shrink-0">
-                  <Input
-                    type="file"
-                    name="logo_circle"
-                    onChange={(e) => handleFileChange(e, "logo_circle")}
-                  />
-                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    Requested size: 1,200 × 410 px (W × H).
-                  </p>
-                </div>
-              )}
-              {(form.logo_circle || (openModal as Offer).logo_circle) && (
-                <RemoteOrBlobImage
-                  src={
-                    logoCircleUrl ?? pathImage((openModal as Offer).logo_circle)
-                  }
-                  alt="Preview"
-                  width={256}
-                  height={256}
-                  className="aspect-[1200/410] h-auto w-[250px] shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
                 />
               )}
             </div>
@@ -3676,12 +3748,12 @@ const FormOffer = ({
                     type="file"
                     name="banner"
                     onChange={(e) => {
-                      // One banner for both surfaces: set desktop + mobile to it.
                       const file = e.target.files?.[0] || null;
                       setForm((prev) => ({
                         ...prev,
                         banner: file,
-                        banner_mobile: file,
+                        banner_mobile: null,
+                        logo_circle: null,
                       }));
                     }}
                   />
@@ -3690,9 +3762,9 @@ const FormOffer = ({
                   </p>
                 </div>
               )}
-              {(form.banner || (openModal as Offer).banner) && (
+              {(form.banner || persistedBannerPath) && (
                 <RemoteOrBlobImage
-                  src={bannerUrl ?? pathImage((openModal as Offer).banner)}
+                  src={bannerUrl ?? pathImage(persistedBannerPath)}
                   alt="Preview"
                   width={256}
                   height={256}
@@ -3766,82 +3838,80 @@ const FormOffer = ({
             </div>
           ) : (
             <>
-              <FieldLabel
-                label="Terms template"
-                description="Pick a starting point; edit the terms below to fit this brand."
+              <OfferPolicyModeSwitch
+                aria-label="Policy authoring mode"
+                templateLabel="Provided Template"
+                customLabel="Custom Writing"
+                mode={policyMode}
+                onChange={changePolicyMode}
+                disabled={savingPolicy}
               />
-              <select
-                id="offer-policy-category"
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                value={form.policy_category_id}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  // Picking a source loads its terms into the editor below.
-                  setForm({
-                    ...form,
-                    policy_category_id: v,
-                    custom_terms: resolveOfferPolicyBaseTerms(
-                      v,
-                      offer?.categories,
-                      policyCategories,
-                      policiesList,
-                    ),
-                  });
-                }}
-              >
-                <option value="custom">Custom T&Cs for specific shop</option>
-                <option value="">
-                  Automatic — use offer category ({offer?.categories ?? "—"})
-                </option>
-                {policyCategories.map((cat) => {
-                  const policyText = policiesList[cat._id] ?? "";
-                  const hasPolicy = policyText.trim().length > 0;
-                  return (
-                    <option key={cat._id} value={cat._id}>
-                      {cat.name}
-                      {hasPolicy ? " — T&C configured" : " — no T&C yet"}
-                    </option>
-                  );
-                })}
-              </select>
-              <div className="mt-1 border-t border-gray-200 pt-3 dark:border-gray-600">
-                <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                    Terms &amp; Conditions
-                  </p>
-                  <button
-                    type="button"
-                    title="Reset the editor to the default terms for the selected source"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        custom_terms: resolveOfferPolicyBaseTerms(
-                          prev.policy_category_id ?? "",
-                          offer?.categories,
-                          policyCategories,
-                          policiesList,
-                        ),
-                      }))
+
+              {policyMode === "template" ? (
+                <div className="space-y-3 border-t border-gray-200 pt-3 dark:border-gray-600">
+                  <FieldLabel
+                    label="Terms template"
+                    description="Pick a configured category policy and review its editable preview."
+                  />
+                  <select
+                    id="offer-policy-category"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                    value={form.policy_category_id}
+                    onChange={(e) =>
+                      changeTemplatePolicyCategory(e.target.value)
                     }
-                    disabled={savingPolicy}
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                   >
-                    Back to default
-                  </button>
+                    <option value="">
+                      Automatic — use offer category ({offer?.categories ?? "—"})
+                    </option>
+                    {policyCategories.map((cat) => {
+                      const hasPolicy = Boolean(policiesList[cat._id]?.trim());
+                      return (
+                        <option key={cat._id} value={cat._id}>
+                          {cat.name}
+                          {hasPolicy ? " — T&C configured" : " — no T&C yet"}
+                        </option>
+                      );
+                    })}
+                  </select>
+
+                  {!configuredTemplateTerms ? (
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                      No T&amp;C configured for this category yet — edit it under
+                      Policy Management, or switch to Custom Writing.
+                    </p>
+                  ) : (
+                    <div>
+                      <FieldLabel
+                        label="Template preview (editable)"
+                        description="This exact text is shown to users after you save."
+                      />
+                      <TextArea
+                        rows={12}
+                        value={form.custom_terms}
+                        onChange={changeActivePolicyTerms}
+                        disabled={savingPolicy}
+                        className="h-36 resize-none overflow-y-auto !text-xs !leading-relaxed !text-gray-700 placeholder:text-gray-400 dark:!text-gray-300"
+                      />
+                    </div>
+                  )}
                 </div>
-                <p className="text-theme-xs mb-2 text-gray-500 dark:text-gray-400">
-                  Pre-filled from the source above. Edit any line to fit this
-                  brand’s actual terms — this exact text is shown to users.
-                </p>
-                <TextArea
-                  rows={12}
-                  placeholder="Terms & Conditions shown to users for this brand…"
-                  value={form.custom_terms}
-                  onChange={(v) => setForm({ ...form, custom_terms: v })}
-                  disabled={savingPolicy}
-                  className="h-36 resize-none overflow-y-auto !text-xs !leading-relaxed !text-gray-700 placeholder:text-gray-400 dark:!text-gray-300"
-                />
-              </div>
+              ) : (
+                <div className="border-t border-gray-200 pt-3 dark:border-gray-600">
+                  <FieldLabel
+                    label="Custom terms"
+                    description="Write the complete Terms & Conditions shown for this brand."
+                  />
+                  <TextArea
+                    rows={12}
+                    placeholder="Write the complete Terms & Conditions for this brand…"
+                    value={form.custom_terms}
+                    onChange={changeActivePolicyTerms}
+                    disabled={savingPolicy}
+                    className="h-36 resize-none overflow-y-auto !text-xs !leading-relaxed !text-gray-700 placeholder:text-gray-400 dark:!text-gray-300"
+                  />
+                </div>
+              )}
               <div className="border-t border-gray-200 pt-3 dark:border-gray-600">
                 <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
                   <Switch

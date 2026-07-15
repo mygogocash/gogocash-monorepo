@@ -1,10 +1,12 @@
 export type CustomerAccountResourceId =
+  | "allBrandBanner"
   | "billing"
   | "brandCatalog"
   | "catalog"
   | "categoryList"
   | "homeBanner"
   | "merchant"
+  | "merchantCoupons"
   | "offers"
   | "policyCategory"
   | "profile"
@@ -14,8 +16,10 @@ export type CustomerAccountResourceId =
 
 /** Public, no-auth resources whose live admin config should load even in fixtures mode. */
 export const PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS = [
+  "allBrandBanner",
   "homeBanner",
   "merchant",
+  "merchantCoupons",
   "topBrand",
 ] as const satisfies readonly CustomerAccountResourceId[];
 

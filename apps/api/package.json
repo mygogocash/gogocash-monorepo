@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "build": "swc src -d dist --strip-leading-paths",
@@ -18,11 +18,11 @@
     "start:prod": "node dist/main",
     "lint": "oxlint --fix src test scripts && prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint:ci": "oxlint --deny-warnings src test scripts && prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
-    "test": "jest --runInBand",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r @swc-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --runInBand",
+    "test:watch": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --watch",
+    "test:cov": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --coverage",
+    "test:debug": "node --experimental-vm-modules --inspect-brk -r @swc-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --config ./test/jest-e2e.json",
     "migrate:brands": "node -r @swc-node/register scripts/migrate-brands.ts",
     "migrate:brands:dry": "node -r @swc-node/register scripts/migrate-brands.ts --dry-run",
     "migrate:country": "node -r @swc-node/register scripts/migrate-country.ts",
@@ -45,9 +45,8 @@
     "media:migrate-gcs-to-r2:dry": "node -r @swc-node/register scripts/migrate-stored-media-gcs-to-r2.ts --dry-run"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1085.0",
-    "@aws-sdk/s3-request-presigner": "^3.1085.0",
-    "@crossmint/server-sdk": "^1.2.76",
+    "@aws-sdk/client-s3": "^3.1086.0",
+    "@aws-sdk/s3-request-presigner": "^3.1086.0",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.1.28",
     "@nestjs/core": "^11.1.28",
@@ -61,7 +60,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/multer": "^2.2.0",
     "@types/passport-jwt": "^4.0.1",
-    "archiver": "^7.0.1",
+    "archiver": "^8.0.0",
     "axios": "^1.18.1",
     "bcrypt": "^6.0.0",
     "cache-manager": "^7.2.9",
@@ -86,7 +85,7 @@
     "resend": "^6.17.1",
     "rxjs": "^7.8.2",
     "sharp": "^0.35.3",
-    "stripe": "^22.3.0",
+    "stripe": "^22.3.1",
     "swagger-ui-express": "^5.0.1",
     "telegraf": "^4.16.3"
   },
@@ -97,18 +96,20 @@
     "@swc/cli": "^0.8.1",
     "@swc/core": "^1.15.43",
     "@swc/jest": "^0.2.39",
-    "@types/archiver": "^6.0.3",
+    "@types/archiver": "^8.0.0",
     "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
-    "@types/node": "^26.1.0",
-    "@types/supertest": "^7.0.0",
+    "@types/node": "^24.13.3",
+    "@types/supertest": "^7.2.1",
+    "@types/yauzl": "^3.4.0",
     "jest": "^30.0.0",
-    "oxlint": "^1.73.0",
+    "oxlint": "^1.74.0",
     "prettier": "^3.9.4",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "yauzl": "^3.4.0"
   },
   "jest": {
     "moduleFileExtensions": [

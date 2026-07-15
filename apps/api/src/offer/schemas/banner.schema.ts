@@ -3,6 +3,10 @@ import { HydratedDocument } from 'mongoose';
 
 export type BannerDocument = HydratedDocument<Banner>;
 
+/** Separate model/collection token for the All Brands directory carousel. */
+export const ALL_BRAND_BANNER_MODEL = 'AllBrandBanner';
+export const ALL_BRAND_BANNER_COLLECTION = 'all_brand_banners';
+
 @Schema({ timestamps: true })
 export class Banner {
   @Prop({ required: false })

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignore": [
     ".agents/**",
     ".cursor/**",
@@ -12,7 +12,7 @@
     "interface": true,
     "type": true
   },
-  "ignoreBinaries": ["eas", "knip", "maestro", "gcloud"],
+  "ignoreBinaries": ["eas", "maestro", "gcloud"],
   "ignoreUnresolved": ["dotenv/config"],
   "ignoreDependencies": [
     "@nestjs/common",
@@ -30,7 +30,6 @@
     "react-dnd",
     "react-dnd-html5-backend",
     "swiper",
-    "@crossmint/server-sdk",
     "@nestjs/passport",
     "@posthog/core",
     "@types/passport-jwt",
@@ -47,6 +46,7 @@
 
     "babel-preset-expo",
     "react-test-renderer",
+    "react-native-screens",
     "@nestjs/platform-express",
     "mongoose",
     "happy-dom",
@@ -80,7 +80,11 @@
     },
     "apps/app": {
       "entry": ["expo-router/entry", "app/**/*.{ts,tsx}", "src/**/*.{ts,tsx}"],
-      "project": ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}", "scripts/**/*.{mjs,js}"],
+      "project": [
+        "src/**/*.{ts,tsx}",
+        "app/**/*.{ts,tsx}",
+        "scripts/**/*.{mjs,js}"
+      ],
       "ignore": [
         "babel.config.js",
         "playwright.config.ts",

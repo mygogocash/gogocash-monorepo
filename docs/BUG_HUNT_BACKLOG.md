@@ -193,12 +193,10 @@ _None — Phase 1 complete. Next sweep or new findings go here._
 - **Failure scenario:** The hub banner is showing an actionable match when a native prompt for the same detection becomes active (showNativePrompt fires). The banner does not re-render, keeps showing, and the user can tap the banner's Activate while the native prompt is also live — two independent activation paths (session.activate and coordinator.activateFromNative have separate in-flight guards) can both POST /activate and open the affiliate deeplink twice. Conversely, after the native prompt is dismissed the banner can remain hidden/stale until some other state change re-renders it.
 - **Suggested fix:** Expose a subscribe(listener) on the coordinator (or route its state through React context/useSyncExternalStore) and have the banner subscribe so suppression reflects live coordinator state.
 
-### 19. [P3] CrossmintAuthGuard decodes the JWT without verifying its signature/expiry
+### 19. [P3] CrossmintAuthGuard decodes the JWT without verifying its signature/expiry — resolved
 
-- **Location:** `apps/api/src/auth/jwt-auth.guard.ts:38`  ·  **Dimension:** auth-session  ·  **Verify:** CONFIRMED
-- **Evidence:** canActivate calls `this.jwtService.decode(token)` (jwt-auth.guard.ts:38) — decode() does not validate the signature or exp, unlike verify(). It then sets request['user'] = decodedToken and returns true, so any well-formed (even forged/expired/unsigned) JWT passes the guard. The guard is currently only wired to POST /auth/sign-in (auth.controller.ts:61), which throws 'Crossmint sign-in is disabled' before req.user is consumed, so it is not exploitable today — but it is a latent auth-bypass trap if the guard is reused or the sign-in body is re-enabled.
-- **Failure scenario:** If CrossmintAuthGuard is later applied to a route that trusts req.user (or /auth/sign-in is re-enabled), an attacker can craft an arbitrary JWT payload (any userId) and be authenticated as any user, because the signature is never checked.
-- **Suggested fix:** Use this.jwtService.verify(token, { secret }) instead of decode(), or delete the dead guard entirely since Crossmint is deprecated.
+- **Location:** `apps/api/src/auth/jwt-auth.guard.ts` · **Dimension:** auth-session · **Verify:** RESOLVED 2026-07-14
+- **Resolution:** the retained compatibility guard now rejects every request without decoding a token. The deprecated `POST /auth/sign-in` route therefore returns `401` before provider, token, or user lookup logic can run; request-level regression coverage locks this fail-closed behavior.
 
 ### 20. [P3] EXPO_PUBLIC_SENTRY_DSN (and POSTHOG keys) are settable only in the Railway web Dockerfile — no eas.json profile, OTA workflow, or GCP web-export lane defines them, so crash reporting is silently off in every native build and OTA
 

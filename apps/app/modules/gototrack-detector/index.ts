@@ -1,4 +1,4 @@
-import { requireOptionalNativeModule } from "expo-modules-core";
+import { requireOptionalNativeModule } from "expo";
 
 import type { GototrackNativeModule } from "../../src/gototrack/nativeDetector";
 
@@ -9,5 +9,7 @@ import type { GototrackNativeModule } from "../../src/gototrack/nativeDetector";
  * platform selector can fall back to the unsupported detector cleanly.
  */
 export function loadGototrackNativeModule(): GototrackNativeModule | null {
-  return requireOptionalNativeModule<GototrackNativeModule>("GototrackDetector");
+  return requireOptionalNativeModule<GototrackNativeModule>(
+    "GototrackDetector",
+  );
 }

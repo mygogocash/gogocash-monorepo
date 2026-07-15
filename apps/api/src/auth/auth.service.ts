@@ -6,8 +6,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import * as https from 'https';
-// Crossmint deprecated — auth now flows via Firebase + SIWE only.
 import { UserService } from 'src/user/user.service';
 import {
   LineAuthDto,
@@ -26,15 +24,22 @@ import * as crypto from 'crypto';
 import { SiweNonce, SiweNonceDocument } from './schemas/siwe-nonce.schema';
 import { UserDocument } from 'src/user/schemas/user.schema';
 import { toIso2Server } from 'src/utils/country';
+
+type FirebaseSignInOptions = {
+  allowPhoneRegistration?: boolean;
+};
+
+function phoneLoginLookupCandidates(phoneE164: string): string[] {
+  const thaiLegacyPhone = /^\+66\d{8,9}$/.test(phoneE164)
+    ? `0${phoneE164.slice(3)}`
+    : null;
+
+  return thaiLegacyPhone ? [phoneE164, thaiLegacyPhone] : [phoneE164];
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private baseUrl: string;
-  private projectId: string;
-  private secret: string;
-  private httpsAgent: https.Agent;
-  private crossmint: any;
-  private crossmintAuth: any;
 
   constructor(
     private readonly config: ConfigService,
@@ -43,92 +48,22 @@ export class AuthService {
     @InjectModel(Point.name) private pointModel: Model<PointDocument>,
     @InjectModel(SiweNonce.name)
     private siweNonceModel: Model<SiweNonceDocument>,
-  ) {
-    this.baseUrl = this.config.get<string>('env.CROSSMINT_BASE_URL') ?? '';
-    this.projectId = this.config.get<string>('env.CROSSMINT_PROJECT_ID') ?? '';
-    this.secret = this.config.get<string>('env.CROSSMINT_SECRET') ?? '';
-    this.httpsAgent = new https.Agent({ rejectUnauthorized: true });
-    // Crossmint SDK removed; signIn() path will throw if invoked.
-    this.crossmint = null;
-    this.crossmintAuth = null;
-  }
-
-  private headers() {
-    return { Authorization: `Bearer ${this.secret}` };
-  }
-
-  async signUp(email: string, password: string) {
-    const res = await axios.post(
-      `${this.baseUrl}/signup`,
-      { email, password, projectId: this.projectId },
-      { headers: this.headers() },
-    );
-    return res.data;
-  }
+  ) {}
 
   async signIn(payload: SignInDto): Promise<never> {
-    // Crossmint deprecated. Callers should use Firebase or SIWE sign-in flows.
+    // Retained only so old clients fail closed instead of falling through to an
+    // unverified identity path. Do not perform provider or database access.
     void payload;
     throw new UnauthorizedException(
-      'Crossmint sign-in is disabled. Use /auth/log-in (Firebase) or /auth/minipay-siwe instead.',
+      'This sign-in method is no longer available. Please sign in with your usual method.',
     );
-    // unreachable code preserved below for reference during migration
-    /*
-    const data = await this.crossmintAuth.getUser(payload.id_crossmint);
-    // console.log('data', data);
-    if (!data.id) {
-      throw new Error('User not found in Crossmint');
-    }
-    // console.log('payload', data.id);
-    const userExist = await this.userService.findOne({
-      id_crossmint: data.id,
-    });
-    // console.log('userExist', userExist);
-    if (userExist) {
-      if (userExist.address) {
-        const user = await this.userService.update(userExist._id, {
-          email: data.email,
-          username: data?.twitter
-            ? data.twitter.username
-            : data?.email?.split('@')[0],
-          id_twitter: data?.twitter ? data.twitter.id : '',
-          address: payload.address,
-        });
-        return user;
-      }
-      return userExist;
-    }
-    const user = await this.userService.createFromCrossmint({
-      address: payload.address,
-      id_crossmint: data.id,
-      email: data.email,
-      username: data?.twitter
-        ? data.twitter.username
-        : data?.email?.split('@')[0],
-      id_twitter: data?.twitter ? data.twitter.id : '',
-    });
-
-    if (
-      payload.referral_id &&
-      payload?.referral_id != 'undefined' &&
-      payload?.referral_id != 'null'
-    ) {
-      const refData = await this.userService.findOne({
-        _id: new Types.ObjectId(payload.referral_id),
-      });
-      if (refData && user._id?.toString() !== payload.referral_id?.toString()) {
-        await this.updatePoint({
-          user_id: user._id.toString(),
-          referral_id: payload.referral_id,
-        });
-      }
-    }
-    // Update points for referral if referral_id is provided
-    return user; // { accessToken, refreshToken, user }
-    */
   }
 
-  async signInFirebase(token: string, payload: SignInFirebaseDto) {
+  async signInFirebase(
+    token: string,
+    payload: SignInFirebaseDto,
+    options: FirebaseSignInOptions = {},
+  ) {
     try {
       const data = await getAdminAuth().verifyIdToken(token);
       if (!data) {
@@ -138,18 +73,20 @@ export class AuthService {
       let userExist = await this.userService.findOne({
         id_firebase: data.uid,
       });
-      if (!userExist && data.email) {
+      if (!userExist && data.email && data.email_verified === true) {
         userExist = await this.userService.findOne({
           email: data.email,
         });
       }
       if (!userExist && data.phone_number) {
-        userExist = await this.userService.findOne({
-          mobile: data.phone_number,
-        });
+        userExist = await this.findUserByPhone(data.phone_number);
       }
 
       if (userExist) {
+        if (userExist.disabled) {
+          throw new Error('Your account has been disabled');
+        }
+
         const user = await this.userService.update(userExist._id, {
           email: userExist?.email || data.email,
           username: userExist?.username
@@ -181,6 +118,12 @@ export class AuthService {
           auth_flow: 'login' as const,
         };
       }
+
+      const isPhoneSignIn = data.firebase?.sign_in_provider === 'phone';
+      if (isPhoneSignIn && options.allowPhoneRegistration !== true) {
+        throw new Error('Phone identity is not linked to a GoGoCash account');
+      }
+
       const user = await this.userService.createFromFirebase({
         address:
           payload?.address && payload?.address !== 'undefined'
@@ -221,6 +164,20 @@ export class AuthService {
         "Your sign-in couldn't be verified. Please sign in again.",
       );
     }
+  }
+
+  async isPhoneLoginEligible(phoneE164: string): Promise<boolean> {
+    const user = await this.findUserByPhone(phoneE164);
+    return Boolean(user && user.disabled !== true);
+  }
+
+  private async findUserByPhone(phoneE164: string) {
+    for (const mobile of phoneLoginLookupCandidates(phoneE164)) {
+      const user = await this.userService.findOne({ mobile });
+      if (user) return user;
+    }
+
+    return null;
   }
 
   async signInTelegram(payload: TelegramAuthDto) {
@@ -449,24 +406,6 @@ export class AuthService {
     });
     return res;
   }
-  async signOut(refreshToken: string) {
-    const res = await axios.post(
-      `${this.baseUrl}/signout`,
-      { refreshToken },
-      { headers: this.headers() },
-    );
-    return res.data;
-  }
-
-  async refresh(refreshToken: string) {
-    const res = await axios.post(
-      `${this.baseUrl}/refresh`,
-      { refreshToken, projectId: this.projectId },
-      { headers: this.headers() },
-    );
-    return res.data; // { accessToken, refreshToken }
-  }
-
   async verifyPhone(token: string, id: string) {
     try {
       const user = await this.userService.findOne({

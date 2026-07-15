@@ -17,6 +17,8 @@ import {
   ensureRegionIds,
   legacyRegionsFromResponse,
   normalizeRegionsForSave,
+  resolveGlobalWithdrawalDefaults,
+  validateGlobalWithdrawalDefaults,
   validateRegionMaxCaps,
   validateWithdrawRegions,
 } from "@/lib/feeWithdrawRegions";
@@ -71,8 +73,128 @@ function newRegion(overrides?: Partial<FeeWithdrawRegion>): FeeWithdrawRegion {
   };
 }
 
-export default function FeeForm() {
+const FIELD_SELECT_CLASS =
+  "h-11 min-h-11 w-full min-w-0 max-w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 shadow-theme-xs dark:border-gray-600 dark:bg-gray-800 dark:text-white";
 
+function CashbackMaxCapFields({
+  row,
+  onChange,
+}: {
+  row: FeeWithdrawRegion;
+  onChange: (patch: Partial<FeeWithdrawRegion>) => void;
+}) {
+  return (
+    <section className="rounded-xl border border-dashed border-gray-300 bg-white/80 p-4 sm:p-5 dark:border-gray-600 dark:bg-gray-900/45">
+      <h5 className="text-brand-600 dark:text-brand-400 text-xs font-semibold tracking-wide uppercase">
+        Cashback max cap for this country
+      </h5>
+      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        Optional ceiling for this market. Use a percentage of tracked volume or
+        a fixed amount.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-4">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+          <input
+            type="radio"
+            name={`region_max_cap_mode_${row.id}`}
+            className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+            checked={row.max_cap_mode !== "fixed"}
+            onChange={() => onChange({ max_cap_mode: "percent" })}
+          />
+          Percentage
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+          <input
+            type="radio"
+            name={`region_max_cap_mode_${row.id}`}
+            className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+            checked={row.max_cap_mode === "fixed"}
+            onChange={() => onChange({ max_cap_mode: "fixed" })}
+          />
+          Fixed amount
+        </label>
+      </div>
+      {row.max_cap_mode === "fixed" ? (
+        <div className="mt-4 flex max-w-xl flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1">
+            <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">
+              Amount
+            </p>
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={row.max_cap_amount ?? 0}
+              min="0"
+              onChange={(event) =>
+                onChange({ max_cap_amount: parseNum(event.target.value) })
+              }
+            />
+          </div>
+          <div className="min-w-0 sm:w-44">
+            <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">
+              Currency
+            </p>
+            <select
+              value={
+                isCommonCurrency(row.max_cap_currency ?? "")
+                  ? (row.max_cap_currency ?? "THB").toUpperCase()
+                  : "__custom__"
+              }
+              onChange={(event) => {
+                const value = event.target.value;
+                onChange({
+                  max_cap_currency: value === "__custom__" ? "" : value,
+                });
+              }}
+              className={FIELD_SELECT_CLASS}
+            >
+              {COMMON_CURRENCIES.map((currency) => (
+                <option key={currency} value={currency}>
+                  {currency}
+                </option>
+              ))}
+              <option value="__custom__">Other…</option>
+            </select>
+            {!isCommonCurrency(row.max_cap_currency ?? "") && (
+              <input
+                type="text"
+                maxLength={8}
+                value={row.max_cap_currency ?? ""}
+                onChange={(event) =>
+                  onChange({
+                    max_cap_currency: event.target.value.toUpperCase(),
+                  })
+                }
+                placeholder="XXX"
+                className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 uppercase dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 flex max-w-sm items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={row.max_cap_percent ?? 0}
+              min="0"
+              max="100"
+              onChange={(event) =>
+                onChange({ max_cap_percent: parseNum(event.target.value) })
+              }
+            />
+          </div>
+          <span className="flex h-11 min-w-[2.5rem] shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-100 px-2 text-xs font-medium text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            %
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default function FeeForm() {
   const [forms, setForms] = useState<FeeSettingsForm>({
     system: 0,
     fee_withdraw_usd: 0,
@@ -85,6 +207,9 @@ export default function FeeForm() {
     global_max_cap_percent: 0,
     global_max_cap_amount: 0,
     global_max_cap_currency: "THB",
+    global_withdraw_fee: 0,
+    global_minimum_withdraw: 0,
+    global_withdraw_currency: "THB",
   });
 
   const [presetValue, setPresetValue] = useState("");
@@ -114,6 +239,7 @@ export default function FeeForm() {
       ? ensureRegionIds(res.withdraw_regions, legacyRegionsFromResponse(res))
       : legacyRegionsFromResponse(res);
     const legacy = deriveLegacyWithdrawFields(fromApi);
+    const withdrawalDefaults = resolveGlobalWithdrawalDefaults(res);
     const capMode: GlobalMaxCapMode =
       res.global_max_cap_mode === "fixed" ? "fixed" : "percent";
     const loaded: FeeSettingsForm = {
@@ -130,6 +256,9 @@ export default function FeeForm() {
       global_max_cap_currency: (
         res.global_max_cap_currency ?? "THB"
       ).toUpperCase(),
+      global_withdraw_fee: withdrawalDefaults.fee,
+      global_minimum_withdraw: withdrawalDefaults.minimum,
+      global_withdraw_currency: withdrawalDefaults.currency,
     };
     setForms(loaded);
     // Baseline reflects the LOADED entity so Save stays disabled until edited.
@@ -277,15 +406,31 @@ export default function FeeForm() {
         return;
       }
     }
+    const globalWithdrawalError = validateGlobalWithdrawalDefaults({
+      fee: forms.global_withdraw_fee,
+      minimum: forms.global_minimum_withdraw,
+      currency: forms.global_withdraw_currency,
+    });
+    if (globalWithdrawalError) {
+      toast.error(globalWithdrawalError);
+      return;
+    }
     const legacy = deriveLegacyWithdrawFields(normalized);
-    const savedSnapshot = structuredClone(forms);
+    const payload: FeeSettingsForm = {
+      ...forms,
+      ...legacy,
+      global_max_cap_currency: forms.global_max_cap_currency
+        .trim()
+        .toUpperCase(),
+      global_withdraw_currency: forms.global_withdraw_currency
+        .trim()
+        .toUpperCase(),
+      withdraw_regions: normalized,
+    };
+    const savedSnapshot = structuredClone(payload);
     setSaving(true);
     try {
-      await apiClient.updateFee({
-        ...forms,
-        ...legacy,
-        withdraw_regions: normalized,
-      });
+      await apiClient.updateFee(payload);
       // Refresh baseline so Save disables again until the next edit.
       setInitialForms(savedSnapshot);
       toast.success("Fee settings updated successfully");
@@ -319,17 +464,26 @@ export default function FeeForm() {
           <section className="space-y-4">
             <div>
               <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                System
+                Cashback transaction fee management
               </h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Global platform fee and optional platform-wide max cap for
-                offers and brands. Regional rules may still override where your
-                backend supports it.
+                Configure the cashback transaction fee and cap defaults, then
+                override the cashback cap for individual countries.
+              </p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                Default setup for all brands
+              </h4>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Applied to every brand unless a country-specific cashback cap is
+                configured below.
               </p>
             </div>
             <div>
               <Label>
-                System <span className="text-error-500">*</span>
+                Cashback transaction fee{" "}
+                <span className="text-error-500">*</span>
               </Label>
               <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
                 Platform fee percentage applied to transactions (e.g. 2.5 for
@@ -476,6 +630,54 @@ export default function FeeForm() {
                 </div>
               )}
             </div>
+            <div className="space-y-3 border-t border-gray-100 pt-5 dark:border-gray-800">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                  Cashback setup for each country
+                </h4>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Country and currency are managed in the withdrawal section;
+                  the cashback cap itself belongs here.
+                </p>
+              </div>
+              {regions.length === 0 ? (
+                <NoData>
+                  No countries yet. Add a country under withdrawal fee
+                  management.
+                </NoData>
+              ) : (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {regions.map((row) => {
+                    const countryCode = row.countryCode.trim().toUpperCase();
+                    const countryName =
+                      countryNameByCode.get(countryCode) ?? countryCode;
+                    return (
+                      <article
+                        key={`cashback-${row.id}`}
+                        className="space-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-900/30"
+                      >
+                        <div>
+                          <h5 className="font-semibold text-gray-900 dark:text-white">
+                            {countryCode
+                              ? `${countryCodeToFlagEmoji(countryCode)} ${countryName}`
+                              : "New region"}
+                          </h5>
+                          <p className="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400">
+                            {[countryCode, row.currency.toUpperCase()]
+                              .filter(Boolean)
+                              .join(" · ") || "Country not selected"}
+                          </p>
+                        </div>
+                        <CashbackMaxCapFields
+                          row={row}
+                          onChange={(patch) => updateRegion(row.id, patch)}
+                        />
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
             <div className="pt-2">
               {/* Founder: the platform-fee block needs its own Save, not just
                   the button far below the country list. Reuses saveSettings
@@ -486,7 +688,7 @@ export default function FeeForm() {
                 disabled={saving || fetching || !forms.id || !dirty}
                 className="h-11 w-full rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[12rem]"
               >
-                {saving ? "Saving…" : "Save platform fee"}
+                {saving ? "Saving…" : "Save cashback fees"}
               </button>
             </div>
           </section>
@@ -494,12 +696,107 @@ export default function FeeForm() {
           <section className="space-y-4 border-t border-gray-100 pt-8 dark:border-gray-800">
             <div>
               <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                Withdrawal fees by country
+                Withdrawal fee management
               </h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Fixed withdrawal fee, minimum withdrawal, and optional regional
-                max cap per country and currency. Legacy THB/USD fields are kept
-                in sync for older APIs (first THB and first USD row).
+                Configure a global withdrawal default and country-specific fee
+                overrides. Legacy THB/USD fields stay synchronized for older
+                payout flows.
+              </p>
+            </div>
+
+            <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-900/30">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                  Default setup for global
+                </h4>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Saved as the default withdrawal fee and minimum for markets
+                  without a country override.
+                </p>
+              </div>
+              <div className="grid gap-5 md:grid-cols-3">
+                <div>
+                  <Label className="mb-1">Withdrawal fee</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={forms.global_withdraw_fee}
+                    onChange={(event) =>
+                      setForms((current) => ({
+                        ...current,
+                        global_withdraw_fee: parseNum(event.target.value),
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label className="mb-1">Minimum withdrawal</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={forms.global_minimum_withdraw}
+                    onChange={(event) =>
+                      setForms((current) => ({
+                        ...current,
+                        global_minimum_withdraw: parseNum(event.target.value),
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label className="mb-1">Currency</Label>
+                  <select
+                    value={
+                      isCommonCurrency(forms.global_withdraw_currency)
+                        ? forms.global_withdraw_currency.toUpperCase()
+                        : "__custom__"
+                    }
+                    onChange={(event) =>
+                      setForms((current) => ({
+                        ...current,
+                        global_withdraw_currency:
+                          event.target.value === "__custom__"
+                            ? ""
+                            : event.target.value,
+                      }))
+                    }
+                    className={FIELD_SELECT_CLASS}
+                  >
+                    {COMMON_CURRENCIES.map((currency) => (
+                      <option key={currency} value={currency}>
+                        {currency}
+                      </option>
+                    ))}
+                    <option value="__custom__">Other…</option>
+                  </select>
+                  {!isCommonCurrency(forms.global_withdraw_currency) && (
+                    <input
+                      type="text"
+                      maxLength={8}
+                      value={forms.global_withdraw_currency}
+                      onChange={(event) =>
+                        setForms((current) => ({
+                          ...current,
+                          global_withdraw_currency:
+                            event.target.value.toUpperCase(),
+                        }))
+                      }
+                      placeholder="XXX"
+                      className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 uppercase dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                Withdrawal setup for each country
+              </h4>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Add countries and override the global withdrawal fee and minimum
+                for each market.
               </p>
             </div>
 
@@ -576,9 +873,6 @@ export default function FeeForm() {
                 ]
                   .filter(Boolean)
                   .join(" · ");
-
-                const fieldSelectClass =
-                  "h-11 min-h-11 w-full min-w-0 max-w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 shadow-theme-xs dark:border-gray-600 dark:bg-gray-800 dark:text-white";
 
                 return (
                   <div
@@ -672,7 +966,7 @@ export default function FeeForm() {
                                 }));
                                 updateRegion(row.id, { countryCode: v });
                               }}
-                              className={fieldSelectClass}
+                              className={FIELD_SELECT_CLASS}
                             >
                               <option value="">
                                 Search or choose country…
@@ -729,7 +1023,7 @@ export default function FeeForm() {
                                 }
                                 updateRegion(row.id, { currency: v });
                               }}
-                              className={fieldSelectClass}
+                              className={FIELD_SELECT_CLASS}
                             >
                               {COMMON_CURRENCIES.map((c) => (
                                 <option key={c} value={c}>
@@ -822,133 +1116,6 @@ export default function FeeForm() {
                             </div>
                           </div>
                         </div>
-                      </section>
-
-                      <section className="rounded-xl border border-dashed border-gray-300 bg-white/80 p-4 sm:p-5 dark:border-gray-600 dark:bg-gray-900/45">
-                        <h4 className="text-brand-600 dark:text-brand-400 text-xs font-semibold tracking-wide uppercase">
-                          Max cap (offers / brands)
-                        </h4>
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          Optional ceiling for this market. Use a percentage of
-                          tracked volume or a fixed amount; your API decides how
-                          this stacks with global and per-offer caps.
-                        </p>
-                        <div className="mt-4 flex flex-wrap gap-4">
-                          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                            <input
-                              type="radio"
-                              name={`region_max_cap_mode_${row.id}`}
-                              className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
-                              checked={row.max_cap_mode !== "fixed"}
-                              onChange={() =>
-                                updateRegion(row.id, {
-                                  max_cap_mode: "percent",
-                                })
-                              }
-                            />
-                            Percentage
-                          </label>
-                          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                            <input
-                              type="radio"
-                              name={`region_max_cap_mode_${row.id}`}
-                              className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
-                              checked={row.max_cap_mode === "fixed"}
-                              onChange={() =>
-                                updateRegion(row.id, { max_cap_mode: "fixed" })
-                              }
-                            />
-                            Fixed amount
-                          </label>
-                        </div>
-                        {row.max_cap_mode === "fixed" ? (
-                          <div className="mt-4 flex max-w-xl flex-col gap-4 sm:flex-row sm:items-end">
-                            <div className="min-w-0 flex-1">
-                              <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">
-                                Amount
-                              </p>
-                              <Input
-                                type="number"
-                                placeholder="0.00"
-                                value={row.max_cap_amount ?? 0}
-                                min="0"
-                                onChange={(e) =>
-                                  updateRegion(row.id, {
-                                    max_cap_amount: parseNum(e.target.value),
-                                  })
-                                }
-                              />
-                            </div>
-                            <div className="min-w-0 sm:w-44">
-                              <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">
-                                Currency
-                              </p>
-                              <select
-                                value={
-                                  isCommonCurrency(row.max_cap_currency ?? "")
-                                    ? (
-                                        row.max_cap_currency ?? "THB"
-                                      ).toUpperCase()
-                                    : "__custom__"
-                                }
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  if (v === "__custom__") {
-                                    updateRegion(row.id, {
-                                      max_cap_currency: "",
-                                    });
-                                    return;
-                                  }
-                                  updateRegion(row.id, { max_cap_currency: v });
-                                }}
-                                className={fieldSelectClass}
-                              >
-                                {COMMON_CURRENCIES.map((c) => (
-                                  <option key={c} value={c}>
-                                    {c}
-                                  </option>
-                                ))}
-                                <option value="__custom__">Other…</option>
-                              </select>
-                              {!isCommonCurrency(
-                                row.max_cap_currency ?? "",
-                              ) && (
-                                <input
-                                  type="text"
-                                  maxLength={8}
-                                  value={row.max_cap_currency ?? ""}
-                                  onChange={(e) =>
-                                    updateRegion(row.id, {
-                                      max_cap_currency:
-                                        e.target.value.toUpperCase(),
-                                    })
-                                  }
-                                  placeholder="XXX"
-                                  className="mt-2 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 uppercase dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                />
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="mt-4 flex max-w-sm items-center gap-2">
-                            <div className="min-w-0 flex-1">
-                              <Input
-                                type="number"
-                                placeholder="0.00"
-                                value={row.max_cap_percent ?? 0}
-                                min="0"
-                                onChange={(e) =>
-                                  updateRegion(row.id, {
-                                    max_cap_percent: parseNum(e.target.value),
-                                  })
-                                }
-                              />
-                            </div>
-                            <span className="flex h-11 min-w-[2.5rem] shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-100 px-2 text-xs font-medium text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                              %
-                            </span>
-                          </div>
-                        )}
                       </section>
                     </div>
                   </div>

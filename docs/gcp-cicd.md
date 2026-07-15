@@ -19,7 +19,7 @@ Do not use the accidental Cloud Run source-deploy service:
 
 ## Files
 
-- `cloudbuild/ci.yaml` runs the monorepo CI gate with Node 22 and `npm@10.9.0`.
+- `cloudbuild/ci.yaml` runs the monorepo CI gate with Node 24 LTS and `npm@10.9.8`.
 - `cloudbuild/build-staging.yaml` builds all staging service images and pushes both
   `$COMMIT_SHA` and `staging-candidate` tags to Artifact Registry.
 - `cloudbuild/deploy-staging.yaml` deploys one selected service to Cloud Run and

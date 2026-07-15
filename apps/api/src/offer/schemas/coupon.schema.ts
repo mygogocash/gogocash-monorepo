@@ -35,6 +35,9 @@ export class Coupon {
   @Prop({ required: false, type: Number })
   quantity: number;
 
+  @Prop({ default: 0, min: 0, type: Number })
+  quantity_used: number;
+
   @Prop({ type: Boolean, default: false })
   disabled: boolean;
 

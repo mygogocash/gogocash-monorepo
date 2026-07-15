@@ -44,6 +44,11 @@ export class OfferController {
     return this.offerService.getBannerHome();
   }
 
+  @Get('banner-all-brand-page')
+  getAllBrandBanner() {
+    return this.offerService.getAllBrandBanner();
+  }
+
   @Get('top-brands')
   getTopBrands() {
     // Public home "top brands" — admin-curated via PUT /admin/top-brands.

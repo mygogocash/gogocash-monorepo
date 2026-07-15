@@ -14,6 +14,8 @@ import { PencilIcon } from "@/icons";
 import CategoryIcon from "./CategoryIcon";
 import { isDirty } from "@/lib/isDirty";
 import { createCategoryErrorMessage } from "@/lib/createCategoryError";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { validateCategoryName } from "./categoryNameValidation";
 import toast from "react-hot-toast";
 import {
   DEFAULT_POLICY_TEMPLATES,
@@ -267,12 +269,10 @@ export default function PolicyTable() {
   const [contentSource, setContentSource] = useState<ContentSource>("custom");
   // "" = no template chosen yet (the "— Select a template —" placeholder).
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  // "Create New" flow — creates the category immediately (so it has an id),
-  // then opens the normal full editor for it with the name field ready to fill.
-  const [creatingSave, setCreatingSave] = useState(false);
-  // Synchronous in-flight guard — `creatingSave` (state) only disables the
-  // button on the next render, so a sub-frame double-click could fire two
-  // creates; this ref dedupes immediately.
+  // "Create New" opens a local draft. The category does not exist until the
+  // admin supplies a valid unique name and explicitly saves it.
+  const [creatingCategoryDraft, setCreatingCategoryDraft] = useState(false);
+  // Synchronous guard so a double-click cannot POST the draft twice.
   const creatingRef = useRef(false);
   // Inline category-name rename (the pencil next to the editor title).
   const [editingName, setEditingName] = useState(false);
@@ -385,6 +385,16 @@ export default function PolicyTable() {
     staleTime: 60_000,
   });
 
+  const { normalizedName, error: categoryNameError } = useMemo(
+    () =>
+      validateCategoryName(
+        nameDraft,
+        categories,
+        selectedCategory?._id,
+      ),
+    [nameDraft, categories, selectedCategory?._id],
+  );
+
   // Phase 2: switched from legacy `/policy/list` (Record<categoryId, JSON-string>)
   // to the new `/policy/category-list` (Policy[]). The shape change forces an
   // index-by-category-id step here so the rest of the component doesn't have
@@ -493,6 +503,7 @@ export default function PolicyTable() {
       const bannerParsed = policy?.banner
         ? parseStoredPolicy(policy.banner)
         : emptyParsedPolicy();
+      setCreatingCategoryDraft(false);
       setSelectedCategory(category);
       setContentSource(parsed.contentSource ?? "custom");
       setSelectedTemplateId(parsed.templateId ?? "");
@@ -535,6 +546,7 @@ export default function PolicyTable() {
   );
 
   const closeModal = useCallback(() => {
+    setCreatingCategoryDraft(false);
     setSelectedCategory(null);
     setSaveBaseline(null);
     setTranslations({});
@@ -549,32 +561,14 @@ export default function PolicyTable() {
     setEditingTerms(false);
     setEditingBanner(false);
     setEditingName(false);
+    setNameDraft("");
   }, []);
 
-  // Create the category immediately (so it has a real id), then open the normal
-  // full editor for it with the name field focused. Terms & banners are then
-  // added via the existing per-section editors (which all need a category id).
-  const handleCreateCategory = async () => {
-    if (creatingRef.current) return;
-    creatingRef.current = true;
-    setCreatingSave(true);
-    try {
-      const created = (await fetcherPost([
-        "/admin/create-category",
-        { data: { name: "New category" } },
-      ])) as ResCategoryList;
-      await queryClient.invalidateQueries({
-        queryKey: ["getCategory", "policy-page"],
-      });
-      openModal(created);
-      setNameDraft(created.name);
-      setEditingName(true);
-    } catch (err: unknown) {
-      toast.error(createCategoryErrorMessage(err));
-    } finally {
-      setCreatingSave(false);
-      creatingRef.current = false;
-    }
+  const handleCreateCategory = () => {
+    closeModal();
+    setCreatingCategoryDraft(true);
+    setNameDraft("");
+    setEditingName(true);
   };
   // Inline rename of the open category (the pencil next to the title).
   const beginEditName = () => {
@@ -582,32 +576,55 @@ export default function PolicyTable() {
     setEditingName(true);
   };
   const cancelEditName = () => {
+    if (creatingCategoryDraft) {
+      closeModal();
+      return;
+    }
+    setNameDraft(selectedCategory?.name ?? "");
     setEditingName(false);
   };
   const saveName = async () => {
-    if (!selectedCategory) return;
-    const name = nameDraft.trim();
-    if (!name) {
-      toast.error("Enter a category name.");
+    if (categoryNameError || (!selectedCategory && !creatingCategoryDraft))
       return;
-    }
+    const isCreating = creatingCategoryDraft;
+    if (isCreating && creatingRef.current) return;
+    if (isCreating) creatingRef.current = true;
     setSavingName(true);
     try {
-      await client.patch(`/admin/update-category/${selectedCategory._id}`, {
-        name,
+      if (isCreating) {
+        const created = (await fetcherPost([
+          "/admin/create-category",
+          { data: { name: normalizedName } },
+        ])) as ResCategoryList;
+        await queryClient.invalidateQueries({
+          queryKey: ["getCategory", "policy-page"],
+        });
+        openModal(created);
+        toast.success("Category created.");
+        return;
+      }
+
+      await client.patch(`/admin/update-category/${selectedCategory!._id}`, {
+        name: normalizedName,
       });
-      setSelectedCategory({ ...selectedCategory, name });
+      setSelectedCategory({ ...selectedCategory!, name: normalizedName });
       await queryClient.invalidateQueries({
         queryKey: ["getCategory", "policy-page"],
       });
       setEditingName(false);
       toast.success("Category name saved.");
-    } catch {
+    } catch (err: unknown) {
       toast.error(
-        "Couldn't rename the category. Please try again, or contact an administrator if it continues.",
+        isCreating
+          ? createCategoryErrorMessage(err)
+          : getApiErrorMessage(
+              err,
+              "Couldn't rename the category. Please try again, or contact an administrator if it continues.",
+            ),
       );
     } finally {
       setSavingName(false);
+      if (isCreating) creatingRef.current = false;
     }
   };
 
@@ -792,40 +809,58 @@ export default function PolicyTable() {
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-      {selectedCategory ? (
+      {selectedCategory || creatingCategoryDraft ? (
         <div className="flex flex-col p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               {editingName ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={nameDraft}
-                    onChange={(e) => setNameDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void saveName();
-                      if (e.key === "Escape") cancelEditName();
-                    }}
-                    aria-label="Category name"
-                    autoFocus
-                    className="focus:border-brand-400 focus:ring-brand-500/20 h-9 min-w-0 rounded-lg border border-gray-300 bg-white px-3 text-xl font-semibold text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void saveName()}
-                    disabled={savingName || !nameDraft.trim()}
-                    className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
-                  >
-                    {savingName ? "Saving…" : "Save"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cancelEditName}
-                    disabled={savingName}
-                    className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
-                  >
-                    Cancel
-                  </button>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={nameDraft}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !categoryNameError)
+                          void saveName();
+                        if (e.key === "Escape") cancelEditName();
+                      }}
+                      aria-label="Category name"
+                      aria-invalid={Boolean(categoryNameError)}
+                      aria-describedby="category-name-error"
+                      autoFocus
+                      className="focus:border-brand-400 focus:ring-brand-500/20 h-9 min-w-0 rounded-lg border border-gray-300 bg-white px-3 text-xl font-semibold text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void saveName()}
+                      disabled={savingName || Boolean(categoryNameError)}
+                      className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                    >
+                      {savingName
+                        ? "Saving…"
+                        : creatingCategoryDraft
+                          ? "Create"
+                          : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEditName}
+                      disabled={savingName}
+                      className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {categoryNameError ? (
+                    <p
+                      id="category-name-error"
+                      role="alert"
+                      className="mt-1 text-xs text-red-600 dark:text-red-400"
+                    >
+                      {categoryNameError}
+                    </p>
+                  ) : null}
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
@@ -843,8 +878,9 @@ export default function PolicyTable() {
                 </div>
               )}
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Edit the terms &amp; conditions and the category banner for this
-                category. Optional admin translation is stored with the policy.
+                {creatingCategoryDraft
+                  ? "Enter a unique category name. Nothing is saved until you select Create."
+                  : "Edit the terms & conditions and the category banner for this category. Optional admin translation is stored with the policy."}
               </p>
             </div>
             <Button variant="outline" onClick={closeModal} className="shrink-0">
@@ -852,7 +888,8 @@ export default function PolicyTable() {
             </Button>
           </div>
 
-          <div className="mt-4">
+          {selectedCategory ? (
+            <div className="mt-4">
             <>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h4 className="text-base font-semibold text-gray-900 dark:text-white">
@@ -1156,7 +1193,8 @@ export default function PolicyTable() {
                 </div>
               </section>
             </div>
-          </div>
+            </div>
+          ) : null}
         </div>
       ) : (
         <>
@@ -1172,10 +1210,9 @@ export default function PolicyTable() {
             <div className="flex items-center gap-4">
               <PrimaryButton
                 variant="blue"
-                onClick={() => void handleCreateCategory()}
-                disabled={creatingSave}
+                onClick={handleCreateCategory}
               >
-                {creatingSave ? "Creating…" : "Create New"}
+                Create New
               </PrimaryButton>
             </div>
           </div>

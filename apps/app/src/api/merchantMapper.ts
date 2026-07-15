@@ -9,6 +9,7 @@ import {
   resolvePublicOfferLogo,
   resolveShopPageBannerUri,
 } from "@mobile/api/offerLogo";
+import { resolveOfferDisplayCategory } from "@mobile/api/offerDisplayCategory";
 
 type ShopDetailIdentity = {
   brand: string;
@@ -181,7 +182,7 @@ export function mapMerchantOfferToShopDetail<
     bannerUri: firstImageUri(apiBaseUrl, SHOP_BANNER_IMAGE_WIDTH, resolveShopPageBannerUri(offer)),
     brand,
     cashback,
-    category: offer.categories?.trim() || fixtureShop.category,
+    category: resolveOfferDisplayCategory(offer, fixtureShop.category),
     customTerms: offer.custom_terms?.trim() || undefined,
     // Brand-less constants (not `${brand} …` templates) so tc() can reverse-look-up
     // the exact English catalog value and render Thai in Thai mode.
@@ -198,7 +199,10 @@ export function mapMerchantOfferToShopDetail<
       offer.note_to_user?.trim() ||
       "Cashback is tracked through GoGoCash after you open the merchant link and complete an eligible order.",
     noteToUser: offer.note_to_user?.trim() || undefined,
-    policyCategoryId: offer.policy_category_id?.trim() || undefined,
+    policyCategoryId:
+      offer.policy_category_id?.trim() === "custom"
+        ? undefined
+        : offer.policy_category_id?.trim() || undefined,
     productRates: [{ name: brand, rate: cashback }],
     // Admin/partner-configured windows when the API sends them; otherwise the
     // fixture's default 30/30 steps.

@@ -22,8 +22,12 @@ import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
+import { ALL_BRAND_BANNER_MODEL } from 'src/offer/schemas/banner.schema';
 import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
-import { normalizeCustomerCashbackLabel } from 'src/common/normalize-customer-cashback-label';
+import {
+  MAX_TOP_BRANDS,
+  resolveOfferCashbackLabel,
+} from 'src/offer/top-brand.contract';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
@@ -39,6 +43,7 @@ import {
   requireOneOf,
   requireTrimmedString,
 } from 'src/common/mongo-query';
+import { buildFeeRateUpdate } from './fee-rate-update';
 
 /** Mongo unique-index violation (e.g. duplicate category name). */
 function isMongoDuplicateKeyError(error: unknown): boolean {
@@ -62,6 +67,8 @@ export class AdminService {
     @InjectModel(UserMyCashback.name)
     private userMyCashbackModel: Model<UserMyCashback>,
     @InjectModel(Banner.name) private bannerModel: Model<Banner>,
+    @InjectModel(ALL_BRAND_BANNER_MODEL)
+    private allBrandBannerModel: Model<Banner>,
     @InjectModel(TopBrandConfig.name)
     private topBrandConfigModel: Model<TopBrandConfig>,
     @InjectModel(Deeplink.name) private deeplinkModel: Model<Deeplink>,
@@ -414,20 +421,17 @@ export class AdminService {
 
   async updateFeeRate(updateFeeRateDto: UpdateFeeRateDto, id: string) {
     const objectId = requireObjectId(id);
+    const update = buildFeeRateUpdate(updateFeeRateDto);
     const feeRate = await this.feeRateModel.findOne({ _id: objectId }).exec();
     if (feeRate) {
       return this.feeRateModel
-        .findOneAndUpdate(
-          { _id: objectId },
-          mongoSetUpdate(this.buildFeeRateUpdate(updateFeeRateDto)),
-          {
-            upsert: true,
-            new: true,
-          },
-        )
+        .findOneAndUpdate({ _id: objectId }, mongoSetUpdate(update), {
+          upsert: true,
+          new: true,
+        })
         .exec();
     }
-    const newFeeRate = new this.feeRateModel(updateFeeRateDto);
+    const newFeeRate = new this.feeRateModel(update);
     return newFeeRate.save();
   }
 
@@ -464,47 +468,23 @@ export class AdminService {
       throw new Error('Offer not found');
     }
     const folder = MEDIA_FOLDER.BRANDS;
-    let file1;
-    if (updateData.logo_desktop) {
-      file1 = await this.storedMediaService.replace(
-        updateData.logo_desktop,
+    const logoUpload = updateData.logo_desktop ?? updateData.logo_mobile;
+    let logoAsset;
+    if (logoUpload) {
+      logoAsset = await this.storedMediaService.replace(
+        logoUpload,
         folder,
-        offer.logo_desktop,
+        offer.logo_desktop ?? offer.logo_mobile ?? offer.logo,
       );
     }
-    let file2;
-    if (updateData.logo_mobile) {
-      file2 = await this.storedMediaService.replace(
-        updateData.logo_mobile,
+    const bannerUpload =
+      updateData.banner ?? updateData.banner_mobile ?? updateData.logo_circle;
+    let bannerAsset;
+    if (bannerUpload) {
+      bannerAsset = await this.storedMediaService.replace(
+        bannerUpload,
         folder,
-        offer.logo_mobile,
-      );
-    }
-
-    let bannerFile;
-    if (updateData.banner) {
-      bannerFile = await this.storedMediaService.replace(
-        updateData.banner,
-        folder,
-        offer.banner,
-      );
-    }
-
-    let bannerMobileFile;
-    if (updateData.banner_mobile) {
-      bannerMobileFile = await this.storedMediaService.replace(
-        updateData.banner_mobile,
-        folder,
-        offer.banner_mobile,
-      );
-    }
-
-    let logoCircleFile;
-    if (updateData.logo_circle) {
-      logoCircleFile = await this.storedMediaService.replace(
-        updateData.logo_circle,
-        folder,
-        offer.logo_circle,
+        offer.banner ?? offer.banner_mobile ?? offer.logo_circle,
       );
     }
     const trackingLink =
@@ -512,8 +492,11 @@ export class AdminService {
       updateData.tracking_link.trim()
         ? updateData.tracking_link.trim()
         : offer.tracking_link;
-    const nextLogoDesktop = file1 ?? offer.logo_desktop;
-    const nextLogoMobile = file2 ?? offer.logo_mobile;
+    const nextLogoDesktop = logoAsset ?? offer.logo_desktop;
+    const nextLogoMobile = logoAsset ?? offer.logo_mobile;
+    const nextBanner = bannerAsset ?? offer.banner;
+    const nextBannerMobile = bannerAsset ?? offer.banner_mobile;
+    const nextLogoCircle = bannerAsset ?? offer.logo_circle;
     return this.offerModel
       .findByIdAndUpdate(
         requireObjectId(id),
@@ -521,9 +504,9 @@ export class AdminService {
           logo_desktop: nextLogoDesktop,
           logo_mobile: nextLogoMobile,
           logo: nextLogoDesktop || nextLogoMobile || offer.logo,
-          banner: bannerFile ?? offer.banner,
-          banner_mobile: bannerMobileFile ?? offer.banner_mobile,
-          logo_circle: logoCircleFile ?? offer.logo_circle,
+          banner: nextBanner,
+          banner_mobile: nextBannerMobile,
+          logo_circle: nextLogoCircle,
           offer_name_display:
             updateData.offer_name_display ?? offer.offer_name_display,
           lookup_value:
@@ -663,8 +646,13 @@ export class AdminService {
     return myCashBack?.userMyCashback;
   }
 
-  async updateBannerHome(updateData: UpdateBannerHomeDto) {
-    const data = (await this.bannerModel.findOne().exec()) ?? {};
+  private async updateBanner(
+    updateData: UpdateBannerHomeDto,
+    model: Model<Banner>,
+    mediaFolder: (typeof MEDIA_FOLDER)[keyof typeof MEDIA_FOLDER],
+    successMessage: string,
+  ) {
+    const data = (await model.findOne().exec()) ?? {};
     const current = data as Record<string, any>;
 
     const imageUpdates: Record<string, string | null> = {};
@@ -687,7 +675,7 @@ export class AdminService {
       if (this.isMulterUploadFile(upload)) {
         imageUpdates[imageKey] = await this.storedMediaService.replace(
           upload,
-          MEDIA_FOLDER.BANNER_HOME,
+          mediaFolder,
           existing,
         );
         continue;
@@ -778,14 +766,36 @@ export class AdminService {
           : updateData.end_date_5,
     };
 
-    await this.bannerModel
+    await model
       .findOneAndUpdate({}, { $set: payload }, { upsert: true, new: true })
       .exec();
-    return { message: 'Update banner home success' };
+    return { message: successMessage };
+  }
+
+  updateBannerHome(updateData: UpdateBannerHomeDto) {
+    return this.updateBanner(
+      updateData,
+      this.bannerModel,
+      MEDIA_FOLDER.BANNER_HOME,
+      'Update banner home success',
+    );
+  }
+
+  updateAllBrandBanner(updateData: UpdateBannerHomeDto) {
+    return this.updateBanner(
+      updateData,
+      this.allBrandBannerModel,
+      MEDIA_FOLDER.BANNER_ALL_BRAND,
+      'Update all brand banner success',
+    );
   }
 
   async getBannerHome() {
     return this.bannerModel.findOne().exec();
+  }
+
+  async getAllBrandBanner() {
+    return this.allBrandBannerModel.findOne().exec();
   }
 
   async streamStoredMedia(stored: string) {
@@ -868,14 +878,15 @@ export class AdminService {
   async getTopBrands() {
     const config = await this.topBrandConfigModel.findOne().exec();
     const brands = (config?.brands ?? [])
+      .slice(0, MAX_TOP_BRANDS)
       .map((entry) => ({
         offerId: String(entry.offerId ?? '').trim(),
-        cashback: String(entry.cashback ?? '').trim(),
+        cashback: '',
       }))
       .filter((entry) => entry.offerId);
 
     if (brands.length === 0) {
-      return { order: [], brands: [], items: [] };
+      return { order: [], brands: [], items: [], maxBrands: MAX_TOP_BRANDS };
     }
 
     const order = brands.map((entry) => entry.offerId);
@@ -884,29 +895,40 @@ export class AdminService {
       offers.map((offer) => [String(offer._id), offer]),
     );
 
+    const liveBrands = brands.map((entry) => ({
+      ...entry,
+      cashback: resolveOfferCashbackLabel(offerById.get(entry.offerId)),
+    }));
+
     return {
       order,
-      brands,
+      brands: liveBrands,
       items: order
         .map((offerId) => offerById.get(offerId))
         .filter((offer) => offer != null),
+      maxBrands: MAX_TOP_BRANDS,
     };
   }
 
   /**
-   * Save the admin-curated top-brands list: an ordered set of offer ids, each
-   * with an admin-typed cashback label. Stored as a single config doc (empty
+   * Save the admin-curated top-brands list as ordered offer identities. The
+   * cashback label is derived from each live offer when read. Stored as a
+   * single config doc (empty
    * filter = the singleton) in its own collection, so it never collides with
    * the image-banner doc that OfferService.getBannerHome() reads.
    */
   async saveTopBrands(brands: { offerId: string; cashback: string }[]) {
+    if ((brands?.length ?? 0) > MAX_TOP_BRANDS) {
+      throw new BadRequestException(
+        `Top brands is limited to ${MAX_TOP_BRANDS} offers.`,
+      );
+    }
+
     const seen = new Set<string>();
     const normalizedBrands = (brands ?? [])
       .map((entry) => ({
         offerId: String(entry.offerId ?? '').trim(),
-        cashback: normalizeCustomerCashbackLabel(
-          String(entry.cashback ?? '').trim(),
-        ),
+        cashback: '',
       }))
       .filter((entry) => {
         if (!entry.offerId || seen.has(entry.offerId)) {
@@ -979,26 +1001,6 @@ export class AdminService {
       throw new HttpException('Offer not found', 404);
     }
     return updated;
-  }
-
-  private buildFeeRateUpdate(dto: UpdateFeeRateDto): Record<string, number> {
-    const fields: Record<string, number> = {};
-    const entries: Array<[keyof UpdateFeeRateDto, string]> = [
-      ['system', 'system fee'],
-      ['store', 'store fee'],
-      ['minimum_withdraw', 'minimum withdraw'],
-      ['minimum_withdraw_thb', 'minimum withdraw thb'],
-      ['minimum_withdraw_usd', 'minimum withdraw usd'],
-      ['fee_withdraw_thb', 'fee withdraw thb'],
-      ['fee_withdraw_usd', 'fee withdraw usd'],
-    ];
-    for (const [key, label] of entries) {
-      const value = dto[key];
-      if (value !== undefined && value !== null) {
-        fields[key] = requireFiniteNumber(value, label);
-      }
-    }
-    return fields;
   }
 
   private buildConversionListFilter(

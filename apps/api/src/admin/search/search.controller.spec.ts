@@ -17,8 +17,16 @@ const effectiveRoles = (C: unknown, m: string): string[] | undefined => {
   return Reflect.getMetadata(ROLES_KEY, C as object) as string[] | undefined;
 };
 
-const READ_HANDLERS = ['getFeaturedTerms', 'getBoostRules', 'getBlacklist'];
+const READ_HANDLERS = [
+  'getRules',
+  'getFeaturedTerms',
+  'getBoostRules',
+  'getBlacklist',
+];
 const MUTATION_HANDLERS = [
+  'createRule',
+  'updateRule',
+  'deleteRule',
   'createFeaturedTerm',
   'reorderFeaturedTerms',
   'updateFeaturedTerm',

@@ -42,4 +42,17 @@ describe("buildCouponSubmitPayload", () => {
     expect(payload.id).toBe("coupon-99");
     expect(payload.code).toBe("SAVE10");
   });
+
+  it("given a legacy URL on create or edit > then clears the unused link field", () => {
+    const payload = buildCouponSubmitPayload(
+      {
+        ...COUPON_FORM_DEFAULTS,
+        id: "coupon-legacy",
+        link: "https://legacy.example/promo",
+      },
+      { discount: 10, quantity: 5 },
+    );
+
+    expect(payload.link).toBe("");
+  });
 });

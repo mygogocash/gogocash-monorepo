@@ -32,14 +32,14 @@ describe("pathImage", () => {
     );
   });
 
-  it("given a private GCS URL > then proxies through admin API stream", () => {
-    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080";
+  it("given a private GCS URL > then proxies through the authenticated same-origin BFF", () => {
+    process.env.NEXT_PUBLIC_API_URL = "https://preview-api.example";
     expect(
       pathImage(
         "https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png",
       ),
     ).toBe(
-      "http://localhost:8080/admin/stored-media/stream?ref=" +
+      "/api/backend/admin/stored-media/stream?ref=" +
         encodeURIComponent(
           "https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png",
         ),
@@ -47,10 +47,10 @@ describe("pathImage", () => {
     delete process.env.NEXT_PUBLIC_API_URL;
   });
 
-  it("given a local-media ref > then proxies through admin API stream", () => {
-    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080";
+  it("given a local-media ref > then proxies through the authenticated same-origin BFF", () => {
+    process.env.NEXT_PUBLIC_API_URL = "https://preview-api.example";
     expect(pathImage("local-media:banner-home/123-hero.png")).toBe(
-      "http://localhost:8080/admin/stored-media/stream?ref=" +
+      "/api/backend/admin/stored-media/stream?ref=" +
         encodeURIComponent("local-media:banner-home/123-hero.png"),
     );
     delete process.env.NEXT_PUBLIC_API_URL;

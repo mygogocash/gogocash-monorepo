@@ -12,6 +12,8 @@ import type {
   Referral,
   ReferralConfig,
   ScoringConfig,
+  SearchRule,
+  SearchRuleInput,
   Subscription,
   SubscriptionPlan,
   Transaction,
@@ -602,6 +604,36 @@ export async function deleteDiscoverItem(
 }
 
 /* Search */
+export async function getSearchRules() {
+  const { data } = await client.get<{ data: SearchRule[] }>(
+    "/admin/search/rules",
+  );
+  return dataArray<SearchRule>(data);
+}
+
+export async function postSearchRule(body: SearchRuleInput) {
+  const { data } = await client.post<SearchRule>("/admin/search/rules", body);
+  return data;
+}
+
+export async function putSearchRule(
+  id: string,
+  body: Partial<SearchRuleInput>,
+) {
+  const { data } = await client.put<SearchRule>(
+    `/admin/search/rules/${id}`,
+    body,
+  );
+  return data;
+}
+
+export async function deleteSearchRule(id: string) {
+  const { data } = await client.delete<{ success: boolean }>(
+    `/admin/search/rules/${id}`,
+  );
+  return data;
+}
+
 export async function getFeaturedTerms() {
   const { data } = await client.get<{ data: FeaturedSearchTerm[] }>(
     "/admin/search/featured-terms",

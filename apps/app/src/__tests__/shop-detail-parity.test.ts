@@ -133,7 +133,7 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("ShopCashbackRail");
     expect(shopFile).toContain("ShopTrackingPeriod");
     expect(shopFile).toContain("ShopReferralCard");
-    expect(shopFile).toContain("ShopDealsEmptyState");
+    expect(shopFile).toContain("ShopCouponDeals");
     expect(shopFile).toContain("ShopCashbackTipsPanel");
     expect(shopFile).toContain("ShopTermsPanel");
     expect(shopFile).toContain("CustomerMobileBottomNav");
@@ -163,7 +163,7 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("height: \"100%\"");
     expect(shopFile).toContain("resizeMode=\"cover\"");
     expect(shopFile).toContain("<ShopQuestBanner shop={shop} />");
-    expect(shopFile).toContain("<ShopDealsEmptyState shop={shop} />");
+    expect(shopFile).toContain("<ShopCouponDeals");
   });
 
   it("shop detail parity > given selected staging Cashback Tips > then Expo renders structured panel after deals", () => {
@@ -172,7 +172,7 @@ describe("Shop detail parity", () => {
 
     expect(shopFile).not.toContain("merchantCashbackTipsImage");
     expect(shopFile).not.toContain("merchant-cashback-tips-terms");
-    expect(shopFile).toContain("<ShopDealsEmptyState shop={shop} />");
+    expect(shopFile).toContain("<ShopCouponDeals");
     expect(shopFile).toContain("<ShopCashbackTipsPanel shop={shop} />");
     expect(panelFile).toContain("filterShopCashbackTipsForCategory");
     expect(panelFile).toContain("CashbackTipHighlightCard");
