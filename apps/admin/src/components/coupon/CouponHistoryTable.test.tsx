@@ -8,11 +8,15 @@ const api = vi.hoisted(() => ({
   getCouponInsights: vi.fn(),
   recordCouponRedemption: vi.fn(),
 }));
-const permissions = vi.hoisted(() => ({ can: vi.fn() }));
+const permissions = vi.hoisted(() => ({ apiRole: "viewer", can: vi.fn() }));
 
 vi.mock("@/lib/api/couponInsightsApi", () => api);
 vi.mock("@/hooks/usePermissions", () => ({
-  usePermissions: () => ({ can: permissions.can, ready: true }),
+  usePermissions: () => ({
+    apiRole: permissions.apiRole,
+    can: permissions.can,
+    ready: true,
+  }),
 }));
 
 import CouponHistoryTable from "./CouponHistoryTable";
@@ -39,8 +43,6 @@ const response = {
         referenceId: "merchant-order-42",
         status: "redeemed" as const,
         usedAt: "2026-07-15T08:30:00.000Z",
-        userEmail: "member@example.com",
-        userId: "customer-42",
       },
     ],
     limit: 25,
@@ -65,6 +67,7 @@ describe("CouponHistoryTable per-coupon real insights", () => {
   beforeEach(() => {
     api.getCouponInsights.mockResolvedValue(response);
     api.recordCouponRedemption.mockResolvedValue({ recorded: true });
+    permissions.apiRole = "viewer";
     permissions.can.mockReturnValue(true);
   });
   afterEach(() => {
@@ -77,7 +80,7 @@ describe("CouponHistoryTable per-coupon real insights", () => {
 
     expect(await screen.findByText("Save ten")).toBeInTheDocument();
     expect(screen.getByText("merchant-order-42")).toBeInTheDocument();
-    expect(screen.getByText("member@example.com")).toBeInTheDocument();
+    expect(screen.queryByText("member@example.com")).not.toBeInTheDocument();
     expect(api.getCouponInsights).toHaveBeenCalledWith(response.coupon.id, {
       limit: 25,
       page: 1,
@@ -105,24 +108,21 @@ describe("CouponHistoryTable per-coupon real insights", () => {
 
     await screen.findByText("Save ten");
     await user.click(screen.getByText("Record confirmed redemption"));
-    await user.type(screen.getByLabelText("Reference ID"), "merchant-order-99");
     await user.type(
-      screen.getByLabelText("Customer email (optional)"),
-      "member99@example.com",
+      screen.getByLabelText("Reference ID"),
+      "  merchant-order-99  ",
     );
-    await user.type(
-      screen.getByLabelText("Customer ID (optional)"),
-      "customer-99",
-    );
+    const occurredAt = new Date(
+      (screen.getByLabelText("Redemption time") as HTMLInputElement).value,
+    ).toISOString();
     await user.click(screen.getByRole("button", { name: "Record redemption" }));
 
     await waitFor(() =>
       expect(api.recordCouponRedemption).toHaveBeenCalledWith(
         response.coupon.id,
         {
+          occurredAt,
           referenceId: "merchant-order-99",
-          userEmail: "member99@example.com",
-          userId: "customer-99",
         },
       ),
     );
@@ -169,6 +169,7 @@ describe("CouponHistoryTable per-coupon real insights", () => {
 
   it("keeps redemption writes hidden from read-only coupon viewers", async () => {
     permissions.can.mockReturnValue(false);
+    permissions.apiRole = "viewer";
     renderTable();
 
     await screen.findByText("Save ten");
@@ -177,5 +178,15 @@ describe("CouponHistoryTable per-coupon real insights", () => {
     expect(
       screen.queryByText("Record confirmed redemption"),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows the producer to an API support operator despite conservative frontend mapping", async () => {
+    permissions.can.mockReturnValue(false);
+    permissions.apiRole = "support";
+    renderTable();
+
+    await screen.findByText("Save ten");
+
+    expect(screen.getByText("Record confirmed redemption")).toBeInTheDocument();
   });
 });

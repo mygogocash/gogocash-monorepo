@@ -93,12 +93,19 @@ describe('CouponInsightsService', () => {
     couponModel.updateOne.mockResolvedValue({ modifiedCount: 1 });
 
     await expect(
-      service.recordRedemption(couponId, {
-        occurredAt: '2026-07-15T08:30:00.000Z',
-        referenceId: 'merchant-order-42',
-        userEmail: 'member@example.com',
-        userId: 'customer-42',
-      }),
+      service.recordRedemption(
+        couponId,
+        {
+          occurredAt: '2026-07-15T08:30:00.000Z',
+          referenceId: 'merchant-order-42',
+          userEmail: 'member@example.com',
+          userId: 'customer-42',
+        },
+        {
+          adminEmail: 'operator@gogocash.co',
+          adminId: 'admin-42',
+        },
+      ),
     ).resolves.toEqual({ recorded: true });
 
     expect(activityModel.updateOne).toHaveBeenCalledWith(
@@ -106,6 +113,8 @@ describe('CouponInsightsService', () => {
       {
         $setOnInsert: expect.objectContaining({
           event_type: 'redemption',
+          recorded_by_admin_email: 'operator@gogocash.co',
+          recorded_by_admin_id: 'admin-42',
           reference_id: 'merchant-order-42',
           user_email: 'member@example.com',
           user_id: 'customer-42',
@@ -129,9 +138,15 @@ describe('CouponInsightsService', () => {
     couponModel.updateOne.mockResolvedValue({ modifiedCount: 0 });
 
     await expect(
-      service.recordRedemption(couponId, {
-        referenceId: 'merchant-order-42',
-      }),
+      service.recordRedemption(
+        couponId,
+        {
+          referenceId: 'merchant-order-42',
+        },
+        {
+          adminId: 'admin-42',
+        },
+      ),
     ).resolves.toEqual({ recorded: false });
 
     expect(activityModel.countDocuments).toHaveBeenCalledWith({
@@ -196,8 +211,6 @@ describe('CouponInsightsService', () => {
             referenceId: 'merchant-order-42',
             status: 'redeemed',
             usedAt: '2026-07-15T08:30:00.000Z',
-            userEmail: 'member@example.com',
-            userId: 'customer-42',
           },
         ],
         limit: 25,

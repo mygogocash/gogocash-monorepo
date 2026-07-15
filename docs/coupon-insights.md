@@ -35,8 +35,9 @@ before sending production traffic.
 
 Support users can open a coupon's **Redemptions** tab and use **Record confirmed
 redemption** after a merchant order has been verified. The merchant or
-operations reference is required and idempotent; optional customer ID/email
-fields help operations reconcile the row. The form refreshes the coupon's
+operations reference and actual redemption time are required. The reference is
+idempotent, and the activity row records the acting admin for audit. Customer
+identity is not exposed in the admin response. The form refreshes the coupon's
 usage amount and history immediately.
 
 Merchant integrations can automate the same endpoint later. Until then, the

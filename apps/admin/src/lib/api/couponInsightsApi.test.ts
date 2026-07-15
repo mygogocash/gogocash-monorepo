@@ -26,8 +26,6 @@ describe("coupon insights API", () => {
     const input = {
       occurredAt: "2026-07-15T08:30:00.000Z",
       referenceId: "merchant-order-42",
-      userEmail: "member@example.com",
-      userId: "customer-42",
     };
     const payload = { recorded: true };
     mockClient.post.mockResolvedValue({ data: payload });

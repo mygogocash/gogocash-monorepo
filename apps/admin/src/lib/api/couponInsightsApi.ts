@@ -5,8 +5,6 @@ export type CouponInsightRedemption = {
   referenceId: string;
   status: "redeemed";
   usedAt: string;
-  userEmail: string;
-  userId: string;
 };
 
 export type CouponInsightsResponse = {
@@ -34,10 +32,8 @@ export type CouponInsightsResponse = {
 };
 
 export type RecordCouponRedemptionInput = {
-  occurredAt?: string;
+  occurredAt: string;
   referenceId: string;
-  userEmail?: string;
-  userId?: string;
 };
 
 export type RecordCouponRedemptionResponse = {

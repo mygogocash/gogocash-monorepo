@@ -28,8 +28,11 @@ type RedemptionActivityDocument = {
   _id: Types.ObjectId | string;
   occurred_at: Date | string;
   reference_id?: string;
-  user_email?: string;
-  user_id?: string;
+};
+
+type RedemptionActor = {
+  adminEmail?: string;
+  adminId: string;
 };
 
 function isDuplicateKeyError(error: unknown): boolean {
@@ -86,6 +89,7 @@ export class CouponInsightsService {
   async recordRedemption(
     id: string,
     dto: RecordCouponRedemptionDto,
+    actor: RedemptionActor,
   ): Promise<{ recorded: boolean }> {
     const couponId = requireObjectId(id, 'coupon id');
     await this.requireCoupon(couponId);
@@ -102,6 +106,8 @@ export class CouponInsightsService {
             event_type: 'redemption',
             occurred_at: dto.occurredAt ? new Date(dto.occurredAt) : new Date(),
             reference_id: dto.referenceId,
+            recorded_by_admin_email: actor.adminEmail,
+            recorded_by_admin_id: actor.adminId,
             user_email: dto.userEmail,
             user_id: dto.userId,
           },
@@ -202,8 +208,6 @@ export class CouponInsightsService {
             referenceId: row.reference_id ?? '',
             status: 'redeemed' as const,
             usedAt: new Date(row.occurred_at).toISOString(),
-            userEmail: row.user_email ?? '',
-            userId: row.user_id ?? '',
           }),
         ),
         limit,

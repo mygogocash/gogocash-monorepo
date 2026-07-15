@@ -15,11 +15,23 @@ import { formatDateTime } from "@/lib/dateFormat";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
 type InsightTab = "redemptions" | "insight";
+const API_REDEMPTION_WRITE_ROLES = new Set([
+  "support",
+  "approver",
+  "superadmin",
+]);
+
+function localDateTimeInputValue(date = new Date()): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
 
 export default function CouponHistoryTable({ couponId }: { couponId: string }) {
   const permissions = usePermissions();
   const canRecordRedemption =
-    permissions.ready && permissions.can("coupon:manage");
+    permissions.ready &&
+    (permissions.can("coupon:manage") ||
+      API_REDEMPTION_WRITE_ROLES.has(permissions.apiRole ?? ""));
   const [activeTab, setActiveTab] = useState<InsightTab>("redemptions");
   const [page, setPage] = useState(1);
   const limit = 25;
@@ -176,16 +188,14 @@ function RedemptionPanel({
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                {["#", "Reference", "User", "Used at", "Status"].map(
-                  (label) => (
-                    <th
-                      className="px-5 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-                      key={label}
-                    >
-                      {label}
-                    </th>
-                  ),
-                )}
+                {["#", "Reference", "Used at", "Status"].map((label) => (
+                  <th
+                    className="px-5 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+                    key={label}
+                  >
+                    {label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
@@ -226,8 +236,7 @@ function RecordRedemptionForm({
 }) {
   const queryClient = useQueryClient();
   const [referenceId, setReferenceId] = useState("");
-  const [userEmail, setUserEmail] = useState("");
-  const [userId, setUserId] = useState("");
+  const [occurredAt, setOccurredAt] = useState(() => localDateTimeInputValue());
   const [successMessage, setSuccessMessage] = useState("");
   const normalizedReferenceId = referenceId.trim();
   const referenceIsValid =
@@ -237,17 +246,15 @@ function RecordRedemptionForm({
   const mutation = useMutation({
     mutationFn: () =>
       recordCouponRedemption(couponId, {
+        occurredAt: new Date(occurredAt).toISOString(),
         referenceId: normalizedReferenceId,
-        ...(userEmail.trim() ? { userEmail: userEmail.trim() } : {}),
-        ...(userId.trim() ? { userId: userId.trim() } : {}),
       }),
     onMutate: () => {
       setSuccessMessage("");
     },
     onSuccess: async ({ recorded }) => {
       setReferenceId("");
-      setUserEmail("");
-      setUserId("");
+      setOccurredAt(localDateTimeInputValue());
       setSuccessMessage(
         recorded
           ? "Confirmed redemption recorded."
@@ -275,7 +282,9 @@ function RecordRedemptionForm({
         className="mt-4 grid gap-4 lg:grid-cols-3"
         onSubmit={(event) => {
           event.preventDefault();
-          if (referenceIsValid && !mutation.isPending) mutation.mutate();
+          if (referenceIsValid && occurredAt && !mutation.isPending) {
+            mutation.mutate();
+          }
         }}
       >
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -284,40 +293,27 @@ function RecordRedemptionForm({
             autoComplete="off"
             className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white"
             maxLength={128}
+            onBlur={() => setReferenceId(normalizedReferenceId)}
             onChange={(event) => setReferenceId(event.target.value)}
-            pattern="[A-Za-z0-9._:-]+"
             placeholder="merchant-order-123"
             required
             value={referenceId}
           />
         </label>
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          Customer email (optional)
+        <label className="text-sm font-medium text-gray-700 lg:col-span-2 dark:text-gray-300">
+          Redemption time
           <input
-            autoComplete="off"
             className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-            maxLength={254}
-            onChange={(event) => setUserEmail(event.target.value)}
-            placeholder="member@example.com"
-            type="email"
-            value={userEmail}
-          />
-        </label>
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          Customer ID (optional)
-          <input
-            autoComplete="off"
-            className="focus:border-brand-500 focus:ring-brand-500/20 mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-            maxLength={128}
-            onChange={(event) => setUserId(event.target.value)}
-            placeholder="customer-123"
-            value={userId}
+            onChange={(event) => setOccurredAt(event.target.value)}
+            required
+            type="datetime-local"
+            value={occurredAt}
           />
         </label>
         <div className="lg:col-span-3">
           <button
             className="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!referenceIsValid || mutation.isPending}
+            disabled={!referenceIsValid || !occurredAt || mutation.isPending}
             type="submit"
           >
             {mutation.isPending ? "Recording…" : "Record redemption"}
@@ -356,7 +352,6 @@ function RedemptionRow({
   index: number;
   row: CouponInsightRedemption;
 }) {
-  const user = row.userEmail || row.userId || "Not supplied";
   return (
     <tr>
       <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
@@ -364,9 +359,6 @@ function RedemptionRow({
       </td>
       <td className="px-5 py-4 font-mono text-sm text-gray-800 dark:text-gray-200">
         {row.referenceId}
-      </td>
-      <td className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
-        {user}
       </td>
       <td className="px-5 py-4 text-sm whitespace-nowrap text-gray-600 dark:text-gray-400">
         {formatDateTime(row.usedAt, { fallback: row.usedAt })}
