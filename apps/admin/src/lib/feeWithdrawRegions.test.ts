@@ -5,6 +5,8 @@ import {
   ensureRegionIds,
   legacyRegionsFromResponse,
   normalizeRegionsForSave,
+  resolveGlobalWithdrawalDefaults,
+  validateGlobalWithdrawalDefaults,
   validateWithdrawRegions,
 } from "@/lib/feeWithdrawRegions";
 
@@ -39,6 +41,57 @@ describe("legacyRegionsFromResponse", () => {
       feeWithdraw: 1,
       minimumWithdraw: 5,
     });
+  });
+});
+
+describe("resolveGlobalWithdrawalDefaults", () => {
+  it("prefers persisted global defaults", () => {
+    expect(
+      resolveGlobalWithdrawalDefaults(
+        mockResponseFee({
+          global_withdraw_fee: 12,
+          global_minimum_withdraw: 50,
+          global_withdraw_currency: "sgd",
+        }),
+      ),
+    ).toEqual({ fee: 12, minimum: 50, currency: "SGD" });
+  });
+
+  it("falls back to the legacy THB defaults for existing records", () => {
+    expect(resolveGlobalWithdrawalDefaults(mockResponseFee())).toEqual({
+      fee: 30,
+      minimum: 100,
+      currency: "THB",
+    });
+  });
+});
+
+describe("validateGlobalWithdrawalDefaults", () => {
+  it("accepts non-negative values and an ISO-style currency", () => {
+    expect(
+      validateGlobalWithdrawalDefaults({
+        fee: 0,
+        minimum: 100,
+        currency: "THB",
+      }),
+    ).toBeNull();
+  });
+
+  it("rejects negative values and invalid currencies", () => {
+    expect(
+      validateGlobalWithdrawalDefaults({
+        fee: -1,
+        minimum: 100,
+        currency: "THB",
+      }),
+    ).toMatch(/zero or greater/);
+    expect(
+      validateGlobalWithdrawalDefaults({
+        fee: 1,
+        minimum: 100,
+        currency: "$",
+      }),
+    ).toMatch(/currency/);
   });
 });
 

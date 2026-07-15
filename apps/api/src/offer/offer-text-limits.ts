@@ -1,0 +1,2 @@
+export const MAX_CUSTOM_TERMS_LENGTH = 50_000;
+export const MAX_NOTE_TO_USER_LENGTH = 2_000;

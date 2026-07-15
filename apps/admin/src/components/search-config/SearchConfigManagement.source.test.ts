@@ -5,13 +5,18 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const source = readFileSync(
-  resolve(dirname(fileURLToPath(import.meta.url)), "SearchConfigManagement.tsx"),
+  resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "SearchConfigManagement.tsx",
+  ),
   "utf8",
 );
 
 describe("SearchConfigManagement — #279 non-blocking error banner (source signals)", () => {
   it("no longer replaces the whole page with AdminQueryError when a query errors", () => {
-    expect(source).not.toMatch(/isError[^]{0,300}?return \(\s*<AdminQueryError/);
+    expect(source).not.toMatch(
+      /isError[^]{0,300}?return \(\s*<AdminQueryError/,
+    );
   });
 
   it("keeps the loading skeleton early return", () => {
@@ -22,8 +27,8 @@ describe("SearchConfigManagement — #279 non-blocking error banner (source sign
 
   it("renders a banner with the real upstream message via getApiErrorMessage", () => {
     expect(source).toContain("getApiErrorMessage(");
-    expect(source).toContain(
-      'getApiErrorMessage(firstError, "Could not load search configuration.")',
+    expect(source).toMatch(
+      /getApiErrorMessage\(\s*firstError,\s*"Could not load search configuration\."\s*,?\s*\)/,
     );
     expect(source).toContain('from "@/lib/getApiErrorMessage"');
   });
@@ -40,13 +45,11 @@ describe("SearchConfigManagement — #279 non-blocking error banner (source sign
     expect(builderAt).toBeGreaterThan(bannerAt);
   });
 
-  it("Try again refetches all three queries", () => {
+  it("Try again refetches the persistent rules query", () => {
     const mainReturn = source.slice(
       source.indexOf('<div className="space-y-6">'),
     );
     expect(mainReturn).toContain("Try again");
-    expect(mainReturn).toContain("ftQ.refetch()");
-    expect(mainReturn).toContain("brQ.refetch()");
-    expect(mainReturn).toContain("blQ.refetch()");
+    expect(mainReturn).toContain("rulesQ.refetch()");
   });
 });

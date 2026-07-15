@@ -22,6 +22,7 @@ import {
   FirebaseIdTokenDto,
   LineAuthDto,
   MiniPaySiweDto,
+  PhoneLoginEligibilityDto,
   RequestOtpDto,
   SignInAiDto,
   SignInDto,
@@ -99,7 +100,9 @@ export class AuthController {
     }
 
     // Sign in the user
-    const user = await this.auth.signInFirebase(token, body);
+    const user = await this.auth.signInFirebase(token, body, {
+      allowPhoneRegistration: false,
+    });
 
     // Track login event
     if (user.user?._id) {
@@ -142,7 +145,9 @@ export class AuthController {
     }
 
     // Register/sign in the user
-    const user = await this.auth.signInFirebase(token, body);
+    const user = await this.auth.signInFirebase(token, body, {
+      allowPhoneRegistration: true,
+    });
 
     // Track registration event
     if (user.user?._id) {
@@ -151,7 +156,9 @@ export class AuthController {
         region: body.country,
       });
 
-      void this.analytics.capture('user_registered', analyticsCtx, {
+      const eventName =
+        user.auth_flow === 'register' ? 'user_registered' : 'user_login';
+      void this.analytics.capture(eventName, analyticsCtx, {
         method: 'firebase',
         provider: user.user.provider || 'unknown',
         pathname: body.pathname,
@@ -164,6 +171,19 @@ export class AuthController {
     }
 
     return { message: 'Registration successful!', ...user };
+  }
+
+  @Post('phone-sign-in/eligibility')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiBody({ type: PhoneLoginEligibilityDto })
+  @ApiResponse({ status: 201, description: 'Phone login eligibility checked' })
+  async phoneSignInEligibility(
+    @Body(otpBodyValidation) body: PhoneLoginEligibilityDto,
+  ) {
+    return {
+      eligible: await this.auth.isPhoneLoginEligible(body.phone_e164),
+    };
   }
 
   /**

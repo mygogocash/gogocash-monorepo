@@ -22,3 +22,38 @@ describe("PolicyTable — category create targets the real API (#277, source sig
     expect(tableSource).toContain("createCategoryErrorMessage(err)");
   });
 });
+
+describe("PolicyTable — unsaved category draft (#318, source signals)", () => {
+  it("Create New opens a blank local draft without persisting a placeholder", () => {
+    const createHandler = tableSource.slice(
+      tableSource.indexOf("const handleCreateCategory"),
+      tableSource.indexOf("const beginEditName"),
+    );
+
+    expect(createHandler).toContain("setCreatingCategoryDraft(true)");
+    expect(createHandler).toContain('setNameDraft("")');
+    expect(createHandler).not.toContain("fetcherPost");
+    expect(tableSource).not.toContain('name: "New category"');
+  });
+
+  it("the category-name input shows live validation and blocks invalid saves", () => {
+    expect(tableSource).toContain("categoryNameError");
+    expect(tableSource).toContain('role="alert"');
+    expect(tableSource).toMatch(
+      /disabled=\{savingName \|\| Boolean\(categoryNameError\)\}/,
+    );
+    expect(tableSource).toContain("autoFocus");
+  });
+
+  it("the save path creates once with the real trimmed name and surfaces backend races", () => {
+    const saveHandler = tableSource.slice(
+      tableSource.indexOf("const saveName"),
+      tableSource.indexOf("const autoSaveBanner"),
+    );
+    expect(tableSource).toContain('"/admin/create-category"');
+    expect(tableSource).toContain("normalizedName");
+    expect(tableSource).toContain("createCategoryErrorMessage(err)");
+    expect(saveHandler.match(/fetcherPost/g)).toHaveLength(1);
+    expect(saveHandler).toContain("creatingRef.current");
+  });
+});

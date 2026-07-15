@@ -89,12 +89,20 @@ export function resolveCustomerAccountResourceEndpoint({
     return "/offer/banner-home";
   }
 
+  if (resourceId === "allBrandBanner") {
+    return "/offer/banner-all-brand-page";
+  }
+
   if (resourceId === "topBrand") {
     return "/offer/top-brands";
   }
 
   if (resourceId === "merchant") {
     return merchantEndpointTemplate.replace("${merchantId}", encodeURIComponent(merchantId));
+  }
+
+  if (resourceId === "merchantCoupons") {
+    return `/offer/get-coupon-id/${encodeURIComponent(merchantId)}`;
   }
 
   if (resourceId === "policyCategory") {

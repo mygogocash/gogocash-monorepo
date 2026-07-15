@@ -174,10 +174,7 @@ export interface DashboardSummaryResponse {
 
 /** One Apex-style statistics bundle (matches `statisticsChartMockData` shape). */
 export type DashboardStatisticsSeriesName =
-  | "Clicks"
-  | "Conversions"
-  | "Sale Amount"
-  | "Estimated Earnings";
+  "Clicks" | "Conversions" | "Sale Amount" | "Estimated Earnings";
 
 export interface DashboardStatisticsBundle {
   categories: string[];
@@ -731,6 +728,7 @@ export interface TopBrandsAdminResponse {
   order: string[];
   brands: TopBrandConfigEntry[];
   items: Offer[];
+  maxBrands: number;
 }
 
 export interface SaveTopBrandsResponse {
@@ -823,7 +821,7 @@ export interface DataConversion {
 /** Max-cap mode for global or per-region fee rules. */
 export type GlobalMaxCapMode = "percent" | "fixed";
 
-/** Per-country (or territory) withdrawal fee rules; legacy THB/USD columns mirror common pairs. */
+/** Shared per-country fee rule: cashback cap plus withdrawal override. */
 export interface FeeWithdrawRegion {
   id: string;
   /** ISO 3166-1 alpha-2 */
@@ -860,6 +858,10 @@ export interface ResponseFee {
   global_max_cap_amount?: number;
   /** ISO 4217; used when mode is `fixed`. */
   global_max_cap_currency?: string;
+  /** Global withdrawal defaults used when no country override applies. */
+  global_withdraw_fee?: number;
+  global_minimum_withdraw?: number;
+  global_withdraw_currency?: string;
 }
 
 export interface FeeSettingsForm {
@@ -876,4 +878,7 @@ export interface FeeSettingsForm {
   global_max_cap_percent: number;
   global_max_cap_amount: number;
   global_max_cap_currency: string;
+  global_withdraw_fee: number;
+  global_minimum_withdraw: number;
+  global_withdraw_currency: string;
 }

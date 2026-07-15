@@ -55,6 +55,8 @@ describe('AdminController', () => {
       getMyCashBackUser: stub(),
       updateBannerHome: stub(),
       getBannerHome: stub(),
+      updateAllBrandBanner: stub(),
+      getAllBrandBanner: stub(),
       updateConversionDataByConversionId: stub(),
       getDeepLinkList: stub(),
     };
@@ -465,9 +467,7 @@ describe('AdminController', () => {
       expect(arg.note_to_user).toBe('Flash sale this week only.');
     });
 
-    it('updateOffer > given a non-ObjectId policy_category_id (the form\'s "custom" sentinel) > then it maps to an explicit clear', () => {
-      // Storing "custom" would make every customer shop-detail view fire a
-      // guaranteed-400 GET /policy/category/custom (rate-limit burn).
+    it('updateOffer > given the form\'s "custom" policy sentinel > then it is persisted so the mode can be inferred on reopen', () => {
       controller.updateOffer(
         'offer-1',
         { policy_category_id: 'custom' as never } as never,
@@ -475,7 +475,7 @@ describe('AdminController', () => {
       );
 
       const arg = adminService.updateOffer.mock.calls[0][1];
-      expect(arg.policy_category_id).toBe('');
+      expect(arg.policy_category_id).toBe('custom');
     });
 
     // disabled/extra_store arrive as multipart strings; only the exact string
@@ -770,6 +770,25 @@ describe('AdminController', () => {
     });
   });
 
+  describe('updateAllBrandBanner', () => {
+    it('given multipart slot data > then delegates the same banner contract to the all-brand service', () => {
+      const image1 = { originalname: 'brands.png' } as Express.Multer.File;
+
+      controller.updateAllBrandBanner({ image_1: [image1] }, {
+        link_1: '/brand/promo',
+        enabled_1: 'true',
+      } as never);
+
+      expect(adminService.updateAllBrandBanner).toHaveBeenCalledWith(
+        expect.objectContaining({
+          image_1: image1,
+          link_1: '/brand/promo',
+          enabled_1: true,
+        }),
+      );
+    });
+  });
+
   // ─── Remaining read/passthrough endpoints ───────────────────────────────
 
   describe('passthrough read endpoints', () => {
@@ -786,6 +805,11 @@ describe('AdminController', () => {
     it('getBannerHome > then it delegates to the service', () => {
       expect(controller.getBannerHome()).toBe(RETURN);
       expect(adminService.getBannerHome).toHaveBeenCalledTimes(1);
+    });
+
+    it('getAllBrandBanner > then it delegates to the separate service', () => {
+      expect(controller.getAllBrandBanner()).toBe(RETURN);
+      expect(adminService.getAllBrandBanner).toHaveBeenCalledTimes(1);
     });
 
     it('getDeepLinkList > then it delegates to the service', () => {

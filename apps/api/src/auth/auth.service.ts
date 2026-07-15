@@ -24,6 +24,19 @@ import * as crypto from 'crypto';
 import { SiweNonce, SiweNonceDocument } from './schemas/siwe-nonce.schema';
 import { UserDocument } from 'src/user/schemas/user.schema';
 import { toIso2Server } from 'src/utils/country';
+
+type FirebaseSignInOptions = {
+  allowPhoneRegistration?: boolean;
+};
+
+function phoneLoginLookupCandidates(phoneE164: string): string[] {
+  const thaiLegacyPhone = /^\+66\d{8,9}$/.test(phoneE164)
+    ? `0${phoneE164.slice(3)}`
+    : null;
+
+  return thaiLegacyPhone ? [phoneE164, thaiLegacyPhone] : [phoneE164];
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -46,7 +59,11 @@ export class AuthService {
     );
   }
 
-  async signInFirebase(token: string, payload: SignInFirebaseDto) {
+  async signInFirebase(
+    token: string,
+    payload: SignInFirebaseDto,
+    options: FirebaseSignInOptions = {},
+  ) {
     try {
       const data = await getAdminAuth().verifyIdToken(token);
       if (!data) {
@@ -56,18 +73,20 @@ export class AuthService {
       let userExist = await this.userService.findOne({
         id_firebase: data.uid,
       });
-      if (!userExist && data.email) {
+      if (!userExist && data.email && data.email_verified === true) {
         userExist = await this.userService.findOne({
           email: data.email,
         });
       }
       if (!userExist && data.phone_number) {
-        userExist = await this.userService.findOne({
-          mobile: data.phone_number,
-        });
+        userExist = await this.findUserByPhone(data.phone_number);
       }
 
       if (userExist) {
+        if (userExist.disabled) {
+          throw new Error('Your account has been disabled');
+        }
+
         const user = await this.userService.update(userExist._id, {
           email: userExist?.email || data.email,
           username: userExist?.username
@@ -99,6 +118,12 @@ export class AuthService {
           auth_flow: 'login' as const,
         };
       }
+
+      const isPhoneSignIn = data.firebase?.sign_in_provider === 'phone';
+      if (isPhoneSignIn && options.allowPhoneRegistration !== true) {
+        throw new Error('Phone identity is not linked to a GoGoCash account');
+      }
+
       const user = await this.userService.createFromFirebase({
         address:
           payload?.address && payload?.address !== 'undefined'
@@ -139,6 +164,20 @@ export class AuthService {
         "Your sign-in couldn't be verified. Please sign in again.",
       );
     }
+  }
+
+  async isPhoneLoginEligible(phoneE164: string): Promise<boolean> {
+    const user = await this.findUserByPhone(phoneE164);
+    return Boolean(user && user.disabled !== true);
+  }
+
+  private async findUserByPhone(phoneE164: string) {
+    for (const mobile of phoneLoginLookupCandidates(phoneE164)) {
+      const user = await this.userService.findOne({ mobile });
+      if (user) return user;
+    }
+
+    return null;
   }
 
   async signInTelegram(payload: TelegramAuthDto) {

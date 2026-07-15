@@ -32,6 +32,7 @@ import { StoredMediaService } from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { requireObjectId, requireOneOf } from 'src/common/mongo-query';
+import { deriveQuestStatus, withDerivedQuestStatus } from './quest-status';
 
 const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
@@ -83,7 +84,6 @@ export class PointService {
 
   private activeQuestFilter(now = new Date()) {
     return {
-      status: 'open',
       $and: [
         {
           $or: [
@@ -908,7 +908,13 @@ export class PointService {
     quest: Partial<Quest> | any,
     tasks: NormalizedQuestTask[],
   ) {
-    if (quest?.status !== 'open') return;
+    const questStatus =
+      quest?.start_date && quest?.end_date
+        ? deriveQuestStatus(quest.start_date, quest.end_date)
+        : quest?.status;
+    if (questStatus !== 'open') {
+      return;
+    }
 
     const previousActiveOfferIds = (quest.tasks ?? [])
       .filter((task: Partial<QuestTask>) => task.enabled !== false)
@@ -1264,10 +1270,9 @@ export class PointService {
     const questPatch: Record<string, unknown> = {
       start_date: createQuestDto.start_date,
       end_date: createQuestDto.end_date,
-      status: requireOneOf(
-        createQuestDto.status,
-        ['open', 'close', 'scheduled'] as const,
-        'status',
+      status: deriveQuestStatus(
+        createQuestDto.start_date,
+        createQuestDto.end_date,
       ),
       facebook_post: createQuestDto.facebook_post,
       facebook_page: createQuestDto.facebook_page,
@@ -1312,10 +1317,11 @@ export class PointService {
   }
 
   async getQuestOpen() {
-    return this.questModel
+    const quest = await this.questModel
       .findOne(this.activeQuestFilter())
       .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
       .lean();
+    return quest ? withDerivedQuestStatus(quest) : quest;
   }
 
   async getQuestAdmin() {
@@ -1326,10 +1332,11 @@ export class PointService {
       //   $lte: new Date(endDate),
       // },
     };
-    return this.questModel
+    const quests = await this.questModel
       .find(filter)
       .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
       .lean();
+    return quests.map((quest) => withDerivedQuestStatus(quest));
   }
 
   async getQuestSocial(userId: string) {
@@ -1348,7 +1355,7 @@ export class PointService {
       })
       .lean();
     return {
-      quest,
+      quest: withDerivedQuestStatus(quest),
       socialRewards,
     };
   }
@@ -1417,7 +1424,7 @@ export class PointService {
         400,
       );
     }
-    return quest;
+    return quest.map((item) => withDerivedQuestStatus(item));
   }
 
   async getQuestEndTRound(startDate: string, endDate: string) {

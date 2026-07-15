@@ -6,7 +6,6 @@ import {
   render,
   screen,
   waitFor,
-  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -242,13 +241,16 @@ const newQuest = {
   updatedAt: "2026-07-01T00:00:00.000Z",
 } satisfies ResponseQuestDate;
 
-function renderQuestTable() {
+function renderQuestTable(view: "list" | "create" | "edit" = "edit") {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <QuestTable />
+      <QuestTable
+        view={view}
+        questId={view === "edit" ? "quest-1" : undefined}
+      />
     </QueryClientProvider>,
   );
 }
@@ -312,6 +314,9 @@ describe("QuestTable management tabs", () => {
       total: 1,
       totalPages: 1,
     });
+    questQueries.saveQuestCampaign.mockResolvedValue(quest);
+    questQueries.saveQuestTasks.mockResolvedValue(quest);
+    questQueries.saveQuestRewards.mockResolvedValue(quest);
   });
 
   afterEach(() => {
@@ -325,10 +330,10 @@ describe("QuestTable management tabs", () => {
 
     const tasksTab = await screen.findByRole("tab", { name: /Quest tasks/i });
     expect(tasksTab).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("button", { name: "Save tasks" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Add brand" })).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "Save rewards" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Save quest changes" }),
+    ).toBeVisible();
 
     await user.click(screen.getByRole("tab", { name: /Leaderboard/i }));
 
@@ -337,12 +342,14 @@ describe("QuestTable management tabs", () => {
     );
     expect(tasksTab).toHaveAttribute("aria-selected", "false");
     expect(
-      screen.queryByRole("button", { name: "Save tasks" }),
+      screen.queryByRole("button", { name: "Add brand" }),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: /Rewards/i }));
 
-    expect(screen.getByRole("button", { name: "Save rewards" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Add rank reward" }),
+    ).toBeVisible();
     expect(
       screen.getByRole("combobox", { name: "Reward distribution schedule" }),
     ).toHaveTextContent("Automatically after campaign ends");
@@ -401,7 +408,7 @@ describe("QuestTable management tabs", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("saves rank rewards with the selected distribution schedule", async () => {
+  it("saves campaign, tasks, and rank rewards with one action", async () => {
     const user = userEvent.setup();
     questQueries.saveQuestRewards.mockResolvedValue({
       ...quest,
@@ -420,7 +427,9 @@ describe("QuestTable management tabs", () => {
         name: "Automatically when campaign ends",
       }),
     );
-    await user.click(screen.getByRole("button", { name: "Save rewards" }));
+    await user.click(
+      screen.getByRole("button", { name: "Save quest changes" }),
+    );
 
     await waitFor(() =>
       expect(questQueries.saveQuestRewards).toHaveBeenCalledWith("quest-1", {
@@ -429,18 +438,24 @@ describe("QuestTable management tabs", () => {
         reward_distribution_delay_days: 0,
       }),
     );
+    expect(questQueries.saveQuestCampaign).toHaveBeenCalledTimes(1);
+    expect(questQueries.saveQuestTasks).toHaveBeenCalledWith(
+      "quest-1",
+      expect.any(Array),
+    );
   });
 
-  it("uses a compact campaign selector above the full-width editor", async () => {
-    renderQuestTable();
+  it("uses a list-only default view with dedicated create and edit routes", async () => {
+    renderQuestTable("list");
 
-    const selector = await screen.findByTestId("quest-campaign-selector");
-    const editor = screen.getByTestId("quest-detail-editor");
-
-    expect(selector.compareDocumentPosition(editor)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
+    expect(
+      await screen.findByRole("link", { name: "Create quest" }),
+    ).toHaveAttribute("href", "/quest/create");
+    expect(await screen.findByRole("link", { name: "Edit" })).toHaveAttribute(
+      "href",
+      "/quest/quest-1/edit",
     );
-    expect(selector).toHaveAttribute("aria-label", "Quest campaigns");
+    expect(screen.queryByTestId("quest-detail-editor")).not.toBeInTheDocument();
   });
 
   it("renders campaign date fields with the shared admin date picker", async () => {
@@ -471,36 +486,39 @@ describe("QuestTable management tabs", () => {
     const user = userEvent.setup();
     // A failure with no backend message must fall back to action-specific copy.
     questQueries.saveQuestCampaign.mockRejectedValue({ status: 500 });
-    renderQuestTable();
+    renderQuestTable("create");
 
-    await user.click(await screen.findByRole("button", { name: "New Quest" }));
     fireEvent.change(screen.getByLabelText("Quest start date and time"), {
       target: { value: "2026-07-01T09:30" },
     });
     fireEvent.change(screen.getByLabelText("Quest end date and time"), {
       target: { value: "2026-07-31T22:15" },
     });
-    await user.click(screen.getByRole("button", { name: "Save campaign" }));
+    await user.click(
+      screen.getByRole("button", { name: "Save and create quest" }),
+    );
 
     expect(
       await screen.findByText(
-        "Couldn't save the quest campaign. Please review the fields and try again.",
+        "Couldn't save the complete quest. The campaign may have been created, so review the settings and retry to finish it.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText("Save failed")).not.toBeInTheDocument();
   });
 
-  it("shows a new quest draft and inserts the saved quest into the selector", async () => {
+  it("creates the campaign, tasks, and rewards from the dedicated create view", async () => {
     const user = userEvent.setup();
     questQueries.saveQuestCampaign.mockResolvedValue(newQuest);
-    renderQuestTable();
+    questQueries.saveQuestTasks.mockResolvedValue(newQuest);
+    questQueries.saveQuestRewards.mockResolvedValue(newQuest);
+    renderQuestTable("create");
 
-    await user.click(await screen.findByRole("button", { name: "New Quest" }));
-
-    expect(screen.getByText("New Quest draft")).toBeInTheDocument();
     expect(
-      screen.getByText("Set dates and save to create this campaign."),
+      await screen.findByRole("heading", { name: "Create quest" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: /Leaderboard/i }),
+    ).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Quest start date and time"), {
       target: { value: "2026-07-01T09:30" },
@@ -508,7 +526,9 @@ describe("QuestTable management tabs", () => {
     fireEvent.change(screen.getByLabelText("Quest end date and time"), {
       target: { value: "2026-07-31T22:15" },
     });
-    await user.click(screen.getByRole("button", { name: "Save campaign" }));
+    await user.click(
+      screen.getByRole("button", { name: "Save and create quest" }),
+    );
 
     await waitFor(() =>
       expect(questQueries.saveQuestCampaign).toHaveBeenCalled(),
@@ -518,24 +538,20 @@ describe("QuestTable management tabs", () => {
     )?.[0] as FormData;
     expect(formData.get("start_date")).toBe("2026-07-01T02:30:00.000Z");
     expect(formData.get("end_date")).toBe("2026-07-31T15:15:00.000Z");
-
-    await waitFor(() =>
-      expect(
-        screen.getAllByText("01/07/2026 - 31/07/2026").length,
-      ).toBeGreaterThan(0),
+    expect(questQueries.saveQuestTasks).toHaveBeenCalledWith("quest-2", []);
+    expect(questQueries.saveQuestRewards).toHaveBeenCalledWith(
+      "quest-2",
+      expect.objectContaining({ rewards: [] }),
     );
-    expect(screen.queryByText("New Quest draft")).not.toBeInTheDocument();
   });
 
   it("renders quest status labels as admin-friendly wording", async () => {
     questQueries.fetchAdminQuests.mockResolvedValue([quest, closedQuest]);
 
-    renderQuestTable();
+    renderQuestTable("list");
 
-    const selector = await screen.findByTestId("quest-campaign-selector");
-    expect(await within(selector).findByText("Active")).toBeVisible();
-    expect(within(selector).getByText("Closed")).toBeInTheDocument();
-    expect(within(selector).queryByText("open")).not.toBeInTheDocument();
-    expect(within(selector).queryByText("close")).not.toBeInTheDocument();
+    expect((await screen.findAllByText("Closed")).length).toBe(2);
+    expect(screen.queryByText("open")).not.toBeInTheDocument();
+    expect(screen.queryByText("close")).not.toBeInTheDocument();
   });
 });

@@ -19,8 +19,16 @@ vi.mock("@mobile/auth/firebasePhoneAuth", () => ({
   sendPhoneOtp: (...args: unknown[]) => sendPhoneOtp(...args),
   confirmPhoneOtp: vi.fn(),
 }));
+const checkPhoneLoginEligibility = vi.fn();
+vi.mock("@mobile/auth/phoneLoginEligibility", () => ({
+  checkPhoneLoginEligibility: (...args: unknown[]) =>
+    checkPhoneLoginEligibility(...args),
+}));
 vi.mock("@mobile/auth/firebaseLogin", () => ({
   exchangeFirebaseIdToken: vi.fn(),
+}));
+vi.mock("@mobile/observability/client", () => ({
+  captureHandledException: vi.fn(),
 }));
 
 import { authSendErrorMessages, toastErrorMessages } from "@mobile/i18n/toastMessages";
@@ -31,6 +39,8 @@ describe("CustomerAuthScreen — live send failure is visible", () => {
     vi.stubEnv("EXPO_PUBLIC_ACCOUNT_DATA_SOURCE", "backend");
     window.localStorage.clear();
     sendPhoneOtp.mockReset();
+    checkPhoneLoginEligibility.mockReset();
+    checkPhoneLoginEligibility.mockResolvedValue(true);
   });
 
   afterEach(() => {

@@ -22,7 +22,7 @@ import {
   MIN_TRACKING_PERIOD_DAYS,
 } from 'src/offer/tracking-period.util';
 import { Request, Response } from 'express';
-import { Types } from 'mongoose';
+import { coerceOptionalPolicyCategoryId } from './policy-category-id';
 import { AdminService } from './admin.service';
 import {
   CreateAdminDto,
@@ -134,19 +134,50 @@ function coerceOptionalText(value: unknown): string | undefined {
   return value;
 }
 
-/**
- * policy_category_id must be a real category ObjectId or a clear. The admin
- * form's "Custom" option sends the literal string "custom" (meaning: no
- * category, custom terms only) — that and any other non-ObjectId value maps to
- * '' so garbage ids never persist and the app never fires doomed
- * /policy/category/<junk> lookups.
- */
-function coerceOptionalPolicyCategoryId(value: unknown): string | undefined {
-  const text = coerceOptionalText(value);
-  if (text === undefined) return undefined;
-  const trimmed = text.trim();
-  if (!trimmed) return '';
-  return Types.ObjectId.isValid(trimmed) ? trimmed : '';
+type BannerUploadFiles = {
+  image_1?: Express.Multer.File[];
+  image_2?: Express.Multer.File[];
+  image_3?: Express.Multer.File[];
+  image_4?: Express.Multer.File[];
+  image_5?: Express.Multer.File[];
+};
+
+function buildBannerUpdateDto(
+  files: BannerUploadFiles,
+  body: UpdateBannerHomeBodyDto,
+): UpdateBannerHomeDto {
+  return {
+    image_1: files?.image_1?.[0] ?? null,
+    image_2: files?.image_2?.[0] ?? null,
+    image_3: files?.image_3?.[0] ?? null,
+    image_4: files?.image_4?.[0] ?? null,
+    image_5: files?.image_5?.[0] ?? null,
+    link_1: body.link_1 ?? null,
+    link_2: body.link_2 ?? null,
+    link_3: body.link_3 ?? null,
+    link_4: body.link_4 ?? null,
+    link_5: body.link_5 ?? null,
+    enabled_1: coerceOptionalBoolean(body.enabled_1),
+    enabled_2: coerceOptionalBoolean(body.enabled_2),
+    enabled_3: coerceOptionalBoolean(body.enabled_3),
+    enabled_4: coerceOptionalBoolean(body.enabled_4),
+    enabled_5: coerceOptionalBoolean(body.enabled_5),
+    start_date_1: body.start_date_1,
+    start_date_2: body.start_date_2,
+    start_date_3: body.start_date_3,
+    start_date_4: body.start_date_4,
+    start_date_5: body.start_date_5,
+    end_date_1: body.end_date_1,
+    end_date_2: body.end_date_2,
+    end_date_3: body.end_date_3,
+    end_date_4: body.end_date_4,
+    end_date_5: body.end_date_5,
+    clear_image_1: coerceOptionalBoolean(body.clear_image_1),
+    clear_image_2: coerceOptionalBoolean(body.clear_image_2),
+    clear_image_3: coerceOptionalBoolean(body.clear_image_3),
+    clear_image_4: coerceOptionalBoolean(body.clear_image_4),
+    clear_image_5: coerceOptionalBoolean(body.clear_image_5),
+  };
 }
 
 type AdminRoleDef = {
@@ -667,48 +698,12 @@ export class AdminController {
   @Post('banner-home')
   updateBannerHome(
     @UploadedFiles()
-    files: {
-      image_1?: Express.Multer.File[];
-      image_2?: Express.Multer.File[];
-      image_3?: Express.Multer.File[];
-      image_4?: Express.Multer.File[];
-      image_5?: Express.Multer.File[];
-    },
+    files: BannerUploadFiles,
     @Body() body: UpdateBannerHomeBodyDto,
   ) {
-    const filesDto: UpdateBannerHomeDto = {
-      image_1: files?.image_1 ? (files?.image_1?.[0] as any) : null,
-      image_2: files?.image_2 ? (files?.image_2?.[0] as any) : null,
-      image_3: files?.image_3 ? (files?.image_3?.[0] as any) : null,
-      image_4: files?.image_4 ? (files?.image_4?.[0] as any) : null,
-      image_5: files?.image_5 ? (files?.image_5?.[0] as any) : null,
-      link_1: body.link_1 ?? null,
-      link_2: body.link_2 ?? null,
-      link_3: body.link_3 ?? null,
-      link_4: body.link_4 ?? null,
-      link_5: body.link_5 ?? null,
-      enabled_1: coerceOptionalBoolean(body.enabled_1),
-      enabled_2: coerceOptionalBoolean(body.enabled_2),
-      enabled_3: coerceOptionalBoolean(body.enabled_3),
-      enabled_4: coerceOptionalBoolean(body.enabled_4),
-      enabled_5: coerceOptionalBoolean(body.enabled_5),
-      start_date_1: body.start_date_1,
-      start_date_2: body.start_date_2,
-      start_date_3: body.start_date_3,
-      start_date_4: body.start_date_4,
-      start_date_5: body.start_date_5,
-      end_date_1: body.end_date_1,
-      end_date_2: body.end_date_2,
-      end_date_3: body.end_date_3,
-      end_date_4: body.end_date_4,
-      end_date_5: body.end_date_5,
-      clear_image_1: coerceOptionalBoolean(body.clear_image_1),
-      clear_image_2: coerceOptionalBoolean(body.clear_image_2),
-      clear_image_3: coerceOptionalBoolean(body.clear_image_3),
-      clear_image_4: coerceOptionalBoolean(body.clear_image_4),
-      clear_image_5: coerceOptionalBoolean(body.clear_image_5),
-    };
-    return this.adminService.updateBannerHome(filesDto);
+    return this.adminService.updateBannerHome(
+      buildBannerUpdateDto(files, body),
+    );
   }
 
   @UseGuards(AuthAdminGuard)
@@ -717,6 +712,38 @@ export class AdminController {
   @Get('banner-home')
   getBannerHome() {
     return this.adminService.getBannerHome();
+  }
+
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'image_1', maxCount: 1 },
+      { name: 'image_2', maxCount: 1 },
+      { name: 'image_3', maxCount: 1 },
+      { name: 'image_4', maxCount: 1 },
+      { name: 'image_5', maxCount: 1 },
+    ]),
+  )
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: UpdateBannerHomeBodyDto })
+  @Roles('support')
+  @Post('banner-all-brand-page')
+  updateAllBrandBanner(
+    @UploadedFiles() files: BannerUploadFiles,
+    @Body() body: UpdateBannerHomeBodyDto,
+  ) {
+    return this.adminService.updateAllBrandBanner(
+      buildBannerUpdateDto(files, body),
+    );
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('banner-all-brand-page')
+  getAllBrandBanner() {
+    return this.adminService.getAllBrandBanner();
   }
 
   @UseGuards(AuthAdminGuard)

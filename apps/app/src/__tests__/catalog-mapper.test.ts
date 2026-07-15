@@ -50,6 +50,42 @@ describe("catalog mapper > mapOffersToCatalogBrands", () => {
     });
   });
 
+  it("#316 > given an enabled admin brand-category override > then catalog uses the override", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          ...sampleResponse.data[0],
+          categories: "Shopping",
+          offer_display_tags: {
+            brand_category_enabled: true,
+            brand_category_label: "Digital Services",
+          },
+        },
+      ],
+    });
+
+    expect(brand.category).toBe("Digital Services");
+  });
+
+  it("#316 > given a disabled category override > then catalog keeps the partner feed category", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          ...sampleResponse.data[0],
+          categories: "Shopping",
+          offer_display_tags: {
+            brand_category_enabled: false,
+            brand_category_label: "Digital Services",
+          },
+        },
+      ],
+    });
+
+    expect(brand.category).toBe("Shopping");
+  });
+
   it("given logo_desktop from admin > then prefers it over legacy logo", () => {
     const [brand] = mapOffersToCatalogBrands({
       ...sampleResponse,

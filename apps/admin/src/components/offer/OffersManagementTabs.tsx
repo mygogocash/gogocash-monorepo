@@ -102,7 +102,7 @@ export default function OffersManagementTabs() {
         aria-selected={missingOrdersActive}
         className={tabButtonClass(missingOrdersActive)}
       >
-        Missing orders
+        Missing conversions
       </Link>
       <Link
         href="/search-config"

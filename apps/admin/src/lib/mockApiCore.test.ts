@@ -142,7 +142,7 @@ describe("banner slot updates", () => {
 });
 
 describe("top-brands config", () => {
-  it("round-trips the saved brands payload with cashback labels", async () => {
+  it("round-trips ordered identities and derives cashback from live offers", async () => {
     const brands = [
       { offerId: "o2", cashback: "12%" },
       { offerId: "o1", cashback: "8%" },
@@ -152,18 +152,26 @@ describe("top-brands config", () => {
       body: { brands },
     });
     expect(put.status).toBe(200);
-    expect(put.body).toMatchObject({ success: true, brands });
+    expect(put.body).toMatchObject({
+      success: true,
+      brands: brands.map(({ offerId }) => ({ offerId, cashback: "" })),
+    });
 
     const get = await call("GET", ["admin", "top-brands"]);
     expect(get.status).toBe(200);
     const body = get.body as {
       brands: typeof brands;
       items: Array<{ _id: string }>;
+      maxBrands: number;
       order: string[];
     };
     expect(body.order).toEqual(["o2", "o1"]);
-    expect(body.brands).toEqual(brands);
+    expect(body.brands).toEqual([
+      { offerId: "o2", cashback: "4%" },
+      { offerId: "o1", cashback: "5%" },
+    ]);
     expect(body.items.map((item) => item._id)).toEqual(["o2", "o1"]);
+    expect(body.maxBrands).toBe(16);
   });
 });
 
