@@ -361,6 +361,26 @@ Workflow job `e2e-local` in `.github/workflows/ci.yml` — Mongo 7 service + rep
 | Stripe billing | Skipped unless `STRIPE_BILLING_ENABLED=true` |
 | GoGoTrack native Android | `gototrack-preflight.mjs` |
 
+### 7.9 Staging policy QA (issues #336/#337)
+
+Controlled, reversible acceptance run against the deployed staging API for the
+Policy Management editor — proves the empty-terms 400 (exact message), the
+`{data:{...}}`-wrapper rejection (the original #337 bug shape), and one flat
+`PUT /policy` persisting terms + banner text, then deletes its own fixture:
+
+```bash
+ADMIN_EMAIL=... ADMIN_PASSWORD=... DRY_RUN=1 ./scripts/staging-policy-qa.sh  # preview target, no writes
+ADMIN_EMAIL=... ADMIN_PASSWORD=...           ./scripts/staging-policy-qa.sh  # real run
+```
+
+Accepts `ADMIN_JWT` instead of email/password, `API_URL` (default
+`https://api-staging.gogocash.co`), and `CATEGORY_ID` to force a target — the
+script refuses categories that already have a policy and never creates
+categories. Evidence lands in `evidence/staging/T-023..025-*.txt` (tokens
+redacted). Banner **image** persistence goes through multipart
+`PATCH /admin/update-category/:id` and is intentionally out of scope here
+(unit-covered; verify manually in the staging admin UI if needed).
+
 ---
 
 ## 8. Test execution checklist
