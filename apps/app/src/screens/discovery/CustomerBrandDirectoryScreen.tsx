@@ -10,7 +10,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "@mobile/theme/icons";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
-import { resolveAllBrandPromo } from "@mobile/account/allBrandBannerResource";
+import { useSpecificPageBanner } from "@mobile/account/specificPageBannerResource";
 import { useDirectoryOfferSearch } from "@mobile/account/useDirectoryOfferSearch";
 import {
   filterDirectoryStores,
@@ -51,7 +51,7 @@ import {
 } from "./directoryVirtualizedGrid";
 import { type BrandDirectoryStore } from "./discoveryTypes";
 import { ShopDirectoryPagination } from "./ShopDirectoryPagination";
-import { ShopDirectoryPromo } from "./ShopDirectoryPromo";
+import { SpecificPageBannerCarousel } from "./SpecificPageBannerCarousel";
 
 export function CustomerBrandDirectoryScreen() {
   const styles = useThemedStyles(createDiscoveryScreenStyles);
@@ -85,15 +85,7 @@ export function CustomerBrandDirectoryScreen() {
     fixtureData: webBrandDirectory.categories,
     resourceId: "categoryList",
   });
-  const allBrandBannerResource = useCustomerAccountResource({
-    fixtureData: webBrandDirectory.promo,
-    resourceId: "allBrandBanner",
-  });
-  const allBrandPromo = resolveAllBrandPromo(
-    allBrandBannerResource.source,
-    allBrandBannerResource.data,
-    webBrandDirectory.promo,
-  );
+  const specificPageBanner = useSpecificPageBanner("brand", webBrandDirectory.promo);
   const directoryCategories = resolveCategoryList(
     categoryResource.source,
     categoryResource.data,
@@ -170,9 +162,9 @@ export function CustomerBrandDirectoryScreen() {
     setCurrentPage(1);
     catalogResource.retry();
     categoryResource.retry();
-    allBrandBannerResource.retry();
+    specificPageBanner.retry();
     requestAnimationFrame(() => setRefreshing(false));
-  }, [allBrandBannerResource, catalogResource, categoryResource]);
+  }, [catalogResource, categoryResource, specificPageBanner]);
   const brandDirectoryRowHeight = getDirectoryStoreCardHeight(gridMetrics.cardWidth);
   const renderBrandDirectoryCard = useCallback(
     (store: BrandDirectoryStore) => (
@@ -203,11 +195,12 @@ export function CustomerBrandDirectoryScreen() {
 
   const brandContent = (
     <>
-      {allBrandPromo ? (
-        <ShopDirectoryPromo
+      {specificPageBanner.promo ? (
+        <SpecificPageBannerCarousel
           contentWidth={homeLayout.contentWidth}
           isDesktop={homeLayout.isDesktop}
-          promo={allBrandPromo}
+          pageTarget={specificPageBanner.target}
+          promo={specificPageBanner.promo}
         />
       ) : null}
 

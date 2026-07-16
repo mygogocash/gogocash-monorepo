@@ -38,6 +38,8 @@ import {
   UpdateAdminDto,
   UpdateBannerHomeBodyDto,
   UpdateBannerHomeDto,
+  UpdateSpecificPageBannerBodyDto,
+  UpdateSpecificPageBannerDto,
   UpdateCategoryBodyDto,
   UpdateFeeRateDto,
   UpdateOfferAdminDto,
@@ -142,6 +144,11 @@ type BannerUploadFiles = {
   image_5?: Express.Multer.File[];
 };
 
+type SpecificPageBannerUploadFiles = Pick<
+  BannerUploadFiles,
+  'image_1' | 'image_2' | 'image_3'
+>;
+
 function buildBannerUpdateDto(
   files: BannerUploadFiles,
   body: UpdateBannerHomeBodyDto,
@@ -177,6 +184,32 @@ function buildBannerUpdateDto(
     clear_image_3: coerceOptionalBoolean(body.clear_image_3),
     clear_image_4: coerceOptionalBoolean(body.clear_image_4),
     clear_image_5: coerceOptionalBoolean(body.clear_image_5),
+  };
+}
+
+function buildSpecificPageBannerUpdateDto(
+  files: SpecificPageBannerUploadFiles,
+  body: UpdateSpecificPageBannerBodyDto,
+): UpdateSpecificPageBannerDto {
+  return {
+    image_1: files?.image_1?.[0] ?? null,
+    image_2: files?.image_2?.[0] ?? null,
+    image_3: files?.image_3?.[0] ?? null,
+    link_1: body.link_1 ?? null,
+    link_2: body.link_2 ?? null,
+    link_3: body.link_3 ?? null,
+    enabled_1: coerceOptionalBoolean(body.enabled_1),
+    enabled_2: coerceOptionalBoolean(body.enabled_2),
+    enabled_3: coerceOptionalBoolean(body.enabled_3),
+    start_date_1: body.start_date_1,
+    start_date_2: body.start_date_2,
+    start_date_3: body.start_date_3,
+    end_date_1: body.end_date_1,
+    end_date_2: body.end_date_2,
+    end_date_3: body.end_date_3,
+    clear_image_1: coerceOptionalBoolean(body.clear_image_1),
+    clear_image_2: coerceOptionalBoolean(body.clear_image_2),
+    clear_image_3: coerceOptionalBoolean(body.clear_image_3),
   };
 }
 
@@ -722,6 +755,38 @@ export class AdminController {
   @Get('banner-home')
   getBannerHome() {
     return this.adminService.getBannerHome();
+  }
+
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'image_1', maxCount: 1 },
+      { name: 'image_2', maxCount: 1 },
+      { name: 'image_3', maxCount: 1 },
+    ]),
+  )
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: UpdateSpecificPageBannerBodyDto })
+  @Roles('support')
+  @Post('banner-specific-page/:target')
+  updateSpecificPageBanner(
+    @Param('target') target: string,
+    @UploadedFiles() files: SpecificPageBannerUploadFiles,
+    @Body() body: UpdateSpecificPageBannerBodyDto,
+  ) {
+    return this.adminService.updateSpecificPageBanner(
+      target,
+      buildSpecificPageBannerUpdateDto(files, body),
+    );
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('banner-specific-page/:target')
+  getSpecificPageBanner(@Param('target') target: string) {
+    return this.adminService.getSpecificPageBanner(target);
   }
 
   @UseInterceptors(

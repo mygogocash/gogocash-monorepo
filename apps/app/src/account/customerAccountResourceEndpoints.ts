@@ -3,6 +3,7 @@ import { isPublicAdminConfiguredResource } from "@mobile/account/customerAccount
 import { resolveApiCountryParam } from "@mobile/i18n/regionCatalogFilter";
 import type { RegionCode } from "@mobile/i18n/regionTypes";
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
+import { resolveSpecificPageBannerTargetForResource } from "@mobile/account/specificPageBannerTargets";
 
 const merchantEndpointTemplate = "/offer/${merchantId}";
 
@@ -89,8 +90,9 @@ export function resolveCustomerAccountResourceEndpoint({
     return "/offer/banner-home";
   }
 
-  if (resourceId === "allBrandBanner") {
-    return "/offer/banner-all-brand-page";
+  const specificPageBannerTarget = resolveSpecificPageBannerTargetForResource(resourceId);
+  if (specificPageBannerTarget) {
+    return `/offer/banner-specific-page/${specificPageBannerTarget}`;
   }
 
   if (resourceId === "topBrand") {

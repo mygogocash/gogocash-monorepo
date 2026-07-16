@@ -12,6 +12,7 @@ import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
+import { SPECIFIC_PAGE_BANNER_MODEL } from 'src/offer/schemas/specific-page-banner.schema';
 import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { StoredMediaService } from 'src/media/stored-media.service';
@@ -56,6 +57,7 @@ describe('AdminService', () => {
   let userMyCashbackModel: any;
   let bannerModel: any;
   let allBrandBannerModel: any;
+  let specificPageBannerModel: any;
   let topBrandConfigModel: any;
   let deeplinkModel: any;
   let storedMediaService: {
@@ -114,6 +116,10 @@ describe('AdminService', () => {
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
     };
+    specificPageBannerModel = {
+      findOne: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+    };
     topBrandConfigModel = { updateOne: jest.fn(), findOne: jest.fn() };
     deeplinkModel = { aggregate: jest.fn() };
     storedMediaService = {
@@ -152,6 +158,10 @@ describe('AdminService', () => {
         {
           provide: getModelToken('AllBrandBanner'),
           useValue: allBrandBannerModel,
+        },
+        {
+          provide: getModelToken(SPECIFIC_PAGE_BANNER_MODEL),
+          useValue: specificPageBannerModel,
         },
         {
           provide: getModelToken(TopBrandConfig.name),
@@ -1242,45 +1252,178 @@ describe('AdminService', () => {
     });
   });
 
-  describe('all brand page banner', () => {
-    it('updateAllBrandBanner > given a slot update > then persists in the separate collection and media folder', async () => {
-      allBrandBannerModel.findOne.mockReturnValue(makeQuery(null));
-      allBrandBannerModel.findOneAndUpdate.mockReturnValue(
-        makeQuery({ _id: 'all-brand-banner-doc' }),
+  describe('specific page banners', () => {
+    it('updateSpecificPageBanner > given a valid target > then reads and upserts only that target with slots 1-3', async () => {
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(null));
+      specificPageBannerModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: 'all-shops-banner-doc' }),
+      );
+      storedMediaService.upload.mockResolvedValueOnce(
+        'https://media.gogocash.co/banner-specific-page/shops.png',
       );
 
-      await service.updateAllBrandBanner({
+      await service.updateSpecificPageBanner('all-shops', {
         image_1: {
-          originalname: 'brands.png',
+          originalname: 'shops.png',
           mimetype: 'image/png',
           buffer: Buffer.from('png'),
         },
-        link_1: '/brand/promo',
+        image_4: {
+          originalname: 'hidden.png',
+          mimetype: 'image/png',
+          buffer: Buffer.from('png'),
+        },
+        link_1: '/shops/promo',
+        link_4: '/must-not-persist',
       } as never);
 
-      expect(storedMediaService.replace).toHaveBeenCalledWith(
-        expect.objectContaining({ originalname: 'brands.png' }),
-        'banner-all-brand',
-        undefined,
+      expect(storedMediaService.upload).toHaveBeenCalledWith(
+        expect.objectContaining({ originalname: 'shops.png' }),
+        'banner-specific-page',
       );
-      expect(allBrandBannerModel.findOneAndUpdate).toHaveBeenCalledWith(
-        {},
+      expect(storedMediaService.replace).not.toHaveBeenCalled();
+      expect(specificPageBannerModel.findOne).toHaveBeenCalledWith({
+        target: 'all-shops',
+      });
+      expect(specificPageBannerModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { target: 'all-shops' },
         expect.objectContaining({
-          $set: expect.objectContaining({ link_1: '/brand/promo' }),
+          $set: expect.objectContaining({
+            target: 'all-shops',
+            link_1: '/shops/promo',
+          }),
         }),
         { upsert: true, new: true },
       );
+      const [, update] = specificPageBannerModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set.image_4).toBeUndefined();
+      expect(update.$set.link_4).toBeUndefined();
       expect(bannerModel.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(allBrandBannerModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
-    it('getAllBrandBanner > then reads only the all-brand collection', async () => {
-      const banner = { image_1: 'all-brand.png' };
-      allBrandBannerModel.findOne.mockReturnValue(makeQuery(banner));
+    it('updateSpecificPageBanner > after a successful Mongo write > deletes the replaced old image', async () => {
+      specificPageBannerModel.findOne.mockReturnValue(
+        makeQuery({ target: 'all-shops', image_1: 'old-shops.png' }),
+      );
+      specificPageBannerModel.findOneAndUpdate.mockReturnValue(makeQuery({}));
+      storedMediaService.upload.mockResolvedValueOnce('new-shops.png');
 
-      await expect(service.getAllBrandBanner()).resolves.toEqual(banner);
+      await service.updateSpecificPageBanner('all-shops', {
+        image_1: {
+          originalname: 'shops.png',
+          mimetype: 'image/png',
+          buffer: Buffer.from('png'),
+        } as Express.Multer.File,
+      });
+
+      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(
+        'old-shops.png',
+      );
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        'new-shops.png',
+      );
+    });
+
+    it('updateSpecificPageBanner > when Mongo persistence fails > rolls back the new upload and preserves the old image', async () => {
+      specificPageBannerModel.findOne.mockReturnValue(
+        makeQuery({ target: 'all-shops', image_1: 'old-shops.png' }),
+      );
+      const failedWrite = makeQuery(null);
+      failedWrite.exec.mockRejectedValue(new Error('mongo unavailable'));
+      specificPageBannerModel.findOneAndUpdate.mockReturnValue(failedWrite);
+      storedMediaService.upload.mockResolvedValueOnce('new-shops.png');
+
+      await expect(
+        service.updateSpecificPageBanner('all-shops', {
+          image_1: {
+            originalname: 'shops.png',
+            mimetype: 'image/png',
+            buffer: Buffer.from('png'),
+          } as Express.Multer.File,
+        }),
+      ).rejects.toThrow('mongo unavailable');
+
+      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(
+        'new-shops.png',
+      );
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        'old-shops.png',
+      );
+    });
+
+    it('updateSpecificPageBanner > given an unknown target > then rejects before querying Mongo', async () => {
+      await expect(
+        service.updateSpecificPageBanner('homepage', {} as never),
+      ).rejects.toThrow('Unknown specific page banner target');
+
+      expect(specificPageBannerModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('getSpecificPageBanner > given all-brands exists in keyed storage > then new storage wins', async () => {
+      const banner = { target: 'all-brands', image_1: 'new.png' };
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(banner));
+
+      await expect(
+        service.getSpecificPageBanner('all-brands'),
+      ).resolves.toEqual(banner);
+
+      expect(specificPageBannerModel.findOne).toHaveBeenCalledWith({
+        target: 'all-brands',
+      });
+      expect(allBrandBannerModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('getSpecificPageBanner > given keyed all-brands is absent > then falls back to the legacy collection', async () => {
+      const legacy = { image_1: 'legacy.png', link_1: '/legacy' };
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(null));
+      allBrandBannerModel.findOne.mockReturnValue(makeQuery(legacy));
+
+      await expect(
+        service.getSpecificPageBanner('all-brands'),
+      ).resolves.toEqual(legacy);
 
       expect(allBrandBannerModel.findOne).toHaveBeenCalledTimes(1);
-      expect(bannerModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('updateAllBrandBanner > legacy alias writes the new keyed collection only', async () => {
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(null));
+      allBrandBannerModel.findOne.mockReturnValue(
+        makeQuery({ image_2: 'legacy.png', link_2: '/legacy' }),
+      );
+      specificPageBannerModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ target: 'all-brands' }),
+      );
+
+      await service.updateAllBrandBanner({ link_1: '/brand/promo' } as never);
+
+      expect(specificPageBannerModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { target: 'all-brands' },
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            image_2: 'legacy.png',
+            link_2: '/legacy',
+          }),
+        }),
+        { upsert: true, new: true },
+      );
+      expect(allBrandBannerModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('updateBannerHome > given clear_image is the string false > then it does not delete the image', async () => {
+      bannerModel.findOne.mockReturnValue(
+        makeQuery({ image_1: 'existing.png', link_1: '/promo' }),
+      );
+      bannerModel.findOneAndUpdate.mockReturnValue(makeQuery({}));
+
+      await service.updateBannerHome({
+        clear_image_1: 'false',
+        image_1: null,
+      } as never);
+
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalled();
+      const [, update] = bannerModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set.image_1).toBe('existing.png');
     });
   });
 

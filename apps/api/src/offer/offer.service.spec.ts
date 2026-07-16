@@ -8,6 +8,7 @@ import { Category } from './schemas/category.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { FavoriteOffer } from './schemas/favorite-offer.schema';
 import { Banner } from './schemas/banner.schema';
+import { SPECIFIC_PAGE_BANNER_MODEL } from './schemas/specific-page-banner.schema';
 import { TopBrandConfig } from './schemas/top-brand-config.schema';
 import { MissionOrder } from './schemas/missing-order.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
@@ -45,6 +46,7 @@ describe('OfferService', () => {
   let favoriteOfferModel: any;
   let bannerModel: any;
   let allBrandBannerModel: any;
+  let specificPageBannerModel: any;
   let topBrandConfigModel: any;
   let missionOrderModel: any;
   let questModel: any;
@@ -84,6 +86,7 @@ describe('OfferService', () => {
     };
     bannerModel = { findOne: jest.fn() };
     allBrandBannerModel = { findOne: jest.fn() };
+    specificPageBannerModel = { findOne: jest.fn() };
     topBrandConfigModel = {
       findOne: jest.fn(),
       updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
@@ -137,6 +140,10 @@ describe('OfferService', () => {
         {
           provide: getModelToken('AllBrandBanner'),
           useValue: allBrandBannerModel,
+        },
+        {
+          provide: getModelToken(SPECIFIC_PAGE_BANNER_MODEL),
+          useValue: specificPageBannerModel,
         },
         {
           provide: getModelToken(TopBrandConfig.name),
@@ -1544,15 +1551,58 @@ describe('OfferService', () => {
     });
   });
 
-  describe('getAllBrandBanner', () => {
-    it('getAllBrandBanner > then reads the separate all-brand banner model', async () => {
-      const banner = { image_1: 'all-brand.png', link_1: '/brand/promo' };
-      allBrandBannerModel.findOne.mockReturnValue(makeQuery(banner));
+  describe('specific page banners', () => {
+    it('getSpecificPageBanner > given a configured target > then reads only that keyed document', async () => {
+      const banner = {
+        target: 'product-discovery',
+        image_1: 'discovery.png',
+      };
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(banner));
+
+      await expect(
+        service.getSpecificPageBanner('product-discovery'),
+      ).resolves.toEqual(banner);
+
+      expect(specificPageBannerModel.findOne).toHaveBeenCalledWith({
+        target: 'product-discovery',
+      });
+      expect(allBrandBannerModel.findOne).not.toHaveBeenCalled();
+      expect(bannerModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('getAllBrandBanner > legacy alias prefers keyed storage', async () => {
+      const banner = { target: 'all-brands', image_1: 'new.png' };
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(banner));
 
       await expect(service.getAllBrandBanner()).resolves.toEqual(banner);
 
-      expect(allBrandBannerModel.findOne).toHaveBeenCalledTimes(1);
+      expect(allBrandBannerModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('getAllBrandBanner > when keyed storage is empty > falls back to legacy storage', async () => {
+      const legacy = { image_1: 'legacy.png' };
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(null));
+      allBrandBannerModel.findOne.mockReturnValue(makeQuery(legacy));
+
+      await expect(service.getAllBrandBanner()).resolves.toEqual(legacy);
+    });
+
+    it('getSpecificPageBanner > given a non-legacy target is empty > then it returns null without cross-target fallback', async () => {
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(null));
+
+      await expect(
+        service.getSpecificPageBanner('all-shops'),
+      ).resolves.toBeNull();
+
+      expect(allBrandBannerModel.findOne).not.toHaveBeenCalled();
       expect(bannerModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('getSpecificPageBanner > given an unknown target > then returns a 400 error', async () => {
+      await expect(service.getSpecificPageBanner('homepage')).rejects.toThrow(
+        'Unknown specific page banner target',
+      );
+      expect(specificPageBannerModel.findOne).not.toHaveBeenCalled();
     });
   });
 

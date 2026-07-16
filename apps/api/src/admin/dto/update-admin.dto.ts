@@ -1,4 +1,9 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  PartialType,
+  PickType,
+} from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { CreateAdminDto } from './create-admin.dto';
 import {
@@ -469,6 +474,34 @@ export type UpdateBannerHomeDto = UpdateBannerHomeBodyDto & {
   image_3?: string | Express.Multer.File | null;
   image_4?: string | Express.Multer.File | null;
   image_5?: string | Express.Multer.File | null;
+};
+
+/** Specific-page carousels intentionally expose only their three visible slots. */
+export class UpdateSpecificPageBannerBodyDto extends PickType(
+  UpdateBannerHomeBodyDto,
+  [
+    'link_1',
+    'link_2',
+    'link_3',
+    'enabled_1',
+    'enabled_2',
+    'enabled_3',
+    'start_date_1',
+    'start_date_2',
+    'start_date_3',
+    'end_date_1',
+    'end_date_2',
+    'end_date_3',
+    'clear_image_1',
+    'clear_image_2',
+    'clear_image_3',
+  ] as const,
+) {}
+
+export type UpdateSpecificPageBannerDto = UpdateSpecificPageBannerBodyDto & {
+  image_1?: string | Express.Multer.File | null;
+  image_2?: string | Express.Multer.File | null;
+  image_3?: string | Express.Multer.File | null;
 };
 
 /**

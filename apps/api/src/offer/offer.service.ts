@@ -17,6 +17,8 @@ import { promises as fs } from 'fs';
 import { Category } from './schemas/category.schema';
 import { FavoriteOffer } from './schemas/favorite-offer.schema';
 import { ALL_BRAND_BANNER_MODEL, Banner } from './schemas/banner.schema';
+import { SPECIFIC_PAGE_BANNER_MODEL } from './schemas/specific-page-banner.schema';
+import { requireSpecificPageBannerTarget } from './specific-page-banner.contract';
 import { TopBrandConfig } from './schemas/top-brand-config.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { UpdateCouponDto } from './dto/update-offer.dto';
@@ -361,6 +363,8 @@ export class OfferService implements OnApplicationBootstrap {
     private bannerModel: Model<Banner>,
     @InjectModel(ALL_BRAND_BANNER_MODEL)
     private allBrandBannerModel: Model<Banner>,
+    @InjectModel(SPECIFIC_PAGE_BANNER_MODEL)
+    private specificPageBannerModel: Model<Banner>,
     @InjectModel(TopBrandConfig.name)
     private topBrandConfigModel: Model<TopBrandConfig>,
     @InjectModel(MissionOrder.name)
@@ -843,6 +847,17 @@ export class OfferService implements OnApplicationBootstrap {
   }
 
   async getAllBrandBanner() {
+    return this.getSpecificPageBanner('all-brands');
+  }
+
+  async getSpecificPageBanner(targetValue: string) {
+    const target = requireSpecificPageBannerTarget(targetValue);
+    const banner = await this.specificPageBannerModel
+      .findOne({ target })
+      .exec();
+    if (banner || target !== 'all-brands') {
+      return banner;
+    }
     return this.allBrandBannerModel.findOne().exec();
   }
 

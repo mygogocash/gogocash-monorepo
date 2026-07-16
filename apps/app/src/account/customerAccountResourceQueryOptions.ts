@@ -6,12 +6,14 @@ import {
 
 const PUBLIC_CATALOG_RESOURCE_IDS = new Set<CustomerAccountResourceId>([
   "allBrandBanner",
+  "allShopBanner",
   "topBrand",
   "homeBanner",
   "merchantCoupons",
   "brandCatalog",
   "categoryList",
   "catalog",
+  "productDiscoveryBanner",
 ]);
 
 /** React Query options for account-resource hooks (public catalog refreshes sooner). */

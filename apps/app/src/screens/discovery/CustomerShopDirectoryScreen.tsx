@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "@mobile/theme/icons";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { useSpecificPageBanner } from "@mobile/account/specificPageBannerResource";
 import { useDirectoryOfferSearch } from "@mobile/account/useDirectoryOfferSearch";
 import {
   filterShopDirectoryStores,
@@ -50,7 +51,7 @@ import {
 import { type ShopDirectoryStore } from "./discoveryTypes";
 import { ShopDirectoryCategoryAside } from "./ShopDirectoryCategoryAside";
 import { ShopDirectoryPagination } from "./ShopDirectoryPagination";
-import { ShopDirectoryPromo } from "./ShopDirectoryPromo";
+import { SpecificPageBannerCarousel } from "./SpecificPageBannerCarousel";
 import { ShopDirectoryStoreCard } from "./ShopDirectoryStoreCard";
 
 export function CustomerShopDirectoryScreen() {
@@ -86,6 +87,7 @@ export function CustomerShopDirectoryScreen() {
     fixtureData: webShopDirectory.categories,
     resourceId: "categoryList",
   });
+  const specificPageBanner = useSpecificPageBanner("shops", webShopDirectory.promo);
   const directoryCategories = resolveCategoryList(
     categoryResource.source,
     categoryResource.data,
@@ -169,8 +171,9 @@ export function CustomerShopDirectoryScreen() {
     setCurrentPage(1);
     catalogResource.retry();
     categoryResource.retry();
+    specificPageBanner.retry();
     requestAnimationFrame(() => setRefreshing(false));
-  }, [catalogResource, categoryResource]);
+  }, [catalogResource, categoryResource, specificPageBanner]);
   const shopDirectoryRowHeight = getDirectoryStoreCardHeight(gridMetrics.cardWidth);
   const renderShopDirectoryCard = useCallback(
     (store: ShopDirectoryStore) => (
@@ -201,10 +204,14 @@ export function CustomerShopDirectoryScreen() {
 
   const shopContent = (
     <>
-      <ShopDirectoryPromo
-        contentWidth={homeLayout.contentWidth}
-        isDesktop={homeLayout.isDesktop}
-      />
+      {specificPageBanner.promo ? (
+        <SpecificPageBannerCarousel
+          contentWidth={homeLayout.contentWidth}
+          isDesktop={homeLayout.isDesktop}
+          pageTarget={specificPageBanner.target}
+          promo={specificPageBanner.promo}
+        />
+      ) : null}
 
       <View style={styles.shopDirectoryHeader}>
         <View style={styles.shopDirectoryTitleRow}>
