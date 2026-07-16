@@ -257,6 +257,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
             emptySubtitle={shop.deals.emptySubtitle}
             emptyTitle={shop.deals.emptyTitle}
             onRetry={couponResource.retry}
+            onUseCoupon={() => handleShopNow()}
             status={couponResource.status}
             title={shop.deals.title}
           />

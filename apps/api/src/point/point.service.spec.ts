@@ -1,4 +1,8 @@
-import { HttpException, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
@@ -53,7 +57,11 @@ describe('PointService', () => {
   let socialRewardModel: Record<string, jest.Mock>;
   let deeplinkModel: Record<string, jest.Mock>;
   let analytics: { capture: jest.Mock };
-  let storedMediaService: { replace: jest.Mock; upload: jest.Mock };
+  let storedMediaService: {
+    deleteStored: jest.Mock;
+    replace: jest.Mock;
+    upload: jest.Mock;
+  };
 
   // Captures documents constructed via `new this.pointModel({...})` so we can
   // assert what gets persisted by addPointsToUser.
@@ -99,6 +107,7 @@ describe('PointService', () => {
     deeplinkModel = { aggregate: jest.fn().mockResolvedValue([]) };
     analytics = { capture: jest.fn().mockResolvedValue(undefined) };
     storedMediaService = {
+      deleteStored: jest.fn().mockResolvedValue(undefined),
       replace: jest
         .fn()
         .mockResolvedValue(
@@ -1025,6 +1034,10 @@ describe('PointService', () => {
           facebook_post: '',
           facebook_page: '',
           line: '',
+          banner_en: 'stored:banner-en',
+          banner_th: 'stored:banner-th',
+          sub_banner_en: 'stored:sub-banner-en',
+          sub_banner_th: 'stored:sub-banner-th',
         } as never,
         {},
       );
@@ -1046,6 +1059,216 @@ describe('PointService', () => {
         setDefaultsOnInsert: true,
       });
       expect(result).toBe(saved);
+    });
+
+    it('createQuest > given four uploaded banners > then stores their string refs on the quest', async () => {
+      questModel.findById.mockResolvedValue(null);
+      questModel.findByIdAndUpdate.mockResolvedValue({
+        _id: 'quest-with-media',
+      });
+      storedMediaService.upload
+        .mockResolvedValueOnce('stored:banner-en')
+        .mockResolvedValueOnce('stored:banner-th')
+        .mockResolvedValueOnce('stored:sub-banner-en')
+        .mockResolvedValueOnce('stored:sub-banner-th');
+      const file = (originalname: string) =>
+        ({ originalname }) as Express.Multer.File;
+
+      await service.createQuest(
+        {
+          start_date: new Date('2099-06-27'),
+          end_date: new Date('2099-06-30'),
+          facebook_post: '',
+          facebook_page: '',
+          line: '',
+        } as never,
+        {
+          banner_en: [file('banner-en.png')],
+          banner_th: [file('banner-th.png')],
+          sub_banner_en: [file('sub-banner-en.png')],
+          sub_banner_th: [file('sub-banner-th.png')],
+        },
+      );
+
+      expect(storedMediaService.upload).toHaveBeenCalledTimes(4);
+      expect(storedMediaService.replace).not.toHaveBeenCalled();
+      expect(questModel.findByIdAndUpdate.mock.calls[0][1]).toEqual({
+        $set: expect.objectContaining({
+          banner_en: 'stored:banner-en',
+          banner_th: 'stored:banner-th',
+          sub_banner_en: 'stored:sub-banner-en',
+          sub_banner_th: 'stored:sub-banner-th',
+        }),
+      });
+    });
+
+    it('createQuest > given a banner upload failure > then identifies the failed field', async () => {
+      questModel.findById.mockResolvedValue(null);
+      storedMediaService.upload.mockRejectedValueOnce(
+        new Error('object storage unavailable'),
+      );
+      const banner = { originalname: 'banner-en.png' } as Express.Multer.File;
+
+      await expect(
+        service.createQuest(
+          {
+            start_date: new Date('2099-06-27'),
+            end_date: new Date('2099-06-30'),
+            facebook_post: '',
+            facebook_page: '',
+            line: '',
+          } as never,
+          { banner_en: [banner] },
+        ),
+      ).rejects.toMatchObject({
+        message:
+          'Could not upload Banner EN. Please choose the image again and retry.',
+        status: HttpStatus.BAD_GATEWAY,
+      });
+      expect(questModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('createQuest > given a new quest without all four banners > then rejects before persistence', async () => {
+      questModel.findById.mockResolvedValue(null);
+
+      await expect(
+        service.createQuest(
+          {
+            start_date: new Date('2099-06-27'),
+            end_date: new Date('2099-06-30'),
+            facebook_post: '',
+            facebook_page: '',
+            line: '',
+          } as never,
+          {},
+        ),
+      ).rejects.toMatchObject({
+        message:
+          'All four quest banners are required when creating a quest: Banner EN, Banner TH, Sub banner EN, Sub banner TH.',
+        status: HttpStatus.BAD_REQUEST,
+      });
+      expect(questModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('createQuest > given a later banner upload failure > then removes new uploads and preserves old refs', async () => {
+      questModel.findById.mockResolvedValue({
+        banner_en: 'stored:old-banner-en',
+        banner_th: 'stored:old-banner-th',
+        sub_banner_en: 'stored:old-sub-banner-en',
+        sub_banner_th: 'stored:old-sub-banner-th',
+      });
+      storedMediaService.upload
+        .mockResolvedValueOnce('stored:new-banner-en')
+        .mockRejectedValueOnce(new Error('second upload failed'));
+      const file = (originalname: string) =>
+        ({ originalname }) as Express.Multer.File;
+
+      await expect(
+        service.createQuest(
+          {
+            _id: new Types.ObjectId().toHexString(),
+            start_date: new Date('2099-06-27'),
+            end_date: new Date('2099-06-30'),
+            facebook_post: '',
+            facebook_page: '',
+            line: '',
+          } as never,
+          {
+            banner_en: [file('banner-en.png')],
+            banner_th: [file('banner-th.png')],
+          },
+        ),
+      ).rejects.toMatchObject({
+        message:
+          'Could not upload Banner TH. Please choose the image again and retry.',
+        status: HttpStatus.BAD_GATEWAY,
+      });
+
+      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(
+        'stored:new-banner-en',
+      );
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        'stored:old-banner-en',
+      );
+      expect(questModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('createQuest > given a successful replacement > then deletes old media only after the quest points to the new ref', async () => {
+      questModel.findById.mockResolvedValue({
+        banner_en: 'stored:old-banner-en',
+        banner_th: 'stored:old-banner-th',
+        sub_banner_en: 'stored:old-sub-banner-en',
+        sub_banner_th: 'stored:old-sub-banner-th',
+      });
+      questModel.findByIdAndUpdate.mockResolvedValue({ _id: 'quest-updated' });
+      storedMediaService.upload.mockResolvedValueOnce('stored:new-banner-en');
+
+      await service.createQuest(
+        {
+          _id: new Types.ObjectId().toHexString(),
+          start_date: new Date('2099-06-27'),
+          end_date: new Date('2099-06-30'),
+          facebook_post: '',
+          facebook_page: '',
+          line: '',
+        } as never,
+        {
+          banner_en: [{ originalname: 'banner-en.png' } as Express.Multer.File],
+        },
+      );
+
+      expect(questModel.findByIdAndUpdate.mock.calls[0][1]).toEqual({
+        $set: expect.objectContaining({
+          banner_en: 'stored:new-banner-en',
+          banner_th: 'stored:old-banner-th',
+        }),
+      });
+      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(
+        'stored:old-banner-en',
+      );
+      expect(
+        questModel.findByIdAndUpdate.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        storedMediaService.deleteStored.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('createQuest > given database persistence failure > then removes new uploads without deleting old media', async () => {
+      questModel.findById.mockResolvedValue({
+        banner_en: 'stored:old-banner-en',
+        banner_th: 'stored:old-banner-th',
+        sub_banner_en: 'stored:old-sub-banner-en',
+        sub_banner_th: 'stored:old-sub-banner-th',
+      });
+      questModel.findByIdAndUpdate.mockRejectedValue(
+        new Error('database unavailable'),
+      );
+      storedMediaService.upload.mockResolvedValueOnce('stored:new-banner-en');
+
+      await expect(
+        service.createQuest(
+          {
+            _id: new Types.ObjectId().toHexString(),
+            start_date: new Date('2099-06-27'),
+            end_date: new Date('2099-06-30'),
+            facebook_post: '',
+            facebook_page: '',
+            line: '',
+          } as never,
+          {
+            banner_en: [
+              { originalname: 'banner-en.png' } as Express.Multer.File,
+            ],
+          },
+        ),
+      ).rejects.toThrow('database unavailable');
+
+      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(
+        'stored:new-banner-en',
+      );
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        'stored:old-banner-en',
+      );
     });
   });
 });

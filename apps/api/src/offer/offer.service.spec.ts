@@ -406,9 +406,22 @@ describe('OfferService', () => {
           code: '',
           offer_id: { _id: offerId, offer_name: 'GoDaddy - CPS' },
           start_date: '2026-07-10',
+          start_time: '09:30',
           end_date: '2026-07-22',
+          end_time: '22:15',
           discount: 10,
+          discount_type: 'cash',
+          discount_currency: 'THB',
+          code_enabled: false,
+          eligibility: 'members',
           min_spend: '100',
+          min_spend_currency: 'THB',
+          max_cap: 500,
+          max_cap_enabled: true,
+          max_cap_currency: 'THB',
+          one_time_use_enabled: false,
+          usage_per_user: 3,
+          terms_and_conditions: 'Valid for members only.',
           quantity: 0,
           quantity_used: null,
           disabled: false,
@@ -455,6 +468,16 @@ describe('OfferService', () => {
           quantity_used: 4,
           disabled: false,
         },
+        {
+          _id: 'explicitly-empty-limited',
+          name: 'No codes left',
+          start_date: '2026-07-01',
+          end_date: '2026-07-31',
+          quantity: 0,
+          quantity_used: 0,
+          unlimited_amount_enabled: false,
+          disabled: false,
+        },
       ]);
       couponModel.find.mockReturnValue(query);
 
@@ -480,10 +503,91 @@ describe('OfferService', () => {
           discount: 10,
           min_spend: '100',
           name: 'Love U',
+          code_enabled: false,
+          discount_type: 'cash',
+          discount_currency: 'THB',
+          eligibility: 'members',
+          min_spend_currency: 'THB',
+          start_time: '09:30',
+          end_time: '22:15',
+          max_cap: 500,
+          one_time_use_enabled: false,
+          terms_and_conditions: 'Valid for members only.',
         }),
       );
       expect(result[0]).not.toHaveProperty('disabled');
       expect(result[0]).not.toHaveProperty('quantity_used');
+      expect(result[0]).toHaveProperty('remaining_quantity', null);
+      expect(result[1]).toHaveProperty('remaining_quantity', 1);
+    });
+
+    it('getCouponId > enforces configured start and end times in Bangkok time', async () => {
+      const offerId = new Types.ObjectId().toHexString();
+      couponModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: 'timed-coupon',
+            name: 'Timed coupon',
+            start_date: '2026-07-15',
+            start_time: '22:00',
+            end_date: '2026-07-16',
+            end_time: '09:30',
+            quantity: 0,
+            disabled: false,
+          },
+        ]),
+      );
+
+      await expect(
+        service.getCouponId(
+          offerId,
+          new Date('2026-07-15T14:59:59.000Z'), // 21:59:59 Bangkok
+        ),
+      ).resolves.toEqual([]);
+      await expect(
+        service.getCouponId(
+          offerId,
+          new Date('2026-07-15T15:00:00.000Z'), // 22:00 Bangkok
+        ),
+      ).resolves.toHaveLength(1);
+      await expect(
+        service.getCouponId(
+          offerId,
+          new Date('2026-07-16T02:30:00.000Z'), // 09:30 Bangkok
+        ),
+      ).resolves.toHaveLength(1);
+      await expect(
+        service.getCouponId(
+          offerId,
+          new Date('2026-07-16T02:30:01.000Z'), // 09:30:01 Bangkok
+        ),
+      ).resolves.toEqual([]);
+    });
+
+    it('getCouponId > given a hidden legacy code > then it does not expose that code publicly', async () => {
+      const offerId = new Types.ObjectId().toHexString();
+      couponModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: 'hidden-code',
+            name: 'Link-only deal',
+            code: 'INTERNAL20',
+            code_enabled: false,
+            offer_id: { _id: offerId, offer_name: 'Merchant' },
+            start_date: '2026-07-01',
+            end_date: '2026-07-31',
+            quantity: 0,
+            disabled: false,
+          },
+        ]),
+      );
+
+      const result = await service.getCouponId(
+        offerId,
+        new Date('2026-07-15T12:00:00.000Z'),
+      );
+
+      expect(result[0]).toMatchObject({ code: '', code_enabled: false });
     });
   });
 
@@ -1125,6 +1229,41 @@ describe('OfferService', () => {
       expect(created.link).toBe('https://example.com/promo');
       expect(created.eligibility).toBe('all users');
       expect(created.min_spend).toBe('500');
+    });
+
+    it('updateCoupon > given customer display settings > then they are persisted', async () => {
+      await service.updateCoupon({
+        ...baseBody(),
+        code_enabled: false,
+        one_time_use_enabled: false,
+        usage_per_user: 3,
+        unlimited_amount_enabled: false,
+        max_cap: 500,
+        max_cap_enabled: true,
+        max_cap_currency: 'THB',
+        min_spend_currency: 'THB',
+        discount_type: 'cash',
+        discount_currency: 'THB',
+        start_time: '09:30',
+        end_time: '22:15',
+        terms_and_conditions: 'Valid for members only.',
+      });
+
+      expect(couponModel.create.mock.calls[0][0]).toMatchObject({
+        code_enabled: false,
+        one_time_use_enabled: false,
+        usage_per_user: 3,
+        unlimited_amount_enabled: false,
+        max_cap: 500,
+        max_cap_enabled: true,
+        max_cap_currency: 'THB',
+        min_spend_currency: 'THB',
+        discount_type: 'cash',
+        discount_currency: 'THB',
+        start_time: '09:30',
+        end_time: '22:15',
+        terms_and_conditions: 'Valid for members only.',
+      });
     });
   });
 

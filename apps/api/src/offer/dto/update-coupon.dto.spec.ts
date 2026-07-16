@@ -39,4 +39,35 @@ describe('UpdateCouponDto validation', () => {
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
   });
+
+  it('given the full customer display contract > then validation passes', async () => {
+    const dto = plainToInstance(UpdateCouponDto, {
+      name: 'Member deal',
+      offer_id: offerId,
+      start_date: '2026-07-01',
+      end_date: '2026-07-31',
+      code_enabled: false,
+      one_time_use_enabled: false,
+      usage_per_user: 3,
+      unlimited_amount_enabled: false,
+      max_cap: 500,
+      max_cap_enabled: true,
+      max_cap_currency: 'THB',
+      min_spend_currency: 'THB',
+      discount_type: 'cash',
+      discount_currency: 'THB',
+      start_time: '09:30',
+      end_time: '22:15',
+      terms_and_conditions: 'Valid for members only.',
+    });
+
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+    expect(dto).toMatchObject({
+      discount_type: 'cash',
+      discount_currency: 'THB',
+      start_time: '09:30',
+      end_time: '22:15',
+    });
+  });
 });

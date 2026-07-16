@@ -6,21 +6,22 @@ import type { Metadata } from "next";
 import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
 
 export const metadata: Metadata = {
-  title: "All Brand Page banner | GoGoCash Admin",
-  description: "Manage carousel banners for the in-app all-brands listing screen.",
+  title: "Specific Page Banner | GoGoCash Admin",
+  description:
+    "Manage page-targeted carousel banners for customer sub-pages.",
 };
 
 const items: BreadcrumbItem[] = [
   { label: "Home", href: "/" },
   { label: "Home Page Banner", href: "/banner" },
-  { label: "All Brand Page banner" },
+  { label: "Specific Page Banner" },
 ];
 
 export default async function BannerAllBrandPage(props: DefaultAppPageProps) {
   await awaitPageDynamicProps(props);
   return (
     <div>
-      <PageBreadcrumb pageTitle="All Brand Page banner" items={items} />
+      <PageBreadcrumb pageTitle="Specific Page Banner" items={items} />
       <div className="space-y-6">
         <BannerSubNav />
         <BannerTable variant="allBrand" />
