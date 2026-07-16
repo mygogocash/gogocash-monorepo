@@ -17,6 +17,15 @@ describe("Railway Dockerfiles install build-time deps", () => {
     expect(dockerfile).toContain("build:standalone");
   });
 
+  it("admin Dockerfile inlines both public app URLs during the Next.js build", () => {
+    const dockerfile = fs.readFileSync(path.join(repoRoot, "apps/admin/Dockerfile"), "utf8");
+
+    expect(dockerfile).toContain("ARG NEXT_PUBLIC_API_URL");
+    expect(dockerfile).toContain("ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL");
+    expect(dockerfile).toContain("ARG NEXT_PUBLIC_APP_URL");
+    expect(dockerfile).toContain("ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL");
+  });
+
   it("api + mobile Railway Dockerfiles > npm ci forces --include=dev", () => {
     const api = fs.readFileSync(path.join(repoRoot, "apps/api/Dockerfile"), "utf8");
     const mobile = fs.readFileSync(
