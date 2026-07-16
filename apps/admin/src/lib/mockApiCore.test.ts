@@ -52,6 +52,71 @@ describe("policy category create (mock parity with POST /admin/create-category)"
     expect(res.status).toBe(400);
     expect((res.body as { message: string }).message).toBe("name is required");
   });
+
+  it("persists a default category banner from a FormData draft", async () => {
+    const create = await call("POST", ["admin", "create-category"], {
+      body: { data: { name: "Policy banner category" } },
+    });
+    const categoryId = (create.body as { _id: string })._id;
+    const formData = new FormData();
+    formData.append(
+      "banner",
+      new File(["wide-banner"], "wide.png", { type: "image/png" }),
+    );
+
+    const update = await call(
+      "PATCH",
+      ["admin", "update-category", categoryId],
+      { body: formData },
+    );
+    expect(update.status).toBe(200);
+
+    const categories = (await call("GET", ["offer", "get-category", "list"]))
+      .body as Array<{ _id: string; banner?: string }>;
+    expect(
+      categories.find((category) => category._id === categoryId)?.banner,
+    ).toMatch(new RegExp(`^category-banner/${categoryId}/`));
+  });
+});
+
+describe("policy unified save (mock parity with PUT /policy)", () => {
+  it("requires terms on first save, accepts a flat DTO, and explicitly clears existing terms", async () => {
+    const categoryId = "policy-unified-save-category";
+    const bannerOnly = await call("PUT", ["policy"], {
+      body: {
+        category_id: categoryId,
+        banner: { primary_locale: "en", translations: { en: "Banner" } },
+      },
+    });
+    expect(bannerOnly.status).toBe(400);
+    expect((bannerOnly.body as { message: string }).message).toBe(
+      "Terms & conditions are required for a new policy.",
+    );
+
+    const create = await call("PUT", ["policy"], {
+      body: {
+        category_id: categoryId,
+        terms: { primary_locale: "en", translations: { en: "Terms" } },
+        banner: { primary_locale: "en", translations: { en: "Banner" } },
+      },
+    });
+    expect(create.status).toBe(200);
+
+    const clear = await call("PUT", ["policy"], {
+      body: { category_id: categoryId, clear_terms: true },
+    });
+    expect(clear.status).toBe(200);
+
+    const list = (await call("GET", ["policy", "category-list"]))
+      .body as Array<{
+      category_id: string;
+      terms?: unknown;
+      banner?: unknown;
+    }>;
+    const saved = list.find((row) => row.category_id === categoryId);
+    expect(saved).not.toHaveProperty("terms");
+    expect(saved).toHaveProperty("banner");
+  });
 });
 
 describe("banner slot updates", () => {
@@ -71,10 +136,8 @@ describe("banner slot updates", () => {
     });
     expect(update.status).toBe(200);
 
-    const updated = (await call("GET", ["admin", "banner-home"])).body as Record<
-      string,
-      unknown
-    >;
+    const updated = (await call("GET", ["admin", "banner-home"]))
+      .body as Record<string, unknown>;
     expect(updated.link_1).toBe("https://slot-1-updated.example");
     expect(updated.image_1).toBe("slot-1-updated");
     expect(updated.enabled_1).toBe(false);
@@ -87,8 +150,7 @@ describe("banner slot updates", () => {
     await call("POST", ["admin", "banner-home"], {
       body: {
         link_1: String(before.link_1 || ""),
-        image_1:
-          before.image_1 == null ? "" : String(before.image_1),
+        image_1: before.image_1 == null ? "" : String(before.image_1),
         enabled_1: before.enabled_1,
         start_date_1: String(before.start_date_1 || ""),
         end_date_1: String(before.end_date_1 || ""),
@@ -107,10 +169,8 @@ describe("banner slot updates", () => {
       },
     });
 
-    const updated = (await call("GET", ["admin", "banner-home"])).body as Record<
-      string,
-      unknown
-    >;
+    const updated = (await call("GET", ["admin", "banner-home"]))
+      .body as Record<string, unknown>;
     expect(updated.image_2).toBeNull();
     expect(updated.link_2).toBe("");
     expect(updated.enabled_2).toBe(false);
@@ -132,10 +192,8 @@ describe("banner slot updates", () => {
     });
     expect(update.status).toBe(200);
 
-    const updated = (await call("GET", ["admin", "banner-home"])).body as Record<
-      string,
-      unknown
-    >;
+    const updated = (await call("GET", ["admin", "banner-home"]))
+      .body as Record<string, unknown>;
     expect(updated.link_3).toBe("https://slot-3-file.example");
     expect(String(updated.image_3)).toMatch(/^mock-drive-image_3-/);
   });

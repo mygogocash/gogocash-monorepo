@@ -25,6 +25,7 @@ export const COUPON_FORM_DEFAULTS: CouponRequestForm = {
   discount_currency: "THB",
   start_time: "",
   end_time: "",
+  terms_and_conditions: "",
 };
 
 export function couponDataToForm(list: CouponData): CouponRequestForm {
@@ -32,7 +33,7 @@ export function couponDataToForm(list: CouponData): CouponRequestForm {
     name: list.name,
     description: list.description,
     code: list.code,
-    code_enabled: Boolean(list.code?.trim()),
+    code_enabled: list.code_enabled ?? Boolean(list.code?.trim()),
     one_time_use_enabled:
       list.one_time_use_enabled ??
       (list.usage_per_user == null || Number(list.usage_per_user) <= 1),
@@ -55,13 +56,15 @@ export function couponDataToForm(list: CouponData): CouponRequestForm {
     min_spend: list.min_spend,
     min_spend_enabled: Boolean(list.min_spend?.trim()),
     min_spend_currency: list.min_spend_currency ?? "THB",
-    max_cap: list.max_cap ?? "",
-    max_cap_enabled: Boolean(list.max_cap?.trim()),
+    max_cap: list.max_cap != null ? String(list.max_cap) : "",
+    max_cap_enabled:
+      list.max_cap_enabled ?? Boolean(String(list.max_cap ?? "").trim()),
     max_cap_currency: list.max_cap_currency ?? "THB",
     discount: list.discount,
     discount_type: list.discount_type ?? "percent",
     discount_currency: list.discount_currency ?? "THB",
     id: list._id,
     link: list.link,
+    terms_and_conditions: list.terms_and_conditions ?? "",
   };
 }

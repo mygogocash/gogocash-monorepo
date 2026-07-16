@@ -57,3 +57,29 @@ describe("PolicyTable — unsaved category draft (#318, source signals)", () => 
     expect(saveHandler).toContain("creatingRef.current");
   });
 });
+
+describe("PolicyTable — unified new-policy editor (#335–#337, source signals)", () => {
+  it("opens empty terms and banner text in edit mode and marks new terms required", () => {
+    expect(tableSource).toContain("setEditingTerms(!hasTerms)");
+    expect(tableSource).toContain("setEditingBanner(!hasBannerText)");
+    expect(tableSource).toContain("NEW_POLICY_TERMS_REQUIRED_MESSAGE");
+    expect(tableSource).toMatch(/aria-hidden="true">\s*\*\s*<\/span>/);
+  });
+
+  it("uses one editor-level Save and sends the policy DTO flat", () => {
+    expect(tableSource).toContain('client.put("/policy", savePlan.payload)');
+    expect(tableSource).not.toContain('void handleSave("terms"');
+    expect(tableSource).not.toContain('void handleSave("banner"');
+    expect(tableSource.match(/Save changes/g)).toHaveLength(1);
+  });
+
+  it("uploads the selected default banner from the same save action", () => {
+    expect(tableSource).toContain(
+      'bannerForm.append("banner", defaultUpload.file)',
+    );
+    expect(tableSource).toMatch(
+      /client\s*\.patch\(\s*`\/admin\/update-category\/\$\{selectedCategory\._id\}`,\s*bannerForm/,
+    );
+    expect(tableSource).not.toContain("saved automatically");
+  });
+});

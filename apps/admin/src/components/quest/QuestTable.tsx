@@ -92,6 +92,9 @@ type CampaignDraft = {
   subBannerTh: File | null;
 };
 
+const QUEST_BANNERS_REQUIRED_MESSAGE =
+  "Upload Banner EN, Banner TH, Sub banner EN, and Sub banner TH before creating the quest.";
+
 const OFFERS_QUERY: OffersQuery = {
   search: "",
   limit: 300,
@@ -537,6 +540,16 @@ export default function QuestTable({
   const rewardValidationError =
     validateQuestRewards(rewardDrafts) ??
     validateQuestRewardDistribution(rewardDistributionDraft);
+  const bannerValidationError =
+    creatingNew &&
+    ![
+      campaignDraft.bannerEn,
+      campaignDraft.bannerTh,
+      campaignDraft.subBannerEn,
+      campaignDraft.subBannerTh,
+    ].every(Boolean)
+      ? QUEST_BANNERS_REQUIRED_MESSAGE
+      : null;
   const combinedDirty = campaignDirty || tasksDirty || rewardsDirty;
   const derivedCampaignStatus =
     campaignDraft.startDate && campaignDraft.endDate
@@ -1024,12 +1037,21 @@ export default function QuestTable({
                 const fieldId = `quest-campaign-${key}`;
                 return (
                   <div key={key}>
-                    <Label htmlFor={fieldId}>{label}</Label>
+                    <Label htmlFor={fieldId}>
+                      {label}
+                      {creatingNew ? (
+                        <span className="ml-1 text-red-600" aria-hidden="true">
+                          *
+                        </span>
+                      ) : null}
+                    </Label>
                     <input
                       id={fieldId}
                       name={key}
+                      aria-label={label}
                       type="file"
                       accept="image/*"
+                      required={creatingNew}
                       disabled={!canEditCampaign}
                       onChange={(e) => {
                         const file = e.target.files?.[0] ?? null;
@@ -1044,6 +1066,14 @@ export default function QuestTable({
                 );
               })}
             </div>
+            {bannerValidationError ? (
+              <p
+                className="mt-2 text-xs text-red-600 dark:text-red-400"
+                role="alert"
+              >
+                {bannerValidationError}
+              </p>
+            ) : null}
           </section>
 
           <div
@@ -1694,6 +1724,7 @@ export default function QuestTable({
                 !combinedDirty ||
                 !campaignDraft.startDate ||
                 !campaignDraft.endDate ||
+                Boolean(bannerValidationError) ||
                 Boolean(taskValidationError) ||
                 Boolean(rewardValidationError) ||
                 saveAllMutation.isPending

@@ -641,7 +641,12 @@ export class AdminController {
     return this.adminService.createCategory(name);
   }
 
-  @UseInterceptors(FileFieldsInterceptor([{ name: 'image', maxCount: 1 }]))
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'image', maxCount: 1 },
+      { name: 'banner', maxCount: 1 },
+    ]),
+  )
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token')
   @ApiBearerAuth()
@@ -651,7 +656,11 @@ export class AdminController {
   updateCategory(
     @Param('id') id: string,
     @Body() body: UpdateCategoryBodyDto,
-    @UploadedFiles() files: { image?: Express.Multer.File[] },
+    @UploadedFiles()
+    files: {
+      image?: Express.Multer.File[];
+      banner?: Express.Multer.File[];
+    },
   ) {
     // Optional rename; works for both the JSON PATCH the UI sends and
     // multipart. Absent/blank/"undefined" sentinel = keep the current name.
@@ -659,6 +668,7 @@ export class AdminController {
     return this.adminService.updateCategory(id, {
       name,
       image: files?.image ? files?.image?.[0] : null,
+      banner: files?.banner ? files?.banner?.[0] : null,
     });
   }
 

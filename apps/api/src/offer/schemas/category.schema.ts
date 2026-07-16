@@ -10,6 +10,10 @@ export class Category {
 
   @Prop({ required: false })
   image: string;
+
+  /** Optional wide image used as the category/policy default banner. */
+  @Prop({ required: false })
+  banner?: string;
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);

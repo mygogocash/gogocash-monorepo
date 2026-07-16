@@ -6,7 +6,7 @@ import SectionSubNav, {
 
 const NAV: SectionSubNavItem[] = [
   { href: "/banner", label: "Home Page Banner" },
-  { href: "/banner/all-brand-page", label: "All Brand Page banner" },
+  { href: "/banner/all-brand-page", label: "Specific Page Banner" },
   { href: "/banner/modal-popups", label: "Modal popups" },
   { href: "/banner/popup-history", label: "Popup history" },
 ];

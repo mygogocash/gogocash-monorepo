@@ -591,6 +591,7 @@ export class AdminService {
     updateData: {
       name?: string;
       image?: Express.Multer.File;
+      banner?: Express.Multer.File;
     },
   ) {
     const data = await this.categoryModel.findById(id).exec();
@@ -605,6 +606,14 @@ export class AdminService {
         data.image,
       );
     }
+    let bannerFile;
+    if (updateData.banner) {
+      bannerFile = await this.storedMediaService.replace(
+        updateData.banner,
+        MEDIA_FOLDER.CATEGORIES,
+        data.banner,
+      );
+    }
     try {
       return await this.categoryModel
         .findByIdAndUpdate(
@@ -613,6 +622,7 @@ export class AdminService {
             // Absent key = no change: image-only saves must never touch the name.
             ...(updateData.name !== undefined ? { name: updateData.name } : {}),
             image: file1 ?? data.image,
+            banner: bannerFile ?? data.banner,
           },
           { new: true },
         )

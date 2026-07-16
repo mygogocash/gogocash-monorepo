@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // CustomerShopDetailScreen reaches i18n/LocaleProvider (via useCopy/AccountPageShell-free
@@ -88,6 +88,7 @@ vi.mock("@mobile/account/customerAccountResource", async (importOriginal) => {
 });
 
 import { ToastProvider } from "@mobile/components/Toast";
+import { ShopCouponDeals } from "@mobile/components/shop/ShopCouponDeals";
 import { CustomerShopDetailScreen } from "@mobile/screens/CustomerShopDetailScreen";
 
 // Wave B (B4 — discovery cluster) per-screen UX adoption for the merchant/SHOP DETAIL
@@ -192,7 +193,109 @@ describe("CustomerShopDetailScreen (render)", () => {
         description: "10% off eligible orders",
         code: "",
         discount: 10,
+        discount_type: "cash",
+        discount_currency: "THB",
+        code_enabled: false,
+        eligibility: "members",
         min_spend: "100",
+        min_spend_currency: "THB",
+        max_cap: 500,
+        max_cap_enabled: true,
+        max_cap_currency: "THB",
+        one_time_use_enabled: false,
+        usage_per_user: 3,
+        remaining_quantity: 4,
+        terms_and_conditions: "Valid for members only.",
+        start_date: "2026-07-10",
+        start_time: "09:30",
+        end_date: "2026-07-22",
+        end_time: "22:15",
+      },
+    ];
+    couponResourceState.status = "ready";
+    couponResourceState.source = "backend";
+
+    renderScreen();
+
+    expect(screen.getByText("Love U")).toBeTruthy();
+    expect(screen.getByText("THB 10 off")).toBeTruthy();
+    expect(screen.getByText("Minimum spend THB 100")).toBeTruthy();
+    expect(screen.getByText("Valid from 2026-07-10 09:30")).toBeTruthy();
+    expect(screen.getByText("Valid until 2026-07-22 22:15")).toBeTruthy();
+    expect(screen.queryByText("Copy code")).toBeNull();
+    expect(screen.getByRole("button", { name: "Use coupon Love U" })).toBeTruthy();
+    const termsButton = screen.getByRole("button", {
+      name: "Read terms & conditions for Love U",
+    });
+    expect(termsButton).toBeTruthy();
+    expect(screen.queryByText("Valid for members only.")).toBeNull();
+    fireEvent.click(termsButton);
+    expect(screen.getByText("Valid for members only.")).toBeTruthy();
+    expect(screen.getByText("Eligibility members")).toBeTruthy();
+    expect(screen.getByText("Maximum discount THB 500")).toBeTruthy();
+    expect(screen.getByText("3 uses per user")).toBeTruthy();
+    expect(screen.getByText("4 remaining")).toBeTruthy();
+    expect(screen.queryByText("No deals available right now")).toBeNull();
+  });
+
+  it("invokes the no-code coupon callback with the selected coupon", () => {
+    const onUseCoupon = vi.fn();
+    const coupon = {
+      code: null,
+      codeEnabled: false,
+      description: null,
+      discount: 10,
+      discountCurrency: "THB",
+      discountType: "percent" as const,
+      endDate: "2026-07-22",
+      endTime: "22:15",
+      eligibility: null,
+      id: "coupon-no-code",
+      link: null,
+      maxCap: null,
+      maxCapCurrency: null,
+      minimumSpend: null,
+      minimumSpendCurrency: null,
+      name: "No-code deal",
+      oneTimeUse: true,
+      remainingQuantity: null,
+      startDate: "2026-07-10",
+      startTime: "09:30",
+      termsAndConditions: null,
+      usagePerUser: 1,
+    };
+
+    render(
+      createElement(
+        ToastProvider,
+        {},
+        createElement(ShopCouponDeals, {
+          coupons: [coupon],
+          emptySubtitle: "No coupons",
+          emptyTitle: "No coupons",
+          onRetry: vi.fn(),
+          onUseCoupon,
+          status: "ready",
+          title: "Deals",
+        }),
+      ),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Use coupon No-code deal" }),
+    );
+    expect(onUseCoupon).toHaveBeenCalledTimes(1);
+    expect(onUseCoupon).toHaveBeenCalledWith(coupon);
+  });
+
+  it("renders a code coupon with copy and terms actions but no use CTA", () => {
+    couponResourceState.data = [
+      {
+        _id: "coupon-code",
+        name: "Save 20",
+        code: "SAVE20",
+        code_enabled: true,
+        terms_and_conditions: "One use per customer.",
         start_date: "2026-07-10",
         end_date: "2026-07-22",
       },
@@ -202,11 +305,16 @@ describe("CustomerShopDetailScreen (render)", () => {
 
     renderScreen();
 
-    expect(screen.getByText("Love U")).toBeTruthy();
-    expect(screen.getByText("10% off")).toBeTruthy();
-    expect(screen.getByText("Minimum spend 100")).toBeTruthy();
-    expect(screen.queryByText("Copy code")).toBeNull();
-    expect(screen.queryByText("No deals available right now")).toBeNull();
+    expect(screen.getByText("SAVE20")).toBeTruthy();
+    expect(screen.getByText("Copy code")).toBeTruthy();
+    expect(
+      screen.getByRole("button", {
+        name: "Read terms & conditions for Save 20",
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Use coupon Save 20" }),
+    ).toBeNull();
   });
 
   it("renders the deals empty state only when the coupon resource is empty", () => {

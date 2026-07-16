@@ -25,6 +25,18 @@ describe("all brand banner resource", () => {
     ]);
   });
 
+  it("ignores legacy slots four and five because Specific Page Banner manages three slides", () => {
+    const promo = mapBackendAllBrandPromo({
+      image_1: "https://cdn.example/brands-1.png",
+      image_4: "https://cdn.example/legacy-4.png",
+      image_5: "https://cdn.example/legacy-5.png",
+    });
+
+    expect(promo?.slides.map(({ id }) => id)).toEqual([
+      "all-brand-banner-1",
+    ]);
+  });
+
   it("keeps fixtures before live data resolves but hides them for an empty backend config", () => {
     expect(
       resolveAllBrandPromo("fixtures", null, webBrandDirectory.promo),

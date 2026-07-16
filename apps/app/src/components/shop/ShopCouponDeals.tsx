@@ -1,5 +1,5 @@
 import { Image, StyleSheet, Text, View } from "react-native";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import walletNoDataImage from "../../../assets/wallet-no-data.png";
 import type { CustomerAccountResourceStatus } from "@mobile/account/customerAccountResource";
@@ -27,13 +27,18 @@ type ShopCouponDealsProps = {
   emptySubtitle: string;
   emptyTitle: string;
   onRetry: () => void;
+  onUseCoupon: (coupon: ShopCoupon) => void;
   status: CustomerAccountResourceStatus;
   title: string;
 };
 
-function formatDiscount(discount: number | null): string | null {
+function formatDiscount(coupon: ShopCoupon): string | null {
+  const { discount } = coupon;
   if (discount === null) return null;
-  return `${Number.isInteger(discount) ? discount : discount.toFixed(2)}% off`;
+  const value = Number.isInteger(discount) ? discount : discount.toFixed(2);
+  return coupon.discountType === "cash"
+    ? `${coupon.discountCurrency ?? "THB"} ${value} off`
+    : `${value}% off`;
 }
 
 export function ShopCouponDeals({
@@ -41,6 +46,7 @@ export function ShopCouponDeals({
   emptySubtitle,
   emptyTitle,
   onRetry,
+  onUseCoupon,
   status,
   title,
 }: ShopCouponDealsProps) {
@@ -63,7 +69,11 @@ export function ShopCouponDeals({
       {coupons.length > 0 ? (
         <View accessibilityRole="list" style={styles.couponList}>
           {coupons.map((coupon) => (
-            <ShopCouponCard coupon={coupon} key={coupon.id} />
+            <ShopCouponCard
+              coupon={coupon}
+              key={coupon.id}
+              onUseCoupon={onUseCoupon}
+            />
           ))}
         </View>
       ) : null}
@@ -126,14 +136,22 @@ function DealsEmptyState({
   );
 }
 
-function ShopCouponCard({ coupon }: { coupon: ShopCoupon }) {
+function ShopCouponCard({
+  coupon,
+  onUseCoupon,
+}: {
+  coupon: ShopCoupon;
+  onUseCoupon: (coupon: ShopCoupon) => void;
+}) {
   const styles = useThemedStyles(createStyles);
   const { colors } = useTheme();
   const tc = useCopy();
   const toast = useToast();
-  const discount = formatDiscount(coupon.discount);
+  const discount = formatDiscount(coupon);
   const apiUrl = getMobileEnv().apiUrl;
   const viewEventId = useRef(createCouponEventId("view"));
+  const [termsExpanded, setTermsExpanded] = useState(false);
+  const hasVisibleCode = coupon.codeEnabled && Boolean(coupon.code);
 
   useEffect(() => {
     void recordCouponEngagement({
@@ -174,15 +192,45 @@ function ShopCouponCard({ coupon }: { coupon: ShopCoupon }) {
       ) : null}
       {coupon.minimumSpend ? (
         <Text style={styles.metaText}>
-          {tc("Minimum spend")} {coupon.minimumSpend}
+          {tc("Minimum spend")} {coupon.minimumSpendCurrency ?? ""}{" "}
+          {coupon.minimumSpend}
+        </Text>
+      ) : null}
+      {coupon.startDate ? (
+        <Text style={styles.metaText}>
+          {tc("Valid from")} {coupon.startDate}
+          {coupon.startTime ? ` ${coupon.startTime}` : ""}
         </Text>
       ) : null}
       {coupon.endDate ? (
         <Text style={styles.metaText}>
           {tc("Valid until")} {coupon.endDate}
+          {coupon.endTime ? ` ${coupon.endTime}` : ""}
         </Text>
       ) : null}
-      {coupon.code ? (
+      {coupon.eligibility ? (
+        <Text style={styles.metaText}>
+          {tc("Eligibility")} {coupon.eligibility}
+        </Text>
+      ) : null}
+      {coupon.maxCap !== null ? (
+        <Text style={styles.metaText}>
+          {tc("Maximum discount")} {coupon.maxCapCurrency ?? ""} {coupon.maxCap}
+        </Text>
+      ) : null}
+      {!coupon.oneTimeUse && coupon.usagePerUser !== null ? (
+        <Text style={styles.metaText}>
+          {coupon.usagePerUser} {tc("uses per user")}
+        </Text>
+      ) : coupon.oneTimeUse ? (
+        <Text style={styles.metaText}>{tc("One use per user")}</Text>
+      ) : null}
+      {coupon.remainingQuantity !== null ? (
+        <Text style={styles.metaText}>
+          {coupon.remainingQuantity} {tc("remaining")}
+        </Text>
+      ) : null}
+      {hasVisibleCode ? (
         <View style={styles.codeRow}>
           <Text selectable style={styles.codeText}>
             {coupon.code}
@@ -197,6 +245,39 @@ function ShopCouponCard({ coupon }: { coupon: ShopCoupon }) {
             <CopyIcon color={colors.primaryDark} size={16} strokeWidth={2} />
             <Text style={styles.copyText}>{tc("Copy code")}</Text>
           </MotionPressable>
+        </View>
+      ) : (
+        <MotionPressable
+          accessibilityLabel={`${tc("Use coupon")} ${coupon.name}`}
+          accessibilityRole="button"
+          onPress={() => onUseCoupon(coupon)}
+          pressScale={motion.scale.subtlePress}
+          style={styles.useButton}
+        >
+          <Text style={styles.useButtonText}>{tc("Use coupon")}</Text>
+        </MotionPressable>
+      )}
+      {coupon.termsAndConditions ? (
+        <View style={styles.termsSection}>
+          <MotionPressable
+            accessibilityLabel={`${tc("Read terms & conditions for")} ${coupon.name}`}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: termsExpanded }}
+            onPress={() => setTermsExpanded((expanded) => !expanded)}
+            pressScale={motion.scale.subtlePress}
+            style={styles.termsButton}
+          >
+            <Text style={styles.termsButtonText}>
+              {tc(
+                termsExpanded
+                  ? "Hide terms & conditions"
+                  : "Read terms & conditions",
+              )}
+            </Text>
+          </MotionPressable>
+          {termsExpanded ? (
+            <Text style={styles.termsText}>{coupon.termsAndConditions}</Text>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -294,6 +375,46 @@ function createStyles(colors: ThemeColors) {
       fontFamily: typography.family,
       fontSize: 14,
       fontWeight: "700",
+    },
+    useButton: {
+      alignItems: "center",
+      alignSelf: "flex-start",
+      backgroundColor: colors.primary,
+      borderRadius: radii.chip,
+      justifyContent: "center",
+      marginTop: spacing.xs,
+      minHeight: 44,
+      paddingHorizontal: spacing.lg,
+    },
+    useButtonText: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "700",
+    },
+    termsSection: {
+      borderTopColor: colors.border,
+      borderTopWidth: 1,
+      gap: spacing.sm,
+      marginTop: spacing.xs,
+      paddingTop: spacing.sm,
+    },
+    termsButton: {
+      alignSelf: "flex-start",
+      minHeight: 40,
+      justifyContent: "center",
+    },
+    termsButtonText: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "700",
+    },
+    termsText: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      lineHeight: 20,
     },
     loadingCard: {
       backgroundColor: colors.card,
