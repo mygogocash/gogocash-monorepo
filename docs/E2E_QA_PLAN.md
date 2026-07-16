@@ -363,10 +363,11 @@ Workflow job `e2e-local` in `.github/workflows/ci.yml` — Mongo 7 service + rep
 
 ### 7.9 Staging policy QA (issues #336/#337)
 
-Controlled, reversible acceptance run against the deployed staging API for the
-Policy Management editor — proves the empty-terms 400 (exact message), the
-`{data:{...}}`-wrapper rejection (the original #337 bug shape), and one flat
-`PUT /policy` persisting terms + banner text, then deletes its own fixture:
+Controlled, reversible acceptance run against the deployed staging **API** for
+the Policy Management editor — proves the API-side contract: the empty-terms
+400 (exact message), the `{data:{...}}`-wrapper rejection (the original #337
+bug shape, at the validation layer), and one flat `PUT /policy` persisting
+terms + banner text, then deletes its own fixture:
 
 ```bash
 ADMIN_EMAIL=... ADMIN_PASSWORD=... DRY_RUN=1 ./scripts/staging-policy-qa.sh  # preview target, no writes
@@ -374,12 +375,19 @@ ADMIN_EMAIL=... ADMIN_PASSWORD=...           ./scripts/staging-policy-qa.sh  # r
 ```
 
 Accepts `ADMIN_JWT` instead of email/password, `API_URL` (default
-`https://api-staging.gogocash.co`), and `CATEGORY_ID` to force a target — the
-script refuses categories that already have a policy and never creates
-categories. Evidence lands in `evidence/staging/T-023..025-*.txt` (tokens
-redacted). Banner **image** persistence goes through multipart
-`PATCH /admin/update-category/:id` and is intentionally out of scope here
-(unit-covered; verify manually in the staging admin UI if needed).
+`https://api-staging.gogocash.co`; production-looking URLs are refused unless
+`FORCE_API_URL=1`), and `CATEGORY_ID` to force a target. Safety: refuses
+categories that already have a policy, never creates categories, stamps every
+payload with a `QA #336/#337 <timestamp>` marker, and cleanup (including the
+abort trap) refuses to delete a policy that lacks the marker. Evidence lands
+in `evidence/staging/policy-qa-{336-terms-required,337-unified-save,cleanup}.txt`
+(truncated per run; secrets never written).
+
+Out of scope (API script cannot prove these — check in the staging admin UI):
+banner **image** persistence (multipart `PATCH /admin/update-category/:id`,
+unit-covered) and the fact that the deployed admin *bundle* sends the flat
+payload (covered by admin unit tests `policyPayload.test.ts` /
+`PolicyTable.source.test.ts`).
 
 ---
 
