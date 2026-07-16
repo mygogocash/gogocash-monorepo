@@ -1,6 +1,9 @@
 import {
+  BadRequestException,
   HttpException,
+  HttpStatus,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { CreatePointDto } from './dto/create-point.dto';
@@ -42,6 +45,16 @@ const ACTIVE_OFFER_FILTER = {
 const QUEST_TASK_OFFER_SELECT =
   'offer_id merchant_id offer_name offer_name_display logo logo_circle logo_mobile logo_desktop tracking_link preview_url disabled status extra_point';
 
+const QUEST_BANNER_FIELDS = [
+  { key: 'banner_en', label: 'Banner EN' },
+  { key: 'banner_th', label: 'Banner TH' },
+  { key: 'sub_banner_en', label: 'Sub banner EN' },
+  { key: 'sub_banner_th', label: 'Sub banner TH' },
+] as const;
+
+type QuestBannerKey = (typeof QUEST_BANNER_FIELDS)[number]['key'];
+type QuestBannerFiles = Partial<Record<QuestBannerKey, Express.Multer.File[]>>;
+
 type NormalizedQuestTask = {
   offer: Types.ObjectId;
   offer_id: number;
@@ -69,6 +82,8 @@ type NormalizedQuestRewardDistribution = {
 
 @Injectable()
 export class PointService {
+  private readonly logger = new Logger(PointService.name);
+
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Point.name) private pointModel: Model<Point>,
@@ -1211,12 +1226,7 @@ export class PointService {
 
   async createQuest(
     createQuestDto: CreateQuestDto,
-    files: {
-      banner_en?: Express.Multer.File[];
-      banner_th?: Express.Multer.File[];
-      sub_banner_en?: Express.Multer.File[];
-      sub_banner_th?: Express.Multer.File[];
-    },
+    files: QuestBannerFiles = {},
   ) {
     const questId = createQuestDto._id
       ? requireObjectId(String(createQuestDto._id), 'quest id')
@@ -1224,41 +1234,53 @@ export class PointService {
 
     const existingQuest = await this.questModel.findById(questId);
 
-    const questFolder = MEDIA_FOLDER.QUESTS;
-    let banner_en;
-    if (files.banner_en?.length > 0) {
-      banner_en = await this.storedMediaService.replace(
-        files.banner_en[0],
-        questFolder,
-        existingQuest?.banner_en,
+    const existingQuestValues = (existingQuest?.toObject?.() ??
+      existingQuest ??
+      {}) as Record<string, unknown>;
+    const uploadedRefs = new Map<QuestBannerKey, string>();
+
+    try {
+      // Upload every replacement first. Old media stays untouched until the
+      // quest document has atomically switched to all new refs.
+      for (const { key, label } of QUEST_BANNER_FIELDS) {
+        const file = files[key]?.[0];
+        if (!file) continue;
+        uploadedRefs.set(
+          key,
+          await this.uploadQuestBanner(label, file, MEDIA_FOLDER.QUESTS),
+        );
+      }
+    } catch (error) {
+      await this.deleteQuestBannerRefs(
+        [...uploadedRefs.values()],
+        'roll back an incomplete quest banner upload',
       );
+      throw error;
     }
 
-    let banner_th;
-    if (files.banner_th?.length > 0) {
-      banner_th = await this.storedMediaService.replace(
-        files.banner_th[0],
-        questFolder,
-        existingQuest?.banner_th,
-      );
+    const resolvedBannerRefs = {} as Record<QuestBannerKey, string | null>;
+    for (const { key } of QUEST_BANNER_FIELDS) {
+      const existingRef = this.questBannerRef(existingQuestValues[key]);
+      const submittedRef = this.questBannerRef(createQuestDto[key]);
+      resolvedBannerRefs[key] =
+        uploadedRefs.get(key) ??
+        (existingQuest ? existingRef : submittedRef) ??
+        null;
     }
 
-    let sub_banner_en;
-    if (files.sub_banner_en?.length > 0) {
-      sub_banner_en = await this.storedMediaService.replace(
-        files.sub_banner_en[0],
-        questFolder,
-        existingQuest?.sub_banner_en,
-      );
-    }
-
-    let sub_banner_th;
-    if (files.sub_banner_th?.length > 0) {
-      sub_banner_th = await this.storedMediaService.replace(
-        files.sub_banner_th[0],
-        questFolder,
-        existingQuest?.sub_banner_th,
-      );
+    if (!existingQuest) {
+      const missingLabels = QUEST_BANNER_FIELDS.filter(
+        ({ key }) => !resolvedBannerRefs[key],
+      ).map(({ label }) => label);
+      if (missingLabels.length > 0) {
+        await this.deleteQuestBannerRefs(
+          [...uploadedRefs.values()],
+          'roll back an invalid new quest',
+        );
+        throw new BadRequestException(
+          `All four quest banners are required when creating a quest: ${missingLabels.join(', ')}.`,
+        );
+      }
     }
     const rewardDistribution = this.normalizeQuestRewardDistribution(
       {},
@@ -1278,24 +1300,78 @@ export class PointService {
       facebook_page: createQuestDto.facebook_page,
       line: createQuestDto.line,
       ...rewardDistribution,
-      banner_en: banner_en ?? existingQuest?.banner_en ?? null,
-      banner_th: banner_th ?? existingQuest?.banner_th ?? null,
-      sub_banner_en: sub_banner_en ?? existingQuest?.sub_banner_en ?? null,
-      sub_banner_th: sub_banner_th ?? existingQuest?.sub_banner_th ?? null,
+      ...resolvedBannerRefs,
     };
     if (createQuestDto.reward_status !== undefined) {
       questPatch.reward_status = createQuestDto.reward_status;
     }
 
-    return this.questModel.findByIdAndUpdate(
-      questId,
-      { $set: questPatch },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-      },
+    let savedQuest;
+    try {
+      savedQuest = await this.questModel.findByIdAndUpdate(
+        questId,
+        { $set: questPatch },
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+        },
+      );
+    } catch (error) {
+      await this.deleteQuestBannerRefs(
+        [...uploadedRefs.values()],
+        'roll back quest banners after a persistence failure',
+      );
+      throw error;
+    }
+
+    const replacedOldRefs = QUEST_BANNER_FIELDS.flatMap(({ key }) => {
+      if (!uploadedRefs.has(key)) return [];
+      const oldRef = this.questBannerRef(existingQuestValues[key]);
+      return oldRef && oldRef !== uploadedRefs.get(key) ? [oldRef] : [];
+    });
+    await this.deleteQuestBannerRefs(
+      replacedOldRefs,
+      'delete superseded quest banner media',
     );
+
+    return savedQuest;
+  }
+
+  private questBannerRef(value: unknown): string | null {
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
+  private async uploadQuestBanner(
+    label: string,
+    file: Express.Multer.File,
+    folder: (typeof MEDIA_FOLDER)[keyof typeof MEDIA_FOLDER],
+  ): Promise<string> {
+    try {
+      return await this.storedMediaService.upload(file, folder);
+    } catch {
+      throw new HttpException(
+        `Could not upload ${label}. Please choose the image again and retry.`,
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  private async deleteQuestBannerRefs(
+    refs: string[],
+    action: string,
+  ): Promise<void> {
+    const uniqueRefs = [...new Set(refs.filter(Boolean))];
+    const results = await Promise.allSettled(
+      uniqueRefs.map((ref) => this.storedMediaService.deleteStored(ref)),
+    );
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        this.logger.warn(
+          `Could not ${action} (${uniqueRefs[index]}): ${String(result.reason)}`,
+        );
+      }
+    });
   }
 
   async closeQuest(closeQuestDto: CloseQuestDto) {

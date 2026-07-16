@@ -482,6 +482,28 @@ describe("QuestTable management tabs", () => {
     );
   });
 
+  it("requires all four banner files before a new quest can be created (#340)", async () => {
+    renderQuestTable("create");
+
+    fireEvent.change(screen.getByLabelText("Quest start date and time"), {
+      target: { value: "2026-07-01T09:30" },
+    });
+    fireEvent.change(screen.getByLabelText("Quest end date and time"), {
+      target: { value: "2026-07-31T22:15" },
+    });
+
+    expect(
+      screen.getByText(
+        "Upload Banner EN, Banner TH, Sub banner EN, and Sub banner TH before creating the quest.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Save and create quest" }),
+    ).toBeDisabled();
+    expect(screen.getByLabelText("Banner EN")).toBeRequired();
+    expect(screen.getByLabelText("Sub banner TH")).toBeRequired();
+  });
+
   it("shows a specific campaign error notice, not a bare 'Save failed' (#289)", async () => {
     const user = userEvent.setup();
     // A failure with no backend message must fall back to action-specific copy.
@@ -494,6 +516,19 @@ describe("QuestTable management tabs", () => {
     fireEvent.change(screen.getByLabelText("Quest end date and time"), {
       target: { value: "2026-07-31T22:15" },
     });
+    for (const label of [
+      "Banner EN",
+      "Banner TH",
+      "Sub banner EN",
+      "Sub banner TH",
+    ]) {
+      await user.upload(
+        screen.getByLabelText(label),
+        new File([label], `${label.replaceAll(" ", "-")}.png`, {
+          type: "image/png",
+        }),
+      );
+    }
     await user.click(
       screen.getByRole("button", { name: "Save and create quest" }),
     );
@@ -504,6 +539,41 @@ describe("QuestTable management tabs", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText("Save failed")).not.toBeInTheDocument();
+  });
+
+  it("surfaces the field-specific API error when a quest banner upload fails (#340)", async () => {
+    const user = userEvent.setup();
+    const uploadError =
+      "Could not upload Banner TH. Please choose the image again and retry.";
+    questQueries.saveQuestCampaign.mockRejectedValue({
+      response: { data: { message: uploadError } },
+    });
+    renderQuestTable("create");
+
+    fireEvent.change(screen.getByLabelText("Quest start date and time"), {
+      target: { value: "2026-07-01T09:30" },
+    });
+    fireEvent.change(screen.getByLabelText("Quest end date and time"), {
+      target: { value: "2026-07-31T22:15" },
+    });
+    for (const label of [
+      "Banner EN",
+      "Banner TH",
+      "Sub banner EN",
+      "Sub banner TH",
+    ]) {
+      await user.upload(
+        screen.getByLabelText(label),
+        new File([label], `${label.replaceAll(" ", "-")}.png`, {
+          type: "image/png",
+        }),
+      );
+    }
+    await user.click(
+      screen.getByRole("button", { name: "Save and create quest" }),
+    );
+
+    expect(await screen.findByText(uploadError)).toBeInTheDocument();
   });
 
   it("creates the campaign, tasks, and rewards from the dedicated create view", async () => {
@@ -526,6 +596,36 @@ describe("QuestTable management tabs", () => {
     fireEvent.change(screen.getByLabelText("Quest end date and time"), {
       target: { value: "2026-07-31T22:15" },
     });
+    const bannerFiles = {
+      banner_en: new File(["banner-en"], "banner-en.png", {
+        type: "image/png",
+      }),
+      banner_th: new File(["banner-th"], "banner-th.png", {
+        type: "image/png",
+      }),
+      sub_banner_en: new File(["sub-banner-en"], "sub-banner-en.png", {
+        type: "image/png",
+      }),
+      sub_banner_th: new File(["sub-banner-th"], "sub-banner-th.png", {
+        type: "image/png",
+      }),
+    };
+    await user.upload(
+      screen.getByLabelText("Banner EN"),
+      bannerFiles.banner_en,
+    );
+    await user.upload(
+      screen.getByLabelText("Banner TH"),
+      bannerFiles.banner_th,
+    );
+    await user.upload(
+      screen.getByLabelText("Sub banner EN"),
+      bannerFiles.sub_banner_en,
+    );
+    await user.upload(
+      screen.getByLabelText("Sub banner TH"),
+      bannerFiles.sub_banner_th,
+    );
     await user.click(
       screen.getByRole("button", { name: "Save and create quest" }),
     );
@@ -538,6 +638,10 @@ describe("QuestTable management tabs", () => {
     )?.[0] as FormData;
     expect(formData.get("start_date")).toBe("2026-07-01T02:30:00.000Z");
     expect(formData.get("end_date")).toBe("2026-07-31T15:15:00.000Z");
+    expect(formData.get("banner_en")).toBe(bannerFiles.banner_en);
+    expect(formData.get("banner_th")).toBe(bannerFiles.banner_th);
+    expect(formData.get("sub_banner_en")).toBe(bannerFiles.sub_banner_en);
+    expect(formData.get("sub_banner_th")).toBe(bannerFiles.sub_banner_th);
     expect(questQueries.saveQuestTasks).toHaveBeenCalledWith("quest-2", []);
     expect(questQueries.saveQuestRewards).toHaveBeenCalledWith(
       "quest-2",

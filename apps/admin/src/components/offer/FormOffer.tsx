@@ -38,6 +38,7 @@ import {
 } from "@/types/api";
 import { pathImage } from "@/utils/helper";
 import { resolveAdminOfferLogoPath } from "@/lib/offerDisplay";
+import { getOfferAvailabilityDisplay } from "@/lib/offerAvailabilityDisplay";
 import { reorder } from "@/lib/reorder";
 import { useObjectUrl } from "@/hooks/useObjectUrl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -233,12 +234,25 @@ function FormOfferBrandReferenceStrip({
     logoDesktopObjectUrl ??
     logoMobileObjectUrl ??
     pathImage(persistedLogo || null);
+  const availability = getOfferAvailabilityDisplay(offer);
+  const availabilityValue = availability.clarification
+    ? `${availability.availabilityLabel} — ${availability.clarification}`
+    : availability.availabilityLabel;
 
   const meta = [
     { label: "Offer ID", value: offer._id },
     { label: "Lookup slug", value: offer.lookup_value?.trim() || "—" },
     { label: "Category", value: offer.categories?.trim() || "—" },
     { label: "Partner offer name", value: offer.offer_name?.trim() || "—" },
+    { label: "Availability", value: availabilityValue },
+    {
+      label: "Configured country / variant",
+      value: availability.configuredCountry,
+    },
+    {
+      label: "Default / fallback country",
+      value: availability.fallbackCountry,
+    },
   ] as const;
 
   return (

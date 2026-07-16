@@ -17,6 +17,10 @@ import toast from "react-hot-toast";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { devError } from "@/lib/devConsole";
 import { multipartPostConfig } from "@/lib/multipartFormHeaders";
+import {
+  getBannerSlotDescriptors,
+  type BannerSlotDescriptor,
+} from "@/lib/bannerSlotDescriptors";
 
 export type { BannerTableVariant } from "@/types/banner";
 
@@ -38,9 +42,10 @@ const VARIANT_CONFIG: Record<
     fetchPath: BANNER_ADMIN_SURFACES.home.fetchPath,
     savePath: BANNER_ADMIN_SURFACES.home.fetchPath,
     tableTitle: "Home Page Banner",
+    tableSubtitle: "Slots 1–3 are the top sliding carousel. Slots 4–5 are the two smaller banners below it.",
     formTitle: "Banner Home",
     formDescription:
-      "Edit homepage banner slot {slot}: upload an image, set the link and optional start/end dates. The banner is shown to users on the app homepage.",
+      "Edit homepage position {slot}: positions 1–3 are top carousel slides; positions 4–5 are the lower small banners (left and right).",
     uploadHint:
       "Choose a banner image (e.g. PNG, JPG). Recommended size: 1920×1080 (16:9). Non-16:9 uploads are center-cropped to fill the hero frame.",
   },
@@ -48,11 +53,12 @@ const VARIANT_CONFIG: Record<
     queryKey: BANNER_ADMIN_SURFACES.homeSmall.queryKey,
     fetchPath: BANNER_ADMIN_SURFACES.homeSmall.fetchPath,
     savePath: BANNER_ADMIN_SURFACES.homeSmall.fetchPath,
-    tableTitle: "Home Page Banner Small Banner",
-    tableSubtitle: "Secondary strip on the home screen (below the main carousel). Same five slots; use smaller artwork in the app.",
-    formTitle: "Home Page Banner — Small",
+    tableTitle: "Legacy Home Small Banner",
+    tableSubtitle:
+      "Legacy mock-only surface. Manage the two lower homepage banners as slots 4–5 under Home Page Banner.",
+    formTitle: "Legacy Home Small Banner",
     formDescription:
-      "Edit small-banner slot {slot} on the homepage: upload a compact image, set the link, and optional start/end dates.",
+      "This legacy surface has no managed positions; use Home Page Banner slots 4–5.",
     uploadHint:
       "Smaller tiles or icons work well here (e.g. square or short-wide ratio), separate from the main hero banners.",
   },
@@ -60,10 +66,11 @@ const VARIANT_CONFIG: Record<
     queryKey: BANNER_ADMIN_SURFACES.allBrand.queryKey,
     fetchPath: BANNER_ADMIN_SURFACES.allBrand.fetchPath,
     savePath: BANNER_ADMIN_SURFACES.allBrand.fetchPath,
-    tableTitle: "All Brand Page banner",
-    formTitle: "All Brand Page banner",
+    tableTitle: "Specific Page Banner",
+    tableSubtitle: "Manage banner slides by their wired customer page target.",
+    formTitle: "Specific Page Banner — All Brands page",
     formDescription:
-      "Edit banner slot {slot} for the app’s all-brands listing: upload an image, set the link, and optional start/end dates.",
+      "Edit slide No. {slot} in the All Brands page banner set: upload an image, set the link, and optional start/end dates.",
     uploadHint:
       "Choose a banner image (e.g. PNG, JPG). Wide assets work best at the top of the brands list.",
   },
@@ -126,20 +133,22 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
     queryKey: cfg.queryKey,
     queryFn: () => fetcher(cfg.fetchPath),
   });
+  const surfaceSlots = useMemo(() => getBannerSlotDescriptors(variant), [variant]);
   const visibleSlots = useMemo(() => {
     const needle = tableSearch.trim().toLowerCase();
-    const all = [1, 2, 3, 4, 5] as const;
-    if (!needle) return [...all];
-    return all.filter((slot) => {
+    if (!needle) return [...surfaceSlots];
+    return surfaceSlots.filter(({ area, label, slot }) => {
       const { imageId, link } = getBannerSlotRowFields(bannerData, slot);
       const idStr = String(imageId ?? "").toLowerCase();
       return (
         String(slot).includes(needle) ||
+        label.toLowerCase().includes(needle) ||
+        area.toLowerCase().includes(needle) ||
         link.toLowerCase().includes(needle) ||
         idStr.includes(needle)
       );
     });
-  }, [bannerData, tableSearch]);
+  }, [bannerData, surfaceSlots, tableSearch]);
 
   useEffect(() => {
     if (!openActionsId) return;
@@ -225,6 +234,22 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
         </div>
       </div>
 
+      {variant === "allBrand" ? (
+        <div className="mx-4 mb-5 rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 sm:mx-6 dark:border-brand-500/20 dark:bg-brand-500/10">
+          <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+            All Brands page banner set
+          </p>
+          <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+            Page target: All Brands page
+          </p>
+          <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-400">
+            Slides No. 1–3 appear in the carousel on the All Brands page.
+            Additional page targets require a wired customer placement before
+            they can be managed here.
+          </p>
+        </div>
+      ) : null}
+
       {/* Content */}
       <div className="border-t border-gray-100 p-4 sm:p-6 dark:border-gray-700 dark:bg-white/[0.02]">
         {isLoadingBanner ? (
@@ -237,11 +262,11 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
             {/* Banner Table */}
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <caption className="sr-only">{cfg.tableTitle} — five slots</caption>
+                <caption className="sr-only">{cfg.tableTitle} — {surfaceSlots.length} positions</caption>
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      #
+                      Placement
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Image
@@ -265,7 +290,8 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
                       </td>
                     </tr>
                   ) : (
-                  visibleSlots.map((item) => {
+                  visibleSlots.map((descriptor: BannerSlotDescriptor) => {
+                    const item = descriptor.slot;
                     const { imageId, link, hasSlotContent, enabled, startDate, endDate } =
                       getBannerSlotRowFields(bannerData, item);
                     const imageSrc = imageId
@@ -287,8 +313,11 @@ export default function BannerTable({ variant = "home" }: BannerTableProps) {
                         className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                         onClick={() => handleEditSlot(item)}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {item}
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                          <p className="font-medium">{descriptor.label}</p>
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            {descriptor.area}
+                          </p>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {imageSrc ? (

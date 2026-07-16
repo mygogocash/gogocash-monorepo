@@ -1,11 +1,24 @@
 export type ShopCoupon = {
   code: string | null;
+  codeEnabled: boolean;
   description: string | null;
   discount: number | null;
+  discountCurrency: string | null;
+  discountType: "percent" | "cash";
   endDate: string | null;
+  endTime: string | null;
+  eligibility: string | null;
   id: string;
   link: string | null;
+  maxCap: number | null;
+  maxCapCurrency: string | null;
   minimumSpend: string | null;
+  minimumSpendCurrency: string | null;
   name: string;
+  oneTimeUse: boolean;
+  remainingQuantity: number | null;
   startDate: string | null;
+  startTime: string | null;
+  termsAndConditions: string | null;
+  usagePerUser: number | null;
 };

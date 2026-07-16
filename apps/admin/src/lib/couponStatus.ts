@@ -158,7 +158,7 @@ export function formatCouponAudienceLabel(
 }
 
 function formatAmountWithCurrency(
-  amount: string | undefined,
+  amount: string | number | undefined,
   currency: string | undefined,
 ): string | null {
   const trimmed = String(amount ?? "").trim();

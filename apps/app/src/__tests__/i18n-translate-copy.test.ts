@@ -25,4 +25,12 @@ describe("translateCopy reverse-lookup catalog reuse", () => {
     // merged into MESSAGES. Proves the overlay survives the reverse-lookup path.
     expect(translateCopy("Date Range", "th")).toBe("ช่วงวันที่");
   });
+
+  it("translates customer coupon actions and details", () => {
+    expect(translateCopy("Use coupon", "th")).toBe("ใช้คูปอง");
+    expect(translateCopy("Read terms & conditions", "th")).toBe(
+      "อ่านข้อกำหนดและเงื่อนไข",
+    );
+    expect(translateCopy("Valid from", "th")).toBe("ใช้ได้ตั้งแต่");
+  });
 });

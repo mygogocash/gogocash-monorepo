@@ -1156,9 +1156,7 @@ async function handleMockPOST(
 
   if (joined === "point/create-quest") {
     const id = mockBodyField(body, "_id");
-    const existing = id
-      ? mockQuestStore.find((q) => q._id === id)
-      : undefined;
+    const existing = id ? mockQuestStore.find((q) => q._id === id) : undefined;
     const now = new Date().toISOString();
     const quest: MockQuest = existing ?? {
       _id: `q_${Date.now()}`,
@@ -1514,8 +1512,10 @@ async function handleMockPOST(
       if (clearImageValue) {
         (target as Record<string, unknown>)[ik] = null;
       } else if (isUploadBlob(imageValue)) {
-        (target as Record<string, unknown>)[ik] =
-          mockDriveIdFromUpload(ik, imageValue);
+        (target as Record<string, unknown>)[ik] = mockDriveIdFromUpload(
+          ik,
+          imageValue,
+        );
       } else if (typeof imageValue === "string") {
         const s = imageValue.trim();
         (target as Record<string, unknown>)[ik] = s.length > 0 ? s : null;
@@ -1984,7 +1984,8 @@ async function handleMockPUT(
   }
 
   if (joined === "policy") {
-    // `fetcherPut` wraps the payload as `{ data: { category_id, banner?, terms? } }`.
+    // Real admin sends the DTO flat. Retain legacy `data` unwrapping so older
+    // static builds can still exercise mock mode during a staged rollout.
     const payload = (
       b && typeof b === "object" && "data" in b
         ? (b as { data: unknown }).data
@@ -1994,18 +1995,37 @@ async function handleMockPUT(
       categoryId?: string;
       banner?: unknown;
       terms?: unknown;
+      clear_banner?: boolean;
+      clear_terms?: boolean;
     } | null;
     const categoryId = payload?.category_id ?? payload?.categoryId;
     if (!categoryId) {
       return jsonErr(400, { message: "category_id is required" });
     }
+    const existing = policyStore.get(String(categoryId));
+    if (!existing && (!payload?.terms || payload.clear_terms)) {
+      return jsonErr(400, {
+        message: "Terms & conditions are required for a new policy.",
+      });
+    }
+    if (
+      (payload?.terms !== undefined && payload.clear_terms) ||
+      (payload?.banner !== undefined && payload.clear_banner)
+    ) {
+      return jsonErr(400, {
+        message: "A policy block and its clear flag cannot be sent together.",
+      });
+    }
     // Merge so an omitted block keeps its previously-saved value.
-    const existing = policyStore.get(String(categoryId)) ?? {};
+    const merged = existing ?? {};
     policyStore.set(String(categoryId), {
-      ...existing,
+      ...merged,
       ...(payload?.banner !== undefined ? { banner: payload.banner } : {}),
       ...(payload?.terms !== undefined ? { terms: payload.terms } : {}),
     });
+    const saved = policyStore.get(String(categoryId));
+    if (payload?.clear_banner) delete saved?.banner;
+    if (payload?.clear_terms) delete saved?.terms;
     return ok({ success: true, message: "Policy saved", categoryId });
   }
 
@@ -2208,15 +2228,32 @@ async function handleMockPATCH(
     if (!cat) {
       return jsonErr(404, { message: "Category not found" });
     }
-    const body = b as { image?: string; banner?: string; name?: string };
-    if (typeof body.name === "string" && body.name.trim().length > 0) {
-      cat.name = body.name.trim();
+    const readCategoryField = (key: "name" | "image" | "banner") => {
+      const value =
+        body &&
+        typeof body === "object" &&
+        "get" in body &&
+        typeof (body as { get: (name: string) => unknown }).get === "function"
+          ? (body as { get: (name: string) => unknown }).get(key)
+          : (b as Record<string, unknown>)[key];
+      if (typeof File !== "undefined" && value instanceof File) {
+        return value.size > 0
+          ? `${key === "banner" ? "category-banner" : "category"}/${categoryId}/${Date.now()}-${value.name}`
+          : "";
+      }
+      return typeof value === "string" ? value : "";
+    };
+    const name = readCategoryField("name");
+    const image = readCategoryField("image");
+    const banner = readCategoryField("banner");
+    if (name.trim().length > 0) {
+      cat.name = name.trim();
     }
-    if (typeof body.image === "string" && body.image.length > 0) {
-      cat.image = body.image;
+    if (image.length > 0) {
+      cat.image = image;
     }
-    if (typeof body.banner === "string" && body.banner.length > 0) {
-      cat.banner = body.banner;
+    if (banner.length > 0) {
+      cat.banner = banner;
     }
     cat.updatedAt = new Date().toISOString();
     return ok({
@@ -2229,8 +2266,7 @@ async function handleMockPATCH(
   if (path[0] === "admin" && path[1] === "update-offer" && path[2]) {
     const offerId = path[2];
     const offer = mockOffers.find((o) => o._id === offerId) as
-      | Offer
-      | undefined;
+      Offer | undefined;
     if (!offer) {
       return jsonErr(404, { message: "Offer not found" });
     }

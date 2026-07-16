@@ -47,7 +47,7 @@ export interface CouponData {
     code:        string;
     code_enabled?: boolean;
     one_time_use_enabled?: boolean;
-    usage_per_user?: string;
+    usage_per_user?: string | number;
     unlimited_amount_enabled?: boolean;
     available_code_amount?: string;
     offer_id:    OfferID;
@@ -59,7 +59,7 @@ export interface CouponData {
     min_spend:   string;
     min_spend_enabled?: boolean;
     min_spend_currency?: string;
-    max_cap?: string;
+    max_cap?: string | number;
     max_cap_enabled?: boolean;
     max_cap_currency?: string;
     discount:    number;

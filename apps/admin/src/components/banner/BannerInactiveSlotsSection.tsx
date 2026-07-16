@@ -4,6 +4,7 @@ import { useQueries } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { fetcher } from "@/lib/axios/client";
 import { BANNER_ADMIN_SURFACE_ORDER, BANNER_ADMIN_SURFACES } from "@/lib/bannerAdminSurfaces";
+import { getBannerSlotDescriptors } from "@/lib/bannerSlotDescriptors";
 import { listInactiveBannerSlots, type InactiveBannerSlotReason } from "@/lib/bannerSlotStatus";
 import type { BannerData } from "@/types/banner";
 import Link from "next/link";
@@ -38,7 +39,13 @@ export default function BannerInactiveSlotsSection() {
       {BANNER_ADMIN_SURFACE_ORDER.map((surfaceId, i) => {
         const surface = BANNER_ADMIN_SURFACES[surfaceId];
         const q = results[i];
-        const inactive = listInactiveBannerSlots(q.data);
+        const slotDescriptors = getBannerSlotDescriptors(surfaceId);
+        const managedSlots = new Set<number>(
+          slotDescriptors.map(({ slot }) => slot),
+        );
+        const inactive = listInactiveBannerSlots(q.data).filter(({ slot }) =>
+          managedSlots.has(slot),
+        );
 
         return (
           <section key={surfaceId} aria-labelledby={`inactive-banner-${surfaceId}-title`}>
@@ -70,7 +77,7 @@ export default function BannerInactiveSlotsSection() {
                   <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
                       <th scope="col" className="px-4 py-2 text-left text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                        Slot
+                        Placement
                       </th>
                       <th scope="col" className="px-4 py-2 text-left text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                         Status
@@ -92,7 +99,7 @@ export default function BannerInactiveSlotsSection() {
                         onClick={() => router.push(surface.editHref)}
                       >
                         <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
-                          {row.slot}
+                          {slotDescriptors.find(({ slot }) => slot === row.slot)?.label ?? row.slot}
                         </td>
                         <td className="whitespace-nowrap px-4 py-2 text-sm">
                           <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200">

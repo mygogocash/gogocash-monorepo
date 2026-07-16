@@ -11,14 +11,20 @@ import type { UpsertPolicyDto } from './dto/upsert-policy.dto';
 const VALID_CATEGORY_ID = '507f1f77bcf86cd799439011';
 const NONEXISTENT_CATEGORY_ID = '507f1f77bcf86cd799439099';
 
-function makeService(opts: { categoryExists?: boolean } = {}) {
+function makeService(
+  opts: { categoryExists?: boolean; policyExists?: boolean } = {},
+) {
   const categoryExists = opts.categoryExists ?? true;
+  const policyExists = opts.policyExists ?? true;
 
   const policyModel: any = {
     _docs: [] as any[],
     findOne: jest.fn().mockReturnThis(),
     find: jest.fn().mockReturnThis(),
     findOneAndUpdate: jest.fn().mockReturnThis(),
+    exists: jest
+      .fn()
+      .mockResolvedValue(policyExists ? { _id: 'existing-policy' } : null),
     deleteOne: jest.fn().mockResolvedValue({ deletedCount: 1 }),
     sort: jest.fn().mockReturnThis(),
     lean: jest.fn().mockResolvedValue(null),
@@ -49,6 +55,82 @@ const validTerms: UpsertPolicyDto['terms'] = {
 };
 
 describe('PolicyService.upsert', () => {
+  it('rejects a banner-only first upsert because new policies require terms', async () => {
+    const { service, policyModel } = makeService({ policyExists: false });
+
+    await expect(
+      service.upsert({
+        category_id: VALID_CATEGORY_ID,
+        banner: validBanner,
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'Terms & conditions are required for a new policy.',
+    });
+    expect(policyModel.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rejects a no-op first upsert because it would create an empty policy', async () => {
+    const { service } = makeService({ policyExists: false });
+
+    await expect(
+      service.upsert({ category_id: VALID_CATEGORY_ID }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'Terms & conditions are required for a new policy.',
+    });
+  });
+
+  it('accepts non-empty terms on the first policy upsert', async () => {
+    const { service, policyModel } = makeService({ policyExists: false });
+
+    await service.upsert({
+      category_id: VALID_CATEGORY_ID,
+      terms: validTerms,
+    });
+
+    expect(policyModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('permits a banner-only partial update when the policy already exists', async () => {
+    const { service, policyModel } = makeService({ policyExists: true });
+
+    await service.upsert({
+      category_id: VALID_CATEGORY_ID,
+      banner: validBanner,
+    });
+
+    expect(policyModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('explicitly unsets cleared blocks on an existing policy', async () => {
+    const { service, policyModel } = makeService({ policyExists: true });
+
+    await service.upsert({
+      category_id: VALID_CATEGORY_ID,
+      clear_terms: true,
+      clear_banner: true,
+    });
+
+    expect(policyModel.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.any(Object),
+      { $set: {}, $unset: { terms: 1, banner: 1 } },
+      expect.objectContaining({ new: true }),
+    );
+  });
+
+  it('rejects a block value and its clear flag in the same request', async () => {
+    const { service } = makeService({ policyExists: true });
+
+    await expect(
+      service.upsert({
+        category_id: VALID_CATEGORY_ID,
+        terms: validTerms,
+        clear_terms: true,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('rejects unknown category with NotFoundException', async () => {
     const { service } = makeService({ categoryExists: false });
     await expect(
