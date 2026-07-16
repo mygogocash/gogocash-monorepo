@@ -15,6 +15,16 @@ export const STORED_MEDIA_TARGET_SPECS: StoredMediaTargetSpec[] = [
     fields: ['image_1', 'image_2', 'image_3', 'image_4', 'image_5'],
   },
   {
+    collection: 'all_brand_banners',
+    folder: MEDIA_FOLDER.BANNER_ALL_BRAND,
+    fields: ['image_1', 'image_2', 'image_3'],
+  },
+  {
+    collection: 'specific_page_banners',
+    folder: MEDIA_FOLDER.BANNER_SPECIFIC_PAGE,
+    fields: ['image_1', 'image_2', 'image_3'],
+  },
+  {
     collection: 'offers',
     folder: MEDIA_FOLDER.BRANDS,
     fields: [

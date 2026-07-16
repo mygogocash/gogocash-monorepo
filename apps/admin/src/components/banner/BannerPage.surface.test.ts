@@ -45,6 +45,10 @@ const specificPageSource = readFileSync(
   ),
   "utf8",
 );
+const specificPageManagerSource = readFileSync(
+  resolve(process.cwd(), "src/components/banner/SpecificPageBannerManager.tsx"),
+  "utf8",
+);
 const supportSource = readFileSync(
   resolve(process.cwd(), "src/app/(admin)/(others-pages)/support/page.tsx"),
   "utf8",
@@ -97,28 +101,44 @@ describe("Banner placement clarity (issue #338)", () => {
   it("renames the visible admin surface everywhere without changing its compatible route", () => {
     for (const source of [
       bannerSubNavSource,
-      bannerTableSource,
-      bannerSurfaceSource,
       sidebarSource,
       specificPageSource,
       supportSource,
     ]) {
       expect(source).not.toContain("All Brand Page banner");
-      expect(source).toContain("Specific Page Banner");
+      expect(source).toContain("Page Banners");
     }
+    expect(bannerSurfaceSource).toContain('label: "All Brands"');
+    expect(bannerSurfaceSource).toContain('label: "All Shops"');
+    expect(bannerSurfaceSource).toContain('label: "Product Discovery"');
     expect(bannerSubNavSource).toContain('href: "/banner/all-brand-page"');
   });
 
-  it("documents the only wired specific-page target and does not promise fake targets", () => {
-    expect(bannerTableSource).toContain("All Brands page banner set");
-    expect(bannerTableSource).toContain("Page target: All Brands page");
-    expect(bannerTableSource).toContain(
-      "Additional page targets require a wired customer placement",
+  it("manages all specific-page targets through one shareable selector", () => {
+    expect(specificPageSource).toContain("<SpecificPageBannerManager />");
+    expect(specificPageManagerSource).toContain(
+      "SPECIFIC_PAGE_BANNER_TARGET_IDS",
+    );
+    expect(specificPageManagerSource).toContain('searchParams.get("target")');
+    expect(specificPageManagerSource).toContain("View customer page");
+    expect(specificPageManagerSource).toContain("appLinks.path");
+    expect(bannerTableSource).not.toContain("tableSearch");
+    expect(bannerTableSource).not.toContain('variant === "allBrand"');
+    expect(formUpdateSource).toContain(
+      'className="max-w-6xl p-0 sm:max-w-6xl"',
     );
   });
 
+  it("keeps target labels, routes, APIs, and slot descriptors in one registry", () => {
+    expect(bannerSurfaceSource).toContain("SPECIFIC_PAGE_BANNER_TARGETS");
+    expect(bannerSurfaceSource).toContain(
+      "`/admin/banner-specific-page/${input.id}`",
+    );
+    expect(bannerSurfaceSource).toContain("slots: carouselSlots");
+  });
+
   it("keeps the homepage contract at three carousel plus two lower slots", () => {
-    expect(bannerTableSource).toContain(
+    expect(bannerSurfaceSource).toContain(
       "Slots 1–3 are the top sliding carousel. Slots 4–5 are the two smaller banners below it.",
     );
     expect(bannerTableSource).not.toContain("Same five slots");

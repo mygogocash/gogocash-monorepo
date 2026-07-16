@@ -57,6 +57,8 @@ describe('AdminController', () => {
       getBannerHome: stub(),
       updateAllBrandBanner: stub(),
       getAllBrandBanner: stub(),
+      updateSpecificPageBanner: stub(),
+      getSpecificPageBanner: stub(),
       updateConversionDataByConversionId: stub(),
       getDeepLinkList: stub(),
     };
@@ -792,6 +794,44 @@ describe('AdminController', () => {
           link_1: '/brand/promo',
           enabled_1: true,
         }),
+      );
+    });
+  });
+
+  describe('specific page banners', () => {
+    it('given multipart slot data > then delegates target and slots 1-3 only', () => {
+      const image1 = { originalname: 'shops.png' } as Express.Multer.File;
+      const image4 = { originalname: 'hidden.png' } as Express.Multer.File;
+
+      controller.updateSpecificPageBanner(
+        'all-shops',
+        { image_1: [image1], image_4: [image4] } as never,
+        {
+          link_1: '/shops/promo',
+          enabled_1: 'true',
+          link_4: '/must-not-forward',
+        } as never,
+      );
+
+      expect(adminService.updateSpecificPageBanner).toHaveBeenCalledWith(
+        'all-shops',
+        expect.objectContaining({
+          image_1: image1,
+          link_1: '/shops/promo',
+          enabled_1: true,
+        }),
+      );
+      const dto = adminService.updateSpecificPageBanner.mock.calls[0][1];
+      expect(dto.image_4).toBeUndefined();
+      expect(dto.link_4).toBeUndefined();
+    });
+
+    it('getSpecificPageBanner > then delegates the target unchanged', () => {
+      expect(controller.getSpecificPageBanner('product-discovery')).toBe(
+        RETURN,
+      );
+      expect(adminService.getSpecificPageBanner).toHaveBeenCalledWith(
+        'product-discovery',
       );
     });
   });

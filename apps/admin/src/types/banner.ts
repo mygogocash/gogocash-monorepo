@@ -1,9 +1,22 @@
-/** Which homepage / brands banner admin surface is being edited (tables + mock paths). */
-export type BannerTableVariant = "home" | "homeSmall" | "allBrand";
+export type SpecificPageBannerTargetId =
+  "all-brands" | "all-shops" | "product-discovery";
+
+/** Persisted banner surface selected by the shared Admin table/editor. */
+export type BannerAdminSurfaceId =
+  "home" | "homeSmall" | SpecificPageBannerTargetId;
+
+/** Backward-compatible name retained for imports while BannerTable moves to surface ids. */
+export type BannerTableVariant = BannerAdminSurfaceId;
 
 export const BANNER_SLOT_IDS = [1, 2, 3, 4, 5] as const;
 
 export type BannerSlotId = (typeof BANNER_SLOT_IDS)[number];
+
+export type BannerSlotDescriptor = {
+  area: string;
+  label: string;
+  slot: BannerSlotId;
+};
 
 type SlotSuffix = `_${BannerSlotId}`;
 
@@ -30,7 +43,8 @@ type SlotForeverFields = {
 };
 
 export interface BannerRequestForm
-  extends SlotImageFields,
+  extends
+    SlotImageFields,
     SlotLinkFields,
     SlotEnabledFields,
     SlotDateFields,
@@ -47,8 +61,7 @@ export type BannerData = {
   start_date?: string;
   end_date?: string;
 } & SlotImageFields &
-  SlotLinkFields &
-  {
+  SlotLinkFields & {
     [K in BannerSlotId as `enabled${SlotSuffix}`]?: boolean | null;
   } & {
     [K in BannerSlotId as `start_date${SlotSuffix}`]?: string | null;

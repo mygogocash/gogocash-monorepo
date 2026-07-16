@@ -664,12 +664,40 @@ export const mockBannerHomeSmall = {
 
 /** Carousel for the in-app “all brands” listing screen (separate from homepage). */
 export const mockBannerAllBrandPage = {
-  image_1: "brands-page-banner-1",
+  image_1: "/images/carousel/carousel-01.png",
   image_2: null,
   image_3: null,
   image_4: null,
   image_5: null,
   link_1: "https://gogocash.app/brands/promo",
+  link_2: "",
+  link_3: "",
+  link_4: "",
+  link_5: "",
+};
+
+/** Isolated carousel for the in-app “all shops” listing screen. */
+export const mockBannerAllShopsPage = {
+  image_1: "/images/carousel/carousel-02.png",
+  image_2: null,
+  image_3: null,
+  image_4: null,
+  image_5: null,
+  link_1: "https://gogocash.app/shops/promo",
+  link_2: "",
+  link_3: "",
+  link_4: "",
+  link_5: "",
+};
+
+/** Isolated carousel for the product discovery screen. */
+export const mockBannerProductDiscoveryPage = {
+  image_1: "/images/carousel/carousel-03.png",
+  image_2: null,
+  image_3: null,
+  image_4: null,
+  image_5: null,
+  link_1: "https://gogocash.app/discover/promo",
   link_2: "",
   link_3: "",
   link_4: "",
