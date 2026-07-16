@@ -662,12 +662,17 @@ describe('AdminController', () => {
   // ─── Category + banner multipart unwrapping ─────────────────────────────
 
   describe('updateCategory', () => {
-    it('updateCategory > given an uploaded image array > then it unwraps the first file', () => {
+    it('updateCategory > given uploaded icon and banner arrays > then it unwraps both first files', () => {
       const image = { originalname: 'cat.png' } as Express.Multer.File;
-      controller.updateCategory('cat-1', {} as never, { image: [image] });
+      const banner = { originalname: 'cat-wide.png' } as Express.Multer.File;
+      controller.updateCategory('cat-1', {} as never, {
+        image: [image],
+        banner: [banner],
+      });
 
       expect(adminService.updateCategory).toHaveBeenCalledWith('cat-1', {
         image,
+        banner,
       });
     });
 
@@ -676,6 +681,7 @@ describe('AdminController', () => {
 
       expect(adminService.updateCategory).toHaveBeenCalledWith('cat-1', {
         image: null,
+        banner: null,
       });
     });
 
@@ -687,6 +693,7 @@ describe('AdminController', () => {
       expect(adminService.updateCategory).toHaveBeenCalledWith('cat-1', {
         name: 'Electronics',
         image: null,
+        banner: null,
       });
     });
 

@@ -365,7 +365,14 @@ const FormCoupon = ({
       filedName: "description",
       type: "textarea",
       description:
-        "Short text explaining the coupon terms, conditions or offer details.",
+        "Short summary shown directly on the customer coupon card.",
+    },
+    {
+      filedName: "terms_and_conditions",
+      label: "Terms & conditions",
+      type: "textarea",
+      description:
+        "Full coupon terms shown when a customer selects Read terms & conditions.",
     },
   ];
 

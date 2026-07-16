@@ -12,6 +12,9 @@ describe("Banner page surfaces", () => {
   it("renders only backend-supported banner surfaces on the home banner page", () => {
     expect(bannerPageSource).toContain("<BannerTable />");
     expect(bannerPageSource).not.toContain('variant="homeSmall"');
+    expect(bannerSurfaceSource).not.toContain(
+      '["home", "homeSmall", "allBrand"]',
+    );
   });
 });
 
@@ -21,6 +24,36 @@ const bannerTableSource = readFileSync(
 );
 const formUpdateSource = readFileSync(
   resolve(process.cwd(), "src/components/banner/FormUpdate.tsx"),
+  "utf8",
+);
+const bannerSubNavSource = readFileSync(
+  resolve(process.cwd(), "src/components/banner/BannerSubNav.tsx"),
+  "utf8",
+);
+const bannerSurfaceSource = readFileSync(
+  resolve(process.cwd(), "src/lib/bannerAdminSurfaces.ts"),
+  "utf8",
+);
+const sidebarSource = readFileSync(
+  resolve(process.cwd(), "src/layout/AppSidebarContent.tsx"),
+  "utf8",
+);
+const specificPageSource = readFileSync(
+  resolve(
+    process.cwd(),
+    "src/app/(admin)/(others-pages)/banner/all-brand-page/page.tsx",
+  ),
+  "utf8",
+);
+const supportSource = readFileSync(
+  resolve(process.cwd(), "src/app/(admin)/(others-pages)/support/page.tsx"),
+  "utf8",
+);
+const inactiveSlotsSource = readFileSync(
+  resolve(
+    process.cwd(),
+    "src/components/banner/BannerInactiveSlotsSection.tsx",
+  ),
   "utf8",
 );
 
@@ -41,7 +74,7 @@ describe("Banner sub-page navigation (issue #280 dedupe)", () => {
 
   const bannerPageFiles: Record<string, string> = {
     "home banner": "src/app/(admin)/(others-pages)/banner/page.tsx",
-    "all brand page banner":
+    "specific page banner":
       "src/app/(admin)/(others-pages)/banner/all-brand-page/page.tsx",
     "modal popups":
       "src/app/(admin)/(others-pages)/banner/modal-popups/page.tsx",
@@ -58,6 +91,47 @@ describe("Banner sub-page navigation (issue #280 dedupe)", () => {
       expect(source).toContain("<BannerSubNav />");
     });
   }
+});
+
+describe("Banner placement clarity (issue #338)", () => {
+  it("renames the visible admin surface everywhere without changing its compatible route", () => {
+    for (const source of [
+      bannerSubNavSource,
+      bannerTableSource,
+      bannerSurfaceSource,
+      sidebarSource,
+      specificPageSource,
+      supportSource,
+    ]) {
+      expect(source).not.toContain("All Brand Page banner");
+      expect(source).toContain("Specific Page Banner");
+    }
+    expect(bannerSubNavSource).toContain('href: "/banner/all-brand-page"');
+  });
+
+  it("documents the only wired specific-page target and does not promise fake targets", () => {
+    expect(bannerTableSource).toContain("All Brands page banner set");
+    expect(bannerTableSource).toContain("Page target: All Brands page");
+    expect(bannerTableSource).toContain(
+      "Additional page targets require a wired customer placement",
+    );
+  });
+
+  it("keeps the homepage contract at three carousel plus two lower slots", () => {
+    expect(bannerTableSource).toContain(
+      "Slots 1–3 are the top sliding carousel. Slots 4–5 are the two smaller banners below it.",
+    );
+    expect(bannerTableSource).not.toContain("Same five slots");
+    expect(supportSource).toContain("top carousel slides 1–3");
+    expect(supportSource).toContain("smaller lower banners in slots 4–5");
+  });
+
+  it("uses the same slot contract in Popup history", () => {
+    expect(inactiveSlotsSource).toContain(
+      "getBannerSlotDescriptors(surfaceId)",
+    );
+    expect(inactiveSlotsSource).toContain("managedSlots.has(slot)");
+  });
 });
 
 describe("Banner API documentation (issue #313)", () => {

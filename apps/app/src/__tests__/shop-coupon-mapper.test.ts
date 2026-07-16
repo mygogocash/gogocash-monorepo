@@ -12,23 +12,50 @@ describe("mapPublicShopCoupons", () => {
           description: " 10% off eligible orders ",
           code: "   ",
           discount: "10",
+          discount_type: "cash",
+          discount_currency: "THB",
           min_spend: "100",
+          min_spend_currency: "THB",
           start_date: "2026-07-10",
+          start_time: "09:30",
           end_date: "2026-07-22",
+          end_time: "22:15",
           link: "https://example.test/godaddy",
+          code_enabled: false,
+          eligibility: "members",
+          max_cap: "500",
+          max_cap_enabled: true,
+          max_cap_currency: "THB",
+          one_time_use_enabled: false,
+          usage_per_user: "3",
+          remaining_quantity: "4",
+          terms_and_conditions: "Valid for members only.",
         },
       ]),
     ).toEqual([
       {
         id: "6a564de4535424c5c9370c0e",
         code: null,
+        codeEnabled: false,
         description: "10% off eligible orders",
         discount: 10,
+        discountCurrency: "THB",
+        discountType: "cash",
         endDate: "2026-07-22",
+        endTime: "22:15",
+        eligibility: "members",
         link: "https://example.test/godaddy",
+        maxCap: 500,
+        maxCapCurrency: "THB",
         minimumSpend: "100",
+        minimumSpendCurrency: "THB",
         name: "Love U",
+        oneTimeUse: false,
+        remainingQuantity: 4,
         startDate: "2026-07-10",
+        startTime: "09:30",
+        termsAndConditions: "Valid for members only.",
+        usagePerUser: 3,
       },
     ]);
   });
@@ -48,6 +75,25 @@ describe("mapPublicShopCoupons", () => {
         discount: 20,
         id: "save-20",
         name: "Save 20",
+      }),
+    ]);
+  });
+
+  it("given a disabled max cap > then omits the cap from the customer contract", () => {
+    expect(
+      mapPublicShopCoupons([
+        {
+          _id: "no-cap",
+          name: "No cap deal",
+          max_cap: 0,
+          max_cap_enabled: false,
+          max_cap_currency: "THB",
+        },
+      ]),
+    ).toEqual([
+      expect.objectContaining({
+        maxCap: null,
+        maxCapCurrency: null,
       }),
     ]);
   });

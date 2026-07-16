@@ -12,15 +12,20 @@ const ALL_BRAND_PROMO_TITLE = "Promotion by Brands";
 export function mapBackendAllBrandPromo(
   document: BannerHomeDocument,
 ): DirectoryPromo | null {
-  const slides = mapBackendHomeBanners(document).map((banner) => {
-    const slot = banner.id.replace("home-banner-", "");
-    return {
-      accessibilityLabel: `All Brands promotion ${slot}`,
-      href: banner.href,
-      id: `all-brand-banner-${slot}`,
-      imageUri: banner.imageUri ?? "",
-    };
-  });
+  // Specific Page Banner is a three-slide carousel. The shared legacy mapper
+  // also exposes home-side positions 4–5, so keep only its 1–3/main contract
+  // here; otherwise an old hidden slot could remain live with no Admin control.
+  const slides = mapBackendHomeBanners(document)
+    .filter((banner) => banner.placement === "main")
+    .map((banner) => {
+      const slot = banner.id.replace("home-banner-", "");
+      return {
+        accessibilityLabel: `All Brands promotion ${slot}`,
+        href: banner.href,
+        id: `all-brand-banner-${slot}`,
+        imageUri: banner.imageUri ?? "",
+      };
+    });
 
   if (slides.length === 0) {
     return null;

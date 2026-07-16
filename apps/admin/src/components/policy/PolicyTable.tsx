@@ -1,8 +1,14 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import client, { fetcher, fetcherPost, fetcherPut } from "@/lib/axios/client";
+import client, { fetcher, fetcherPost } from "@/lib/axios/client";
 import { ResCategoryList } from "@/types/category";
 import NoData from "@/components/common/NoData";
 import Button from "@/components/ui/button/Button";
@@ -15,13 +21,15 @@ import CategoryIcon from "./CategoryIcon";
 import { isDirty } from "@/lib/isDirty";
 import { createCategoryErrorMessage } from "@/lib/createCategoryError";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { pathImage } from "@/utils/helper";
 import { validateCategoryName } from "./categoryNameValidation";
 import toast from "react-hot-toast";
 import {
   DEFAULT_POLICY_TEMPLATES,
+  NEW_POLICY_TERMS_REQUIRED_MESSAGE,
   POLICY_TRANSLATION_LOCALES,
   asNonEmptyParsed,
-  buildSavePayload,
+  buildUnifiedPolicySavePlan,
   composeTemplatePlus,
   emptyParsedPolicy,
   getTemplateBody,
@@ -73,9 +81,7 @@ type PolicyListEntry = {
 
 type PolicyBannerTextEditorConfig = {
   translations: Record<string, string>;
-  setTranslations: React.Dispatch<
-    React.SetStateAction<Record<string, string>>
-  >;
+  setTranslations: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   primaryLocale: string;
   setPrimaryLocale: (v: string) => void;
   activeLocale: string;
@@ -83,8 +89,6 @@ type PolicyBannerTextEditorConfig = {
   editing: boolean;
   onBeginEdit: () => void;
   onCancel: () => void;
-  onSave: () => void;
-  dirty: boolean;
   editAriaLabel: string;
   saving: boolean;
 };
@@ -132,24 +136,14 @@ function PolicyBannerTextEditor(cfg: PolicyBannerTextEditorConfig) {
             Banner text (per locale)
           </h4>
           {cfg.editing ? (
-            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={cfg.onCancel}
                 disabled={cfg.saving}
                 className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
               >
-                Cancel
+              Cancel banner text changes
               </button>
-              <button
-                type="button"
-                onClick={cfg.onSave}
-                disabled={cfg.saving || !cfg.dirty}
-                className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
-              >
-                {cfg.saving ? "Saving…" : "Save"}
-              </button>
-            </div>
           ) : (
             <SecondaryButton
               type="button"
@@ -319,18 +313,23 @@ export default function PolicyTable() {
   // Uploaded banner per section (object-URL preview + filename). Replaces the
   // preset preview once a file is chosen via "Upload File".
   const [defaultUpload, setDefaultUpload] = useState<{
+    file: File;
     url: string;
     name: string;
   } | null>(null);
   const defaultFileRef = useRef<HTMLInputElement>(null);
-  // Auto-save on upload — which banner is briefly "Saving…" (transient).
-  const [bannerSaving, setBannerSaving] = useState<"default" | null>(null);
-  const bannerSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Object URLs only exist for local preview. The selected File stays in the
+  // draft and is uploaded by the same editor-level Save as the text blocks.
+  useEffect(() => {
+    if (!defaultUpload) return undefined;
+    return () => URL.revokeObjectURL(defaultUpload.url);
+  }, [defaultUpload]);
 
   // Snapshot of the editable fields `handleSave` sends, captured the moment a
   // category modal opens (i.e. AFTER the loaded policy populates state). Drives
-  // "disable Save until something changed". `bannerDraft` (the image upload) is
-  // a separate save path with its own button, so it's intentionally excluded.
+  // "disable Save until something changed". The image File is tracked
+  // separately because deep-comparing browser File objects is not meaningful.
   type SaveSnapshot = {
     primaryLocale: string;
     translations: Record<string, string>;
@@ -350,8 +349,8 @@ export default function PolicyTable() {
     bannerPrimaryLocale,
     bannerTranslations,
   };
-  // Per-block dirty flags — each section's Save is gated on its OWN changes, so
-  // saving (or re-baselining) one section never enables/touches the other.
+  // Per-block dirty flags let the unified Save send only the blocks that
+  // changed, so editing one section never overwrites the other.
   const baseline = saveBaseline;
   const termsDirty = isDirty(
     {
@@ -386,12 +385,7 @@ export default function PolicyTable() {
   });
 
   const { normalizedName, error: categoryNameError } = useMemo(
-    () =>
-      validateCategoryName(
-        nameDraft,
-        categories,
-        selectedCategory?._id,
-      ),
+    () => validateCategoryName(nameDraft, categories, selectedCategory?._id),
     [nameDraft, categories, selectedCategory?._id],
   );
 
@@ -416,6 +410,15 @@ export default function PolicyTable() {
     }
     return map;
   }, [policiesData]);
+  const isNewPolicy = Boolean(
+    selectedCategory && !policiesById[selectedCategory._id],
+  );
+  const hasUnsavedChanges = termsDirty || bannerDirty || defaultUpload !== null;
+  const defaultBannerSrc = defaultUpload?.url
+    ? defaultUpload.url
+    : selectedCategory?.banner
+      ? pathImage(selectedCategory.banner, "banner")
+      : "";
 
   // Category-table toolbar — free-text search by name + filter by T&C status.
   const [categorySearch, setCategorySearch] = useState("");
@@ -503,6 +506,8 @@ export default function PolicyTable() {
       const bannerParsed = policy?.banner
         ? parseStoredPolicy(policy.banner)
         : emptyParsedPolicy();
+      const hasTerms = Boolean(asNonEmptyParsed(parsed));
+      const hasBannerText = Boolean(asNonEmptyParsed(bannerParsed));
       setCreatingCategoryDraft(false);
       setSelectedCategory(category);
       setContentSource(parsed.contentSource ?? "custom");
@@ -525,9 +530,22 @@ export default function PolicyTable() {
         .sort((a, b) => b[1].length - a[1].length);
       setActiveLocale(populated[0]?.[0] ?? parsed.primary_locale ?? "th");
       setDefaultUpload(null);
-      setEditingTerms(false);
-      setEditingBanner(false);
+      // Empty blocks are creation work, so expose their editors immediately.
+      // Populated blocks stay in review mode until the admin explicitly edits.
+      setEditingTerms(!hasTerms);
+      setEditingBanner(!hasBannerText);
       setEditingName(false);
+      termsEditSnapshot.current = {
+        translations: { ...parsed.translations },
+        additionalTermsByLocale: { ...parsed.additionalTerms },
+        primaryLocale: parsed.primary_locale || "th",
+        selectedTemplateId: parsed.templateId ?? "",
+        contentSource: parsed.contentSource ?? "custom",
+      };
+      bannerEditSnapshot.current = {
+        bannerTranslations: { ...bannerParsed.translations },
+        bannerPrimaryLocale: bannerParsed.primary_locale || "th",
+      };
       // Baseline for "disable Save until changed". Built from the same parsed
       // values used in the setters above (state updates are async, so we can't
       // read them back here). Mirrors `currentSaveSnapshot` exactly.
@@ -558,8 +576,11 @@ export default function PolicyTable() {
     setBannerPrimaryLocale("th");
     setBannerTranslations({});
     setBannerActiveLocale("th");
+    setDefaultUpload(null);
     setEditingTerms(false);
     setEditingBanner(false);
+    termsEditSnapshot.current = null;
+    bannerEditSnapshot.current = null;
     setEditingName(false);
     setNameDraft("");
   }, []);
@@ -628,30 +649,20 @@ export default function PolicyTable() {
     }
   };
 
-  // Auto-save a just-uploaded banner — no separate Save step. Mock: a brief
-  // "Saving…" then a confirmation toast (object-URL preview is applied at once).
-  const autoSaveBanner = (which: "default", name: string) => {
-    if (bannerSaveTimeout.current) clearTimeout(bannerSaveTimeout.current);
-    setBannerSaving(which);
-    bannerSaveTimeout.current = setTimeout(() => {
-      setBannerSaving(null);
-      toast.success(`${name} saved automatically.`);
-    }, 600);
-  };
-
-  // "Upload File" handlers — read the chosen image into an object-URL preview
-  // (revoking any prior one), then auto-save. Data is mock, so it's client-side.
+  // "Upload File" keeps both the real File and an object-URL preview in the
+  // local draft. Nothing is persisted until the unified Save succeeds.
   const handleDefaultUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (defaultUpload) URL.revokeObjectURL(defaultUpload.url);
-    setDefaultUpload({ url: URL.createObjectURL(file), name: file.name });
-    autoSaveBanner("default", file.name);
+    setDefaultUpload({
+      file,
+      url: URL.createObjectURL(file),
+      name: file.name,
+    });
   };
 
-  // Clear an uploaded banner — back to the "No uploaded files" state.
+  // Remove only the selected draft; an already-saved banner remains untouched.
   const handleRemoveDefault = () => {
-    if (defaultUpload) URL.revokeObjectURL(defaultUpload.url);
     setDefaultUpload(null);
     if (defaultFileRef.current) defaultFileRef.current.value = "";
   };
@@ -671,17 +682,12 @@ export default function PolicyTable() {
     }));
   };
 
-  // Persist ONE block (terms or banner). The other block is intentionally
-  // omitted from the payload so the server keeps its copy — this is what makes
-  // each section's "read-only preview" promise true (editing/saving one section
-  // never rewrites the other). On success the editor stays open and `afterSave`
-  // returns that section to its preview (defaults to closing the editor).
-  const handleSave = async (
-    block: "terms" | "banner",
-    afterSave?: () => void,
-  ) => {
+  // One editor-level Save coordinates policy text and the optional category
+  // banner File. Existing policy writes remain patch-like (dirty blocks only),
+  // while the first policy write must include non-empty terms.
+  const handleSave = async () => {
     if (!selectedCategory) return;
-    if (block === "terms" && isOverLength) {
+    if (termsDirty && isOverLength) {
       toast.error("One or more translations exceed 50,000 characters.");
       return;
     }
@@ -702,70 +708,105 @@ export default function PolicyTable() {
       templateId: null,
       additionalTerms: {},
     });
-    const editedParsed = block === "terms" ? termsParsed : bannerParsed;
-    if (!editedParsed) {
-      toast.error(
-        block === "terms"
-          ? "Add at least one terms translation before saving."
-          : "Add banner text in at least one locale before saving.",
-      );
+    const savePlan = buildUnifiedPolicySavePlan({
+      categoryId: selectedCategory._id,
+      isNewPolicy,
+      termsDirty,
+      bannerDirty,
+      termsParsed,
+      bannerParsed,
+    });
+    if (!savePlan.ok) {
+      setEditingTerms(true);
+      toast.error(savePlan.message);
       return;
     }
+
     setSaving(true);
     try {
-      await fetcherPut([
-        "/policy",
-        {
-          data: buildSavePayload({
-            categoryId: selectedCategory._id,
-            termsParsed: block === "terms" ? termsParsed : undefined,
-            bannerParsed: block === "banner" ? bannerParsed : undefined,
-          }),
-        },
+      const hasPolicyChanges = isNewPolicy || termsDirty || bannerDirty;
+      // `savePlan.payload` is already the exact UpsertPolicyDto. Do not wrap it
+      // in `{ data: ... }`; the Nest endpoint validates top-level fields.
+      const policyRequest = hasPolicyChanges
+        ? client.put("/policy", savePlan.payload)
+        : Promise.resolve(null);
+      const bannerRequest: Promise<ResCategoryList | null> = defaultUpload
+        ? (() => {
+            const bannerForm = new FormData();
+            bannerForm.append("banner", defaultUpload.file);
+            return client
+              .patch(
+                `/admin/update-category/${selectedCategory._id}`,
+                bannerForm,
+              )
+              .then((response) => {
+                const body = response.data as
+                  ResCategoryList | { data?: ResCategoryList };
+                return body &&
+                  typeof body === "object" &&
+                  "data" in body &&
+                  body.data
+                  ? body.data
+                  : (body as ResCategoryList);
+              });
+          })()
+        : Promise.resolve(null);
+
+      const [, savedCategory] = await Promise.all([
+        policyRequest,
+        bannerRequest,
       ]);
-      await queryClient.invalidateQueries({ queryKey: ["policyList"] });
-      // Re-baseline ONLY the saved block so its dirty flag resets while the
-      // other block's unsaved edits (it wasn't persisted) stay flagged dirty.
+      await Promise.all([
+        ...(hasPolicyChanges
+          ? [queryClient.invalidateQueries({ queryKey: ["policyList"] })]
+          : []),
+        ...(defaultUpload
+          ? [
+              queryClient.invalidateQueries({
+                queryKey: ["getCategory", "policy-page"],
+              }),
+            ]
+          : []),
+      ]);
+
+      if (savedCategory?._id) setSelectedCategory(savedCategory);
       setSaveBaseline({
-        ...(saveBaseline ?? currentSaveSnapshot),
-        ...(block === "terms"
-          ? {
-              primaryLocale,
-              translations: { ...translations },
-              contentSource,
-              selectedTemplateId,
-              additionalTermsByLocale: { ...additionalTermsByLocale },
-            }
-          : {
-              bannerPrimaryLocale,
-              bannerTranslations: { ...bannerTranslations },
-            }),
+        ...currentSaveSnapshot,
+        translations: { ...translations },
+        additionalTermsByLocale: { ...additionalTermsByLocale },
+        bannerTranslations: { ...bannerTranslations },
       });
+      setEditingTerms(false);
+      setEditingBanner(false);
+      setDefaultUpload(null);
+      if (defaultFileRef.current) defaultFileRef.current.value = "";
       toast.success(
-        block === "terms" ? "Terms & conditions saved." : "Banner text saved.",
+        defaultUpload
+          ? "Policy and default banner saved."
+          : "Policy changes saved.",
       );
-      (afterSave ?? closeModal)();
     } catch (err: unknown) {
-      const message =
-        err &&
-        typeof err === "object" &&
-        "data" in err &&
-        typeof (err as { data?: { message?: string } }).data?.message ===
-          "string"
-          ? (err as { data: { message: string } }).data.message
-          : "Couldn't save your changes. Please try again, or contact an administrator if it continues.";
-      toast.error(message);
+      toast.error(
+        getApiErrorMessage(
+          err,
+          "Couldn't save the policy. Your draft is still here—retry, or contact an administrator if it continues.",
+        ),
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  // One-step clear — empty the terms content for every locale. Local only;
-  // closing without saving leaves any previously-saved policy intact.
+  // Clear is a draft action. The unified payload turns an emptied existing
+  // block into explicit `clear_terms`, so Save cannot silently ignore it.
   const handleClearClick = () => {
     setTranslations({});
     setAdditionalTermsByLocale({});
-    toast.success("Terms content cleared.");
+    toast.success(
+      isNewPolicy
+        ? "Terms draft cleared. Add required terms before saving."
+        : "Terms will be removed when you save changes.",
+    );
   };
 
   // Enter edit mode: snapshot the section's editable fields (spread-copied so
@@ -883,17 +924,35 @@ export default function PolicyTable() {
                   : "Edit the terms & conditions and the category banner for this category. Optional admin translation is stored with the policy."}
               </p>
             </div>
-            <Button variant="outline" onClick={closeModal} className="shrink-0">
-              Close
-            </Button>
+            <div className="flex shrink-0 items-center gap-3">
+              {selectedCategory ? (
+                <button
+                  type="button"
+                  onClick={() => void handleSave()}
+                  disabled={
+                    saving || (termsDirty && isOverLength) || !hasUnsavedChanges
+                  }
+                  className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  {saving ? "Saving…" : "Save changes"}
+                </button>
+              ) : null}
+              <Button variant="outline" onClick={closeModal} disabled={saving}>
+                Close
+              </Button>
+            </div>
           </div>
 
           {selectedCategory ? (
             <div className="mt-4">
-            <>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h4 className="text-base font-semibold text-gray-900 dark:text-white">
                   Terms &amp; conditions (per locale)
+                  {isNewPolicy ? (
+                    <span className="ml-1 text-red-600" aria-hidden="true">
+                      *
+                    </span>
+                  ) : null}
                 </h4>
                 {!editingTerms ? (
                   <SecondaryButton
@@ -905,6 +964,14 @@ export default function PolicyTable() {
                   </SecondaryButton>
                 ) : null}
               </div>
+              {isNewPolicy && !hasAnyTranslation ? (
+                <p
+                  className="mt-2 text-xs text-red-600 dark:text-red-400"
+                  role="alert"
+                >
+                  {NEW_POLICY_TERMS_REQUIRED_MESSAGE}
+                </p>
+              ) : null}
               {!editingTerms ? (
                 <div className="mt-4">
                   {renderPolicyLocalePreview(
@@ -1030,7 +1097,7 @@ export default function PolicyTable() {
                           )?.label ?? activeLocale}
                         </span>
                       </label>
-                      {/* Clear (red) · Cancel · Save — on the Content label row. */}
+                      {/* Clear and Cancel stay scoped; the header owns Save. */}
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
@@ -1046,24 +1113,7 @@ export default function PolicyTable() {
                           disabled={saving}
                           className="text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
                         >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void handleSave("terms", () =>
-                              setEditingTerms(false),
-                            )
-                          }
-                          disabled={
-                            saving ||
-                            isOverLength ||
-                            !hasAnyTranslation ||
-                            !termsDirty
-                          }
-                          className={`${SUPPORT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
-                        >
-                          {saving ? "Saving…" : "Save"}
+                          Cancel terms changes
                         </button>
                       </div>
                     </div>
@@ -1096,103 +1146,97 @@ export default function PolicyTable() {
                             (l) => l.value === activeLocale,
                           )?.label
                         }
-                        : {activeLocaleLength} / {POLICY_MAX_LENGTH} characters
+                          : {activeLocaleLength} / {POLICY_MAX_LENGTH}{" "}
+                          characters
                       </p>
                       <p className="text-gray-500 dark:text-gray-400">
                         Total across all locales: {totalLength}
                       </p>
                     </div>
-                    {!hasAnyTranslation ? (
+                    {!hasAnyTranslation && !isNewPolicy ? (
                       <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                        At least one non-empty translation is required to save.
+                        Saving will remove the terms block from this existing
+                        policy.
                       </p>
                     ) : null}
                   </div>
                 </div>
               )}
-            </>
 
-            <div className="mt-8 border-t border-gray-200 pt-6 dark:border-gray-800">
-              <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-900/20">
-                {/* Default banner — preset preview, replaced by an uploaded file. */}
-                <div className="min-w-0">
-                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                        Default banner
-                      </h3>
-                      {defaultUpload ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                          <span
-                            className="h-1.5 w-1.5 rounded-full bg-green-500"
-                            aria-hidden
-                          />
-                          Active Banner
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {bannerSaving === "default" ? (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          Saving…
-                        </span>
-                      ) : null}
-                      <SecondaryButton
-                        type="button"
-                        onClick={() => defaultFileRef.current?.click()}
-                      >
-                        Upload File
-                      </SecondaryButton>
-                      {defaultUpload ? (
-                        <button
+              <div className="mt-8 border-t border-gray-200 pt-6 dark:border-gray-800">
+                <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-900/20">
+                  {/* Default banner — preset preview, replaced by an uploaded file. */}
+                  <div className="min-w-0">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                          Default banner
+                        </h3>
+                        {defaultBannerSrc ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                            <span
+                              className="h-1.5 w-1.5 rounded-full bg-green-500"
+                              aria-hidden
+                            />
+                            {defaultUpload
+                              ? "Unsaved replacement"
+                              : "Active banner"}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <SecondaryButton
                           type="button"
-                          onClick={handleRemoveDefault}
-                          className="text-xs font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                          onClick={() => defaultFileRef.current?.click()}
                         >
-                          Remove
-                        </button>
-                      ) : null}
+                          Upload File
+                        </SecondaryButton>
+                        {defaultUpload ? (
+                          <button
+                            type="button"
+                            onClick={handleRemoveDefault}
+                            className="text-xs font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                  {defaultUpload ? (
-                    <RemoteOrBlobImage
-                      className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                      src={defaultUpload.url}
-                      alt="Default category banner"
-                      width={640}
-                      height={200}
+                    {defaultBannerSrc ? (
+                      <RemoteOrBlobImage
+                        className="max-h-40 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                        src={defaultBannerSrc}
+                        alt="Default category banner"
+                        width={640}
+                        height={200}
+                      />
+                    ) : (
+                      <NoUploadedBanner />
+                    )}
+                    <input
+                      ref={defaultFileRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleDefaultUpload}
+                      className="hidden"
                     />
-                  ) : (
-                    <NoUploadedBanner />
-                  )}
-                  <input
-                    ref={defaultFileRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleDefaultUpload}
-                    className="hidden"
-                  />
 
-                  <PolicyBannerTextEditor
-                    translations={bannerTranslations}
-                    setTranslations={setBannerTranslations}
-                    primaryLocale={bannerPrimaryLocale}
-                    setPrimaryLocale={setBannerPrimaryLocale}
-                    activeLocale={bannerActiveLocale}
-                    setActiveLocale={setBannerActiveLocale}
-                    editing={editingBanner}
-                    onBeginEdit={beginEditBanner}
-                    onCancel={cancelEditBanner}
-                    onSave={() =>
-                      void handleSave("banner", () => setEditingBanner(false))
-                    }
-                    dirty={bannerDirty}
-                    editAriaLabel="Edit banner text"
-                    saving={saving}
-                  />
-                </div>
-              </section>
-            </div>
+                    <PolicyBannerTextEditor
+                      translations={bannerTranslations}
+                      setTranslations={setBannerTranslations}
+                      primaryLocale={bannerPrimaryLocale}
+                      setPrimaryLocale={setBannerPrimaryLocale}
+                      activeLocale={bannerActiveLocale}
+                      setActiveLocale={setBannerActiveLocale}
+                      editing={editingBanner}
+                      onBeginEdit={beginEditBanner}
+                      onCancel={cancelEditBanner}
+                      editAriaLabel="Edit banner text"
+                      saving={saving}
+                    />
+                  </div>
+                </section>
+              </div>
             </div>
           ) : null}
         </div>
@@ -1208,10 +1252,7 @@ export default function PolicyTable() {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <PrimaryButton
-                variant="blue"
-                onClick={handleCreateCategory}
-              >
+              <PrimaryButton variant="blue" onClick={handleCreateCategory}>
                 Create New
               </PrimaryButton>
             </div>

@@ -56,21 +56,25 @@ export class CreateQuestDto {
   @IsString()
   line: string;
 
-  @ApiProperty({ example: '' })
+  @ApiProperty({ example: '', required: false })
+  @IsOptional()
   @IsString()
-  banner_en: string;
+  banner_en?: string;
 
-  @ApiProperty({ example: '' })
+  @ApiProperty({ example: '', required: false })
+  @IsOptional()
   @IsString()
-  banner_th: string;
+  banner_th?: string;
 
-  @ApiProperty({ example: '' })
+  @ApiProperty({ example: '', required: false })
+  @IsOptional()
   @IsString()
-  sub_banner_en: string;
+  sub_banner_en?: string;
 
-  @ApiProperty({ example: '' })
+  @ApiProperty({ example: '', required: false })
+  @IsOptional()
   @IsString()
-  sub_banner_th: string;
+  sub_banner_th?: string;
 }
 
 export class CloseQuestDto {

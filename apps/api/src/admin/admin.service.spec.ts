@@ -15,6 +15,7 @@ import { Banner } from 'src/offer/schemas/banner.schema';
 import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { StoredMediaService } from 'src/media/stored-media.service';
+import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { InvolveService } from 'src/involve/involve.service';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
@@ -937,6 +938,39 @@ describe('AdminService', () => {
       expect(persisted.image).toBe(
         'https://storage.googleapis.com/gogocash-catalog-staging/categories/new.png',
       );
+    });
+
+    it('updateCategory > given a banner upload > then it replaces and persists the category banner', async () => {
+      categoryModel.findById.mockReturnValue(
+        makeQuery({
+          _id: categoryId,
+          name: 'Keep me',
+          image: 'icon.png',
+          banner: 'old-wide.png',
+        }),
+      );
+      categoryModel.findByIdAndUpdate.mockReturnValue(
+        makeQuery({ _id: categoryId }),
+      );
+      storedMediaService.replace.mockResolvedValue(
+        'https://storage.googleapis.com/gogocash-catalog-staging/categories/new-wide.png',
+      );
+      const banner = {
+        originalname: 'new-wide.png',
+      } as Express.Multer.File;
+
+      await service.updateCategory(categoryId, { banner });
+
+      expect(storedMediaService.replace).toHaveBeenCalledWith(
+        banner,
+        MEDIA_FOLDER.CATEGORIES,
+        'old-wide.png',
+      );
+      const persisted = categoryModel.findByIdAndUpdate.mock.calls[0][1];
+      expect(persisted.banner).toBe(
+        'https://storage.googleapis.com/gogocash-catalog-staging/categories/new-wide.png',
+      );
+      expect(persisted.image).toBe('icon.png');
     });
 
     it('updateCategory > given a rename that hits the unique name index > then it rejects with a clear 400', async () => {

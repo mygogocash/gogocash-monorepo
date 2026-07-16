@@ -43,6 +43,51 @@ describe("buildCouponSubmitPayload", () => {
     expect(payload.code).toBe("SAVE10");
   });
 
+  it("preserves the customer-facing coupon setup fields", () => {
+    const payload = buildCouponSubmitPayload(
+      {
+        ...COUPON_FORM_DEFAULTS,
+        name: "Member deal",
+        offer_id: "offer-1",
+        start_date: "2026-07-01",
+        end_date: "2026-07-31",
+        code_enabled: false,
+        one_time_use_enabled: false,
+        usage_per_user: "3",
+        unlimited_amount_enabled: false,
+        available_code_amount: "25",
+        max_cap_enabled: true,
+        max_cap: "500",
+        max_cap_currency: "THB",
+        min_spend_enabled: true,
+        min_spend: "1000",
+        min_spend_currency: "THB",
+        discount_type: "cash",
+        discount_currency: "THB",
+        start_time: "09:30",
+        end_time: "22:15",
+        terms_and_conditions: "Valid for members only.",
+      },
+      { discount: 10, quantity: 25 },
+    );
+
+    expect(payload).toMatchObject({
+      code_enabled: false,
+      one_time_use_enabled: false,
+      usage_per_user: 3,
+      unlimited_amount_enabled: false,
+      max_cap: 500,
+      max_cap_enabled: true,
+      max_cap_currency: "THB",
+      min_spend_currency: "THB",
+      discount_type: "cash",
+      discount_currency: "THB",
+      start_time: "09:30",
+      end_time: "22:15",
+      terms_and_conditions: "Valid for members only.",
+    });
+  });
+
   it("given a legacy URL on create or edit > then clears the unused link field", () => {
     const payload = buildCouponSubmitPayload(
       {

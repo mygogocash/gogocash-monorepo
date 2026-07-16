@@ -24,14 +24,14 @@ export const BANNER_ADMIN_SURFACES: Record<
     queryKey: ["getBannerHomeSmall"],
     fetchPath: "/admin/banner-home-small",
     editHref: "/banner",
-    listTitle: "Home Page Banner — small strip",
+    listTitle: "Legacy home small surface (not managed)",
   },
   allBrand: {
     queryKey: ["getBannerAllBrandPage"],
     fetchPath: "/admin/banner-all-brand-page",
     editHref: "/banner/all-brand-page",
-    listTitle: "All Brand Page banner",
+    listTitle: "Specific Page Banner — All Brands page",
   },
 };
 
-export const BANNER_ADMIN_SURFACE_ORDER: BannerTableVariant[] = ["home", "homeSmall", "allBrand"];
+export const BANNER_ADMIN_SURFACE_ORDER: BannerTableVariant[] = ["home", "allBrand"];

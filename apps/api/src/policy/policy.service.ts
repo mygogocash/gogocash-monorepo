@@ -54,16 +54,38 @@ export class PolicyService {
    *
    *  Validation order (fail fast on cheapest checks):
    *  1. category_id refers to a real Category (404 if not)
-   *  2. banner.translations / terms.translations only use allow-listed locales
-   *  3. each provided block has at least one non-empty translation
-   *  4. each translation is within MAX_TRANSLATION_LENGTH
+   *  2. a first policy write includes terms; clear flags do not conflict
+   *  3. banner.translations / terms.translations only use allow-listed locales
+   *  4. each provided block has at least one non-empty translation
+   *  5. each translation is within MAX_TRANSLATION_LENGTH
    */
   async upsert(dto: UpsertPolicyDto) {
+    const categoryId = new Types.ObjectId(dto.category_id);
     const categoryExists = await this.categoryModel
-      .exists({ _id: new Types.ObjectId(dto.category_id) })
+      .exists({ _id: categoryId })
       .lean();
     if (!categoryExists) {
       throw new NotFoundException('Category not found');
+    }
+
+    if (dto.terms && dto.clear_terms) {
+      throw new BadRequestException(
+        'terms and clear_terms cannot be sent together',
+      );
+    }
+    if (dto.banner && dto.clear_banner) {
+      throw new BadRequestException(
+        'banner and clear_banner cannot be sent together',
+      );
+    }
+
+    const existingPolicy = await this.policyModel.exists({
+      category_id: categoryId,
+    });
+    if (!existingPolicy && (!dto.terms || dto.clear_terms)) {
+      throw new BadRequestException(
+        'Terms & conditions are required for a new policy.',
+      );
     }
 
     if (dto.banner) this.validateContent(dto.banner, 'banner');
@@ -72,13 +94,20 @@ export class PolicyService {
     const $set: Partial<Policy> = {};
     if (dto.banner) $set.banner = this.normaliseContent(dto.banner);
     if (dto.terms) $set.terms = this.normaliseContent(dto.terms);
+    const $unset: { banner?: 1; terms?: 1 } = {};
+    if (dto.clear_banner) $unset.banner = 1;
+    if (dto.clear_terms) $unset.terms = 1;
+    const update = {
+      $set,
+      ...(Object.keys($unset).length > 0 ? { $unset } : {}),
+    };
 
     return this.policyModel
-      .findOneAndUpdate(
-        { category_id: new Types.ObjectId(dto.category_id) },
-        { $set },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
-      )
+      .findOneAndUpdate({ category_id: categoryId }, update, {
+        upsert: !existingPolicy,
+        new: true,
+        setDefaultsOnInsert: true,
+      })
       .lean();
   }
 

@@ -132,14 +132,27 @@ const PUBLIC_COUPON_FIELDS = [
   'name',
   'description',
   'code',
+  'code_enabled',
   'offer_id',
   'start_date',
   'end_date',
+  'start_time',
+  'end_time',
   'eligibility',
   'min_spend',
+  'min_spend_currency',
+  'max_cap',
+  'max_cap_enabled',
+  'max_cap_currency',
   'discount',
+  'discount_type',
+  'discount_currency',
   'quantity',
+  'unlimited_amount_enabled',
+  'one_time_use_enabled',
+  'usage_per_user',
   'link',
+  'terms_and_conditions',
 ] as const;
 const PUBLIC_COUPON_SELECT = [
   ...PUBLIC_COUPON_FIELDS,
@@ -184,32 +197,115 @@ function couponCalendarDate(value: unknown): string | null {
   return value.trim().match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? null;
 }
 
+const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function couponBangkokBoundary(
+  dateValue: unknown,
+  timeValue: unknown,
+  endOfDay: boolean,
+): number | null {
+  const date = couponCalendarDate(dateValue);
+  const dateMatch = date?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!dateMatch) return null;
+
+  const time = typeof timeValue === 'string' ? timeValue.trim() : '';
+  const timeMatch = time.match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
+  if (time && !timeMatch) return null;
+
+  const year = Number(dateMatch[1]);
+  const month = Number(dateMatch[2]);
+  const day = Number(dateMatch[3]);
+  const hour = timeMatch ? Number(timeMatch[1]) : endOfDay ? 23 : 0;
+  const minute = timeMatch ? Number(timeMatch[2]) : endOfDay ? 59 : 0;
+  const second = timeMatch?.[3]
+    ? Number(timeMatch[3])
+    : !timeMatch && endOfDay
+      ? 59
+      : 0;
+  const millisecond = !timeMatch && endOfDay ? 999 : 0;
+  const timestamp =
+    Date.UTC(year, month - 1, day, hour, minute, second, millisecond) -
+    BANGKOK_UTC_OFFSET_MS;
+
+  // Date.UTC normalizes impossible dates (for example 31 February). Reject
+  // those rather than silently shifting a coupon's availability window.
+  const bangkokLocal = new Date(timestamp + BANGKOK_UTC_OFFSET_MS);
+  if (
+    bangkokLocal.getUTCFullYear() !== year ||
+    bangkokLocal.getUTCMonth() !== month - 1 ||
+    bangkokLocal.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return timestamp;
+}
+
 function isPublicCouponEligible(
   coupon: Record<string, any>,
-  today: string,
+  now: Date,
 ): boolean {
-  const startDate = couponCalendarDate(coupon.start_date);
-  const endDate = couponCalendarDate(coupon.end_date);
+  const start = couponBangkokBoundary(
+    coupon.start_date,
+    coupon.start_time,
+    false,
+  );
+  const end = couponBangkokBoundary(coupon.end_date, coupon.end_time, true);
+  const nowTime = now.getTime();
   if (
     parseBoolean(coupon.disabled) ||
-    !startDate ||
-    !endDate ||
-    startDate > today ||
-    endDate < today
+    start === null ||
+    end === null ||
+    !Number.isFinite(nowTime) ||
+    start > nowTime ||
+    end < nowTime
   ) {
     return false;
   }
 
   const quantity = parseOptionalNumber(coupon.quantity) ?? 0;
   const quantityUsed = parseOptionalNumber(coupon.quantity_used) ?? 0;
-  return quantity <= 0 || quantityUsed < quantity;
+  const unlimitedAmountEnabled =
+    coupon.unlimited_amount_enabled === undefined
+      ? quantity <= 0
+      : parseBoolean(coupon.unlimited_amount_enabled);
+  return unlimitedAmountEnabled || (quantity > 0 && quantityUsed < quantity);
 }
 
 function pickPublicCoupon(coupon: Record<string, any>) {
-  return PUBLIC_COUPON_FIELDS.reduce<Record<string, any>>((result, field) => {
-    if (coupon[field] !== undefined) result[field] = coupon[field];
-    return result;
-  }, {});
+  const result = PUBLIC_COUPON_FIELDS.reduce<Record<string, any>>(
+    (acc, field) => {
+      if (coupon[field] !== undefined) acc[field] = coupon[field];
+      return acc;
+    },
+    {},
+  );
+  const code = typeof coupon.code === 'string' ? coupon.code.trim() : '';
+  const quantity = parseOptionalNumber(coupon.quantity) ?? 0;
+  const quantityUsed = parseOptionalNumber(coupon.quantity_used) ?? 0;
+  const usagePerUser = parseOptionalNumber(coupon.usage_per_user);
+  const maxCap = parseOptionalNumber(coupon.max_cap);
+  const codeEnabled =
+    coupon.code_enabled === undefined
+      ? Boolean(code)
+      : parseBoolean(coupon.code_enabled);
+  result.code_enabled = codeEnabled;
+  result.code = codeEnabled ? code : '';
+  result.one_time_use_enabled =
+    coupon.one_time_use_enabled === undefined
+      ? usagePerUser === null || usagePerUser <= 1
+      : parseBoolean(coupon.one_time_use_enabled);
+  result.unlimited_amount_enabled =
+    coupon.unlimited_amount_enabled === undefined
+      ? quantity <= 0
+      : parseBoolean(coupon.unlimited_amount_enabled);
+  result.max_cap_enabled =
+    coupon.max_cap_enabled === undefined
+      ? maxCap !== null && maxCap > 0
+      : parseBoolean(coupon.max_cap_enabled);
+  result.remaining_quantity = result.unlimited_amount_enabled
+    ? null
+    : Math.max(0, quantity - quantityUsed);
+  return result;
 }
 
 function parseBoundedOptionalText(
@@ -812,19 +908,43 @@ export class OfferService implements OnApplicationBootstrap {
     const discount = body.discount ? Number(body.discount) : 0;
     const quantity = body.quantity ? Number(body.quantity) : 0;
     const disabled = parseBoolean(body.disabled);
+    const codeEnabled = body.code_enabled ?? Boolean(body.code?.trim());
+    const oneTimeUseEnabled = body.one_time_use_enabled ?? true;
+    const usagePerUser = oneTimeUseEnabled
+      ? 1
+      : (parseOptionalNumber(body.usage_per_user) ?? 1);
+    const unlimitedAmountEnabled =
+      body.unlimited_amount_enabled ?? quantity <= 0;
+    const maxCap = parseOptionalNumber(body.max_cap);
+    const maxCapEnabled = body.max_cap_enabled ?? maxCap !== null;
+    const discountType: 'percent' | 'cash' =
+      body.discount_type === 'cash' ? 'cash' : 'percent';
     const patch = {
       offer_id: offerId,
       discount,
       quantity,
       disabled,
       name: body.name,
-      code: body.code ?? '',
+      code: codeEnabled ? (body.code ?? '') : '',
+      code_enabled: codeEnabled,
       description: body.description ?? '',
       start_date: body.start_date,
       end_date: body.end_date,
+      start_time: body.start_time?.trim() ?? '',
+      end_time: body.end_time?.trim() ?? '',
       eligibility: body.eligibility ?? '',
       min_spend: body.min_spend ?? '',
+      min_spend_currency: body.min_spend_currency ?? 'THB',
+      max_cap: maxCapEnabled ? (maxCap ?? 0) : 0,
+      max_cap_enabled: maxCapEnabled,
+      max_cap_currency: body.max_cap_currency ?? 'THB',
+      discount_type: discountType,
+      discount_currency: body.discount_currency ?? 'THB',
+      one_time_use_enabled: oneTimeUseEnabled,
+      usage_per_user: usagePerUser,
+      unlimited_amount_enabled: unlimitedAmountEnabled,
       link: body.link ?? '',
+      terms_and_conditions: body.terms_and_conditions?.trim() ?? '',
     };
     if (body?.id) {
       return this.couponModel.findByIdAndUpdate(
@@ -882,10 +1002,8 @@ export class OfferService implements OnApplicationBootstrap {
       .select(PUBLIC_COUPON_SELECT)
       .sort({ end_date: 1, createdAt: -1 })
       .lean()) as unknown as Record<string, any>[];
-    const today = now.toISOString().slice(0, 10);
-
     return coupons
-      .filter((coupon) => isPublicCouponEligible(coupon, today))
+      .filter((coupon) => isPublicCouponEligible(coupon, now))
       .map(pickPublicCoupon);
   }
 
