@@ -73,6 +73,15 @@
     "apps/api/src/media/local-object-storage.ts": ["exports"]
   },
   "workspaces": {
+    ".": {
+      "entry": [
+        "scripts/deployment/*.mjs",
+        "scripts/reconcile-affiliate-mint-reservations.cjs",
+        "scripts/staging-coupon-qa-evidence.cjs",
+        "scripts/staging-coupon-qa-mongo.cjs"
+      ],
+      "project": ["scripts/**/*.{js,mjs,cjs}"]
+    },
     "apps/api": {
       "entry": ["src/main.ts", "scripts/*.ts", "test/**/*.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],

@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "writers": [
+    {
+      "id": "admin-offer-category-media",
+      "path": "apps/api/src/admin/admin.service.ts",
+      "domains": ["Category", "Offer"],
+      "classification": "registry-transaction-fenced",
+      "evidence": ["policyMediaWrite.execute", "touchAttachInSession"]
+    },
+    {
+      "id": "offer-create-media",
+      "path": "apps/api/src/offer/offer.service.ts",
+      "domains": ["Offer"],
+      "classification": "registry-transaction-fenced",
+      "evidence": ["policyMediaWrite.execute", "touchAttachInSession"]
+    },
+    {
+      "id": "brand-crud-media",
+      "path": "apps/api/src/brand/brand.service.ts",
+      "domains": ["Brand"],
+      "classification": "registry-transaction-fenced",
+      "evidence": ["withIntegrityMutation", "touchAttachInSession"]
+    },
+    {
+      "id": "involve-offer-sync-media",
+      "path": "apps/api/src/involve/involve.service.ts",
+      "domains": ["Involve", "Offer"],
+      "classification": "registry-transaction-fenced",
+      "evidence": ["withInvolveCategoryAssignment", "touchAttachInSession"]
+    },
+    {
+      "id": "category-direct-media",
+      "path": "apps/api/src/policy/category-integrity.service.ts",
+      "domains": ["Category"],
+      "classification": "registry-transaction-fenced",
+      "evidence": ["withIntegrityMutation", "touchAttachInSession"]
+    },
+    {
+      "id": "category-aggregate-media",
+      "path": "apps/api/src/policy/policy-aggregate.service.ts",
+      "domains": ["Category"],
+      "classification": "durable-command-registry-fenced",
+      "evidence": ["registerCommandOwnedInSession", "touchAttachInSession"]
+    },
+    {
+      "id": "shared-durable-media-writer",
+      "path": "apps/api/src/policy/policy-media-write.service.ts",
+      "domains": ["Category", "Offer"],
+      "classification": "durable-command-registry-fenced",
+      "evidence": ["planned_assets", "registerCommandOwnedInSession"]
+    },
+    {
+      "id": "media-registry-primitive",
+      "path": "apps/api/src/policy/policy-media-asset-registry.service.ts",
+      "domains": ["Category", "Offer", "Brand", "Involve"],
+      "classification": "registry-transaction-fenced",
+      "evidence": ["touchAttachInSession", "beginDeleteInSession"]
+    },
+    {
+      "id": "central-physical-cleanup",
+      "path": "apps/api/src/policy/policy-media-cleanup.service.ts",
+      "domains": ["Category", "Offer", "Brand"],
+      "classification": "registry-deletion-fenced",
+      "evidence": ["beginDeleteInSession", "deleteCommandOwnedStrict"]
+    },
+    {
+      "id": "integrity-readiness-migration",
+      "path": "apps/api/scripts/policy-category-integrity-migration.cjs",
+      "domains": ["Category", "Offer"],
+      "classification": "readiness-registry-backfill",
+      "operational": true,
+      "evidence": ["registryUpserts", "quarantine", "assertTransactions"]
+    },
+    {
+      "id": "brand-parent-migration",
+      "path": "apps/api/scripts/migrate-brands.ts",
+      "domains": ["Brand", "Offer"],
+      "classification": "registry-transaction-fenced",
+      "operational": true,
+      "evidence": [
+        "legacy-untracked/nondeletable",
+        "touchActiveRegistry",
+        "withTransaction"
+      ]
+    },
+    {
+      "id": "figma-offer-media-sync",
+      "path": "scripts/figma-brand-logos/sync-offer-media-from-manifest.mjs",
+      "domains": ["Offer"],
+      "classification": "legacy-untracked-nondeletable",
+      "operational": true,
+      "evidence": [
+        "legacy-untracked/nondeletable",
+        "assertNoStructuredProof",
+        "assertNoTrackedUrls"
+      ]
+    },
+    {
+      "id": "gcs-r2-url-migration",
+      "path": "apps/api/scripts/migrate-stored-media-gcs-to-r2.ts",
+      "domains": ["Category", "Offer"],
+      "classification": "legacy-untracked-nondeletable",
+      "operational": true,
+      "evidence": [
+        "legacy-untracked/nondeletable",
+        "assertNoStructuredProof",
+        "assertRegistryAbsent",
+        "compareAndSet"
+      ]
+    }
+  ]
+}

@@ -11,6 +11,10 @@ export type E2eSeedData = {
   disabledBrandId: string;
   brandOfferId: number;
   couponCode: string;
+  visibleCodeCouponId: string;
+  linkOnlyCouponId: string;
+  linkOnlyCouponName: string;
+  couponDestinationUrl: string;
   questId: string;
   catalogSku: string;
   apiUrl: string;
