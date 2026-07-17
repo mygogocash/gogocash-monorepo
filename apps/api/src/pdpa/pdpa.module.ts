@@ -39,6 +39,10 @@ import {
   DataExportRequest,
   DataExportRequestSchema,
 } from './schemas/data-export-request.schema';
+import {
+  AffiliateMintReservation,
+  AffiliateMintReservationSchema,
+} from 'src/involve/schemas/affiliate-mint-reservation.schema';
 
 @Module({
   imports: [
@@ -56,6 +60,10 @@ import {
       { name: Point.name, schema: PointSchema },
       { name: SocialReward.name, schema: SocialRewardSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
+      {
+        name: AffiliateMintReservation.name,
+        schema: AffiliateMintReservationSchema,
+      },
       { name: GototrackUserSettings.name, schema: GototrackUserSettingsSchema },
     ]),
   ],

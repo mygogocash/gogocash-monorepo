@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
+import { createHash } from 'node:crypto';
 import { Types } from 'mongoose';
 import { buildApprovedUserConversionsFilter } from 'src/withdraw/conversion-user-id.util';
 import { PointService } from './point.service';
@@ -15,9 +16,12 @@ import { Offer } from 'src/offer/schemas/offer.schema';
 import { Quest } from './schemas/quest.schema';
 import { SocialReward } from './schemas/social-reward.schema';
 import { AnalyticsService } from 'src/analytics/analytics.service';
-import { StoredMediaService } from 'src/media/stored-media.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import * as helper from 'src/utils/helper';
+import { QuestMediaWriteService } from './quest-media-write.service';
+import { QUEST_TASK_STATE_INSPECTOR } from './quest-task.contract';
+import { legacyQuestPayoutConfigChecksum } from 'src/tasks/legacy-reward-manifest';
+import { MembershipTier } from 'src/admin/membership/schemas/membership-tier.schema';
 
 // convertToTHB hits a live FX HTTP endpoint; mock at the module seam so the
 // suite stays Fast/Repeatable and never touches the network.
@@ -46,6 +50,21 @@ function makeQuery(result: unknown) {
   return q;
 }
 
+function reconciledLegacySocialQuest(_id: Types.ObjectId) {
+  const quest = {
+    _id,
+    reward_model: 'legacy_v1',
+    legacy_payout_reconciliation_status: 'ready',
+    legacy_payout_reconciliation_version: 1,
+    facebook_page: 'https://facebook.example/gogocash',
+    facebook_post: 'https://facebook.example/gogocash/posts/frozen',
+    line: 'https://line.example/gogocash',
+    legacy_payout_config_checksum: '',
+  };
+  quest.legacy_payout_config_checksum = legacyQuestPayoutConfigChecksum(quest);
+  return quest;
+}
+
 describe('PointService', () => {
   let service: PointService;
 
@@ -56,12 +75,10 @@ describe('PointService', () => {
   let questModel: Record<string, jest.Mock>;
   let socialRewardModel: Record<string, jest.Mock>;
   let deeplinkModel: Record<string, jest.Mock>;
+  let membershipTierModel: Record<string, jest.Mock>;
   let analytics: { capture: jest.Mock };
-  let storedMediaService: {
-    deleteStored: jest.Mock;
-    replace: jest.Mock;
-    upload: jest.Mock;
-  };
+  let questMediaWrite: { execute: jest.Mock };
+  let questTaskStateInspector: { withTaskConfigEditFence: jest.Mock };
 
   // Captures documents constructed via `new this.pointModel({...})` so we can
   // assert what gets persisted by addPointsToUser.
@@ -84,13 +101,18 @@ describe('PointService', () => {
       return doc;
     }) as unknown as Record<string, jest.Mock> & jest.Mock;
     pointModelFn.findOne = jest.fn();
+    pointModelFn.findOneAndUpdate = jest.fn();
     pointModelFn.aggregate = jest.fn();
     pointModelFn.find = jest.fn();
     pointModel = pointModelFn;
 
     userModel = { findOne: jest.fn() };
     conversionModel = { aggregate: jest.fn(), find: jest.fn() };
-    offerModel = { find: jest.fn() };
+    offerModel = {
+      find: jest.fn(),
+      updateMany: jest.fn(),
+      bulkWrite: jest.fn(),
+    };
     questModel = {
       findOne: jest.fn(),
       find: jest.fn(),
@@ -101,19 +123,26 @@ describe('PointService', () => {
     };
     socialRewardModel = {
       findOne: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+      countDocuments: jest.fn().mockResolvedValue(0),
       find: jest.fn(),
       create: jest.fn(),
     };
     deeplinkModel = { aggregate: jest.fn().mockResolvedValue([]) };
+    membershipTierModel = { find: jest.fn().mockReturnValue(makeQuery([])) };
     analytics = { capture: jest.fn().mockResolvedValue(undefined) };
-    storedMediaService = {
-      deleteStored: jest.fn().mockResolvedValue(undefined),
-      replace: jest
-        .fn()
-        .mockResolvedValue(
-          'https://storage.googleapis.com/gogocash-catalog-staging/quests/banner.png',
+    questMediaWrite = { execute: jest.fn() };
+    questTaskStateInspector = {
+      withTaskConfigEditFence: jest.fn(async (_questId, operation) =>
+        operation(
+          {
+            has_outbox: false,
+            has_progress: false,
+            has_award: false,
+          },
+          undefined as never,
         ),
-      upload: jest.fn(),
+      ),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -129,8 +158,16 @@ describe('PointService', () => {
           useValue: socialRewardModel,
         },
         { provide: getModelToken(Deeplink.name), useValue: deeplinkModel },
+        {
+          provide: getModelToken(MembershipTier.name),
+          useValue: membershipTierModel,
+        },
         { provide: AnalyticsService, useValue: analytics },
-        { provide: StoredMediaService, useValue: storedMediaService },
+        { provide: QuestMediaWriteService, useValue: questMediaWrite },
+        {
+          provide: QUEST_TASK_STATE_INSPECTOR,
+          useValue: questTaskStateInspector,
+        },
       ],
     }).compile();
 
@@ -228,6 +265,137 @@ describe('PointService', () => {
         action: 'referral',
       });
     });
+
+    it('addPointsToUser > given an idempotency key > then it atomically creates or returns one durable grant by key', async () => {
+      const durable = {
+        _id: 'task-point',
+        idempotency_key: 'quest:q1:task:t1:user:u1:epoch:0',
+        point: 75,
+        user_id: new Types.ObjectId(userId),
+        conversion_id: 991,
+        type: 'add',
+        action: 'quest_task_v2',
+      };
+      pointModel.findOneAndUpdate.mockReturnValue(makeQuery(durable));
+      pointModel.findOne.mockReturnValue(makeQuery(null));
+
+      await expect(
+        service.addPointsToUser(
+          userId,
+          75,
+          991,
+          'quest_task_v2',
+          durable.idempotency_key,
+        ),
+      ).resolves.toBe(durable);
+
+      expect(pointModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { idempotency_key: durable.idempotency_key },
+        {
+          $setOnInsert: {
+            user_id: new Types.ObjectId(userId),
+            point: 75,
+            conversion_id: 991,
+            type: 'add',
+            action: 'quest_task_v2',
+            idempotency_key: durable.idempotency_key,
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
+      expect(constructedPointDocs).toHaveLength(0);
+      expect(pointModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('addPointsToUser > given a blank idempotency key > then it rejects before writing', async () => {
+      pointModel.findOne.mockReturnValue(makeQuery(null));
+      await expect(
+        service.addPointsToUser(userId, 75, 991, 'quest_task_v2', '   '),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(pointModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('addPointsToUser > given an upsert loses a unique-key race > then it returns the winning durable grant', async () => {
+      const key = 'quest:q1:task:t1:user:u1:epoch:0';
+      const winner = {
+        _id: 'winner',
+        idempotency_key: key,
+        point: 75,
+        user_id: new Types.ObjectId(userId),
+        conversion_id: 991,
+        type: 'add',
+        action: 'quest_task_v2',
+      };
+      pointModel.findOneAndUpdate.mockReturnValue({
+        exec: jest.fn().mockRejectedValue({ code: 11000 }),
+      });
+      pointModel.findOne.mockReturnValue(makeQuery(winner));
+
+      await expect(
+        service.addPointsToUser(userId, 75, 991, 'quest_task_v2', key),
+      ).resolves.toBe(winner);
+      expect(pointModel.findOne).toHaveBeenCalledWith({ idempotency_key: key });
+      expect(constructedPointDocs).toHaveLength(0);
+    });
+
+    it.each([
+      ['user', { user_id: new Types.ObjectId() }],
+      ['point amount', { point: 76 }],
+      ['conversion', { conversion_id: 992 }],
+      ['action', { action: 'referral' }],
+    ])(
+      'addPointsToUser > given the same idempotency key with a different %s effect > then it fails closed',
+      async (_label, conflictingFields) => {
+        const key = 'quest:q1:task:t1:user:u1:epoch:0';
+        const existing = {
+          _id: 'existing-keyed-point',
+          idempotency_key: key,
+          point: 75,
+          user_id: new Types.ObjectId(userId),
+          conversion_id: 991,
+          type: 'add',
+          action: 'quest_task_v2',
+          ...conflictingFields,
+        };
+        pointModel.findOneAndUpdate.mockReturnValue(makeQuery(existing));
+
+        await expect(
+          service.addPointsToUser(userId, 75, 991, 'quest_task_v2', key),
+        ).rejects.toMatchObject({
+          status: 409,
+          response: expect.objectContaining({
+            code: 'POINT_IDEMPOTENCY_KEY_CONFLICT',
+          }),
+        });
+      },
+    );
+
+    it('addPointsToUser > given a unique-key race winner with different semantics > then it fails closed', async () => {
+      const key = 'quest:q1:task:t1:user:u1:epoch:0';
+      pointModel.findOneAndUpdate.mockReturnValue({
+        exec: jest.fn().mockRejectedValue({ code: 11000 }),
+      });
+      pointModel.findOne.mockReturnValue(
+        makeQuery({
+          _id: 'wrong-winner',
+          idempotency_key: key,
+          point: 999,
+          user_id: new Types.ObjectId(userId),
+          conversion_id: 991,
+          type: 'add',
+          action: 'quest_task_v2',
+        }),
+      );
+
+      await expect(
+        service.addPointsToUser(userId, 75, 991, 'quest_task_v2', key),
+      ).rejects.toMatchObject({
+        status: 409,
+        response: expect.objectContaining({
+          code: 'POINT_IDEMPOTENCY_KEY_CONFLICT',
+        }),
+      });
+    });
   });
 
   describe('getPoint', () => {
@@ -297,52 +465,229 @@ describe('PointService', () => {
     const questId = new Types.ObjectId().toHexString();
     const offerObjectId = new Types.ObjectId();
 
-    it('updateQuestTasks > given duplicate offers > then it rejects the payload before writing', async () => {
+    const config = (tasks: Array<Record<string, unknown>>, revision = 0) =>
+      ({
+        reward_model: 'task_v2',
+        expected_config_revision: revision,
+        timezone: 'Asia/Bangkok',
+        audience: { kind: 'all' },
+        reward_caps: {
+          max_awards_per_user: 1,
+          max_referrals_per_user: null,
+        },
+        tasks,
+      }) as any;
+
+    const futureQuest = (overrides: Record<string, unknown> = {}) => ({
+      _id: new Types.ObjectId(questId),
+      reward_model: 'task_v2',
+      config_revision: 0,
+      start_date: new Date('2099-06-01T00:00:00.000Z'),
+      end_date: new Date('2099-06-30T00:00:00.000Z'),
+      timezone: 'Asia/Bangkok',
+      audience: { kind: 'all' },
+      reward_caps: {
+        max_awards_per_user: 1,
+        max_referrals_per_user: null,
+      },
+      tasks: [],
+      ...overrides,
+    });
+
+    const referralTask = (overrides: Record<string, unknown> = {}) => ({
+      task_type: 'friend_referral',
+      completion_rule: 'account_created',
+      points: 50,
+      enabled: true,
+      wording_en: 'Invite a friend',
+      wording_th: 'ชวนเพื่อน',
+      notes: '',
+      ...overrides,
+    });
+
+    it.each([
+      referralTask(),
+      {
+        task_type: 'spend_target',
+        spend_scope: 'any_shop_via_ggc',
+        target_thb_minor: 100_000,
+        points: 50,
+        enabled: true,
+        wording_en: 'Spend THB 1,000',
+        wording_th: 'ใช้จ่าย 1,000 บาท',
+        notes: '',
+      },
+    ])(
+      'rejects non-brand task type $task_type under legacy_v1',
+      async (task) => {
+        questModel.findById.mockReturnValue(
+          makeQuery(futureQuest({ reward_model: 'legacy_v1' })),
+        );
+
+        await expect(
+          service.updateQuestTasks(questId, {
+            ...config([task]),
+            reward_model: 'legacy_v1',
+          }),
+        ).rejects.toMatchObject({
+          status: 400,
+          response: expect.stringContaining('legacy_v1'),
+        });
+        expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+      },
+    );
+
+    it('rejects a membership audience under legacy_v1 with an actionable version error', async () => {
+      const tierId = new Types.ObjectId();
+      questModel.findById.mockReturnValue(
+        makeQuery(
+          futureQuest({
+            reward_model: 'legacy_v1',
+            audience: { kind: 'all' },
+            reward_caps: {
+              max_awards_per_user: null,
+              max_referrals_per_user: null,
+            },
+          }),
+        ),
+      );
+
       await expect(
         service.updateQuestTasks(questId, {
-          tasks: [
-            {
-              offer: offerObjectId.toHexString(),
-              offer_id: 101,
-              merchant_id: 1001,
-              extra_point: 50,
-              enabled: true,
-            },
-            {
-              offer: offerObjectId.toHexString(),
-              offer_id: 101,
-              merchant_id: 1001,
-              extra_point: 25,
-              enabled: true,
-            },
-          ],
+          ...config([]),
+          reward_model: 'legacy_v1',
+          audience: {
+            kind: 'membership_tiers',
+            tier_ids: [tierId.toHexString()],
+          },
+          reward_caps: {
+            max_awards_per_user: null,
+            max_referrals_per_user: null,
+          },
         }),
-      ).rejects.toThrow(HttpException);
-
+      ).rejects.toMatchObject({
+        status: 400,
+        response: expect.objectContaining({
+          code: 'QUEST_LEGACY_ADVANCED_CONFIG_UNSUPPORTED',
+          message: expect.stringContaining('task_v2'),
+        }),
+      });
       expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
-    it('updateQuestTasks > given invalid points > then it rejects the payload before writing', async () => {
+    it.each(['max_awards_per_user', 'max_referrals_per_user'] as const)(
+      'rejects non-null %s under legacy_v1 instead of silently upgrading',
+      async (field) => {
+        questModel.findById.mockReturnValue(
+          makeQuery(
+            futureQuest({
+              reward_model: 'legacy_v1',
+              audience: { kind: 'all' },
+              reward_caps: {
+                max_awards_per_user: null,
+                max_referrals_per_user: null,
+              },
+            }),
+          ),
+        );
+
+        await expect(
+          service.updateQuestTasks(questId, {
+            ...config([]),
+            reward_model: 'legacy_v1',
+            audience: { kind: 'all' },
+            reward_caps: {
+              max_awards_per_user: null,
+              max_referrals_per_user: null,
+              [field]: 1,
+            },
+          }),
+        ).rejects.toMatchObject({
+          status: 400,
+          response: expect.objectContaining({
+            code: 'QUEST_LEGACY_ADVANCED_CONFIG_UNSUPPORTED',
+            message: expect.stringContaining('task_v2'),
+          }),
+        });
+        expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+      },
+    );
+
+    it('keeps the default all-audience/null-cap legacy_v1 contract compatible', async () => {
+      const legacyQuest = futureQuest({
+        reward_model: 'legacy_v1',
+        audience: { kind: 'all' },
+        reward_caps: {
+          max_awards_per_user: null,
+          max_referrals_per_user: null,
+        },
+      });
+      questModel.findById.mockReturnValue(makeQuery(legacyQuest));
+
       await expect(
         service.updateQuestTasks(questId, {
-          tasks: [
-            {
-              offer: offerObjectId.toHexString(),
-              offer_id: 101,
-              merchant_id: 1001,
-              extra_point: 1,
-              enabled: true,
-            },
-          ],
+          ...config([]),
+          reward_model: 'legacy_v1',
+          audience: { kind: 'all' },
+          reward_caps: {
+            max_awards_per_user: null,
+            max_referrals_per_user: null,
+          },
         }),
-      ).rejects.toThrow(HttpException);
+      ).resolves.toMatchObject({ reward_model: 'legacy_v1' });
+    });
 
+    it('rejects legacy task or eligibility economics changes after manifest resolution starts', async () => {
+      questModel.findById.mockReturnValue(
+        makeQuery(
+          futureQuest({
+            reward_model: 'legacy_v1',
+            legacy_payout_resolution_started_at: new Date(
+              '2026-07-01T00:00:00.000Z',
+            ),
+          }),
+        ),
+      );
+
+      await expect(
+        service.updateQuestTasks(questId, {
+          ...config([]),
+          reward_model: 'legacy_v1',
+          reward_caps: {
+            max_awards_per_user: 2,
+            max_referrals_per_user: null,
+          },
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+        message: expect.stringContaining('frozen'),
+      });
       expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
-    it('updateQuestTasks > given an active quest task list > then it stores normalized tasks and mirrors offer extra_point values', async () => {
-      const secondOfferObjectId = new Types.ObjectId();
-      const quest = { _id: questId, status: 'open', tasks: [] };
+    it('rejects a task with no customer-visible wording', async () => {
+      questModel.findById.mockReturnValue(makeQuery(futureQuest()));
+
+      await expect(
+        service.updateQuestTasks(
+          questId,
+          config([
+            referralTask({
+              wording: '',
+              wording_en: '',
+              wording_th: '',
+            }),
+          ]),
+        ),
+      ).rejects.toMatchObject({
+        status: 400,
+        response: expect.stringContaining('wording'),
+      });
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('resolves brand provider identifiers from Offer and assigns a server task key', async () => {
+      const quest = futureQuest();
       questModel.findById.mockReturnValue(makeQuery(quest));
       offerModel.find.mockReturnValue(
         makeQuery([
@@ -353,8 +698,166 @@ describe('PointService', () => {
             status: 'approved',
             disabled: false,
           },
+        ]),
+      );
+      questModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ ...quest, config_revision: 1 }),
+      );
+
+      await service.updateQuestTasks(
+        questId,
+        config([
           {
-            _id: secondOfferObjectId,
+            task_type: 'brand_purchase',
+            offer: offerObjectId.toHexString(),
+            points: 50,
+            enabled: true,
+            wording_en: ' Make an order ',
+          },
+        ]),
+      );
+
+      const [filter, update] = questModel.findOneAndUpdate.mock.calls[0];
+      expect(filter).toEqual(
+        expect.objectContaining({
+          _id: new Types.ObjectId(questId),
+          config_revision: 0,
+          start_date: { $gt: expect.any(Date) },
+          $or: [
+            { task_v2_state_frozen_at: { $exists: false } },
+            { task_v2_state_frozen_at: null },
+          ],
+        }),
+      );
+      expect(update.$set.tasks[0]).toEqual(
+        expect.objectContaining({
+          task_key: expect.stringMatching(/^task_[A-Za-z0-9_-]{12,80}$/),
+          task_type: 'brand_purchase',
+          offer: offerObjectId,
+          offer_id: 101,
+          merchant_id: 1001,
+          points: 50,
+          extra_point: 50,
+          sort_order: 0,
+          wording: 'Make an order',
+          wording_en: 'Make an order',
+        }),
+      );
+      expect(update.$inc).toEqual({ config_revision: 1 });
+      expect(
+        questTaskStateInspector.withTaskConfigEditFence,
+      ).toHaveBeenCalledWith(questId, expect.any(Function));
+    });
+
+    it('preserves an existing server task key across a wording-only save', async () => {
+      const taskKey = 'task_existing_key_1234';
+      const existingTask = {
+        ...referralTask(),
+        task_key: taskKey,
+        sort_order: 0,
+        wording: 'Invite a friend',
+      };
+      const quest = futureQuest({ tasks: [existingTask] });
+      questModel.findById.mockReturnValue(makeQuery(quest));
+      questModel.findOneAndUpdate.mockReturnValue(makeQuery(quest));
+
+      await service.updateQuestTasks(
+        questId,
+        config([
+          referralTask({ task_key: taskKey, wording_en: 'Invite one friend' }),
+        ]),
+      );
+
+      const [, update] = questModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set.tasks[0].task_key).toBe(taskKey);
+    });
+
+    it('allows a frozen wording-only edit when the unchanged brand offer is now inactive', async () => {
+      const taskKey = 'task_frozen_brand_1234';
+      const existingTask = {
+        task_key: taskKey,
+        task_type: 'brand_purchase',
+        offer: offerObjectId,
+        offer_id: 101,
+        merchant_id: 1001,
+        points: 50,
+        extra_point: 50,
+        sort_order: 0,
+        enabled: true,
+        wording: 'Buy now',
+        wording_en: 'Buy now',
+        wording_th: 'ซื้อเลย',
+        notes: '',
+      };
+      const quest = futureQuest({
+        start_date: new Date('2020-01-01T00:00:00.000Z'),
+        task_v2_state_frozen_at: new Date('2026-01-01T00:00:00.000Z'),
+        tasks: [existingTask],
+      });
+      questModel.findById.mockReturnValue(makeQuery(quest));
+      questModel.findOneAndUpdate.mockReturnValue(makeQuery(quest));
+
+      await service.updateQuestTasks(
+        questId,
+        config([
+          {
+            ...existingTask,
+            offer: offerObjectId.toHexString(),
+            wording: 'Buy from this brand',
+            wording_en: 'Buy from this brand',
+            notes: 'Copy-only review',
+          },
+        ]),
+      );
+
+      expect(offerModel.find).not.toHaveBeenCalled();
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: new Types.ObjectId(questId), config_revision: 0 },
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            tasks: [
+              expect.objectContaining({
+                task_key: taskKey,
+                offer: offerObjectId,
+                offer_id: 101,
+                merchant_id: 1001,
+                wording_en: 'Buy from this brand',
+              }),
+            ],
+          }),
+        }),
+        { new: true },
+      );
+    });
+
+    it('revalidates and rejects a changed brand offer on a frozen quest', async () => {
+      const taskKey = 'task_frozen_brand_1234';
+      const replacementOfferId = new Types.ObjectId();
+      const existingTask = {
+        task_key: taskKey,
+        task_type: 'brand_purchase',
+        offer: offerObjectId,
+        offer_id: 101,
+        merchant_id: 1001,
+        points: 50,
+        extra_point: 50,
+        sort_order: 0,
+        enabled: true,
+        wording: 'Buy now',
+        wording_en: 'Buy now',
+        wording_th: 'ซื้อเลย',
+        notes: '',
+      };
+      const quest = futureQuest({
+        start_date: new Date('2020-01-01T00:00:00.000Z'),
+        task_v2_state_frozen_at: new Date('2026-01-01T00:00:00.000Z'),
+        tasks: [existingTask],
+      });
+      questModel.findById.mockReturnValue(makeQuery(quest));
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: replacementOfferId,
             offer_id: 202,
             merchant_id: 2002,
             status: 'approved',
@@ -362,78 +865,617 @@ describe('PointService', () => {
           },
         ]),
       );
-      offerModel.updateMany = jest.fn().mockResolvedValue({ modifiedCount: 0 });
-      offerModel.bulkWrite = jest.fn().mockResolvedValue({ modifiedCount: 1 });
-      questModel.findOneAndUpdate.mockReturnValue(
-        makeQuery({ _id: questId, status: 'open' }),
+
+      await expect(
+        service.updateQuestTasks(
+          questId,
+          config([
+            {
+              ...existingTask,
+              offer: replacementOfferId.toHexString(),
+            },
+          ]),
+        ),
+      ).rejects.toMatchObject({
+        status: 409,
+        response: expect.objectContaining({
+          code: 'QUEST_TASK_CONFIG_FROZEN',
+        }),
+      });
+      expect(offerModel.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          _id: { $in: [replacementOfferId] },
+          status: { $nin: ['pending_review', 'rejected'] },
+          disabled: { $ne: true },
+        }),
+      );
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('returns a semantic task no-op before the inspector or revision write', async () => {
+      const taskKey = 'task_existing_key_1234';
+      const existingTask = {
+        ...referralTask(),
+        task_key: taskKey,
+        sort_order: 0,
+        wording: 'Invite a friend',
+      };
+      const quest = futureQuest({ tasks: [existingTask] });
+      questModel.findById.mockReturnValue(makeQuery(quest));
+
+      await expect(
+        service.updateQuestTasks(
+          questId,
+          config([referralTask({ task_key: taskKey })]),
+        ),
+      ).resolves.toEqual(expect.objectContaining({ config_revision: 0 }));
+      expect(
+        questTaskStateInspector.withTaskConfigEditFence,
+      ).not.toHaveBeenCalled();
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(offerModel.bulkWrite).not.toHaveBeenCalled();
+    });
+
+    it('returns an unchanged task-v2 config without an inspector or revision write', async () => {
+      const taskKey = 'task_existing_key_1234';
+      const existingTask = {
+        ...referralTask(),
+        task_key: taskKey,
+        sort_order: 0,
+        wording: 'Invite a friend',
+      };
+      const quest = futureQuest({ tasks: [existingTask] });
+      questModel.findById.mockReturnValue(makeQuery(quest));
+
+      await expect(
+        service.updateQuestTasks(
+          questId,
+          config([referralTask({ task_key: taskKey })]),
+        ),
+      ).resolves.toEqual(
+        expect.objectContaining({ _id: quest._id, config_revision: 0 }),
       );
 
-      const result = await service.updateQuestTasks(questId, {
+      expect(
+        questTaskStateInspector.withTaskConfigEditFence,
+      ).not.toHaveBeenCalled();
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('assigns a fresh task key when pre-start task economics change', async () => {
+      const taskKey = 'task_existing_key_1234';
+      const existingTask = {
+        ...referralTask(),
+        task_key: taskKey,
+        sort_order: 0,
+        wording: 'Invite a friend',
+      };
+      const quest = futureQuest({ tasks: [existingTask] });
+      questModel.findById.mockReturnValue(makeQuery(quest));
+      questModel.findOneAndUpdate.mockReturnValue(makeQuery(quest));
+
+      await service.updateQuestTasks(
+        questId,
+        config([referralTask({ task_key: taskKey, points: 75 })]),
+      );
+
+      const [, update] = questModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set.tasks[0].task_key).toMatch(/^task_/);
+      expect(update.$set.tasks[0].task_key).not.toBe(taskKey);
+    });
+
+    it('assigns fresh task keys when global audience or cap eligibility changes', async () => {
+      const tierId = new Types.ObjectId();
+      const taskKey = 'task_existing_key_1234';
+      const existingTask = {
+        ...referralTask(),
+        task_key: taskKey,
+        sort_order: 0,
+        wording: 'Invite a friend',
+      };
+      const quest = futureQuest({ tasks: [existingTask] });
+      questModel.findById.mockReturnValue(makeQuery(quest));
+      questModel.findOneAndUpdate.mockReturnValue(makeQuery(quest));
+      membershipTierModel.find.mockReturnValue(
+        makeQuery([{ _id: tierId, is_active: true }]),
+      );
+
+      const payload = config([
+        referralTask({ task_key: taskKey }),
+      ]) as unknown as Record<string, unknown>;
+      await service.updateQuestTasks(questId, {
+        ...payload,
+        audience: {
+          kind: 'membership_tiers',
+          tier_ids: [tierId.toHexString()],
+        },
+        reward_caps: {
+          max_awards_per_user: 2,
+          max_referrals_per_user: 3,
+        },
+      } as never);
+
+      const [, update] = questModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set.tasks[0].task_key).not.toBe(taskKey);
+    });
+
+    it('normalizes, deduplicates, and sorts active membership tier ids inside the fenced transaction', async () => {
+      const firstTierId = new Types.ObjectId('6942b79d7b9f8214ada6eed5');
+      const secondTierId = new Types.ObjectId('5942b79d7b9f8214ada6eed5');
+      const transactionSession = { id: 'task-config-session' };
+      const quest = futureQuest();
+      questModel.findById.mockReturnValue(makeQuery(quest));
+      questModel.findOneAndUpdate.mockReturnValue(makeQuery(quest));
+      membershipTierModel.find.mockReturnValue(
+        makeQuery([{ _id: firstTierId }, { _id: secondTierId }]),
+      );
+      questTaskStateInspector.withTaskConfigEditFence.mockImplementationOnce(
+        async (_id, operation) =>
+          operation(
+            { has_outbox: false, has_progress: false, has_award: false },
+            transactionSession,
+          ),
+      );
+
+      await service.updateQuestTasks(questId, {
+        ...config([]),
+        audience: {
+          kind: 'membership_tiers',
+          tier_ids: [
+            firstTierId.toHexString().toUpperCase(),
+            secondTierId.toHexString(),
+            firstTierId.toHexString(),
+          ],
+        },
+      });
+
+      expect(membershipTierModel.find).toHaveBeenCalledWith(
+        {
+          _id: { $in: [secondTierId, firstTierId] },
+          is_active: true,
+        },
+        { _id: 1 },
+        { session: transactionSession },
+      );
+      expect(
+        questModel.findOneAndUpdate.mock.calls[0][1].$set.audience,
+      ).toEqual({
+        kind: 'membership_tiers',
+        tier_ids: [secondTierId.toHexString(), firstTierId.toHexString()],
+      });
+    });
+
+    it('rejects a non-canonical membership tier id before entering the config fence', async () => {
+      questModel.findById.mockReturnValue(makeQuery(futureQuest()));
+
+      await expect(
+        service.updateQuestTasks(questId, {
+          ...config([]),
+          audience: { kind: 'membership_tiers', tier_ids: ['gogopass'] },
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        response: expect.objectContaining({
+          code: 'QUEST_MEMBERSHIP_TIER_ID_INVALID',
+        }),
+      });
+      expect(
+        questTaskStateInspector.withTaskConfigEditFence,
+      ).not.toHaveBeenCalled();
+      expect(membershipTierModel.find).not.toHaveBeenCalled();
+    });
+
+    it.each(['missing', 'inactive'])(
+      'rejects a newly selected %s membership tier before the quest write',
+      async () => {
+        const tierId = new Types.ObjectId();
+        questModel.findById.mockReturnValue(makeQuery(futureQuest()));
+        membershipTierModel.find.mockReturnValue(makeQuery([]));
+
+        await expect(
+          service.updateQuestTasks(questId, {
+            ...config([]),
+            audience: {
+              kind: 'membership_tiers',
+              tier_ids: [tierId.toHexString()],
+            },
+          }),
+        ).rejects.toMatchObject({
+          status: 400,
+          response: expect.objectContaining({
+            code: 'QUEST_MEMBERSHIP_TIERS_UNAVAILABLE',
+            tier_ids: [tierId.toHexString()],
+          }),
+        });
+        expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+      },
+    );
+
+    it('revalidates an unchanged selected tier when new task economics are saved', async () => {
+      const tierId = new Types.ObjectId();
+      const taskKey = 'task_membership_economics_1234';
+      const existingTask = {
+        ...referralTask(),
+        task_key: taskKey,
+        sort_order: 0,
+        wording: 'Invite a friend',
+      };
+      const quest = futureQuest({
+        audience: {
+          kind: 'membership_tiers',
+          tier_ids: [tierId.toHexString()],
+        },
+        tasks: [existingTask],
+      });
+      questModel.findById.mockReturnValue(makeQuery(quest));
+      membershipTierModel.find.mockReturnValue(makeQuery([]));
+
+      await expect(
+        service.updateQuestTasks(questId, {
+          ...config([referralTask({ task_key: taskKey, points: 75 })]),
+          audience: {
+            kind: 'membership_tiers',
+            tier_ids: [tierId.toHexString()],
+          },
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        response: expect.objectContaining({
+          code: 'QUEST_MEMBERSHIP_TIERS_UNAVAILABLE',
+        }),
+      });
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('allows a frozen wording-only edit when its unchanged selected tier is now unavailable', async () => {
+      const tierId = new Types.ObjectId();
+      const taskKey = 'task_frozen_membership_1234';
+      const existingTask = {
+        ...referralTask(),
+        task_key: taskKey,
+        sort_order: 0,
+        wording: 'Invite a friend',
+      };
+      const quest = futureQuest({
+        audience: {
+          kind: 'membership_tiers',
+          tier_ids: [tierId.toHexString()],
+        },
+        start_date: new Date('2020-01-01T00:00:00.000Z'),
+        task_v2_state_frozen_at: new Date('2026-01-01T00:00:00.000Z'),
+        tasks: [existingTask],
+      });
+      questModel.findById.mockReturnValue(makeQuery(quest));
+      questModel.findOneAndUpdate.mockReturnValue(makeQuery(quest));
+
+      await service.updateQuestTasks(questId, {
+        ...config([
+          referralTask({
+            task_key: taskKey,
+            wording_en: 'Invite one eligible friend',
+          }),
+        ]),
+        audience: {
+          kind: 'membership_tiers',
+          tier_ids: [tierId.toHexString()],
+        },
+      });
+
+      expect(membershipTierModel.find).not.toHaveBeenCalled();
+      expect(questModel.findOneAndUpdate).toHaveBeenCalled();
+    });
+
+    it('rejects a client task key that does not belong to the quest', async () => {
+      questModel.findById.mockReturnValue(makeQuery(futureQuest()));
+
+      await expect(
+        service.updateQuestTasks(
+          questId,
+          config([referralTask({ task_key: 'task_forged_key_12345' })]),
+        ),
+      ).rejects.toMatchObject({
+        status: 400,
+        response: expect.stringContaining('task_key'),
+      });
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejects economic edits after the quest starts with a stable 409 code', async () => {
+      const taskKey = 'task_existing_key_1234';
+      const quest = futureQuest({
+        start_date: new Date('2020-01-01T00:00:00.000Z'),
+        end_date: new Date('2099-01-01T00:00:00.000Z'),
         tasks: [
           {
-            offer: offerObjectId.toHexString(),
-            offer_id: 101,
-            merchant_id: 1001,
-            extra_point: 50,
-            enabled: true,
-            wording: ' Make an order on Klook Travel ',
-          },
-          {
-            offer: secondOfferObjectId.toHexString(),
-            offer_id: 202,
-            merchant_id: 2002,
-            extra_point: 25,
-            enabled: false,
-            notes: 'hold',
+            ...referralTask(),
+            task_key: taskKey,
+            sort_order: 0,
+            wording: 'Invite a friend',
           },
         ],
       });
+      questModel.findById.mockReturnValue(makeQuery(quest));
 
-      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: new Types.ObjectId(questId) },
-        {
+      await expect(
+        service.updateQuestTasks(
+          questId,
+          config([referralTask({ task_key: taskKey, points: 75 })]),
+        ),
+      ).rejects.toMatchObject({
+        status: 409,
+        response: expect.objectContaining({ code: 'QUEST_TASK_CONFIG_FROZEN' }),
+      });
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it.each(['has_outbox', 'has_progress', 'has_award'] as const)(
+      'rejects economic edits when the inspector reports %s',
+      async (effect) => {
+        const taskKey = 'task_existing_key_1234';
+        const quest = futureQuest({
           tasks: [
             {
-              offer: offerObjectId,
-              offer_id: 101,
-              merchant_id: 1001,
-              extra_point: 50,
+              ...referralTask(),
+              task_key: taskKey,
               sort_order: 0,
-              enabled: true,
-              wording: 'Make an order on Klook Travel',
-              wording_en: 'Make an order on Klook Travel',
-              wording_th: '',
-              notes: '',
-            },
-            {
-              offer: secondOfferObjectId,
-              offer_id: 202,
-              merchant_id: 2002,
-              extra_point: 25,
-              sort_order: 1,
-              enabled: false,
-              wording: '',
-              wording_en: '',
-              wording_th: '',
-              notes: 'hold',
+              wording: 'Invite a friend',
             },
           ],
-        },
-        { new: true },
+        });
+        questModel.findById.mockReturnValue(makeQuery(quest));
+        questTaskStateInspector.withTaskConfigEditFence.mockImplementationOnce(
+          async (_id, operation) =>
+            operation({
+              has_outbox: effect === 'has_outbox',
+              has_progress: effect === 'has_progress',
+              has_award: effect === 'has_award',
+            }),
+        );
+
+        await expect(
+          service.updateQuestTasks(
+            questId,
+            config([referralTask({ task_key: taskKey, points: 75 })]),
+          ),
+        ).rejects.toMatchObject({
+          status: 409,
+          response: expect.objectContaining({
+            code: 'QUEST_TASK_CONFIG_FROZEN',
+          }),
+        });
+      },
+    );
+
+    it('allows wording and notes edits after start and does not require the no-effect filter', async () => {
+      const taskKey = 'task_existing_key_1234';
+      const existingTask = {
+        ...referralTask(),
+        task_key: taskKey,
+        sort_order: 0,
+        wording: 'Invite a friend',
+      };
+      const quest = futureQuest({
+        start_date: new Date('2020-01-01T00:00:00.000Z'),
+        end_date: new Date('2099-01-01T00:00:00.000Z'),
+        task_v2_state_frozen_at: new Date('2026-01-01T00:00:00.000Z'),
+        tasks: [existingTask],
+      });
+      questModel.findById.mockReturnValue(makeQuery(quest));
+      questModel.findOneAndUpdate.mockReturnValue(makeQuery(quest));
+
+      await service.updateQuestTasks(
+        questId,
+        config([
+          referralTask({
+            task_key: taskKey,
+            wording_en: 'Invite one friend',
+            notes: 'Copy reviewed',
+          }),
+        ]),
       );
-      expect(offerModel.updateMany).toHaveBeenCalledWith(
-        { _id: { $in: [] } },
-        { $set: { extra_point: 1 } },
+
+      const [filter, update] = questModel.findOneAndUpdate.mock.calls[0];
+      expect(filter).toEqual({
+        _id: new Types.ObjectId(questId),
+        config_revision: 0,
+      });
+      expect(update.$set.tasks[0]).toEqual(
+        expect.objectContaining({
+          task_key: taskKey,
+          points: 50,
+          wording_en: 'Invite one friend',
+          notes: 'Copy reviewed',
+        }),
       );
-      expect(offerModel.bulkWrite).toHaveBeenCalledWith([
-        {
-          updateOne: {
-            filter: { _id: offerObjectId },
-            update: { $set: { extra_point: 50 } },
+    });
+
+    it('fails closed for task_v2 when the state inspector is unavailable', async () => {
+      questModel.findById.mockReturnValue(makeQuery(futureQuest()));
+      (
+        service as unknown as { questTaskStateInspector?: unknown }
+      ).questTaskStateInspector = undefined;
+
+      await expect(
+        service.updateQuestTasks(questId, config([referralTask()])),
+      ).rejects.toMatchObject({
+        status: 503,
+        response: expect.objectContaining({
+          code: 'QUEST_TASK_STATE_INSPECTOR_UNAVAILABLE',
+        }),
+      });
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it.each(['feature_disabled', 'unsupported_mongo_topology'])(
+      'does not mutate task-v2 config when the engine reports %s',
+      async (reason) => {
+        questModel.findById.mockReturnValue(makeQuery(futureQuest()));
+        questTaskStateInspector.withTaskConfigEditFence.mockRejectedValueOnce(
+          new HttpException(
+            {
+              code: 'QUEST_TASK_V2_UNAVAILABLE',
+              message: `Task-v2 unavailable: ${reason}`,
+            },
+            503,
+          ),
+        );
+
+        await expect(
+          service.updateQuestTasks(questId, config([referralTask()])),
+        ).rejects.toMatchObject({
+          status: 503,
+          response: expect.objectContaining({
+            code: 'QUEST_TASK_V2_UNAVAILABLE',
+          }),
+        });
+        expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+        expect(offerModel.bulkWrite).not.toHaveBeenCalled();
+      },
+    );
+
+    it('returns a stable revision conflict before writing stale state', async () => {
+      questModel.findById.mockReturnValue(
+        makeQuery(futureQuest({ config_revision: 3 })),
+      );
+
+      await expect(
+        service.updateQuestTasks(questId, config([referralTask()], 2)),
+      ).rejects.toMatchObject({
+        status: 409,
+        response: expect.objectContaining({
+          code: 'QUEST_CONFIG_REVISION_CONFLICT',
+        }),
+      });
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('quest task read and projection isolation', () => {
+    const questId = new Types.ObjectId().toHexString();
+    const offerObjectId = new Types.ObjectId();
+
+    it('maps a missing-model legacy offer task to canonical brand_purchase on read', async () => {
+      questModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: questId,
+            start_date: new Date('2099-01-01T00:00:00.000Z'),
+            end_date: new Date('2099-02-01T00:00:00.000Z'),
+            tasks: [
+              {
+                offer: offerObjectId,
+                offer_id: 101,
+                merchant_id: 1001,
+                extra_point: 50,
+                sort_order: 4,
+                enabled: true,
+                wording: 'Legacy',
+              },
+            ],
           },
-        },
-      ]);
-      expect(result).toEqual({ _id: questId, status: 'open' });
+        ]),
+      );
+
+      const [quest] = await service.getQuestAdmin();
+
+      expect(quest).toEqual(
+        expect.objectContaining({
+          reward_model: 'legacy_v1',
+          config_revision: 0,
+          timezone: 'Asia/Bangkok',
+          tasks: [
+            expect.objectContaining({
+              task_key: expect.stringMatching(/^task_/),
+              task_type: 'brand_purchase',
+              points: 50,
+              extra_point: 50,
+              sort_order: 4,
+              wording: 'Legacy',
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('does not fall back to global offer bonuses for task_v2 referral-only quests', async () => {
+      questModel.findOne.mockReturnValue(
+        makeQuery({
+          _id: questId,
+          reward_model: 'task_v2',
+          tasks: [
+            {
+              task_key: 'task_referral_key_1234',
+              task_type: 'friend_referral',
+              completion_rule: 'account_created',
+              points: 50,
+              enabled: true,
+            },
+          ],
+        }),
+      );
+      offerModel.find.mockReturnValue(
+        makeQuery([{ merchant_id: 9999, extra_point: 999 }]),
+      );
+
+      await expect(
+        (
+          service as unknown as {
+            getQuestExtraPointTasksForRange: (
+              start: string,
+              end: string,
+            ) => Promise<unknown[]>;
+          }
+        ).getQuestExtraPointTasksForRange('2026-07-01', '2026-07-31'),
+      ).resolves.toEqual([]);
+      expect(offerModel.find).not.toHaveBeenCalled();
+    });
+
+    it('includes only brand_purchase tasks in deeplink summaries', async () => {
+      questModel.findById.mockReturnValue(
+        makeQuery({
+          _id: questId,
+          reward_model: 'task_v2',
+          tasks: [
+            {
+              task_key: 'task_referral_key_1234',
+              task_type: 'friend_referral',
+              completion_rule: 'account_created',
+              points: 50,
+              enabled: true,
+            },
+            {
+              task_key: 'task_brand_key_1234567',
+              task_type: 'brand_purchase',
+              offer: {
+                _id: offerObjectId,
+                offer_name_display: 'Brand',
+                tracking_link: 'https://shop.example',
+              },
+              offer_id: 101,
+              merchant_id: 1001,
+              points: 75,
+              extra_point: 75,
+              sort_order: 1,
+              enabled: true,
+            },
+          ],
+        }),
+      );
+      deeplinkModel.aggregate.mockResolvedValue([]);
+
+      const result = await service.getQuestTaskDeeplinkSummary(questId);
+
+      expect(deeplinkModel.aggregate.mock.calls[0][0][0].$match).toEqual({
+        $or: [{ offer_id: 101, merchant_id: 1001 }],
+      });
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).toEqual(
+        expect.objectContaining({
+          offer_id: 101,
+          merchant_id: 1001,
+          extra_point: 75,
+        }),
+      );
     });
   });
 
@@ -443,6 +1485,7 @@ describe('PointService', () => {
     it('updateQuestRewards > given duplicate ranks > then it rejects before writing', async () => {
       await expect(
         service.updateQuestRewards(questId, {
+          expected_config_revision: 0,
           rewards: [
             { rank: 1, reward: 1200, currency: 'THB' },
             { rank: 1, reward: 800, currency: 'THB' },
@@ -469,6 +1512,7 @@ describe('PointService', () => {
       );
 
       await service.updateQuestRewards(questId, {
+        expected_config_revision: 0,
         rewards: [
           { rank: 2, reward: 800, currency: 'THB' },
           { rank: 1, reward: 1200, currency: 'THB' },
@@ -476,15 +1520,24 @@ describe('PointService', () => {
       });
 
       expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: new Types.ObjectId(questId) },
         {
-          rewards: [
-            { rank: 1, reward: 1200, currency: 'THB' },
-            { rank: 2, reward: 800, currency: 'THB' },
+          _id: new Types.ObjectId(questId),
+          $or: [
+            { config_revision: 0 },
+            { config_revision: { $exists: false } },
           ],
-          reward_distribution_mode: 'campaign_end',
-          reward_distribution_delay_days: 0,
-          reward_distribution_scheduled_at: endDate,
+        },
+        {
+          $set: {
+            rewards: [
+              { rank: 1, reward: 1200, currency: 'THB' },
+              { rank: 2, reward: 800, currency: 'THB' },
+            ],
+            reward_distribution_mode: 'campaign_end',
+            reward_distribution_delay_days: 0,
+            reward_distribution_scheduled_at: endDate,
+          },
+          $inc: { config_revision: 1 },
         },
         { new: true },
       );
@@ -500,20 +1553,30 @@ describe('PointService', () => {
       questModel.findOneAndUpdate.mockReturnValue(makeQuery({ _id: questId }));
 
       await service.updateQuestRewards(questId, {
+        expected_config_revision: 0,
         reward_distribution_mode: 'after_days',
         reward_distribution_delay_days: 7,
         rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
       });
 
       expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: new Types.ObjectId(questId) },
         {
-          rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
-          reward_distribution_mode: 'after_days',
-          reward_distribution_delay_days: 7,
-          reward_distribution_scheduled_at: new Date(
-            '2026-07-07T00:00:00.000Z',
-          ),
+          _id: new Types.ObjectId(questId),
+          $or: [
+            { config_revision: 0 },
+            { config_revision: { $exists: false } },
+          ],
+        },
+        {
+          $set: {
+            rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+            reward_distribution_mode: 'after_days',
+            reward_distribution_delay_days: 7,
+            reward_distribution_scheduled_at: new Date(
+              '2026-07-07T00:00:00.000Z',
+            ),
+          },
+          $inc: { config_revision: 1 },
         },
         { new: true },
       );
@@ -529,6 +1592,7 @@ describe('PointService', () => {
 
       await expect(
         service.updateQuestRewards(questId, {
+          expected_config_revision: 0,
           reward_distribution_mode: 'after_days',
           reward_distribution_delay_days: 0,
           rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
@@ -537,6 +1601,157 @@ describe('PointService', () => {
 
       expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
+
+    it('fences task-v2 reward economics and increments the shared config revision', async () => {
+      const endDate = new Date('2099-06-30T00:00:00.000Z');
+      questModel.findById.mockReturnValue(
+        makeQuery({
+          _id: questId,
+          reward_model: 'task_v2',
+          config_revision: 4,
+          start_date: new Date('2099-06-01T00:00:00.000Z'),
+          end_date: endDate,
+          rewards: [],
+          reward_distribution_mode: 'campaign_end',
+          reward_distribution_delay_days: 0,
+          reward_distribution_scheduled_at: endDate,
+        }),
+      );
+      questModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: questId, config_revision: 5 }),
+      );
+
+      await service.updateQuestRewards(questId, {
+        expected_config_revision: 4,
+        rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+        reward_distribution_mode: 'campaign_end',
+        reward_distribution_delay_days: 0,
+      });
+
+      expect(
+        questTaskStateInspector.withTaskConfigEditFence,
+      ).toHaveBeenCalledWith(questId, expect.any(Function), {
+        start_at: new Date('2099-06-01T00:00:00.000Z'),
+        end_at: endDate,
+      });
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          _id: new Types.ObjectId(questId),
+          config_revision: 4,
+          start_date: { $gt: expect.any(Date) },
+          $or: [
+            { task_v2_state_frozen_at: { $exists: false } },
+            { task_v2_state_frozen_at: null },
+          ],
+        }),
+        {
+          $set: expect.objectContaining({
+            rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+          }),
+          $inc: { config_revision: 1 },
+        },
+        { new: true },
+      );
+    });
+
+    it('returns an unchanged task-v2 reward config without a fence or revision write', async () => {
+      const endDate = new Date('2099-06-30T00:00:00.000Z');
+      const quest = {
+        _id: questId,
+        reward_model: 'task_v2',
+        config_revision: 4,
+        start_date: new Date('2099-06-01T00:00:00.000Z'),
+        end_date: endDate,
+        rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+        reward_distribution_mode: 'campaign_end',
+        reward_distribution_delay_days: 0,
+        reward_distribution_scheduled_at: endDate,
+      };
+      questModel.findById.mockReturnValue(makeQuery(quest));
+
+      await expect(
+        service.updateQuestRewards(questId, {
+          expected_config_revision: 4,
+          rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+          reward_distribution_mode: 'campaign_end',
+          reward_distribution_delay_days: 0,
+        }),
+      ).resolves.toBe(quest);
+
+      expect(
+        questTaskStateInspector.withTaskConfigEditFence,
+      ).not.toHaveBeenCalled();
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejects a legacy reward edit after immutable manifest resolution begins', async () => {
+      const endDate = new Date('2099-06-30T00:00:00.000Z');
+      questModel.findById.mockReturnValue(
+        makeQuery({
+          _id: questId,
+          reward_model: 'legacy_v1',
+          config_revision: 4,
+          start_date: new Date('2099-06-01T00:00:00.000Z'),
+          end_date: endDate,
+          rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+          reward_distribution_mode: 'campaign_end',
+          reward_distribution_delay_days: 0,
+          reward_distribution_scheduled_at: endDate,
+          legacy_payout_resolution_started_at: new Date(
+            '2026-07-17T00:00:00.000Z',
+          ),
+        }),
+      );
+
+      await expect(
+        service.updateQuestRewards(questId, {
+          expected_config_revision: 4,
+          rewards: [{ rank: 1, reward: 9999, currency: 'THB' }],
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it.each(['has_outbox', 'has_progress', 'has_award'] as const)(
+      'rejects task-v2 reward changes when the inspector reports %s',
+      async (effect) => {
+        const endDate = new Date('2099-06-30T00:00:00.000Z');
+        questModel.findById.mockReturnValue(
+          makeQuery({
+            _id: questId,
+            reward_model: 'task_v2',
+            config_revision: 2,
+            start_date: new Date('2099-06-01T00:00:00.000Z'),
+            end_date: endDate,
+            rewards: [],
+            reward_distribution_mode: 'campaign_end',
+            reward_distribution_delay_days: 0,
+            reward_distribution_scheduled_at: endDate,
+          }),
+        );
+        questTaskStateInspector.withTaskConfigEditFence.mockImplementationOnce(
+          async (_id, operation) =>
+            operation({
+              has_outbox: effect === 'has_outbox',
+              has_progress: effect === 'has_progress',
+              has_award: effect === 'has_award',
+            }),
+        );
+
+        await expect(
+          service.updateQuestRewards(questId, {
+            expected_config_revision: 2,
+            rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+          }),
+        ).rejects.toMatchObject({
+          status: 409,
+          response: expect.objectContaining({
+            code: 'QUEST_TASK_CONFIG_FROZEN',
+          }),
+        });
+        expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('getQuestAdminLeaderboard', () => {
@@ -794,10 +2009,10 @@ describe('PointService', () => {
     // existing reward record rather than minting a duplicate claim.
     it('questSocial > given an existing reward for the action > then it returns it without creating another', async () => {
       questModel.findOne.mockReturnValue(
-        makeQuery({ _id: new Types.ObjectId() }),
+        makeQuery(reconciledLegacySocialQuest(new Types.ObjectId())),
       );
       const existing = { _id: 'sr-1', reward_status: false };
-      socialRewardModel.findOne.mockReturnValue(makeQuery(existing));
+      socialRewardModel.findOneAndUpdate.mockResolvedValue(existing);
 
       const result = await service.questSocial(userId, 'facebook', 'follow');
 
@@ -807,18 +2022,24 @@ describe('PointService', () => {
 
     it('questSocial > given no existing reward > then it creates a new unclaimed reward', async () => {
       questModel.findOne.mockReturnValue(
-        makeQuery({ _id: new Types.ObjectId() }),
+        makeQuery(reconciledLegacySocialQuest(new Types.ObjectId())),
       );
-      socialRewardModel.findOne.mockReturnValue(makeQuery(null));
-      socialRewardModel.create.mockResolvedValue({
+      socialRewardModel.findOneAndUpdate.mockResolvedValue({
         toObject: () => ({ _id: 'new-sr', reward_status: false }),
       });
 
       const result = await service.questSocial(userId, 'facebook', 'follow');
 
-      expect(socialRewardModel.create).toHaveBeenCalledTimes(1);
-      expect(socialRewardModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({ reward_status: false, action: 'follow' }),
+      expect(socialRewardModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+      expect(socialRewardModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ legacy_payout_key: expect.any(String) }),
+        {
+          $setOnInsert: expect.objectContaining({
+            reward_status: false,
+            action: 'follow',
+          }),
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
       );
       expect(result).toMatchObject({ reward_status: false });
     });
@@ -842,24 +2063,34 @@ describe('PointService', () => {
       const saved = { _id: 'sr', reward_status: true };
       const reward = {
         _id: new Types.ObjectId(),
+        quest_id: new Types.ObjectId(),
         type: 'facebook',
         action: 'follow',
         reward_status: false,
-        save: jest.fn().mockResolvedValue(saved),
+        legacy_payout_key: '',
       };
+      reward.legacy_payout_key = `legacy:quest:${reward.quest_id}:social:facebook:follow:user:${userId}`;
       socialRewardModel.findOne.mockResolvedValue(reward);
-      // addPointsToUser's internal dedup finds nothing => it grants.
-      pointModel.findOne.mockReturnValue(makeQuery(null));
+      questModel.findOne.mockReturnValue(
+        makeQuery(reconciledLegacySocialQuest(reward.quest_id)),
+      );
+      pointModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({
+          _id: 'point',
+          user_id: new Types.ObjectId(userId),
+          point: 50,
+          conversion_id: 0,
+          type: 'add',
+          action: `reward_quest_social:facebook:follow:${reward._id}`,
+          idempotency_key: `legacy:quest:${reward.quest_id}:social:facebook:follow:user:${userId}`,
+        }),
+      );
+      socialRewardModel.findOneAndUpdate.mockResolvedValue(saved);
 
       const result = await service.updateQuestSocial(userId, rewardId);
 
-      expect(constructedPointDocs).toHaveLength(1);
-      expect(constructedPointDocs[0].data).toMatchObject({
-        point: 50,
-        type: 'add',
-      });
-      expect(reward.reward_status).toBe(true);
-      expect(reward.save).toHaveBeenCalledTimes(1);
+      expect(pointModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+      expect(socialRewardModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
       expect(result).toBe(saved);
     });
   });
@@ -1021,125 +2252,48 @@ describe('PointService', () => {
   });
 
   describe('createQuest', () => {
-    it('createQuest > given no _id > then upserts with status derived from dates', async () => {
-      questModel.findById.mockResolvedValue(null);
-      const saved = { _id: new Types.ObjectId().toHexString(), status: 'open' };
-      questModel.findByIdAndUpdate.mockResolvedValue(saved);
-
-      const result = await service.createQuest(
-        {
-          start_date: new Date('2099-06-27'),
-          end_date: new Date('2099-06-30'),
-          status: 'open',
-          facebook_post: '',
-          facebook_page: '',
-          line: '',
-          banner_en: 'stored:banner-en',
-          banner_th: 'stored:banner-th',
-          sub_banner_en: 'stored:sub-banner-en',
-          sub_banner_th: 'stored:sub-banner-th',
-        } as never,
-        {},
-      );
-
-      expect(questModel.findById).toHaveBeenCalledTimes(1);
-      expect(questModel.findOne).not.toHaveBeenCalled();
-      const [questId, update, options] =
-        questModel.findByIdAndUpdate.mock.calls[0];
-      expect(questId).toBeInstanceOf(Types.ObjectId);
-      expect(update).toEqual({
-        $set: expect.objectContaining({
-          status: 'scheduled',
-          facebook_post: '',
-        }),
-      });
-      expect(options).toMatchObject({
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-      });
-      expect(result).toBe(saved);
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=',
+      'base64',
+    );
+    const image = (fieldname: string, buffer = png) =>
+      ({
+        fieldname,
+        originalname: `${fieldname}.png`,
+        mimetype: 'image/png',
+        size: buffer.length,
+        buffer,
+      }) as Express.Multer.File;
+    const allFiles = () => ({
+      banner_en: [image('banner_en')],
+      banner_th: [image('banner_th')],
+      sub_banner_en: [image('sub_banner_en')],
+      sub_banner_th: [image('sub_banner_th')],
     });
+    const dto = (overrides: Record<string, unknown> = {}) =>
+      ({
+        request_key: 'quest-media:point-service-test',
+        campaign_revision: 0,
+        expected_config_revision: 0,
+        start_date: new Date('2099-06-27'),
+        end_date: new Date('2099-06-30'),
+        facebook_post: '',
+        facebook_page: '',
+        line: '',
+        ...overrides,
+      }) as never;
 
-    it('createQuest > given four uploaded banners > then stores their string refs on the quest', async () => {
-      questModel.findById.mockResolvedValue(null);
-      questModel.findByIdAndUpdate.mockResolvedValue({
-        _id: 'quest-with-media',
-      });
-      storedMediaService.upload
-        .mockResolvedValueOnce('stored:banner-en')
-        .mockResolvedValueOnce('stored:banner-th')
-        .mockResolvedValueOnce('stored:sub-banner-en')
-        .mockResolvedValueOnce('stored:sub-banner-th');
-      const file = (originalname: string) =>
-        ({ originalname }) as Express.Multer.File;
-
-      await service.createQuest(
-        {
-          start_date: new Date('2099-06-27'),
-          end_date: new Date('2099-06-30'),
-          facebook_post: '',
-          facebook_page: '',
-          line: '',
-        } as never,
-        {
-          banner_en: [file('banner-en.png')],
-          banner_th: [file('banner-th.png')],
-          sub_banner_en: [file('sub-banner-en.png')],
-          sub_banner_th: [file('sub-banner-th.png')],
-        },
-      );
-
-      expect(storedMediaService.upload).toHaveBeenCalledTimes(4);
-      expect(storedMediaService.replace).not.toHaveBeenCalled();
-      expect(questModel.findByIdAndUpdate.mock.calls[0][1]).toEqual({
-        $set: expect.objectContaining({
-          banner_en: 'stored:banner-en',
-          banner_th: 'stored:banner-th',
-          sub_banner_en: 'stored:sub-banner-en',
-          sub_banner_th: 'stored:sub-banner-th',
-        }),
-      });
-    });
-
-    it('createQuest > given a banner upload failure > then identifies the failed field', async () => {
-      questModel.findById.mockResolvedValue(null);
-      storedMediaService.upload.mockRejectedValueOnce(
-        new Error('object storage unavailable'),
-      );
-      const banner = { originalname: 'banner-en.png' } as Express.Multer.File;
-
-      await expect(
-        service.createQuest(
-          {
-            start_date: new Date('2099-06-27'),
-            end_date: new Date('2099-06-30'),
-            facebook_post: '',
-            facebook_page: '',
-            line: '',
-          } as never,
-          { banner_en: [banner] },
-        ),
-      ).rejects.toMatchObject({
-        message:
-          'Could not upload Banner EN. Please choose the image again and retry.',
-        status: HttpStatus.BAD_GATEWAY,
-      });
-      expect(questModel.findByIdAndUpdate).not.toHaveBeenCalled();
-    });
-
-    it('createQuest > given a new quest without all four banners > then rejects before persistence', async () => {
+    it('requires all four actual multipart files for a new quest and ignores body strings', async () => {
       questModel.findById.mockResolvedValue(null);
 
       await expect(
         service.createQuest(
-          {
-            start_date: new Date('2099-06-27'),
-            end_date: new Date('2099-06-30'),
-            facebook_post: '',
-            facebook_page: '',
-            line: '',
-          } as never,
+          dto({
+            banner_en: 'stored:untrusted-en',
+            banner_th: 'stored:untrusted-th',
+            sub_banner_en: 'stored:untrusted-sub-en',
+            sub_banner_th: 'stored:untrusted-sub-th',
+          }),
           {},
         ),
       ).rejects.toMatchObject({
@@ -1147,127 +2301,522 @@ describe('PointService', () => {
           'All four quest banners are required when creating a quest: Banner EN, Banner TH, Sub banner EN, Sub banner TH.',
         status: HttpStatus.BAD_REQUEST,
       });
-      expect(questModel.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(questModel.findById).not.toHaveBeenCalled();
+      expect(questMediaWrite.execute).not.toHaveBeenCalled();
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
-    it('createQuest > given a later banner upload failure > then removes new uploads and preserves old refs', async () => {
-      questModel.findById.mockResolvedValue({
-        banner_en: 'stored:old-banner-en',
-        banner_th: 'stored:old-banner-th',
-        sub_banner_en: 'stored:old-sub-banner-en',
-        sub_banner_th: 'stored:old-sub-banner-th',
+    it('validates every selected image before the durable writer or persistence', async () => {
+      questModel.findById.mockResolvedValue(null);
+      const files = allFiles();
+      files.banner_th = [image('banner_th', Buffer.from('spoofed'))];
+
+      await expect(service.createQuest(dto(), files)).rejects.toMatchObject({
+        message:
+          'Banner TH must be a genuine PNG, JPEG, or WebP image. Please choose the image again.',
       });
-      storedMediaService.upload
-        .mockResolvedValueOnce('stored:new-banner-en')
-        .mockRejectedValueOnce(new Error('second upload failed'));
-      const file = (originalname: string) =>
-        ({ originalname }) as Express.Multer.File;
+      expect(questModel.findById).not.toHaveBeenCalled();
+      expect(questMediaWrite.execute).not.toHaveBeenCalled();
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejects a nonexistent update id before the writer can upsert a partial-banner quest', async () => {
+      const missingQuestId = new Types.ObjectId();
+      questModel.findById.mockResolvedValue(null);
 
       await expect(
         service.createQuest(
-          {
-            _id: new Types.ObjectId().toHexString(),
-            start_date: new Date('2099-06-27'),
-            end_date: new Date('2099-06-30'),
-            facebook_post: '',
-            facebook_page: '',
-            line: '',
-          } as never,
-          {
-            banner_en: [file('banner-en.png')],
-            banner_th: [file('banner-th.png')],
-          },
+          dto({ _id: String(missingQuestId), campaign_revision: 0 }),
+          { banner_en: [image('banner_en')] },
         ),
       ).rejects.toMatchObject({
-        message:
-          'Could not upload Banner TH. Please choose the image again and retry.',
-        status: HttpStatus.BAD_GATEWAY,
+        message: 'Quest not found',
+        status: HttpStatus.NOT_FOUND,
       });
-
-      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(
-        'stored:new-banner-en',
-      );
-      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
-        'stored:old-banner-en',
-      );
-      expect(questModel.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(questModel.findById).toHaveBeenCalledWith(missingQuestId);
+      expect(questMediaWrite.execute).not.toHaveBeenCalled();
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
-    it('createQuest > given a successful replacement > then deletes old media only after the quest points to the new ref', async () => {
-      questModel.findById.mockResolvedValue({
-        banner_en: 'stored:old-banner-en',
-        banner_th: 'stored:old-banner-th',
-        sub_banner_en: 'stored:old-sub-banner-en',
-        sub_banner_th: 'stored:old-sub-banner-th',
+    it('passes four validated files, a stable command key, and a derived status to the durable writer', async () => {
+      questModel.findById.mockResolvedValue(null);
+      const saved = { _id: 'quest-with-media', campaign_revision: 1 };
+      questMediaWrite.execute.mockResolvedValue(saved);
+
+      await expect(service.createQuest(dto(), allFiles())).resolves.toBe(saved);
+
+      expect(questMediaWrite.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestKey: 'quest-media:point-service-test',
+          expectedRevision: 0,
+          payloadHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+          questPatch: expect.objectContaining({ status: 'scheduled' }),
+          uploads: [
+            expect.objectContaining({ role: 'banner_en' }),
+            expect.objectContaining({ role: 'banner_th' }),
+            expect.objectContaining({ role: 'sub_banner_en' }),
+            expect.objectContaining({ role: 'sub_banner_th' }),
+          ],
+        }),
+      );
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('keeps an id-less create replay hash stable after later reward settings mutate the quest', async () => {
+      const committedQuest = {
+        _id: new Types.ObjectId(),
+        campaign_revision: 1,
+        end_date: new Date('2099-06-30'),
+        reward_distribution_mode: 'manual',
+        reward_distribution_delay_days: 0,
+        reward_distribution_scheduled_at: null,
+      };
+      questModel.findById
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(committedQuest);
+      questMediaWrite.execute.mockResolvedValue({
+        _id: committedQuest._id,
+        campaign_revision: 1,
       });
-      questModel.findByIdAndUpdate.mockResolvedValue({ _id: 'quest-updated' });
-      storedMediaService.upload.mockResolvedValueOnce('stored:new-banner-en');
+
+      await service.createQuest(dto(), allFiles());
+      await service.createQuest(dto(), allFiles());
+
+      const initial = questMediaWrite.execute.mock.calls[0][0];
+      const replay = questMediaWrite.execute.mock.calls[1][0];
+      expect(replay.payloadHash).toBe(initial.payloadHash);
+      expect(replay.questPatch).toEqual(initial.questPatch);
+      expect(replay.questPatch).toEqual(
+        expect.objectContaining({
+          reward_distribution_mode: 'campaign_end',
+          reward_distribution_delay_days: 0,
+          reward_distribution_scheduled_at: new Date('2099-06-30'),
+        }),
+      );
+    });
+
+    it('keeps a task-v2 schedule media retry stable after the first commit rotates task keys', async () => {
+      const questId = new Types.ObjectId();
+      const previousQuest = {
+        _id: questId,
+        campaign_revision: 3,
+        config_revision: 5,
+        reward_model: 'task_v2',
+        start_date: new Date('2099-06-27'),
+        end_date: new Date('2099-06-30'),
+        tasks: [
+          {
+            task_key: 'task_schedule_old_1234',
+            task_type: 'friend_referral',
+            completion_rule: 'account_created',
+            points: 50,
+            sort_order: 0,
+            enabled: true,
+            wording: 'Invite',
+            wording_en: 'Invite',
+            wording_th: 'ชวนเพื่อน',
+            notes: '',
+          },
+        ],
+      };
+      const committedQuest = {
+        ...previousQuest,
+        campaign_revision: 4,
+        config_revision: 6,
+        start_date: new Date('2099-07-01'),
+        end_date: new Date('2099-07-31'),
+        tasks: [
+          {
+            ...previousQuest.tasks[0],
+            task_key: 'task_schedule_revision_6_1234',
+          },
+        ],
+      };
+      questModel.findById
+        .mockResolvedValueOnce(previousQuest)
+        .mockResolvedValueOnce(committedQuest);
+      questMediaWrite.execute.mockResolvedValue(committedQuest);
+      const request = dto({
+        _id: String(questId),
+        campaign_revision: 3,
+        expected_config_revision: 5,
+        start_date: new Date('2099-07-01'),
+        end_date: new Date('2099-07-31'),
+      });
+      const files = { banner_en: [image('banner_en')] };
+
+      await service.createQuest(request, files);
+      await service.createQuest(request, files);
+
+      const initial = questMediaWrite.execute.mock.calls[0][0];
+      const replay = questMediaWrite.execute.mock.calls[1][0];
+      expect(initial).toEqual(
+        expect.objectContaining({
+          economicChange: true,
+          taskV2EconomicChange: true,
+          commitFence: expect.any(Function),
+        }),
+      );
+      expect(replay).toEqual(
+        expect.objectContaining({
+          economicChange: false,
+          taskV2EconomicChange: false,
+        }),
+      );
+      expect(replay.payloadHash).toBe(initial.payloadHash);
+    });
+
+    it('binds guarded QA marker and cleanup nonce identity into the durable command', async () => {
+      const previousEnabled = process.env.QUEST_MEDIA_QA_ENABLED;
+      const previousNodeEnv = process.env.NODE_ENV;
+      process.env.QUEST_MEDIA_QA_ENABLED = 'true';
+      process.env.NODE_ENV = 'test';
+      questModel.findById.mockResolvedValue(null);
+      questMediaWrite.execute.mockResolvedValue({
+        _id: 'qa-quest',
+        campaign_revision: 1,
+      });
+      const marker = 'quest-media-qa:point-service-test';
+      const firstNonce = 'a'.repeat(32);
+      const secondNonce = 'b'.repeat(32);
+
+      try {
+        await service.createQuest(
+          dto({
+            request_key: 'quest-media:qa:point-service-test',
+            qa_marker: marker,
+            qa_cleanup_nonce: firstNonce,
+          }),
+          allFiles(),
+        );
+        await service.createQuest(
+          dto({
+            request_key: 'quest-media:qa:point-service-test',
+            qa_marker: marker,
+            qa_cleanup_nonce: secondNonce,
+          }),
+          allFiles(),
+        );
+      } finally {
+        if (previousEnabled === undefined) {
+          delete process.env.QUEST_MEDIA_QA_ENABLED;
+        } else {
+          process.env.QUEST_MEDIA_QA_ENABLED = previousEnabled;
+        }
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+
+      const first = questMediaWrite.execute.mock.calls[0][0];
+      const second = questMediaWrite.execute.mock.calls[1][0];
+      expect(first).toEqual(
+        expect.objectContaining({
+          qaMarker: marker,
+          qaCleanupNonceHash: createHash('sha256')
+            .update(firstNonce)
+            .digest('hex'),
+        }),
+      );
+      expect(second).toEqual(
+        expect.objectContaining({
+          qaMarker: marker,
+          qaCleanupNonceHash: createHash('sha256')
+            .update(secondNonce)
+            .digest('hex'),
+        }),
+      );
+      expect(second.payloadHash).not.toBe(first.payloadHash);
+    });
+
+    it('routes a genuine one-field replacement through the fenced writer', async () => {
+      const questId = new Types.ObjectId();
+      questModel.findById.mockResolvedValue({
+        _id: questId,
+        campaign_revision: 7,
+        banner_en: 'stored:old-banner-en',
+      });
+      questMediaWrite.execute.mockResolvedValue({
+        _id: questId,
+        campaign_revision: 8,
+      });
 
       await service.createQuest(
-        {
-          _id: new Types.ObjectId().toHexString(),
-          start_date: new Date('2099-06-27'),
-          end_date: new Date('2099-06-30'),
-          facebook_post: '',
-          facebook_page: '',
-          line: '',
-        } as never,
-        {
-          banner_en: [{ originalname: 'banner-en.png' } as Express.Multer.File],
-        },
+        dto({ _id: String(questId), campaign_revision: 7 }),
+        { banner_en: [image('banner_en')] },
       );
 
-      expect(questModel.findByIdAndUpdate.mock.calls[0][1]).toEqual({
-        $set: expect.objectContaining({
-          banner_en: 'stored:new-banner-en',
-          banner_th: 'stored:old-banner-th',
+      expect(questMediaWrite.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          questId,
+          expectedRevision: 7,
+          uploads: [expect.objectContaining({ role: 'banner_en' })],
         }),
-      });
-      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(
-        'stored:old-banner-en',
-      );
-      expect(
-        questModel.findByIdAndUpdate.mock.invocationCallOrder[0],
-      ).toBeLessThan(
-        storedMediaService.deleteStored.mock.invocationCallOrder[0],
       );
     });
 
-    it('createQuest > given database persistence failure > then removes new uploads without deleting old media', async () => {
+    it('updates campaign-only fields with revision CAS and leaves banner refs untouched', async () => {
+      const questId = new Types.ObjectId();
+      const saved = { _id: questId, campaign_revision: 4 };
       questModel.findById.mockResolvedValue({
-        banner_en: 'stored:old-banner-en',
-        banner_th: 'stored:old-banner-th',
-        sub_banner_en: 'stored:old-sub-banner-en',
-        sub_banner_th: 'stored:old-sub-banner-th',
+        _id: questId,
+        campaign_revision: 3,
+        config_revision: 2,
+        reward_model: 'task_v2',
+        start_date: new Date('2099-06-27'),
+        end_date: new Date('2099-06-30'),
+        tasks: [
+          {
+            task_key: 'task_schedule_old_1234',
+            task_type: 'friend_referral',
+            completion_rule: 'account_created',
+            points: 50,
+            sort_order: 0,
+            enabled: true,
+            wording: 'Invite',
+            wording_en: 'Invite',
+            wording_th: 'ชวนเพื่อน',
+            notes: '',
+          },
+        ],
+        banner_en: 'stored:keep-me',
       });
-      questModel.findByIdAndUpdate.mockRejectedValue(
-        new Error('database unavailable'),
-      );
-      storedMediaService.upload.mockResolvedValueOnce('stored:new-banner-en');
+      questModel.findOneAndUpdate.mockResolvedValue(saved);
 
       await expect(
         service.createQuest(
-          {
-            _id: new Types.ObjectId().toHexString(),
-            start_date: new Date('2099-06-27'),
-            end_date: new Date('2099-06-30'),
-            facebook_post: '',
-            facebook_page: '',
-            line: '',
-          } as never,
-          {
-            banner_en: [
-              { originalname: 'banner-en.png' } as Express.Multer.File,
-            ],
-          },
+          dto({
+            _id: String(questId),
+            campaign_revision: 3,
+            expected_config_revision: 2,
+            facebook_post: 'copy-only-change',
+          }),
+          {},
         ),
-      ).rejects.toThrow('database unavailable');
+      ).resolves.toBe(saved);
 
-      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(
-        'stored:new-banner-en',
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: questId, campaign_revision: 3 },
+        {
+          $set: expect.not.objectContaining({ banner_en: expect.anything() }),
+          $inc: { campaign_revision: 1 },
+        },
+        { new: true },
       );
-      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
-        'stored:old-banner-en',
+      expect(questMediaWrite.execute).not.toHaveBeenCalled();
+      expect(
+        questTaskStateInspector.withTaskConfigEditFence,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('matches missing legacy revisions even when Mongoose hydrated defaults to zero', async () => {
+      const questId = new Types.ObjectId();
+      const legacyRecord = {
+        _id: questId,
+        start_date: new Date('2099-06-27'),
+        end_date: new Date('2099-06-30'),
+        reward_model: 'legacy_v1',
+        campaign_revision: 0,
+        config_revision: 0,
+      };
+      questModel.findById.mockResolvedValue({
+        ...legacyRecord,
+        $isDefault: jest.fn(
+          (path: string) =>
+            path === 'campaign_revision' || path === 'config_revision',
+        ),
+        toObject: jest.fn(() => ({ ...legacyRecord })),
+      });
+      questModel.findOneAndUpdate.mockResolvedValue({
+        ...legacyRecord,
+        start_date: new Date('2099-07-01'),
+        end_date: new Date('2099-07-31'),
+        campaign_revision: 1,
+        config_revision: 1,
+      });
+
+      await service.createQuest(
+        dto({
+          _id: String(questId),
+          campaign_revision: 0,
+          expected_config_revision: 0,
+          start_date: new Date('2099-07-01'),
+          end_date: new Date('2099-07-31'),
+        }),
+        {},
+      );
+
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        {
+          _id: questId,
+          $and: [
+            {
+              $or: [
+                { campaign_revision: 0 },
+                { campaign_revision: { $exists: false } },
+              ],
+            },
+            {
+              $or: [
+                { config_revision: 0 },
+                { config_revision: { $exists: false } },
+              ],
+            },
+          ],
+        },
+        expect.objectContaining({
+          $inc: { campaign_revision: 1, config_revision: 1 },
+        }),
+        { new: true },
+      );
+    });
+
+    it('serializes a direct task-v2 schedule change against event adoption and both revisions', async () => {
+      const questId = new Types.ObjectId();
+      questModel.findById.mockResolvedValue({
+        _id: questId,
+        campaign_revision: 3,
+        config_revision: 5,
+        reward_model: 'task_v2',
+        start_date: new Date('2099-06-27'),
+        end_date: new Date('2099-06-30'),
+        tasks: [
+          {
+            task_key: 'task_schedule_old_1234',
+            task_type: 'friend_referral',
+            completion_rule: 'account_created',
+            points: 50,
+            sort_order: 0,
+            enabled: true,
+            wording: 'Invite',
+            wording_en: 'Invite',
+            wording_th: 'ชวนเพื่อน',
+            notes: '',
+          },
+        ],
+      });
+      questModel.findOneAndUpdate.mockResolvedValue({
+        _id: questId,
+        campaign_revision: 4,
+        config_revision: 6,
+      });
+
+      await service.createQuest(
+        dto({
+          _id: String(questId),
+          campaign_revision: 3,
+          expected_config_revision: 5,
+          start_date: new Date('2099-07-01'),
+          end_date: new Date('2099-07-31'),
+        }),
+        {},
+      );
+
+      expect(
+        questTaskStateInspector.withTaskConfigEditFence,
+      ).toHaveBeenCalledWith(String(questId), expect.any(Function), {
+        start_at: new Date('2099-07-01'),
+        end_at: new Date('2099-07-31'),
+      });
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          _id: questId,
+          campaign_revision: 3,
+          config_revision: 5,
+          start_date: { $gt: expect.any(Date) },
+          $or: [
+            { task_v2_state_frozen_at: { $exists: false } },
+            { task_v2_state_frozen_at: null },
+          ],
+        }),
+        {
+          $set: expect.objectContaining({
+            start_date: new Date('2099-07-01'),
+            end_date: new Date('2099-07-31'),
+            tasks: [
+              expect.objectContaining({
+                task_key: expect.not.stringMatching(/^task_schedule_old_1234$/),
+              }),
+            ],
+          }),
+          $inc: { campaign_revision: 1, config_revision: 1 },
+        },
+        { new: true },
+      );
+    });
+
+    it('passes a commit-only task-v2 schedule fence to the durable media writer', async () => {
+      const questId = new Types.ObjectId();
+      questModel.findById.mockResolvedValue({
+        _id: questId,
+        campaign_revision: 7,
+        config_revision: 4,
+        reward_model: 'task_v2',
+        start_date: new Date('2099-06-27'),
+        end_date: new Date('2099-06-30'),
+        tasks: [
+          {
+            task_key: 'task_media_schedule_old_1234',
+            task_type: 'friend_referral',
+            completion_rule: 'account_created',
+            points: 50,
+            sort_order: 0,
+            enabled: true,
+            wording: 'Invite',
+            wording_en: 'Invite',
+            wording_th: 'ชวนเพื่อน',
+            notes: '',
+          },
+        ],
+      });
+      questMediaWrite.execute.mockResolvedValue({
+        _id: questId,
+        campaign_revision: 8,
+        config_revision: 5,
+      });
+
+      await service.createQuest(
+        dto({
+          _id: String(questId),
+          campaign_revision: 7,
+          expected_config_revision: 4,
+          start_date: new Date('2099-07-01'),
+          end_date: new Date('2099-07-31'),
+        }),
+        { banner_en: [image('banner_en')] },
+      );
+
+      const input = questMediaWrite.execute.mock.calls[0][0];
+      expect(input).toEqual(
+        expect.objectContaining({
+          expectedConfigRevision: 4,
+          economicChange: true,
+          taskV2EconomicChange: true,
+          commitFence: expect.any(Function),
+          questPatch: expect.objectContaining({
+            tasks: [
+              expect.objectContaining({
+                task_key: expect.not.stringMatching(
+                  /^task_media_schedule_old_1234$/,
+                ),
+              }),
+            ],
+          }),
+        }),
+      );
+      const committed = jest.fn().mockResolvedValue('saved');
+      await expect(input.commitFence(committed)).resolves.toBe('saved');
+      expect(
+        questTaskStateInspector.withTaskConfigEditFence,
+      ).toHaveBeenCalledWith(String(questId), expect.any(Function), {
+        start_at: new Date('2099-07-01'),
+        end_at: new Date('2099-07-31'),
+      });
+      expect(committed).toHaveBeenCalledWith(
+        {
+          has_outbox: false,
+          has_progress: false,
+          has_award: false,
+        },
+        undefined,
       );
     });
   });

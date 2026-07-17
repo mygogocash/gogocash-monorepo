@@ -24,6 +24,7 @@ import {
 } from './schemas/email-otp.schema';
 import { AnalyticsModule } from 'src/analytics/analytics.module';
 import { CrossmintAuthGuard } from './jwt-auth.guard';
+import { QuestTaskEngineModule } from 'src/quest-task-engine/quest-task-engine.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { CrossmintAuthGuard } from './jwt-auth.guard';
     }),
     EmailModule, // Provides EmailService (Resend) — used by both OTP subsystems
     AnalyticsModule, // Provides AnalyticsService
+    QuestTaskEngineModule,
     UserModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },

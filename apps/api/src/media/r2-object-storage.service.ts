@@ -4,6 +4,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Readable } from 'stream';
@@ -23,6 +24,21 @@ export type R2UploadedObject = {
   objectKey: string;
   bucket: string;
   access: R2UploadAccess;
+};
+
+export type R2ExactUploadOptions = {
+  /** Must stay shorter than the durable command lease that owns this Put. */
+  timeoutMs?: number;
+};
+
+export type R2ExactDeleteOptions = {
+  /** Must stay shorter than the compensation worker lease. */
+  timeoutMs?: number;
+};
+
+export type R2ExactHeadOptions = {
+  /** Must stay shorter than the compensation worker lease. */
+  timeoutMs?: number;
 };
 
 /**
@@ -78,20 +94,7 @@ export class R2ObjectStorageService {
     return this.client;
   }
 
-  assertUploadConfigured(): void {
-    if (
-      process.env.MEDIA_UPLOAD_DISABLED?.trim() === 'true' ||
-      process.env.GCS_MEDIA_UPLOAD_DISABLED?.trim() === 'true'
-    ) {
-      // Keep the operational reason in server logs; clients get generic copy.
-      this.logger.warn(
-        'Media upload blocked: MEDIA_UPLOAD_DISABLED/GCS_MEDIA_UPLOAD_DISABLED is set to "true".',
-      );
-      throw new HttpException(
-        'Media uploads are currently disabled. Please try again later or contact an administrator.',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
-    }
+  private assertStorageConfigured(): void {
     if (!this.isConfigured()) {
       // Log exactly which vars are missing so ops keeps diagnosability without
       // leaking configuration names to API clients.
@@ -114,8 +117,58 @@ export class R2ObjectStorageService {
     }
   }
 
+  assertUploadConfigured(): void {
+    if (
+      process.env.MEDIA_UPLOAD_DISABLED?.trim() === 'true' ||
+      process.env.GCS_MEDIA_UPLOAD_DISABLED?.trim() === 'true'
+    ) {
+      // Keep the operational reason in server logs; clients get generic copy.
+      this.logger.warn(
+        'Media upload blocked: MEDIA_UPLOAD_DISABLED/GCS_MEDIA_UPLOAD_DISABLED is set to "true".',
+      );
+      throw new HttpException(
+        'Media uploads are currently disabled. Please try again later or contact an administrator.',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    this.assertStorageConfigured();
+  }
+
   buildObjectKey(folder: string, originalName: string): string {
     return buildMediaObjectKey(folder, originalName);
+  }
+
+  /**
+   * Resolve immutable object metadata without performing network I/O. Durable
+   * commands persist this plan before calling PutObject.
+   */
+  describeUploadAtKey(
+    objectKey: string,
+    access: R2UploadAccess = 'public',
+  ): R2UploadedObject {
+    this.assertUploadConfigured();
+    return this.describeObjectAtKey(objectKey, access);
+  }
+
+  /** Resolve provenance for reads/deletes even when new uploads are disabled. */
+  describeObjectAtKey(
+    objectKey: string,
+    access: R2UploadAccess = 'public',
+  ): R2UploadedObject {
+    this.assertStorageConfigured();
+    const normalizedKey = objectKey.trim().replace(/^\/+/, '');
+    if (!normalizedKey || normalizedKey.includes('..')) {
+      throw new HttpException(
+        'Invalid media object key',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    return {
+      publicUrl: buildR2PublicUrl(this.getPublicBaseUrl(), normalizedKey),
+      objectKey: normalizedKey,
+      bucket: this.getBucketName(),
+      access,
+    };
   }
 
   private async readUploadBuffer(file: Express.Multer.File): Promise<Buffer> {
@@ -142,11 +195,22 @@ export class R2ObjectStorageService {
   ): Promise<R2UploadedObject> {
     this.assertUploadConfigured();
 
-    const bucket = this.getBucketName();
     const objectKey = this.buildObjectKey(
       folder,
       file.originalname || 'upload',
     );
+    return this.uploadFileAtKey(file, objectKey, access);
+  }
+
+  /** Upload at an exact, caller-owned key for idempotent durable commands. */
+  async uploadFileAtKey(
+    file: Express.Multer.File,
+    objectKey: string,
+    access: R2UploadAccess = 'public',
+    options: R2ExactUploadOptions = {},
+  ): Promise<R2UploadedObject> {
+    const planned = this.describeUploadAtKey(objectKey, access);
+    const { bucket, objectKey: normalizedKey } = planned;
     const buffer = await this.readUploadBuffer(file);
     const maxBytes = resolveMaxUploadBytes();
     if (buffer.length > maxBytes) {
@@ -158,11 +222,14 @@ export class R2ObjectStorageService {
     }
 
     const startedAt = Date.now();
+    const timeoutMs = Math.max(1, Math.floor(options.timeoutMs ?? 30_000));
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), timeoutMs);
     try {
       await this.getClient().send(
         new PutObjectCommand({
           Bucket: bucket,
-          Key: objectKey,
+          Key: normalizedKey,
           Body: buffer,
           ContentType: file.mimetype || 'application/octet-stream',
           CacheControl:
@@ -170,18 +237,18 @@ export class R2ObjectStorageService {
               ? 'public, max-age=31536000'
               : 'private, max-age=0',
         }),
+        { abortSignal: abortController.signal },
       );
 
-      const publicUrl = buildR2PublicUrl(this.getPublicBaseUrl(), objectKey);
       this.logger.log(
-        `R2 upload ok folder=${folder} access=${access} bytes=${buffer.length} ms=${Date.now() - startedAt}`,
+        `R2 upload ok key=${normalizedKey} access=${access} bytes=${buffer.length} ms=${Date.now() - startedAt}`,
       );
-      return { publicUrl, objectKey, bucket, access };
+      return planned;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unknown R2 upload error';
       this.logger.error(
-        `R2 upload failed folder=${folder} ms=${Date.now() - startedAt}: ${message}`,
+        `R2 upload failed key=${normalizedKey} ms=${Date.now() - startedAt}: ${message}`,
       );
       // Raw upstream error (`message`) is already captured by this.logger.error
       // above; clients only get generic, actionable copy.
@@ -189,6 +256,8 @@ export class R2ObjectStorageService {
         "We couldn't upload your file right now. Please try again in a moment or contact support if it keeps happening.",
         HttpStatus.SERVICE_UNAVAILABLE,
       );
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -264,6 +333,76 @@ export class R2ObjectStorageService {
       );
     } catch (error) {
       this.logger.error('Error deleting R2 object:', error);
+    }
+  }
+
+  /** Exact deletion for durable cleanup. Provider failures intentionally escape. */
+  async deleteObjectStrict(
+    bucket: string,
+    objectKey: string,
+    options: R2ExactDeleteOptions = {},
+  ): Promise<void> {
+    const configuredBucket = this.getBucketName();
+    const normalizedKey = objectKey.trim().replace(/^\/+/, '');
+    if (
+      !bucket ||
+      bucket !== configuredBucket ||
+      !normalizedKey ||
+      normalizedKey.includes('..')
+    ) {
+      throw new HttpException(
+        'Invalid command-owned media reference',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const timeoutMs = Math.max(1, Math.floor(options.timeoutMs ?? 15_000));
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), timeoutMs);
+    try {
+      await this.getClient().send(
+        new DeleteObjectCommand({ Bucket: bucket, Key: normalizedKey }),
+        { abortSignal: abortController.signal },
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** Exact, fail-closed existence probe for durable command cleanup. */
+  async objectExistsStrict(
+    bucket: string,
+    objectKey: string,
+    options: R2ExactHeadOptions = {},
+  ): Promise<boolean> {
+    const configuredBucket = this.getBucketName();
+    const normalizedKey = objectKey.trim().replace(/^\/+/, '');
+    if (
+      !bucket ||
+      bucket !== configuredBucket ||
+      !normalizedKey ||
+      normalizedKey.includes('..')
+    ) {
+      throw new HttpException(
+        'Invalid command-owned media reference',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const timeoutMs = Math.max(1, Math.floor(options.timeoutMs ?? 15_000));
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), timeoutMs);
+    try {
+      await this.getClient().send(
+        new HeadObjectCommand({ Bucket: bucket, Key: normalizedKey }),
+        { abortSignal: abortController.signal },
+      );
+      return true;
+    } catch (error) {
+      const statusCode = (error as { $metadata?: { httpStatusCode?: number } })
+        ?.$metadata?.httpStatusCode;
+      if (statusCode === 404) return false;
+      throw error;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 

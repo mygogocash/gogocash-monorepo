@@ -16,6 +16,10 @@ export type E2eSeedExport = {
   disabledBrandId: string;
   brandOfferId: number;
   couponCode: string;
+  visibleCodeCouponId: string;
+  linkOnlyCouponId: string;
+  linkOnlyCouponName: string;
+  couponDestinationUrl: string;
   questId: string;
   catalogSku: string;
   apiUrl: string;
@@ -78,6 +82,10 @@ async function main(): Promise<void> {
     disabledBrandId: fixtures.disabledBrandId,
     brandOfferId: fixtures.brandOfferId,
     couponCode: fixtures.couponCode,
+    visibleCodeCouponId: fixtures.visibleCodeCouponId,
+    linkOnlyCouponId: fixtures.linkOnlyCouponId,
+    linkOnlyCouponName: fixtures.linkOnlyCouponName,
+    couponDestinationUrl: fixtures.couponDestinationUrl,
     questId: fixtures.questId,
     catalogSku: fixtures.catalogSku,
     apiUrl: process.env.E2E_API_URL ?? 'http://localhost:8080',

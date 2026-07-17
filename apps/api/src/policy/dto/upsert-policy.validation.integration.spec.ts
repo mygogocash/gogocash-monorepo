@@ -30,16 +30,22 @@ describe('UpsertPolicyDto validation (integration)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
+    jest.useRealTimers();
     const moduleRef = await Test.createTestingModule({
       controllers: [PolicyValidationController],
     }).compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(new ValidationPipe(GLOBAL_VALIDATION_PIPE_OPTIONS));
-    await app.init();
+    await app.listen(0, '127.0.0.1');
   });
 
   afterAll(async () => {
-    await app.close();
+    try {
+      if (app) await app.close();
+    } finally {
+      jest.restoreAllMocks();
+      jest.useRealTimers();
+    }
   });
 
   const put = (payload: unknown) =>

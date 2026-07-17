@@ -102,9 +102,9 @@ import {
   WalletAdjustmentSchema,
 } from './wallets/schemas/wallet-adjustment.schema';
 import {
-  MissingOrder,
-  MissingOrderSchema,
-} from './missing-orders/schemas/missing-order.schema';
+  MissionOrder,
+  MissionOrderSchema,
+} from 'src/offer/schemas/missing-order.schema';
 import {
   ReferralConfig,
   ReferralConfigSchema,
@@ -158,11 +158,13 @@ import { JobService } from 'src/withdraw/cronjob/job.service';
 import { PointModule } from 'src/point/point.module';
 import { WithdrawService } from 'src/withdraw/withdraw.service';
 import { AnalyticsModule } from 'src/analytics/analytics.module';
+import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
 
 @Module({
   imports: [
     CacheModule.register(),
     AnalyticsModule,
+    CategoryIntegrityModule,
     EmailModule,
     MediaModule,
     PointModule,
@@ -199,7 +201,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
       // Phase 2B
       { name: WalletAdjustment.name, schema: WalletAdjustmentSchema },
       // Phase 3A
-      { name: MissingOrder.name, schema: MissingOrderSchema },
+      { name: MissionOrder.name, schema: MissionOrderSchema },
       // Phase 3B
       { name: ReferralConfig.name, schema: ReferralConfigSchema },
       // Phase 4A

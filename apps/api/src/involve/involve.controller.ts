@@ -33,6 +33,14 @@ import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { ApiKeyGuard } from 'src/common/api-key.guard';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { extractAnalyticsContext } from 'src/analytics/analytics-context';
+import { RateLimit } from 'src/auth/rate-limit.decorator';
+import { RateLimitGuard } from 'src/auth/rate-limit.guard';
+
+/** Product-safe mint budget: ten authenticated attempts per edge IP/minute. */
+export const CREATE_AFFILIATE_RATE_LIMIT = {
+  windowMs: 60_000,
+  max: 10,
+} as const;
 
 @ApiTags('Involve')
 @Controller('involve')
@@ -84,7 +92,10 @@ export class InvolveController {
     return this.involveService.remove(+id);
   }
 
-  @UseGuards(FirebaseAuthGuard)
+  // Authentication must run first so unauthenticated traffic never consumes
+  // mint-handler capacity or reaches the external affiliate provider.
+  @UseGuards(FirebaseAuthGuard, RateLimitGuard)
+  @RateLimit(CREATE_AFFILIATE_RATE_LIMIT)
   @ApiBody({ type: CreateAffiliateDto })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication

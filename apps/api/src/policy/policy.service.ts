@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, QueryFilter, Types } from 'mongoose';
 import { Category } from 'src/offer/schemas/category.schema';
 import {
   ALLOWED_POLICY_LOCALES,
@@ -19,6 +19,18 @@ import { PolicyContentDto, UpsertPolicyDto } from './dto/upsert-policy.dto';
  * larger than the editor allows.
  */
 const MAX_TRANSLATION_LENGTH = 50_000;
+
+function activeCategoryFilter(
+  categoryId?: Types.ObjectId,
+): QueryFilter<Category> {
+  return {
+    ...(categoryId ? { _id: categoryId } : {}),
+    $or: [
+      { lifecycle_status: 'active' },
+      { lifecycle_status: { $exists: false } },
+    ],
+  };
+}
 
 @Injectable()
 export class PolicyService {
@@ -38,16 +50,27 @@ export class PolicyService {
     if (!Types.ObjectId.isValid(categoryId)) {
       throw new BadRequestException('Invalid category id');
     }
-    return this.policyModel
-      .findOne({ category_id: new Types.ObjectId(categoryId) })
+    const id = new Types.ObjectId(categoryId);
+    const activeCategory = await this.categoryModel
+      .exists(activeCategoryFilter(id))
       .lean();
+    if (!activeCategory) return null;
+    return this.policyModel.findOne({ category_id: id }).lean();
   }
 
   /** Public read — list all policies. Used by the Admin index view to show
    *  which categories have policies authored. Plain documents only — no
    *  joins; the Admin already has Category metadata locally. */
   async list() {
-    return this.policyModel.find().sort({ updatedAt: -1 }).lean();
+    const categories = await this.categoryModel
+      .find(activeCategoryFilter(), { _id: 1 })
+      .lean();
+    const categoryIds = categories.map((category) => category._id);
+    if (categoryIds.length === 0) return [];
+    return this.policyModel
+      .find({ category_id: { $in: categoryIds } })
+      .sort({ updatedAt: -1 })
+      .lean();
   }
 
   /** Admin write — upsert (create-or-replace) the policy for a category.
@@ -59,11 +82,13 @@ export class PolicyService {
    *  4. each provided block has at least one non-empty translation
    *  5. each translation is within MAX_TRANSLATION_LENGTH
    */
-  async upsert(dto: UpsertPolicyDto) {
+  async upsert(dto: UpsertPolicyDto, session?: ClientSession) {
     const categoryId = new Types.ObjectId(dto.category_id);
-    const categoryExists = await this.categoryModel
-      .exists({ _id: categoryId })
-      .lean();
+    let categoryExistsQuery = this.categoryModel.exists(
+      activeCategoryFilter(categoryId),
+    );
+    if (session) categoryExistsQuery = categoryExistsQuery.session(session);
+    const categoryExists = await categoryExistsQuery.lean();
     if (!categoryExists) {
       throw new NotFoundException('Category not found');
     }
@@ -79,9 +104,11 @@ export class PolicyService {
       );
     }
 
-    const existingPolicy = await this.policyModel.exists({
+    let existingPolicyQuery = this.policyModel.exists({
       category_id: categoryId,
     });
+    if (session) existingPolicyQuery = existingPolicyQuery.session(session);
+    const existingPolicy = await existingPolicyQuery;
     if (!existingPolicy && (!dto.terms || dto.clear_terms)) {
       throw new BadRequestException(
         'Terms & conditions are required for a new policy.',
@@ -107,6 +134,7 @@ export class PolicyService {
         upsert: !existingPolicy,
         new: true,
         setDefaultsOnInsert: true,
+        ...(session ? { session } : {}),
       })
       .lean();
   }

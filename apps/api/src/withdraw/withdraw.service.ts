@@ -50,6 +50,17 @@ import {
   mongoSetUpdate,
   requireObjectId,
 } from 'src/common/mongo-query';
+import {
+  legacyQuestRewardFilter,
+  legacyRankPayoutKey,
+  legacySyntheticConversionId,
+} from 'src/tasks/legacy-reward-identity';
+import {
+  assertLegacyRewardManifest,
+  legacyQuestPayoutConfigChecksum,
+  legacyRewardManifestKey,
+  LegacyRewardManifest,
+} from 'src/tasks/legacy-reward-manifest';
 
 @Injectable()
 export class WithdrawService {
@@ -2184,9 +2195,7 @@ export class WithdrawService {
       throw new UnauthorizedException({ message: 'User not found' });
     }
     const checkDup = await this.withdrawMethodModel.findOne({
-      // account_no is number on the DTO but string on the schema; normalise to
-      // string (mongoose already cast number→string, so this matches stored rows).
-      account_no: String(createWithdrawMethod.account_no),
+      account_no: createWithdrawMethod.account_no,
       user_id: new Types.ObjectId(user._id),
     });
     if (checkDup) {
@@ -2196,10 +2205,7 @@ export class WithdrawService {
       );
     }
     createWithdrawMethod['user_id'] = new Types.ObjectId(user._id);
-    const dt = await this.withdrawMethodModel.create({
-      ...createWithdrawMethod,
-      account_no: String(createWithdrawMethod.account_no),
-    });
+    const dt = await this.withdrawMethodModel.create(createWithdrawMethod);
     return {
       message: 'Withdraw method created',
       data: dt,
@@ -2277,10 +2283,63 @@ export class WithdrawService {
     );
   }
 
+  private async assertLegacyRankPayoutWinner(
+    payoutKey: string,
+    expected: {
+      questId: string;
+      userId: string;
+      rank: number;
+      amount: number;
+      currency: string;
+    },
+  ) {
+    const winner = await this.conversionModel
+      .findOne({ quest_payout_key: payoutKey })
+      .lean();
+    const matches =
+      winner &&
+      String(winner.user_id ?? '') === expected.userId &&
+      winner.aff_sub1 === affSub1ForUserId(expected.userId) &&
+      winner.offer_name === 'reward_conversion_quest' &&
+      String(winner.adv_sub3 ?? '') === expected.questId &&
+      String(winner.adv_sub5 ?? '') === String(expected.rank) &&
+      Number(winner.payout) === expected.amount &&
+      String(winner.currency || 'THB') === expected.currency &&
+      String(winner.source || 'involve') === 'involve' &&
+      String(winner.provider_account || '') === 'legacy-quest' &&
+      String(winner.provider_conversion_id || '') === payoutKey &&
+      winner.quest_synthetic_reward === true;
+    if (!matches) {
+      throw new HttpException(
+        {
+          message: 'Legacy rank payout identity conflicts with existing effect',
+        },
+        409,
+      );
+    }
+    return winner;
+  }
+
   async adminAddRewardConversionForQuest() {
+    const now = new Date();
     const questDate = await this.questModel.findOne({
       status: 'close',
-      reward_status: { $ne: true },
+      legacy_payout_reconciliation_status: 'ready',
+      legacy_payout_reconciliation_version: 1,
+      legacy_rank_payout_completed_at: { $exists: false },
+      $and: [
+        legacyQuestRewardFilter(),
+        {
+          $or: [
+            { reward_distribution_mode: { $exists: false } },
+            { reward_distribution_mode: 'campaign_end' },
+            {
+              reward_distribution_mode: 'after_days',
+              reward_distribution_scheduled_at: { $lte: now },
+            },
+          ],
+        },
+      ],
     });
 
     if (!questDate) {
@@ -2288,26 +2347,47 @@ export class WithdrawService {
       console.log('Quest date not found for adminAddRewardConversionForQuest');
       return;
     }
-    const userReceivedReward = await this.pointService.getQuestRankListOfPoint(
-      new Date(questDate.start_date).toLocaleDateString('en-CA'),
-      new Date(questDate.end_date).toLocaleDateString('en-CA'),
+    const manifestCollection =
+      this.questModel.db.collection<LegacyRewardManifest>(
+        'legacyrewardmanifests',
+      );
+    const manifest = await manifestCollection.findOne({
+      manifest_key: legacyRewardManifestKey(questDate._id, 'rank'),
+    });
+    const questConfigChecksum = legacyQuestPayoutConfigChecksum(
+      questDate.toObject?.() ?? questDate,
     );
+    if (questDate.legacy_payout_config_checksum !== questConfigChecksum) {
+      throw new HttpException(
+        { message: 'Legacy rank quest configuration checksum mismatch' },
+        409,
+      );
+    }
+    assertLegacyRewardManifest(
+      manifest,
+      questDate._id,
+      'rank',
+      Number(questDate.legacy_payout_reconciliation_version),
+      questConfigChecksum,
+    );
+    const userReceivedReward = manifest.recipients;
 
     const questRewards = [...((questDate as any).rewards ?? [])]
       .filter((item) => Number(item?.rank) >= 1)
       .sort((a, b) => Number(a.rank) - Number(b.rank));
     const rewardList =
-      questRewards.length > 0
-        ? { name: 'quest', data: questRewards }
-        : await this.rewardListModel.findOne({ name: 'quest' });
+      questRewards.length > 0 ? { name: 'quest', data: questRewards } : null;
 
-    if (!rewardList) {
+    const payableRecipients = userReceivedReward.filter(
+      (recipient) => !recipient.excluded,
+    );
+    if (!rewardList && payableRecipients.length > 0) {
       throw new HttpException(
         {
           message:
-            "Rewards for this quest aren't set up yet. Please contact an administrator.",
+            'This legacy quest has no immutable reward snapshot. Reconcile it before enabling payouts.',
         },
-        400,
+        409,
       );
     }
 
@@ -2316,30 +2396,48 @@ export class WithdrawService {
       (rewardList?.data ?? []).map((item) => [Number(item.rank), item]),
     );
     for (let i = 0; i < userReceivedReward.length; i++) {
-      if (userReceivedReward[i]?.point <= 0) {
-        continue; // Skip users with 0 or negative points
-      }
-      const rank = i + 1;
+      if (userReceivedReward[i].excluded) continue;
+      const rank = Number(userReceivedReward[i].rank);
       const rankReward =
-        rewardsByRank.get(rank) ?? rewardList?.data?.[i] ?? null;
-      if (!rankReward || Number(rankReward.reward) <= 0) continue;
+        rewardsByRank.get(rank) ?? rewardList?.data?.[rank - 1] ?? null;
+      if (
+        !rankReward ||
+        Number(rankReward.reward) !== Number(userReceivedReward[i].amount) ||
+        String(rankReward.currency || 'THB') !==
+          String(userReceivedReward[i].currency || 'THB')
+      ) {
+        throw new HttpException(
+          { message: 'Legacy rank recipient manifest economics mismatch' },
+          409,
+        );
+      }
       const user = userReceivedReward[i];
+      const payoutKey = legacyRankPayoutKey(questDate._id, user.user_id, rank);
+      if (user.payout_key !== payoutKey) {
+        throw new HttpException(
+          { message: 'Legacy rank recipient manifest identity mismatch' },
+          409,
+        );
+      }
       const data = {
-        conversion_id: new Date().getTime() + i, // Use timestamp as unique ID for simplicity
+        conversion_id: legacySyntheticConversionId(payoutKey),
+        provider_conversion_id: payoutKey,
+        provider_account: 'legacy-quest',
+        quest_payout_key: payoutKey,
         offer_id: 0,
         offer_name: 'reward_conversion_quest',
         merchant_id: 0,
-        aff_sub2: user?.email || '',
-        aff_sub3: user?.username || '',
+        aff_sub2: '',
+        aff_sub3: '',
         aff_sub4: '',
         aff_sub5: '',
         adv_sub1: `${questDate.start_date.toLocaleDateString('en-CA')} - ${questDate.end_date.toLocaleDateString('en-CA')}`, // "Reward Quest 2024-01-01 - 2024-01-31"
         adv_sub2: `Reward Quest ${questDate.start_date.toLocaleDateString('en-CA')} - ${questDate.end_date.toLocaleDateString('en-CA')}`,
         adv_sub3: questDate?._id.toString() || '', // quest ID
-        adv_sub4: user?.point || 0,
-        adv_sub5: '',
+        adv_sub4: 0,
+        adv_sub5: String(rank),
         conversion_status: 'approved',
-        datetime_conversion: new Date(),
+        datetime_conversion: now,
         affiliate_remarks: '',
         base_payout: 0,
         bonus_payout: 0,
@@ -2349,21 +2447,75 @@ export class WithdrawService {
         ...(isValidObjectId(user.user_id)
           ? { user_id: new Types.ObjectId(user.user_id) }
           : {}),
-        currency: rankReward?.currency || 'THB',
-        payout: Number(rankReward?.reward) || 0,
+        currency: user.currency || 'THB',
+        payout: Number(user.amount),
         sale_amount: 0,
+        source: 'involve',
+        quest_synthetic_reward: true,
       };
-      const payoutData = Number(rankReward?.reward) || 0;
+      const payoutData = Number(user.amount);
 
       data.payout = payoutData;
 
       // console.log('data', data);
-      await this.conversionModel.create(data);
+      try {
+        const payoutWrite = await this.conversionModel.updateOne(
+          { quest_payout_key: payoutKey },
+          { $setOnInsert: data },
+          { upsert: true },
+        );
+        if (payoutWrite.matchedCount === 1 && !payoutWrite.upsertedCount) {
+          await this.assertLegacyRankPayoutWinner(payoutKey, {
+            questId: questDate._id.toString(),
+            userId: String(user.user_id),
+            rank,
+            amount: Number(user.amount),
+            currency: String(user.currency || 'THB'),
+          });
+        }
+      } catch (error) {
+        if ((error as { code?: number })?.code !== 11000) throw error;
+        await this.assertLegacyRankPayoutWinner(payoutKey, {
+          questId: questDate._id.toString(),
+          userId: String(user.user_id),
+          rank,
+          amount: Number(user.amount),
+          currency: String(user.currency || 'THB'),
+        });
+      }
       list.push(data);
     }
-    await this.questModel
-      .findByIdAndUpdate(questDate._id, { reward_status: true })
-      .exec();
+    const manifestCompletion = await manifestCollection.updateOne(
+      {
+        manifest_key: manifest.manifest_key,
+        manifest_hash: manifest.manifest_hash,
+        quest_config_checksum: questConfigChecksum,
+        status: { $in: ['ready', 'completed'] },
+      },
+      { $set: { status: 'completed', completed_at: new Date() } },
+    );
+    if (manifestCompletion.matchedCount !== 1) {
+      throw new HttpException(
+        { message: 'Legacy rank manifest completion fence was lost' },
+        409,
+      );
+    }
+    await this.questModel.findOneAndUpdate(
+      {
+        _id: questDate._id,
+        legacy_payout_reconciliation_status: 'ready',
+        legacy_payout_reconciliation_version: 1,
+        legacy_payout_config_checksum: questConfigChecksum,
+        legacy_rank_payout_completed_at: { $exists: false },
+      },
+      {
+        $set: {
+          legacy_rank_payout_completed_at: new Date(),
+          reward_status: true,
+        },
+      },
+      { new: true },
+    );
     return rewardList;
   }
 
@@ -2424,6 +2576,11 @@ export class WithdrawService {
       currency: reward_currency || 'THB',
       payout: Number(reward_amount) || 0,
       sale_amount: 0,
+      source: 'involve',
+      // This admin grant is a quest/reward payout, not an affiliate sale. The
+      // explicit marker keeps all analytics and task consumers fail-closed;
+      // legacy rows remain recognizable by the reserved offer_name above.
+      quest_synthetic_reward: true,
     };
 
     return await this.conversionModel.create(data);

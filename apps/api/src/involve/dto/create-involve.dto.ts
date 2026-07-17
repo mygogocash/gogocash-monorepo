@@ -8,6 +8,7 @@ import {
   IsNotEmpty,
   IsNumber,
   IsString,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 
@@ -102,7 +103,7 @@ export class CreateAffiliateDto {
   merchant_id: number;
 
   @IsString()
-  @IsNotEmpty()
+  @MaxLength(2048)
   @ApiProperty()
   deeplink: string;
 }

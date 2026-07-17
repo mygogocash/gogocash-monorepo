@@ -30,9 +30,15 @@ import {
   FileFieldsInterceptor,
   FilesInterceptor,
 } from '@nestjs/platform-express';
+import { resolveDeploymentProof } from './deployment-proof';
 @Controller('offer')
 export class OfferController {
   constructor(private readonly offerService: OfferService) {}
+
+  @Get('deployment-proof')
+  getDeploymentProof() {
+    return resolveDeploymentProof();
+  }
 
   @Get('extra-point')
   getOfferExtraPoint() {

@@ -6,6 +6,7 @@ import { WithdrawService } from './withdraw.service';
 @Injectable()
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
+  private rankPayoutRun?: Promise<void>;
   constructor(
     private readonly jobService: JobService,
     private readonly withdrawService: WithdrawService,
@@ -32,6 +33,35 @@ export class TasksService {
     this.logger.debug(
       'Called when the current time is 1:00 AM on the 7th day of every month',
     );
-    this.withdrawService.adminAddRewardConversionForQuest();
+    if (!this.rankPayoutRun) {
+      const work = Promise.resolve().then(async () => {
+        await this.withdrawService.adminAddRewardConversionForQuest();
+      });
+      const tracked = work.finally(() => {
+        if (this.rankPayoutRun === tracked) this.rankPayoutRun = undefined;
+      });
+      this.rankPayoutRun = tracked;
+    }
+    const configured = Number(
+      process.env.LEGACY_REWARD_CRON_TIMEOUT_MS ?? 300_000,
+    );
+    const timeoutMs = Number.isFinite(configured)
+      ? Math.min(Math.max(configured, 1_000), 900_000)
+      : 300_000;
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        this.rankPayoutRun,
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error('Legacy rank payout cron timed out')),
+            timeoutMs,
+          );
+          timer.unref();
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 }

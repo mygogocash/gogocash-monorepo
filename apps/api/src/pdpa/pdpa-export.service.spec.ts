@@ -21,6 +21,7 @@ const minimalBundle = (): PdpaDataBundle => ({
   points: [],
   socialRewards: [],
   deeplinks: [],
+  affiliateMintReservations: [],
   gototrackSettings: null,
 });
 
@@ -233,7 +234,7 @@ describe('PdpaExportService', () => {
       JSON.stringify(bundle, null, 2),
     );
     expect(entries.get('summary.html')?.toString('utf8')).toBe(
-      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>GoGoCash data export summary</title></head><body><h1>GoGoCash data export summary</h1><ul><li>myCashbacks: 0</li><li>withdrawMethods: 0</li><li>withdrawals: 0</li><li>favoriteOffers: 0</li><li>missionOrders: 0</li><li>points: 0</li><li>socialRewards: 0</li><li>deeplinks: 0</li></ul><p>Full records are in data.json.</p></body></html>',
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>GoGoCash data export summary</title></head><body><h1>GoGoCash data export summary</h1><ul><li>myCashbacks: 0</li><li>withdrawMethods: 0</li><li>withdrawals: 0</li><li>favoriteOffers: 0</li><li>missionOrders: 0</li><li>points: 0</li><li>socialRewards: 0</li><li>deeplinks: 0</li><li>affiliateMintReservations: 0</li></ul><p>Full records are in data.json.</p></body></html>',
     );
   });
 });

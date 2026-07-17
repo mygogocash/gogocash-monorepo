@@ -1,4 +1,10 @@
-import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import {
   ProductTypeDto,
@@ -44,15 +50,46 @@ import {
   requireTrimmedString,
 } from 'src/common/mongo-query';
 import { buildFeeRateUpdate } from './fee-rate-update';
+import { CategoryIntegrityService } from 'src/policy/category-integrity.service';
+import { PolicyMediaCleanupService } from 'src/policy/policy-media-cleanup.service';
+import {
+  PolicyMediaWriteService,
+  policyMediaWritePayloadHash,
+  type PolicyMediaWriteAssets,
+} from 'src/policy/policy-media-write.service';
+import { PolicyMediaAssetRegistryService } from 'src/policy/policy-media-asset-registry.service';
 
-/** Mongo unique-index violation (e.g. duplicate category name). */
-function isMongoDuplicateKeyError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    (error as { code?: unknown }).code === 11000
-  );
-}
+type AdminOfferUpdateData = {
+  logo_desktop?: Express.Multer.File;
+  logo_mobile?: Express.Multer.File;
+  banner?: Express.Multer.File;
+  banner_mobile?: Express.Multer.File;
+  logo_circle?: Express.Multer.File;
+  offer_name_display?: string;
+  lookup_value?: string;
+  offer_display_tags?: OfferDisplayTags;
+  disabled?: boolean;
+  commission_store?: number;
+  max_cap?: number;
+  extra_store?: boolean;
+  tracking_link?: string;
+  product_type: ProductTypeDto[];
+  tracking_period_mode?: 'auto' | 'manual';
+  tracking_days?: number;
+  confirm_days?: number;
+  flow_type?: 'three_step' | 'two_step';
+  tracking_subtitle?: string;
+  confirm_subtitle?: string;
+  policy_category_id?: string;
+  custom_terms?: string;
+  note_to_user?: string;
+};
+
+type AdminCategoryUpdateData = {
+  name?: string;
+  image?: Express.Multer.File;
+  banner?: Express.Multer.File;
+};
 
 @Injectable()
 export class AdminService {
@@ -77,7 +114,44 @@ export class AdminService {
     private involveService: InvolveService,
     private userService: UserService,
     private readonly jobService: JobService,
+    private readonly categoryIntegrity: CategoryIntegrityService,
+    private readonly policyMediaCleanup: PolicyMediaCleanupService,
+    private readonly policyMediaWrite: PolicyMediaWriteService,
+    private readonly policyMediaRegistry: PolicyMediaAssetRegistryService,
   ) {}
+
+  private async surfaceMediaCleanup<T>(
+    saved: T,
+    requestKey: string,
+    code: 'OFFER_MEDIA_CLEANUP_PENDING' | 'CATEGORY_MEDIA_CLEANUP_PENDING',
+  ): Promise<T | (Record<string, unknown> & { media_cleanup_pending: true })> {
+    let cleanup: { deleted: number; pending: number };
+    try {
+      cleanup = await this.policyMediaCleanup.processRequest(requestKey);
+    } catch {
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code,
+        message: `The update committed, but media cleanup is pending. Retry with key ${requestKey}.`,
+        request_key: requestKey,
+      });
+    }
+    if (cleanup.pending === 0) return saved;
+    const value =
+      saved &&
+      typeof saved === 'object' &&
+      'toObject' in saved &&
+      typeof saved.toObject === 'function'
+        ? saved.toObject()
+        : saved && typeof saved === 'object'
+          ? { ...saved }
+          : { value: saved };
+    return {
+      ...(value as Record<string, unknown>),
+      media_cleanup_pending: true,
+      media_cleanup_request_key: requestKey,
+    };
+  }
   create(_createAdminDto: CreateAdminDto) {
     void _createAdminDto;
     return 'This action adds a new admin';
@@ -435,58 +509,37 @@ export class AdminService {
     return newFeeRate.save();
   }
 
-  async updateOffer(
+  async updateOffer(id: string, updateData: AdminOfferUpdateData) {
+    return this.categoryIntegrity.withNormalWrite({
+      legacy: () => this.updateOfferLegacy(id, updateData),
+      enforced: () => this.updateOfferWithIntegrity(id, updateData),
+    });
+  }
+
+  private async updateOfferLegacy(
     id: string,
-    updateData: {
-      logo_desktop?: Express.Multer.File;
-      logo_mobile?: Express.Multer.File;
-      banner?: Express.Multer.File;
-      banner_mobile?: Express.Multer.File;
-      logo_circle?: Express.Multer.File;
-      offer_name_display?: string;
-      lookup_value?: string;
-      offer_display_tags?: OfferDisplayTags;
-      disabled?: boolean;
-      commission_store?: number;
-      max_cap?: number;
-      extra_store?: boolean;
-      tracking_link?: string;
-      product_type: ProductTypeDto[];
-      tracking_period_mode?: 'auto' | 'manual';
-      tracking_days?: number;
-      confirm_days?: number;
-      flow_type?: 'three_step' | 'two_step';
-      tracking_subtitle?: string;
-      confirm_subtitle?: string;
-      policy_category_id?: string;
-      custom_terms?: string;
-      note_to_user?: string;
-    },
+    updateData: AdminOfferUpdateData,
   ) {
     const offer = await this.offerModel.findById(requireObjectId(id)).exec();
-    if (!offer) {
-      throw new Error('Offer not found');
-    }
+    if (!offer) throw new Error('Offer not found');
     const folder = MEDIA_FOLDER.BRANDS;
     const logoUpload = updateData.logo_desktop ?? updateData.logo_mobile;
-    let logoAsset;
-    if (logoUpload) {
-      logoAsset = await this.storedMediaService.replace(
-        logoUpload,
-        folder,
-        offer.logo_desktop ?? offer.logo_mobile ?? offer.logo,
-      );
-    }
+    const logoAsset = logoUpload
+      ? await this.storedMediaService.replace(
+          logoUpload,
+          folder,
+          offer.logo_desktop ?? offer.logo_mobile ?? offer.logo,
+        )
+      : undefined;
     const bannerUpload =
       updateData.banner ?? updateData.banner_mobile ?? updateData.logo_circle;
-    let bannerAsset;
-    if (bannerUpload) {
-      bannerAsset = await this.storedMediaService.replace(
-        bannerUpload,
-        folder,
-        offer.banner ?? offer.banner_mobile ?? offer.logo_circle,
-      );
-    }
+    const bannerAsset = bannerUpload
+      ? await this.storedMediaService.replace(
+          bannerUpload,
+          folder,
+          offer.banner ?? offer.banner_mobile ?? offer.logo_circle,
+        )
+      : undefined;
     const trackingLink =
       typeof updateData.tracking_link === 'string' &&
       updateData.tracking_link.trim()
@@ -527,10 +580,6 @@ export class AdminService {
             typeof updateData.product_type === 'string'
               ? JSON.parse(updateData.product_type)
               : updateData.product_type,
-          // Absent key = no change (unlike the ?? fallbacks above): every
-          // FormOffer section PATCHes this endpoint, so these fields must stay
-          // inert on saves that don't carry them. Switching back to auto keeps
-          // stored manual day counts — the resolver keys off the mode.
           ...(updateData.tracking_period_mode !== undefined
             ? { tracking_period_mode: updateData.tracking_period_mode }
             : {}),
@@ -564,6 +613,260 @@ export class AdminService {
       .exec();
   }
 
+  private async updateOfferWithIntegrity(
+    id: string,
+    updateData: AdminOfferUpdateData,
+  ) {
+    const offer = await this.offerModel.findById(requireObjectId(id)).exec();
+    if (!offer) {
+      throw new Error('Offer not found');
+    }
+    if (updateData.policy_category_id !== undefined) {
+      await this.categoryIntegrity.assertPolicyCategoryAssignmentReady(
+        updateData.policy_category_id,
+      );
+    }
+    const folder = MEDIA_FOLDER.BRANDS;
+    const logoUpload = updateData.logo_desktop ?? updateData.logo_mobile;
+    const bannerUpload =
+      updateData.banner ?? updateData.banner_mobile ?? updateData.logo_circle;
+    let logoAsset: string | undefined;
+    let bannerAsset: string | undefined;
+    let logoAssetProof: PolicyMediaWriteAssets[string] | undefined;
+    let bannerAssetProof: PolicyMediaWriteAssets[string] | undefined;
+    const trackingLink =
+      typeof updateData.tracking_link === 'string' &&
+      updateData.tracking_link.trim()
+        ? updateData.tracking_link.trim()
+        : offer.tracking_link;
+    const buildUpdateDocument = () => {
+      const nextLogoDesktop = logoAsset ?? offer.logo_desktop;
+      const nextLogoMobile = logoAsset ?? offer.logo_mobile;
+      const nextBanner = bannerAsset ?? offer.banner;
+      const nextBannerMobile = bannerAsset ?? offer.banner_mobile;
+      const nextLogoCircle = bannerAsset ?? offer.logo_circle;
+      return mongoSetUpdate({
+        logo_desktop: nextLogoDesktop,
+        logo_mobile: nextLogoMobile,
+        logo: nextLogoDesktop || nextLogoMobile || offer.logo,
+        ...(logoAssetProof ? { logo_asset: logoAssetProof } : {}),
+        banner: nextBanner,
+        banner_mobile: nextBannerMobile,
+        logo_circle: nextLogoCircle,
+        ...(bannerAssetProof ? { banner_asset: bannerAssetProof } : {}),
+        offer_name_display:
+          updateData.offer_name_display ?? offer.offer_name_display,
+        lookup_value:
+          typeof updateData.lookup_value === 'string'
+            ? updateData.lookup_value.trim() || offer.lookup_value
+            : offer.lookup_value,
+        offer_display_tags:
+          updateData.offer_display_tags !== undefined
+            ? updateData.offer_display_tags
+            : offer.offer_display_tags,
+        disabled: Boolean(updateData.disabled ?? offer.disabled),
+        commission_store:
+          updateData.commission_store ?? offer.commission_store ?? 0,
+        max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
+        extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
+        tracking_link: trackingLink,
+        product_type:
+          typeof updateData.product_type === 'string'
+            ? JSON.parse(updateData.product_type)
+            : updateData.product_type,
+        ...(updateData.tracking_period_mode !== undefined
+          ? { tracking_period_mode: updateData.tracking_period_mode }
+          : {}),
+        ...(updateData.tracking_days !== undefined
+          ? { tracking_days: updateData.tracking_days }
+          : {}),
+        ...(updateData.confirm_days !== undefined
+          ? { confirm_days: updateData.confirm_days }
+          : {}),
+        ...(updateData.flow_type !== undefined
+          ? { flow_type: updateData.flow_type }
+          : {}),
+        ...(updateData.tracking_subtitle !== undefined
+          ? { tracking_subtitle: updateData.tracking_subtitle }
+          : {}),
+        ...(updateData.confirm_subtitle !== undefined
+          ? { confirm_subtitle: updateData.confirm_subtitle }
+          : {}),
+        ...(updateData.custom_terms !== undefined
+          ? { custom_terms: updateData.custom_terms }
+          : {}),
+        ...(updateData.note_to_user !== undefined
+          ? { note_to_user: updateData.note_to_user }
+          : {}),
+      });
+    };
+    const cleanupRequestKey =
+      logoUpload || bannerUpload
+        ? `offer-media:${requireObjectId(id)}:${randomUUID()}`
+        : undefined;
+    const cleanupAttemptToken = cleanupRequestKey ? randomUUID() : undefined;
+    const save = async (
+      assignment: Record<string, unknown>,
+      session?: import('mongoose').ClientSession,
+    ) => {
+      let currentForCleanup = offer;
+      if (cleanupRequestKey) {
+        if (!session) {
+          throw new Error(
+            'Offer media replacement requires an integrity transaction',
+          );
+        }
+        const current = await this.offerModel
+          .findById(requireObjectId(id))
+          .session(session)
+          .lean();
+        if (!current) throw new Error('Offer not found');
+        currentForCleanup = current as typeof offer;
+      }
+      const { unset_policy_category_id, ...assignmentSet } = assignment;
+      const updateDocument = buildUpdateDocument();
+      if (cleanupRequestKey && session) {
+        for (const url of new Set(
+          [logoAsset, bannerAsset].filter((value): value is string =>
+            Boolean(value),
+          ),
+        )) {
+          await this.policyMediaRegistry.touchAttachInSession(url, session);
+        }
+      }
+      const mutation = mongoSetUpdate({
+        ...updateDocument.$set,
+        ...assignmentSet,
+      }) as Record<string, unknown>;
+      if (unset_policy_category_id === true) {
+        mutation.$unset = { policy_category_id: 1 };
+      }
+      const saved = await this.offerModel
+        .findByIdAndUpdate(requireObjectId(id), mutation, {
+          new: true,
+          ...(session ? { session } : {}),
+        })
+        .exec();
+      if (cleanupRequestKey && cleanupAttemptToken) {
+        const replacedReferences = new Set<unknown>();
+        if (logoAsset) {
+          if (currentForCleanup.logo_asset) {
+            replacedReferences.add(currentForCleanup.logo_asset);
+          }
+          for (const value of [
+            currentForCleanup.logo_desktop,
+            currentForCleanup.logo_mobile,
+            currentForCleanup.logo,
+          ]) {
+            if (typeof value === 'string' && value && value !== logoAsset) {
+              replacedReferences.add(value);
+            }
+          }
+        }
+        if (bannerAsset) {
+          if (currentForCleanup.banner_asset) {
+            replacedReferences.add(currentForCleanup.banner_asset);
+          }
+          for (const value of [
+            currentForCleanup.banner,
+            currentForCleanup.banner_mobile,
+            currentForCleanup.logo_circle,
+          ]) {
+            if (typeof value === 'string' && value && value !== bannerAsset) {
+              replacedReferences.add(value);
+            }
+          }
+        }
+        await this.policyMediaCleanup.journalLegacyReplacements(
+          {
+            owner_type: 'offer',
+            owner_id: requireObjectId(id),
+            request_key: cleanupRequestKey,
+            attempt_token: cleanupAttemptToken,
+            reason: 'offer-replaced',
+            references: [...replacedReferences],
+          },
+          session,
+        );
+      }
+      return saved;
+    };
+    let saved: unknown;
+    if (cleanupRequestKey) {
+      const ownerId = requireObjectId(id);
+      saved = await this.policyMediaWrite.execute({
+        requestKey: cleanupRequestKey,
+        payloadHash: policyMediaWritePayloadHash({
+          request_key: cleanupRequestKey,
+          owner_id: String(ownerId),
+          operation: 'offer-update',
+          has_logo: Boolean(logoUpload),
+          has_banner: Boolean(bannerUpload),
+        }),
+        ownerType: 'offer',
+        ownerId,
+        operation: 'offer-update',
+        uploads: [
+          ...(logoUpload ? [{ role: 'logo', file: logoUpload, folder }] : []),
+          ...(bannerUpload
+            ? [{ role: 'banner', file: bannerUpload, folder }]
+            : []),
+        ],
+        commit: async (assets, session) => {
+          logoAssetProof = assets.logo;
+          bannerAssetProof = assets.banner;
+          logoAsset = logoAssetProof?.url;
+          bannerAsset = bannerAssetProof?.url;
+          let assignment: Record<string, unknown> = {};
+          if (updateData.policy_category_id !== undefined) {
+            const current = await this.offerModel
+              .findById(ownerId)
+              .session(session)
+              .select('categories')
+              .lean();
+            if (!current) throw new Error('Offer not found');
+            assignment =
+              await this.categoryIntegrity.policyCategoryAssignmentInSession(
+                updateData.policy_category_id,
+                current.categories,
+                session,
+              );
+          }
+          return save(assignment, session);
+        },
+        readCommittedOwner: () =>
+          this.offerModel.findById(ownerId).read('primary').exec(),
+      });
+    } else {
+      saved =
+        updateData.policy_category_id !== undefined
+          ? await this.categoryIntegrity.withPolicyCategoryAssignment(
+              updateData.policy_category_id,
+              async (session) => {
+                const current = await this.offerModel
+                  .findById(requireObjectId(id))
+                  .session(session)
+                  .select('categories')
+                  .lean();
+                if (!current) throw new Error('Offer not found');
+                return current.categories;
+              },
+              save,
+            )
+          : await this.categoryIntegrity.withIntegrityMutation((session) =>
+              save({}, session),
+            );
+    }
+    if (cleanupRequestKey) {
+      return this.surfaceMediaCleanup(
+        saved,
+        cleanupRequestKey,
+        'OFFER_MEDIA_CLEANUP_PENDING',
+      );
+    }
+    return saved;
+  }
+
   /**
    * Create a policy category. `name` is unique at the schema level; the Mongo
    * duplicate-key error is translated into a 400 the admin UI can toast
@@ -574,67 +877,174 @@ export class AdminService {
     if (!trimmed) {
       throw new BadRequestException('name is required');
     }
+    return this.categoryIntegrity.createLegacyCategory(trimmed);
+  }
+
+  async updateCategory(id: string, updateData: AdminCategoryUpdateData) {
+    return this.categoryIntegrity.withNormalWrite({
+      legacy: () => this.updateCategoryLegacy(id, updateData),
+      enforced: () => this.updateCategoryWithIntegrity(id, updateData),
+    });
+  }
+
+  private async updateCategoryLegacy(
+    id: string,
+    updateData: AdminCategoryUpdateData,
+  ) {
+    const data = await this.categoryModel.findById(id).exec();
+    if (!data) throw new Error('data not found');
+    const image = updateData.image
+      ? await this.storedMediaService.replace(
+          updateData.image,
+          MEDIA_FOLDER.CATEGORIES,
+          data.image,
+        )
+      : undefined;
+    const banner = updateData.banner
+      ? await this.storedMediaService.replace(
+          updateData.banner,
+          MEDIA_FOLDER.CATEGORIES,
+          data.banner,
+        )
+      : undefined;
     try {
-      return await this.categoryModel.create({ name: trimmed });
+      return await this.categoryModel
+        .findByIdAndUpdate(
+          requireObjectId(id),
+          {
+            ...(updateData.name !== undefined ? { name: updateData.name } : {}),
+            image: image ?? data.image,
+            banner: banner ?? data.banner,
+          },
+          { new: true },
+        )
+        .exec();
     } catch (error) {
-      if (isMongoDuplicateKeyError(error)) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 11000 &&
+        updateData.name !== undefined
+      ) {
         throw new BadRequestException(
-          `A category named "${trimmed}" already exists`,
+          `A category named "${updateData.name}" already exists.`,
         );
       }
       throw error;
     }
   }
 
-  async updateCategory(
+  private async updateCategoryWithIntegrity(
     id: string,
-    updateData: {
-      name?: string;
-      image?: Express.Multer.File;
-      banner?: Express.Multer.File;
-    },
+    updateData: AdminCategoryUpdateData,
   ) {
     const data = await this.categoryModel.findById(id).exec();
     if (!data) {
       throw new Error('data not found');
     }
-    let file1;
-    if (updateData.image) {
-      file1 = await this.storedMediaService.replace(
-        updateData.image,
-        MEDIA_FOLDER.CATEGORIES,
-        data.image,
+    if (!updateData.image && !updateData.banner) {
+      return this.categoryIntegrity.updateLegacyCategoryMetadata(
+        id,
+        updateData.name === undefined ? {} : { name: updateData.name },
       );
     }
-    let bannerFile;
-    if (updateData.banner) {
-      bannerFile = await this.storedMediaService.replace(
-        updateData.banner,
-        MEDIA_FOLDER.CATEGORIES,
-        data.banner,
-      );
-    }
-    try {
-      return await this.categoryModel
-        .findByIdAndUpdate(
-          requireObjectId(id),
+    const ownerId = requireObjectId(id);
+    const requestKey = `category-media:${ownerId}:${randomUUID()}`;
+    const cleanupAttemptToken = randomUUID();
+    const saved = await this.policyMediaWrite.execute({
+      requestKey,
+      payloadHash: policyMediaWritePayloadHash({
+        request_key: requestKey,
+        owner_id: String(ownerId),
+        operation: 'category-update',
+        has_image: Boolean(updateData.image),
+        has_banner: Boolean(updateData.banner),
+      }),
+      ownerType: 'category',
+      ownerId,
+      operation: 'category-update',
+      uploads: [
+        ...(updateData.image
+          ? [
+              {
+                role: 'image',
+                file: updateData.image,
+                folder: MEDIA_FOLDER.CATEGORIES,
+              },
+            ]
+          : []),
+        ...(updateData.banner
+          ? [
+              {
+                role: 'banner',
+                file: updateData.banner,
+                folder: MEDIA_FOLDER.CATEGORIES,
+              },
+            ]
+          : []),
+      ],
+      commit: async (assets, session) => {
+        const current = await this.categoryModel
+          .findOne({ _id: ownerId, lifecycle_status: 'active' })
+          .session(session)
+          .lean();
+        if (!current) throw new Error('Category not found or inactive');
+        const set: Record<string, unknown> = {};
+        const replaced: unknown[] = [];
+        if (updateData.name !== undefined) {
+          Object.assign(
+            set,
+            await this.categoryIntegrity.reserveLegacyCategoryRenameInSession(
+              id,
+              updateData.name,
+              session,
+            ),
+          );
+        }
+        if (assets.image) {
+          set.image = assets.image.url;
+          set.image_asset = assets.image;
+          replaced.push(current.image_asset ?? current.image);
+        }
+        if (assets.banner) {
+          set.banner = assets.banner.url;
+          set.banner_asset = assets.banner;
+          replaced.push(current.banner_asset ?? current.banner);
+        }
+        const updated = await this.categoryModel
+          .findOneAndUpdate(
+            {
+              _id: ownerId,
+              lifecycle_status: 'active',
+              revision: current.revision,
+            },
+            { $set: set, $inc: { revision: 1 } },
+            { returnDocument: 'after', session },
+          )
+          .lean();
+        if (!updated) throw new Error('Category changed; refresh and retry');
+        await this.policyMediaCleanup.journalLegacyReplacements(
           {
-            // Absent key = no change: image-only saves must never touch the name.
-            ...(updateData.name !== undefined ? { name: updateData.name } : {}),
-            image: file1 ?? data.image,
-            banner: bannerFile ?? data.banner,
+            owner_type: 'category',
+            owner_id: ownerId,
+            request_key: requestKey,
+            attempt_token: cleanupAttemptToken,
+            reason: 'legacy-category-replaced',
+            references: replaced.filter(Boolean),
           },
-          { new: true },
-        )
-        .exec();
-    } catch (error) {
-      if (isMongoDuplicateKeyError(error)) {
-        throw new BadRequestException(
-          `A category named "${updateData.name}" already exists`,
+          session,
         );
-      }
-      throw error;
-    }
+        return updated;
+      },
+      readCommittedOwner: () =>
+        this.categoryModel.findById(ownerId).read('primary').lean(),
+    });
+    return this.surfaceMediaCleanup(
+      saved,
+      requestKey,
+      'CATEGORY_MEDIA_CLEANUP_PENDING',
+    );
   }
 
   async updateUser(id: string, mobile: string) {

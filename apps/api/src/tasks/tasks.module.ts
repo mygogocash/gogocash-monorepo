@@ -40,6 +40,14 @@ import {
   RewardListSchema,
 } from 'src/withdraw/schemas/rewardList.schema';
 import { PointModule } from 'src/point/point.module';
+import {
+  LegacyRewardManifestRecord,
+  LegacyRewardManifestSchema,
+} from './schemas/legacy-reward-manifest.schema';
+import {
+  LegacyRewardResolutionCommand,
+  LegacyRewardResolutionCommandSchema,
+} from './schemas/legacy-reward-resolution-command.schema';
 
 @Module({
   imports: [
@@ -69,6 +77,14 @@ import { PointModule } from 'src/point/point.module';
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
       { name: RewardList.name, schema: RewardListSchema },
+      {
+        name: LegacyRewardManifestRecord.name,
+        schema: LegacyRewardManifestSchema,
+      },
+      {
+        name: LegacyRewardResolutionCommand.name,
+        schema: LegacyRewardResolutionCommandSchema,
+      },
     ]),
   ],
   controllers: [TasksController],

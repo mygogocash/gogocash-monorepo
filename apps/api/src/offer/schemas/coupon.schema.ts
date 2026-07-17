@@ -77,8 +77,8 @@ export class Coupon {
   @Prop({ type: Boolean, default: false })
   disabled: boolean;
 
-  @Prop({ type: String, default: false })
-  link: string;
+  @Prop({ required: false, type: String })
+  link?: string;
 
   @Prop({ required: false, type: String })
   terms_and_conditions?: string;

@@ -3,11 +3,21 @@ import { HydratedDocument, Types } from 'mongoose';
 
 export type ConversionDocument = HydratedDocument<Conversion>;
 
-@Schema({ timestamps: true })
+// Provider identity changes require a controlled backfill/index swap. Never
+// let application bootstrap race that migration via Mongoose auto-indexing.
+@Schema({ timestamps: true, autoIndex: false })
 export class Conversion {
   // Core IDs
-  @Prop({ required: true, unique: true, index: true })
+  @Prop({ required: true, index: true })
   conversion_id: number;
+
+  /** Provider-stable string form used with source + account as the identity. */
+  @Prop({ type: String, required: false })
+  provider_conversion_id?: string;
+
+  /** Provider/publisher account namespace; legacy Involve rows use default. */
+  @Prop({ type: String, required: false, default: 'default' })
+  provider_account?: string;
 
   @Prop({ required: true, index: true })
   offer_id: number;
@@ -111,9 +121,85 @@ export class Conversion {
 
   @Prop({ type: String, required: false })
   flag_reason: string;
+
+  /** Current immutable lifecycle high-water projection. */
+  @Prop({ type: Number, required: false, min: 0, default: 0 })
+  lifecycle_transition_version?: number;
+
+  @Prop({ type: String, required: false })
+  lifecycle_transition_id?: string;
+
+  @Prop({ type: Date, required: false })
+  lifecycle_occurred_at?: Date;
+
+  @Prop({ type: String, required: false })
+  lifecycle_ordering_key?: string;
+
+  @Prop({ type: String, required: false })
+  lifecycle_payload_hash?: string;
+
+  /** Synthetic quest-payout conversions are never affiliate quest inputs. */
+  @Prop({ type: Boolean, required: false, default: false })
+  quest_synthetic_reward?: boolean;
+
+  /** Legacy rank payout effect identity owned by the keyed scheduler. */
+  @Prop({ type: String, required: false })
+  quest_payout_key?: string;
+
+  /** Durable authorization/state for the legacy purchase Point writer. */
+  @Prop({
+    type: String,
+    required: false,
+    enum: ['pending', 'ready', 'completed', 'quarantined'],
+  })
+  legacy_point_reconciliation_status?:
+    'pending' | 'ready' | 'completed' | 'quarantined';
+
+  @Prop({ type: Number, required: false, min: 1 })
+  legacy_point_reconciliation_version?: number;
+
+  @Prop({ type: String, required: false })
+  legacy_point_payout_key?: string;
+
+  /** Frozen before ledger mutation so USD retries cannot observe a new rate. */
+  @Prop({ type: Number, required: false, min: 0 })
+  legacy_point_amount?: number;
+
+  @Prop({ type: Date, required: false })
+  legacy_point_reconciled_at?: Date;
+
+  @Prop({ type: Date, required: false })
+  legacy_point_completed_at?: Date;
 }
 
 export const ConversionSchema = SchemaFactory.createForClass(Conversion);
 
 /** Hot path: checkWithdraw approved conversions by indexed user_id. */
 ConversionSchema.index({ user_id: 1, conversion_status: 1 });
+ConversionSchema.index(
+  { source: 1, provider_account: 1, provider_conversion_id: 1 },
+  {
+    name: 'uniq_conversion_provider_identity',
+    unique: true,
+    partialFilterExpression: {
+      provider_account: { $type: 'string' },
+      provider_conversion_id: { $type: 'string' },
+    },
+  },
+);
+ConversionSchema.index({
+  legacy_point_reconciliation_status: 1,
+  legacy_point_reconciliation_version: 1,
+  conversion_status: 1,
+  datetime_conversion: 1,
+});
+ConversionSchema.index(
+  { quest_payout_key: 1 },
+  {
+    name: 'uniq_conversion_quest_payout_key',
+    unique: true,
+    partialFilterExpression: {
+      quest_payout_key: { $type: 'string', $gt: '' },
+    },
+  },
+);

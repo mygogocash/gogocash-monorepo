@@ -22,6 +22,24 @@ export class Point {
 
   @Prop({ required: true })
   action: string; // signup, referral, purchase
+
+  /**
+   * Durable business-effect identity. Legacy rows intentionally have no key;
+   * the partial unique index therefore does not reinterpret historical absence
+   * as proof that a payout is missing.
+   */
+  @Prop({ type: String, required: false })
+  idempotency_key?: string;
 }
 
 export const PointSchema = SchemaFactory.createForClass(Point);
+PointSchema.index(
+  { idempotency_key: 1 },
+  {
+    name: 'uniq_point_idempotency_key',
+    unique: true,
+    partialFilterExpression: {
+      idempotency_key: { $type: 'string', $gt: '' },
+    },
+  },
+);

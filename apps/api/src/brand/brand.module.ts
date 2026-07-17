@@ -5,6 +5,7 @@ import { BrandService } from './brand.service';
 import { BrandController } from './brand.controller';
 import { Brand, BrandSchema } from './schemas/brand.schema';
 import { Offer, OfferSchema } from '../offer/schemas/offer.schema';
+import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
 
 /**
  * Brand parent collection + admin CRUD endpoints + customer variant resolver.
@@ -13,6 +14,7 @@ import { Offer, OfferSchema } from '../offer/schemas/offer.schema';
  */
 @Module({
   imports: [
+    CategoryIntegrityModule,
     MongooseModule.forFeature([
       { name: Brand.name, schema: BrandSchema },
       { name: Offer.name, schema: OfferSchema },

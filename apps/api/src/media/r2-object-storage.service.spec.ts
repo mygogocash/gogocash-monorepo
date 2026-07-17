@@ -4,6 +4,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
 } from '@aws-sdk/client-s3';
 
 import { R2ObjectStorageService } from './r2-object-storage.service';
@@ -135,6 +136,195 @@ describe('R2ObjectStorageService', () => {
       );
       expect(result.bucket).toBe(ENV.R2_BUCKET);
       expect(result.access).toBe('public');
+    });
+  });
+
+  describe('command-owned objects', () => {
+    it('describes an exact upload without network I/O', () => {
+      const result = service.describeUploadAtKey(
+        'categories/policy-save-1/abc.png',
+        'public',
+      );
+
+      expect(send).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        publicUrl:
+          'https://media-staging.gogocash.co/categories/policy-save-1/abc.png',
+        objectKey: 'categories/policy-save-1/abc.png',
+        bucket: ENV.R2_BUCKET,
+        access: 'public',
+      });
+    });
+
+    it('can validate delete provenance while new uploads are disabled', () => {
+      process.env.MEDIA_UPLOAD_DISABLED = 'true';
+      try {
+        expect(
+          service.describeObjectAtKey(
+            'categories/policy-save-1/abc.png',
+            'public',
+          ),
+        ).toMatchObject({
+          bucket: ENV.R2_BUCKET,
+          objectKey: 'categories/policy-save-1/abc.png',
+        });
+        expect(() =>
+          service.describeUploadAtKey(
+            'categories/policy-save-1/abc.png',
+            'public',
+          ),
+        ).toThrow('Media uploads are currently disabled');
+      } finally {
+        delete process.env.MEDIA_UPLOAD_DISABLED;
+      }
+    });
+
+    it('uploads at the caller-provided deterministic key', async () => {
+      const result = await service.uploadFileAtKey(
+        file('default.png'),
+        'categories/policy-save-1/abc.png',
+        'public',
+      );
+
+      const command = send.mock.calls[0][0];
+      expect(command).toBeInstanceOf(PutObjectCommand);
+      expect(command.input.Key).toBe('categories/policy-save-1/abc.png');
+      expect(result.objectKey).toBe('categories/policy-save-1/abc.png');
+      expect(send.mock.calls[0][1]).toMatchObject({
+        abortSignal: expect.any(AbortSignal),
+      });
+    });
+
+    it('aborts an exact Put when its command-bound timeout elapses', async () => {
+      send.mockImplementationOnce(
+        (_command: unknown, options?: { abortSignal?: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            options?.abortSignal?.addEventListener('abort', () => {
+              reject(new Error('Put aborted'));
+            });
+          }) as never,
+      );
+
+      await expect(
+        service.uploadFileAtKey(
+          file('default.png'),
+          'categories/policy-save-1/abc.png',
+          'public',
+          { timeoutMs: 1 },
+        ),
+      ).rejects.toThrow("We couldn't upload your file right now");
+      expect(send.mock.calls[0][1]?.abortSignal.aborted).toBe(true);
+    });
+
+    it('strict deletion propagates provider failure for durable retry', async () => {
+      send.mockRejectedValueOnce(new Error('R2 unavailable'));
+
+      await expect(
+        service.deleteObjectStrict(
+          'gogocash-catalog-staging-abc',
+          'categories/policy-save-1/abc.png',
+        ),
+      ).rejects.toThrow('R2 unavailable');
+    });
+
+    it('aborts a timed-out strict Delete and allows a later durable retry', async () => {
+      send
+        .mockImplementationOnce(
+          (_command: unknown, options?: { abortSignal?: AbortSignal }) =>
+            new Promise((_resolve, reject) => {
+              options?.abortSignal?.addEventListener('abort', () => {
+                reject(new Error('Delete aborted'));
+              });
+            }) as never,
+        )
+        .mockResolvedValueOnce({} as never);
+
+      await expect(
+        service.deleteObjectStrict(
+          ENV.R2_BUCKET,
+          'categories/policy-save-1/abc.png',
+          { timeoutMs: 1 },
+        ),
+      ).rejects.toThrow('Delete aborted');
+      expect(send.mock.calls[0][1]?.abortSignal).toBeInstanceOf(AbortSignal);
+      expect(send.mock.calls[0][1]?.abortSignal.aborted).toBe(true);
+
+      await expect(
+        service.deleteObjectStrict(
+          ENV.R2_BUCKET,
+          'categories/policy-save-1/abc.png',
+          { timeoutMs: 10 },
+        ),
+      ).resolves.toBeUndefined();
+      expect(send).toHaveBeenCalledTimes(2);
+    });
+
+    it('strictly proves exact-object absence from HeadObject 404 and reports presence otherwise', async () => {
+      await expect(
+        service.objectExistsStrict(
+          ENV.R2_BUCKET,
+          'categories/policy-save-1/abc.png',
+          { timeoutMs: 10 },
+        ),
+      ).resolves.toBe(true);
+      expect(send.mock.calls[0][0]).toBeInstanceOf(HeadObjectCommand);
+      expect(send.mock.calls[0][0].input).toMatchObject({
+        Bucket: ENV.R2_BUCKET,
+        Key: 'categories/policy-save-1/abc.png',
+      });
+
+      send.mockRejectedValueOnce(
+        Object.assign(new Error('Not found'), {
+          name: 'NotFound',
+          $metadata: { httpStatusCode: 404 },
+        }),
+      );
+      await expect(
+        service.objectExistsStrict(
+          ENV.R2_BUCKET,
+          'categories/policy-save-1/abc.png',
+        ),
+      ).resolves.toBe(false);
+    });
+
+    it('strict absence proof fails closed for non-404 provider errors and invalid identity', async () => {
+      send.mockRejectedValueOnce(new Error('R2 head unavailable'));
+      await expect(
+        service.objectExistsStrict(
+          ENV.R2_BUCKET,
+          'categories/policy-save-1/abc.png',
+        ),
+      ).rejects.toThrow('R2 head unavailable');
+
+      send.mockClear();
+      await expect(
+        service.objectExistsStrict(
+          'someone-elses-bucket',
+          'categories/policy-save-1/abc.png',
+        ),
+      ).rejects.toThrow('Invalid command-owned media reference');
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('bounds strict HeadObject absence proof with an abortable timeout', async () => {
+      send.mockImplementationOnce(
+        (_command: unknown, options?: { abortSignal?: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            options?.abortSignal?.addEventListener('abort', () => {
+              reject(new Error('Head aborted'));
+            });
+          }) as never,
+      );
+
+      await expect(
+        service.objectExistsStrict(
+          ENV.R2_BUCKET,
+          'categories/policy-save-1/abc.png',
+          { timeoutMs: 1 },
+        ),
+      ).rejects.toThrow('Head aborted');
+      expect(send.mock.calls[0][1]?.abortSignal).toBeInstanceOf(AbortSignal);
+      expect(send.mock.calls[0][1]?.abortSignal.aborted).toBe(true);
     });
   });
 

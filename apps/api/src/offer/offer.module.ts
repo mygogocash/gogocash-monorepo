@@ -57,11 +57,13 @@ import { CouponInsightsService } from './coupon-insights.service';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { RolesGuard } from 'src/admin/roles.guard';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
+import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
 
 @Module({
   imports: [
     CacheModule.register(),
     MediaModule,
+    CategoryIntegrityModule,
     // The offer-sync cron (TasksService) dispatches through the affiliate seam.
     AffiliateModule,
     MongooseModule.forFeature([

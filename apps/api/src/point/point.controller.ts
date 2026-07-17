@@ -20,17 +20,20 @@ import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import {
   CloseQuestDto,
   CreateQuestDto,
+  QuestMediaQaCleanupDto,
   UpdateQuestRewardsDto,
   UpdateQuestTasksDto,
 } from './dto/create-quest.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { RolesGuard } from 'src/admin/roles.guard';
 import { Roles } from 'src/admin/roles.decorator';
+import { QuestMediaQaService } from './quest-media-qa.service';
 @Controller('point')
 export class PointController {
   constructor(
     private readonly pointService: PointService,
     private readonly tasksService: TasksService,
+    private readonly questMediaQa: QuestMediaQaService,
   ) {}
 
   @Post()
@@ -138,6 +141,34 @@ export class PointController {
     },
   ) {
     return this.pointService.createQuest(createQuestDto, files);
+  }
+
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Roles('superadmin')
+  @Get('admin-quest-media/readiness')
+  getQuestMediaReadiness() {
+    return this.questMediaQa.readiness();
+  }
+
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Roles('superadmin')
+  @Get('admin-quest-media/qa-status/:requestKey')
+  getQuestMediaQaStatus(@Param('requestKey') requestKey: string) {
+    return this.questMediaQa.status(requestKey);
+  }
+
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Roles('superadmin')
+  @Post('admin-quest-media/qa-cleanup')
+  @ApiBody({ type: QuestMediaQaCleanupDto })
+  cleanupQuestMediaAcceptance(@Body() input: QuestMediaQaCleanupDto) {
+    return this.questMediaQa.cleanupAcceptance(input);
   }
 
   @UseGuards(AuthAdminGuard, RolesGuard)

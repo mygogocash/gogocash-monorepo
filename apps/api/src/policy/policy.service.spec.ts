@@ -35,6 +35,10 @@ function makeService(
       lean: () =>
         Promise.resolve(categoryExists ? { _id: VALID_CATEGORY_ID } : null),
     }),
+    find: jest.fn().mockReturnValue({
+      lean: () =>
+        Promise.resolve(categoryExists ? [{ _id: VALID_CATEGORY_ID }] : []),
+    }),
   };
 
   return {
@@ -224,6 +228,40 @@ describe('PolicyService.findByCategory', () => {
     await expect(
       service.findByCategory('not-a-mongo-id'),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('hides a policy when its category is not active', async () => {
+    const { service, policyModel } = makeService({ categoryExists: false });
+    expect(await service.findByCategory(VALID_CATEGORY_ID)).toBeNull();
+    expect(policyModel.findOne).not.toHaveBeenCalled();
+  });
+});
+
+describe('PolicyService active-category boundary', () => {
+  it('uses active-or-legacy lifecycle filtering for legacy policy writes', async () => {
+    const { service, categoryModel } = makeService();
+    await service.upsert({ category_id: VALID_CATEGORY_ID, terms: validTerms });
+    expect(categoryModel.exists).toHaveBeenCalledWith(
+      expect.objectContaining({
+        $or: [
+          { lifecycle_status: 'active' },
+          { lifecycle_status: { $exists: false } },
+        ],
+      }),
+    );
+  });
+
+  it('lists policies only for active-or-legacy category ids', async () => {
+    const { service, categoryModel, policyModel } = makeService();
+    policyModel.lean.mockResolvedValueOnce([]);
+    await service.list();
+    expect(categoryModel.find).toHaveBeenCalledWith(
+      expect.objectContaining({ $or: expect.any(Array) }),
+      { _id: 1 },
+    );
+    expect(policyModel.find).toHaveBeenCalledWith({
+      category_id: { $in: [expect.anything()] },
+    });
   });
 });
 

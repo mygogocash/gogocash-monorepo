@@ -72,7 +72,34 @@ function makeService() {
     { offer_id: 'o1', user_id: USER_ID },
   ]);
   const missionOrderModel = makeFindLean([
-    { orderId: 'ord-1', user_id: USER_ID },
+    {
+      _id: 'claim-internal-id',
+      user_id: USER_ID,
+      offer_id: '507f1f77bcf86cd799439012',
+      customer_snapshot: {
+        name: 'Claim Seeker',
+        email: 'seeker@example.com',
+        phone: '+66812345678',
+      },
+      offer_snapshot: {
+        source: 'involve',
+        provider_offer_id: 5031,
+        name: 'Example Store',
+      },
+      order_id: 'ord-1',
+      order_amount: 100,
+      currency: 'THB',
+      purchase_date: new Date('2026-07-01T00:00:00.000Z'),
+      remarks: 'Missing conversion',
+      evidence_refs: ['private://missing-orders/receipt.jpg'],
+      status: 'under_review',
+      assigned_to: 'private-admin-id',
+      legacy_collection: 'missingorders',
+      legacy_id: 'legacy-1',
+      migration_checksum: 'private-checksum',
+      schema_version: 2,
+      createdAt: new Date('2026-07-01T01:00:00.000Z'),
+    },
   ]);
   const pointModel = makeFindLean([{ point: 1, user_id: USER_ID }]);
   const socialRewardModel = makeFindLean([
@@ -80,6 +107,27 @@ function makeService() {
   ]);
   const deeplinkModel = makeFindLean([
     { deeplink: 'https://x', user_id: USER_ID },
+  ]);
+  const affiliateMintReservationModel = makeFindLean([
+    {
+      _id: 'internal-deterministic-id',
+      source: 'involve',
+      user_id: new Types.ObjectId(USER_ID),
+      offer_id: 5031,
+      merchant_id: 103877,
+      destination_hash: 'secret-internal-hash',
+      destination_url: 'https://merchant.example/?coupon=SAVE',
+      status: 'committed',
+      owner_token: 'secret-owner-fence',
+      attempt_token: 'secret-attempt-fence',
+      failure_code: 'upstream_auth_failed',
+      lease_expires_at: new Date('2026-07-17T01:00:00Z'),
+      tracked_deeplink: 'https://track.example/safe',
+      committed_at: new Date('2026-07-17T00:00:00Z'),
+      expires_at: new Date('2026-10-15T00:00:00Z'),
+      created_at: new Date('2026-07-17T00:00:00Z'),
+      updated_at: new Date('2026-07-17T00:00:00Z'),
+    },
   ]);
   const gototrackSettingsModel = makeFindLean({
     user_id: USER_ID,
@@ -96,6 +144,7 @@ function makeService() {
     pointModel as never,
     socialRewardModel as never,
     deeplinkModel as never,
+    affiliateMintReservationModel as never,
     gototrackSettingsModel as never,
   );
 
@@ -110,6 +159,7 @@ function makeService() {
     pointModel,
     socialRewardModel,
     deeplinkModel,
+    affiliateMintReservationModel,
     gototrackSettingsModel,
   };
 }
@@ -127,6 +177,7 @@ describe('PdpaGatherService', () => {
       pointModel,
       socialRewardModel,
       deeplinkModel,
+      affiliateMintReservationModel,
       gototrackSettingsModel,
     } = makeService();
 
@@ -151,6 +202,9 @@ describe('PdpaGatherService', () => {
     expect(pointModel.find).toHaveBeenCalledWith({ user_id: oid });
     expect(socialRewardModel.find).toHaveBeenCalledWith({ user_id: oid });
     expect(deeplinkModel.find).toHaveBeenCalledWith({ user_id: oid });
+    expect(affiliateMintReservationModel.find).toHaveBeenCalledWith({
+      user_id: oid,
+    });
     expect(gototrackSettingsModel.findOne).toHaveBeenCalledWith({
       user_id: USER_ID,
     });
@@ -163,9 +217,63 @@ describe('PdpaGatherService', () => {
     expect(bundle.withdrawals).toHaveLength(1);
     expect(bundle.favoriteOffers).toHaveLength(1);
     expect(bundle.missionOrders).toHaveLength(1);
+    expect(bundle.missionOrders).toEqual([
+      {
+        id: 'claim-internal-id',
+        offerId: '507f1f77bcf86cd799439012',
+        merchantName: 'Example Store',
+        offerSource: 'involve',
+        providerOfferId: 5031,
+        orderId: 'ord-1',
+        orderAmount: 100,
+        currency: 'THB',
+        purchaseDate: '2026-07-01T00:00:00.000Z',
+        remarks: 'Missing conversion',
+        evidenceRefs: ['private://missing-orders/receipt.jpg'],
+        status: 'under_review',
+        submittedDate: '2026-07-01T01:00:00.000Z',
+        resolvedAt: null,
+        resolutionNote: null,
+        rejectionReason: null,
+        notes: [],
+        schemaVersion: 2,
+      },
+    ]);
+    expect(bundle.missionOrders[0]).not.toHaveProperty('assigned_to');
+    expect(bundle.missionOrders[0]).not.toHaveProperty('legacy_collection');
+    expect(bundle.missionOrders[0]).not.toHaveProperty('migration_checksum');
     expect(bundle.points).toHaveLength(1);
     expect(bundle.socialRewards).toHaveLength(1);
     expect(bundle.deeplinks).toHaveLength(1);
+    expect(bundle.affiliateMintReservations).toEqual([
+      expect.objectContaining({
+        source: 'involve',
+        offer_id: 5031,
+        merchant_id: 103877,
+        destination_url: 'https://merchant.example/?coupon=SAVE',
+        status: 'committed',
+        tracked_deeplink: 'https://track.example/safe',
+      }),
+    ]);
+    expect(bundle.affiliateMintReservations[0]).not.toHaveProperty('_id');
+    expect(bundle.affiliateMintReservations[0]).not.toHaveProperty(
+      'destination_hash',
+    );
+    expect(bundle.affiliateMintReservations[0]).not.toHaveProperty(
+      'owner_token',
+    );
+    expect(bundle.affiliateMintReservations[0]).not.toHaveProperty(
+      'attempt_token',
+    );
+    expect(bundle.affiliateMintReservations[0]).not.toHaveProperty(
+      'lease_expires_at',
+    );
+    expect(bundle.affiliateMintReservations[0]).not.toHaveProperty(
+      'expires_at',
+    );
+    expect(bundle.affiliateMintReservations[0]).not.toHaveProperty(
+      'failure_code',
+    );
     expect(bundle.gototrackSettings?.enabled).toBe(true);
     // Quests have no user key — never gathered.
     expect(bundle).not.toHaveProperty('quests');

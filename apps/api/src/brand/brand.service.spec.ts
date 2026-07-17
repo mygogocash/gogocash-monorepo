@@ -5,6 +5,7 @@ import { BrandService } from './brand.service';
 function makeLeanQuery<T>(value: T) {
   return {
     lean: jest.fn().mockResolvedValue(value),
+    session: jest.fn().mockReturnThis(),
     select: jest.fn().mockReturnThis(),
     sort: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
@@ -26,6 +27,11 @@ describe('BrandService', () => {
     find: jest.Mock;
     updateMany: jest.Mock;
   };
+  let categoryIntegrity: {
+    withNormalWrite: jest.Mock;
+    withIntegrityMutation: jest.Mock;
+  };
+  let mediaRegistry: { touchAttachInSession: jest.Mock };
 
   beforeEach(() => {
     brandModel = {
@@ -40,7 +46,19 @@ describe('BrandService', () => {
       find: jest.fn(),
       updateMany: jest.fn(),
     };
-    service = new BrandService(brandModel as never, offerModel as never);
+    categoryIntegrity = {
+      withNormalWrite: jest.fn(({ enforced }) => enforced()),
+      withIntegrityMutation: jest.fn((writer) => writer({ id: 'session' })),
+    };
+    mediaRegistry = {
+      touchAttachInSession: jest.fn().mockResolvedValue({ tracked: false }),
+    };
+    service = new BrandService(
+      brandModel as never,
+      offerModel as never,
+      categoryIntegrity as never,
+      mediaRegistry as never,
+    );
   });
 
   describe('create', () => {
@@ -59,6 +77,126 @@ describe('BrandService', () => {
       await expect(
         service.create({ brand_name: 'Klook', is_global: true } as never),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('create > before activation > then it preserves the standalone legacy write', async () => {
+      categoryIntegrity.withNormalWrite.mockImplementation(({ legacy }) =>
+        legacy(),
+      );
+      brandModel.findOne.mockReturnValue(makeLeanQuery(null));
+      brandModel.create.mockResolvedValue({
+        _id: new Types.ObjectId(),
+        brand_name: 'Klook',
+        brand_slug: 'klook',
+      });
+
+      await service.create({
+        brand_name: 'Klook',
+        logo: 'https://legacy.example/logo.png',
+      } as never);
+
+      expect(brandModel.create).toHaveBeenCalledWith({
+        brand_name: 'Klook',
+        brand_slug: 'klook',
+        logo: 'https://legacy.example/logo.png',
+      });
+      expect(categoryIntegrity.withIntegrityMutation).not.toHaveBeenCalled();
+      expect(mediaRegistry.touchAttachInSession).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('update', () => {
+    it('update > before activation > then it preserves the standalone legacy writes', async () => {
+      categoryIntegrity.withNormalWrite.mockImplementation(({ legacy }) =>
+        legacy(),
+      );
+      const brandId = new Types.ObjectId();
+      const updated = { _id: brandId, brand_name: 'Klook', is_global: true };
+      brandModel.findByIdAndUpdate.mockResolvedValue(updated);
+      offerModel.updateMany.mockResolvedValue({ modifiedCount: 2 });
+
+      await expect(
+        service.update(String(brandId), {
+          is_global: true,
+          default_country: 'TH',
+        } as never),
+      ).resolves.toEqual(updated);
+
+      expect(brandModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        brandId,
+        expect.any(Object),
+        { new: true, runValidators: true },
+      );
+      expect(offerModel.updateMany).toHaveBeenCalledWith(
+        { brand_id: brandId },
+        { $set: { is_global: true, default_country: 'TH' } },
+      );
+      expect(categoryIntegrity.withIntegrityMutation).not.toHaveBeenCalled();
+      expect(mediaRegistry.touchAttachInSession).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('softDelete', () => {
+    it('softDelete > before activation > preserves the standalone legacy writes', async () => {
+      categoryIntegrity.withNormalWrite.mockImplementation(({ legacy }) =>
+        legacy(),
+      );
+      const brandId = new Types.ObjectId();
+      const save = jest.fn().mockResolvedValue(undefined);
+      brandModel.findById.mockResolvedValue({ _id: brandId, save });
+      offerModel.updateMany.mockResolvedValue({ modifiedCount: 2 });
+
+      await expect(service.softDelete(String(brandId))).resolves.toEqual({
+        id: String(brandId),
+        disabled: true,
+      });
+
+      expect(save).toHaveBeenCalledWith();
+      expect(offerModel.updateMany).toHaveBeenCalledWith(
+        { brand_id: brandId },
+        { $set: { disabled: true } },
+      );
+      expect(categoryIntegrity.withIntegrityMutation).not.toHaveBeenCalled();
+    });
+
+    it('softDelete > ready v2 > disables the brand and variants in one fenced transaction', async () => {
+      const brandId = new Types.ObjectId();
+      const session = { id: 'integrity-session' };
+      categoryIntegrity.withIntegrityMutation.mockImplementation((writer) =>
+        writer(session),
+      );
+      brandModel.findByIdAndUpdate.mockResolvedValue({ _id: brandId });
+      offerModel.updateMany.mockResolvedValue({ modifiedCount: 2 });
+
+      await expect(service.softDelete(String(brandId))).resolves.toEqual({
+        id: String(brandId),
+        disabled: true,
+      });
+
+      expect(brandModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        brandId,
+        { $set: { disabled: true } },
+        { new: true, session },
+      );
+      expect(offerModel.updateMany).toHaveBeenCalledWith(
+        { brand_id: brandId },
+        { $set: { disabled: true } },
+        { session },
+      );
+    });
+
+    it('softDelete > applying marker > blocks before any brand or offer write', async () => {
+      categoryIntegrity.withNormalWrite.mockRejectedValue(
+        new Error('integrity migration applying'),
+      );
+
+      await expect(
+        service.softDelete(String(new Types.ObjectId())),
+      ).rejects.toThrow('integrity migration applying');
+
+      expect(brandModel.findById).not.toHaveBeenCalled();
+      expect(brandModel.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(offerModel.updateMany).not.toHaveBeenCalled();
     });
   });
 

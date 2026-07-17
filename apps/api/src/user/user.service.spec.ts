@@ -1,3 +1,7 @@
+jest.mock('src/auth/firebase-admin.provider', () => ({
+  getAdminAuth: jest.fn(),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
@@ -9,17 +13,33 @@ import { StoredMediaService } from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 
 describe('UserService', () => {
+  const originalQuestTaskV2Enabled = process.env.QUEST_TASK_V2_ENABLED;
   let service: UserService;
   let findByIdAndUpdate: jest.Mock;
   let findById: jest.Mock;
+  let find: jest.Mock;
+  let countDocuments: jest.Mock;
   let storedMediaService: {
     replace: jest.Mock;
     getReadableStream: jest.Mock;
   };
 
   beforeEach(async () => {
+    if (originalQuestTaskV2Enabled === undefined) {
+      delete process.env.QUEST_TASK_V2_ENABLED;
+    } else {
+      process.env.QUEST_TASK_V2_ENABLED = originalQuestTaskV2Enabled;
+    }
     findByIdAndUpdate = jest.fn().mockResolvedValue({});
     findById = jest.fn();
+    find = jest.fn().mockReturnValue({
+      skip: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      exec: jest.fn().mockResolvedValue([]),
+    });
+    countDocuments = jest.fn().mockReturnValue({
+      exec: jest.fn().mockResolvedValue(0),
+    });
     storedMediaService = {
       replace: jest.fn().mockResolvedValue('local-media:avatar.jpg'),
       getReadableStream: jest.fn().mockResolvedValue({
@@ -30,14 +50,8 @@ describe('UserService', () => {
     const userModel = {
       findById,
       findByIdAndUpdate,
-      find: jest.fn().mockReturnValue({
-        skip: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue([]),
-      }),
-      countDocuments: jest.fn().mockReturnValue({
-        exec: jest.fn().mockResolvedValue(0),
-      }),
+      find,
+      countDocuments,
     };
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -53,6 +67,18 @@ describe('UserService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('fails closed for direct account creation while task-v2 is enabled', async () => {
+    process.env.QUEST_TASK_V2_ENABLED = 'true';
+    await expect(
+      service.createFromFirebase({ id_firebase: 'bypass' } as never),
+    ).rejects.toMatchObject({
+      status: 503,
+      response: expect.objectContaining({
+        code: 'CENTRAL_REGISTRATION_REQUIRED',
+      }),
+    });
   });
 
   describe('claimVerifiedPhone', () => {
@@ -257,28 +283,7 @@ describe('UserService', () => {
 
   describe('findAll', () => {
     it('findAll > given regex metacharacters > then search input is escaped literally', async () => {
-      const find = jest.fn().mockReturnValue({
-        skip: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue([]),
-      });
-      const countDocuments = jest.fn().mockReturnValue({
-        exec: jest.fn().mockResolvedValue(0),
-      });
-      const moduleRef = await Test.createTestingModule({
-        providers: [
-          UserService,
-          {
-            provide: getModelToken(User.name),
-            useValue: { find, countDocuments, findByIdAndUpdate },
-          },
-          { provide: getModelToken(UserMyCashback.name), useValue: {} },
-          { provide: StoredMediaService, useValue: storedMediaService },
-        ],
-      }).compile();
-      const scoped = moduleRef.get<UserService>(UserService);
-
-      await scoped.findAll(1, 10, 'a.*');
+      await service.findAll(1, 10, '  a.*  ');
 
       expect(find).toHaveBeenCalledWith({
         $or: [
@@ -286,6 +291,67 @@ describe('UserService', () => {
           { email: { $regex: 'a\\.\\*', $options: 'i' } },
           { address: { $regex: 'a\\.\\*', $options: 'i' } },
           { mobile: { $regex: 'a\\.\\*', $options: 'i' } },
+        ],
+      });
+      expect(countDocuments).toHaveBeenCalledWith(find.mock.calls[0][0]);
+    });
+
+    it('findAll > given an exact 24-hex user ID > then adds an exact ObjectId predicate alongside the escaped text fields', async () => {
+      const id = '507f1f77bcf86cd799439011';
+
+      await service.findAll(1, 10, `  ${id}  `);
+
+      expect(find).toHaveBeenCalledWith({
+        $or: [
+          { username: { $regex: id, $options: 'i' } },
+          { email: { $regex: id, $options: 'i' } },
+          { address: { $regex: id, $options: 'i' } },
+          { mobile: { $regex: id, $options: 'i' } },
+          { _id: new Types.ObjectId(id) },
+        ],
+      });
+    });
+
+    it.each([
+      '507f1f77bcf86cd79943901z',
+      '507f1f77bcf86cd79943901',
+      'not-a-user-id',
+    ])(
+      'findAll > given non-ID search %p > then never adds an _id predicate',
+      async (search) => {
+        await service.findAll(1, 10, search);
+
+        const query = find.mock.calls[0][0] as {
+          $or: Record<string, unknown>[];
+        };
+        expect(query.$or).toHaveLength(4);
+        expect(query.$or.every((predicate) => !('_id' in predicate))).toBe(
+          true,
+        );
+      },
+    );
+
+    it.each([undefined, '', '   '])(
+      'findAll > given empty search %p > then preserves the unfiltered query',
+      async (search) => {
+        await service.findAll(1, 10, search);
+
+        expect(find).toHaveBeenCalledWith({});
+        expect(countDocuments).toHaveBeenCalledWith({});
+      },
+    );
+
+    it('findAll > trims search before matching every existing text field', async () => {
+      await service.findAll(1, 10, '  alice@example.com  ');
+
+      expect(find).toHaveBeenCalledWith({
+        $or: [
+          {
+            username: { $regex: 'alice@example\\.com', $options: 'i' },
+          },
+          { email: { $regex: 'alice@example\\.com', $options: 'i' } },
+          { address: { $regex: 'alice@example\\.com', $options: 'i' } },
+          { mobile: { $regex: 'alice@example\\.com', $options: 'i' } },
         ],
       });
     });

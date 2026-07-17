@@ -5,6 +5,8 @@ import { PointService } from './point.service';
 import { TasksService } from './tasksService';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { Types } from 'mongoose';
+import { QuestMediaQaService } from './quest-media-qa.service';
 
 /**
  * PointController is a thin HTTP delegator: it forwards each route to the right
@@ -18,6 +20,7 @@ describe('PointController', () => {
   let controller: PointController;
   let pointService: jest.Mocked<PointService>;
   let tasksService: jest.Mocked<TasksService>;
+  let questMediaQa: jest.Mocked<QuestMediaQaService>;
 
   // A sentinel each delegating method returns so we can assert the controller
   // returns the service result verbatim (no transformation).
@@ -47,6 +50,11 @@ describe('PointController', () => {
   const tasksServiceMock = {
     handleCron: jest.fn().mockReturnValue(RESULT),
   };
+  const questMediaQaMock = {
+    readiness: jest.fn().mockReturnValue(RESULT),
+    status: jest.fn().mockReturnValue(RESULT),
+    cleanupAcceptance: jest.fn().mockReturnValue(RESULT),
+  };
 
   // Build a fake Express request carrying the auth-resolved user, mirroring what
   // FirebaseAuthGuard/AuthAdminGuard set on request['user'].
@@ -61,6 +69,7 @@ describe('PointController', () => {
       providers: [
         { provide: PointService, useValue: pointServiceMock },
         { provide: TasksService, useValue: tasksServiceMock },
+        { provide: QuestMediaQaService, useValue: questMediaQaMock },
       ],
     })
       // The guards have their own DB/JWT deps; the controller's behavior does not
@@ -74,6 +83,7 @@ describe('PointController', () => {
     controller = module.get<PointController>(PointController);
     pointService = module.get(PointService);
     tasksService = module.get(TasksService);
+    questMediaQa = module.get(QuestMediaQaService);
   });
 
   it('should be defined', () => {
@@ -199,6 +209,31 @@ describe('PointController', () => {
 
       expect(pointService.createQuest).toHaveBeenCalledWith(dto, files);
       expect(result).toBe(RESULT);
+    });
+  });
+
+  describe('quest media acceptance routes', () => {
+    it('returns the read-only readiness contract', () => {
+      expect(controller.getQuestMediaReadiness()).toBe(RESULT);
+      expect(questMediaQa.readiness).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads nonce-scoped QA status by request key', () => {
+      expect(controller.getQuestMediaQaStatus('quest-media:qa:test')).toBe(
+        RESULT,
+      );
+      expect(questMediaQa.status).toHaveBeenCalledWith('quest-media:qa:test');
+    });
+
+    it('delegates guarded acceptance cleanup without changing its body', () => {
+      const input = {
+        quest_id: new Types.ObjectId().toHexString(),
+        request_key: 'quest-media:qa:test-command',
+        qa_marker: 'quest-media-qa:test-marker',
+        cleanup_nonce: 'n'.repeat(32),
+      };
+      expect(controller.cleanupQuestMediaAcceptance(input)).toBe(RESULT);
+      expect(questMediaQa.cleanupAcceptance).toHaveBeenCalledWith(input);
     });
   });
 

@@ -7,7 +7,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import request from 'supertest';
+import request, { type Response } from 'supertest';
 import { TelegramAuthDto, FirebaseIdTokenDto } from '../auth/dto/auth.dto';
 import { DiscoverReorderDto } from '../admin/discover/discover.dto';
 import { CreateWithdrawDto } from '../withdraw/dto/create-withdraw.dto';
@@ -46,6 +46,7 @@ class PipeTestController {
 
 describe('global ValidationPipe wiring (#46 whitelist)', () => {
   let app: INestApplication;
+  const originalNodeEnv = process.env.NODE_ENV;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -53,12 +54,32 @@ describe('global ValidationPipe wiring (#46 whitelist)', () => {
     }).compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(new ValidationPipe(GLOBAL_VALIDATION_PIPE_OPTIONS));
-    await app.init();
+    await app.listen(0, '127.0.0.1');
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+    jest.restoreAllMocks();
   });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+  });
+
+  const expectStatus = async (
+    pending: PromiseLike<Response>,
+    status: number,
+  ) => {
+    const response = await pending;
+    if (response.status !== status) {
+      throw new Error(
+        `expected HTTP ${status}, received ${response.status}: ${JSON.stringify(response.body)}`,
+      );
+    }
+  };
 
   it('accepts a valid withdraw body', () =>
     request(app.getHttpServer())
@@ -67,22 +88,29 @@ describe('global ValidationPipe wiring (#46 whitelist)', () => {
       .expect(201));
 
   it('rejects a negative amount_net with 400 (decorators enforced)', () =>
-    request(app.getHttpServer())
-      .post('/pipe-test/withdraw')
-      .send({ amount_net: -5, currency: 'USD' })
-      .expect(400));
+    expectStatus(
+      request(app.getHttpServer())
+        .post('/pipe-test/withdraw')
+        .send({ amount_net: -5, currency: 'USD' }),
+      400,
+    ));
 
-  it('rejects an unsupported currency with 400', () =>
-    request(app.getHttpServer())
+  it('rejects an unsupported currency with 400', async () => {
+    const response = await request(app.getHttpServer())
       .post('/pipe-test/withdraw')
-      .send({ amount_net: 10, currency: 'EUR' })
-      .expect(400));
+      .send({ amount_net: 10, currency: 'EUR' });
+    expect({ status: response.status, body: response.body }).toMatchObject({
+      status: 400,
+    });
+  });
 
   it('rejects unknown withdraw fields with 400 (whitelist + forbidNonWhitelisted)', () =>
-    request(app.getHttpServer())
-      .post('/pipe-test/withdraw')
-      .send({ amount_net: 10, currency: 'USD', evil: true })
-      .expect(400));
+    expectStatus(
+      request(app.getHttpServer())
+        .post('/pipe-test/withdraw')
+        .send({ amount_net: 10, currency: 'USD', evil: true }),
+      400,
+    ));
 
   it('accepts a valid TelegramAuthDto body', () =>
     request(app.getHttpServer())
@@ -96,28 +124,34 @@ describe('global ValidationPipe wiring (#46 whitelist)', () => {
       .expect(201));
 
   it('rejects TelegramAuthDto bodies with unknown fields', () =>
-    request(app.getHttpServer())
-      .post('/pipe-test/telegram')
-      .send({
+    expectStatus(
+      request(app.getHttpServer()).post('/pipe-test/telegram').send({
         id: 12345,
         first_name: 'Ada',
         auth_date: 1_700_000_000,
         hash: 'abc123',
         injected: 'nope',
-      })
-      .expect(400));
+      }),
+      400,
+    ));
 
   it('rejects TelegramAuthDto bodies missing required fields', () =>
-    request(app.getHttpServer())
-      .post('/pipe-test/telegram')
-      .send({ first_name: 'Ada' })
-      .expect(400));
+    expectStatus(
+      request(app.getHttpServer())
+        .post('/pipe-test/telegram')
+        .send({ first_name: 'Ada' }),
+      400,
+    ));
 
   it('accepts FirebaseIdTokenDto and rejects unknown fields', async () => {
-    await request(app.getHttpServer())
+    const accepted = await request(app.getHttpServer())
       .post('/pipe-test/firebase-token')
-      .send({ idToken: 'tok' })
-      .expect(201);
+      .send({ idToken: 'tok' });
+    if (accepted.status !== 201) {
+      throw new Error(
+        `expected Firebase HTTP 201, received ${accepted.status}: ${JSON.stringify(accepted.body)}`,
+      );
+    }
     await request(app.getHttpServer())
       .post('/pipe-test/firebase-token')
       .send({ idToken: 'tok', evil: true })

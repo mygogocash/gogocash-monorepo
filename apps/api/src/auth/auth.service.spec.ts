@@ -81,6 +81,7 @@ function makeService(
   overrides: {
     userService?: Partial<Record<string, jest.Mock>>;
     config?: Record<string, string>;
+    accountRegistration?: { registerVerified: jest.Mock };
   } = {},
 ) {
   const userService = {
@@ -123,12 +124,20 @@ function makeService(
     get: jest.fn((key: string) => configStore[key]),
   };
 
+  const accountRegistration = overrides.accountRegistration ?? {
+    registerVerified: jest.fn(async (input: { user: unknown }) => ({
+      user: await userService.createFromFirebase(input.user),
+      created: true,
+    })),
+  };
+
   const service = new AuthService(
     config as any,
     userService as any,
     jwtService as any,
     pointModel as any,
     siweNonceModel as any,
+    accountRegistration as any,
   );
 
   return {
@@ -147,6 +156,7 @@ beforeEach(() => {
   verifyIdTokenMock.mockReset();
   delete process.env.TELEGRAM_BOT_TOKEN;
   delete process.env.SIWE_EXPECTED_DOMAIN;
+  delete process.env.QUEST_TASK_V2_ENABLED;
   process.env.JWT_SECRET = 'test-jwt-secret';
 });
 
@@ -346,6 +356,99 @@ describe('AuthService', () => {
       expect(result.user).toBe(created);
       expect(userService.createFromFirebase).toHaveBeenCalledTimes(1);
       expect(jwtService.sign).toHaveBeenCalledTimes(1);
+    });
+
+    it('signInFirebase > given task-v2 and a verified new provider > then it uses the central transaction only', async () => {
+      process.env.QUEST_TASK_V2_ENABLED = 'true';
+      const created = makeUser({ id_firebase: 'fb-central' });
+      const accountRegistration = {
+        registerVerified: jest.fn().mockResolvedValue({
+          user: created,
+          created: true,
+        }),
+      };
+      const { service, userService } = makeService({
+        userService: { findOne: jest.fn().mockResolvedValue(null) },
+        accountRegistration,
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'fb-central',
+        email: 'central@gogocash.co',
+        firebase: { sign_in_provider: 'google.com' },
+      });
+
+      await expect(
+        service.signInFirebase('id-token', {
+          referral_id: REF_ID,
+          country: 'TH',
+        } as any),
+      ).resolves.toMatchObject({ is_new_user: true, user: created });
+      expect(accountRegistration.registerVerified).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: 'firebase:google.com',
+          referral_id: REF_ID,
+          user: expect.objectContaining({ id_firebase: 'fb-central' }),
+        }),
+      );
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
+    it('signInFirebase > given evaluation flag-off after rollout > then it still uses durable registration', async () => {
+      process.env.QUEST_TASK_V2_ENABLED = 'false';
+      const created = makeUser({ id_firebase: 'fb-rollback' });
+      const accountRegistration = {
+        registerVerified: jest.fn().mockResolvedValue({
+          user: created,
+          created: true,
+          source_event_id: `account:${USER_ID}:created:v1`,
+        }),
+      };
+      const { service, userService, pointModel } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(null),
+          createFromFirebase: jest.fn().mockResolvedValue(created),
+        },
+        accountRegistration,
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'fb-rollback',
+        email: 'rollback@gogocash.co',
+        firebase: { sign_in_provider: 'google.com' },
+      });
+
+      await expect(
+        service.signInFirebase('id-token', { country: 'TH' } as any),
+      ).resolves.toMatchObject({ is_new_user: true, user: created });
+
+      expect(accountRegistration.registerVerified).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: 'firebase:google.com',
+          user: expect.objectContaining({ id_firebase: 'fb-rollback' }),
+        }),
+      );
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+      expect(pointModel.__saved).toHaveLength(0);
+    });
+
+    it('signInFirebase > given flag-off and an unlisted verified provider > then it fails closed before account creation', async () => {
+      const { service, userService } = makeService({
+        userService: { findOne: jest.fn().mockResolvedValue(null) },
+      });
+      verifyIdTokenMock.mockResolvedValue({
+        uid: 'fb-unknown-provider',
+        email: 'unknown@gogocash.co',
+        firebase: { sign_in_provider: 'oidc.unlisted' },
+      });
+
+      await expect(
+        service.signInFirebase('id-token', { country: 'TH' } as any),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({
+          code: 'REGISTRATION_SOURCE_DISABLED',
+          source: 'firebase_unknown',
+        }),
+      });
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
     });
 
     it('signInFirebase > given an existing user > then it logs in and returns the login envelope', async () => {
@@ -866,6 +969,41 @@ describe('AuthService', () => {
       });
     });
 
+    it('given task-v2 and a verified new LINE identity > uses the central transaction only', async () => {
+      process.env.QUEST_TASK_V2_ENABLED = 'true';
+      const created = makeUser({
+        id_firebase: `line_${payload.id_line}`,
+        id_line: payload.id_line,
+      });
+      const accountRegistration = {
+        registerVerified: jest.fn().mockResolvedValue({
+          user: created,
+          created: true,
+        }),
+      };
+      const { service, userService } = makeService({
+        userService: { findOne: jest.fn().mockResolvedValue(null) },
+        accountRegistration,
+      });
+      (axios.get as jest.Mock)
+        .mockResolvedValueOnce({ data: { client_id: 'channel' } })
+        .mockResolvedValueOnce({ data: { userId: payload.id_line } });
+
+      await expect(service.signInLine(payload, 'token')).resolves.toEqual({
+        user: created,
+        token: 'signed.jwt.token',
+      });
+      expect(accountRegistration.registerVerified).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: 'line',
+          user: expect.objectContaining({
+            id_firebase: `line_${payload.id_line}`,
+          }),
+        }),
+      );
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
     it('given a legacy LINE account without a stored Firebase id > persists the synthetic session identity used by the auth guard', async () => {
       const existing = makeUser({
         id_firebase: '',
@@ -916,6 +1054,24 @@ describe('AuthService', () => {
         } as any),
       ).rejects.toBeInstanceOf(UnauthorizedException);
       expect(userService.findOne).not.toHaveBeenCalled();
+    });
+
+    it('signInTelegram > given a verified unknown identity > then disabled registration fails before user mutation', async () => {
+      process.env.TELEGRAM_BOT_TOKEN = 'test-bot-token';
+      const { service, userService } = makeService({
+        userService: { findOne: jest.fn().mockResolvedValue(null) },
+      });
+      jest.spyOn(service, 'verifyTelegramAuth').mockResolvedValue(true);
+
+      await expect(
+        service.signInTelegram({
+          id: 123,
+          first_name: 'A',
+          auth_date: Math.floor(Date.now() / 1000),
+          hash: 'verified-by-spy',
+        } as any),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
     });
 
     // A forged HMAC must be rejected: this is the anti-impersonation control.
@@ -1101,14 +1257,10 @@ describe('AuthService', () => {
       expect(siweNonceModel.findOneAndDelete).not.toHaveBeenCalled();
     });
 
-    it('signInMiniPaySiwe > given a valid fresh message with an unused nonce for a new wallet > then it provisions a user and returns the register envelope', async () => {
-      const created = makeUser({
-        id_firebase: `minipay:${ADDRESS.toLowerCase()}`,
-      });
+    it('signInMiniPaySiwe > given a valid new wallet > then disabled MiniPay registration fails before user mutation', async () => {
       const { service, userService, siweNonceModel } = makeService({
         userService: {
           findOne: jest.fn().mockResolvedValue(null),
-          createFromFirebase: jest.fn().mockResolvedValue(created),
         },
       });
       verifyMessageMock.mockReturnValue(ADDRESS);
@@ -1116,22 +1268,14 @@ describe('AuthService', () => {
         nonce: 'abc123nonce',
       });
 
-      const result = await service.signInMiniPaySiwe({
-        address: ADDRESS,
-        message: freshSiweMessage(),
-        signature: '0x' + '1'.repeat(130),
-      } as any);
-
-      expect(result.is_new_user).toBe(true);
-      expect(result.auth_flow).toBe('register');
-      expect(result.token).toBe('signed.jwt.token');
-      // The synthetic firebase id namespaces wallet sessions away from real UIDs.
-      expect(userService.createFromFirebase).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id_firebase: `minipay:${ADDRESS.toLowerCase()}`,
-          provider: 'minipay',
-        }),
-      );
+      await expect(
+        service.signInMiniPaySiwe({
+          address: ADDRESS,
+          message: freshSiweMessage(),
+          signature: '0x' + '1'.repeat(130),
+        } as any),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
     });
   });
 

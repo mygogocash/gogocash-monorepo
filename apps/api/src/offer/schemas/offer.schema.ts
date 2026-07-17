@@ -1,6 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
+import {
+  CategoryMediaAsset,
+  CategoryMediaAssetSchema,
+} from './category.schema';
+
 export type OfferDocument = HydratedDocument<Offer>;
 
 /** Affiliate network the offer was ingested from (or `'manual'` for admin-created brands). */
@@ -39,6 +44,10 @@ export class Offer {
 
   @Prop()
   logo: string;
+
+  /** Exact durable owner proof for admin-uploaded logo aliases. */
+  @Prop({ type: CategoryMediaAssetSchema, required: false })
+  logo_asset?: CategoryMediaAsset;
 
   @Prop()
   lookup_value: string;
@@ -95,6 +104,10 @@ export class Offer {
   @Prop()
   categories: string;
 
+  /** Canonical NFKC identity for exact legacy category-reference scans. */
+  @Prop({ type: String, required: false })
+  categories_normalized?: string | null;
+
   @Prop()
   countries: string;
 
@@ -127,6 +140,10 @@ export class Offer {
 
   @Prop()
   banner: string;
+
+  /** Exact durable owner proof for admin-uploaded banner aliases. */
+  @Prop({ type: CategoryMediaAssetSchema, required: false })
+  banner_asset?: CategoryMediaAsset;
 
   @Prop()
   logo_circle: string;
@@ -265,6 +282,8 @@ OfferSchema.index({ source: 1, offer_id: 1 }, { unique: true });
 /** Fast lookups for admin Pending tab and customer-app visibility filter. */
 OfferSchema.index({ status: 1 });
 OfferSchema.index({ source: 1, status: 1 });
+OfferSchema.index({ policy_category_id: 1 });
+OfferSchema.index({ categories_normalized: 1 });
 
 /** Brand-grouping queries: list every variant of a brand, or filter by brand+country. */
 OfferSchema.index({ brand_id: 1 });

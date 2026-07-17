@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Conversion } from '../schemas/conversion.schema';
 import { InvolveService } from 'src/involve/involve.service';
 import { ConversionIngestService } from 'src/involve/conversion-ingest.service';
-import { Model } from 'mongoose';
 import { delay } from 'rxjs';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 
@@ -19,7 +16,6 @@ export class JobService {
   constructor(
     private readonly involveService: InvolveService,
     private readonly conversionIngestService: ConversionIngestService,
-    @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
     private readonly analytics: AnalyticsService,
   ) {
     this.start = new Date(this.start_date).toISOString().split('T')[0];
@@ -67,18 +63,8 @@ export class JobService {
 
     if (allConversions?.length === 0) return;
     for (const conversion of allConversions) {
-      // const existingConversion = await this.conversionModel
-      //   .findOne({
-      //     conversion_id: conversion.conversion_id,
-      //   })
-      //   .lean();
-
       await this.conversionIngestService.upsertConversion(conversion);
     }
-    await this.conversionModel.updateMany(
-      { conversion_status: 'paid' },
-      { $set: { conversion_status: 'approved' } },
-    );
     console.log('done', allConversions?.length);
   }
 
@@ -115,12 +101,6 @@ export class JobService {
 
     if (allConversions?.length === 0) return;
     for (const conversion of allConversions) {
-      // const existingConversion = await this.conversionModel
-      //   .findOne({
-      //     conversion_id: conversion.conversion_id,
-      //   })
-      //   .lean();
-
       await this.conversionIngestService.upsertConversion(conversion);
     }
     console.log('done', allConversions?.length);

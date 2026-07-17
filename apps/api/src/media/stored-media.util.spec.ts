@@ -1,5 +1,6 @@
 import {
   buildGcsPublicUrl,
+  buildCommandOwnedMediaObjectKey,
   buildLocalMediaRef,
   classifyStoredMediaValue,
   isLegacyGoogleDriveFileId,
@@ -9,6 +10,80 @@ import {
 } from './stored-media.util';
 
 describe('stored-media.util', () => {
+  describe('buildCommandOwnedMediaObjectKey', () => {
+    it('is deterministic for a command, payload hash, and original extension', () => {
+      const first = buildCommandOwnedMediaObjectKey(
+        'categories',
+        'policy-save:ABC-123',
+        'attempt-A',
+        'a'.repeat(64),
+        'Default Banner.PNG',
+      );
+      const second = buildCommandOwnedMediaObjectKey(
+        'categories',
+        'policy-save:ABC-123',
+        'attempt-A',
+        'a'.repeat(64),
+        'renamed.PNG',
+      );
+
+      expect(first).toBe(second);
+      expect(first).toMatch(
+        new RegExp(
+          `^categories/policy-save-abc-123-[a-f0-9]{16}/attempt-a-[a-f0-9]{16}/${'a'.repeat(64)}\\.png$`,
+        ),
+      );
+    });
+
+    it('keeps slug-colliding owner keys cryptographically distinct', () => {
+      const spaced = buildCommandOwnedMediaObjectKey(
+        'categories',
+        'owner key',
+        'attempt-a',
+        'a'.repeat(64),
+        'x.png',
+      );
+      const dashed = buildCommandOwnedMediaObjectKey(
+        'categories',
+        'owner-key',
+        'attempt-a',
+        'a'.repeat(64),
+        'x.png',
+      );
+      expect(spaced).not.toBe(dashed);
+    });
+
+    it('rejects an unsafe or malformed digest instead of generating a broad key', () => {
+      expect(() =>
+        buildCommandOwnedMediaObjectKey(
+          'categories',
+          '../',
+          'attempt-a',
+          'not-a-hash',
+          'x',
+        ),
+      ).toThrow('Invalid command-owned media identity');
+    });
+
+    it('keeps retry attempts cryptographically distinct for the same request and bytes', () => {
+      const attemptA = buildCommandOwnedMediaObjectKey(
+        'categories',
+        'policy-save-1',
+        'attempt-a',
+        'a'.repeat(64),
+        'default.png',
+      );
+      const attemptB = buildCommandOwnedMediaObjectKey(
+        'categories',
+        'policy-save-1',
+        'attempt-b',
+        'a'.repeat(64),
+        'default.png',
+      );
+      expect(attemptB).not.toBe(attemptA);
+    });
+  });
+
   describe('parseGcsPublicUrl', () => {
     it('rewriteGcsPublicUrlToR2 > given gcs url > then returns r2 url with same object key', () => {
       expect(
