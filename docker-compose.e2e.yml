@@ -2,7 +2,7 @@
 # Usage: npm run e2e:up
 services:
   mongo-e2e:
-    image: mongo:7
+    image: mongo:8.0.4
     container_name: gogocash-mongo-e2e
     ports:
       - "27017:27017"
