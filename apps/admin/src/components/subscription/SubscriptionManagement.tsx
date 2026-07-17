@@ -180,18 +180,21 @@ export default function SubscriptionManagement() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
-              label: "Volume today",
-              value: statsQ.data.totalVolumeToday.toLocaleString(),
+              label: "Total subscriptions",
+              value: statsQ.data.totalSubscriptions.toLocaleString(),
             },
             {
-              label: "Volume MTD",
-              value: statsQ.data.totalVolumeMtd.toLocaleString(),
+              label: "Active subscriptions",
+              value: statsQ.data.activeSubscriptions.toLocaleString(),
             },
             {
-              label: "Avg ticket",
-              value: statsQ.data.avgTransactionValue.toLocaleString(),
+              label: "Cancelled subscriptions",
+              value: statsQ.data.cancelledSubscriptions.toLocaleString(),
             },
-            { label: "Flagged tx", value: String(statsQ.data.flaggedCount) },
+            {
+              label: "Active plan value (THB)",
+              value: statsQ.data.activePlanValue.toLocaleString(),
+            },
           ].map((c) => (
             <div
               key={c.label}

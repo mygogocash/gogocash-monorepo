@@ -1,12 +1,24 @@
 import React from "react";
 
-export type CategoryIconKey =
-  | "shopping"
-  | "travel"
-  | "food"
-  | "finance"
-  | "entertainment"
-  | "default";
+export const CATEGORY_ICON_KEYS = [
+  "shopping",
+  "travel",
+  "food",
+  "finance",
+  "entertainment",
+  "default",
+] as const;
+
+export type CategoryIconKey = (typeof CATEGORY_ICON_KEYS)[number];
+
+export function resolveCategoryIconKey(
+  persisted: unknown,
+  name: string,
+): CategoryIconKey {
+  return CATEGORY_ICON_KEYS.includes(persisted as CategoryIconKey)
+    ? (persisted as CategoryIconKey)
+    : categoryIconKey(name);
+}
 
 /**
  * Map a category name to a related icon by keyword (case-insensitive). Falls
@@ -90,15 +102,19 @@ const PATHS: Record<CategoryIconKey, React.ReactNode> = {
 /** A category-related icon (defaults to 32px / h-8). Colour follows currentColor. */
 export default function CategoryIcon({
   name,
+  iconKey,
   className = "h-8 w-8",
   strokeWidth = 1.8,
 }: {
   name: string;
+  iconKey?: unknown;
   className?: string;
   strokeWidth?: number;
 }) {
+  const resolvedIconKey = resolveCategoryIconKey(iconKey, name);
   return (
     <svg
+      data-category-icon={resolvedIconKey}
       className={className}
       viewBox="0 0 24 24"
       fill="none"
@@ -108,7 +124,7 @@ export default function CategoryIcon({
       strokeLinejoin="round"
       aria-hidden
     >
-      {PATHS[categoryIconKey(name)]}
+      {PATHS[resolvedIconKey]}
     </svg>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { isAxiosError } from "axios";
 import type { FetchBestResponse } from "@/components/commission/CommissionManagementClient";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
@@ -20,6 +20,7 @@ import { SUPPORT_BUTTON_CLASS } from "../ui/button/SupportButton";
 import ProductTypeTable from "./ProductTypeTable";
 import {
   OFFER_MOCK_TERMS,
+  policyTermsMapFromCategoryList,
   resolveConfiguredOfferPolicyTerms,
   resolveOfferPolicyBaseTerms,
 } from "@/lib/offerPolicyTerms";
@@ -513,6 +514,9 @@ const FormOffer = ({
   const [upsizeLaunched, setUpsizeLaunched] = useState(() =>
     offerFormHasUpsize(form),
   );
+  const [commissionRawEdited, setCommissionRawEdited] = useState(false);
+  const [upsizeCommissionRawEdited, setUpsizeCommissionRawEdited] =
+    useState(false);
   const [commissionRawId, setCommissionRawId] = useState(form.id);
   if (commissionRawId !== form.id) {
     setCommissionRawId(form.id);
@@ -530,6 +534,8 @@ const FormOffer = ({
     setUpsizeCommissionMode("auto");
     setStartDateType(form.upsize_start_date ? "date" : "text");
     setEndDateType(form.upsize_end_date ? "date" : "text");
+    setCommissionRawEdited(false);
+    setUpsizeCommissionRawEdited(false);
   }
   // The Fee Structure rate resolves asynchronously. When it changes (the 30%
   // fallback giving way to the configured value), reconcile raw ↔ net: a raw
@@ -537,19 +543,17 @@ const FormOffer = ({
   // and the stored net is recomputed with the real fee; a raw that was only
   // seeded from the stored net is re-derived so a passive open never rewrites
   // stored economics.
-  const commissionRawEditedRef = useRef(false);
-  const upsizeCommissionRawEditedRef = useRef(false);
   const [seededFeePercent, setSeededFeePercent] = useState(feePercent);
   if (seededFeePercent !== feePercent) {
     setSeededFeePercent(feePercent);
     const main = reconcileCommissionOnFeeChange({
-      rawEdited: commissionRawEditedRef.current,
+      rawEdited: commissionRawEdited,
       raw: commissionRaw,
       storedNet: form.commission_store,
       feePercent,
     });
     const upsize = reconcileCommissionOnFeeChange({
-      rawEdited: upsizeCommissionRawEditedRef.current,
+      rawEdited: upsizeCommissionRawEdited,
       raw: upsizeCommissionRaw,
       storedNet: form.upsize_special_commission,
       feePercent,
@@ -592,7 +596,7 @@ const FormOffer = ({
     (rawPercent: number): boolean => {
       const fields = commissionFieldsFromPartnerRaw(rawPercent, feePercent);
       if (!fields) return false;
-      commissionRawEditedRef.current = true;
+      setCommissionRawEdited(true);
       setCommissionRaw(fields.commissionRaw);
       setForm((prev) => ({
         ...prev,
@@ -823,12 +827,16 @@ const FormOffer = ({
 
   const savePolicyEdit = async () => {
     if (!form.id) return;
+    const policyTermsToSave =
+      inferOfferPolicyMode(form.policy_category_id) === "template"
+        ? effectiveTemplateTerms
+        : (form.custom_terms ?? "");
     setSavingPolicy(true);
     setPolicySaveError(null);
     try {
       const fd = new FormData();
       fd.append("policy_category_id", form.policy_category_id ?? "");
-      fd.append("custom_terms", form.custom_terms ?? "");
+      fd.append("custom_terms", policyTermsToSave);
       fd.append("note_to_user", form.note_to_user ?? "");
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
@@ -842,10 +850,11 @@ const FormOffer = ({
         snapshot: {
           ...prev.snapshot,
           policy_category_id: form.policy_category_id ?? "",
-          custom_terms: form.custom_terms ?? "",
+          custom_terms: policyTermsToSave,
           note_to_user: form.note_to_user ?? "",
         },
       }));
+      setForm((prev) => ({ ...prev, custom_terms: policyTermsToSave }));
       setEditingPolicy(false);
       fetchOffers();
       toast.success("Policy updated successfully");
@@ -1525,9 +1534,14 @@ const FormOffer = ({
     return map;
   }, [form.product_types]);
 
-  const { data: policiesList = {} } = useQuery<Record<string, string>>({
+  const { data: policiesList = {} } = useQuery<
+    unknown,
+    Error,
+    Record<string, string>
+  >({
     queryKey: ["policyList"],
-    queryFn: () => fetcher("/policy/list"),
+    queryFn: () => fetcher("/policy/category-list"),
+    select: policyTermsMapFromCategoryList,
     staleTime: 30_000,
   });
 
@@ -1540,29 +1554,12 @@ const FormOffer = ({
     policyCategories,
     policiesList,
   );
-  useEffect(() => {
-    if (
-      !editingPolicy ||
-      policyMode !== "template" ||
-      templateTermsTouched ||
-      form.custom_terms?.trim() ||
-      !configuredTemplateTerms
-    ) {
-      return;
-    }
-    setTemplateTermsDraft(configuredTemplateTerms);
-    setForm((prev) => ({
-      ...prev,
-      custom_terms: configuredTemplateTerms,
-    }));
-  }, [
-    configuredTemplateTerms,
-    editingPolicy,
-    form.custom_terms,
-    policyMode,
-    setForm,
-    templateTermsTouched,
-  ]);
+  const effectiveTemplateTerms =
+    policyMode === "template" &&
+    !templateTermsTouched &&
+    !form.custom_terms?.trim()
+      ? configuredTemplateTerms
+      : (form.custom_terms ?? "");
   // The brand's effective Terms & Conditions in read-only mode. Template mode
   // can fall back to sample text; Custom Writing never does.
   const policyBaseTerms = resolveOfferPolicyBaseTerms(
@@ -2424,7 +2421,7 @@ const FormOffer = ({
                                 value={commissionRaw}
                                 onChange={(e) => {
                                   const v = e.target.value;
-                                  commissionRawEditedRef.current = true;
+                                  setCommissionRawEdited(true);
                                   setCommissionRaw(v);
                                   const n = Number(v);
                                   setForm((prev) => ({
@@ -3507,8 +3504,9 @@ const FormOffer = ({
                                               value={upsizeCommissionRaw}
                                               onChange={(e) => {
                                                 const v = e.target.value;
-                                                upsizeCommissionRawEditedRef.current =
-                                                  true;
+                                                setUpsizeCommissionRawEdited(
+                                                  true,
+                                                );
                                                 setUpsizeCommissionRaw(v);
                                                 const n = Number(v);
                                                 setForm((prev) => ({
@@ -3902,7 +3900,7 @@ const FormOffer = ({
                       />
                       <TextArea
                         rows={12}
-                        value={form.custom_terms}
+                        value={effectiveTemplateTerms}
                         onChange={changeActivePolicyTerms}
                         disabled={savingPolicy}
                         className="h-36 resize-none overflow-y-auto !text-xs !leading-relaxed !text-gray-700 placeholder:text-gray-400 dark:!text-gray-300"

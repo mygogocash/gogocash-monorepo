@@ -28,7 +28,7 @@ export function buildQuestRewardPayloads(
 export function buildQuestRewardSavePayload(
   rewards: RewardDraft[],
   distribution: RewardDistributionDraft,
-): QuestRewardSavePayload {
+): Omit<QuestRewardSavePayload, "expected_config_revision"> {
   return {
     rewards: buildQuestRewardPayloads(rewards),
     reward_distribution_mode: distribution.mode,

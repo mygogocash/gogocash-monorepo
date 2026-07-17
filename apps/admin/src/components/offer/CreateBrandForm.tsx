@@ -33,7 +33,10 @@ import {
   CUSTOM_POLICY_CATEGORY_ID,
   type OfferPolicyMode,
 } from "@/lib/offerPolicyMode";
-import { resolveConfiguredOfferPolicyTerms } from "@/lib/offerPolicyTerms";
+import {
+  policyTermsMapFromCategoryList,
+  resolveConfiguredOfferPolicyTerms,
+} from "@/lib/offerPolicyTerms";
 import {
   DEFAULT_OFFER_DISPLAY_TAGS,
   type OfferDisplayTags,
@@ -330,9 +333,14 @@ export default function CreateBrandForm() {
       staleTime: 60_000,
     });
 
-  const { data: policiesList = {} } = useQuery<Record<string, string>>({
+  const { data: policiesList = {} } = useQuery<
+    unknown,
+    Error,
+    Record<string, string>
+  >({
     queryKey: ["policyList", "create-brand"],
-    queryFn: () => fetcher("/policy/list"),
+    queryFn: () => fetcher("/policy/category-list"),
+    select: policyTermsMapFromCategoryList,
     staleTime: 30_000,
   });
 
@@ -368,11 +376,9 @@ export default function CreateBrandForm() {
       ),
     [policyCategoryId, policyCategories, policiesList],
   );
-
-  useEffect(() => {
-    if (templateTermsTouched) return;
-    setTemplateTerms(configuredTemplateTerms);
-  }, [configuredTemplateTerms, templateTermsTouched]);
+  const effectiveTemplateTerms = templateTermsTouched
+    ? templateTerms
+    : configuredTemplateTerms;
 
   const legacyBrandCategoryLabel = useMemo(() => {
     const cur = offerDisplayTags.brand_category_label.trim();
@@ -501,7 +507,7 @@ export default function CreateBrandForm() {
     );
     formData.append(
       "custom_terms",
-      policyMode === "custom" ? customTerms : templateTerms,
+      policyMode === "custom" ? customTerms : effectiveTemplateTerms,
     );
     formData.append("is_global", String(isGlobal));
     if (isGlobal) {
@@ -1507,7 +1513,7 @@ export default function CreateBrandForm() {
                   />
                   <TextArea
                     rows={8}
-                    value={templateTerms}
+                    value={effectiveTemplateTerms}
                     onChange={(terms) => {
                       setTemplateTermsTouched(true);
                       setTemplateTerms(terms);

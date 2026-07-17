@@ -104,23 +104,34 @@ export interface Referral {
   qualifyingTransactionId: string | null;
 }
 
+export const MISSING_ORDER_STATUSES = [
+  "pending",
+  "under_review",
+  "approved",
+  "rejected",
+] as const;
+
+export type MissingOrderStatus = (typeof MISSING_ORDER_STATUSES)[number];
+
 export interface MissingOrderClaim {
   id: string;
   userId: string;
   userName: string;
-  email: string;
-  phone: string;
+  email: string | null;
+  phone: string | null;
   merchantId: string;
   merchantName: string;
+  offerSource: string;
+  providerOfferId: number | null;
   orderId: string;
   orderAmount: number;
+  currency: string;
   purchaseDate: string;
-  expectedCashback: number;
+  expectedCashback: number | null;
   overrideCashback: number | null;
   submittedDate: string;
   remarks: string;
-  status:
-    "pending" | "under_review" | "approved" | "rejected" | "info_requested";
+  status: MissingOrderStatus;
   assignedTo: string | null;
   evidence: string[];
   notes: {
@@ -129,7 +140,10 @@ export interface MissingOrderClaim {
     note: string;
     timestamp: string;
   }[];
+  resolutionNote: string | null;
   rejectionReason: string | null;
+  resolvedAt: string | null;
+  schemaVersion: number;
 }
 
 export interface UserWallet {

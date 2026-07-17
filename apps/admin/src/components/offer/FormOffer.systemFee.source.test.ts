@@ -54,11 +54,23 @@ describe("FormOffer — configurable platform fee (source signals)", () => {
 });
 
 describe("PR #283 review fixes — fee-resolution race (HIGH-2) + fallback notice", () => {
-
   it("reconciles raw vs stored net when the fee resolves, with admin-authored raws winning", () => {
     expect(formSource).toContain("reconcileCommissionOnFeeChange({");
-    expect(formSource).toContain("commissionRawEditedRef.current = true");
-    expect(formSource).toContain("upsizeCommissionRawEditedRef.current");
+    expect(formSource).toContain(
+      "const [commissionRawEdited, setCommissionRawEdited] = useState(false)",
+    );
+    expect(formSource).toContain(
+      "const [upsizeCommissionRawEdited, setUpsizeCommissionRawEdited] =",
+    );
+    expect(formSource).toContain("rawEdited: commissionRawEdited");
+    expect(formSource).toContain("rawEdited: upsizeCommissionRawEdited");
+    expect(formSource).toContain("setCommissionRawEdited(true)");
+    expect(formSource).toMatch(/setUpsizeCommissionRawEdited\(\s*true,?\s*\)/);
+    expect(formSource).toMatch(
+      /commissionRawId !== form\.id[\s\S]{0,800}?setCommissionRawEdited\(false\)[\s\S]{0,200}?setUpsizeCommissionRawEdited\(false\)/,
+    );
+    expect(formSource).not.toContain("commissionRawEditedRef");
+    expect(formSource).not.toContain("upsizeCommissionRawEditedRef");
   });
 
   it("upsize draft commit recomputes the net with the commit-time fee", () => {

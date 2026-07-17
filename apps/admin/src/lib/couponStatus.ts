@@ -132,8 +132,11 @@ export function getCouponTableStatus(
 export function formatCouponDiscount(
   coupon: Pick<CouponData, "discount" | "discount_type" | "discount_currency">,
 ): string {
+  if (!coupon.discount_type) return "Discount type unknown";
   if (coupon.discount_type === "cash") {
-    return `${coupon.discount} ${coupon.discount_currency ?? "THB"}`;
+    return coupon.discount_currency
+      ? `${coupon.discount} ${coupon.discount_currency}`
+      : `${coupon.discount} (currency unknown)`;
   }
   return `${coupon.discount}%`;
 }
@@ -165,7 +168,7 @@ function formatAmountWithCurrency(
   if (!trimmed) return null;
   const n = Number(trimmed);
   const value = Number.isFinite(n) ? n.toLocaleString() : trimmed;
-  return `${value} ${currency ?? "THB"}`;
+  return currency ? `${value} ${currency}` : `${value} (currency unknown)`;
 }
 
 export function formatCouponMinSpendLabel(
@@ -187,8 +190,8 @@ export function formatCouponMinSpendLabel(
 export function formatCouponMaxCapLabel(
   coupon: Pick<CouponData, "max_cap" | "max_cap_enabled" | "max_cap_currency">,
 ): string {
-  const enabled =
-    coupon.max_cap_enabled ?? Boolean(String(coupon.max_cap ?? "").trim());
+  if (coupon.max_cap_enabled === undefined) return "Max cap unknown";
+  const enabled = coupon.max_cap_enabled;
   if (!enabled) return "No max cap";
   const formatted = formatAmountWithCurrency(
     coupon.max_cap,

@@ -35,4 +35,30 @@ describe("offer policy authoring mode (#310, source signals)", () => {
     expect(source).toContain("No T&amp;C configured for this category yet");
     expect(source).toContain("Policy Management, or switch to Custom Writing.");
   });
+
+  it("create form derives untouched template text from the latest configuration", () => {
+    expect(createSource).toMatch(
+      /const effectiveTemplateTerms =\s*templateTermsTouched\s*\? templateTerms\s*: configuredTemplateTerms;/,
+    );
+    expect(createSource).toContain("value={effectiveTemplateTerms}");
+    expect(createSource).toMatch(
+      /policyMode === "custom" \? customTerms : effectiveTemplateTerms/,
+    );
+    expect(createSource).not.toMatch(
+      /useEffect\(\(\) => \{[\s\S]{0,200}?setTemplateTerms\(configuredTemplateTerms\)/,
+    );
+  });
+
+  it("edit form derives untouched template text and persists that exact value", () => {
+    expect(editSource).toMatch(
+      /const effectiveTemplateTerms =\s*policyMode === "template" &&[\s\S]{0,220}?\? configuredTemplateTerms\s*: \(form\.custom_terms \?\? ""\);/,
+    );
+    expect(editSource).toContain("value={effectiveTemplateTerms}");
+    expect(editSource).toContain(
+      'fd.append("custom_terms", policyTermsToSave);',
+    );
+    expect(editSource).not.toMatch(
+      /useEffect\(\(\) => \{[\s\S]{0,500}?setTemplateTermsDraft\(configuredTemplateTerms\)/,
+    );
+  });
 });

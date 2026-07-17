@@ -224,7 +224,7 @@ export default function UsersTable() {
             ))}
           </SortByDropdown>
           <SearchBar
-            placeholder="Search users..."
+            placeholder="Search by email, user ID, or phone"
             value={query.search}
             onChange={(e) => handleSearch(e.target.value)}
           />

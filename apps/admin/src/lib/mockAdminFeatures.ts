@@ -9,6 +9,7 @@ import {
 } from "@/app/api/mock/data";
 import { tierFromScore } from "@/lib/creditTier";
 import { sortMembers, type MemberSortKey } from "@/lib/memberSort";
+import type { MissingOrderStatus } from "@/types/adminModules";
 
 /** Same shape as `MockApiInput` in mockApiCore (avoid circular import). */
 export type AdminFeatureMockInput = {
@@ -323,8 +324,7 @@ type MissingClaim = {
   overrideCashback: number | null;
   submittedDate: string;
   remarks: string;
-  status:
-    "pending" | "under_review" | "approved" | "rejected" | "info_requested";
+  status: MissingOrderStatus;
   assignedTo: string | null;
   evidence: string[];
   notes: {
@@ -784,10 +784,19 @@ export function tryMockAdminFeaturesRequest(
   if (path[1] === "subscription") {
     if (m === "GET" && path[2] === "stats") {
       return ok({
-        totalVolumeToday: 1_250_000,
-        totalVolumeMtd: 28_400_000,
-        avgTransactionValue: 1820,
-        flaggedCount: transactions.filter((t) => t.isFlagged).length,
+        by_status: {
+          active: subscriptions.filter((item) => item.status === "active")
+            .length,
+          paused: subscriptions.filter((item) => item.status === "paused")
+            .length,
+          cancelled: subscriptions.filter(
+            (item) => item.status === "cancelled",
+          ).length,
+        },
+        total_revenue: subscriptionPlans.reduce(
+          (total, plan) => total + plan.price * plan.subscriberCount,
+          0,
+        ),
       });
     }
     if (m === "GET" && path[2] === "plans")

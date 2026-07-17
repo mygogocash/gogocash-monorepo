@@ -2,8 +2,8 @@ import client from "@/lib/axios/client";
 import type {
   QuestLeaderboardResponse,
   QuestRewardSavePayload,
+  QuestTaskConfigSavePayload,
   QuestTaskDeeplinkSummaryResponse,
-  QuestTaskPayload,
   ResponseQuestDate,
 } from "@/types/quest";
 
@@ -26,20 +26,17 @@ export async function saveQuestCampaign(
   const { data } = await client.post<ResponseQuestDate>(
     "/point/create-quest",
     formData,
-    {
-      headers: { "Content-Type": "multipart/form-data" },
-    },
   );
   return data;
 }
 
 export async function saveQuestTasks(
   questId: string,
-  tasks: QuestTaskPayload[],
+  payload: QuestTaskConfigSavePayload,
 ): Promise<ResponseQuestDate> {
   const { data } = await client.patch<ResponseQuestDate>(
     `/point/admin-quest/${questId}/tasks`,
-    { tasks },
+    payload,
   );
   return data;
 }

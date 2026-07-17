@@ -21,17 +21,12 @@ describe("QuestTable issue #315 contract", () => {
     expect(source).toContain('href="/quest/create"');
   });
 
-  it("pins a generated quest id without leaving create mode before every setting is saved", () => {
-    expect(source).toContain(
-      "const questIdForSave = selectedQuest?._id ?? selectedQuestId;",
-    );
-    expect(source).toContain(
-      'if (questIdForSave) fd.append("_id", questIdForSave);',
-    );
-
+  it("adopts a generated id immediately without rehydrating in-progress settings drafts", () => {
     const mutationStart = source.indexOf("const saveAllMutation = useMutation");
     const successStart = source.indexOf("onSuccess:", mutationStart);
     const mutationBody = source.slice(mutationStart, successStart);
-    expect(mutationBody).not.toContain("setCreatingNew(false)");
+    expect(mutationBody).toContain("setSelectedQuestId(campaign._id)");
+    expect(mutationBody).toContain("setDraftSourceQuestId(campaign._id)");
+    expect(mutationBody).toContain("setCreatingNew(false)");
   });
 });

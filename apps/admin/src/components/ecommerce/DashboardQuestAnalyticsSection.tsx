@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRightIcon } from "@/icons";
 import { formatDate } from "@/lib/dateFormat";
 import type {
+  DashboardDataAvailability,
   DashboardQuestFunnelCounts,
   DashboardQuestLifecycle,
   DashboardQuestMetrics,
@@ -12,6 +13,7 @@ import type {
 type Props = {
   quests: DashboardQuestMetrics;
   rangeLabel: string;
+  availability: DashboardDataAvailability;
 };
 
 function funnelMax(f: DashboardQuestFunnelCounts): number {
@@ -65,7 +67,30 @@ function lifecycleBarClass(lifecycle: DashboardQuestLifecycle): string {
   }
 }
 
-export function DashboardQuestAnalyticsSection({ quests, rangeLabel }: Props) {
+export function DashboardQuestAnalyticsSection({
+  quests,
+  rangeLabel,
+  availability,
+}: Props) {
+  if (!availability.available) {
+    return (
+      <div className="max-w-full min-w-0 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+          Quest analytics unavailable
+        </h3>
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          {availability.reason}
+        </p>
+        <Link
+          href="/quest"
+          className="text-brand-500 hover:text-brand-600 dark:text-brand-400 mt-4 inline-flex items-center gap-1 text-sm font-medium"
+        >
+          Manage quests
+          <ArrowRightIcon className="size-4" />
+        </Link>
+      </div>
+    );
+  }
   const f = quests.funnelTotals;
   const fm = funnelMax(f);
 

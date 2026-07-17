@@ -14,6 +14,9 @@ const pageSource = readSource(
   "../../app/(admin)/(others-pages)/missing-orders/page.tsx",
 );
 const managementSource = readSource("./MissingOrdersManagement.tsx");
+const e2eSource = readSource(
+  "../../../../../e2e/cross-system/e2e-08-missing-conversions.spec.ts",
+);
 
 describe("issue #311 missing conversions display labels", () => {
   it("uses the business term in every confirmed user-facing location", () => {
@@ -36,5 +39,18 @@ describe("issue #311 missing conversions display labels", () => {
     expect(sidebarSource).toContain('path: "/missing-orders"');
     expect(pageSource).toContain("MissingOrdersManagement");
     expect(managementSource).toContain("MissingOrdersManagement");
+  });
+});
+
+describe("issue #351 cross-system acceptance cleanup contract", () => {
+  it("approves the claim, proves wallet invariance, and cleans the exact row in finally", () => {
+    expect(e2eSource).toContain("try {");
+    expect(e2eSource).toContain("finally {");
+    expect(e2eSource).toContain("/approve");
+    expect(e2eSource).not.toContain("/reject");
+    expect(e2eSource).toContain("walletBefore");
+    expect(e2eSource).toContain("walletAfter");
+    expect(e2eSource).toContain("deleteMany");
+    expect(e2eSource).toContain("countDocuments");
   });
 });

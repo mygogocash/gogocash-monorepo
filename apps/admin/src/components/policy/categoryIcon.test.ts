@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { categoryIconKey } from "./CategoryIcon";
+import {
+  CATEGORY_ICON_KEYS,
+  categoryIconKey,
+  resolveCategoryIconKey,
+} from "./CategoryIcon";
 
 describe("categoryIconKey", () => {
   it("maps known categories to their related icon (case-insensitive)", () => {
@@ -20,5 +24,18 @@ describe("categoryIconKey", () => {
   it("falls back to default for unknown / empty names", () => {
     expect(categoryIconKey("Electronics")).toBe("default");
     expect(categoryIconKey("")).toBe("default");
+  });
+
+  it("prefers a persisted allow-listed icon and rejects untrusted values", () => {
+    expect(resolveCategoryIconKey("finance", "Shopping")).toBe("finance");
+    expect(resolveCategoryIconKey("<script>", "Shopping")).toBe("shopping");
+    expect(CATEGORY_ICON_KEYS).toEqual([
+      "shopping",
+      "travel",
+      "food",
+      "finance",
+      "entertainment",
+      "default",
+    ]);
   });
 });

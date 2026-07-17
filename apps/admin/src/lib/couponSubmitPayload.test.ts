@@ -100,4 +100,60 @@ describe("buildCouponSubmitPayload", () => {
 
     expect(payload.link).toBe("");
   });
+
+  it("given untouched sparse legacy fields > then omits unknown money semantics", () => {
+    const payload = buildCouponSubmitPayload(
+      {
+        ...COUPON_FORM_DEFAULTS,
+        id: "legacy-sparse",
+        discount_type: undefined,
+        discount_currency: "",
+        min_spend_currency: "",
+        max_cap_enabled: undefined,
+        max_cap_currency: "",
+        terms_and_conditions: undefined,
+        one_time_use_enabled: undefined,
+        usage_per_user: undefined,
+      },
+      { discount: 10, quantity: 0 },
+    );
+
+    expect(payload).not.toHaveProperty("discount_type");
+    expect(payload).not.toHaveProperty("discount_currency");
+    expect(payload).not.toHaveProperty("min_spend_currency");
+    expect(payload).not.toHaveProperty("max_cap_enabled");
+    expect(payload).not.toHaveProperty("max_cap_currency");
+    expect(payload).not.toHaveProperty("terms_and_conditions");
+    expect(payload).not.toHaveProperty("one_time_use_enabled");
+    expect(payload).not.toHaveProperty("usage_per_user");
+  });
+
+  it("given a new sparse form > then applies the documented one-time defaults", () => {
+    const payload = buildCouponSubmitPayload(
+      {
+        ...COUPON_FORM_DEFAULTS,
+        one_time_use_enabled: undefined,
+        usage_per_user: undefined,
+      },
+      { discount: 10, quantity: 0 },
+    );
+
+    expect(payload.one_time_use_enabled).toBe(true);
+    expect(payload.usage_per_user).toBe(1);
+  });
+
+  it("given a legacy usage value without a one-time flag > then round-trips the usage without inventing the flag", () => {
+    const payload = buildCouponSubmitPayload(
+      {
+        ...COUPON_FORM_DEFAULTS,
+        id: "legacy-usage-only",
+        one_time_use_enabled: undefined,
+        usage_per_user: "3",
+      },
+      { discount: 10, quantity: 0 },
+    );
+
+    expect(payload).not.toHaveProperty("one_time_use_enabled");
+    expect(payload.usage_per_user).toBe(3);
+  });
 });
