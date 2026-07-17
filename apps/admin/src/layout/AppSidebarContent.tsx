@@ -107,7 +107,7 @@ export const navItems: NavItem[] = [
     name: "Banner Management",
     subItems: [
       { name: "Home Page Banner", path: "/banner", pro: false, permission: "banner:view" },
-      { name: "Specific Page Banner", path: "/banner/all-brand-page", pro: false, permission: "banner:view" },
+      { name: "Page Banners", path: "/banner/all-brand-page", pro: false, permission: "banner:view" },
       { name: "Modal popups", path: "/banner/modal-popups", pro: false, permission: "banner:view" },
       { name: "Popup history", path: "/banner/popup-history", pro: false, permission: "banner:view" },
     ],

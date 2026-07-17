@@ -1127,6 +1127,37 @@ describe('CategoryIntegrityService assignment fencing', () => {
 });
 
 describe('CategoryIntegrityService lifecycle commands', () => {
+  it.each([
+    [
+      'request key',
+      {
+        request_key: { $ne: null } as unknown as string,
+        expected_revision: 3,
+      },
+    ],
+    [
+      'revision',
+      {
+        request_key: 'delete-content-1234',
+        expected_revision: { $gt: 0 } as unknown as number,
+      },
+    ],
+  ])(
+    'rejects an object-valued %s before database access',
+    async (_label, dto) => {
+      const { service, stateModel, categoryModel, commandModel } =
+        makeHarness();
+
+      await expect(
+        service.deleteContent(String(CATEGORY_ID), dto),
+      ).rejects.toThrow();
+
+      expect(stateModel.findOne).not.toHaveBeenCalled();
+      expect(categoryModel.findOne).not.toHaveBeenCalled();
+      expect(commandModel.findOne).not.toHaveBeenCalled();
+    },
+  );
+
   it('rejects retire with the exact reference counts and no category write', async () => {
     const { service, categoryModel } = makeHarness({
       directIds: ['offer-a'],
@@ -1152,17 +1183,28 @@ describe('CategoryIntegrityService lifecycle commands', () => {
   });
 
   it('delete-content preserves the category icon fields and clears only policy/default-banner content', async () => {
-    const { service, categoryModel, policyModel } = makeHarness();
+    const { service, categoryModel, policyModel, commandModel } = makeHarness();
     await service.deleteContent(String(CATEGORY_ID), {
       request_key: 'delete-content-1234',
       expected_revision: 3,
     });
+    expect(commandModel.findOne).toHaveBeenNthCalledWith(1, {
+      request_key: { $eq: 'delete-content-1234' },
+    });
+    expect(commandModel.findOne).toHaveBeenNthCalledWith(2, {
+      request_key: { $eq: 'delete-content-1234' },
+    });
+    expect(categoryModel.findOne).toHaveBeenCalledWith({
+      _id: { $eq: CATEGORY_ID },
+      lifecycle_status: 'active',
+      revision: { $eq: 3 },
+    });
     expect(policyModel.deleteOne).toHaveBeenCalled();
     expect(categoryModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        _id: CATEGORY_ID,
+        _id: { $eq: CATEGORY_ID },
         lifecycle_status: 'active',
-        revision: 3,
+        revision: { $eq: 3 },
       }),
       expect.objectContaining({
         $unset: expect.objectContaining({
@@ -1171,6 +1213,17 @@ describe('CategoryIntegrityService lifecycle commands', () => {
         }),
         $inc: { revision: 1 },
       }),
+      expect.objectContaining({ session: expect.anything() }),
+    );
+    expect(commandModel.findOneAndUpdate).toHaveBeenCalledWith(
+      {
+        request_key: { $eq: 'delete-content-1234' },
+        payload_hash: { $eq: expect.any(String) },
+        operation: 'delete-content',
+        status: 'processing',
+        attempt_token: expect.any(String),
+      },
+      expect.objectContaining({ $set: expect.any(Object) }),
       expect.objectContaining({ session: expect.anything() }),
     );
     const update = categoryModel.findOneAndUpdate.mock.calls[0][1];

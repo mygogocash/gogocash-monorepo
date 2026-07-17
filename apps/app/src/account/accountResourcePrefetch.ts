@@ -22,12 +22,14 @@ const PUBLIC_PREFETCH_RESOURCE_IDS = ["homeBanner", "topBrand", "brandCatalog"] 
 
 export const PUBLIC_CATALOG_REFETCH_RESOURCE_IDS = [
   "allBrandBanner",
+  "allShopBanner",
   "homeBanner",
   "topBrand",
   "merchantCoupons",
   "brandCatalog",
   "categoryList",
   "catalog",
+  "productDiscoveryBanner",
 ] as const satisfies readonly CustomerAccountResourceId[];
 
 const PUBLIC_CATALOG_RESOURCE_ID_SET = new Set<string>(

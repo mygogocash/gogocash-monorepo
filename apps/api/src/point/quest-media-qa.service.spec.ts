@@ -1,4 +1,8 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { Types } from 'mongoose';
 
@@ -105,6 +109,33 @@ describe('QuestMediaQaService', () => {
     expect(commandModel.findOne).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['request_key', { $ne: '' }],
+    ['qa_marker', { $gt: '' }],
+    ['cleanup_nonce', ['n'.repeat(32)]],
+    ['quest_id', { $oid: new Types.ObjectId().toHexString() }],
+  ])(
+    'rejects a non-string %s before any database call',
+    async (field, value) => {
+      process.env.QUEST_MEDIA_QA_ENABLED = 'true';
+      const input = {
+        quest_id: new Types.ObjectId().toHexString(),
+        request_key: 'quest-media:qa:test-command',
+        qa_marker: 'quest-media-qa:test-marker',
+        cleanup_nonce: 'n'.repeat(32),
+        [field]: value,
+      };
+
+      await expect(
+        service().cleanupAcceptance(input as never),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(commandModel.findOne).not.toHaveBeenCalled();
+      expect(questModel.findOne).not.toHaveBeenCalled();
+      expect(cleanup.journal).not.toHaveBeenCalled();
+    },
+  );
+
   it('journals all four exact objects before deleting the marker-owned quest, then purges intent and tombstones', async () => {
     process.env.QUEST_MEDIA_QA_ENABLED = 'true';
     const questId = new Types.ObjectId();
@@ -166,6 +197,20 @@ describe('QuestMediaQaService', () => {
       }),
     );
 
+    expect(commandModel.findOne).toHaveBeenCalledWith({
+      request_key: { $eq: command.request_key },
+      quest_id: { $eq: questId },
+      status: 'committed',
+      qa_marker: { $eq: marker },
+    });
+    expect(questModel.findOne).toHaveBeenCalledWith({
+      _id: { $eq: questId },
+      qa_marker: { $eq: marker },
+      media_command_key: { $eq: command.request_key },
+      media_attempt_token: command.attempt_token,
+      campaign_revision: command.committed_revision,
+    });
+
     expect(cleanup.journal).toHaveBeenCalledWith(
       expect.objectContaining({
         reason: 'qa-acceptance',
@@ -177,18 +222,28 @@ describe('QuestMediaQaService', () => {
     );
     expect(questModel.findOneAndDelete).toHaveBeenCalledWith(
       expect.objectContaining({
-        _id: questId,
-        qa_marker: marker,
-        media_command_key: command.request_key,
+        _id: { $eq: questId },
+        qa_marker: { $eq: marker },
+        media_command_key: { $eq: command.request_key },
         media_attempt_token: command.attempt_token,
         campaign_revision: 1,
       }),
     );
+    expect(commandModel.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_key: { $eq: command.request_key },
+        quest_id: { $eq: questId },
+        qa_marker: { $eq: marker },
+      }),
+      expect.any(Object),
+      { new: true },
+    );
     expect(commandModel.deleteOne).toHaveBeenCalledWith(
       expect.objectContaining({
-        request_key: command.request_key,
+        request_key: { $eq: command.request_key },
+        quest_id: { $eq: questId },
         attempt_token: command.attempt_token,
-        qa_marker: marker,
+        qa_marker: { $eq: marker },
         qa_cleanup_objects_deleted_at: { $exists: true },
       }),
     );

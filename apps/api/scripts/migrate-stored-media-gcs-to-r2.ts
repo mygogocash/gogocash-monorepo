@@ -41,6 +41,16 @@ export const GCS_R2_TARGET_SPECS: StoredMediaTargetSpec[] = [
     fields: ['image_1', 'image_2', 'image_3', 'image_4', 'image_5'],
   },
   {
+    collection: 'all_brand_banners',
+    folder: 'banner-all-brand',
+    fields: ['image_1', 'image_2', 'image_3'],
+  },
+  {
+    collection: 'specific_page_banners',
+    folder: 'banner-specific-page',
+    fields: ['image_1', 'image_2', 'image_3'],
+  },
+  {
     collection: 'offers',
     folder: 'brands',
     fields: [

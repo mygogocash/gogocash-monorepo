@@ -10,6 +10,7 @@ export type ShopCoupon = {
   endTime: string | null;
   eligibility: string | null;
   id: string;
+  link: string | null;
   maxCap: number | null;
   maxCapCurrency: string | null;
   minimumSpend: string | null;

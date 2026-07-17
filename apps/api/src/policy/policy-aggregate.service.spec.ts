@@ -68,6 +68,12 @@ function matches(row: any, filter: any): boolean {
       !(expected instanceof Types.ObjectId)
     ) {
       const condition = expected as Record<string, any>;
+      if (
+        '$eq' in condition &&
+        comparable(actual) !== comparable(condition.$eq)
+      ) {
+        return false;
+      }
       if ('$exists' in condition) {
         if ((actual !== undefined) !== Boolean(condition.$exists)) return false;
       }
@@ -512,11 +518,32 @@ function expiredCommand(
 }
 
 describe('PolicyAggregateService', () => {
+  it('rejects an object-valued request key before transaction or database access', async () => {
+    const h = makeHarness();
+
+    await expect(
+      h.service.execute({
+        ...request,
+        request_key: { $ne: null } as unknown as string,
+      }),
+    ).rejects.toThrow();
+
+    expect(h.connection.db.admin).not.toHaveBeenCalled();
+    expect(h.commandModel.findOne).not.toHaveBeenCalled();
+    expect(h.commandModel.create).not.toHaveBeenCalled();
+  });
+
   it('fences command claim at write time and creates the initial lease in that session', async () => {
     const h = makeHarness();
 
     await h.service.execute(request);
 
+    expect(h.commandModel.findOne).toHaveBeenNthCalledWith(1, {
+      request_key: { $eq: request.request_key },
+    });
+    expect(h.commandModel.findOne).toHaveBeenNthCalledWith(2, {
+      request_key: { $eq: request.request_key },
+    });
     expect(h.categoryIntegrity.withIntegrityMutation).toHaveBeenCalledTimes(1);
     expect(h.commandModel.create).toHaveBeenCalledWith(
       [expect.objectContaining({ request_key: request.request_key })],

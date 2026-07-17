@@ -21,6 +21,7 @@ describe("mapPublicShopCoupons", () => {
           end_date: "2026-07-22",
           end_time: "22:15",
           destination_url: "https://tracking.example.test/godaddy?aff=1",
+          link: "https://example.test/godaddy",
           code_enabled: false,
           eligibility: "members",
           max_cap: "500",
@@ -45,6 +46,7 @@ describe("mapPublicShopCoupons", () => {
         endTime: "22:15",
         eligibility: "members",
         destinationUrl: "https://tracking.example.test/godaddy?aff=1",
+        link: "https://example.test/godaddy",
         maxCap: 500,
         maxCapCurrency: "THB",
         minimumSpend: "100",
@@ -97,7 +99,6 @@ describe("mapPublicShopCoupons", () => {
       }),
     ]);
   });
-
   it("given a sparse legacy coupon > then preserves unknown money and usage semantics", () => {
     const [coupon] = mapPublicShopCoupons([
       {
@@ -113,6 +114,7 @@ describe("mapPublicShopCoupons", () => {
       destinationUrl: null,
       discountCurrency: null,
       discountType: null,
+      link: null,
       maxCap: null,
       maxCapCurrency: null,
       minimumSpendCurrency: null,

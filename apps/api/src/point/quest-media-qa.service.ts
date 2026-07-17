@@ -10,6 +10,11 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { Model, Types } from 'mongoose';
 
 import type { CommandOwnedStoredMediaAsset } from 'src/media/stored-media.service';
+import {
+  mongoEq,
+  requireObjectId,
+  requireTrimmedString,
+} from 'src/common/mongo-query';
 
 import { QuestMediaQaCleanupDto } from './dto/create-quest.dto';
 import { QuestMediaCleanupService } from './quest-media-cleanup.service';
@@ -216,32 +221,41 @@ export class QuestMediaQaService {
 
   async cleanupAcceptance(input: QuestMediaQaCleanupDto) {
     assertQuestMediaQaMutationEnabled();
-    const questId = new Types.ObjectId(input.quest_id);
+    const requestKey = requireTrimmedString(
+      input.request_key,
+      200,
+      'request key',
+    );
+    const qaMarker = requireTrimmedString(input.qa_marker, 200, 'QA marker');
+    const cleanupNonce = requireTrimmedString(
+      input.cleanup_nonce,
+      256,
+      'cleanup nonce',
+    );
+    const questId = requireObjectId(input.quest_id, 'quest id');
     const command = (await this.commandModel
       .findOne({
-        request_key: input.request_key,
-        quest_id: questId,
+        request_key: mongoEq(requestKey),
+        quest_id: mongoEq(questId),
         status: 'committed',
-        qa_marker: input.qa_marker,
+        qa_marker: mongoEq(qaMarker),
       })
       .read('primary')
       .lean()) as QaCommand | null;
     if (!command) {
       throw new NotFoundException('Marker-owned quest media command not found');
     }
-    if (
-      !nonceMatches(input.cleanup_nonce, command.qa_cleanup_nonce_hash ?? '')
-    ) {
+    if (!nonceMatches(cleanupNonce, command.qa_cleanup_nonce_hash ?? '')) {
       throw new UnauthorizedException('Quest media cleanup nonce is invalid');
     }
 
     const { assets, byRole } = exactQaAssets(command);
-    const cleanupKey = `qa-cleanup:${input.request_key}:${command.attempt_token}`;
+    const cleanupKey = `qa-cleanup:${requestKey}:${command.attempt_token}`;
     const quest = await this.questModel
       .findOne({
-        _id: questId,
-        qa_marker: input.qa_marker,
-        media_command_key: input.request_key,
+        _id: mongoEq(questId),
+        qa_marker: mongoEq(qaMarker),
+        media_command_key: mongoEq(requestKey),
         media_attempt_token: command.attempt_token,
         campaign_revision: command.committed_revision,
       })
@@ -265,9 +279,9 @@ export class QuestMediaQaService {
         assets,
       });
       const deletedQuest = await this.questModel.findOneAndDelete({
-        _id: questId,
-        qa_marker: input.qa_marker,
-        media_command_key: input.request_key,
+        _id: mongoEq(questId),
+        qa_marker: mongoEq(qaMarker),
+        media_command_key: mongoEq(requestKey),
         media_attempt_token: command.attempt_token,
         campaign_revision: command.committed_revision,
       });
@@ -299,11 +313,11 @@ export class QuestMediaQaService {
       }
       const marked = await this.commandModel.findOneAndUpdate(
         {
-          request_key: input.request_key,
-          quest_id: questId,
+          request_key: mongoEq(requestKey),
+          quest_id: mongoEq(questId),
           attempt_token: command.attempt_token,
           status: 'committed',
-          qa_marker: input.qa_marker,
+          qa_marker: mongoEq(qaMarker),
           qa_cleanup_nonce_hash: command.qa_cleanup_nonce_hash,
         },
         { $set: { qa_cleanup_objects_deleted_at: new Date() } },
@@ -326,11 +340,11 @@ export class QuestMediaQaService {
       );
     }
     const deletedIntent = await this.commandModel.deleteOne({
-      request_key: input.request_key,
-      quest_id: questId,
+      request_key: mongoEq(requestKey),
+      quest_id: mongoEq(questId),
       attempt_token: command.attempt_token,
       status: 'committed',
-      qa_marker: input.qa_marker,
+      qa_marker: mongoEq(qaMarker),
       qa_cleanup_nonce_hash: command.qa_cleanup_nonce_hash,
       qa_cleanup_objects_deleted_at: { $exists: true },
     });

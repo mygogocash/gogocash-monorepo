@@ -153,6 +153,7 @@ function ShopCouponCard({
   const apiUrl = getMobileEnv().apiUrl;
   const viewEventId = useRef(createCouponEventId("view"));
   const [termsExpanded, setTermsExpanded] = useState(false);
+  const hasVisibleCode = coupon.codeEnabled && Boolean(coupon.code);
 
   useEffect(() => {
     void recordCouponEngagement({
@@ -231,7 +232,7 @@ function ShopCouponCard({
           {coupon.remainingQuantity} {tc("remaining")}
         </Text>
       ) : null}
-      {coupon.codeEnabled && coupon.code ? (
+      {hasVisibleCode ? (
         <View style={styles.codeRow}>
           <Text selectable style={styles.codeText}>
             {coupon.code}

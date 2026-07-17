@@ -35,6 +35,7 @@ function createOfferServiceMock(): OfferServiceMock {
     getOfferExtraPoint: jest.fn().mockResolvedValue({ point: 1 }),
     getBannerHome: jest.fn().mockResolvedValue({ banner: 'home' }),
     getAllBrandBanner: jest.fn().mockResolvedValue({ banner: 'all-brand' }),
+    getSpecificPageBanner: jest.fn().mockResolvedValue({ banner: 'specific' }),
     getDisplayTopBrands: jest.fn().mockResolvedValue({ data: [] }),
     createAdminOffer: jest.fn().mockResolvedValue({ _id: 'offer-new' }),
     getCoupon: jest.fn().mockResolvedValue({ data: [], total: 0 }),
@@ -116,6 +117,15 @@ describe('OfferController', () => {
         banner: 'all-brand',
       });
       expect(service.getAllBrandBanner).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getSpecificPageBanner', () => {
+    it('getSpecificPageBanner > then delegates the stable target key', async () => {
+      await expect(
+        controller.getSpecificPageBanner('all-shops'),
+      ).resolves.toEqual({ banner: 'specific' });
+      expect(service.getSpecificPageBanner).toHaveBeenCalledWith('all-shops');
     });
   });
 

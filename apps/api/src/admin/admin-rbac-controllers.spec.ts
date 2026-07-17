@@ -192,6 +192,15 @@ describe('Admin Phase-2 RBAC gap closures', () => {
     );
   });
 
+  it('update specific page banner requires support+ to align with admin banner:manage', () => {
+    expect(
+      rolesOnMethod(AdminController, 'updateSpecificPageBanner'),
+    ).toContain('support');
+    expect(
+      rolesOnMethod(AdminController, 'updateSpecificPageBanner'),
+    ).not.toContain('superadmin');
+  });
+
   it('create offer requires approver+ to align with admin brands:manage', () => {
     expect(methodGuards(OfferController, 'createOffer')).toEqual(
       expect.arrayContaining([AuthAdminGuard, RolesGuard]),

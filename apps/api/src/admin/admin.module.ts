@@ -78,6 +78,11 @@ import {
   BannerSchema,
 } from 'src/offer/schemas/banner.schema';
 import {
+  SPECIFIC_PAGE_BANNER_COLLECTION,
+  SPECIFIC_PAGE_BANNER_MODEL,
+  SpecificPageBannerSchema,
+} from 'src/offer/schemas/specific-page-banner.schema';
+import {
   TopBrandConfig,
   TopBrandConfigSchema,
 } from 'src/offer/schemas/top-brand-config.schema';
@@ -189,6 +194,11 @@ import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
         name: ALL_BRAND_BANNER_MODEL,
         schema: BannerSchema,
         collection: ALL_BRAND_BANNER_COLLECTION,
+      },
+      {
+        name: SPECIFIC_PAGE_BANNER_MODEL,
+        schema: SpecificPageBannerSchema,
+        collection: SPECIFIC_PAGE_BANNER_COLLECTION,
       },
       { name: TopBrandConfig.name, schema: TopBrandConfigSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },

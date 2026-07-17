@@ -29,6 +29,10 @@ function query<T>(value: T) {
 
 function matches(row: Record<string, any>, filter: Record<string, any>) {
   return Object.entries(filter).every(([key, expected]) => {
+    const literalExpected =
+      expected && typeof expected === 'object' && '$eq' in expected
+        ? expected.$eq
+        : expected;
     if (key === 'reconciliation_required') {
       return expected?.$ne === true ? row[key] !== true : row[key] === expected;
     }
@@ -39,11 +43,11 @@ function matches(row: Record<string, any>, filter: Record<string, any>) {
       return expected.$in.includes(row.status);
     }
     if (key.startsWith('asset.')) {
-      return row.asset?.[key.slice(6)] === expected;
+      return row.asset?.[key.slice(6)] === literalExpected;
     }
-    if (expected instanceof Types.ObjectId)
-      return String(row[key]) === String(expected);
-    return row[key] === expected;
+    if (literalExpected instanceof Types.ObjectId)
+      return String(row[key]) === String(literalExpected);
+    return row[key] === literalExpected;
   });
 }
 
@@ -146,6 +150,45 @@ async function journalOwned(
 }
 
 describe('PolicyMediaCleanupService', () => {
+  it('rejects an object-valued journal key before querying MongoDB', async () => {
+    const harness = makeHarness();
+
+    await expect(
+      harness.service.journalCommandOwnedAssets(
+        {
+          owner_type: 'category',
+          owner_id: OWNER_ID,
+          request_key: { $ne: null } as unknown as string,
+          payload_hash: 'b'.repeat(64),
+          attempt_token: 'cleanup-attempt-1',
+          reason: 'precommit-failure',
+          assets: [ASSET],
+        },
+        harness.session as never,
+      ),
+    ).rejects.toThrow();
+
+    expect(harness.cleanupModel.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('uses literal equality operators for the complete cleanup identity', async () => {
+    const harness = makeHarness();
+
+    await journalOwned(harness, 'precommit-failure');
+
+    expect(harness.cleanupModel.findOneAndUpdate).toHaveBeenCalledWith(
+      {
+        request_key: { $eq: 'cleanup-request-1' },
+        payload_hash: { $eq: 'b'.repeat(64) },
+        attempt_token: { $eq: 'cleanup-attempt-1' },
+        reason: { $eq: 'precommit-failure' },
+        'asset.object_key': { $eq: ASSET.object_key },
+      },
+      expect.objectContaining({ $setOnInsert: expect.any(Object) }),
+      expect.objectContaining({ upsert: true }),
+    );
+  });
+
   it('journals legacy URLs but quarantines them without registry or storage deletion', async () => {
     const harness = makeHarness();
     await harness.service.journalLegacyReplacements(

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   Injectable,
   Logger,
@@ -46,9 +47,11 @@ import {
   buildUserConversionScopeFilter,
 } from './conversion-user-id.util';
 import {
+  mongoEq,
   mongoFilter,
   mongoSetUpdate,
   requireObjectId,
+  requireTrimmedString,
 } from 'src/common/mongo-query';
 import {
   legacyQuestRewardFilter,
@@ -2188,15 +2191,38 @@ export class WithdrawService {
     createWithdrawMethod: CreateWithdrawMethod,
     id: string,
   ) {
+    if (typeof id !== 'string') {
+      throw new BadRequestException('The user id you provided is not valid.');
+    }
+    const authenticatedUserId = requireObjectId(id, 'user id');
+
+    const rawAccountNo: unknown = createWithdrawMethod?.account_no;
+    if (typeof rawAccountNo !== 'string') {
+      throw new BadRequestException(
+        'The account number you provided is not valid.',
+      );
+    }
+    const accountNo = requireTrimmedString(
+      rawAccountNo,
+      rawAccountNo.length,
+      'account number',
+    );
+    if (accountNo !== rawAccountNo || !/^[0-9]+$/.test(accountNo)) {
+      throw new BadRequestException(
+        'The account number you provided is not valid.',
+      );
+    }
+
     const user = await this.userModel.findOne({
-      _id: new Types.ObjectId(id),
+      _id: authenticatedUserId,
     });
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
+    const ownerId = new Types.ObjectId(user._id);
     const checkDup = await this.withdrawMethodModel.findOne({
-      account_no: createWithdrawMethod.account_no,
-      user_id: new Types.ObjectId(user._id),
+      account_no: mongoEq(accountNo),
+      user_id: ownerId,
     });
     if (checkDup) {
       throw new HttpException(
@@ -2204,8 +2230,14 @@ export class WithdrawService {
         400,
       );
     }
-    createWithdrawMethod['user_id'] = new Types.ObjectId(user._id);
-    const dt = await this.withdrawMethodModel.create(createWithdrawMethod);
+    const dt = await this.withdrawMethodModel.create({
+      account_no: accountNo,
+      account_name: createWithdrawMethod.account_name,
+      bank_name: createWithdrawMethod.bank_name,
+      bank_code: createWithdrawMethod.bank_code,
+      is_default: createWithdrawMethod.is_default,
+      user_id: ownerId,
+    });
     return {
       message: 'Withdraw method created',
       data: dt,

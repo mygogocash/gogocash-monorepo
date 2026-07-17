@@ -10,6 +10,7 @@ import {
   ProductTypeDto,
   UpdateAdminDto,
   UpdateBannerHomeDto,
+  UpdateSpecificPageBannerDto,
   UpdateFeeRateDto,
   UpdateRequestWithdrawDto,
 } from './dto/update-admin.dto';
@@ -29,6 +30,8 @@ import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
 import { ALL_BRAND_BANNER_MODEL } from 'src/offer/schemas/banner.schema';
+import { SPECIFIC_PAGE_BANNER_MODEL } from 'src/offer/schemas/specific-page-banner.schema';
+import { requireSpecificPageBannerTarget } from 'src/offer/specific-page-banner.contract';
 import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
 import {
   MAX_TOP_BRANDS,
@@ -106,6 +109,8 @@ export class AdminService {
     @InjectModel(Banner.name) private bannerModel: Model<Banner>,
     @InjectModel(ALL_BRAND_BANNER_MODEL)
     private allBrandBannerModel: Model<Banner>,
+    @InjectModel(SPECIFIC_PAGE_BANNER_MODEL)
+    private specificPageBannerModel: Model<Banner>,
     @InjectModel(TopBrandConfig.name)
     private topBrandConfigModel: Model<TopBrandConfig>,
     @InjectModel(Deeplink.name) private deeplinkModel: Model<Deeplink>,
@@ -1071,33 +1076,85 @@ export class AdminService {
     model: Model<Banner>,
     mediaFolder: (typeof MEDIA_FOLDER)[keyof typeof MEDIA_FOLDER],
     successMessage: string,
+    options: {
+      fallbackModel?: Model<Banner>;
+      deferMediaCleanup?: boolean;
+      filter?: Record<string, unknown>;
+      identity?: Record<string, unknown>;
+      slotCount?: 3 | 5;
+    } = {},
   ) {
-    const data = (await model.findOne().exec()) ?? {};
-    const current = data as Record<string, any>;
+    const filter = options.filter ?? {};
+    const slotCount = options.slotCount ?? 5;
+    let data = await model.findOne(filter).exec();
+    const fallbackData = options.fallbackModel
+      ? await options.fallbackModel.findOne().exec()
+      : null;
+    if (!data && fallbackData) {
+      data = fallbackData;
+    }
+    const current = (data ?? {}) as Record<string, any>;
+    const fallbackMedia = new Set<string>();
+    if (fallbackData) {
+      const fallback = fallbackData as unknown as Record<string, unknown>;
+      for (let slot = 1; slot <= 5; slot += 1) {
+        const reference = fallback[`image_${slot}`];
+        if (typeof reference === 'string' && reference) {
+          fallbackMedia.add(reference);
+        }
+      }
+    }
+    const stagedUploads: string[] = [];
+    const replacedMedia = new Set<string>();
+    const cleanupMedia = async (refs: Iterable<string>) => {
+      await Promise.allSettled(
+        Array.from(refs, (ref) => this.storedMediaService.deleteStored(ref)),
+      );
+    };
 
     const imageUpdates: Record<string, string | null> = {};
-    for (let slot = 1; slot <= 5; slot += 1) {
+    for (let slot = 1; slot <= slotCount; slot += 1) {
       const imageKey = `image_${slot}` as const;
-      const clearFlag = Boolean(
-        updateData[`clear_image_${slot}` as keyof UpdateBannerHomeDto],
-      );
+      const clearFlag =
+        updateData[`clear_image_${slot}` as keyof UpdateBannerHomeDto] === true;
       const existing = current[imageKey];
       const upload = updateData[imageKey as keyof UpdateBannerHomeDto];
 
       if (clearFlag) {
-        if (existing) {
-          await this.storedMediaService.deleteStored(String(existing));
+        if (existing && !fallbackMedia.has(String(existing))) {
+          if (options.deferMediaCleanup) {
+            replacedMedia.add(String(existing));
+          } else {
+            await this.storedMediaService.deleteStored(String(existing));
+          }
         }
         imageUpdates[imageKey] = null;
         continue;
       }
 
       if (this.isMulterUploadFile(upload)) {
-        imageUpdates[imageKey] = await this.storedMediaService.replace(
-          upload,
-          mediaFolder,
-          existing,
-        );
+        if (options.deferMediaCleanup) {
+          try {
+            const stored = await this.storedMediaService.upload(
+              upload,
+              mediaFolder,
+            );
+            stagedUploads.push(stored);
+            imageUpdates[imageKey] = stored;
+            if (existing && !fallbackMedia.has(String(existing))) {
+              replacedMedia.add(String(existing));
+            }
+          } catch (error) {
+            await cleanupMedia(stagedUploads);
+            throw error;
+          }
+        } else {
+          imageUpdates[imageKey] = await this.storedMediaService.replace(
+            upload,
+            mediaFolder,
+            existing,
+          );
+        }
         continue;
       }
 
@@ -1114,6 +1171,7 @@ export class AdminService {
     };
 
     const payload: Record<string, any> = {
+      ...(options.identity ?? {}),
       ...imageUpdates,
       link_1: resolveSlotLink(updateData.link_1, current.link_1),
       link_2: resolveSlotLink(updateData.link_2, current.link_2),
@@ -1186,9 +1244,33 @@ export class AdminService {
           : updateData.end_date_5,
     };
 
-    await model
-      .findOneAndUpdate({}, { $set: payload }, { upsert: true, new: true })
-      .exec();
+    // Page-specific carousels have exactly three visible slots. Strip hidden
+    // legacy home positions even when callers bypass the HTTP DTO.
+    for (let slot = slotCount + 1; slot <= 5; slot += 1) {
+      delete payload[`image_${slot}`];
+      delete payload[`link_${slot}`];
+      delete payload[`enabled_${slot}`];
+      delete payload[`start_date_${slot}`];
+      delete payload[`end_date_${slot}`];
+    }
+
+    try {
+      await model
+        .findOneAndUpdate(
+          filter,
+          { $set: payload },
+          { upsert: true, new: true },
+        )
+        .exec();
+    } catch (error) {
+      if (options.deferMediaCleanup) {
+        await cleanupMedia(stagedUploads);
+      }
+      throw error;
+    }
+    if (options.deferMediaCleanup) {
+      await cleanupMedia(replacedMedia);
+    }
     return { message: successMessage };
   }
 
@@ -1202,11 +1284,27 @@ export class AdminService {
   }
 
   updateAllBrandBanner(updateData: UpdateBannerHomeDto) {
+    return this.updateSpecificPageBanner('all-brands', updateData);
+  }
+
+  async updateSpecificPageBanner(
+    targetValue: string,
+    updateData: UpdateSpecificPageBannerDto | UpdateBannerHomeDto,
+  ) {
+    const target = requireSpecificPageBannerTarget(targetValue);
     return this.updateBanner(
       updateData,
-      this.allBrandBannerModel,
-      MEDIA_FOLDER.BANNER_ALL_BRAND,
-      'Update all brand banner success',
+      this.specificPageBannerModel,
+      MEDIA_FOLDER.BANNER_SPECIFIC_PAGE,
+      `Update ${target} specific page banner success`,
+      {
+        deferMediaCleanup: true,
+        fallbackModel:
+          target === 'all-brands' ? this.allBrandBannerModel : undefined,
+        filter: { target },
+        identity: { target },
+        slotCount: 3,
+      },
     );
   }
 
@@ -1215,6 +1313,17 @@ export class AdminService {
   }
 
   async getAllBrandBanner() {
+    return this.getSpecificPageBanner('all-brands');
+  }
+
+  async getSpecificPageBanner(targetValue: string) {
+    const target = requireSpecificPageBannerTarget(targetValue);
+    const banner = await this.specificPageBannerModel
+      .findOne({ target })
+      .exec();
+    if (banner || target !== 'all-brands') {
+      return banner;
+    }
     return this.allBrandBannerModel.findOne().exec();
   }
 

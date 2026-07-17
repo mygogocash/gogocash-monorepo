@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
   OnApplicationBootstrap,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -28,6 +29,8 @@ import {
 } from 'src/policy/policy-media-write.service';
 import { FavoriteOffer } from './schemas/favorite-offer.schema';
 import { ALL_BRAND_BANNER_MODEL, Banner } from './schemas/banner.schema';
+import { SPECIFIC_PAGE_BANNER_MODEL } from './schemas/specific-page-banner.schema';
+import { requireSpecificPageBannerTarget } from './specific-page-banner.contract';
 import { TopBrandConfig } from './schemas/top-brand-config.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { UpdateCouponDto } from './dto/update-offer.dto';
@@ -552,6 +555,9 @@ export class OfferService implements OnApplicationBootstrap {
     private readonly policyMediaWrite: PolicyMediaWriteService,
     private readonly policyMediaRegistry: PolicyMediaAssetRegistryService,
     private readonly policyMediaCleanup: PolicyMediaCleanupService,
+    @Optional()
+    @InjectModel(SPECIFIC_PAGE_BANNER_MODEL)
+    private specificPageBannerModel?: Model<Banner>,
   ) {}
 
   /**
@@ -1356,6 +1362,16 @@ export class OfferService implements OnApplicationBootstrap {
   }
 
   async getAllBrandBanner() {
+    return this.getSpecificPageBanner('all-brands');
+  }
+
+  async getSpecificPageBanner(targetValue: string) {
+    const target = requireSpecificPageBannerTarget(targetValue);
+    const banner =
+      (await this.specificPageBannerModel?.findOne({ target }).exec()) ?? null;
+    if (banner || target !== 'all-brands') {
+      return banner;
+    }
     return this.allBrandBannerModel.findOne().exec();
   }
 
@@ -1633,8 +1649,13 @@ export class OfferService implements OnApplicationBootstrap {
   async saveMissingOrder(
     user_id: string,
     payload: SaveMissingOrderDto,
-    files: Express.Multer.File[],
+    files: Express.Multer.File[] | undefined,
   ) {
+    if (files !== undefined && !Array.isArray(files)) {
+      throw new BadRequestException(
+        'Evidence files must be provided as an array.',
+      );
+    }
     const userObjectId = requireObjectId(user_id, 'user id');
     const offerObjectId = requireObjectId(payload.offer_id, 'offer id');
     const orderId = payload.orderId.trim();
@@ -1650,7 +1671,7 @@ export class OfferService implements OnApplicationBootstrap {
         'Order ID, purchase date, and amount must be valid.',
       );
     }
-    if ((files?.length ?? 0) > 0) {
+    if (files && files.length > 0) {
       throw new ServiceUnavailableException(
         MISSING_ORDER_EVIDENCE_UNAVAILABLE_MESSAGE,
       );

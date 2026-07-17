@@ -13,6 +13,8 @@ import {
   mockBanner,
   mockBannerHomeSmall,
   mockBannerAllBrandPage,
+  mockBannerAllShopsPage,
+  mockBannerProductDiscoveryPage,
   mockCategories,
   mockCoupons,
   mockMyCashback,
@@ -77,6 +79,25 @@ export type MockApiInput = {
 };
 
 export type MockApiResult = { status: number; body: unknown };
+
+const mockSpecificPageBanners: Record<string, Record<string, unknown>> = {
+  "all-brands": mockBannerAllBrandPage,
+  "all-shops": mockBannerAllShopsPage,
+  "product-discovery": mockBannerProductDiscoveryPage,
+};
+
+function resolveMockSpecificPageBanner(
+  path: string[],
+  joined: string,
+): Record<string, unknown> | null {
+  if (joined === "admin/banner-all-brand-page") {
+    return mockSpecificPageBanners["all-brands"] ?? null;
+  }
+  if (path[0] !== "admin" || path[1] !== "banner-specific-page") {
+    return null;
+  }
+  return mockSpecificPageBanners[path[2] ?? ""] ?? null;
+}
 
 const ok = (body: unknown): MockApiResult => ({ status: 200, body });
 const jsonErr = (status: number, body: unknown): MockApiResult => ({
@@ -1009,8 +1030,9 @@ function handleMockGET(
     return ok(mockBannerHomeSmall);
   }
 
-  if (joined === "admin/banner-all-brand-page") {
-    return ok(mockBannerAllBrandPage);
+  const specificPageBanner = resolveMockSpecificPageBanner(path, joined);
+  if (specificPageBanner) {
+    return ok(specificPageBanner);
   }
 
   if (path[0] === "admin" && path[1] === "get-mycashback-user") {
@@ -1117,6 +1139,7 @@ async function handleMockPOST(
   joined: string,
   body: unknown,
 ): Promise<MockApiResult> {
+  const specificPageBanner = resolveMockSpecificPageBanner(path, joined);
   // Mirrors POST /admin/create-category (PolicyTable's "New category" flow).
   if (joined === "admin/create-category") {
     const b = body as { data?: { name?: string }; name?: string } | null;
@@ -1462,14 +1485,14 @@ async function handleMockPOST(
   if (
     joined === "admin/banner-home" ||
     joined === "admin/banner-home-small" ||
-    joined === "admin/banner-all-brand-page"
+    specificPageBanner != null
   ) {
     const target =
       joined === "admin/banner-home"
         ? mockBanner
         : joined === "admin/banner-home-small"
           ? mockBannerHomeSmall
-          : mockBannerAllBrandPage;
+          : specificPageBanner!;
     const raw = (body && typeof body === "object" ? body : {}) as Record<
       string,
       unknown
@@ -2792,7 +2815,8 @@ function requiredWritePermission(
   if (
     joined === "admin/banner-home" ||
     joined === "admin/banner-home-small" ||
-    joined === "admin/banner-all-brand-page"
+    joined === "admin/banner-all-brand-page" ||
+    (p0 === "admin" && p1 === "banner-specific-page")
   ) {
     return "banner:manage";
   }

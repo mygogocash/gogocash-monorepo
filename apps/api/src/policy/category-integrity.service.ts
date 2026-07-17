@@ -10,6 +10,12 @@ import { createHash, randomUUID } from 'node:crypto';
 import { ClientSession, Connection, Model, Types } from 'mongoose';
 
 import {
+  mongoEq,
+  requireFiniteNumber,
+  requireObjectId,
+  requireTrimmedString,
+} from 'src/common/mongo-query';
+import {
   Category,
   CategoryMediaAsset,
 } from 'src/offer/schemas/category.schema';
@@ -134,14 +140,14 @@ function serializedCategory(value: unknown): Record<string, unknown> {
 function payloadHash(
   operation: LifecycleOperation,
   categoryId: Types.ObjectId,
-  dto: CategoryLifecycleCommandDto,
+  expectedRevision: number,
 ) {
   return createHash('sha256')
     .update(
       JSON.stringify({
         operation,
         category_id: String(categoryId),
-        expected_revision: dto.expected_revision,
+        expected_revision: expectedRevision,
       }),
     )
     .digest('hex');
@@ -1080,14 +1086,22 @@ export class CategoryIntegrityService {
       categoryIdValue,
       dto,
       'delete-content',
-      async ({ categoryId, category, session, attemptToken }) => {
+      async ({
+        categoryId,
+        category,
+        session,
+        attemptToken,
+        requestKey,
+        expectedRevision,
+        commandHash,
+      }) => {
         const assets = this.categoryContentAssets(category);
         const updated = await this.categoryModel
           .findOneAndUpdate(
             {
-              _id: categoryId,
+              _id: mongoEq(categoryId),
               lifecycle_status: 'active',
-              revision: dto.expected_revision,
+              revision: mongoEq(expectedRevision),
             },
             {
               $unset: {
@@ -1106,15 +1120,15 @@ export class CategoryIntegrityService {
         );
         await this.journalAssets(
           categoryId,
-          dto.request_key,
-          payloadHash('delete-content', categoryId, dto),
+          requestKey,
+          commandHash,
           attemptToken,
           'content-delete',
           assets,
           session,
         );
         return {
-          request_key: dto.request_key,
+          request_key: requestKey,
           operation: 'delete-content',
           category: serializedCategory(updated),
           policy_deleted: deletedPolicy.deletedCount > 0,
@@ -1151,7 +1165,13 @@ export class CategoryIntegrityService {
       categoryIdValue,
       dto,
       'retire',
-      async ({ categoryId, category, session }) => {
+      async ({
+        categoryId,
+        category,
+        session,
+        requestKey,
+        expectedRevision,
+      }) => {
         const normalized = normalizeCategoryIdentity(
           category.name_normalized ?? category.name,
         )?.normalized;
@@ -1165,9 +1185,9 @@ export class CategoryIntegrityService {
         const updated = await this.categoryModel
           .findOneAndUpdate(
             {
-              _id: categoryId,
+              _id: mongoEq(categoryId),
               lifecycle_status: 'active',
-              revision: dto.expected_revision,
+              revision: mongoEq(expectedRevision),
             },
             {
               $set: {
@@ -1196,7 +1216,7 @@ export class CategoryIntegrityService {
           { session },
         );
         return {
-          request_key: dto.request_key,
+          request_key: requestKey,
           operation: 'retire',
           category: serializedCategory(updated),
           reference_counts: referenceCounts,
@@ -1213,7 +1233,15 @@ export class CategoryIntegrityService {
       categoryIdValue,
       dto,
       'purge',
-      async ({ categoryId, category, session, attemptToken }) => {
+      async ({
+        categoryId,
+        category,
+        session,
+        attemptToken,
+        requestKey,
+        expectedRevision,
+        commandHash,
+      }) => {
         const purgeAfter = category.purge_after
           ? new Date(category.purge_after as Date)
           : null;
@@ -1237,8 +1265,8 @@ export class CategoryIntegrityService {
         const assets = this.categoryAssets(category);
         await this.journalAssets(
           categoryId,
-          dto.request_key,
-          payloadHash('purge', categoryId, dto),
+          requestKey,
+          commandHash,
           attemptToken,
           'category-purge',
           assets,
@@ -1250,9 +1278,9 @@ export class CategoryIntegrityService {
         );
         const deleted = await this.categoryModel.deleteOne(
           {
-            _id: categoryId,
+            _id: mongoEq(categoryId),
             lifecycle_status: 'retired',
-            revision: dto.expected_revision,
+            revision: mongoEq(expectedRevision),
             purge_after: { $lte: new Date() },
           },
           { session },
@@ -1271,7 +1299,7 @@ export class CategoryIntegrityService {
           { session },
         );
         return {
-          request_key: dto.request_key,
+          request_key: requestKey,
           operation: 'purge',
           category_id: String(categoryId),
           purged: true,
@@ -1291,24 +1319,33 @@ export class CategoryIntegrityService {
       category: Record<string, unknown>;
       session: ClientSession;
       attemptToken: string;
+      requestKey: string;
+      expectedRevision: number;
+      commandHash: string;
     }) => Promise<LifecycleResponse>,
   ): Promise<LifecycleResponse> {
-    if (!Types.ObjectId.isValid(categoryIdValue)) {
-      throw new BadRequestException('Invalid category id');
-    }
-    if (!Number.isInteger(dto.expected_revision) || dto.expected_revision < 1) {
+    const categoryId = requireObjectId(categoryIdValue, 'category id');
+    const requestKey = requireTrimmedString(
+      dto.request_key,
+      160,
+      'request_key',
+    );
+    const expectedRevision = requireFiniteNumber(
+      dto.expected_revision,
+      'expected_revision',
+    );
+    if (
+      !Number.isSafeInteger(expectedRevision) ||
+      expectedRevision < 1 ||
+      expectedRevision !== dto.expected_revision
+    ) {
       throw new BadRequestException(
         'expected_revision must be a positive integer',
       );
     }
     await this.assertReady();
-    const categoryId = new Types.ObjectId(categoryIdValue);
-    const hash = payloadHash(operation, categoryId, dto);
-    const replay = await this.readLifecycleReplay(
-      dto.request_key,
-      hash,
-      operation,
-    );
+    const hash = payloadHash(operation, categoryId, expectedRevision);
+    const replay = await this.readLifecycleReplay(requestKey, hash, operation);
     if (replay) return replay;
 
     const session = await this.connection.startSession();
@@ -1318,7 +1355,7 @@ export class CategoryIntegrityService {
         response = undefined;
         await this.fenceReady(session);
         const existing = await this.commandModel
-          .findOne({ request_key: dto.request_key })
+          .findOne({ request_key: mongoEq(requestKey) })
           .session(session)
           .lean();
         if (existing) {
@@ -1342,15 +1379,15 @@ export class CategoryIntegrityService {
         const requiredStatus = operation === 'purge' ? 'retired' : 'active';
         const category = await this.categoryModel
           .findOne({
-            _id: categoryId,
+            _id: mongoEq(categoryId),
             lifecycle_status: requiredStatus,
-            revision: dto.expected_revision,
+            revision: mongoEq(expectedRevision),
           })
           .session(session)
           .lean();
         if (!category) {
           const current = await this.categoryModel
-            .findOne({ _id: categoryId })
+            .findOne({ _id: mongoEq(categoryId) })
             .session(session)
             .lean();
           if (!current) throw new NotFoundException('Category not found');
@@ -1361,7 +1398,7 @@ export class CategoryIntegrityService {
         await this.commandModel.create(
           [
             {
-              request_key: dto.request_key,
+              request_key: requestKey,
               payload_hash: hash,
               category_id: categoryId,
               operation,
@@ -1377,12 +1414,15 @@ export class CategoryIntegrityService {
           category: category as unknown as Record<string, unknown>,
           session,
           attemptToken,
+          requestKey,
+          expectedRevision,
+          commandHash: hash,
         });
         const committed = await this.commandModel
           .findOneAndUpdate(
             {
-              request_key: dto.request_key,
-              payload_hash: hash,
+              request_key: mongoEq(requestKey),
+              payload_hash: mongoEq(hash),
               operation,
               status: 'processing',
               attempt_token: attemptToken,
@@ -1399,7 +1439,7 @@ export class CategoryIntegrityService {
     } catch (error) {
       if (!isDuplicateKeyError(error)) throw error;
       const collisionReplay = await this.readLifecycleReplay(
-        dto.request_key,
+        requestKey,
         hash,
         operation,
       );
@@ -1421,7 +1461,7 @@ export class CategoryIntegrityService {
     operation: LifecycleOperation,
   ) {
     const existing = await this.commandModel
-      .findOne({ request_key: requestKey })
+      .findOne({ request_key: mongoEq(requestKey) })
       .lean();
     if (!existing) return undefined;
     if (existing.payload_hash !== hash || existing.operation !== operation) {

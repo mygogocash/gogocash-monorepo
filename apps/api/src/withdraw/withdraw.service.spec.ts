@@ -738,6 +738,44 @@ describe('WithdrawService', () => {
   // createWithdrawMethod — duplicate-account guard + ownership stamping.
   // ---------------------------------------------------------------------------
   describe('createWithdrawMethod', () => {
+    it.each([
+      ['object', { $ne: null }],
+      ['array', ['00123999']],
+    ])(
+      'createWithdrawMethod > given an %s account number > then rejects before any database query',
+      async (_kind, accountNo) => {
+        await expect(
+          mocks.service.createWithdrawMethod(
+            { account_no: accountNo } as never,
+            VALID_USER_ID,
+          ),
+        ).rejects.toMatchObject({ status: 400 });
+
+        expect(mocks.userModel.findOne).not.toHaveBeenCalled();
+        expect(mocks.withdrawMethodModel.findOne).not.toHaveBeenCalled();
+        expect(mocks.withdrawMethodModel.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ['object', { $ne: null }],
+      ['array', [VALID_USER_ID]],
+    ])(
+      'createWithdrawMethod > given an %s authenticated user id > then rejects before any database query',
+      async (_kind, userId) => {
+        await expect(
+          mocks.service.createWithdrawMethod(
+            { account_no: '00123999' } as never,
+            userId as never,
+          ),
+        ).rejects.toMatchObject({ status: 400 });
+
+        expect(mocks.userModel.findOne).not.toHaveBeenCalled();
+        expect(mocks.withdrawMethodModel.findOne).not.toHaveBeenCalled();
+        expect(mocks.withdrawMethodModel.create).not.toHaveBeenCalled();
+      },
+    );
+
     it('createWithdrawMethod > given an unknown user > then throws UnauthorizedException', async () => {
       mocks.userModel.findOne.mockResolvedValue(null);
 
@@ -772,18 +810,21 @@ describe('WithdrawService', () => {
       mocks.withdrawMethodModel.findOne.mockResolvedValue(null);
       mocks.withdrawMethodModel.create.mockResolvedValue({ _id: 'm1' });
 
+      const input = { account_no: '00123999' } as never;
       const result = await mocks.service.createWithdrawMethod(
-        { account_no: '00123999' } as never,
+        input,
         VALID_USER_ID,
       );
 
       expect(result).toMatchObject({ status: 'success' });
-      expect(mocks.withdrawMethodModel.findOne).toHaveBeenCalledWith(
-        expect.objectContaining({ account_no: '00123999' }),
-      );
+      expect(mocks.withdrawMethodModel.findOne).toHaveBeenCalledWith({
+        account_no: { $eq: '00123999' },
+        user_id: userOid,
+      });
       const persisted = mocks.withdrawMethodModel.create.mock.calls[0][0];
       expect(persisted.account_no).toBe('00123999');
       expect(persisted.user_id.toString()).toBe(userOid.toString());
+      expect(input).not.toHaveProperty('user_id');
     });
   });
 

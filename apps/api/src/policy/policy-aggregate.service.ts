@@ -13,6 +13,7 @@ import { Cron } from '@nestjs/schedule';
 import { createHash, randomUUID } from 'node:crypto';
 import { ClientSession, Connection, Model, QueryFilter, Types } from 'mongoose';
 
+import { mongoEq, requireTrimmedString } from 'src/common/mongo-query';
 import { readMulterUploadBuffer } from 'src/common/multer-upload-buffer';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import {
@@ -238,14 +239,23 @@ export class PolicyAggregateService {
     dto: AggregatePolicyCommandDto,
     defaultBanner?: Express.Multer.File,
   ): Promise<AggregateResponse> {
+    const commandDto: AggregatePolicyCommandDto = {
+      ...dto,
+      request_key: requireTrimmedString(dto.request_key, 160, 'request_key'),
+    };
     await this.assertTransactionsAvailable();
     await this.categoryIntegrity.assertReady();
     if (defaultBanner && !defaultBanner.mimetype?.startsWith('image/')) {
       throw new BadRequestException('Default banner must be an image file');
     }
 
-    const { name, nameNormalized } = normalizedCategoryName(dto.category_name);
-    const hashPolicy = parseAggregatePolicyJson(dto.policy, HASH_CATEGORY_ID);
+    const { name, nameNormalized } = normalizedCategoryName(
+      commandDto.category_name,
+    );
+    const hashPolicy = parseAggregatePolicyJson(
+      commandDto.policy,
+      HASH_CATEGORY_ID,
+    );
     // Catch all content-shape contradictions before any command state exists.
     buildPolicyUpdate(hashPolicy, { existingPolicy: true });
 
@@ -270,9 +280,9 @@ export class PolicyAggregateService {
       .update(
         JSON.stringify(
           stable({
-            category_id: dto.category_id ?? null,
+            category_id: commandDto.category_id ?? null,
             category_name: name,
-            icon_key: dto.icon_key,
+            icon_key: commandDto.icon_key,
             policy: hashPolicy,
             default_banner: fileIdentity,
           }),
@@ -280,14 +290,21 @@ export class PolicyAggregateService {
       )
       .digest('hex');
 
-    const replay = await this.readCommittedReplay(dto.request_key, payloadHash);
+    const replay = await this.readCommittedReplay(
+      commandDto.request_key,
+      payloadHash,
+    );
     if (replay) return replay;
 
     // Every cheap, read-only domain check happens before command creation or
     // upload preparation. The transaction repeats the authoritative checks.
-    await this.preflight(dto, name, nameNormalized, hashPolicy);
+    await this.preflight(commandDto, name, nameNormalized, hashPolicy);
 
-    const claimed = await this.claimCommand(dto, payloadHash, randomUUID());
+    const claimed = await this.claimCommand(
+      commandDto,
+      payloadHash,
+      randomUUID(),
+    );
     if ('response' in claimed) return claimed.response;
     const command = asCommandRow(claimed);
     const fence: AttemptFence = {
@@ -297,7 +314,7 @@ export class PolicyAggregateService {
       attempt_token: command.attempt_token,
     };
     const policyDto = parseAggregatePolicyJson(
-      dto.policy,
+      commandDto.policy,
       String(fence.category_id),
     );
 
@@ -311,7 +328,7 @@ export class PolicyAggregateService {
           environment: process.env.RAILWAY_ENVIRONMENT_NAME as
             'dev' | 'staging',
           candidate_sha: process.env.RAILWAY_GIT_COMMIT_SHA ?? '',
-          request_key: dto.request_key,
+          request_key: commandDto.request_key,
           failure_point: 'after-media-put-before-db-commit',
         })
       ) {
@@ -320,7 +337,7 @@ export class PolicyAggregateService {
         );
       }
       const { response, postCommitCleanup } = await this.commitAggregate({
-        dto,
+        dto: commandDto,
         fence,
         name,
         nameNormalized,
@@ -461,7 +478,7 @@ export class PolicyAggregateService {
     payloadHash: string,
   ): Promise<AggregateResponse | undefined> {
     const existing = await this.commandModel
-      .findOne({ request_key: requestKey })
+      .findOne({ request_key: mongoEq(requestKey) })
       .lean();
     if (!existing) return undefined;
     if (existing.payload_hash !== payloadHash) {
@@ -632,7 +649,7 @@ export class PolicyAggregateService {
     session: ClientSession,
   ): Promise<CommandClaimStep> {
     const existing = await this.commandModel
-      .findOne({ request_key: dto.request_key })
+      .findOne({ request_key: mongoEq(dto.request_key) })
       .session(session)
       .lean();
     if (!existing) {

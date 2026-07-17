@@ -173,6 +173,53 @@ describe("policy aggregate save (mock parity with PUT /policy/aggregate)", () =>
 });
 
 describe("banner slot updates", () => {
+  it("isolates all three specific-page targets and keeps the legacy alias", async () => {
+    const targets = ["all-brands", "all-shops", "product-discovery"] as const;
+    const before = new Map<string, Record<string, unknown>>();
+
+    for (const target of targets) {
+      const response = await call("GET", [
+        "admin",
+        "banner-specific-page",
+        target,
+      ]);
+      expect(response.status).toBe(200);
+      expect(String((response.body as Record<string, unknown>).image_1)).toMatch(
+        /^\/images\/carousel\//,
+      );
+      before.set(target, response.body as Record<string, unknown>);
+    }
+
+    await call("POST", ["admin", "banner-specific-page", "all-shops"], {
+      body: { link_1: "https://all-shops-only.example" },
+    });
+
+    expect(
+      (await call("GET", ["admin", "banner-specific-page", "all-shops"])).body,
+    ).toMatchObject({ link_1: "https://all-shops-only.example" });
+    expect(
+      (await call("GET", ["admin", "banner-specific-page", "all-brands"])).body,
+    ).toMatchObject({ link_1: before.get("all-brands")?.link_1 });
+    expect(
+      (
+        await call("GET", [
+          "admin",
+          "banner-specific-page",
+          "product-discovery",
+        ])
+      ).body,
+    ).toMatchObject({ link_1: before.get("product-discovery")?.link_1 });
+
+    const legacy = await call("GET", ["admin", "banner-all-brand-page"]);
+    expect(legacy.body).toEqual(
+      (await call("GET", ["admin", "banner-specific-page", "all-brands"])).body,
+    );
+
+    await call("POST", ["admin", "banner-specific-page", "all-shops"], {
+      body: { link_1: String(before.get("all-shops")?.link_1 ?? "") },
+    });
+  });
+
   it("persists only edited slot fields while preserving other slots", async () => {
     const baseline = await call("GET", ["admin", "banner-home"]);
     expect(baseline.status).toBe(200);

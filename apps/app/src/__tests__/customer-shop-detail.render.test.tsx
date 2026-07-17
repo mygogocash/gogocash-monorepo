@@ -536,7 +536,6 @@ describe("CustomerShopDetailScreen (render)", () => {
       }),
     ).toBeNull();
   });
-
   it("invokes the no-code coupon callback with the selected coupon", () => {
     const onUseCoupon = vi.fn();
     const coupon = {
@@ -551,6 +550,7 @@ describe("CustomerShopDetailScreen (render)", () => {
       endTime: "22:15",
       eligibility: null,
       id: "coupon-no-code",
+      link: null,
       maxCap: null,
       maxCapCurrency: null,
       minimumSpend: null,
@@ -600,6 +600,7 @@ describe("CustomerShopDetailScreen (render)", () => {
       endTime: null,
       eligibility: null,
       id: "malformed-code-coupon",
+      link: null,
       maxCap: null,
       maxCapCurrency: null,
       minimumSpend: null,
@@ -635,7 +636,6 @@ describe("CustomerShopDetailScreen (render)", () => {
     ).toBeNull();
     expect(screen.queryByText("Copy code")).toBeNull();
   });
-
   it("renders a code coupon with copy and terms actions but no use CTA", () => {
     couponResourceState.data = [
       {

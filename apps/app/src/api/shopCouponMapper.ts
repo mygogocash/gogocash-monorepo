@@ -74,6 +74,7 @@ function mapCouponRow(value: unknown): ShopCoupon | null {
     endTime: optionalText(row.end_time),
     eligibility: optionalText(row.eligibility),
     id,
+    link: optionalText(row.link),
     maxCap: maxCapEnabled === true ? maxCap : null,
     maxCapCurrency:
       maxCapEnabled === true ? optionalText(row.max_cap_currency) : null,

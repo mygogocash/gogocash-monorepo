@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cron } from '@nestjs/schedule';
 import { createHash } from 'node:crypto';
@@ -9,6 +9,11 @@ import {
   CommandOwnedStoredMediaAsset,
   StoredMediaService,
 } from 'src/media/stored-media.service';
+import {
+  mongoEq,
+  requireOneOf,
+  requireTrimmedString,
+} from 'src/common/mongo-query';
 
 import { PolicyMediaAssetRegistryService } from './policy-media-asset-registry.service';
 import { PolicyIntegrityFenceService } from './policy-integrity-fence.service';
@@ -102,6 +107,45 @@ const AUTOMATIC_REASONS: AutomaticCleanupReason[] = [
   'category-purge',
   ...LEGACY_REPLACEMENT_CLEANUP_REASONS,
 ];
+const CLEANUP_OWNER_TYPES = ['category', 'offer'] as const;
+const CLEANUP_REASONS = [
+  ...AUTOMATIC_REASONS,
+  UNCERTAIN_UPLOAD_CLEANUP_REASON,
+] as const;
+
+function normalizedCleanupIdentity<T extends CleanupJournalIdentity>(
+  input: T,
+): T {
+  return {
+    ...input,
+    owner_type: requireOneOf(
+      input.owner_type,
+      CLEANUP_OWNER_TYPES,
+      'cleanup owner type',
+    ),
+    request_key: requireTrimmedString(
+      input.request_key,
+      500,
+      'cleanup request key',
+    ),
+    attempt_token: requireTrimmedString(
+      input.attempt_token,
+      200,
+      'cleanup attempt token',
+    ),
+    reason: requireOneOf(input.reason, CLEANUP_REASONS, 'cleanup reason'),
+  } as T;
+}
+
+function requirePayloadHash(value: string): string {
+  const hash = requireTrimmedString(value, 64, 'cleanup payload hash');
+  if (!/^[a-f0-9]{64}$/.test(hash)) {
+    throw new BadRequestException(
+      'The cleanup payload hash you provided is not valid.',
+    );
+  }
+  return hash;
+}
 
 function plain(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object') return {};
@@ -242,12 +286,13 @@ export class PolicyMediaCleanupService {
     input: LegacyReplacementJournal,
     session: ClientSession,
   ) {
+    const normalizedInput = normalizedCleanupIdentity(input);
     const rows: unknown[] = [];
-    for (const asset of cleanupAssets(input.references)) {
-      const hash = payloadHash(input, asset);
+    for (const asset of cleanupAssets(normalizedInput.references)) {
+      const hash = payloadHash(normalizedInput, asset);
       rows.push(
         await this.upsertJournal(
-          { ...input, payload_hash: hash },
+          { ...normalizedInput, payload_hash: hash },
           asset,
           session,
           false,
@@ -261,26 +306,32 @@ export class PolicyMediaCleanupService {
     input: CommandOwnedCleanupJournal,
     session: ClientSession,
   ) {
+    const normalizedInput: CommandOwnedCleanupJournal = {
+      ...normalizedCleanupIdentity(input),
+      payload_hash: requirePayloadHash(input.payload_hash),
+    };
     const rows: unknown[] = [];
-    for (const candidate of input.assets) {
+    for (const candidate of normalizedInput.assets) {
       const asset = commandOwnedAsset(candidate);
       if (!asset) {
         throw new Error('Refusing to journal invalid command-owned media');
       }
-      rows.push(await this.upsertJournal(input, asset, session, false));
+      rows.push(
+        await this.upsertJournal(normalizedInput, asset, session, false),
+      );
     }
     return rows;
   }
 
   /** Compatibility quarantine only. New writers must use pre-Put commands. */
   async journalUncertainUploads(input: UncertainUploadJournal) {
-    const identity: CleanupJournalIdentity = {
+    const identity = normalizedCleanupIdentity({
       owner_type: input.owner_type,
       owner_id: input.owner_id,
       request_key: input.request_key,
       attempt_token: input.attempt_token,
       reason: UNCERTAIN_UPLOAD_CLEANUP_REASON,
-    };
+    });
     const rows: unknown[] = [];
     for (const asset of cleanupAssets(input.references)) {
       const hash = payloadHash(identity, asset);
@@ -305,11 +356,11 @@ export class PolicyMediaCleanupService {
     const row = await this.cleanupModel
       .findOneAndUpdate(
         {
-          request_key: input.request_key,
-          payload_hash: input.payload_hash,
-          attempt_token: input.attempt_token,
-          reason: input.reason,
-          'asset.object_key': asset.object_key,
+          request_key: mongoEq(input.request_key),
+          payload_hash: mongoEq(input.payload_hash),
+          attempt_token: mongoEq(input.attempt_token),
+          reason: mongoEq(input.reason),
+          'asset.object_key': mongoEq(asset.object_key),
         },
         {
           $setOnInsert: {
@@ -346,10 +397,15 @@ export class PolicyMediaCleanupService {
   }
 
   async processRequest(requestKey: string) {
+    const normalizedRequestKey = requireTrimmedString(
+      requestKey,
+      500,
+      'cleanup request key',
+    );
     await this.integrityFence.assertReady();
     const rows = (await this.cleanupModel
       .find({
-        request_key: requestKey,
+        request_key: mongoEq(normalizedRequestKey),
         status: 'pending',
         reconciliation_required: { $ne: true },
         reason: { $in: AUTOMATIC_REASONS },
