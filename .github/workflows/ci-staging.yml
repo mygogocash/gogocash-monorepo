@@ -10,13 +10,55 @@ on:
 
 concurrency:
   group: ci-staging-${{ github.ref }}
-  cancel-in-progress: true
+  # A run may enter the reusable EAS publisher after CI. Never cancel a run
+  # that could already be writing to the provider; the callee also serializes
+  # every manual/automatic staging EAS mutation in its own distinct queue.
+  cancel-in-progress: false
 
 permissions:
+  actions: read
   contents: read
+  id-token: write
   pull-requests: read
 
 jobs:
   ci:
     name: CI gate
     uses: ./.github/workflows/ci.yml
+
+  ota-safety:
+    name: OTA-safe runtime payload
+    needs: ci
+    if: ${{ needs.ci.result == 'success' && needs.ci.outputs.app_ota_payload == 'true' && needs.ci.outputs.app_ota_unsafe != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record OTA safety proof
+        run: |
+          echo "OTA safety proof: runtime payload changed and no native-sensitive path changed." >> "$GITHUB_STEP_SUMMARY"
+
+  ota:
+    name: publish OTA-safe app update after CI
+    needs: [ci, ota-safety]
+    if: ${{ needs.ci.result == 'success' && needs.ota-safety.result == 'success' }}
+    uses: ./.github/workflows/deploy-app-native-eas.yml
+    secrets: inherit
+    with:
+      action: update
+      platform: all
+      ci_run_id: ${{ github.run_id }}
+
+  native-build-required:
+    name: native build required
+    needs: ci
+    if: ${{ needs.ci.result == 'success' && needs.ci.outputs.app_ota_unsafe == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record native compatibility handoff
+        run: |
+          message="Native-sensitive app files changed. Automatic OTA was blocked; use the staging workflow_dispatch build action after this exact CI run succeeds."
+          echo "::warning::$message"
+          {
+            echo "### Native build required"
+            echo
+            echo "$message"
+          } >> "$GITHUB_STEP_SUMMARY"

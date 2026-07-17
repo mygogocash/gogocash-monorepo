@@ -136,8 +136,9 @@ jobs:
         # the NEWEST Xcode on the image instead of pinning a major, and print
         # the inventory unconditionally so future bumps are diagnosable.
         run: |
-          ls -d /Applications/Xcode*.app
-          XCODE_APP=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+          shopt -s nullglob
+          printf '%s\n' /Applications/Xcode*.app
+          XCODE_APP=$(printf '%s\n' /Applications/Xcode_*.app | sort -V | tail -1)
           if [ -z "$XCODE_APP" ]; then
             echo "::error::No versioned Xcode found on runner image"; exit 1
           fi

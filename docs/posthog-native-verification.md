@@ -12,7 +12,10 @@ eas secret:create --name EXPO_PUBLIC_POSTHOG_HOST --value https://us.i.posthog.c
 
 `eas.json` profiles do **not** embed PostHog keys.
 
-For **OTA updates**, GitHub Actions inlines PostHog from the `staging` environment — see `.github/workflows/app-ota-staging.yml`.
+For **OTA updates**, GitHub Actions inlines PostHog from the `staging`
+environment in `.github/workflows/deploy-app-native-eas.yml`. A changed app on
+`staging` reaches that workflow through the gated reusable call in
+`.github/workflows/ci-staging.yml`.
 
 ## Verification
 

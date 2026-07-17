@@ -4,11 +4,11 @@ Operational guide for EAS Update channels on GoGoCash mobile.
 
 **Channels** (see `apps/app/eas.json`):
 
-| Build profile | Channel | Typical use |
-|---------------|---------|-------------|
-| `development` | `development` | Dev client internal QA |
-| `preview` | `staging` | Staging API + internal testers |
-| `production` | `production` | Store builds |
+| Build profile | Channel       | Typical use                    |
+| ------------- | ------------- | ------------------------------ |
+| `development` | `development` | Dev client internal QA         |
+| `preview`     | `staging`     | Staging API + internal testers |
+| `production`  | `production`  | Store builds                   |
 
 ## After publishing an update
 
@@ -35,8 +35,20 @@ Use `eas-update-insights` skill for interpreting rollout health.
 
 ## CI automation
 
-- Manual: `.github/workflows/deploy-app-native-eas.yml` → action `update`
-- On push to `staging`: `.github/workflows/app-ota-staging.yml` (requires `EXPO_TOKEN` secret)
+- Manual: `.github/workflows/deploy-app-native-eas.yml` → action `update`;
+  the workflow requires a completed successful `ci-staging.yml` push run for
+  the exact staging SHA, including its successful aggregate and mobile app
+  jobs.
+- On a `staging` push with app changes, `ci-staging.yml` calls the same hardened
+  workflow only after the reusable app CI gate succeeds. It supplies the exact
+  caller run ID; publishing requires the active `staging` channel to map only
+  to the `staging` branch and must return exactly one Android and one iOS update
+  sharing one group/runtime.
+
+Manual and automatic staging EAS actions share one non-canceling queue. After
+the job acquires it, it rejects a SHA that is no longer the current staging
+head. All four required Firebase variables must be present before publishing;
+their values are not logged.
 
 ## Related
 

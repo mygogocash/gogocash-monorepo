@@ -1,6 +1,6 @@
 # Railway Production Execution Runbook
 
-> Operator runbook for cutting GoGoCash over to Railway (project **GoGoCash**, id `9b10473a-2831-4115-a69d-091e41f0511f`, environment **production**). Synthesizes phases 2a (secrets), 2b (Mongo replica set + data), 2c (GCS), 3 (cron/always-on), 4 (cutover/cleanup).
+> Operator runbook for cutting GoGoCash over to Railway (project **GoGoCash**, id `9b10473a-2831-4115-a69d-091e41f0511f`, environment **production**). Synthesizes phases 2a (secrets), 2b (Mongo replica set + data), 2c (Cloudflare R2), 3 (cron/always-on), 4 (cutover/cleanup).
 >
 > **Tag legend** — each step is one of: `[CLAUDE-CAN-DO]` automatable via authed `railway` CLI or a repo change · `[USER-ONLY: secret]` real secret value · `[USER-ONLY: DNS]` · `[USER-ONLY: GCP]` · `[USER-ONLY: dashboard]` Railway service-config the CLI can't set · `[USER-ONLY: data]` live DB shell / real auth token / funded test user · `[USER-ONLY: account-token]` Railway account API token (dashboard → Account → Tokens).
 >
@@ -12,7 +12,7 @@
 ```
 2a CORS_EXTRA_ORIGINS code  ── applied (main.ts, tested)
 2a apply secrets ───────────→ A2/A3 admin login + bundle
-2c GCS creds + bucket ──────→ C1/C2 media upload
+2c R2 token + bucket ───────→ C1/C2 media upload
 2b Mongo replica set ───────→ B1/B2/B3 transactions  ── MUST precede any real withdrawal
 2b data migration (after B) →  B4 counts
 3  disable sleep + replicas=1 → D1/D2/D3 cron always-on
@@ -30,11 +30,14 @@
 6. **Disable app-sleep AND pin replicas=1.** Sleep-off so cron fires; replicas=1 because in-process `@nestjs/schedule` has no distributed lock and money jobs would double-fire.
 
 ## ⚠️ Decisions to confirm before execution
-- **GCS bucket (staging vs prod).** `GCS_CATALOG_BUCKET` is `gogocash-catalog-staging` in the **production** env. Provision `gogocash-catalog-prod` (recommended) or knowingly reuse staging. The SA is scoped to one bucket.
+
+- **R2 bucket (staging vs prod).** Provision and review a production bucket and
+  bucket-scoped token; never reuse the staging bucket/token silently.
 - **Custom domains.** Phase 4 assumes `admin.gogocash.co`, `app.gogocash.co`, `api.gogocash.co`. Confirm.
 - **app-web host.** Confirm its real preview/custom host (`railway domain --service @gogocash/mobile`) before wiring CORS/DNS.
 
 ## 1. Phase 2a — Secrets & config
+
 - **1.1** `[CLAUDE-CAN-DO]` CORS env-driven allow-list — **applied** to `apps/api/src/main.ts` via `common/cors-origins.ts` (exact-match, empty env = prior behavior; unit-tested in `cors-origins.spec.ts`).
 - **1.2** `[USER-ONLY: secret]` API secrets on `gogocash-api`: `JWT_SECRET` (`openssl rand -hex 32`), `JWT_ADMIN_SECRET` (`openssl rand -hex 32`).
 - **1.3** `[USER-ONLY: secret]` `gogocash-admin`: `NEXTAUTH_SECRET` (`openssl rand -base64 32`).
@@ -44,29 +47,69 @@
 
 Use `scripts/railway-apply-secrets.sh` (reads gitignored `.env.railway.production`; `--dry-run` first; never prints values). Template: `.env.railway.production.example`.
 
-## 2. Phase 2c — GCS credentials
-Without this every upload 503s (`gcs-object-storage.service.ts:138`); `new Storage()` relies on ADC and Railway has no GCP identity.
-- **2.1** `[USER-ONLY: GCP]` create a bucket-scoped SA (`roles/storage.objectAdmin` on the bucket only) + JSON key (`gcloud`). If creating a prod bucket, disable UBLA so `makePublic()` per-object ACLs work.
-- **2.2** Deliver the key — PREFERRED `[USER-ONLY: dashboard]` mount the JSON file at `/secrets/gcs-sa.json`, then `[CLAUDE-CAN-DO]` `GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcs-sa.json` (no code change). FALLBACK (no file mount): base64 var `GCS_SA_KEY_B64` + an `apps/api/docker-entrypoint.sh` decode + Dockerfile `ENTRYPOINT` (diff in this repo's runbook history) — verify with `railway ssh`.
-- **2.3** `[CLAUDE-CAN-DO]` point at the bucket: `GCS_CATALOG_BUCKET`, `GCS_CATALOG_PUBLIC_BASE_URL`.
+## 2. Phase 2c — Cloudflare R2 credentials
+
+Without the complete R2 contract every upload fails closed with `503`.
+
+- **2.1** `[USER-ONLY: secret]` create an R2 token scoped to Object Read & Write on the reviewed bucket only.
+- **2.2** `[USER-ONLY: dashboard]` seal `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` on `gogocash-api`; never copy them into evidence.
+- **2.3** `[CLAUDE-CAN-DO]` set and verify `R2_BUCKET`, `R2_ENDPOINT`, and `R2_PUBLIC_BASE_URL`.
 
 ## 3. Phase 2b — Mongo replica set (R0)
-See [railway-mongo-replica-set.md](railway-mongo-replica-set.md). Summary: backup first → `[USER-ONLY: dashboard]` keyFile on `/data/db` (chmod 400, chown mongodb) → set start command `mongod --replSet rs0 --keyFile /data/db/mongo-keyfile --ipv6 --bind_ip ::,0.0.0.0 …` (dashboard or GraphQL `serviceInstanceUpdate`) → `[USER-ONLY: data]` `rs.initiate({_id:"rs0",members:[{_id:0,host:"mongodb.railway.internal:27017"}]})` → `railway redeploy --service gogocash-api` (no URI change; do NOT add `directConnection=true` to the API URI) → acceptance B1/B2/B3 → data dump/restore via the public TCP proxy → B4.
+
+See [railway-mongo-replica-set.md](railway-mongo-replica-set.md). Summary: stop ingress and every writer → restore-tested backup → pin `mongo:8.0.4` with `GLIBC_TUNABLES=glibc.pthread.rseq=1` → create the keyFile on `/data/db` → start authenticated `rs0` → initiate from a Railway dashboard shell or `railway ssh` using the exact internal host already present in the candidate API `MONGO_URI` → verify PRIMARY plus a real transaction → redeploy the exact candidate with an explicit database and `replicaSet=rs0` (never API `directConnection=true`) → acceptance B1/B2/B3 → restore candidate-only traffic. Do not revert the database to standalone after initiation; recover forward.
+
+### Quest membership-audience preflight (#353)
+
+- Keep `QUEST_TASK_V2_ENABLED=false` while deploying the membership schema,
+  fail-closed predicate, and atomic `changeTier` boundary update. Back up the
+  exact dev/staging database, then follow the guarded dry-run/apply/rerun
+  commands in `docs/quest-task-v2-rollout.md`.
+- The membership boundary apply requires a strict UTC rollout baseline no more
+  than 15 minutes old, exact `--confirm-database`, `--backup-confirmed`, and
+  `--confirm=APPLY_ISSUE_353_MEMBERSHIP_TIER_ASSIGNMENT_BOUNDARY`. It uses an
+  absent-only CAS, never logs URI credentials, and refuses production-looking
+  targets/hosts unless an approved operator adds `--allow-production`.
+- Do not enable membership audiences until both dev and staging evidence shows
+  `rerun.matched: 0`, `rerun.modified: 0`, `remaining_missing: 0`,
+  `remaining_malformed: 0`, and `ready_to_enable_task_v2: true`. The backfill
+  uses rollout time, not billing `start_date`; pre-baseline history is
+  intentionally ineligible.
+- Inventory every task-v2 quest whose audience is `membership_tiers` before
+  dev or staging activation. Each `tier_ids` entry must be a canonical
+  `MembershipTier._id` hex string; old name/slug or malformed values fail
+  closed at runtime and must be corrected before rollout.
+- A tier must exist and be active when new quest economics are saved. Later
+  global tier deactivation does not rewrite a frozen quest; runtime eligibility
+  comes from the beneficiary's `Membership` record at the immutable event time.
+- `MembershipService.changeTier` atomically advances
+  `tier_assignment_started_at` only for a real tier change. The single row does
+  not reconstruct any earlier tier; missing/malformed boundaries and events
+  before the current boundary intentionally fail closed. Do not infer history
+  from `User.privilege` or billing `start_date`.
+- Cleanup/fixture ownership is N/A: the migration creates no QA documents and
+  only sets the durable boundary on existing missing rows. Do not unset it
+  after event evaluation; disable task-v2 and leave the additive field in
+  place. Use separately approved point-in-time recovery/reconciliation only for
+  a genuine database incident.
 
 ## 4. Phase 3 — cron always-on, and Phase 4 — cutover & cleanup
 
 ### Cron (in-process `@nestjs/schedule`, `app.module.ts:29`)
-| Job | Schedule (UTC) | Money? | Break-glass route |
-|---|---|---|---|
-| `withdraw/tasksService.ts:15` syncConversion | every 12h | no | `/tasks/update-conversions/:id` |
-| `withdraw/tasksService.ts:30` quest reward | 7th @01:00 | **yes** | `/tasks/update-conversions-reward/:id` |
-| `point/tasksService.ts:22` award points | daily @00:00 | **yes** | `/tasks/update-points/:id` |
-| `offer/tasksService.ts:28` refresh offers | 1st @12:00 | no | `/tasks/update-offers/:id` |
+
+| Job                                          | Schedule (UTC) | Money?  | Break-glass route                      |
+| -------------------------------------------- | -------------- | ------- | -------------------------------------- |
+| `withdraw/tasksService.ts:15` syncConversion | every 12h      | no      | `/tasks/update-conversions/:id`        |
+| `withdraw/tasksService.ts:30` quest reward   | 7th @01:00     | **yes** | `/tasks/update-conversions-reward/:id` |
+| `point/tasksService.ts:22` award points      | daily @00:00   | **yes** | `/tasks/update-points/:id`             |
+| `offer/tasksService.ts:28` refresh offers    | 1st @12:00     | no      | `/tasks/update-offers/:id`             |
+
 - **3.1** `[USER-ONLY: dashboard]` disable App Sleeping on `gogocash-api` (a passing `/health` does NOT prevent sleep — sleep triggers on inbound idleness).
 - **3.2** `[USER-ONLY: dashboard]` pin replicas = 1 (quest-reward job not verified idempotent — a replica bump >1 is a money-correctness incident).
 - Acceptance harness: `scripts/railway-acceptance.sh` (ran 4/4 read-only PASS).
 
 ### Cutover
+
 - **4.1** `[CLAUDE-CAN-DO]` `railway domain --service <svc> <host>` for admin/app-web/api → each returns a CNAME target.
 - **4.2** `[USER-ONLY: DNS]` CNAME each host to its Railway target (record the old Cloud Run target = rollback). Railway auto-issues TLS.
 - **4.3** Cutover order **admin → app-web → api** (API last; its hostname is unchanged so the Involve postback URL is unaffected). Per host: flip DNS → wait TLS → run E1.
@@ -76,40 +119,44 @@ See [railway-mongo-replica-set.md](railway-mongo-replica-set.md). Summary: backu
 - **4.7** `[CLAUDE-CAN-DO]` scratch cleanup in project `attractive-enjoyment` (`ed82ec6c`): delete the `api`/`admin`/`app-web` services + `staging` env I created, NOT `urban-radio` or its production env. Safety-check (no custom domains, nothing in prod references them), confirm each name at the prompt.
 
 ## 5. Acceptance test table
-| ID | Criterion | Verify | Expected |
-|---|---|---|---|
-| A1 | DB route returns data | `curl -sS $API/gototrack/merchants` | 200 + JSON array (`[]`+200 still proves DB up) |
-| A2 | Admin login mints token | `curl -i -X POST $API/admin/login -d '{"email","password"}'` | 200 + non-empty `token`; needs admin doc in Mongo |
-| A3 | Admin bundle calls prod API | grep built chunks for the API URL | only `gogocash-api-production.up.railway.app` |
-| B1 | `rs.status()` PRIMARY | `rs.status().set` / `members[].stateStr` / `rs.conf().members[0].host` | `rs0` / `PRIMARY` / `mongodb.railway.internal:27017` |
-| B2 | Transaction commits in mongosh | startSession→txn→commit (snippet in mongo doc) | `2`, no RS error |
-| B3 | Withdrawal exercises txn | `POST /withdraw/bank-transfer` (Firebase token, funded user) | 200/201, logs show no `Transaction numbers…` |
-| B4 | Restore counts match | per-collection `countDocuments()` both sides | identical map |
-| C1 | Media upload round-trips | `PATCH /admin/update-category/:id -F image=@test.png` (admin token, `support` role) | 200 (not 503) + bucket object |
-| C2 | Object publicly served | `curl -sI https://storage.googleapis.com/$BUCKET/categories/<key>` | 200 image/png |
-| D1 | API doesn't sleep | status Active; `sleep 900; curl $API/health` | Active; 200 no cold start |
-| D2 | Cron fires / force-trigger | trigger route then `railway logs … | grep` | matched log line |
-| D3 | Exactly 1 replica | `railway status --json` numReplicas | `1` |
-| E1 | Custom domains HTTPS + CORS | per-host curl + OPTIONS preflight (allowed vs forged origin) | 200; ACAO for allowed; none for forged |
-| E2 | Involve postback survives flip | wrong token vs correct token | 401 vs OK 200 (guard checks only `?token=`) |
-| E3 | Scratch gone, others intact | status of all three projects | scratch services gone; urban-radio + prod Online |
+
+| ID  | Criterion                      | Verify                                                                              | Expected                                             |
+| --- | ------------------------------ | ----------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| A1  | DB route returns data          | `curl -sS $API/gototrack/merchants`                                                 | 200 + JSON array (`[]`+200 still proves DB up)       |
+| A2  | Admin login mints token        | `curl -i -X POST $API/admin/login -d '{"email","password"}'`                        | 200 + non-empty `token`; needs admin doc in Mongo    |
+| A3  | Admin bundle calls prod API    | grep built chunks for the API URL                                                   | only `gogocash-api-production.up.railway.app`        |
+| B1  | `rs.status()` PRIMARY          | `rs.status().set` / `members[].stateStr` / `rs.conf().members[0].host`              | `rs0` / `PRIMARY` / exact host from API `MONGO_URI`  |
+| B2  | Transaction commits in mongosh | startSession→txn→commit (snippet in mongo doc)                                      | `2`, no RS error                                     |
+| B3  | Withdrawal exercises txn       | `POST /withdraw/bank-transfer` (Firebase token, funded user)                        | 200/201, logs show no `Transaction numbers…`         |
+| B4  | Restore counts match           | per-collection `countDocuments()` both sides                                        | identical map                                        |
+| C1  | Media upload round-trips       | `PATCH /admin/update-category/:id -F image=@test.png` (admin token, `support` role) | 200 (not 503) + bucket object                        |
+| C2  | R2 object publicly served      | `curl -sI "$R2_PUBLIC_BASE_URL/categories/<key>"`                                  | 200 image/png                                        |
+| D1  | API doesn't sleep              | status Active; `sleep 900; curl $API/health`                                        | Active; 200 no cold start                            |
+| D2  | Cron fires / force-trigger     | trigger route, then `railway logs --service gogocash-api \| grep '<event>'`         | matched log line                                     |
+| D3  | Exactly 1 replica              | `railway status --json` numReplicas                                                 | `1`                                                  |
+| E1  | Custom domains HTTPS + CORS    | per-host curl + OPTIONS preflight (allowed vs forged origin)                        | 200; ACAO for allowed; none for forged               |
+| E2  | Involve postback survives flip | wrong token vs correct token                                                        | 401 vs OK 200 (guard checks only `?token=`)          |
+| E3  | Scratch gone, others intact    | status of all three projects                                                        | scratch services gone; urban-radio + prod Online     |
 
 ## 6. Execution queue — `[CLAUDE-CAN-DO]` only (in order)
-1. (2c fallback only) `apps/api/docker-entrypoint.sh` + Dockerfile ENTRYPOINT.
-2. Non-secret admin vars (`NEXTAUTH_URL`, `NEXT_PUBLIC_API_URL`) + redeploy.
-3. `CORS_EXTRA_ORIGINS` (confirm app-web host first).
-4. GCS bucket vars (after bucket/key path decided).
-5. Add custom domains (`railway domain`).
-6. Rebuild front-ends against `api.gogocash.co` (gated on E1 api).
-7. Switch CORS to real origins (after E1 api).
-8. Disable GCP deploy workflows.
-9. Scratch cleanup after safety-check.
-10. Run `scripts/railway-acceptance.sh` for the read-only subset; tail logs for B3/D2.
+
+1. Non-secret admin vars (`NEXTAUTH_URL`, `NEXT_PUBLIC_API_URL`) + redeploy.
+2. `CORS_EXTRA_ORIGINS` (confirm app-web host first).
+3. R2 bucket/endpoint/public-base vars after bucket review; seal its token.
+4. Add custom domains (`railway domain`).
+5. Rebuild front-ends against `api.gogocash.co` (gated on E1 api).
+6. Switch CORS to real origins (after E1 api).
+7. Disable GCP deploy workflows.
+8. Scratch cleanup after safety-check.
+9. Run `scripts/railway-acceptance.sh` for the read-only subset; tail logs for B3/D2.
 
 ## 7. Risk register
+
 - **R0 untested money path** — B3 before real withdrawals; replica-set steps restart the money DB (backup first).
 - **R0 cron double-fire** — no distributed lock; quest-reward not verified idempotent; never run >1 replica.
-- **UBLA** — if the bucket has uniform bucket-level access ON, `makePublic()` throws → 503.
+- **R2 public-route drift** — a write can succeed while a wrong
+  `R2_PUBLIC_BASE_URL` makes the resulting object unreadable; C1/C2 must use the
+  same marker-owned key.
 - **Build-time inlining** — `*_API_URL` take effect only on rebuild; API flips last.
 - **Reversibility** — every cutover step is DNS-reversible only while Cloud Run is scaled-to-zero (not deleted) — keep the ≥7-day window.
 
@@ -117,11 +164,11 @@ See [railway-mongo-replica-set.md](railway-mongo-replica-set.md). Summary: backu
 
 Staging hostnames are registered on Railway but may still CNAME to `ghs.googlehosted.com` (GCP/Firebase). Until DNS flips, use `*.up.railway.app` URLs for acceptance.
 
-| Host | CNAME target (Railway) |
-|------|------------------------|
-| `api-staging.gogocash.co` | `i313nfy0.up.railway.app` |
-| `admin-staging.gogocash.co` | `hs31ua3b.up.railway.app` |
-| `app-staging.gogocash.co` | `dwxmdvrr.up.railway.app` (Railway custom domain on `@gogocash/mobile`) |
+| Host                        | CNAME target (Railway)                                                  |
+| --------------------------- | ----------------------------------------------------------------------- |
+| `api-staging.gogocash.co`   | `i313nfy0.up.railway.app`                                               |
+| `admin-staging.gogocash.co` | `hs31ua3b.up.railway.app`                                               |
+| `app-staging.gogocash.co`   | `dwxmdvrr.up.railway.app` (Railway custom domain on `@gogocash/mobile`) |
 
 **Point API at external Atlas staging data:**
 
@@ -144,6 +191,6 @@ railway variables --service app-web \
 railway redeploy --service app-web
 ```
 
-**Media (Cloudflare R2):** `R2_BUCKET`, `R2_ENDPOINT`, `R2_PUBLIC_BASE_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `MEDIA_MAX_UPLOAD_BYTES` on `gogocash-api`. Staging: bucket `gogocash-catalog-staging`, public domain **`https://media-staging.gogocash.co`**. Create S3 API token in Cloudflare → R2 → **Manage R2 API Tokens** (**Object Read & Write** on the bucket). **Migrate legacy GCS URLs in Mongo:** `npm run media:migrate-gcs-to-r2:dry -w gogocash-api` then `npm run media:migrate-gcs-to-r2 -w gogocash-api` (requires `MONGO_URI` + R2 env; run from a host that reaches Mongo — Railway shell or TCP proxy). Inventory first: `npm run media:inventory -w gogocash-api`. GCS upload code removed; `@google-cloud/storage` dependency dropped.
+**Media (Cloudflare R2):** `R2_BUCKET`, `R2_ENDPOINT`, `R2_PUBLIC_BASE_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `MEDIA_MAX_UPLOAD_BYTES` on `gogocash-api`. Staging: bucket `gogocash-catalog-staging`, public domain **`https://media-staging.gogocash.co`**. Create S3 API token in Cloudflare → R2 → **Manage R2 API Tokens** (**Object Read & Write** on the bucket). **Migrate legacy GCS URLs in Mongo:** inventory first with `npm run media:inventory -w gogocash-api`, then audit with either `npm run media:migrate-gcs-to-r2 -w gogocash-api` (safe default) or the explicit alias `npm run media:migrate-gcs-to-r2:dry -w gogocash-api`. Review the complete dry-run result before applying with `npm run media:migrate-gcs-to-r2 -w gogocash-api -- --apply`. Apply requires `MONGO_URI` plus the R2 environment above and must run from a host that reaches Mongo (Railway shell or TCP proxy). The migration fails closed for Offer/Category structured ownership proof, any current or prospective `policy_media_asset_registry` row, or a concurrent document change; route those records through the durable API/service instead of bypassing the fence. GCS upload code removed; `@google-cloud/storage` dependency dropped.
 
 **Common blockers:** empty `[]` merchants (wrong/empty Mongo), missing JWT secrets (login fails), DNS still on Google Frontend (custom domain 500).

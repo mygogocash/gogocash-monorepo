@@ -6,8 +6,8 @@
 
 ## Required for native crash reporting
 
-| Variable | Source |
-|----------|--------|
+| Variable                 | Source                             |
+| ------------------------ | ---------------------------------- |
 | `EXPO_PUBLIC_SENTRY_DSN` | Sentry project → Client keys (DSN) |
 
 Set in EAS before native store builds:
@@ -19,7 +19,11 @@ eas secret:create --name EXPO_PUBLIC_SENTRY_DSN --value ... --type string
 
 `eas.json` profiles do **not** embed the DSN.
 
-For **OTA updates** (`eas update`), GitHub Actions inlines the DSN from the `staging` environment — see `.github/workflows/app-ota-staging.yml` and the `update` step in `deploy-app-native-eas.yml`.
+For **OTA updates** (`eas update`), GitHub Actions inlines the DSN from the
+`staging` environment in the `update` step of
+`.github/workflows/deploy-app-native-eas.yml`. A changed app on `staging`
+reaches that workflow only through the gated reusable call in
+`.github/workflows/ci-staging.yml`.
 
 ## Source maps (EAS Build)
 

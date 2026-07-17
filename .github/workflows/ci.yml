@@ -44,6 +44,12 @@ on:
       app:
         description: "true when apps/app (or shared root config) changed"
         value: ${{ jobs.changes.outputs.app }}
+      app_ota_payload:
+        description: "true when an Expo runtime bundle or asset changed"
+        value: ${{ jobs.changes.outputs.app_ota_payload }}
+      app_ota_unsafe:
+        description: "true when native compatibility may have changed"
+        value: ${{ jobs.changes.outputs.app_ota_unsafe }}
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -64,8 +70,12 @@ jobs:
       admin: ${{ steps.filter.outputs.admin }}
       api: ${{ steps.filter.outputs.api }}
       app: ${{ steps.filter.outputs.app }}
+      e2e: ${{ steps.filter.outputs.e2e }}
+      app_ota_payload: ${{ steps.filter.outputs.app_ota_payload }}
+      app_ota_unsafe: ${{ steps.filter.outputs.app_ota_unsafe }}
       knip: ${{ steps.filter.outputs.knip }}
       mcp: ${{ steps.filter.outputs.mcp }}
+      workflow_contract: ${{ steps.filter.outputs.workflow_contract }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4
@@ -90,6 +100,43 @@ jobs:
             app:
               - *root
               - 'apps/app/**'
+            e2e:
+              - *root
+              - '.github/workflows/e2e-clean-runner.yml'
+              - '.github/workflows/e2e-weekly.yml'
+              - 'docker-compose.e2e.yml'
+              - 'e2e/**'
+              - 'scripts/e2e-*.sh'
+              - 'apps/api/**'
+              - 'apps/admin/**'
+              - 'apps/app/**'
+            # Automatic OTA needs both a runtime payload and an unchanged
+            # native compatibility surface. Native-sensitive changes are
+            # handed off for an explicit preview build instead.
+            app_ota_payload:
+              - 'apps/app/app/**'
+              - 'apps/app/src/**'
+              - 'apps/app/assets/**'
+              - 'apps/app/babel.config.js'
+              - 'apps/app/metro.config.js'
+            app_ota_unsafe:
+              - 'package.json'
+              - 'package-lock.json'
+              - 'apps/app/.eas/**'
+              - 'apps/app/android/**'
+              - 'apps/app/ios/**'
+              - 'apps/app/modules/**'
+              - 'apps/app/plugins/**'
+              - 'apps/app/app.config.js'
+              - 'apps/app/eas.json'
+              - 'apps/app/package.json'
+              - 'apps/app/google-services.json'
+              - 'apps/app/GoogleService-Info.plist'
+              - 'apps/app/assets/icon.png'
+              - 'apps/app/assets/adaptive-icon.png'
+              - 'apps/app/assets/adaptive-icon-bg.png'
+              - 'apps/app/assets/splash.png'
+              - 'apps/app/scripts/patch-expo-firebase-core-gradle.mjs'
             knip:
               - *root
               - 'apps/**'
@@ -97,6 +144,39 @@ jobs:
             mcp:
               - *root
               - 'packages/gototrack-mcp/**'
+            workflow_contract:
+              - '.github/workflows/**'
+              - 'apps/app/.eas/workflows/**'
+              - 'apps/app/eas.json'
+              - 'scripts/ci-workflow-contract.test.mjs'
+              - 'scripts/deployment/**'
+              - 'scripts/gcp/artifact-registry-cleanup-policy.json'
+              - 'package.json'
+
+  # ── workflow structure contract (gate when CI definitions change) ─────────
+  workflow-contract:
+    name: workflow contract
+    needs: changes
+    if: ${{ needs.changes.outputs.workflow_contract == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "24"
+      - name: Validate CI workflow contracts
+        run: npm run test:workflow-contracts
+      - name: Validate Expo EAS workflow schema
+        run: npm run validate:eas-workflows
+      - name: Actionlint all workflows (pinned 1.7.12)
+        run: |
+          find .github/workflows -maxdepth 1 -type f \
+            \( -name '*.yml' -o -name '*.yaml' \) -print0 |
+            xargs -0 docker run --rm \
+              -v "$PWD:/repo" \
+              -w /repo \
+              rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+              -color
 
   # ── admin (gogocash-admin) — Next.js dashboard ────────────────────────────
   admin:
@@ -113,16 +193,13 @@ jobs:
       - uses: ./.github/actions/setup-node-monorepo
         with:
           node-options: --max-old-space-size=4096
-      # Test + Build are GATES (P2-CI: admin unit suite verified green). LINT
-      # stays informational for now — admin ESLint is clean (0 warnings as of
-      # PR #138); keep continue-on-error until lint is promoted to a gate.
+      # Typecheck, lint, test, and build are all blocking Admin gates.
       - name: Typecheck (gate)
         # Promoted once the 128 pre-existing errors were cleared (2026-07-10).
         # Runs the workspace tsc (6.0.3 while Next pins it; 7.x when unpinned).
         run: npx turbo run typecheck --filter=gogocash-admin
-      - name: Lint (informational — promote to gate when ready)
-        continue-on-error: true
-        run: npx turbo run lint --filter=gogocash-admin
+      - name: Lint (gate)
+        run: npm run lint:ci -w gogocash-admin
       - name: Test (gate)
         run: npx turbo run test --filter=gogocash-admin
       - name: Build (gate)
@@ -268,7 +345,7 @@ jobs:
           npm run start:prod > /tmp/boot.log 2>&1 &
           APP_PID=$!
           ok=0
-          for i in $(seq 1 45); do
+          for _ in $(seq 1 45); do
             if ! kill -0 "$APP_PID" 2>/dev/null; then
               echo "::error::App process exited during boot — DI/bootstrap failure"
               echo "----- boot log -----"; cat /tmp/boot.log
@@ -298,6 +375,62 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
           MONGO_URI: mongodb://localhost:27017/inttest
         run: npx jest --config ./test/jest-e2e.json withdraw-balance --runInBand
+
+      - name: Start isolated Mongo rs0 for quest task-v2
+        env:
+          QUEST_RS_CONTAINER: gogocash-quest-rs0-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          docker run --detach --name "$QUEST_RS_CONTAINER" \
+            --publish 27019:27019 \
+            --env GLIBC_TUNABLES=glibc.pthread.rseq=1 \
+            mongo:8.0.4 \
+            --replSet rs0 --bind_ip_all --port 27019
+          ready=0
+          for _ in $(seq 1 30); do
+            if docker exec "$QUEST_RS_CONTAINER" mongosh --quiet \
+              mongodb://localhost:27019/admin --eval 'db.runCommand({ ping: 1 }).ok' \
+              | grep -qx '1'; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs "$QUEST_RS_CONTAINER"
+            exit 1
+          fi
+          docker exec "$QUEST_RS_CONTAINER" mongosh --quiet \
+            mongodb://localhost:27019/admin --eval \
+            'rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "localhost:27019" }] })'
+          primary=0
+          for _ in $(seq 1 30); do
+            state=$(docker exec "$QUEST_RS_CONTAINER" mongosh --quiet \
+              mongodb://localhost:27019/admin --eval \
+              'try { rs.status().members[0].stateStr } catch(e) { "UNKNOWN" }')
+            if [ "$state" = "PRIMARY" ]; then
+              primary=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$primary" -ne 1 ]; then
+            docker logs "$QUEST_RS_CONTAINER"
+            exit 1
+          fi
+
+      - name: Quest task-v2 real Mongo rs0 (required)
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          MONGO_URI: mongodb://localhost:27019/quest-task-ci?replicaSet=rs0
+          MONGO_REPLICA_SET: "1"
+        run: npm run test:e2e -w gogocash-api -- --runInBand test/quest-task-progress.e2e-spec.ts
+
+      - name: Stop isolated Mongo rs0 for quest task-v2
+        if: ${{ always() }}
+        env:
+          QUEST_RS_CONTAINER: gogocash-quest-rs0-${{ github.run_id }}-${{ github.run_attempt }}
+        run: docker rm --force "$QUEST_RS_CONTAINER" 2>/dev/null || true
 
   # ── GoGoTrack (gate when api or app changes) ───────────────────────────────
   gototrack:
@@ -346,49 +479,39 @@ jobs:
       - uses: ./.github/actions/setup-node-monorepo
       - run: npx knip --no-progress
 
-  # ── optional local E2E (manual dispatch) ─────────────────────────────────
-  e2e-local:
-    name: e2e local (optional)
-    if: github.event_name == 'workflow_dispatch'
+  # One stable required check for branch protection. Conditional jobs may be
+  # skipped only by their path filters; failures and cancellations fail here.
+  ci-gate:
+    name: CI gate (required)
+    needs:
+      - changes
+      - admin
+      - app
+      - api-lint
+      - api-test
+      - api-build-smoke
+      - e2e-root
+      - gototrack
+      - gototrack-mcp
+      - knip
+      - workflow-contract
+    if: ${{ always() }}
     runs-on: ubuntu-latest
-    services:
-      mongo:
-        image: mongo:8.0.4
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-      - uses: ./.github/actions/setup-node-monorepo
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-options: --max-old-space-size=4096
-      - name: Init Mongo replica set
-        run: |
-          mongosh --quiet mongodb://localhost:27017/admin --eval \
-            'try { rs.status() } catch(e) { rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "localhost:27017" }] }) }'
-          for i in $(seq 1 30); do
-            state=$(mongosh --quiet mongodb://localhost:27017/admin --eval 'try { rs.status().members[0].stateStr } catch(e) { "UNKNOWN" }')
-            [ "$state" = "PRIMARY" ] && break
-            sleep 2
-          done
-      - name: Seed E2E fixtures
+          node-version: "24"
+      - name: Require every selected gate to pass
         env:
-          MONGO_URI: mongodb://localhost:27017/gogocash-e2e?replicaSet=rs0
-          JWT_SECRET: ci-e2e-jwt
-          JWT_ADMIN_SECRET: ci-e2e-admin-jwt
-          E2E_SEED_OUT: .e2e/seed.json
-        run: npm run seed:e2e -w gogocash-api
-      - name: API integration (e2e)
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-          MONGO_URI: mongodb://localhost:27017/gogocash-e2e?replicaSet=rs0
-          MONGO_REPLICA_SET: "1"
-          JWT_SECRET: ci-e2e-jwt
-          JWT_ADMIN_SECRET: ci-e2e-admin-jwt
-          FIREBASE_PROJECT_ID: demo-e2e
-          RESEND_API_KEY: re_ci_e2e_dummy
-        run: npm run test:e2e -w gogocash-api
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node scripts/deployment/ci-required-gate.mjs
+
+  # ── required full-stack E2E on an isolated hosted runner ─────────────────
+  e2e-root:
+    name: root E2E exact SHA
+    needs: changes
+    if: ${{ needs.changes.outputs.e2e == 'true' }}
+    uses: ./.github/workflows/e2e-clean-runner.yml
+    with:
+      candidate_sha: ${{ github.event.pull_request.head.sha || github.sha }}
