@@ -78,6 +78,11 @@ import {
   BannerSchema,
 } from 'src/offer/schemas/banner.schema';
 import {
+  SPECIFIC_PAGE_BANNER_COLLECTION,
+  SPECIFIC_PAGE_BANNER_MODEL,
+  SpecificPageBannerSchema,
+} from 'src/offer/schemas/specific-page-banner.schema';
+import {
   TopBrandConfig,
   TopBrandConfigSchema,
 } from 'src/offer/schemas/top-brand-config.schema';
@@ -102,9 +107,9 @@ import {
   WalletAdjustmentSchema,
 } from './wallets/schemas/wallet-adjustment.schema';
 import {
-  MissingOrder,
-  MissingOrderSchema,
-} from './missing-orders/schemas/missing-order.schema';
+  MissionOrder,
+  MissionOrderSchema,
+} from 'src/offer/schemas/missing-order.schema';
 import {
   ReferralConfig,
   ReferralConfigSchema,
@@ -158,11 +163,13 @@ import { JobService } from 'src/withdraw/cronjob/job.service';
 import { PointModule } from 'src/point/point.module';
 import { WithdrawService } from 'src/withdraw/withdraw.service';
 import { AnalyticsModule } from 'src/analytics/analytics.module';
+import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
 
 @Module({
   imports: [
     CacheModule.register(),
     AnalyticsModule,
+    CategoryIntegrityModule,
     EmailModule,
     MediaModule,
     PointModule,
@@ -188,6 +195,11 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
         schema: BannerSchema,
         collection: ALL_BRAND_BANNER_COLLECTION,
       },
+      {
+        name: SPECIFIC_PAGE_BANNER_MODEL,
+        schema: SpecificPageBannerSchema,
+        collection: SPECIFIC_PAGE_BANNER_COLLECTION,
+      },
       { name: TopBrandConfig.name, schema: TopBrandConfigSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
@@ -199,7 +211,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
       // Phase 2B
       { name: WalletAdjustment.name, schema: WalletAdjustmentSchema },
       // Phase 3A
-      { name: MissingOrder.name, schema: MissingOrderSchema },
+      { name: MissionOrder.name, schema: MissionOrderSchema },
       // Phase 3B
       { name: ReferralConfig.name, schema: ReferralConfigSchema },
       // Phase 4A

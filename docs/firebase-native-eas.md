@@ -4,12 +4,12 @@
 
 ## Required keys
 
-| Variable | Source |
-|----------|--------|
-| `EXPO_PUBLIC_FIREBASE_API_KEY` | Firebase console → Project settings → Web app |
-| `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | Same |
-| `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | Same |
-| `EXPO_PUBLIC_FIREBASE_APP_ID` | Same |
+| Variable                           | Source                                        |
+| ---------------------------------- | --------------------------------------------- |
+| `EXPO_PUBLIC_FIREBASE_API_KEY`     | Firebase console → Project settings → Web app |
+| `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | Same                                          |
+| `EXPO_PUBLIC_FIREBASE_PROJECT_ID`  | Same                                          |
+| `EXPO_PUBLIC_FIREBASE_APP_ID`      | Same                                          |
 
 Set in EAS (required before native store builds):
 
@@ -21,7 +21,22 @@ eas secret:create --name EXPO_PUBLIC_FIREBASE_API_KEY --value ... --type string
 
 `eas.json` profiles do **not** embed Firebase keys.
 
-For **OTA updates** (`eas update`), GitHub Actions inlines Firebase from the `staging` environment — see `.github/workflows/app-ota-staging.yml` and the `update` step in `deploy-app-native-eas.yml`.
+For **OTA updates** (`eas update --environment preview`), Firebase is also
+inlined from the EAS `preview` environment. A staging push reaches that publisher
+only through the gated reusable call in `.github/workflows/ci-staging.yml`, and
+only when runtime payload paths changed without any native-sensitive path.
+Manual OTA uses the same exact `ci-staging` run and must find its successful
+`OTA-safe runtime payload` job, so dispatch inputs cannot override that decision.
+
+The hardened staging workflow validates both credential stores without printing
+values. GitHub `staging` secrets are written to an ephemeral, runner-owned 0600
+expectations file, so variables loaded by EAS cannot replace the canonical side
+of the comparison. Before either a native build or an OTA, the authenticated
+workflow clears its local release variables, enters the remote EAS `preview`
+environment, and requires all four Firebase values to match the private file. It
+also pins the EAS project, API URL, app environment, account data source, and
+frontend URL to the staging targets. A missing, blank, or mismatched value is a
+hard failure before the provider write; the file is deleted by an exit trap.
 
 ## Authorized domains
 
@@ -56,7 +71,7 @@ same `POST /auth/log-in` exchange.
    Android → keystore fingerprints) so Play Integrity verification works.
 2. Download `google-services.json` and provide it to builds either as an EAS
    file secret — `eas secret:create --name GOOGLE_SERVICES_JSON --type file
-   --value ./google-services.json` (the config reads the env path) — or commit
+--value ./google-services.json` (the config reads the env path) — or commit
    it at `apps/app/google-services.json` (it contains no private keys).
 3. iOS later: same flow with `GoogleService-Info.plist` /
    `GOOGLE_SERVICE_INFO_PLIST`.

@@ -31,6 +31,7 @@ describe('TasksController', () => {
       | 'changeConversionPaid'
       | 'updateStatusConversionIsPending'
       | 'getSpacialPointNextRound'
+      | 'awardApprovedConversionPoints'
     >
   >;
   let involveProvider: { source: string; syncOffers: jest.Mock };
@@ -56,6 +57,9 @@ describe('TasksController', () => {
       changeConversionPaid: jest.fn().mockResolvedValue({ modifiedCount: 3 }),
       updateStatusConversionIsPending: jest.fn().mockResolvedValue(undefined),
       getSpacialPointNextRound: jest.fn().mockResolvedValue(undefined),
+      awardApprovedConversionPoints: jest
+        .fn()
+        .mockResolvedValue({ scanned: 0 }),
     };
     involveProvider = {
       source: 'involve',
@@ -123,96 +127,24 @@ describe('TasksController', () => {
   });
 
   describe('updatePoints', () => {
-    const baseConversion = {
-      _id: 'conv-mongo-1',
-      conversion_id: 9001,
-      aff_sub1: 'user_id:64aaaaaaaaaaaaaaaaaaaaaa',
-      currency: 'THB',
-      sale_amount: 250,
-    };
-
-    it('updatePoints > given a wrong api key > then no points are awarded and no query runs', async () => {
+    it('updatePoints > given a wrong api key > then no points are awarded', async () => {
       const result = await controller.updatePoints(WRONG_KEY);
 
       expect(result).toEqual({ message: 'error' });
-      expect(conversionModel.find).not.toHaveBeenCalled();
-      expect(pointService.addPointsToUser).not.toHaveBeenCalled();
+      expect(tasksService.awardApprovedConversionPoints).not.toHaveBeenCalled();
     });
 
-    // Idempotency is the money-safety contract: only approved, not-yet-pointed
-    // conversions may be awarded, otherwise every call double-credits users.
-    it('updatePoints > given the correct api key > then it queries only approved, un-pointed conversions', async () => {
-      await controller.updatePoints(VALID_KEY);
-
-      expect(conversionModel.find).toHaveBeenCalledTimes(1);
-      const filter = conversionModel.find.mock.calls[0][0] as Record<
-        string,
-        unknown
-      >;
-      expect(filter).toMatchObject({
-        conversion_status: 'approved',
-        add_point: { $exists: false },
+    it('updatePoints > given the correct api key > then it awaits the shared exact-once writer', async () => {
+      tasksService.awardApprovedConversionPoints.mockResolvedValue({
+        scanned: 2,
       });
-      expect(filter.payout).toEqual({ $gt: 0 });
-    });
 
-    // THB conversions are credited at face value (no FX) and floored to a whole
-    // point — 250 THB sale -> 250 points, awarded under the parsed user id.
-    it('updatePoints > given a THB conversion > then points equal the floored sale amount and the user id is parsed from aff_sub1', async () => {
-      leanQuery.lean.mockResolvedValue([
-        { ...baseConversion, sale_amount: 250.9 },
-      ]);
-
-      await controller.updatePoints(VALID_KEY);
-
-      expect(pointService.addPointsToUser).toHaveBeenCalledTimes(1);
-      expect(pointService.addPointsToUser).toHaveBeenCalledWith(
-        '64aaaaaaaaaaaaaaaaaaaaaa',
-        250,
-        9001,
+      await expect(controller.updatePoints(VALID_KEY)).resolves.toEqual({
+        scanned: 2,
+      });
+      expect(tasksService.awardApprovedConversionPoints).toHaveBeenCalledTimes(
+        1,
       );
-    });
-
-    // USD conversions must be converted to THB using the fetched rate before
-    // crediting; a wrong rate here would mis-pay every USD earner.
-    it('updatePoints > given a USD conversion > then points are sale_amount * THB rate, floored', async () => {
-      rateCurrencyUSD.mockResolvedValue({ THB: 35 });
-      leanQuery.lean.mockResolvedValue([
-        { ...baseConversion, currency: 'USD', sale_amount: 10.2 },
-      ]);
-
-      await controller.updatePoints(VALID_KEY);
-
-      // 10.2 * 35 = 357 -> floor 357
-      expect(pointService.addPointsToUser).toHaveBeenCalledWith(
-        '64aaaaaaaaaaaaaaaaaaaaaa',
-        357,
-        9001,
-      );
-    });
-
-    // After awarding, the conversion MUST be flagged add_point:true so the next
-    // run's idempotency filter excludes it. This is the second half of the
-    // double-credit guard.
-    it('updatePoints > given an awarded conversion > then it is marked add_point:true to prevent re-award', async () => {
-      leanQuery.lean.mockResolvedValue([baseConversion]);
-
-      await controller.updatePoints(VALID_KEY);
-
-      expect(conversionModel.updateOne).toHaveBeenCalledTimes(1);
-      expect(conversionModel.updateOne).toHaveBeenCalledWith(
-        { _id: 'conv-mongo-1' },
-        { $set: { add_point: true } },
-      );
-    });
-
-    it('updatePoints > given no matching conversions > then nothing is awarded or marked', async () => {
-      leanQuery.lean.mockResolvedValue([]);
-
-      await controller.updatePoints(VALID_KEY);
-
-      expect(pointService.addPointsToUser).not.toHaveBeenCalled();
-      expect(conversionModel.updateOne).not.toHaveBeenCalled();
     });
   });
 

@@ -28,6 +28,7 @@ import { OFFER_THUMB_SIZES } from "@/components/offer/offerMedia";
 import { TrashBinIcon } from "@/icons";
 import { pathImage } from "@/utils/helper";
 import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
 const COUPON_FIELD_INPUT_WIDTH = "w-[316px] shrink-0";
 const DISCOUNT_MODE_TOGGLE_ACTIVE =
@@ -223,7 +224,9 @@ const FormCoupon = ({
     const brand = offerToSelectedBrand(offerDetail!);
     setSelectedBrands([brand]);
     setBaseline((current) =>
-      current.open === couponModalOpen ? { ...current, brands: [brand] } : current,
+      current.open === couponModalOpen
+        ? { ...current, brands: [brand] }
+        : current,
     );
     setBrandSyncOfferId(offerDetail!._id);
   }
@@ -233,6 +236,17 @@ const FormCoupon = ({
 
   // Save handler
   const handleSave = () => {
+    if (!form.discount_type) {
+      toast.error("Select a discount type.");
+      return;
+    }
+    if (
+      form.discount_type === "cash" &&
+      !String(form.discount_currency ?? "").trim()
+    ) {
+      toast.error("Select a discount currency.");
+      return;
+    }
     const discount = parseAmount(form.discount);
     if (discount == null || discount < 0) {
       toast.error("Discount must be a number (0 or greater).");
@@ -252,11 +266,20 @@ const FormCoupon = ({
       !form.unlimited_amount_enabled &&
       (quantity == null || quantity < 1 || !Number.isInteger(quantity))
     ) {
-      toast.error("Available code amount must be a whole number (1 or greater).");
+      toast.error(
+        "Available code amount must be a whole number (1 or greater).",
+      );
       return;
     }
     if (form.min_spend_enabled && !String(form.min_spend).trim()) {
       toast.error("Enter a minimum spend amount.");
+      return;
+    }
+    if (
+      form.min_spend_enabled &&
+      !String(form.min_spend_currency ?? "").trim()
+    ) {
+      toast.error("Select a minimum spend currency.");
       return;
     }
     const minSpendError = form.min_spend_enabled
@@ -268,6 +291,10 @@ const FormCoupon = ({
     }
     if (form.max_cap_enabled && !String(form.max_cap ?? "").trim()) {
       toast.error("Enter a max cap amount.");
+      return;
+    }
+    if (form.max_cap_enabled && !String(form.max_cap_currency ?? "").trim()) {
+      toast.error("Select a max cap currency.");
       return;
     }
     const maxCapError = form.max_cap_enabled
@@ -282,17 +309,18 @@ const FormCoupon = ({
       return;
     }
     if (
-      !form.one_time_use_enabled &&
+      form.one_time_use_enabled === false &&
       !String(form.usage_per_user ?? "").trim()
     ) {
       toast.error("Enter how many times each user can use this code.");
       return;
     }
-    const usagePerUser = !form.one_time_use_enabled
-      ? parseAmount(form.usage_per_user)
-      : 1;
+    const usagePerUser =
+      form.one_time_use_enabled === false
+        ? parseAmount(form.usage_per_user)
+        : 1;
     if (
-      !form.one_time_use_enabled &&
+      form.one_time_use_enabled === false &&
       (usagePerUser == null ||
         usagePerUser < 1 ||
         !Number.isInteger(usagePerUser))
@@ -330,15 +358,8 @@ const FormCoupon = ({
       .catch((err) => {
         setIsLoading(false);
         devError("Failed to save coupon:", err);
-        const message =
-          err?.response?.data?.message ??
-          (Array.isArray(err?.response?.data?.message)
-            ? err.response.data.message.join(", ")
-            : null);
         toast.error(
-          typeof message === "string" && message.trim()
-            ? message
-            : "Could not save coupon. Please try again.",
+          getApiErrorMessage(err, "Could not save coupon. Please try again."),
         );
       });
   };
@@ -364,8 +385,7 @@ const FormCoupon = ({
     {
       filedName: "description",
       type: "textarea",
-      description:
-        "Short summary shown directly on the customer coupon card.",
+      description: "Short summary shown directly on the customer coupon card.",
     },
     {
       filedName: "terms_and_conditions",
@@ -475,10 +495,7 @@ const FormCoupon = ({
                 {selectedBrands.map((brand, index) => {
                   const logoSrc = pathImage(brand.logo);
                   return (
-                    <tr
-                      key={brand.id}
-                      className="bg-white dark:bg-gray-900"
-                    >
+                    <tr key={brand.id} className="bg-white dark:bg-gray-900">
                       <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-gray-100">
                         {index + 1}
                       </td>
@@ -654,13 +671,11 @@ const FormCoupon = ({
           </span>
           <button
             type="button"
-            onClick={() =>
-              setForm({ ...form, discount_type: "percent" })
-            }
+            onClick={() => setForm({ ...form, discount_type: "percent" })}
             disabled={isLoading}
-            aria-pressed={(form.discount_type ?? "percent") === "percent"}
+            aria-pressed={form.discount_type === "percent"}
             className={`${
-              (form.discount_type ?? "percent") === "percent"
+              form.discount_type === "percent"
                 ? DISCOUNT_MODE_TOGGLE_ACTIVE
                 : DISCOUNT_MODE_TOGGLE_INACTIVE
             } touch-manipulation`}
@@ -688,7 +703,7 @@ const FormCoupon = ({
           </button>
         </div>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-          {(form.discount_type ?? "percent") === "percent" ? (
+          {form.discount_type === "percent" ? (
             <div className="min-w-0 flex-1">
               <Input
                 type="number"
@@ -707,7 +722,7 @@ const FormCoupon = ({
                 min="0"
               />
             </div>
-          ) : (
+          ) : form.discount_type === "cash" ? (
             <>
               <div className="min-w-0 flex-1">
                 <Input
@@ -730,7 +745,7 @@ const FormCoupon = ({
               <div className="min-w-0 flex-1">
                 <select
                   id="coupon-discount-currency"
-                  value={form.discount_currency || "THB"}
+                  value={form.discount_currency ?? ""}
                   onChange={(event) =>
                     setForm({
                       ...form,
@@ -742,11 +757,18 @@ const FormCoupon = ({
                   title="Currency"
                   className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                 >
+                  <option value="" disabled>
+                    Select currency
+                  </option>
                   <option value="THB">THB</option>
                   <option value="USD">USD</option>
                 </select>
               </div>
             </>
+          ) : (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Select Percent or Cash to configure the discount.
+            </p>
           )}
         </div>
       </div>
@@ -754,7 +776,7 @@ const FormCoupon = ({
   );
 
   const minSpendFields = (
-    <div className="min-w-0 w-full">
+    <div className="w-full min-w-0">
       <div
         className={`grid min-w-0 gap-3 ${
           form.min_spend_enabled
@@ -773,6 +795,9 @@ const FormCoupon = ({
                 ...form,
                 min_spend_enabled: enabled,
                 min_spend: enabled ? form.min_spend : "",
+                min_spend_currency: enabled
+                  ? form.min_spend_currency || "THB"
+                  : form.min_spend_currency,
               })
             }
             disabled={isLoading}
@@ -808,7 +833,7 @@ const FormCoupon = ({
             <div className="min-w-0 flex-1">
               <select
                 id="coupon-min-spend-currency"
-                value={form.min_spend_currency || "THB"}
+                value={form.min_spend_currency ?? ""}
                 onChange={(event) =>
                   setForm({
                     ...form,
@@ -820,6 +845,9 @@ const FormCoupon = ({
                 title="Currency"
                 className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
               >
+                <option value="" disabled>
+                  Select currency
+                </option>
                 <option value="THB">THB</option>
                 <option value="USD">USD</option>
               </select>
@@ -831,7 +859,7 @@ const FormCoupon = ({
   );
 
   const maxCapFields = (
-    <div className="min-w-0 w-full">
+    <div className="w-full min-w-0">
       <div
         className={`grid min-w-0 gap-3 ${
           form.max_cap_enabled
@@ -850,6 +878,9 @@ const FormCoupon = ({
                 ...form,
                 max_cap_enabled: enabled,
                 max_cap: enabled ? form.max_cap || "" : "",
+                max_cap_currency: enabled
+                  ? form.max_cap_currency || "THB"
+                  : form.max_cap_currency,
               })
             }
             disabled={isLoading}
@@ -885,7 +916,7 @@ const FormCoupon = ({
             <div className="min-w-0 flex-1">
               <select
                 id="coupon-max-cap-currency"
-                value={form.max_cap_currency || "THB"}
+                value={form.max_cap_currency ?? ""}
                 onChange={(event) =>
                   setForm({
                     ...form,
@@ -897,6 +928,9 @@ const FormCoupon = ({
                 title="Currency"
                 className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
               >
+                <option value="" disabled>
+                  Select currency
+                </option>
                 <option value="THB">THB</option>
                 <option value="USD">USD</option>
               </select>
@@ -908,7 +942,7 @@ const FormCoupon = ({
   );
 
   const codeFields = (
-    <div className="min-w-0 w-full">
+    <div className="w-full min-w-0">
       <div
         className={`grid min-w-0 gap-3 ${
           form.code_enabled
@@ -963,10 +997,10 @@ const FormCoupon = ({
   );
 
   const oneTimeUseFields = (
-    <div className="min-w-0 w-full">
+    <div className="w-full min-w-0">
       <div
         className={`grid min-w-0 gap-3 ${
-          !form.one_time_use_enabled
+          form.one_time_use_enabled === false
             ? "grid-cols-[320px_1fr] items-center"
             : "grid-cols-1"
         }`}
@@ -981,7 +1015,7 @@ const FormCoupon = ({
               setForm({
                 ...form,
                 one_time_use_enabled: enabled,
-                usage_per_user: enabled ? "" : form.usage_per_user || "",
+                usage_per_user: enabled ? "1" : form.usage_per_user || "",
               })
             }
             disabled={isLoading}
@@ -995,7 +1029,7 @@ const FormCoupon = ({
             </p>
           </div>
         </div>
-        {!form.one_time_use_enabled ? (
+        {form.one_time_use_enabled === false ? (
           <div className="flex min-w-0 items-center gap-3">
             <div className={COUPON_FIELD_INPUT_WIDTH}>
               <Input
@@ -1024,7 +1058,7 @@ const FormCoupon = ({
   );
 
   const unlimitedAmountFields = (
-    <div className="min-w-0 w-full">
+    <div className="w-full min-w-0">
       <div
         className={`grid min-w-0 gap-3 ${
           !form.unlimited_amount_enabled
@@ -1135,8 +1169,9 @@ const FormCoupon = ({
               <Fragment key={formItem.filedName}>
                 <div className="w-full">
                   <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {(formItem.label ?? formItem.filedName.replace(/_/g, " "))
-                      .toUpperCase()}
+                    {(
+                      formItem.label ?? formItem.filedName.replace(/_/g, " ")
+                    ).toUpperCase()}
                   </p>
                   {formItem.description && (
                     <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">

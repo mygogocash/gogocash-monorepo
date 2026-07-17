@@ -25,6 +25,12 @@ export class User {
   @Prop({ type: Number, required: false, default: 0 })
   withdraw_lock_seq: number;
 
+  // Serializes quest award-cap checks for one beneficiary. The counter has no
+  // business meaning; incrementing it inside the award transaction turns
+  // concurrent count-and-award attempts into a MongoDB write conflict/retry.
+  @Prop({ type: Number, required: false, default: 0 })
+  quest_task_award_lock_seq: number;
+
   @Prop({ required: false, unique: false, default: '' })
   address: string;
 

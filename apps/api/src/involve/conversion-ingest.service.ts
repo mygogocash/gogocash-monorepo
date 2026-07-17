@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
@@ -11,6 +11,10 @@ import {
   normalizeConversionStatus,
   sanitizePostbackQuery,
 } from './involve-postback.mapper';
+import {
+  ConversionLifecycleOptions,
+  QuestConversionLifecycleService,
+} from 'src/quest-task-engine/conversion-lifecycle.service';
 
 @Injectable()
 export class ConversionIngestService {
@@ -18,6 +22,8 @@ export class ConversionIngestService {
     @InjectModel(Conversion.name)
     private readonly conversionModel: Model<Conversion>,
     @InjectModel(Offer.name) private readonly offerModel: Model<Offer>,
+    @Optional()
+    private readonly lifecycleService?: QuestConversionLifecycleService,
   ) {}
 
   async resolveMerchantId(offerId: number): Promise<number> {
@@ -49,11 +55,20 @@ export class ConversionIngestService {
       return 'skipped';
     }
 
-    await this.upsertConversion(payload);
+    await this.upsertConversion(payload, {
+      adapter: 'postback',
+      authoritative: false,
+    });
     return 'upserted';
   }
 
-  async upsertConversion(conversion: Record<string, unknown>): Promise<void> {
+  async upsertConversion(
+    conversion: Record<string, unknown>,
+    lifecycleOptions: ConversionLifecycleOptions = {
+      adapter: 'authoritative_pull',
+      authoritative: true,
+    },
+  ): Promise<void> {
     const conversionId = conversion.conversion_id;
     if (conversionId === undefined || conversionId === null) {
       return;
@@ -72,6 +87,14 @@ export class ConversionIngestService {
       aff_sub1?: string;
       user_id?: import('mongoose').Types.ObjectId;
     };
+
+    if (this.lifecycleService) {
+      await this.lifecycleService.ingest(
+        enrichConversionWithUserId(payload),
+        lifecycleOptions,
+      );
+      return;
+    }
 
     await this.conversionModel.findOneAndUpdate(
       { conversion_id: conversionId },

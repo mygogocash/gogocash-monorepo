@@ -19,6 +19,11 @@ import {
   BannerSchema,
 } from './schemas/banner.schema';
 import {
+  SPECIFIC_PAGE_BANNER_COLLECTION,
+  SPECIFIC_PAGE_BANNER_MODEL,
+  SpecificPageBannerSchema,
+} from './schemas/specific-page-banner.schema';
+import {
   TopBrandConfig,
   TopBrandConfigSchema,
 } from './schemas/top-brand-config.schema';
@@ -57,11 +62,13 @@ import { CouponInsightsService } from './coupon-insights.service';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { RolesGuard } from 'src/admin/roles.guard';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
+import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
 
 @Module({
   imports: [
     CacheModule.register(),
     MediaModule,
+    CategoryIntegrityModule,
     // The offer-sync cron (TasksService) dispatches through the affiliate seam.
     AffiliateModule,
     MongooseModule.forFeature([
@@ -78,6 +85,11 @@ import { RateLimitGuard } from 'src/auth/rate-limit.guard';
         name: ALL_BRAND_BANNER_MODEL,
         schema: BannerSchema,
         collection: ALL_BRAND_BANNER_COLLECTION,
+      },
+      {
+        name: SPECIFIC_PAGE_BANNER_MODEL,
+        schema: SpecificPageBannerSchema,
+        collection: SPECIFIC_PAGE_BANNER_COLLECTION,
       },
       { name: TopBrandConfig.name, schema: TopBrandConfigSchema },
       { name: Conversion.name, schema: ConversionSchema },

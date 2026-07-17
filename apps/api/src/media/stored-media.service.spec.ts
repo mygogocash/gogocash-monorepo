@@ -6,13 +6,19 @@ import { R2ObjectStorageService } from './r2-object-storage.service';
 import { ImageOptimizerService } from './image-optimizer.service';
 import { MEDIA_FOLDER } from './media-folders.config';
 import { StoredMediaService } from './stored-media.service';
+import { buildCommandOwnedMediaObjectKey } from './stored-media.util';
 
 describe('StoredMediaService', () => {
   let service: StoredMediaService;
   let r2ObjectStorage: {
     ownsUrl: jest.Mock;
     uploadFile: jest.Mock;
+    describeUploadAtKey: jest.Mock;
+    describeObjectAtKey: jest.Mock;
+    uploadFileAtKey: jest.Mock;
     deletePublicUrl: jest.Mock;
+    deleteObjectStrict: jest.Mock;
+    objectExistsStrict: jest.Mock;
     getFileStream: jest.Mock;
   };
   let googleDriveService: {
@@ -32,7 +38,22 @@ describe('StoredMediaService', () => {
         bucket: 'gogocash-catalog-staging',
         access: 'public',
       }),
+      uploadFileAtKey: jest.fn(),
+      describeUploadAtKey: jest.fn((objectKey: string) => ({
+        publicUrl: `https://media-staging.gogocash.co/${objectKey}`,
+        objectKey,
+        bucket: 'gogocash-catalog-staging',
+        access: 'public',
+      })),
+      describeObjectAtKey: jest.fn((objectKey: string) => ({
+        publicUrl: `https://media-staging.gogocash.co/${objectKey}`,
+        objectKey,
+        bucket: 'gogocash-catalog-staging',
+        access: 'public',
+      })),
       deletePublicUrl: jest.fn().mockResolvedValue(undefined),
+      deleteObjectStrict: jest.fn().mockResolvedValue(undefined),
+      objectExistsStrict: jest.fn().mockResolvedValue(false),
       getFileStream: jest.fn(),
     };
     googleDriveService = {
@@ -118,6 +139,234 @@ describe('StoredMediaService', () => {
     );
   });
 
+  it('prepareCommandOwned > returns deterministic metadata without performing Put', async () => {
+    r2ObjectStorage.uploadFileAtKey = jest.fn(
+      async (_file: unknown, objectKey: string) => ({
+        publicUrl: `https://media-staging.gogocash.co/${objectKey}`,
+        objectKey,
+        bucket: 'gogocash-catalog-staging',
+        access: 'public',
+      }),
+    );
+    const prepared = await service.prepareCommandOwned(
+      {
+        originalname: 'default.png',
+        mimetype: 'image/png',
+        buffer: Buffer.from('x'),
+      } as Express.Multer.File,
+      MEDIA_FOLDER.CATEGORIES,
+      'policy-save-1',
+      'attempt-a',
+    );
+
+    expect(r2ObjectStorage.describeUploadAtKey).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^categories\/policy-save-1-[a-f0-9]{16}\/attempt-a-[a-f0-9]{16}\/[a-f0-9]{64}\.png$/,
+      ),
+      'public',
+    );
+    expect(r2ObjectStorage.uploadFileAtKey).not.toHaveBeenCalled();
+    expect(prepared.asset).toMatchObject({
+      provider: 'r2',
+      ownership: 'command-owned',
+      owner_key: 'policy-save-1',
+      owner_attempt_token: 'attempt-a',
+      object_key: expect.stringMatching(
+        /^categories\/policy-save-1-[a-f0-9]{16}\/attempt-a-[a-f0-9]{16}\//,
+      ),
+      sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      original_name: 'default.png',
+    });
+
+    await service.putCommandOwned(prepared, 12_345);
+    expect(r2ObjectStorage.uploadFileAtKey).toHaveBeenCalledWith(
+      prepared.file,
+      prepared.asset.object_key,
+      'public',
+      { timeoutMs: 12_345 },
+    );
+  });
+
+  it('deleteCommandOwnedStrict > rejects unverified legacy refs without deleting', async () => {
+    await expect(
+      service.deleteCommandOwnedStrict(
+        {
+          provider: 'legacy-unverified',
+          ownership: 'legacy-unverified',
+          url: 'legacy/path.png',
+        },
+        MEDIA_FOLDER.CATEGORIES,
+      ),
+    ).rejects.toThrow('Refusing to delete unverified media');
+    expect(r2ObjectStorage.deleteObjectStrict).not.toHaveBeenCalled();
+  });
+
+  it('deleteCommandOwnedStrict > delegates exact bucket/key and propagates failure', async () => {
+    const sha256 = 'a'.repeat(64);
+    const objectKey = buildCommandOwnedMediaObjectKey(
+      'categories',
+      'policy-save-1',
+      'attempt-a',
+      sha256,
+      'default.png',
+    );
+    r2ObjectStorage.deleteObjectStrict.mockRejectedValueOnce(
+      new Error('delete failed'),
+    );
+    await expect(
+      service.deleteCommandOwnedStrict(
+        {
+          provider: 'r2',
+          ownership: 'command-owned',
+          owner_key: 'policy-save-1',
+          owner_attempt_token: 'attempt-a',
+          bucket: 'gogocash-catalog-staging',
+          object_key: objectKey,
+          url: `https://media-staging.gogocash.co/${objectKey}`,
+          sha256,
+          original_name: 'default.png',
+        },
+        MEDIA_FOLDER.CATEGORIES,
+      ),
+    ).rejects.toThrow('delete failed');
+  });
+
+  it('verifyCommandOwnedAbsentStrict > validates provenance and requires exact HeadObject absence', async () => {
+    const sha256 = 'a'.repeat(64);
+    const objectKey = buildCommandOwnedMediaObjectKey(
+      'categories',
+      'policy-save-1',
+      'attempt-a',
+      sha256,
+      'default.png',
+    );
+    const stored = {
+      provider: 'r2' as const,
+      ownership: 'command-owned' as const,
+      owner_key: 'policy-save-1',
+      owner_attempt_token: 'attempt-a',
+      bucket: 'gogocash-catalog-staging',
+      object_key: objectKey,
+      url: `https://media-staging.gogocash.co/${objectKey}`,
+      sha256,
+      original_name: 'default.png',
+    };
+
+    await expect(
+      service.verifyCommandOwnedAbsentStrict(
+        stored,
+        MEDIA_FOLDER.CATEGORIES,
+        12_345,
+      ),
+    ).resolves.toBeUndefined();
+    expect(r2ObjectStorage.objectExistsStrict).toHaveBeenCalledWith(
+      stored.bucket,
+      stored.object_key,
+      { timeoutMs: 12_345 },
+    );
+
+    r2ObjectStorage.objectExistsStrict.mockResolvedValueOnce(true);
+    await expect(
+      service.verifyCommandOwnedAbsentStrict(stored, MEDIA_FOLDER.CATEGORIES),
+    ).rejects.toThrow('Command-owned media object is still present');
+  });
+
+  it('verifyCommandOwnedAbsentStrict > refuses forged ownership before HeadObject', async () => {
+    await expect(
+      service.verifyCommandOwnedAbsentStrict(
+        {
+          provider: 'r2',
+          ownership: 'command-owned',
+          owner_key: 'policy-save-1',
+          owner_attempt_token: 'attempt-a',
+          bucket: 'gogocash-catalog-staging',
+          object_key: 'categories/someone-else/valuable.png',
+          url: 'https://media-staging.gogocash.co/categories/someone-else/valuable.png',
+          sha256: 'a'.repeat(64),
+          original_name: 'default.png',
+        },
+        MEDIA_FOLDER.CATEGORIES,
+      ),
+    ).rejects.toThrow('Refusing to verify unverified media');
+    expect(r2ObjectStorage.objectExistsStrict).not.toHaveBeenCalled();
+  });
+
+  it('deleteCommandOwnedStrict > refuses a forged command-owned row targeting an arbitrary key', async () => {
+    await expect(
+      service.deleteCommandOwnedStrict(
+        {
+          provider: 'r2',
+          ownership: 'command-owned',
+          owner_key: 'policy-save-1',
+          owner_attempt_token: 'attempt-a',
+          bucket: 'gogocash-catalog-staging',
+          object_key: 'categories/someone-else/valuable.png',
+          url: 'https://media-staging.gogocash.co/categories/someone-else/valuable.png',
+          sha256: 'a'.repeat(64),
+          original_name: 'default.png',
+        },
+        MEDIA_FOLDER.CATEGORIES,
+      ),
+    ).rejects.toThrow('Refusing to delete unverified media');
+    expect(r2ObjectStorage.deleteObjectStrict).not.toHaveBeenCalled();
+  });
+
+  it('deleteCommandOwnedStrict > refuses an otherwise valid key from another media folder', async () => {
+    const sha256 = 'a'.repeat(64);
+    const objectKey = buildCommandOwnedMediaObjectKey(
+      'categories',
+      'policy-save-1',
+      'attempt-a',
+      sha256,
+      'default.png',
+    );
+    await expect(
+      service.deleteCommandOwnedStrict(
+        {
+          provider: 'r2',
+          ownership: 'command-owned',
+          owner_key: 'policy-save-1',
+          owner_attempt_token: 'attempt-a',
+          bucket: 'gogocash-catalog-staging',
+          object_key: objectKey,
+          url: `https://media-staging.gogocash.co/${objectKey}`,
+          sha256,
+          original_name: 'default.png',
+        },
+        MEDIA_FOLDER.BRANDS,
+      ),
+    ).rejects.toThrow('Refusing to delete unverified media');
+    expect(r2ObjectStorage.deleteObjectStrict).not.toHaveBeenCalled();
+  });
+
+  it('deleteCommandOwnedStrict > refuses a valid-looking key bound to another bucket', async () => {
+    const sha256 = 'a'.repeat(64);
+    const objectKey = buildCommandOwnedMediaObjectKey(
+      'categories',
+      'policy-save-1',
+      'attempt-a',
+      sha256,
+      'default.png',
+    );
+    await expect(
+      service.deleteCommandOwnedStrict(
+        {
+          provider: 'r2',
+          ownership: 'command-owned',
+          owner_key: 'policy-save-1',
+          owner_attempt_token: 'attempt-a',
+          bucket: 'someone-elses-bucket',
+          object_key: objectKey,
+          url: `https://media-staging.gogocash.co/${objectKey}`,
+          sha256,
+          original_name: 'default.png',
+        },
+        MEDIA_FOLDER.CATEGORIES,
+      ),
+    ).rejects.toThrow('Refusing to delete unverified media');
+    expect(r2ObjectStorage.deleteObjectStrict).not.toHaveBeenCalled();
+  });
+
   it('deleteStored > given an R2 url > then deletes via R2', async () => {
     await service.deleteStored(
       'https://media-staging.gogocash.co/brands/x.png',
@@ -134,6 +383,15 @@ describe('StoredMediaService', () => {
     expect(googleDriveService.deleteFile).toHaveBeenCalledWith(
       'legacy-drive-file-id-12345',
     );
+  });
+
+  it('getReadableStream > given a missing local media file > then rejects with a controlled 404', async () => {
+    await expect(
+      service.getReadableStream('local-media:missing-e2e-banner.png'),
+    ).rejects.toMatchObject({
+      status: 404,
+      response: 'Local media file not found',
+    });
   });
 
   it('replace > given existing R2 url > then deletes old object after upload', async () => {

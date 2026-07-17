@@ -4,8 +4,8 @@ import { Types } from 'mongoose';
 import { escapeRegexLiteral } from './escape-regex';
 
 /** Validate and coerce a user-supplied id before it reaches a Mongo query. */
-export function requireObjectId(id: string, label = 'id'): Types.ObjectId {
-  if (!Types.ObjectId.isValid(id)) {
+export function requireObjectId(id: unknown, label = 'id'): Types.ObjectId {
+  if (typeof id !== 'string' || !Types.ObjectId.isValid(id)) {
     throw new BadRequestException(`The ${label} you provided is not valid.`);
   }
   return new Types.ObjectId(id);
@@ -36,10 +36,13 @@ export function requireOneOf<T extends string>(
 
 /** Non-empty trimmed string safe for Mongo literal comparisons. */
 export function requireTrimmedString(
-  value: string,
+  value: unknown,
   maxLength = 500,
   label = 'value',
 ): string {
+  if (typeof value !== 'string') {
+    throw new BadRequestException(`The ${label} you provided is not valid.`);
+  }
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > maxLength) {
     throw new BadRequestException(`The ${label} you provided is not valid.`);

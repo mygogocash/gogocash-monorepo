@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "@mobile/theme/icons";
+import { useSpecificPageBanner } from "@mobile/account/specificPageBannerResource";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
@@ -46,6 +47,7 @@ import { ProductDiscoveryMobileFilters } from "./ProductDiscoveryMobileFilters";
 import { ProductDiscoverySidebar } from "./ProductDiscoverySidebar";
 import { ProductDiscoveryTermsDialog } from "./ProductDiscoveryTermsDialog";
 import { ShopDirectoryPagination } from "./ShopDirectoryPagination";
+import { SpecificPageBannerCarousel } from "./SpecificPageBannerCarousel";
 
 export function CustomerProductDiscoveryScreen() {
   const styles = useThemedStyles(createDiscoveryScreenStyles);
@@ -75,6 +77,7 @@ export function CustomerProductDiscoveryScreen() {
     contentWidth: gridContentWidth,
     viewportWidth: width,
   });
+  const specificPageBanner = useSpecificPageBanner("discover", webProductDiscovery.promo);
   const productResults = useMemo(
     () =>
       filterDirectoryStoresByRegion(
@@ -111,8 +114,9 @@ export function CustomerProductDiscoveryScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setCurrentPage(1);
+    specificPageBanner.retry();
     requestAnimationFrame(() => setRefreshing(false));
-  }, []);
+  }, [specificPageBanner]);
   const openTerms = useCallback(() => {
     setTermsClosing(false);
     setTermsVisible(true);
@@ -158,6 +162,15 @@ export function CustomerProductDiscoveryScreen() {
 
   const productContent = (
     <>
+      {specificPageBanner.promo ? (
+        <SpecificPageBannerCarousel
+          contentWidth={homeLayout.contentWidth}
+          isDesktop={homeLayout.isDesktop}
+          pageTarget={specificPageBanner.target}
+          promo={specificPageBanner.promo}
+        />
+      ) : null}
+
       <View style={styles.productDiscoveryHeader}>
         <Text
           style={[

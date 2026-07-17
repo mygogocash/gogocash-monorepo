@@ -22,6 +22,13 @@ describe('mongo-query helpers', () => {
     expect(() => requireObjectId('not-an-id')).toThrow(BadRequestException);
   });
 
+  it.each([123, { $ne: null }, ['507f1f77bcf86cd799439011'], null])(
+    'requireObjectId > given non-string input %p > then rejects before coercion',
+    (value) => {
+      expect(() => requireObjectId(value)).toThrow(BadRequestException);
+    },
+  );
+
   it('requireObjectId > given valid id > then returns ObjectId', () => {
     const id = new Types.ObjectId().toHexString();
     expect(requireObjectId(id).toHexString()).toBe(id);
@@ -79,6 +86,15 @@ describe('mongo-query helpers', () => {
       BadRequestException,
     );
   });
+
+  it.each([123, { $gt: '' }, ['valid-looking'], null])(
+    'requireTrimmedString > given non-string input %p > then rejects before trimming',
+    (value) => {
+      expect(() => requireTrimmedString(value, 20, 'name')).toThrow(
+        BadRequestException,
+      );
+    },
+  );
 
   it('requireFiniteNumber > given NaN > then throws', () => {
     expect(() => requireFiniteNumber('abc', 'score')).toThrow(

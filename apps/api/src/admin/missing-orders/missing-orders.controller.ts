@@ -18,7 +18,6 @@ import { MissingOrdersService } from './missing-orders.service';
 import {
   MissingOrderQueryDto,
   ApproveRejectDto,
-  AssignDto,
   AddNoteDto,
 } from './dto/missing-order.dto';
 
@@ -45,7 +44,7 @@ export class MissingOrdersController {
     return this.missingOrdersService.findOne(id);
   }
 
-  // Approving a missing order grants the claimed cashback (money decision).
+  // Approval is workflow-only. It never posts cashback, wallet, or points.
   @Roles('approver')
   @Put(':id/approve')
   approve(@Param('id') id: string, @Body() dto: ApproveRejectDto) {
@@ -60,8 +59,9 @@ export class MissingOrdersController {
 
   @Roles('approver')
   @Put(':id/assign')
-  assign(@Param('id') id: string, @Body() dto: AssignDto) {
-    return this.missingOrdersService.assign(id, dto.admin_id);
+  assign(@Param('id') id: string, @Req() req: Request) {
+    const admin = req['user'] as { sub?: string } | undefined;
+    return this.missingOrdersService.assign(id, admin?.sub ?? '');
   }
 
   // Writing a case note is a mutation — exclude read-only viewers.

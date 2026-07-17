@@ -56,10 +56,14 @@ describe("resolveCustomerAccountResourceRequest", () => {
     });
   });
 
-  it("allBrandBanner > then requests the separate public directory banner", () => {
-    expect(resolveCustomerAccountResourceRequest({ resourceId: "allBrandBanner" })).toEqual({
+  it.each([
+    ["allBrandBanner", "/offer/banner-specific-page/all-brands"],
+    ["allShopBanner", "/offer/banner-specific-page/all-shops"],
+    ["productDiscoveryBanner", "/offer/banner-specific-page/product-discovery"],
+  ] as const)("%s > then requests its isolated public specific-page banner", (resourceId, path) => {
+    expect(resolveCustomerAccountResourceRequest({ resourceId })).toEqual({
       method: "GET",
-      path: "/offer/banner-all-brand-page",
+      path,
     });
   });
 });
@@ -68,9 +72,11 @@ describe("PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS", () => {
   it("includes merchant coupons with the public admin-curated resources", () => {
     expect(PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS).toEqual([
       "allBrandBanner",
+      "allShopBanner",
       "homeBanner",
       "merchant",
       "merchantCoupons",
+      "productDiscoveryBanner",
       "topBrand",
     ]);
   });

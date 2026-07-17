@@ -43,6 +43,44 @@ function dataArray<T>(payload: unknown): T[] {
   return [];
 }
 
+function membershipTierFromApi(value: unknown): MembershipTier | null {
+  if (!isRecord(value)) return null;
+  const id = String(value.id ?? value._id ?? "").trim();
+  if (!id) return null;
+  const rawBenefits = Array.isArray(value.benefits) ? value.benefits : [];
+  return {
+    id,
+    name: String(value.name ?? "Unnamed tier"),
+    description: String(value.description ?? ""),
+    monthlyPrice: numberOrDefault(value.monthlyPrice ?? value.price, 0),
+    annualPrice: numberOrDefault(value.annualPrice, 0),
+    color: String(value.color ?? "#64748b"),
+    icon: String(value.icon ?? "star"),
+    benefits: rawBenefits.flatMap((benefit) => {
+      if (typeof benefit === "string") {
+        return [{ icon: "check", label: benefit }];
+      }
+      if (!isRecord(benefit) || typeof benefit.label !== "string") return [];
+      return [
+        {
+          icon: String(benefit.icon ?? "check"),
+          label: benefit.label,
+        },
+      ];
+    }),
+    cashbackRate: numberOrDefault(
+      value.cashbackRate ?? value.cashback_bonus_percent,
+      0,
+    ),
+    maxCashbackPerMonth: numberOrDefault(value.maxCashbackPerMonth, 0),
+    isActive:
+      typeof value.isActive === "boolean"
+        ? value.isActive
+        : value.is_active === true,
+    memberCount: numberOrDefault(value.memberCount, 0),
+  };
+}
+
 function numberOrDefault(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
@@ -180,20 +218,31 @@ export async function putCreditScoreOverride(
 
 /* Membership */
 export async function getMembershipStats() {
-  const { data } = await client.get<{
-    totalActiveMembers: number;
-    revenueMtd: number;
-    churnRate: number;
-    newThisMonth: number;
-  }>("/admin/membership/stats");
-  return data;
+  const { data } = await client.get<unknown>("/admin/membership/stats");
+  const payload = isRecord(data) ? data : {};
+  const optionalNumber = (value: unknown): number | null =>
+    typeof value === "number" && Number.isFinite(value) ? value : null;
+
+  return {
+    totalActiveMembers: numberOrDefault(
+      payload.totalActiveMembers ?? payload.active_memberships,
+      0,
+    ),
+    newThisMonth: numberOrDefault(
+      payload.newThisMonth ?? payload.new_this_month,
+      0,
+    ),
+    revenueMtd: optionalNumber(payload.revenueMtd ?? payload.revenue_mtd),
+    churnRate: optionalNumber(payload.churnRate ?? payload.churn_rate),
+  };
 }
 
 export async function getMembershipTiers() {
-  const { data } = await client.get<{ data: MembershipTier[] }>(
-    "/admin/membership/tiers",
-  );
-  return dataArray<MembershipTier>(data);
+  const { data } = await client.get<unknown>("/admin/membership/tiers");
+  return dataArray<unknown>(data).flatMap((value) => {
+    const tier = membershipTierFromApi(value);
+    return tier ? [tier] : [];
+  });
 }
 
 export async function postMembershipTier(
@@ -269,13 +318,24 @@ export async function putMembershipUserAction(
 
 /* Subscription */
 export async function getSubscriptionStats() {
-  const { data } = await client.get<{
-    totalVolumeToday: number;
-    totalVolumeMtd: number;
-    avgTransactionValue: number;
-    flaggedCount: number;
-  }>("/admin/subscription/stats");
-  return data;
+  const { data } = await client.get<unknown>("/admin/subscription/stats");
+  const payload = isRecord(data) ? data : {};
+  const statusCounts = isRecord(payload.by_status) ? payload.by_status : {};
+  const count = (value: unknown): number =>
+    Math.max(0, Math.trunc(numberOrDefault(value, 0)));
+
+  return {
+    totalSubscriptions: Object.values(statusCounts).reduce<number>(
+      (total, value) => total + count(value),
+      0,
+    ),
+    activeSubscriptions: count(statusCounts.active),
+    cancelledSubscriptions: count(statusCounts.cancelled),
+    activePlanValue: Math.max(
+      0,
+      numberOrDefault(payload.total_revenue, 0),
+    ),
+  };
 }
 
 export async function getSubscriptionPlans() {
@@ -413,7 +473,21 @@ export async function getMissingOrders(params: {
       params: qp(params),
     },
   );
-  return data;
+  const payload: unknown = data;
+  if (isRecord(payload) && isRecord(payload.meta)) {
+    const rows = dataArray<MissingOrderClaim>(payload);
+    return {
+      data: rows,
+      page: numberOrDefault(payload.meta.page, params.page ?? 1),
+      limit: numberOrDefault(payload.meta.limit, params.limit ?? 10),
+      total: numberOrDefault(payload.meta.total, rows.length),
+      totalPages: numberOrDefault(
+        payload.meta.totalPages,
+        rows.length > 0 ? Math.ceil(rows.length / (params.limit ?? 10)) : 0,
+      ),
+    };
+  }
+  return paginated<MissingOrderClaim>(payload, params);
 }
 
 export async function getMissingOrderDetail(id: string) {
@@ -423,33 +497,30 @@ export async function getMissingOrderDetail(id: string) {
   return data;
 }
 
-export async function putMissingOrderApprove(id: string) {
-  const { data } = await client.put(`/admin/missing-orders/${id}/approve`, {});
+export async function putMissingOrderApprove(id: string, note?: string) {
+  const { data } = await client.put(
+    `/admin/missing-orders/${id}/approve`,
+    note?.trim() ? { note: note.trim() } : {},
+  );
   return data;
 }
 
-export async function putMissingOrderReject(id: string) {
-  const { data } = await client.put(`/admin/missing-orders/${id}/reject`, {});
+export async function putMissingOrderReject(id: string, note?: string) {
+  const { data } = await client.put(
+    `/admin/missing-orders/${id}/reject`,
+    note?.trim() ? { note: note.trim() } : {},
+  );
   return data;
 }
 
-export async function putMissingOrderAssign(id: string, assignee: string) {
-  const { data } = await client.put(`/admin/missing-orders/${id}/assign`, {
-    assignee,
-  });
+export async function putMissingOrderAssign(id: string) {
+  const { data } = await client.put(`/admin/missing-orders/${id}/assign`, {});
   return data;
 }
 
-export async function postMissingOrderNote(
-  id: string,
-  note: string,
-  adminId: string,
-  adminName: string,
-) {
+export async function postMissingOrderNote(id: string, note: string) {
   const { data } = await client.post(`/admin/missing-orders/${id}/notes`, {
-    note,
-    adminId,
-    adminName,
+    text: note,
   });
   return data;
 }

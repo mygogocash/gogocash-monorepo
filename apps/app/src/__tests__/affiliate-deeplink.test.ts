@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { mintUserTrackingLink } from "@mobile/api/affiliateDeeplink";
@@ -16,7 +14,8 @@ describe("mintUserTrackingLink", () => {
   it("given a successful create-affiliate response > then returns the per-user tracking link", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       json: async () => ({
-        deeplink: "https://invl.me/aff_m?offer_id=103877&aff_id=23854&aff_sub=user_id%3Aabc",
+        deeplink:
+          "https://invl.me/aff_m?offer_id=103877&aff_id=23854&aff_sub=user_id%3Aabc",
       }),
       ok: true,
     });
@@ -27,11 +26,18 @@ describe("mintUserTrackingLink", () => {
     expect(fetchImpl).toHaveBeenCalledWith(
       "https://api-staging.gogocash.co/involve/create-affiliate",
       expect.objectContaining({
-        body: JSON.stringify({ deeplink: "", merchant_id: 103877, offer_id: 5031 }),
+        body: JSON.stringify({
+          deeplink: "",
+          merchant_id: 103877,
+          offer_id: 5031,
+        }),
         method: "POST",
       }),
     );
-    const headers = fetchImpl.mock.calls[0][1].headers as Record<string, string>;
+    const headers = fetchImpl.mock.calls[0][1].headers as Record<
+      string,
+      string
+    >;
     expect(headers.Authorization).toBe("Bearer backend-jwt");
   });
 
@@ -53,11 +59,18 @@ describe("mintUserTrackingLink", () => {
     await expect(
       mintUserTrackingLink({
         ...BASE,
-        fetchImpl: vi.fn().mockResolvedValue({ json: async () => ({}), ok: false, status: 500 }),
+        fetchImpl: vi.fn().mockResolvedValue({
+          json: async () => ({}),
+          ok: false,
+          status: 500,
+        }),
       }),
     ).resolves.toBeNull();
     await expect(
-      mintUserTrackingLink({ ...BASE, fetchImpl: vi.fn().mockRejectedValue(new Error("net")) }),
+      mintUserTrackingLink({
+        ...BASE,
+        fetchImpl: vi.fn().mockRejectedValue(new Error("net")),
+      }),
     ).resolves.toBeNull();
   });
 
@@ -65,22 +78,32 @@ describe("mintUserTrackingLink", () => {
     await expect(
       mintUserTrackingLink({
         ...BASE,
-        fetchImpl: vi.fn().mockResolvedValue({ json: async () => ({ deeplink: "" }), ok: true }),
+        fetchImpl: vi.fn().mockResolvedValue({
+          json: async () => ({ deeplink: "" }),
+          ok: true,
+        }),
       }),
     ).resolves.toBeNull();
   });
-});
 
-describe("shop detail Shop Now attribution (source signals)", () => {
-  const screenSource = readFileSync(
-    resolve(__dirname, "../screens/CustomerShopDetailScreen.tsx"),
-    "utf8",
+  it.each([
+    "javascript:alert(1)",
+    "/relative/tracking-link",
+    "https://user@tracking.example/path",
+    "https://:secret@tracking.example/path",
+    "https://user:secret@tracking.example/path",
+  ])(
+    "given an unsafe returned deeplink %p > then returns null",
+    async (deeplink) => {
+      await expect(
+        mintUserTrackingLink({
+          ...BASE,
+          fetchImpl: vi.fn().mockResolvedValue({
+            json: async () => ({ deeplink }),
+            ok: true,
+          }),
+        }),
+      ).resolves.toBeNull();
+    },
   );
-
-  it("mints the per-user link during the redirect overlay and falls back to the raw tracking link", () => {
-    // Regression: Shop Now opened the offer's raw tracking_link with NO
-    // aff_sub, so conversions could not attribute to the buying user.
-    expect(screenSource).toContain("mintUserTrackingLink(");
-    expect(screenSource).toMatch(/minted\s*\|\|\s*shop\.trackingUrl/);
-  });
 });

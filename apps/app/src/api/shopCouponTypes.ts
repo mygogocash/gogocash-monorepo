@@ -2,9 +2,10 @@ export type ShopCoupon = {
   code: string | null;
   codeEnabled: boolean;
   description: string | null;
+  destinationUrl: string | null;
   discount: number | null;
   discountCurrency: string | null;
-  discountType: "percent" | "cash";
+  discountType: "percent" | "cash" | null;
   endDate: string | null;
   endTime: string | null;
   eligibility: string | null;
@@ -15,7 +16,7 @@ export type ShopCoupon = {
   minimumSpend: string | null;
   minimumSpendCurrency: string | null;
   name: string;
-  oneTimeUse: boolean;
+  oneTimeUse: boolean | null;
   remainingQuantity: number | null;
   startDate: string | null;
   startTime: string | null;

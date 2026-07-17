@@ -1,4 +1,11 @@
-import { IsOptional, IsString, IsNumberString } from 'class-validator';
+import {
+  IsDateString,
+  IsIn,
+  IsNumberString,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class MissingOrderQueryDto {
@@ -13,12 +20,27 @@ export class MissingOrderQueryDto {
   limit?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Filter by status (pending, investigating, approved, rejected)',
+    description: 'Filter by status (pending, under_review, approved, rejected)',
   })
   @IsOptional()
-  @IsString()
+  @IsIn(['pending', 'under_review', 'approved', 'rejected'])
   status?: string;
+
+  @ApiPropertyOptional({ description: 'Search claim, customer, or merchant' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  search?: string;
+
+  @ApiPropertyOptional({ description: 'Submitted at or after this ISO date' })
+  @IsOptional()
+  @IsDateString()
+  from?: string;
+
+  @ApiPropertyOptional({ description: 'Submitted at or before this ISO date' })
+  @IsOptional()
+  @IsDateString()
+  to?: string;
 }
 
 export class ApproveRejectDto {

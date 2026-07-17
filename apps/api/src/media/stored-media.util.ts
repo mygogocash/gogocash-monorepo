@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { normalizeSlugSegment } from 'src/common/mongo-query';
 
 const GCS_PUBLIC_HOST = 'storage.googleapis.com';
@@ -27,6 +29,65 @@ export function buildMediaObjectKey(
   const safeName = safeExtension ? `${safeBase}.${safeExtension}` : safeBase;
   const safeFolder = normalizeSlugSegment(folder, 80) || 'uploads';
   return `${safeFolder}/${Date.now()}-${safeName}`;
+}
+
+/**
+ * Stable key for bytes owned by one immutable command attempt. Recovery within
+ * that attempt resolves to the same object, while a clean retry's new attempt
+ * token resolves to a distinct key. The full digest prevents different bytes
+ * from sharing a key.
+ */
+export function buildCommandOwnedMediaObjectKey(
+  folder: string,
+  ownerKey: string,
+  ownerAttemptToken: string,
+  sha256: string,
+  originalName: string,
+): string {
+  const safeFolder = normalizeSlugSegment(folder, 80);
+  const safeOwner = normalizeSlugSegment(ownerKey, 120);
+  const ownerDigest = createHash('sha256')
+    .update(ownerKey.normalize('NFKC'))
+    .digest('hex')
+    .slice(0, 16);
+  const safeAttempt = normalizeSlugSegment(ownerAttemptToken, 120);
+  const attemptDigest = createHash('sha256')
+    .update(ownerAttemptToken.normalize('NFKC'))
+    .digest('hex')
+    .slice(0, 16);
+  const digest = sha256.trim().toLowerCase();
+  if (
+    !safeFolder ||
+    !safeOwner ||
+    !safeAttempt ||
+    !/^[a-f0-9]{64}$/.test(digest)
+  ) {
+    throw new Error('Invalid command-owned media identity');
+  }
+  const trimmed = (originalName || '').trim();
+  const dotIndex = trimmed.lastIndexOf('.');
+  const extension =
+    dotIndex > 0
+      ? trimmed
+          .slice(dotIndex + 1)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '')
+          .slice(0, 10)
+      : '';
+  return `${safeFolder}/${safeOwner}-${ownerDigest}/${safeAttempt}-${attemptDigest}/${digest}${extension ? `.${extension}` : ''}`;
+}
+
+/** Canonical upload inputs shared by idempotency hashing and preparation. */
+export function canonicalMediaOriginalName(value: unknown): string {
+  if (typeof value !== 'string') return 'upload';
+  return value.normalize('NFKC').trim() || 'upload';
+}
+
+export function canonicalMediaContentType(value: unknown): string {
+  if (typeof value !== 'string') return 'application/octet-stream';
+  return (
+    value.normalize('NFKC').trim().toLowerCase() || 'application/octet-stream'
+  );
 }
 
 /**

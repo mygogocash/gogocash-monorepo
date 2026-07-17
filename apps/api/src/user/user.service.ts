@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -55,6 +56,8 @@ const SELF_EDITABLE_PROFILE_FIELDS = [
   'consent',
 ] as const;
 
+const EXACT_OBJECT_ID_HEX = /^[0-9a-f]{24}$/i;
+
 /** Copy only allowlisted keys from an arbitrary (untrusted) body. */
 function pickSelfEditableFields(
   dto: Record<string, unknown>,
@@ -78,6 +81,13 @@ export class UserService {
   ) {}
 
   async createFromFirebase(createUserDto: CreateUserDto) {
+    if (process.env.QUEST_TASK_V2_ENABLED?.trim().toLowerCase() === 'true') {
+      throw new ServiceUnavailableException({
+        code: 'CENTRAL_REGISTRATION_REQUIRED',
+        message:
+          'New accounts must use the verified transactional registration service.',
+      });
+    }
     // Find or create the user in the database
     const user = await this.userModel.findOneAndUpdate(
       { id_firebase: createUserDto.id_firebase },
@@ -90,14 +100,19 @@ export class UserService {
 
   async findAll(page: number = 1, limit: number = 10, search?: string) {
     const skip = (page - 1) * limit;
+    const trimmedSearch = search?.trim() ?? '';
+    const escapedSearch = escapeRegexLiteral(trimmedSearch);
 
-    const query = search
+    const query = trimmedSearch
       ? {
           $or: [
-            { username: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-            { email: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-            { address: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-            { mobile: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+            { username: { $regex: escapedSearch, $options: 'i' } },
+            { email: { $regex: escapedSearch, $options: 'i' } },
+            { address: { $regex: escapedSearch, $options: 'i' } },
+            { mobile: { $regex: escapedSearch, $options: 'i' } },
+            ...(EXACT_OBJECT_ID_HEX.test(trimmedSearch)
+              ? [{ _id: new Types.ObjectId(trimmedSearch) }]
+              : []),
           ],
         }
       : {};

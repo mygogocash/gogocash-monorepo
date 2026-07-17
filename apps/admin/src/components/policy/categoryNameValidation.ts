@@ -10,7 +10,9 @@ export function validateCategoryName(
   categories: CategoryNameRecord[],
   currentCategoryId?: string,
 ): CategoryNameValidation {
-  const normalizedName = draft.trim();
+  const normalize = (value: string) =>
+    value.normalize("NFKC").trim().replace(/\s+/g, " ");
+  const normalizedName = normalize(draft);
   if (!normalizedName) {
     return { normalizedName, error: "Enter a category name." };
   }
@@ -18,7 +20,8 @@ export function validateCategoryName(
   const duplicate = categories.some(
     (category) =>
       category._id !== currentCategoryId &&
-      category.name.trim().toLowerCase() === normalizedName.toLowerCase(),
+      normalize(category.name).toLocaleLowerCase("en-US") ===
+        normalizedName.toLocaleLowerCase("en-US"),
   );
   return {
     normalizedName,

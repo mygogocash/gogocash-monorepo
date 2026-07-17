@@ -9,20 +9,6 @@ const tableSource = readFileSync(
   "utf8",
 );
 
-describe("PolicyTable — category create targets the real API (#277, source signals)", () => {
-  it("#277 > create posts to /admin/create-category (the route that exists)", () => {
-    expect(tableSource).toContain('"/admin/create-category"');
-  });
-
-  it("#277 > no call remains to the nonexistent /offer/create-category", () => {
-    expect(tableSource).not.toContain("/offer/create-category");
-  });
-
-  it("#277 > create failures toast via createCategoryErrorMessage (HTTP status in fallback)", () => {
-    expect(tableSource).toContain("createCategoryErrorMessage(err)");
-  });
-});
-
 describe("PolicyTable — unsaved category draft (#318, source signals)", () => {
   it("Create New opens a blank local draft without persisting a placeholder", () => {
     const createHandler = tableSource.slice(
@@ -36,25 +22,22 @@ describe("PolicyTable — unsaved category draft (#318, source signals)", () => 
     expect(tableSource).not.toContain('name: "New category"');
   });
 
-  it("the category-name input shows live validation and blocks invalid saves", () => {
+  it("the category-name input shows live validation and the unified save blocks invalid drafts", () => {
     expect(tableSource).toContain("categoryNameError");
     expect(tableSource).toContain('role="alert"');
-    expect(tableSource).toMatch(
-      /disabled=\{savingName \|\| Boolean\(categoryNameError\)\}/,
-    );
     expect(tableSource).toContain("autoFocus");
   });
 
-  it("the save path creates once with the real trimmed name and surfaces backend races", () => {
-    const saveHandler = tableSource.slice(
-      tableSource.indexOf("const saveName"),
-      tableSource.indexOf("const autoSaveBanner"),
-    );
-    expect(tableSource).toContain('"/admin/create-category"');
+  it("does not retain any category-only create or rename request", () => {
+    expect(tableSource).not.toContain('"/admin/create-category"');
+    expect(tableSource).not.toContain("/offer/create-category");
+    expect(tableSource).not.toContain("createCategoryErrorMessage");
+    expect(tableSource).not.toContain("fetcherPost");
+  });
+
+  it("sends the normalized name only through the aggregate command", () => {
     expect(tableSource).toContain("normalizedName");
-    expect(tableSource).toContain("createCategoryErrorMessage(err)");
-    expect(saveHandler.match(/fetcherPost/g)).toHaveLength(1);
-    expect(saveHandler).toContain("creatingRef.current");
+    expect(tableSource).toContain('client.put("/policy/aggregate"');
   });
 });
 
@@ -66,20 +49,25 @@ describe("PolicyTable — unified new-policy editor (#335–#337, source signals
     expect(tableSource).toMatch(/aria-hidden="true">\s*\*\s*<\/span>/);
   });
 
-  it("uses one editor-level Save and sends the policy DTO flat", () => {
-    expect(tableSource).toContain('client.put("/policy", savePlan.payload)');
+  it("uses one editor-level Save and one aggregate request", () => {
+    expect(tableSource).toContain('client.put("/policy/aggregate"');
+    expect(tableSource).not.toContain(
+      'client.put("/policy", savePlan.payload)',
+    );
     expect(tableSource).not.toContain('void handleSave("terms"');
     expect(tableSource).not.toContain('void handleSave("banner"');
     expect(tableSource.match(/Save changes/g)).toHaveLength(1);
   });
 
-  it("uploads the selected default banner from the same save action", () => {
-    expect(tableSource).toContain(
-      'bannerForm.append("banner", defaultUpload.file)',
-    );
-    expect(tableSource).toMatch(
-      /client\s*\.patch\(\s*`\/admin\/update-category\/\$\{selectedCategory\._id\}`,\s*bannerForm/,
-    );
+  it("uploads the one selected Default banner from the same aggregate action", () => {
+    expect(tableSource).toContain("defaultBanner: defaultUpload?.file");
+    expect(tableSource).not.toContain("bannerForm.append");
+    expect(tableSource).not.toContain("/admin/update-category/");
     expect(tableSource).not.toContain("saved automatically");
+  });
+
+  it("keeps the policy banner as localized text, not a phantom second file", () => {
+    expect(tableSource).toContain('aria-label="Policy banner text"');
+    expect(tableSource.match(/type="file"/g)).toHaveLength(1);
   });
 });

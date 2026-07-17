@@ -61,7 +61,8 @@ const PINS: Record<string, Pin> = {
   },
   "components/policy/PolicyTable.tsx": {
     present: [
-      "Couldn't rename the category. Please try again, or contact an administrator if it continues.",
+      'client.put("/policy/aggregate", aggregateForm)',
+      "getApiErrorMessage(",
       "Couldn't save the policy. Your draft is still here—retry, or contact an administrator if it continues.",
     ],
     absent: ['"Failed to rename category."', '"Failed to save."'],

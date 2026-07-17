@@ -8,7 +8,7 @@ import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPa
 
 export const metadata: Metadata = {
   title: "Popup history | GoGoCash Admin",
-  description: "Modal popup snapshots and inactive banner slots (empty or past end date).",
+  description: "Modal popup snapshots and inactive home or page-banner placements.",
 };
 
 const items: BreadcrumbItem[] = [
@@ -38,9 +38,7 @@ export default async function BannerPopupHistoryPage(props: DefaultAppPageProps)
           <div className="mb-4">
             <h3 className="text-base font-semibold text-gray-900 dark:text-white">Inactive banner slots</h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Slots that are <strong>empty</strong> or <strong>past their end date</strong> (using each surface&apos;s shared start/end
-              schedule). <strong>Active</strong> and <strong>Scheduled</strong> slots only show a status badge on the main banner tables; inactive
-              ones are listed here instead.
+              Review <strong>empty</strong>, <strong>incomplete</strong>, <strong>disabled</strong>, or <strong>ended</strong> placements from Home Page Banner and every Page Banners target. All statuses remain visible on their main banner tables too.
             </p>
           </div>
           <BannerInactiveSlotsSection />

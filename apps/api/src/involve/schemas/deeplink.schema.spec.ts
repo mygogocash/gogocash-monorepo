@@ -27,4 +27,25 @@ describe('Deeplink schema source default', () => {
   it('Deeplink > given an explicit source > then it is preserved', () => {
     expect(makeDoc({ source: 'optimise' }).source).toBe('optimise');
   });
+
+  it('defines a partial collision-safe destination identity index without automatic boot-time creation', () => {
+    expect(DeeplinkSchema.get('autoIndex')).toBe(false);
+    expect(DeeplinkSchema.indexes()).toContainEqual([
+      {
+        source: 1,
+        user_id: 1,
+        offer_id: 1,
+        merchant_id: 1,
+        destination_hash: 1,
+      },
+      expect.objectContaining({
+        name: 'affiliate_destination_identity_unique_v1',
+        unique: true,
+        partialFilterExpression: {
+          destination_hash: { $type: 'string' },
+          source: { $type: 'string' },
+        },
+      }),
+    ]);
+  });
 });

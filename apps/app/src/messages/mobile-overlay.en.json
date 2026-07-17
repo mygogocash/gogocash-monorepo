@@ -9,6 +9,8 @@
   "mobileCouponRemaining": "remaining",
   "mobileCouponCopyCode": "Copy code",
   "mobileCouponUse": "Use coupon",
+  "mobileCouponLinkUnavailable": "Coupon link unavailable",
+  "mobileCouponCodeUnavailable": "Coupon code unavailable",
   "mobileCouponReadTermsFor": "Read terms & conditions for",
   "mobileCouponHideTerms": "Hide terms & conditions",
   "mobileCouponReadTerms": "Read terms & conditions",
@@ -457,5 +459,8 @@
   "mobileSearchClearRecentA11y": "Clear recent searches",
   "mobileTrackingSubtitleFollowingMonth": "from the following month",
   "mobileTrackingSubtitleAfterValidation": "after validation",
-  "mobileTrackingStepTrackingAndConfirm": "Tracking and confirm"
+  "mobileTrackingStepTrackingAndConfirm": "Tracking and confirm",
+  "mobileQuestProgressLoading": "Loading quest progress…",
+  "mobileQuestProgressLoadFailed": "We couldn’t load your quest progress.",
+  "mobileQuestTasksEmpty": "No active quest tasks right now."
 }

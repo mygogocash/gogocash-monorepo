@@ -119,7 +119,107 @@ describe("policy unified save (mock parity with PUT /policy)", () => {
   });
 });
 
+describe("policy aggregate save (mock parity with PUT /policy/aggregate)", () => {
+  it("creates category metadata and policy together, then replays the same request key", async () => {
+    const form = new FormData();
+    form.set("request_key", "mock-policy-aggregate-1");
+    form.set("category_name", "  Mock   Travel  ");
+    form.set("icon_key", "travel");
+    form.set(
+      "policy",
+      JSON.stringify({
+        category_id: "__new__",
+        terms: { primary_locale: "en", translations: { en: "Terms" } },
+        banner: { primary_locale: "en", translations: { en: "Banner" } },
+      }),
+    );
+    form.set(
+      "default_banner",
+      new File(["banner"], "travel.png", { type: "image/png" }),
+    );
+
+    const first = await call("PUT", ["policy", "aggregate"], { body: form });
+    const replay = await call("PUT", ["policy", "aggregate"], { body: form });
+
+    expect(first.status).toBe(200);
+    expect(replay).toEqual(first);
+    expect(first.body).toMatchObject({
+      request_key: "mock-policy-aggregate-1",
+      category: {
+        name: "Mock Travel",
+        icon_key: "travel",
+        lifecycle_status: "active",
+        banner: expect.stringContaining("category-banner/"),
+      },
+      policy: {
+        terms: { translations: { en: "Terms" } },
+        banner: { translations: { en: "Banner" } },
+      },
+    });
+  });
+
+  it("rejects request-key reuse with a different aggregate payload", async () => {
+    const form = new FormData();
+    form.set("request_key", "mock-policy-aggregate-1");
+    form.set("category_name", "Different category");
+    form.set("icon_key", "food");
+    form.set("policy", JSON.stringify({ category_id: "__new__" }));
+
+    const response = await call("PUT", ["policy", "aggregate"], {
+      body: form,
+    });
+    expect(response.status).toBe(409);
+  });
+});
+
 describe("banner slot updates", () => {
+  it("isolates all three specific-page targets and keeps the legacy alias", async () => {
+    const targets = ["all-brands", "all-shops", "product-discovery"] as const;
+    const before = new Map<string, Record<string, unknown>>();
+
+    for (const target of targets) {
+      const response = await call("GET", [
+        "admin",
+        "banner-specific-page",
+        target,
+      ]);
+      expect(response.status).toBe(200);
+      expect(String((response.body as Record<string, unknown>).image_1)).toMatch(
+        /^\/images\/carousel\//,
+      );
+      before.set(target, response.body as Record<string, unknown>);
+    }
+
+    await call("POST", ["admin", "banner-specific-page", "all-shops"], {
+      body: { link_1: "https://all-shops-only.example" },
+    });
+
+    expect(
+      (await call("GET", ["admin", "banner-specific-page", "all-shops"])).body,
+    ).toMatchObject({ link_1: "https://all-shops-only.example" });
+    expect(
+      (await call("GET", ["admin", "banner-specific-page", "all-brands"])).body,
+    ).toMatchObject({ link_1: before.get("all-brands")?.link_1 });
+    expect(
+      (
+        await call("GET", [
+          "admin",
+          "banner-specific-page",
+          "product-discovery",
+        ])
+      ).body,
+    ).toMatchObject({ link_1: before.get("product-discovery")?.link_1 });
+
+    const legacy = await call("GET", ["admin", "banner-all-brand-page"]);
+    expect(legacy.body).toEqual(
+      (await call("GET", ["admin", "banner-specific-page", "all-brands"])).body,
+    );
+
+    await call("POST", ["admin", "banner-specific-page", "all-shops"], {
+      body: { link_1: String(before.get("all-shops")?.link_1 ?? "") },
+    });
+  });
+
   it("persists only edited slot fields while preserving other slots", async () => {
     const baseline = await call("GET", ["admin", "banner-home"]);
     expect(baseline.status).toBe(200);
@@ -421,6 +521,31 @@ describe("withdraw detail user", () => {
     expect(res.status).toBe(200);
     const body = res.body as { user: { username?: string } };
     expect(body.user.username).toBe("alice_smith_1");
+  });
+
+  it("returns an unknown user's fallback and overlays later profile edits", async () => {
+    const userId = "lint-spread-regression-user";
+    const initial = await call("POST", [
+      "withdraw",
+      "list-check-admin",
+      userId,
+    ]);
+    expect(initial.status).toBe(200);
+    expect((initial.body as { user: { _id: string } }).user._id).toBe(userId);
+
+    const update = await call("POST", ["withdraw", "update-withdraw-user"], {
+      body: { userId, fullName: "  Spread Regression  " },
+    });
+    expect(update.status).toBe(200);
+
+    const updated = await call("POST", [
+      "withdraw",
+      "list-check-admin",
+      userId,
+    ]);
+    expect((updated.body as { user: { fullName: string } }).user.fullName).toBe(
+      "Spread Regression",
+    );
   });
 });
 

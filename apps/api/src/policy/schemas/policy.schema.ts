@@ -63,8 +63,6 @@ export class Policy {
     type: Types.ObjectId,
     ref: 'Category',
     required: true,
-    unique: true,
-    index: true,
   })
   category_id: Types.ObjectId;
 
@@ -78,3 +76,5 @@ export class Policy {
 }
 
 export const PolicySchema = SchemaFactory.createForClass(Policy);
+
+PolicySchema.index({ category_id: 1 }, { name: 'category_id_1', unique: true });

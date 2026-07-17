@@ -42,8 +42,31 @@ import type {
 
 const MS_DAY = 86_400_000;
 const CLICK_FACTOR = 10;
+const MOCK_DASHBOARD_AVAILABILITY = {
+  clicks: { available: true, reason: "Available from mock fixture data." },
+  commissionHealth: {
+    available: true,
+    reason: "Available from mock fixture data.",
+  },
+  quests: { available: true, reason: "Available from mock fixture data." },
+} as const;
 
 type ConvRow = (typeof mockConversions)[number];
+
+function isDashboardConversion(row: ConvRow): boolean {
+  const synthetic = (row as ConvRow & { quest_synthetic_reward?: boolean })
+    .quest_synthetic_reward;
+  return synthetic !== true && row.offer_name !== "reward_conversion_quest";
+}
+
+function isFinanciallyEligibleConversion(row: ConvRow): boolean {
+  return (
+    String(row.currency ?? "").toUpperCase() === "THB" &&
+    ["approved", "pending", "paid"].includes(
+      String(row.conversion_status ?? "").toLowerCase(),
+    )
+  );
+}
 
 function toDate(v: unknown): Date | null {
   if (v == null) return null;
@@ -558,15 +581,25 @@ function sumConversions(rows: ConvRow[]): {
   let payout = 0;
   let sale = 0;
   for (const c of rows) {
+    if (!isFinanciallyEligibleConversion(c)) continue;
     payout += Number(c.payout) || 0;
     sale += Number(c.sale_amount) || 0;
   }
   return { count: rows.length, payout, sale };
 }
 
+function countCreatedAsOf(
+  rows: ReadonlyArray<{ createdAt?: unknown }>,
+  to: Date,
+): number {
+  // Rows without a trustworthy creation timestamp cannot be claimed as-of.
+  return rows.filter((row) => {
+    const createdAt = toDate(row.createdAt);
+    return createdAt != null && createdAt <= to;
+  }).length;
+}
+
 function buildKpiBlock(
-  gogocashUsers: number,
-  mycashbackUsers: number,
   conversionsAll: ConvRow[],
   win: {
     current: { from: Date; to: Date };
@@ -574,6 +607,8 @@ function buildKpiBlock(
   },
   periodStart: Date,
 ): DashboardKpiBlock {
+  const gogocashUsers = countCreatedAsOf(mockUsers, win.current.to);
+  const mycashbackUsers = countCreatedAsOf(mockMyCashback, win.current.to);
   const curConv =
     win.prior === null
       ? conversionsAll
@@ -589,8 +624,8 @@ function buildKpiBlock(
     );
     const pS = sumConversions(pConv);
     prior = {
-      gogocashUsers,
-      mycashbackUsers,
+      gogocashUsers: countCreatedAsOf(mockUsers, win.prior.to),
+      mycashbackUsers: countCreatedAsOf(mockMyCashback, win.prior.to),
       conversionCount: pS.count,
       conversionTotalPayout: Math.round(pS.payout * 100) / 100,
       conversionTotalSaleAmount: Math.round(pS.sale * 100) / 100,
@@ -632,11 +667,12 @@ function buildWithdrawBuckets(
   let oldestPending: Date | null = null;
 
   for (const w of mockWithdraws) {
+    if (w.currency !== "THB") continue;
     const st = (w.status || "pending").toLowerCase() as keyof typeof buckets;
     if (st === "pending" || st === "approved" || st === "rejected") {
       const b = buckets[st] as { count: number; total: number };
       b.count += 1;
-      b.total += Number(w.amount_total) || 0;
+      if (st !== "rejected") b.total += Number(w.amount_total) || 0;
       if (st === "pending") {
         const cd = toDate(w.createdAt);
         if (cd && (!oldestPending || cd < oldestPending)) oldestPending = cd;
@@ -662,6 +698,7 @@ function withdrawMetrics(
   const cutoff = now.getTime() - 48 * 60 * 60 * 1000;
   let pendingOver48hCount = 0;
   for (const w of mockWithdraws) {
+    if (w.currency !== "THB") continue;
     if ((w.status || "").toLowerCase() !== "pending") continue;
     const cd = toDate(w.createdAt);
     if (cd && cd.getTime() < cutoff) pendingOver48hCount += 1;
@@ -680,40 +717,64 @@ function conversionsByStatus(rows: ConvRow[]): Record<string, number> {
 
 function topOffers(rows: ConvRow[], limit: number): DashboardTopOfferRow[] {
   const map = new Map<
-    number,
+    string,
     {
+      offerId: number;
       offerName: string;
       merchantId: number;
-      currency: string;
+      networkId: string;
+      providerAccount: string;
       conv: number;
       gmv: number;
       payout: number;
     }
   >();
-  for (const c of rows) {
-    const id = c.offer_id;
-    const cur = map.get(id) ?? {
+  const latestFirst = [...rows].sort((a, b) => {
+    const byTime =
+      (toDate(b.datetime_conversion)?.getTime() ?? 0) -
+      (toDate(a.datetime_conversion)?.getTime() ?? 0);
+    return byTime || Number(b.conversion_id) - Number(a.conversion_id);
+  });
+  for (const c of latestFirst) {
+    const offer = offerByNumericId(c.offer_id);
+    const networkId = offer
+      ? affiliateNetworkIdForOfferId(offer._id)
+      : "unknown";
+    const providerAccount = String(
+      (c as ConvRow & { provider_account?: string; network_account?: string })
+        .provider_account ??
+        (c as ConvRow & { network_account?: string }).network_account ??
+        "default",
+    );
+    const key = `${networkId}:${providerAccount}:${c.offer_id}`;
+    const cur = map.get(key) ?? {
+      offerId: c.offer_id,
       offerName: c.offer_name,
       merchantId: c.merchant_id,
-      currency: c.currency,
+      networkId,
+      providerAccount,
       conv: 0,
       gmv: 0,
       payout: 0,
     };
     cur.conv += 1;
-    cur.gmv += Number(c.sale_amount) || 0;
-    cur.payout += Number(c.payout) || 0;
-    map.set(id, cur);
+    if (isFinanciallyEligibleConversion(c)) {
+      cur.gmv += Number(c.sale_amount) || 0;
+      cur.payout += Number(c.payout) || 0;
+    }
+    map.set(key, cur);
   }
   return [...map.entries()]
-    .map(([offerId, v]) => ({
-      offerId,
+    .map(([, v]) => ({
+      offerId: v.offerId,
       offerName: v.offerName,
       merchantId: v.merchantId,
+      networkId: v.networkId,
+      providerAccount: v.providerAccount,
       conversions: v.conv,
       gmv: Math.round(v.gmv * 100) / 100,
       payout: Math.round(v.payout * 100) / 100,
-      currency: v.currency,
+      currency: "THB" as const,
     }))
     .sort((a, b) => b.conversions - a.conversions)
     .slice(0, limit);
@@ -727,7 +788,7 @@ function networkBreakdown(rows: ConvRow[]): DashboardNetworkRow[] {
       conversions: number;
       gmv: number;
       payout: number;
-      offers: Set<number>;
+      offers: Set<string>;
     }
   >();
   for (const c of rows) {
@@ -739,12 +800,20 @@ function networkBreakdown(rows: ConvRow[]): DashboardNetworkRow[] {
       conversions: 0,
       gmv: 0,
       payout: 0,
-      offers: new Set<number>(),
+      offers: new Set<string>(),
     };
     cur.conversions += 1;
-    cur.gmv += Number(c.sale_amount) || 0;
-    cur.payout += Number(c.payout) || 0;
-    cur.offers.add(c.offer_id);
+    if (isFinanciallyEligibleConversion(c)) {
+      cur.gmv += Number(c.sale_amount) || 0;
+      cur.payout += Number(c.payout) || 0;
+    }
+    const providerAccount = String(
+      (c as ConvRow & { provider_account?: string; network_account?: string })
+        .provider_account ??
+        (c as ConvRow & { network_account?: string }).network_account ??
+        "default",
+    );
+    cur.offers.add(`${providerAccount}:${c.offer_id}`);
     acc.set(nwId, cur);
   }
 
@@ -756,6 +825,7 @@ function networkBreakdown(rows: ConvRow[]): DashboardNetworkRow[] {
       conversions: v.conversions,
       gmv: Math.round(v.gmv * 100) / 100,
       payout: Math.round(v.payout * 100) / 100,
+      currency: "THB" as const,
     }))
     .sort((a, b) => b.conversions - a.conversions);
 }
@@ -900,192 +970,106 @@ function insightSentence(
     : "Review KPIs and alerts below for the latest operational snapshot.";
 }
 
+type MockStatisticsRow = {
+  date: string;
+  conversions: number;
+  saleAmount: number;
+  payout: number;
+};
+
+function mockStatisticsBundle(
+  rows: MockStatisticsRow[],
+  description: string,
+): DashboardStatisticsBundle {
+  return {
+    description,
+    categories: rows.map((row) => row.date),
+    series: [
+      {
+        name: "Clicks",
+        data: rows.map((row) => row.conversions * CLICK_FACTOR),
+      },
+      { name: "Conversions", data: rows.map((row) => row.conversions) },
+      { name: "Sale Amount", data: rows.map((row) => row.saleAmount) },
+      { name: "Estimated Earnings", data: rows.map((row) => row.payout) },
+    ],
+  };
+}
+
+function mockStatisticsBucket(
+  rows: MockStatisticsRow[],
+  keyForDate: (date: Date) => string,
+): MockStatisticsRow[] {
+  const buckets = new Map<string, MockStatisticsRow>();
+  for (const row of rows) {
+    const date = new Date(`${row.date}T00:00:00.000Z`);
+    if (Number.isNaN(date.getTime())) continue;
+    const key = keyForDate(date);
+    const bucket = buckets.get(key) ?? {
+      date: key,
+      conversions: 0,
+      saleAmount: 0,
+      payout: 0,
+    };
+    bucket.conversions += row.conversions;
+    bucket.saleAmount =
+      Math.round((bucket.saleAmount + row.saleAmount) * 100) / 100;
+    bucket.payout = Math.round((bucket.payout + row.payout) * 100) / 100;
+    buckets.set(key, bucket);
+  }
+  return [...buckets.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function statisticsFromConversions(
   rows: ConvRow[],
-  now: Date,
+  range: DashboardInsightRangeValue,
 ): DashboardStatisticsByTab {
-  const y = now.getFullYear();
-  const monthLabels = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  const monthBuckets = Array.from({ length: 12 }, () => ({
-    conv: 0,
-    sale: 0,
-    payout: 0,
-  }));
-  for (const c of rows) {
-    const d = toDate(c.datetime_conversion);
-    if (!d) continue;
-    const yr = d.getFullYear();
-    if (yr !== y) continue;
-    const m = d.getMonth();
-    monthBuckets[m].conv += 1;
-    monthBuckets[m].sale += Number(c.sale_amount) || 0;
-    monthBuckets[m].payout += Number(c.payout) || 0;
+  const daily = new Map<string, MockStatisticsRow>();
+  for (const conversion of rows) {
+    const date = toDate(conversion.datetime_conversion);
+    if (!date) continue;
+    const key = date.toISOString().slice(0, 10);
+    const bucket = daily.get(key) ?? {
+      date: key,
+      conversions: 0,
+      saleAmount: 0,
+      payout: 0,
+    };
+    bucket.conversions += 1;
+    if (isFinanciallyEligibleConversion(conversion)) {
+      bucket.saleAmount =
+        Math.round(
+          (bucket.saleAmount + (Number(conversion.sale_amount) || 0)) * 100,
+        ) / 100;
+      bucket.payout =
+        Math.round((bucket.payout + (Number(conversion.payout) || 0)) * 100) /
+        100;
+    }
+    daily.set(key, bucket);
   }
-
-  const monthSeries: DashboardStatisticsBundle = {
-    description: `Year ${y} (monthly)`,
-    categories: monthLabels,
-    series: [
-      {
-        name: "Clicks",
-        data: monthBuckets.map((b) => b.conv * CLICK_FACTOR),
-      },
-      {
-        name: "Conversions",
-        data: monthBuckets.map((b) => b.conv),
-      },
-      {
-        name: "Sale Amount",
-        data: monthBuckets.map((b) => Math.round(b.sale)),
-      },
-      {
-        name: "Estimated Earnings",
-        data: monthBuckets.map((b) => Math.round(b.payout)),
-      },
-    ],
-  };
-
-  const weekLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const weekBuckets = Array.from({ length: 7 }, () => ({
-    conv: 0,
-    sale: 0,
-    payout: 0,
-  }));
-  const sod = startOfDay(now);
-  const monday = new Date(sod);
-  monday.setDate(sod.getDate() - ((sod.getDay() + 6) % 7));
-  for (const c of rows) {
-    const d = toDate(c.datetime_conversion);
-    if (!d || d < monday || d > now) continue;
-    const idx = Math.min(
-      6,
-      Math.max(
-        0,
-        Math.floor((startOfDay(d).getTime() - monday.getTime()) / MS_DAY),
-      ),
-    );
-    weekBuckets[idx].conv += 1;
-    weekBuckets[idx].sale += Number(c.sale_amount) || 0;
-    weekBuckets[idx].payout += Number(c.payout) || 0;
-  }
-  const weekSeries: DashboardStatisticsBundle = {
-    description: "This week (daily)",
-    categories: weekLabels,
-    series: [
-      { name: "Clicks", data: weekBuckets.map((b) => b.conv * CLICK_FACTOR) },
-      { name: "Conversions", data: weekBuckets.map((b) => b.conv) },
-      { name: "Sale Amount", data: weekBuckets.map((b) => Math.round(b.sale)) },
-      {
-        name: "Estimated Earnings",
-        data: weekBuckets.map((b) => Math.round(b.payout)),
-      },
-    ],
-  };
-
-  const dayLabels = Array.from(
-    { length: 24 },
-    (_, i) => `${String(i).padStart(2, "0")}:00`,
+  const day = [...daily.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const week = mockStatisticsBucket(day, (date) => {
+    const monday = new Date(date);
+    monday.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+    return monday.toISOString().slice(0, 10);
+  });
+  const month = mockStatisticsBucket(day, (date) =>
+    date.toISOString().slice(0, 7),
   );
-  const dayBuckets = Array.from({ length: 24 }, () => ({
-    conv: 0,
-    sale: 0,
-    payout: 0,
-  }));
-  const dayStart = startOfDay(now);
-  for (const c of rows) {
-    const d = toDate(c.datetime_conversion);
-    if (!d || d < dayStart || d > now) continue;
-    const h = d.getHours();
-    dayBuckets[h].conv += 1;
-    dayBuckets[h].sale += Number(c.sale_amount) || 0;
-    dayBuckets[h].payout += Number(c.payout) || 0;
-  }
-  const daySeries: DashboardStatisticsBundle = {
-    description: "Today (hourly)",
-    categories: dayLabels,
-    series: [
-      { name: "Clicks", data: dayBuckets.map((b) => b.conv * CLICK_FACTOR) },
-      { name: "Conversions", data: dayBuckets.map((b) => b.conv) },
-      { name: "Sale Amount", data: dayBuckets.map((b) => Math.round(b.sale)) },
-      {
-        name: "Estimated Earnings",
-        data: dayBuckets.map((b) => Math.round(b.payout)),
-      },
-    ],
-  };
-
-  const qLabels = ["Q1", "Q2", "Q3", "Q4"];
-  const qBuckets = [0, 1, 2, 3].map(() => ({ conv: 0, sale: 0, payout: 0 }));
-  for (let m = 0; m < 12; m++) {
-    const qi = Math.floor(m / 3);
-    qBuckets[qi].conv += monthBuckets[m].conv;
-    qBuckets[qi].sale += monthBuckets[m].sale;
-    qBuckets[qi].payout += monthBuckets[m].payout;
-  }
-  const quarterSeries: DashboardStatisticsBundle = {
-    description: `Year ${y} (quarters)`,
-    categories: qLabels,
-    series: [
-      { name: "Clicks", data: qBuckets.map((b) => b.conv * CLICK_FACTOR) },
-      { name: "Conversions", data: qBuckets.map((b) => b.conv) },
-      { name: "Sale Amount", data: qBuckets.map((b) => Math.round(b.sale)) },
-      {
-        name: "Estimated Earnings",
-        data: qBuckets.map((b) => Math.round(b.payout)),
-      },
-    ],
-  };
-
-  const yearLabels = [y - 4, y - 3, y - 2, y - 1, y].map(String);
-  const totalConv = rows.length;
-  const totalSale = rows.reduce((s, c) => s + (Number(c.sale_amount) || 0), 0);
-  const totalPayout = rows.reduce((s, c) => s + (Number(c.payout) || 0), 0);
-  const yearGrowth = [0.72, 0.78, 0.85, 0.93, 1.0];
-  const yearSeries: DashboardStatisticsBundle = {
-    description:
-      "Last 5 years (illustrative split from current catalog totals)",
-    categories: yearLabels,
-    series: [
-      {
-        name: "Clicks",
-        data: yearGrowth.map((g) =>
-          Math.round(totalConv * CLICK_FACTOR * g * 0.95),
-        ),
-      },
-      {
-        name: "Conversions",
-        data: yearGrowth.map((g) => Math.round(totalConv * g * 0.95)),
-      },
-      {
-        name: "Sale Amount",
-        data: yearGrowth.map((g) => Math.round(totalSale * g * 0.95)),
-      },
-      {
-        name: "Estimated Earnings",
-        data: yearGrowth.map((g) => Math.round(totalPayout * g * 0.95)),
-      },
-    ],
-  };
-
+  const quarter = mockStatisticsBucket(
+    day,
+    (date) =>
+      `${date.getUTCFullYear()}-Q${Math.floor(date.getUTCMonth() / 3) + 1}`,
+  );
+  const year = mockStatisticsBucket(day, (date) =>
+    String(date.getUTCFullYear()),
+  );
   return {
-    day: daySeries,
-    week: weekSeries,
-    month: monthSeries,
-    quarter: quarterSeries,
-    year: yearSeries,
+    day: mockStatisticsBundle(day, `Daily activity for ${range}`),
+    week: mockStatisticsBundle(week, `Weekly activity for ${range}`),
+    month: mockStatisticsBundle(month, `Monthly activity for ${range}`),
+    quarter: mockStatisticsBundle(quarter, `Quarterly activity for ${range}`),
+    year: mockStatisticsBundle(year, `Annual activity for ${range}`),
   };
 }
 
@@ -1093,7 +1077,7 @@ function statisticsFromConversions(
 export function buildDashboardSummaryExtended(): DashboardSummaryResponse {
   const now = new Date();
   const buckets = buildWithdrawBuckets(now);
-  const all = [...mockConversions];
+  const all = mockConversions.filter(isDashboardConversion);
   const { count, payout, sale } = sumConversions(all);
   const win = rangeWindow("30d", now);
   let priorPeriod: DashboardSummaryResponse["priorPeriod"];
@@ -1107,6 +1091,7 @@ export function buildDashboardSummaryExtended(): DashboardSummaryResponse {
     };
   }
   return {
+    currency: "THB",
     conversionCount: count,
     conversionTotalPayout: Math.round(payout * 100) / 100,
     conversionTotalSaleAmount: Math.round(sale * 100) / 100,
@@ -1123,25 +1108,18 @@ export function buildDashboardInsights(
   const range = parseRangeParam(searchParams.get("range"));
   const now = new Date();
   const win = rangeWindow(range, now);
-  const gogocashUsers = mockUsers.length;
-  const mycashbackUsers = mockMyCashback.length;
+  const dashboardConversions = mockConversions.filter(isDashboardConversion);
 
   const conversionsInPeriod =
     win.prior === null
-      ? [...mockConversions]
+      ? [...dashboardConversions]
       : filterConversions(
-          [...mockConversions],
+          [...dashboardConversions],
           win.current.from,
           win.current.to,
         );
 
-  const kpis = buildKpiBlock(
-    gogocashUsers,
-    mycashbackUsers,
-    [...mockConversions],
-    win,
-    win.current.from,
-  );
+  const kpis = buildKpiBlock([...dashboardConversions], win, win.current.from);
 
   const buckets = buildWithdrawBuckets(now);
   const wm = withdrawMetrics(buckets, now);
@@ -1153,7 +1131,7 @@ export function buildDashboardInsights(
 
   const health = commissionHealth();
   const baseAlerts = buildAlerts(kpis, buckets, wm, health);
-  const stats = statisticsFromConversions([...mockConversions], now);
+  const stats = statisticsFromConversions(conversionsInPeriod, range);
   const quests = buildQuestMetrics(now, win, conversionsInPeriod);
   const questAlerts = buildQuestAlerts(quests.rows);
   const alerts = sortAlertsBySeverity([...baseAlerts, ...questAlerts]);
@@ -1163,6 +1141,8 @@ export function buildDashboardInsights(
   return {
     lastUpdated: iso(now),
     range,
+    currency: "THB",
+    availability: MOCK_DASHBOARD_AVAILABILITY,
     period: { from: iso(win.current.from), to: iso(win.current.to) },
     kpis,
     withdrawByStatus: buckets,

@@ -11,7 +11,14 @@ import {
 } from "@mobile/theme/icons";
 import type { IconComponent } from "@mobile/theme/icons";
 import { useState } from "react";
-import { Image, Modal, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import {
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 import profileAvatarImage from "../../assets/profile-avatar.png";
 import questBannerImage from "../../assets/quest-banner-en.png";
@@ -46,7 +53,11 @@ import { radii, spacing, typography } from "@mobile/theme/tokens";
 
 type QuestTabId = (typeof webQuestTabs)[number]["id"];
 
-export function CustomerQuestScreen({ history = false }: { history?: boolean }) {
+export function CustomerQuestScreen({
+  history = false,
+}: {
+  history?: boolean;
+}) {
   if (history) {
     return <CustomerQuestHistoryScreen />;
   }
@@ -57,7 +68,11 @@ function CustomerQuestHistoryScreen() {
   const tc = useCopy();
 
   return (
-    <AccountPageShell activeRouteId="quest" tabletContentMode="fluid" title={tc("Quest History")}>
+    <AccountPageShell
+      activeRouteId="quest"
+      tabletContentMode="fluid"
+      title={tc("Quest History")}
+    >
       <QuestHistoryView />
     </AccountPageShell>
   );
@@ -71,7 +86,9 @@ function CustomerQuestMainScreen() {
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const shellWidth = Math.min(
     width,
-    isDesktop ? webAccountPageSurface.desktopContentMaxWidth : mobileShellLayout.contentMaxWidth
+    isDesktop
+      ? webAccountPageSurface.desktopContentMaxWidth
+      : mobileShellLayout.contentMaxWidth,
   );
   const contentWidth =
     shellWidth -
@@ -79,10 +96,16 @@ function CustomerQuestMainScreen() {
       ? mobileShellLayout.desktopContentHorizontalPadding * 2
       : mobileShellLayout.contentHorizontalPadding * 2);
   const heroHeight = contentWidth / (1200 / 675);
-  const mediaColumnWidth = isDesktop ? (contentWidth - spacing.lg) / 2 : contentWidth;
+  const mediaColumnWidth = isDesktop
+    ? (contentWidth - spacing.lg) / 2
+    : contentWidth;
 
   return (
-    <AccountPageShell activeRouteId="quest" tabletContentMode="fluid" title={tc("Quest")}>
+    <AccountPageShell
+      activeRouteId="quest"
+      tabletContentMode="fluid"
+      title={tc("Quest")}
+    >
       <Image
         alt={tc("GoGoQuest bonus banner")}
         resizeMode="cover"
@@ -103,7 +126,9 @@ function CustomerQuestMainScreen() {
               pressScale={0.98}
               style={[styles.tabButton, active ? styles.tabButtonActive : null]}
             >
-              <Text style={[styles.tabText, active ? styles.tabTextActive : null]}>
+              <Text
+                style={[styles.tabText, active ? styles.tabTextActive : null]}
+              >
                 {"icon" in tab ? "🏆 " : ""}
                 {tc(tab.label)}
               </Text>
@@ -114,7 +139,9 @@ function CustomerQuestMainScreen() {
       <View
         style={[
           styles.questGrid,
-          isDesktop && activeTab !== "leaderboard" ? styles.questGridDesktop : null,
+          isDesktop && activeTab !== "leaderboard"
+            ? styles.questGridDesktop
+            : null,
         ]}
       >
         {activeTab === "how-to-win" ? (
@@ -123,7 +150,10 @@ function CustomerQuestMainScreen() {
               alt={tc("GoGoQuest how to earn illustration")}
               resizeMode="cover"
               source={questHowToEarnImage}
-              style={[styles.howToEarnImage, { height: mediaColumnWidth / (1216 / 930) }]}
+              style={[
+                styles.howToEarnImage,
+                { height: mediaColumnWidth / (1216 / 930) },
+              ]}
             />
           </View>
         ) : null}
@@ -153,6 +183,31 @@ function QuestTaskPanel() {
   return (
     <View style={styles.taskPanel}>
       <Text style={styles.taskTitle}>{tc("Let’s Got the Tasks Done!")}</Text>
+      {questTasks.status === "loading" ? (
+        <Text style={styles.taskResourceMessage}>
+          {tc("Loading quest progress…")}
+        </Text>
+      ) : null}
+      {questTasks.status === "error" ? (
+        <View style={styles.taskResourceState}>
+          <Text style={styles.taskResourceMessage}>
+            {tc("We couldn’t load your quest progress.")}
+          </Text>
+          <MotionPressable
+            accessibilityRole="button"
+            onPress={questTasks.retry}
+            pressScale={0.98}
+            style={styles.taskRetryButton}
+          >
+            <Text style={styles.taskRetryText}>{tc("Try again")}</Text>
+          </MotionPressable>
+        </View>
+      ) : null}
+      {questTasks.status === "ready" && questTasks.rows.length === 0 ? (
+        <Text style={styles.taskResourceMessage}>
+          {tc("No active quest tasks right now.")}
+        </Text>
+      ) : null}
       {questTasks.rows.map((task) => (
         <QuestTaskListRow key={task.key} task={task} />
       ))}
@@ -170,6 +225,24 @@ function QuestTaskListRow({ task }: { task: QuestTaskRow }) {
         <Text numberOfLines={1} style={styles.taskName}>
           {tc(task.title)}
         </Text>
+        <Text numberOfLines={1} style={styles.taskProgress}>
+          {task.progressLabel}
+        </Text>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.taskState,
+            task.state === "completed" ? styles.taskStateCompleted : null,
+            task.state === "compensated" ? styles.taskStateCompensated : null,
+          ]}
+        >
+          {task.stateLabel}
+        </Text>
+        {task.capReached && task.capLabel ? (
+          <Text numberOfLines={1} style={styles.taskCapState}>
+            {task.capLabel}
+          </Text>
+        ) : null}
       </View>
       <TaskPointsPill points={task.points} />
     </>
@@ -178,7 +251,11 @@ function QuestTaskListRow({ task }: { task: QuestTaskRow }) {
   if (task.href) {
     return (
       <Link asChild href={task.href as never}>
-        <MotionPressable accessibilityRole="link" pressScale={0.98} style={styles.taskRow}>
+        <MotionPressable
+          accessibilityRole="link"
+          pressScale={0.98}
+          style={styles.taskRow}
+        >
           {content}
         </MotionPressable>
       </Link>
@@ -218,7 +295,11 @@ function TaskLogo({ task }: { task: QuestTaskRow }) {
 
   return (
     <View style={styles.taskLogo}>
-      <Glyph color={colors.primaryDark} size={26} strokeWidth={typography.iconStrokeWidth} />
+      <Glyph
+        color={colors.primaryDark}
+        size={26}
+        strokeWidth={typography.iconStrokeWidth}
+      />
     </View>
   );
 }
@@ -231,7 +312,11 @@ function TaskPointsPill({ points }: { points: string }) {
       <Text numberOfLines={1} style={styles.taskPointsText}>
         {points}
       </Text>
-      <CoinIcon color={colors.white} size={18} strokeWidth={typography.iconStrokeWidth} />
+      <CoinIcon
+        color={colors.white}
+        size={18}
+        strokeWidth={typography.iconStrokeWidth}
+      />
     </View>
   );
 }
@@ -248,7 +333,11 @@ type QuestMyRankData = {
   specialTasksValue: string;
 };
 
-function QuestMyRankCard({ data = webQuestMyRank }: { data?: QuestMyRankData }) {
+function QuestMyRankCard({
+  data = webQuestMyRank,
+}: {
+  data?: QuestMyRankData;
+}) {
   const styles = useThemedStyles(createQuestScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
@@ -296,13 +385,21 @@ function QuestMyRankCard({ data = webQuestMyRank }: { data?: QuestMyRankData }) 
       {expanded ? (
         <View style={styles.myRankBreakdown}>
           <View style={styles.myRankBreakdownColumn}>
-            <Text style={styles.myRankBreakdownLabel}>{tc(data.spendingLabel)}</Text>
-            <Text style={styles.myRankBreakdownValue}>{data.spendingValue}</Text>
+            <Text style={styles.myRankBreakdownLabel}>
+              {tc(data.spendingLabel)}
+            </Text>
+            <Text style={styles.myRankBreakdownValue}>
+              {data.spendingValue}
+            </Text>
           </View>
           <Text style={styles.myRankBreakdownPlus}>+</Text>
           <View style={styles.myRankBreakdownColumn}>
-            <Text style={styles.myRankBreakdownLabel}>{tc(data.specialTasksLabel)}</Text>
-            <Text style={styles.myRankBreakdownValue}>{data.specialTasksValue}</Text>
+            <Text style={styles.myRankBreakdownLabel}>
+              {tc(data.specialTasksLabel)}
+            </Text>
+            <Text style={styles.myRankBreakdownValue}>
+              {data.specialTasksValue}
+            </Text>
           </View>
         </View>
       ) : null}
@@ -310,7 +407,11 @@ function QuestMyRankCard({ data = webQuestMyRank }: { data?: QuestMyRankData }) 
   );
 }
 
-function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number }) {
+function QuestLeaderboardPanel({
+  mediaColumnWidth,
+}: {
+  mediaColumnWidth: number;
+}) {
   const styles = useThemedStyles(createQuestScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
@@ -330,13 +431,20 @@ function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number 
             <Text style={styles.leaderboardTitle}>GoGoQuest</Text>
           </View>
           <Link asChild href="/quest/history">
-            <MotionPressable hitSlop={8} pressScale={0.98} style={styles.historyButton}>
+            <MotionPressable
+              hitSlop={8}
+              pressScale={0.98}
+              style={styles.historyButton}
+            >
               <TrophyIcon
                 color={colors.primaryDark}
                 size={20}
                 strokeWidth={typography.iconStrokeWidth}
               />
-              <Text numberOfLines={1} style={styles.historyLink}>{`GoGoQuest ${tc("History")}`}</Text>
+              <Text
+                numberOfLines={1}
+                style={styles.historyLink}
+              >{`GoGoQuest ${tc("History")}`}</Text>
             </MotionPressable>
           </Link>
         </View>
@@ -354,7 +462,13 @@ function QuestLeaderboardPanel({ mediaColumnWidth }: { mediaColumnWidth: number 
 
 // Web parity: rendered trophy PNGs per place (public/quest/rank{1..5}.png + rank6_10.png),
 // not a tinted flat icon. Index 0-4 map to rank1-5; rank 6+ shares rank6_10.
-const rankTrophyImages = [questRank1, questRank2, questRank3, questRank4, questRank5] as const;
+const rankTrophyImages = [
+  questRank1,
+  questRank2,
+  questRank3,
+  questRank4,
+  questRank5,
+] as const;
 
 function RankTrophy({ index }: { index: number }) {
   const styles = useThemedStyles(createQuestScreenStyles);
@@ -370,7 +484,6 @@ function RankTrophy({ index }: { index: number }) {
     </View>
   );
 }
-
 
 const QUEST_HISTORY_LEADERBOARD_PERIODS = [
   "This round",
@@ -416,7 +529,9 @@ const QUEST_HISTORY_MOCK = {
     },
   ],
 } as const;
-const QUEST_HISTORY_MONTHLY_MAX = Math.max(...QUEST_HISTORY_MOCK.monthly.map((row) => row.points));
+const QUEST_HISTORY_MONTHLY_MAX = Math.max(
+  ...QUEST_HISTORY_MOCK.monthly.map((row) => row.points),
+);
 
 // Full mock leaderboard (web parity: src/mocks/homeApi.ts getMockQuestLeaderboard). The active user
 // "Demo Shopper" sits at rank 4 with 940 pts. Usernames are stored in full and truncated at render.
@@ -532,14 +647,22 @@ function QuestHistoryInsight() {
   const tc = useCopy();
   // Derive the insight from the mock monthly data so it stays consistent (recent vs previous month).
   const [recentMonth, olderMonth] = QUEST_HISTORY_MOCK.monthly;
-  const percent = Math.round(((recentMonth.points - olderMonth.points) / olderMonth.points) * 100);
-  const activeMonths = QUEST_HISTORY_MOCK.monthly.filter((row) => row.points > 0).length;
+  const percent = Math.round(
+    ((recentMonth.points - olderMonth.points) / olderMonth.points) * 100,
+  );
+  const activeMonths = QUEST_HISTORY_MOCK.monthly.filter(
+    (row) => row.points > 0,
+  ).length;
   return (
     <View style={styles.historyInsightCard}>
-      <Text style={styles.historyInsightTitle}>{tc("A quick read on your months")}</Text>
+      <Text style={styles.historyInsightTitle}>
+        {tc("A quick read on your months")}
+      </Text>
       <Text style={styles.historyInsightBody}>
         {fillTemplate(
-          tc("You earned about {percent}% more points in {recentMonth} than in {olderMonth}."),
+          tc(
+            "You earned about {percent}% more points in {recentMonth} than in {olderMonth}.",
+          ),
           {
             percent: String(percent),
             recentMonth: recentMonth.month,
@@ -548,10 +671,15 @@ function QuestHistoryInsight() {
         )}
       </Text>
       <Text style={styles.historyInsightStrip}>
-        {fillTemplate(tc("You picked up quest points in {active} of the last {total} months."), {
-          active: String(activeMonths),
-          total: String(QUEST_HISTORY_MOCK.monthly.length),
-        })}
+        {fillTemplate(
+          tc(
+            "You picked up quest points in {active} of the last {total} months.",
+          ),
+          {
+            active: String(activeMonths),
+            total: String(QUEST_HISTORY_MOCK.monthly.length),
+          },
+        )}
       </Text>
     </View>
   );
@@ -562,8 +690,11 @@ function QuestHistoryInsight() {
 function QuestHistoryLeaderboard() {
   const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
-  const [selectedPeriod, setSelectedPeriod] = useState<string>(QUEST_HISTORY_LEADERBOARD_PERIODS[0]);
-  const periodLabel = (period: string) => (period === "This round" ? tc("This round") : period);
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(
+    QUEST_HISTORY_LEADERBOARD_PERIODS[0],
+  );
+  const periodLabel = (period: string) =>
+    period === "This round" ? tc("This round") : period;
   const [viewPlayer, setViewPlayer] = useState<QuestHistoryPlayer | null>(null);
   // Web parity: the leaderboard table lists only the top 10 ranks.
   const rankRows = QUEST_HISTORY_LEADERBOARD.slice(0, 10).map((row) => ({
@@ -581,7 +712,9 @@ function QuestHistoryLeaderboard() {
         )}
       </Text>
       <View style={styles.historyPickerCard}>
-        <Text style={styles.historyPickerLabel}>{tc("Which period do you want to see?")}</Text>
+        <Text style={styles.historyPickerLabel}>
+          {tc("Which period do you want to see?")}
+        </Text>
         <View style={styles.historyPickerChips}>
           {QUEST_HISTORY_LEADERBOARD_PERIODS.map((period) => {
             const active = period === selectedPeriod;
@@ -590,9 +723,17 @@ function QuestHistoryLeaderboard() {
                 key={period}
                 onPress={() => setSelectedPeriod(period)}
                 pressScale={0.98}
-                style={[styles.historyChip, active ? styles.historyChipActive : null]}
+                style={[
+                  styles.historyChip,
+                  active ? styles.historyChipActive : null,
+                ]}
               >
-                <Text style={[styles.historyChipText, active ? styles.historyChipTextActive : null]}>
+                <Text
+                  style={[
+                    styles.historyChipText,
+                    active ? styles.historyChipTextActive : null,
+                  ]}
+                >
                   {periodLabel(period)}
                 </Text>
               </MotionPressable>
@@ -601,7 +742,10 @@ function QuestHistoryLeaderboard() {
         </View>
         <Text style={styles.historyPickerSelected}>
           {fillTemplate(tc("You are viewing: {period}"), {
-            period: selectedPeriod === "This round" ? QUEST_HISTORY_MOCK.periodRange : selectedPeriod,
+            period:
+              selectedPeriod === "This round"
+                ? QUEST_HISTORY_MOCK.periodRange
+                : selectedPeriod,
           })}
         </Text>
       </View>
@@ -613,7 +757,10 @@ function QuestHistoryLeaderboard() {
           viewLabel={tc("View")}
         />
       </View>
-      <QuestPlayerSummaryDialog onClose={() => setViewPlayer(null)} player={viewPlayer} />
+      <QuestPlayerSummaryDialog
+        onClose={() => setViewPlayer(null)}
+        player={viewPlayer}
+      />
     </View>
   );
 }
@@ -652,7 +799,9 @@ function QuestPlayerSummaryDialog({
               <Text style={styles.dialogClose}>{tc("Close")}</Text>
             </MotionPressable>
           </View>
-          <Text style={styles.dialogPlayerName}>{truncateQuestName(player.name)}</Text>
+          <Text style={styles.dialogPlayerName}>
+            {truncateQuestName(player.name)}
+          </Text>
           <View style={styles.dialogStatsRow}>
             <View style={styles.dialogStat}>
               <Text style={styles.dialogStatLabel}>{tc("Rank")}</Text>
@@ -660,11 +809,17 @@ function QuestPlayerSummaryDialog({
             </View>
             <View style={styles.dialogStat}>
               <Text style={styles.dialogStatLabel}>{tc("Points")}</Text>
-              <Text style={styles.dialogStatValue}>{formatPoints(player.points)}</Text>
+              <Text style={styles.dialogStatValue}>
+                {formatPoints(player.points)}
+              </Text>
             </View>
           </View>
-          <Text style={styles.dialogRewardsTitle}>{tc("Rewards this period")}</Text>
-          <Text style={styles.dialogNoRewards}>{tc("No rewards recorded for this period.")}</Text>
+          <Text style={styles.dialogRewardsTitle}>
+            {tc("Rewards this period")}
+          </Text>
+          <Text style={styles.dialogNoRewards}>
+            {tc("No rewards recorded for this period.")}
+          </Text>
         </View>
       </MotionPressable>
     </Modal>
@@ -678,11 +833,17 @@ function QuestHistoryView() {
     <View style={styles.historyView}>
       {/* Hero + plan card */}
       <View style={styles.historyHero}>
-        <Text style={styles.historyKicker}>{tc(webQuestHistory.heroKicker)}</Text>
-        <Text style={styles.historyHeroTitle}>{tc(webQuestHistory.heroTitle)}</Text>
+        <Text style={styles.historyKicker}>
+          {tc(webQuestHistory.heroKicker)}
+        </Text>
+        <Text style={styles.historyHeroTitle}>
+          {tc(webQuestHistory.heroTitle)}
+        </Text>
         <Text style={styles.historyIntro}>{tc(webQuestHistory.pageIntro)}</Text>
         <View style={styles.historyPlanCard}>
-          <Text style={styles.historyPlanTitle}>{tc(webQuestHistory.planTitle)}</Text>
+          <Text style={styles.historyPlanTitle}>
+            {tc(webQuestHistory.planTitle)}
+          </Text>
           {webQuestHistory.planSteps.map((step, index) => (
             <View key={step} style={styles.historyPlanStepRow}>
               <Text style={styles.historyPlanStepNumber}>{index + 1}.</Text>
@@ -691,15 +852,23 @@ function QuestHistoryView() {
           ))}
           <View style={styles.historyPlanCtaRow}>
             <Link asChild href="/quest">
-              <MotionPressable pressScale={0.98} style={styles.historyPlanCtaSecondary}>
+              <MotionPressable
+                pressScale={0.98}
+                style={styles.historyPlanCtaSecondary}
+              >
                 <Text style={styles.historyPlanCtaSecondaryText}>
                   {tc(webQuestHistory.viewQuestHubShort)}
                 </Text>
               </MotionPressable>
             </Link>
             <Link asChild href="/brand">
-              <MotionPressable pressScale={0.98} style={styles.historyPlanCtaPrimary}>
-                <Text style={styles.historyPlanCtaPrimaryText}>{tc("Brands")}</Text>
+              <MotionPressable
+                pressScale={0.98}
+                style={styles.historyPlanCtaPrimary}
+              >
+                <Text style={styles.historyPlanCtaPrimaryText}>
+                  {tc("Brands")}
+                </Text>
               </MotionPressable>
             </Link>
           </View>
@@ -708,20 +877,36 @@ function QuestHistoryView() {
 
       {/* This round — campaign card */}
       <View style={styles.historySection}>
-        <Text style={styles.historySectionTitle}>{tc(webQuestHistory.currentCampaign)}</Text>
-        <Text style={styles.historySectionHint}>{tc(webQuestHistory.roundShopHint)}</Text>
+        <Text style={styles.historySectionTitle}>
+          {tc(webQuestHistory.currentCampaign)}
+        </Text>
+        <Text style={styles.historySectionHint}>
+          {tc(webQuestHistory.roundShopHint)}
+        </Text>
         <View style={styles.historyCampaignCard}>
           <View style={styles.historyCampaignColumn}>
-            <Text style={styles.historyCampaignLabel}>{tc(webQuestHistory.periodLabel)}</Text>
-            <Text style={styles.historyCampaignPeriod}>{QUEST_HISTORY_MOCK.periodRange}</Text>
+            <Text style={styles.historyCampaignLabel}>
+              {tc(webQuestHistory.periodLabel)}
+            </Text>
+            <Text style={styles.historyCampaignPeriod}>
+              {QUEST_HISTORY_MOCK.periodRange}
+            </Text>
             <View style={styles.historyDaysLeftBadge}>
-              <Text style={styles.historyDaysLeftText}>{QUEST_HISTORY_MOCK.daysLeft}</Text>
+              <Text style={styles.historyDaysLeftText}>
+                {QUEST_HISTORY_MOCK.daysLeft}
+              </Text>
             </View>
           </View>
           <View style={styles.historyScoreCard}>
-            <Text style={styles.historyCampaignLabel}>{tc(webQuestHistory.yourScoreLabel)}</Text>
-            <Text style={styles.historyScoreValue}>{QUEST_HISTORY_MOCK.score}</Text>
-            <Text style={styles.historyScoreFootnote}>{tc(webQuestHistory.scoreFootnote)}</Text>
+            <Text style={styles.historyCampaignLabel}>
+              {tc(webQuestHistory.yourScoreLabel)}
+            </Text>
+            <Text style={styles.historyScoreValue}>
+              {QUEST_HISTORY_MOCK.score}
+            </Text>
+            <Text style={styles.historyScoreFootnote}>
+              {tc(webQuestHistory.scoreFootnote)}
+            </Text>
           </View>
         </View>
       </View>
@@ -731,8 +916,12 @@ function QuestHistoryView() {
 
       {/* Your points by month — mock data with proportional bars (web parity) */}
       <View style={styles.historySection}>
-        <Text style={styles.historySectionTitle}>{tc(webQuestHistory.monthlySection)}</Text>
-        <Text style={styles.historySectionHint}>{tc(webQuestHistory.monthlySectionHint)}</Text>
+        <Text style={styles.historySectionTitle}>
+          {tc(webQuestHistory.monthlySection)}
+        </Text>
+        <Text style={styles.historySectionHint}>
+          {tc(webQuestHistory.monthlySectionHint)}
+        </Text>
         <View style={styles.historyMonthlyCard}>
           {QUEST_HISTORY_MOCK.monthly.map((row) => (
             <View key={row.month} style={styles.historyMonthlyRow}>
@@ -743,7 +932,9 @@ function QuestHistoryView() {
                 <View
                   style={[
                     styles.historyMonthlyBarFill,
-                    { width: `${Math.round((row.points / QUEST_HISTORY_MONTHLY_MAX) * 100)}%` },
+                    {
+                      width: `${Math.round((row.points / QUEST_HISTORY_MONTHLY_MAX) * 100)}%`,
+                    },
                   ]}
                 />
               </View>
@@ -757,8 +948,12 @@ function QuestHistoryView() {
 
       {/* Bonuses you earned — mock data (web parity) */}
       <View style={styles.historySection}>
-        <Text style={styles.historySectionTitle}>{tc(webQuestHistory.rewardsSection)}</Text>
-        <Text style={styles.historySectionHint}>{tc(webQuestHistory.rewardsSectionHint)}</Text>
+        <Text style={styles.historySectionTitle}>
+          {tc(webQuestHistory.rewardsSection)}
+        </Text>
+        <Text style={styles.historySectionHint}>
+          {tc(webQuestHistory.rewardsSectionHint)}
+        </Text>
         <View style={styles.historyRewardsCard}>
           {QUEST_HISTORY_MOCK.rewards.map((reward) => (
             <View key={reward.id} style={styles.historyRewardRow}>
@@ -769,12 +964,16 @@ function QuestHistoryView() {
                   </Text>
                   {reward.isNew ? (
                     <View style={styles.historyRewardNewBadge}>
-                      <Text style={styles.historyRewardNewText}>{tc("New")}</Text>
+                      <Text style={styles.historyRewardNewText}>
+                        {tc("New")}
+                      </Text>
                     </View>
                   ) : null}
                 </View>
                 {reward.description ? (
-                  <Text style={styles.historyRewardDesc}>{reward.description}</Text>
+                  <Text style={styles.historyRewardDesc}>
+                    {reward.description}
+                  </Text>
                 ) : null}
                 <Text style={styles.historyRewardDate}>{reward.date}</Text>
               </View>
@@ -796,731 +995,785 @@ function QuestHistoryView() {
 
 function createQuestScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  historyView: {
-    gap: spacing.xl,
-  },
-  historyHero: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.lg,
-  },
-  historyKicker: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: "600",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  historyHeroTitle: {
-    color: colors.accent,
-    fontFamily: typography.family,
-    fontSize: typography.title,
-    fontWeight: "700",
-    lineHeight: 28,
-  },
-  historyIntro: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    lineHeight: 22,
-  },
-  historyPlanCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  historyPlanTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "600",
-  },
-  historyPlanStepRow: {
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  historyPlanStepNumber: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "700",
-  },
-  historyPlanStepText: {
-    color: colors.muted,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    lineHeight: 21,
-  },
-  historyPlanCtaRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  historyPlanCtaSecondary: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: colors.primaryDark,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-  },
-  historyPlanCtaSecondaryText: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "600",
-  },
-  historyPlanCtaPrimary: {
-    alignItems: "center",
-    backgroundColor: colors.primaryDark,
-    borderRadius: radii.chip,
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-  },
-  historyPlanCtaPrimaryText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "600",
-  },
-  historySection: {
-    gap: spacing.sm,
-  },
-  historySectionTitle: {
-    color: colors.accent,
-    fontFamily: typography.family,
-    fontSize: typography.title,
-    fontWeight: "700",
-  },
-  historySectionHint: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    lineHeight: 18,
-  },
-  historyCampaignCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.md,
-    marginTop: spacing.xs,
-    padding: spacing.lg,
-  },
-  historyCampaignColumn: {
-    gap: spacing.xs,
-  },
-  historyCampaignLabel: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: "500",
-  },
-  historyCampaignPeriod: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "600",
-  },
-  historyScoreCard: {
-    backgroundColor: colors.background,
-    borderRadius: radii.md,
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  historySignInHint: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-  },
-  historyScoreFootnote: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    lineHeight: 16,
-  },
-  historyDaysLeftBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: pickThemed(colors, "#E6FAF5", colors.primarySoft),
-    borderRadius: radii.chip,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
-  historyDaysLeftText: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  historyScoreValue: {
-    color: colors.accent,
-    fontFamily: typography.family,
-    fontSize: 32,
-    fontWeight: "700",
-  },
-  historyMonthlyCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.md,
-    marginTop: spacing.xs,
-    padding: spacing.lg,
-  },
-  historyMonthlyRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  historyMonthlyLabel: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 13,
-    width: 96,
-  },
-  historyMonthlyBarTrack: {
-    backgroundColor: colors.background,
-    borderRadius: radii.chip,
-    flex: 1,
-    height: 10,
-    overflow: "hidden",
-  },
-  historyMonthlyBarFill: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.chip,
-    height: "100%",
-  },
-  historyMonthlyPoints: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 13,
-    fontWeight: "600",
-    textAlign: "right",
-    width: 64,
-  },
-  historyRewardsCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.md,
-    marginTop: spacing.xs,
-    padding: spacing.lg,
-  },
-  historyRewardRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.md,
-    justifyContent: "space-between",
-  },
-  historyRewardInfo: {
-    flex: 1,
-    gap: 2,
-    minWidth: 0,
-  },
-  historyRewardTitleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  historyRewardTitle: {
-    color: colors.ink,
-    flexShrink: 1,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  historyRewardNewBadge: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.chip,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
-  historyRewardNewText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  historyRewardDesc: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 12,
-  },
-  historyRewardDate: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 12,
-  },
-  historyRewardPointsPill: {
-    backgroundColor: pickThemed(colors, "#E8FBF5", colors.primarySoft),
-    borderRadius: radii.chip,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-  },
-  historyRewardPoints: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  historyInsightCard: {
-    backgroundColor: pickThemed(colors, "#F6FDFB", colors.card),
-    borderColor: pickThemed(colors, "#D8F8EF", colors.border),
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.xs,
-    marginTop: spacing.xs,
-    padding: spacing.lg,
-  },
-  historyInsightTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "600",
-  },
-  historyInsightBody: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  historyInsightStrip: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  historyPickerCard: {
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-    padding: spacing.md,
-  },
-  historyPickerLabel: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  historyPickerChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  historyChip: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-  },
-  historyChipActive: {
-    backgroundColor: colors.primaryDark,
-    borderColor: colors.primaryDark,
-  },
-  historyChipText: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  historyChipTextActive: {
-    color: colors.white,
-  },
-  historyPickerSelected: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 13,
-  },
-  heroBanner: {
-    borderRadius: radii.lg,
-    width: "100%",
-  },
-  tabStrip: {
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  tabButton: {
-    alignItems: "center",
-    backgroundColor: colors.fieldMuted,
-    borderTopLeftRadius: radii.md,
-    borderTopRightRadius: radii.md,
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: spacing.sm,
-  },
-  tabButtonActive: {
-    backgroundColor: colors.card,
-    borderBottomColor: colors.primary,
-    borderBottomWidth: 2,
-  },
-  // Normal weight — the mint underline + color already mark the active tab
-  // (design feedback 2026-07-10).
-  tabText: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    fontWeight: "400",
-    textAlign: "center",
-  },
-  tabTextActive: {
-    color: colors.primaryDark,
-  },
-  questGrid: {
-    gap: spacing.lg,
-  },
-  questGridDesktop: {
-    flexDirection: "row",
-  },
-  questColumn: {
-    flex: 1,
-    gap: spacing.md,
-    minWidth: 0,
-  },
-  howToEarnImage: {
-    borderRadius: radii.md,
-    width: "100%",
-  },
-  promoImage: {
-    borderRadius: radii.md,
-    width: "100%",
-  },
-  leaderboardPanel: {
-    gap: spacing.lg,
-    width: "100%",
-  },
-  taskPanel: {
-    gap: 0,
-    paddingTop: spacing.lg,
-  },
-  taskTitle: {
-    color: colors.accent,
-    fontFamily: typography.family,
-    fontSize: 24,
-    fontWeight: "600",
-    lineHeight: 32,
-    marginBottom: spacing.md,
-  },
-  taskRow: {
-    alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    gap: spacing.md,
-    minHeight: 72,
-    paddingVertical: spacing.md,
-  },
-  taskLogo: {
-    alignItems: "center",
-    backgroundColor: pickThemed(colors, "#E8FBF5", colors.primarySoft),
-    borderRadius: radii.chip,
-    height: 52,
-    justifyContent: "center",
-    overflow: "hidden",
-    width: 52,
-  },
-  taskLogoImage: {
-    height: "100%",
-    width: "100%",
-  },
-  taskCopy: {
-    flex: 1,
-    gap: 3,
-    minWidth: 0,
-  },
-  taskName: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 18,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 24,
-  },
-  taskPointsPill: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radii.chip,
-    flexDirection: "row",
-    gap: spacing.xs,
-    justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-  },
-  taskPointsText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: 18,
-    fontWeight: "500",
-  },
-  leaderboardCard: {
-    gap: spacing.sm,
-  },
-  myRankCard: {
-    backgroundColor: pickThemed(colors, "#F1FFFC", colors.primarySoft),
-    borderColor: colors.primary,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: spacing.lg,
-    padding: spacing.md,
-  },
-  myRankColumn: {
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  myRankLabel: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-    textAlign: "center",
-  },
-  myRankValueWrap: {
-    alignItems: "center",
-    height: 65,
-    justifyContent: "center",
-  },
-  myRankValue: {
-    color: colors.accentSoft,
-    fontFamily: typography.family,
-    fontSize: 40,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  viewPointsButton: {
-    alignItems: "center",
-    alignSelf: "flex-end",
-    flexDirection: "row",
-    gap: spacing.xs,
-    marginVertical: spacing.sm,
-  },
-  viewPointsText: {
-    color: colors.primary,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: "500",
-  },
-  viewPointsIconCollapsed: {
-    transform: [{ rotate: "90deg" }],
-  },
-  myRankBreakdown: {
-    alignItems: "center",
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: spacing.md,
-  },
-  myRankBreakdownColumn: {
-    gap: spacing.xs,
-  },
-  myRankBreakdownLabel: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: typography.caption,
-  },
-  myRankBreakdownValue: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 24,
-    fontWeight: "500",
-  },
-  myRankBreakdownPlus: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 24,
-    marginHorizontal: spacing.md,
-  },
-  leaderboardHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  leaderboardTitleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    flex: 1,
-    gap: spacing.sm,
-    minWidth: 0,
-  },
-  leaderboardEmoji: {
-    fontSize: 28,
-    lineHeight: 32,
-  },
-  leaderboardTitle: {
-    color: colors.accent,
-    fontFamily: typography.family,
-    fontSize: 28,
-    fontWeight: "600",
-  },
-  historyButton: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.xs,
-    justifyContent: "flex-end",
-  },
-  historyLink: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: typography.body,
-    fontWeight: typography.bodyWeight,
-  },
-  rankRow: {
-    alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    gap: spacing.md,
-    minHeight: 72,
-    paddingVertical: spacing.md,
-  },
-  rankAvatarImage: {
-    borderRadius: radii.chip,
-    height: 46,
-    width: 46,
-  },
-  rankName: {
-    color: colors.ink,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 18,
-    minWidth: 0,
-  },
-  rankTrophy: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rankTrophyImage: {
-    height: 48,
-    width: 44,
-  },
-  rankViewButton: {
-    borderColor: pickThemed(colors, "rgba(0, 170, 128, 0.4)", colors.borderStrong),
-    borderRadius: radii.md,
-    borderWidth: 1,
-    minHeight: 36,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-  },
-  rankViewText: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  dialogOverlay: {
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
-    flex: 1,
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  dialogCard: {
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    gap: spacing.md,
-    maxWidth: 420,
-    padding: spacing.lg,
-    width: "100%",
-  },
-  dialogHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  dialogTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  dialogClose: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  dialogPlayerName: {
-    color: colors.accent,
-    fontFamily: typography.family,
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  dialogStatsRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  dialogStat: {
-    backgroundColor: colors.background,
-    borderRadius: radii.md,
-    flex: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  dialogStatLabel: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 12,
-  },
-  dialogStatValue: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 22,
-    fontWeight: "700",
-  },
-  dialogRewardsTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  dialogNoRewards: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  rankPointRow: {
-    alignItems: "center",
-    backgroundColor: colors.background,
-    borderRadius: radii.chip,
-    flexDirection: "row",
-    gap: spacing.xs,
-    justifyContent: "center",
-    minWidth: 88,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-  },
-  rankPoint: {
-    color: colors.primary,
-    fontFamily: typography.family,
-    fontSize: 18,
-    fontWeight: "500",
-  },
-});
+    historyView: {
+      gap: spacing.xl,
+    },
+    historyHero: {
+      backgroundColor: colors.primarySoft,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      gap: spacing.md,
+      padding: spacing.lg,
+    },
+    historyKicker: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "600",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    },
+    historyHeroTitle: {
+      color: colors.accent,
+      fontFamily: typography.family,
+      fontSize: typography.title,
+      fontWeight: "700",
+      lineHeight: 28,
+    },
+    historyIntro: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      lineHeight: 22,
+    },
+    historyPlanCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      gap: spacing.sm,
+      padding: spacing.md,
+    },
+    historyPlanTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: "600",
+    },
+    historyPlanStepRow: {
+      flexDirection: "row",
+      gap: spacing.xs,
+    },
+    historyPlanStepNumber: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: "700",
+    },
+    historyPlanStepText: {
+      color: colors.muted,
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      lineHeight: 21,
+    },
+    historyPlanCtaRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    historyPlanCtaSecondary: {
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderColor: colors.primaryDark,
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      flex: 1,
+      justifyContent: "center",
+      minHeight: 44,
+      paddingHorizontal: spacing.md,
+    },
+    historyPlanCtaSecondaryText: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: "600",
+    },
+    historyPlanCtaPrimary: {
+      alignItems: "center",
+      backgroundColor: colors.primaryDark,
+      borderRadius: radii.chip,
+      flex: 1,
+      justifyContent: "center",
+      minHeight: 44,
+      paddingHorizontal: spacing.md,
+    },
+    historyPlanCtaPrimaryText: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: "600",
+    },
+    historySection: {
+      gap: spacing.sm,
+    },
+    historySectionTitle: {
+      color: colors.accent,
+      fontFamily: typography.family,
+      fontSize: typography.title,
+      fontWeight: "700",
+    },
+    historySectionHint: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      lineHeight: 18,
+    },
+    historyCampaignCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      gap: spacing.md,
+      marginTop: spacing.xs,
+      padding: spacing.lg,
+    },
+    historyCampaignColumn: {
+      gap: spacing.xs,
+    },
+    historyCampaignLabel: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "500",
+    },
+    historyCampaignPeriod: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: "600",
+    },
+    historyScoreCard: {
+      backgroundColor: colors.background,
+      borderRadius: radii.md,
+      gap: spacing.xs,
+      padding: spacing.md,
+    },
+    historySignInHint: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+    },
+    historyScoreFootnote: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      lineHeight: 16,
+    },
+    historyDaysLeftBadge: {
+      alignSelf: "flex-start",
+      backgroundColor: pickThemed(colors, "#E6FAF5", colors.primarySoft),
+      borderRadius: radii.chip,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+    },
+    historyDaysLeftText: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    historyScoreValue: {
+      color: colors.accent,
+      fontFamily: typography.family,
+      fontSize: 32,
+      fontWeight: "700",
+    },
+    historyMonthlyCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      gap: spacing.md,
+      marginTop: spacing.xs,
+      padding: spacing.lg,
+    },
+    historyMonthlyRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    historyMonthlyLabel: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 13,
+      width: 96,
+    },
+    historyMonthlyBarTrack: {
+      backgroundColor: colors.background,
+      borderRadius: radii.chip,
+      flex: 1,
+      height: 10,
+      overflow: "hidden",
+    },
+    historyMonthlyBarFill: {
+      backgroundColor: colors.primary,
+      borderRadius: radii.chip,
+      height: "100%",
+    },
+    historyMonthlyPoints: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 13,
+      fontWeight: "600",
+      textAlign: "right",
+      width: 64,
+    },
+    historyRewardsCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      gap: spacing.md,
+      marginTop: spacing.xs,
+      padding: spacing.lg,
+    },
+    historyRewardRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: spacing.md,
+      justifyContent: "space-between",
+    },
+    historyRewardInfo: {
+      flex: 1,
+      gap: 2,
+      minWidth: 0,
+    },
+    historyRewardTitleRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    historyRewardTitle: {
+      color: colors.ink,
+      flexShrink: 1,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    historyRewardNewBadge: {
+      backgroundColor: colors.primary,
+      borderRadius: radii.chip,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+    },
+    historyRewardNewText: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: 11,
+      fontWeight: "700",
+    },
+    historyRewardDesc: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 12,
+    },
+    historyRewardDate: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 12,
+    },
+    historyRewardPointsPill: {
+      backgroundColor: pickThemed(colors, "#E8FBF5", colors.primarySoft),
+      borderRadius: radii.chip,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6,
+    },
+    historyRewardPoints: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "700",
+    },
+    historyInsightCard: {
+      backgroundColor: pickThemed(colors, "#F6FDFB", colors.card),
+      borderColor: pickThemed(colors, "#D8F8EF", colors.border),
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      gap: spacing.xs,
+      marginTop: spacing.xs,
+      padding: spacing.lg,
+    },
+    historyInsightTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: "600",
+    },
+    historyInsightBody: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    historyInsightStrip: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    historyPickerCard: {
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      gap: spacing.sm,
+      marginTop: spacing.xs,
+      padding: spacing.md,
+    },
+    historyPickerLabel: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "500",
+    },
+    historyPickerChips: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+    },
+    historyChip: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 8,
+    },
+    historyChipActive: {
+      backgroundColor: colors.primaryDark,
+      borderColor: colors.primaryDark,
+    },
+    historyChipText: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 13,
+      fontWeight: "600",
+    },
+    historyChipTextActive: {
+      color: colors.white,
+    },
+    historyPickerSelected: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 13,
+    },
+    heroBanner: {
+      borderRadius: radii.lg,
+      width: "100%",
+    },
+    tabStrip: {
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    tabButton: {
+      alignItems: "center",
+      backgroundColor: colors.fieldMuted,
+      borderTopLeftRadius: radii.md,
+      borderTopRightRadius: radii.md,
+      flex: 1,
+      justifyContent: "center",
+      minHeight: 48,
+      paddingHorizontal: spacing.sm,
+    },
+    tabButtonActive: {
+      backgroundColor: colors.card,
+      borderBottomColor: colors.primary,
+      borderBottomWidth: 2,
+    },
+    // Normal weight — the mint underline + color already mark the active tab
+    // (design feedback 2026-07-10).
+    tabText: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "400",
+      textAlign: "center",
+    },
+    tabTextActive: {
+      color: colors.primaryDark,
+    },
+    questGrid: {
+      gap: spacing.lg,
+    },
+    questGridDesktop: {
+      flexDirection: "row",
+    },
+    questColumn: {
+      flex: 1,
+      gap: spacing.md,
+      minWidth: 0,
+    },
+    howToEarnImage: {
+      borderRadius: radii.md,
+      width: "100%",
+    },
+    promoImage: {
+      borderRadius: radii.md,
+      width: "100%",
+    },
+    leaderboardPanel: {
+      gap: spacing.lg,
+      width: "100%",
+    },
+    taskPanel: {
+      gap: 0,
+      paddingTop: spacing.lg,
+    },
+    taskTitle: {
+      color: colors.accent,
+      fontFamily: typography.family,
+      fontSize: 24,
+      fontWeight: "600",
+      lineHeight: 32,
+      marginBottom: spacing.md,
+    },
+    taskResourceState: {
+      alignItems: "flex-start",
+      gap: spacing.sm,
+      paddingVertical: spacing.md,
+    },
+    taskResourceMessage: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 16,
+      lineHeight: 22,
+      paddingVertical: spacing.md,
+    },
+    taskRetryButton: {
+      backgroundColor: colors.primary,
+      borderRadius: radii.md,
+      minHeight: 44,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+    },
+    taskRetryText: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: 15,
+      fontWeight: "600",
+    },
+    taskRow: {
+      alignItems: "center",
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flexDirection: "row",
+      gap: spacing.md,
+      minHeight: 72,
+      paddingVertical: spacing.md,
+    },
+    taskLogo: {
+      alignItems: "center",
+      backgroundColor: pickThemed(colors, "#E8FBF5", colors.primarySoft),
+      borderRadius: radii.chip,
+      height: 52,
+      justifyContent: "center",
+      overflow: "hidden",
+      width: 52,
+    },
+    taskLogoImage: {
+      height: "100%",
+      width: "100%",
+    },
+    taskCopy: {
+      flex: 1,
+      gap: 3,
+      minWidth: 0,
+    },
+    taskName: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 18,
+      fontWeight: typography.bodyWeight,
+      lineHeight: 24,
+    },
+    taskProgress: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      lineHeight: 19,
+    },
+    taskState: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 13,
+      fontWeight: "500",
+      lineHeight: 18,
+    },
+    taskStateCompleted: {
+      color: colors.primaryDark,
+    },
+    taskStateCompensated: {
+      color: colors.danger,
+    },
+    taskCapState: {
+      color: colors.accentSoft,
+      fontFamily: typography.family,
+      fontSize: 13,
+      fontWeight: "600",
+      lineHeight: 18,
+    },
+    taskPointsPill: {
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      borderRadius: radii.chip,
+      flexDirection: "row",
+      gap: spacing.xs,
+      justifyContent: "center",
+      minHeight: 44,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6,
+    },
+    taskPointsText: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: 18,
+      fontWeight: "500",
+    },
+    leaderboardCard: {
+      gap: spacing.sm,
+    },
+    myRankCard: {
+      backgroundColor: pickThemed(colors, "#F1FFFC", colors.primarySoft),
+      borderColor: colors.primary,
+      borderRadius: radii.xl,
+      borderWidth: 1,
+      flexDirection: "row",
+      justifyContent: "space-around",
+      marginTop: spacing.lg,
+      padding: spacing.md,
+    },
+    myRankColumn: {
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    myRankLabel: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      textAlign: "center",
+    },
+    myRankValueWrap: {
+      alignItems: "center",
+      height: 65,
+      justifyContent: "center",
+    },
+    myRankValue: {
+      color: colors.accentSoft,
+      fontFamily: typography.family,
+      fontSize: 40,
+      fontWeight: "700",
+      textAlign: "center",
+    },
+    viewPointsButton: {
+      alignItems: "center",
+      alignSelf: "flex-end",
+      flexDirection: "row",
+      gap: spacing.xs,
+      marginVertical: spacing.sm,
+    },
+    viewPointsText: {
+      color: colors.primary,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: "500",
+    },
+    viewPointsIconCollapsed: {
+      transform: [{ rotate: "90deg" }],
+    },
+    myRankBreakdown: {
+      alignItems: "center",
+      borderColor: colors.border,
+      borderRadius: radii.sm,
+      borderWidth: 1,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      padding: spacing.md,
+    },
+    myRankBreakdownColumn: {
+      gap: spacing.xs,
+    },
+    myRankBreakdownLabel: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+    },
+    myRankBreakdownValue: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 24,
+      fontWeight: "500",
+    },
+    myRankBreakdownPlus: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 24,
+      marginHorizontal: spacing.md,
+    },
+    leaderboardHeader: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    leaderboardTitleRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      flex: 1,
+      gap: spacing.sm,
+      minWidth: 0,
+    },
+    leaderboardEmoji: {
+      fontSize: 28,
+      lineHeight: 32,
+    },
+    leaderboardTitle: {
+      color: colors.accent,
+      fontFamily: typography.family,
+      fontSize: 28,
+      fontWeight: "600",
+    },
+    historyButton: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: spacing.xs,
+      justifyContent: "flex-end",
+    },
+    historyLink: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: typography.body,
+      fontWeight: typography.bodyWeight,
+    },
+    rankRow: {
+      alignItems: "center",
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flexDirection: "row",
+      gap: spacing.md,
+      minHeight: 72,
+      paddingVertical: spacing.md,
+    },
+    rankAvatarImage: {
+      borderRadius: radii.chip,
+      height: 46,
+      width: 46,
+    },
+    rankName: {
+      color: colors.ink,
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: 18,
+      minWidth: 0,
+    },
+    rankTrophy: {
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    rankTrophyImage: {
+      height: 48,
+      width: 44,
+    },
+    rankViewButton: {
+      borderColor: pickThemed(
+        colors,
+        "rgba(0, 170, 128, 0.4)",
+        colors.borderStrong,
+      ),
+      borderRadius: radii.md,
+      borderWidth: 1,
+      minHeight: 36,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6,
+    },
+    rankViewText: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 13,
+      fontWeight: "600",
+    },
+    dialogOverlay: {
+      alignItems: "center",
+      backgroundColor: "rgba(0, 0, 0, 0.45)",
+      flex: 1,
+      justifyContent: "center",
+      padding: spacing.lg,
+    },
+    dialogCard: {
+      backgroundColor: colors.card,
+      borderRadius: radii.lg,
+      gap: spacing.md,
+      maxWidth: 420,
+      padding: spacing.lg,
+      width: "100%",
+    },
+    dialogHeader: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    dialogTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 16,
+      fontWeight: "700",
+    },
+    dialogClose: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    dialogPlayerName: {
+      color: colors.accent,
+      fontFamily: typography.family,
+      fontSize: 18,
+      fontWeight: "700",
+    },
+    dialogStatsRow: {
+      flexDirection: "row",
+      gap: spacing.md,
+    },
+    dialogStat: {
+      backgroundColor: colors.background,
+      borderRadius: radii.md,
+      flex: 1,
+      gap: spacing.xs,
+      padding: spacing.md,
+    },
+    dialogStatLabel: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 12,
+    },
+    dialogStatValue: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 22,
+      fontWeight: "700",
+    },
+    dialogRewardsTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    dialogNoRewards: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    rankPointRow: {
+      alignItems: "center",
+      backgroundColor: colors.background,
+      borderRadius: radii.chip,
+      flexDirection: "row",
+      gap: spacing.xs,
+      justifyContent: "center",
+      minWidth: 88,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6,
+    },
+    rankPoint: {
+      color: colors.primary,
+      fontFamily: typography.family,
+      fontSize: 18,
+      fontWeight: "500",
+    },
+  });
 }
-

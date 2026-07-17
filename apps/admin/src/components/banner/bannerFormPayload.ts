@@ -81,11 +81,11 @@ export function buildBannerSlotFormState(
     end_date_3: bannerData.end_date_3 || "",
     end_date_4: bannerData.end_date_4 || "",
     end_date_5: bannerData.end_date_5 || "",
-    end_forever_1: !Boolean(String(bannerData.end_date_1 || "").trim()),
-    end_forever_2: !Boolean(String(bannerData.end_date_2 || "").trim()),
-    end_forever_3: !Boolean(String(bannerData.end_date_3 || "").trim()),
-    end_forever_4: !Boolean(String(bannerData.end_date_4 || "").trim()),
-    end_forever_5: !Boolean(String(bannerData.end_date_5 || "").trim()),
+    end_forever_1: !String(bannerData.end_date_1 || "").trim(),
+    end_forever_2: !String(bannerData.end_date_2 || "").trim(),
+    end_forever_3: !String(bannerData.end_date_3 || "").trim(),
+    end_forever_4: !String(bannerData.end_date_4 || "").trim(),
+    end_forever_5: !String(bannerData.end_date_5 || "").trim(),
     id: String(slot),
   };
 }

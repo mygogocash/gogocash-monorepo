@@ -729,18 +729,6 @@ export default function OffersTable({
                                         role="menuitem"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          router.push(`/brands/${offer._id}`);
-                                          setOpenActionsId(null);
-                                        }}
-                                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                                      >
-                                        View detail
-                                      </button>
-                                      <button
-                                        type="button"
-                                        role="menuitem"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
                                           const q = encodeURIComponent(
                                             offer.offer_name ||
                                               String(

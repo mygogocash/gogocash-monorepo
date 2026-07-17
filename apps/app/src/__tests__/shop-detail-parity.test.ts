@@ -35,7 +35,9 @@ describe("Shop detail parity", () => {
       { name: "Lifestyle", rate: "0%" },
     ]);
     expect(webShopDetailGroceryGalaxy.note).toContain("Promo stack");
-    expect(webShopDetailGroceryGalaxy.disclaimer).toContain("maximum possible amounts");
+    expect(webShopDetailGroceryGalaxy.disclaimer).toContain(
+      "maximum possible amounts",
+    );
   });
 
   it("shop detail parity > given selected staging GoGoQuest banner > then shared banner contract matches", () => {
@@ -113,7 +115,7 @@ describe("Shop detail parity", () => {
   it("shop detail parity > given Grocery Galaxy category others > then travel-only tips are filtered out", () => {
     const visibleTips = filterShopCashbackTipsForCategory(
       webShopDetailGroceryGalaxy.cashbackTips.tips,
-      webShopDetailGroceryGalaxy.category
+      webShopDetailGroceryGalaxy.category,
     );
 
     expect(visibleTips).toHaveLength(4);
@@ -159,16 +161,20 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("StyleSheet.flatten");
     expect(shopFile).toContain("styles.questBannerFrame");
     expect(shopFile).toContain("styles.questBannerImage");
-    expect(shopFile).toContain("aspectRatio: shop.questBanner.imageWidth / shop.questBanner.imageHeight");
-    expect(shopFile).toContain("height: \"100%\"");
-    expect(shopFile).toContain("resizeMode=\"cover\"");
+    expect(shopFile).toContain(
+      "aspectRatio: shop.questBanner.imageWidth / shop.questBanner.imageHeight",
+    );
+    expect(shopFile).toContain('height: "100%"');
+    expect(shopFile).toContain('resizeMode="cover"');
     expect(shopFile).toContain("<ShopQuestBanner shop={shop} />");
     expect(shopFile).toContain("<ShopCouponDeals");
   });
 
   it("shop detail parity > given selected staging Cashback Tips > then Expo renders structured panel after deals", () => {
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
-    const panelFile = readMobileFile("src/components/shop/ShopCashbackTipsPanel.tsx");
+    const panelFile = readMobileFile(
+      "src/components/shop/ShopCashbackTipsPanel.tsx",
+    );
 
     expect(shopFile).not.toContain("merchantCashbackTipsImage");
     expect(shopFile).not.toContain("merchant-cashback-tips-terms");
@@ -181,14 +187,22 @@ describe("Shop detail parity", () => {
   });
 
   it("shop detail parity > given cashback tips > then each tip renders a friendly illustration", () => {
-    const illustrationFile = readMobileFile("src/components/shop/CashbackTipIllustration.tsx");
-    const highlightFile = readMobileFile("src/components/shop/CashbackTipHighlightCard.tsx");
-    const textFile = readMobileFile("src/components/shop/CashbackTipTextCard.tsx");
+    const illustrationFile = readMobileFile(
+      "src/components/shop/CashbackTipIllustration.tsx",
+    );
+    const highlightFile = readMobileFile(
+      "src/components/shop/CashbackTipHighlightCard.tsx",
+    );
+    const textFile = readMobileFile(
+      "src/components/shop/CashbackTipTextCard.tsx",
+    );
 
     expect(illustrationFile).toContain('"excluded-products"');
     expect(illustrationFile).toContain('"check-terms"');
     expect(illustrationFile).toContain('"accept-cookies"');
-    expect(highlightFile).toContain("<CashbackTipIllustration tipId={tip.id} />");
+    expect(highlightFile).toContain(
+      "<CashbackTipIllustration tipId={tip.id} />",
+    );
     expect(textFile).toContain("<CashbackTipIllustration tipId={tip.id} />");
     expect(textFile).not.toContain("numberBadge");
   });
@@ -208,7 +222,9 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("desktopShellFrame");
     expect(shopFile).toContain("desktopContentCap");
     expect(shopFile).toContain("getDesktopShellOffset");
-    expect(shopFile).toContain("horizontalPadding={desktopFooterHorizontalOffset}");
+    expect(shopFile).toContain(
+      "horizontalPadding={desktopFooterHorizontalOffset}",
+    );
     expect(shopFile).toContain("summaryCardDesktop");
   });
 
@@ -227,14 +243,18 @@ describe("Shop detail parity", () => {
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 
     expect(shopFile).toContain("handleToggleFavorite");
-    expect(shopFile).toMatch(/handleToggleFavorite[\s\S]*?buildLoginRedirectWithCallback/);
+    expect(shopFile).toMatch(
+      /handleToggleFavorite[\s\S]*?buildLoginRedirectWithCallback/,
+    );
     expect(shopFile).toContain("onPress={handleToggleFavorite}");
   });
 
   it("shop detail parity > given shop media URI changes > then logo and banner failure state resets", () => {
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 
-    expect(shopFile).toMatch(/setBannerFailed\(false\)[\s\S]*?\[shop\.bannerUri\]/);
+    expect(shopFile).toMatch(
+      /setBannerFailed\(false\)[\s\S]*?\[shop\.bannerUri\]/,
+    );
     expect(shopFile).toMatch(/setLogoFailed\(false\)[\s\S]*?\[shop\.logoUri\]/);
   });
 
@@ -285,11 +305,15 @@ describe("Shop detail parity", () => {
 
     expect(shopFile).toContain("resolveLiveDirectoryStores");
     expect(shopFile).toContain("getFixtureShopDirectoryResults");
-    expect(shopFile).toContain("<ShopExploreRelated excludeShopId={shop.id} />");
+    expect(shopFile).toContain(
+      "<ShopExploreRelated excludeShopId={shop.id} />",
+    );
     // Final-form alignment 2026-07-11: rail cards ARE the compact BrandCard
     // (fixed 144pt like the home carousels); the bespoke card is gone.
     expect(shopFile).toContain("<BrandCard");
-    expect(shopFile).toContain("getScaledCompactBrandCardMetrics(FIXED_RELATED_CARD_WIDTH)");
+    expect(shopFile).toMatch(
+      /getScaledCompactBrandCardMetrics\(\s*FIXED_RELATED_CARD_WIDTH\s*,?\s*\)/,
+    );
     expect(shopFile).not.toContain("relatedVisual");
   });
 

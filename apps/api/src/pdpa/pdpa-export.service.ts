@@ -198,6 +198,7 @@ export class PdpaExportService {
       ['points', bundle.points.length],
       ['socialRewards', bundle.socialRewards.length],
       ['deeplinks', bundle.deeplinks.length],
+      ['affiliateMintReservations', bundle.affiliateMintReservations.length],
     ] as const;
     const rows = counts.map(([k, n]) => `<li>${k}: ${n}</li>`).join('');
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head><body><h1>${title}</h1><ul>${rows}</ul><p>Full records are in data.json.</p></body></html>`;

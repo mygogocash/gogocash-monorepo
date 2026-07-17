@@ -19,7 +19,6 @@ import { presetRangeDates } from "@/lib/insightRange";
 import Button from "@/components/ui/button/Button";
 import SecondaryButton from "@/components/ui/button/SecondaryButton";
 import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
-import SortByDropdown from "@/components/ui/button/SortByDropdown";
 import StatusTag from "@/components/ui/StatusTag";
 import CopyButton from "@/components/ui/CopyButton";
 import TextArea from "@/components/form/input/TextArea";
@@ -28,6 +27,22 @@ import { AdminQueryError } from "@/components/common/AdminQueryError";
 import { AdminTableSkeleton } from "@/components/common/AdminTableSkeleton";
 import toast from "react-hot-toast";
 import { useEffect, useRef, useState } from "react";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+
+function missingOrderApiError(error: unknown): string {
+  const status =
+    error && typeof error === "object" && "status" in error
+      ? Number((error as { status?: unknown }).status)
+      : error && typeof error === "object" && "response" in error
+        ? Number(
+            (error as { response?: { status?: unknown } }).response?.status,
+          )
+        : 0;
+  const message = getApiErrorMessage(error);
+  return Number.isFinite(status) && status > 0
+    ? `HTTP ${status}: ${message}`
+    : message;
+}
 
 // Claim status → StatusTag colour (shares the badge shape; only colour varies).
 const CLAIM_STATUS_COLORS: Record<string, string> = {
@@ -55,13 +70,11 @@ function noteTabClass(active: boolean): string {
     : `${NOTE_TAB_BASE} border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800`;
 }
 
-// Admin authors for note attribution (mirrors the mock admin users a1–a4).
-const NOTE_AUTHORS = [
-  { value: "a1", label: "admin" },
-  { value: "a2", label: "moderator" },
-  { value: "a3", label: "support" },
-  { value: "a4", label: "analyst" },
-];
+const STORED_MEDIA_PROXY_PATH = "/api/backend/admin/stored-media/stream";
+
+function privateEvidenceUrl(ref: string): string {
+  return `${STORED_MEDIA_PROXY_PATH}?ref=${encodeURIComponent(ref)}`;
+}
 
 // Amount rendered as the offers-table "Max cap" pattern — value on top, currency
 // code below (split from the canonical formatMoney output, e.g. "1,100 THB").
@@ -93,12 +106,6 @@ export default function MissingOrdersManagement() {
   const [note, setNote] = useState("");
   const [noteType, setNoteType] = useState<"admin" | "rejection">("admin");
   const [rejNote, setRejNote] = useState("");
-  const [rejNotes, setRejNotes] = useState<
-    { adminId: string; adminName: string; note: string; timestamp: string }[]
-  >([]);
-  const [noteAuthorId, setNoteAuthorId] = useState("a1");
-  const noteAuthorName =
-    NOTE_AUTHORS.find((a) => a.value === noteAuthorId)?.label ?? "Admin";
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -109,7 +116,12 @@ export default function MissingOrdersManagement() {
   const listQ = useQuery({
     queryKey: ["admin", "mo", "list", page, rangeFrom, rangeTo],
     queryFn: () =>
-      getMissingOrders({ page, limit: 10, from: rangeFrom, to: rangeTo }),
+      getMissingOrders({
+        page,
+        limit: 10,
+        from: range === "all" ? undefined : rangeFrom,
+        to: range === "all" ? undefined : rangeTo,
+      }),
   });
   const detailQ = useQuery({
     queryKey: ["admin", "mo", "detail", claimId],
@@ -118,23 +130,28 @@ export default function MissingOrdersManagement() {
   });
 
   const assign = useMutation({
-    mutationFn: ({ id, assignee }: { id: string; assignee: string }) =>
-      putMissingOrderAssign(id, assignee),
+    mutationFn: (id: string) => putMissingOrderAssign(id),
     onSuccess: () => {
       toast.success("Assigned");
       void qc.invalidateQueries({ queryKey: ["admin", "mo"] });
     },
+    onError: (error) => toast.error(missingOrderApiError(error)),
   });
   const addNote = useMutation({
     mutationFn: () =>
-      postMissingOrderNote(claimId!, note, noteAuthorId, noteAuthorName),
+      postMissingOrderNote(
+        claimId!,
+        noteType === "admin" ? note.trim() : rejNote.trim(),
+      ),
     onSuccess: () => {
       toast.success("Note added");
-      setNote("");
+      if (noteType === "admin") setNote("");
+      else setRejNote("");
       void qc.invalidateQueries({
         queryKey: ["admin", "mo", "detail", claimId],
       });
     },
+    onError: (error) => toast.error(missingOrderApiError(error)),
   });
   const approveClaim = useMutation({
     mutationFn: (id: string) => putMissingOrderApprove(id),
@@ -143,32 +160,18 @@ export default function MissingOrdersManagement() {
       void qc.invalidateQueries({ queryKey: ["admin", "mo"] });
       setClaimId(null);
     },
+    onError: (error) => toast.error(missingOrderApiError(error)),
   });
   const rejectClaim = useMutation({
-    mutationFn: (id: string) => putMissingOrderReject(id),
+    mutationFn: ({ id, note }: { id: string; note: string }) =>
+      putMissingOrderReject(id, note),
     onSuccess: () => {
       toast.success("Claim rejected");
       void qc.invalidateQueries({ queryKey: ["admin", "mo"] });
       setClaimId(null);
     },
+    onError: (error) => toast.error(missingOrderApiError(error)),
   });
-
-  // Rejection notes are client-side only for now (no backend field yet) — the
-  // connected system will own these later, like the claim result/status.
-  const addRejectionNote = () => {
-    const text = rejNote.trim();
-    if (!text) return;
-    setRejNotes((prev) => [
-      ...prev,
-      {
-        adminId: noteAuthorId,
-        adminName: noteAuthorName,
-        note: text,
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-    setRejNote("");
-  };
 
   // Close the row Actions dropdown when clicking outside it.
   useEffect(() => {
@@ -189,9 +192,11 @@ export default function MissingOrdersManagement() {
   if (statsQ.isLoading || listQ.isLoading) return <AdminTableSkeleton />;
 
   if (statsQ.isError || listQ.isError) {
+    const error = listQ.error ?? statsQ.error;
     return (
       <AdminQueryError
         title="Could not load missing conversions"
+        message={missingOrderApiError(error)}
         onRetry={() => {
           void statsQ.refetch();
           void listQ.refetch();
@@ -237,7 +242,13 @@ export default function MissingOrdersManagement() {
                 </Button>
                 <SecondaryButton
                   type="button"
-                  onClick={() => void rejectClaim.mutateAsync(claimId!)}
+                  disabled={!rejNote.trim()}
+                  onClick={() =>
+                    void rejectClaim.mutateAsync({
+                      id: claimId!,
+                      note: rejNote.trim(),
+                    })
+                  }
                 >
                   Reject
                 </SecondaryButton>
@@ -245,7 +256,13 @@ export default function MissingOrdersManagement() {
             ) : null}
           </div>
 
-          {detailQ.data ? (
+          {detailQ.isError ? (
+            <AdminQueryError
+              title="Could not load missing conversion"
+              message={missingOrderApiError(detailQ.error)}
+              onRetry={() => void detailQ.refetch()}
+            />
+          ) : detailQ.data ? (
             <div className="max-w-2xl space-y-4">
               <div className="rounded-2xl border border-gray-200 bg-white p-5 text-sm text-gray-800 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -310,7 +327,7 @@ export default function MissingOrdersManagement() {
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               key={i}
-                              src={src}
+                              src={privateEvidenceUrl(src)}
                               alt=""
                               className="h-24 rounded border border-gray-200 dark:border-gray-700"
                             />
@@ -328,13 +345,9 @@ export default function MissingOrdersManagement() {
                       Notes
                     </dt>
                     <dd className="mt-1">
-                      {(noteType === "admin" ? detailQ.data.notes : rejNotes)
-                        .length > 0 ? (
+                      {detailQ.data.notes.length > 0 ? (
                         <ul className="space-y-2">
-                          {(noteType === "admin"
-                            ? detailQ.data.notes
-                            : rejNotes
-                          ).map((n, i) => (
+                          {detailQ.data.notes.map((n, i) => (
                             <li
                               key={i}
                               className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/40"
@@ -390,33 +403,13 @@ export default function MissingOrdersManagement() {
                     </button>
                   </div>
                   <SecondaryButton
-                    onClick={
-                      noteType === "admin"
-                        ? () => void addNote.mutateAsync()
-                        : addRejectionNote
-                    }
+                    onClick={() => void addNote.mutateAsync()}
                     disabled={
                       noteType === "admin" ? !note.trim() : !rejNote.trim()
                     }
                   >
                     Add note
                   </SecondaryButton>
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                    Written by
-                  </span>
-                  <SortByDropdown
-                    value={noteAuthorId}
-                    onChange={(e) => setNoteAuthorId(e.target.value)}
-                  >
-                    {NOTE_AUTHORS.map((a) => (
-                      <option key={a.value} value={a.value}>
-                        {a.label}
-                      </option>
-                    ))}
-                  </SortByDropdown>
                 </div>
 
                 <div className="mt-3">
@@ -475,7 +468,7 @@ export default function MissingOrdersManagement() {
 
           {!rows.length ? (
             <p className="py-10 text-center text-sm text-gray-500">
-              No claims.
+              No missing conversions.
             </p>
           ) : (
             <>
@@ -517,15 +510,19 @@ export default function MissingOrdersManagement() {
                             {c.userName}
                           </div>
                           <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                            <span>{c.email}</span>
-                            <CopyButton value={c.email} title="Copy email" />
+                            <span>{c.email ?? "Not provided"}</span>
+                            {c.email ? (
+                              <CopyButton value={c.email} title="Copy email" />
+                            ) : null}
                           </div>
                           <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                            <span>{c.phone}</span>
-                            <CopyButton
-                              value={c.phone}
-                              title="Copy phone number"
-                            />
+                            <span>{c.phone ?? "Not provided"}</span>
+                            {c.phone ? (
+                              <CopyButton
+                                value={c.phone}
+                                title="Copy phone number"
+                              />
+                            ) : null}
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap sm:px-6 sm:py-4">
@@ -610,7 +607,6 @@ export default function MissingOrdersManagement() {
                                     setClaimId(c.id);
                                     setNoteType("admin");
                                     setRejNote("");
-                                    setRejNotes([]);
                                     setOpenActionsId(null);
                                   }}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
@@ -632,7 +628,9 @@ export default function MissingOrdersManagement() {
                                   type="button"
                                   role="menuitem"
                                   onClick={() => {
-                                    void rejectClaim.mutateAsync(c.id);
+                                    setClaimId(c.id);
+                                    setNoteType("rejection");
+                                    setRejNote("");
                                     setOpenActionsId(null);
                                   }}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
@@ -643,10 +641,7 @@ export default function MissingOrdersManagement() {
                                   type="button"
                                   role="menuitem"
                                   onClick={() => {
-                                    void assign.mutateAsync({
-                                      id: c.id,
-                                      assignee: "a1",
-                                    });
+                                    void assign.mutateAsync(c.id);
                                     setOpenActionsId(null);
                                   }}
                                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"

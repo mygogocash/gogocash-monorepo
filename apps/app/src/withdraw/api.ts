@@ -10,7 +10,7 @@ export type WithdrawMethodRecord = {
 };
 
 export type CreateWithdrawMethodRequest = {
-  account_no: number;
+  account_no: string;
   account_name: string;
   bank_name: string;
   bank_code: string;

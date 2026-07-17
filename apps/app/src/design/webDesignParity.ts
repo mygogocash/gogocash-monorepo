@@ -2627,6 +2627,7 @@ export const webProductDiscovery = {
   pagination: {
     pageSize: 60,
   },
+  promo: webShopDirectory.promo,
   priceHint: "Price",
   products: webShopDirectory.stores.map((store, index) => {
     const seed = getProductDiscoverySeed(store, index);

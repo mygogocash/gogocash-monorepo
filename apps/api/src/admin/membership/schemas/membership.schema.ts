@@ -17,6 +17,9 @@ export class Membership {
   @Prop({ type: Types.ObjectId, required: true, ref: 'MembershipTier' })
   tier_id: Types.ObjectId;
 
+  @Prop({ type: Date, required: true, default: Date.now })
+  tier_assignment_started_at: Date;
+
   @Prop({ default: 'active' })
   status: string; // active | cancelled | expired
 

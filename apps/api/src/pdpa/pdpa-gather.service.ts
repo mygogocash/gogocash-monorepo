@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
+import { AffiliateMintReservation } from 'src/involve/schemas/affiliate-mint-reservation.schema';
 import { FavoriteOffer } from 'src/offer/schemas/favorite-offer.schema';
 import { MissionOrder } from 'src/offer/schemas/missing-order.schema';
 import { Point } from 'src/point/schemas/point.schema';
@@ -49,6 +50,22 @@ const PROFILE_EXPORT_FIELDS = [
   'updatedAt',
 ] as const;
 
+/** Explicit reservation allowlist: never export hashes, lease fences, or tokens. */
+const AFFILIATE_MINT_RESERVATION_EXPORT_FIELDS = [
+  'source',
+  'offer_id',
+  'merchant_id',
+  'destination_url',
+  'status',
+  'tracked_deeplink',
+  'provider_started_at',
+  'provider_succeeded_at',
+  'committed_at',
+  'pre_mint_failed_at',
+  'created_at',
+  'updated_at',
+] as const;
+
 export type PdpaDataBundle = {
   profile: Record<string, unknown>;
   myCashbacks: Record<string, unknown>[];
@@ -59,6 +76,7 @@ export type PdpaDataBundle = {
   points: Record<string, unknown>[];
   socialRewards: Record<string, unknown>[];
   deeplinks: Record<string, unknown>[];
+  affiliateMintReservations: Record<string, unknown>[];
   gototrackSettings: Record<string, unknown> | null;
 };
 
@@ -79,6 +97,8 @@ export class PdpaGatherService {
     @InjectModel(SocialReward.name)
     private readonly socialRewardModel: Model<SocialReward>,
     @InjectModel(Deeplink.name) private readonly deeplinkModel: Model<Deeplink>,
+    @InjectModel(AffiliateMintReservation.name)
+    private readonly affiliateMintReservationModel: Model<AffiliateMintReservation>,
     @InjectModel(GototrackUserSettings.name)
     private readonly gototrackSettingsModel: Model<GototrackUserSettings>,
   ) {}
@@ -105,6 +125,7 @@ export class PdpaGatherService {
       points,
       socialRewards,
       deeplinks,
+      affiliateMintReservations,
       gototrackSettings,
     ] = await Promise.all([
       this.findMyCashbacks(
@@ -121,6 +142,7 @@ export class PdpaGatherService {
       this.pointModel.find({ user_id: oid }).lean(),
       this.socialRewardModel.find({ user_id: oid }).lean(),
       this.deeplinkModel.find({ user_id: oid }).lean(),
+      this.affiliateMintReservationModel.find({ user_id: oid }).lean(),
       this.gototrackSettingsModel.findOne({ user_id: userId }).lean(),
     ]);
 
@@ -130,10 +152,17 @@ export class PdpaGatherService {
       withdrawMethods: withdrawMethods as unknown as Record<string, unknown>[],
       withdrawals: withdrawals as unknown as Record<string, unknown>[],
       favoriteOffers: favoriteOffers as unknown as Record<string, unknown>[],
-      missionOrders: missionOrders as unknown as Record<string, unknown>[],
+      missionOrders: missionOrders.map((row) =>
+        this.pickMissionOrder(row as unknown as Record<string, unknown>),
+      ),
       points: points as unknown as Record<string, unknown>[],
       socialRewards: socialRewards as unknown as Record<string, unknown>[],
       deeplinks: deeplinks as unknown as Record<string, unknown>[],
+      affiliateMintReservations: affiliateMintReservations.map((row) =>
+        this.pickAffiliateMintReservation(
+          row as unknown as Record<string, unknown>,
+        ),
+      ),
       gototrackSettings:
         (gototrackSettings as unknown as Record<string, unknown>) ?? null,
     };
@@ -147,6 +176,61 @@ export class PdpaGatherService {
       }
     }
     return out;
+  }
+
+  private pickAffiliateMintReservation(
+    reservation: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const key of AFFILIATE_MINT_RESERVATION_EXPORT_FIELDS) {
+      if (reservation[key] !== undefined) out[key] = reservation[key];
+    }
+    return out;
+  }
+
+  private pickMissionOrder(
+    order: Record<string, any>,
+  ): Record<string, unknown> {
+    const offer = order.offer_snapshot ?? {};
+    const notes = Array.isArray(order.notes) ? order.notes : [];
+    const asIso = (value: unknown): string | null => {
+      if (!value) return null;
+      const date = value instanceof Date ? value : new Date(String(value));
+      return Number.isNaN(date.getTime()) ? null : date.toISOString();
+    };
+
+    return {
+      id: String(order._id ?? ''),
+      offerId: String(order.offer_id ?? ''),
+      merchantName: String(offer.name ?? ''),
+      offerSource: String(offer.source ?? ''),
+      providerOfferId: Number.isFinite(Number(offer.provider_offer_id))
+        ? Number(offer.provider_offer_id)
+        : null,
+      orderId: String(order.order_id ?? order.orderId ?? ''),
+      orderAmount: Number(order.order_amount ?? order.amount ?? 0),
+      currency: String(order.currency ?? 'THB'),
+      purchaseDate: asIso(order.purchase_date ?? order.purchaseDate),
+      remarks: String(order.remarks ?? order.note ?? ''),
+      evidenceRefs: Array.isArray(order.evidence_refs ?? order.attachments)
+        ? (order.evidence_refs ?? order.attachments).map(String)
+        : [],
+      status: order.status === 'investigating' ? 'under_review' : order.status,
+      submittedDate: asIso(order.createdAt ?? order.created_at),
+      resolvedAt: asIso(order.resolved_at),
+      resolutionNote: order.resolution_note
+        ? String(order.resolution_note)
+        : null,
+      rejectionReason: order.rejection_reason
+        ? String(order.rejection_reason)
+        : null,
+      notes: notes.map((note: Record<string, unknown>) => ({
+        adminName: String(note.admin_name ?? ''),
+        note: String(note.text ?? ''),
+        timestamp: asIso(note.created_at ?? note.createdAt),
+      })),
+      schemaVersion: Number(order.schema_version ?? 1),
+    };
   }
 
   private async findMyCashbacks(user: {

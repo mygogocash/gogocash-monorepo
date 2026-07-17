@@ -172,10 +172,19 @@ export default function MembershipManagement() {
                 value: String(stats.newThisMonth),
                 sub: "This month",
               },
-              { label: "Churn %", value: String(stats.churnRate) },
+              {
+                label: "Churn %",
+                value:
+                  stats.churnRate === null
+                    ? "Unavailable"
+                    : String(stats.churnRate),
+              },
               {
                 label: "Revenue MTD (THB)",
-                value: stats.revenueMtd.toLocaleString(),
+                value:
+                  stats.revenueMtd === null
+                    ? "Unavailable"
+                    : stats.revenueMtd.toLocaleString(),
               },
             ] as { label: string; value: string; sub?: string }[]
           ).map((c) => (

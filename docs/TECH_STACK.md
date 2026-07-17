@@ -16,12 +16,17 @@ flowchart TB
     Aff["Affiliate networks<br/>Involve · Optimise"]
   end
 
-  subgraph GCP["Google Cloud (staging: gogocash-staging)"]
-    CR_API["Cloud Run<br/>gogocash-api-staging"]
-    CR_ADMIN["Cloud Run<br/>gogocash-admin"]
-    CR_APP["Cloud Run<br/>gogocash-app-web-staging"]
+  subgraph Railway["Railway (day-to-day staging)"]
+    RW_API["gogocash-api"]
+    RW_ADMIN["gogocash-admin"]
+    RW_APP["@gogocash/mobile"]
+  end
+
+  subgraph GCP["Google Cloud (manual rollback path)"]
+    CR_API["Cloud Run API"]
+    CR_ADMIN["Cloud Run Admin"]
+    CR_APP["Cloud Run customer web"]
     SM["Secret Manager"]
-    GCS["Cloud Storage<br/>gogocash-catalog-staging"]
     AR["Artifact Registry"]
   end
 
@@ -37,22 +42,26 @@ flowchart TB
     Chain["EVM chains<br/>withdraw contracts"]
   end
 
-  Admin -->|"HTTPS + JWT (NextAuth)"| CR_API
-  Admin --> CR_ADMIN
-  App -->|"HTTPS + Bearer JWT / Firebase"| CR_API
-  App --> CR_APP
-  TG --> CR_API
-  Aff -->|"postbacks / APIs"| CR_API
+  Admin -->|"HTTPS + JWT (NextAuth)"| RW_API
+  Admin --> RW_ADMIN
+  App -->|"HTTPS + Bearer JWT / Firebase"| RW_API
+  App --> RW_APP
+  TG --> RW_API
+  Aff -->|"postbacks / APIs"| RW_API
 
+  RW_API --> Atlas
+  RW_API --> FB
+  RW_API --> PH
+  RW_API --> RS
+  RW_API --> ST
+  RW_API --> Chain
+  RW_API --> Aff
+
+  AR --> CR_API
+  AR --> CR_ADMIN
+  AR --> CR_APP
   CR_API --> SM
-  CR_API --> Atlas
-  CR_API --> GCS
-  CR_API --> FB
-  CR_API --> PH
-  CR_API --> RS
-  CR_API --> ST
-  CR_API --> Chain
-  CR_API --> Aff
+  CR_API -. rollback data path .-> Atlas
 
   App --> FB
 ```
@@ -76,14 +85,14 @@ gogocash-monorepo/
 └── package.json      # npm workspaces + turbo
 ```
 
-| Concern | Choice |
-|---------|--------|
-| Workspaces | **npm workspaces** (`apps/*`, `packages/*`) |
-| Task runner | **Turborepo ^2.10** — `build`, `lint`, `typecheck`, `test` |
-| Node | **≥ 24 (LTS)** |
-| Package manager | **npm 10.9.8** |
-| Language | **TypeScript 7** (API/app/MCP), **5.9** (admin) |
-| Branch policy | **`main`** canonical; staging-first deploys |
+| Concern         | Choice                                                     |
+| --------------- | ---------------------------------------------------------- |
+| Workspaces      | **npm workspaces** (`apps/*`, `packages/*`)                |
+| Task runner     | **Turborepo ^2.10** — `build`, `lint`, `typecheck`, `test` |
+| Node            | **≥ 24 (LTS)**                                             |
+| Package manager | **npm 10.9.8**                                             |
+| Language        | **TypeScript 7** (API/app/MCP), **5.9** (admin)            |
+| Branch policy   | **`main`** canonical; staging-first deploys                |
 
 ---
 
@@ -91,36 +100,36 @@ gogocash-monorepo/
 
 ### 3.1 `apps/api` — Backend
 
-| Layer | Technology |
-|-------|------------|
-| Framework | **NestJS 11.1.x** on **Express 5.1** |
-| Database | **MongoDB** via **Mongoose 9.7.x** / driver **7.5.x** |
-| Auth | **JWT** (`JWT_SECRET`, `JWT_ADMIN_SECRET`), **Firebase Admin 14**, Passport |
-| Validation | **class-validator 0.15** + global **ValidationPipe** |
-| Security headers | **helmet 8** |
-| Scheduling | **@nestjs/schedule 6** (cron) + HTTP break-glass **TasksModule** |
-| Caching | **cache-manager 7** (in-memory) |
-| API docs | **Swagger** at `/doc_68bf99fed9667685c1637607` |
-| Testing | **Jest 30**, Supertest 7, real-Mongo integration tests |
-| Lint | **Oxlint 1.74** |
-| Package manager | **npm** (monorepo root lockfile; build via `npm run build -w gogocash-api`) |
-| Container | **node:24-alpine** multi-stage Dockerfile (`apps/api/Dockerfile`) |
+| Layer            | Technology                                                                  |
+| ---------------- | --------------------------------------------------------------------------- |
+| Framework        | **NestJS 11.1.x** on **Express 5.1**                                        |
+| Database         | **MongoDB** via **Mongoose 9.7.x** / driver **7.5.x**                       |
+| Auth             | **JWT** (`JWT_SECRET`, `JWT_ADMIN_SECRET`), **Firebase Admin 14**, Passport |
+| Validation       | **class-validator 0.15** + global **ValidationPipe**                        |
+| Security headers | **helmet 8**                                                                |
+| Scheduling       | **@nestjs/schedule 6** (cron) + HTTP break-glass **TasksModule**            |
+| Caching          | **cache-manager 7** (in-memory)                                             |
+| API docs         | **Swagger** at `/doc_68bf99fed9667685c1637607`                              |
+| Testing          | **Jest 30**, Supertest 7, real-Mongo integration tests                      |
+| Lint             | **Oxlint 1.74**                                                             |
+| Package manager  | **npm** (monorepo root lockfile; build via `npm run build -w gogocash-api`) |
+| Container        | **node:24-alpine** multi-stage Dockerfile (`apps/api/Dockerfile`)           |
 
 **Key integrations:** Involve Asia, Optimise Media, Stripe, Resend, PostHog, GCS, Google Drive (legacy), Telegraf, ethers (on-chain withdraw).
 
 ### 3.2 `apps/admin` — Admin dashboard
 
-| Layer | Technology |
-|-------|------------|
-| Framework | **Next.js 16.2.10** (App Router, Turbopack dev) |
-| UI | **React 19.2.7** |
-| Styling | **Tailwind CSS 4** + **MUI 9.2** + **Data Grid 9.8** |
-| Charts | ApexCharts 5.16, Recharts 3.9, FullCalendar 6.1 |
-| Data | **TanStack React Query 5.101**, Axios 1.18 |
-| Auth | **NextAuth 4.24** (Credentials → JWT session, 7-day max age) |
-| Firebase client | **firebase 12.16** (optional static-hosting builds) |
-| Lint | **Oxlint 1.74** |
-| Testing | **Vitest 4.1.10**, Testing Library, happy-dom |
+| Layer           | Technology                                                   |
+| --------------- | ------------------------------------------------------------ |
+| Framework       | **Next.js 16.2.10** (App Router, Turbopack dev)              |
+| UI              | **React 19.2.7**                                             |
+| Styling         | **Tailwind CSS 4** + **MUI 9.2** + **Data Grid 9.8**         |
+| Charts          | ApexCharts 5.16, Recharts 3.9, FullCalendar 6.1              |
+| Data            | **TanStack React Query 5.101**, Axios 1.18                   |
+| Auth            | **NextAuth 4.24** (Credentials → JWT session, 7-day max age) |
+| Firebase client | **firebase 12.16** (optional static-hosting builds)          |
+| Lint            | **Oxlint 1.74**                                              |
+| Testing         | **Vitest 4.1.10**, Testing Library, happy-dom                |
 
 **Data modes:** real API when `NEXT_PUBLIC_API_URL` is set; in-memory `/api/mock` otherwise.
 
@@ -128,21 +137,21 @@ gogocash-monorepo/
 
 ### 3.3 `apps/app` — Customer app
 
-| Layer | Technology |
-|-------|------------|
-| Framework | **Expo SDK 57** (`expo ^57.0.4`) |
-| Native | **React Native 0.86.0** |
-| Web | **react-native-web 0.21.2** |
-| UI | **React 19.2.7** |
-| Routing | **expo-router ~57.0.4** |
-| Data | TanStack React Query 5.101, custom API client |
-| Auth | **Firebase 12.16** phone OTP → `POST /auth/log-in` → API session |
-| Storage | expo-secure-store (native), localStorage (web) |
-| i18n | react-intl 10 + web ICU catalogs |
-| Observability | Sentry RN 7.11 (Expo-compatible), PostHog RN 4.55 |
-| Native | **GoGoTrack** detector module (Android, EAS dev client) |
-| Testing | Vitest 4.1.10 (logic + render), Playwright (Expo web) |
-| Builds | **EAS** (`eas.json`: dev/preview → staging API; production → `disabled` data source) |
+| Layer         | Technology                                                                                                  |
+| ------------- | ----------------------------------------------------------------------------------------------------------- |
+| Framework     | **Expo SDK 57** (`expo ^57.0.4`)                                                                            |
+| Native        | **React Native 0.86.0**                                                                                     |
+| Web           | **react-native-web 0.21.2**                                                                                 |
+| UI            | **React 19.2.7**                                                                                            |
+| Routing       | **expo-router ~57.0.4**                                                                                     |
+| Data          | TanStack React Query 5.101, custom API client                                                               |
+| Auth          | **Firebase 12.16** phone OTP → `POST /auth/log-in` → API session                                            |
+| Storage       | expo-secure-store (native), localStorage (web)                                                              |
+| i18n          | react-intl 10 + web ICU catalogs                                                                            |
+| Observability | Sentry RN 7.11 (Expo-compatible), PostHog RN 4.55                                                           |
+| Native        | **GoGoTrack** detector module (Android, EAS dev client)                                                     |
+| Testing       | Vitest 4.1.10 (logic + render), Playwright (Expo web)                                                       |
+| Builds        | **EAS** (`eas.json`: development → dev API, preview/closed-test → staging API, production → production API) |
 
 **Data modes:** `fixtures` | `backend` | `disabled` via `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE`.
 
@@ -152,13 +161,17 @@ gogocash-monorepo/
 
 ### 4.1 Staging (primary environment)
 
-| Service | Host | Region |
-|---------|------|--------|
-| API | `https://api-staging.gogocash.co` | `asia-southeast1` |
-| Admin | `https://admin-staging.gogocash.co` | `asia-southeast1` |
-| Customer web | `https://app-staging.gogocash.co` | `asia-southeast1` |
+| Service      | Host                                | Primary platform           |
+| ------------ | ----------------------------------- | -------------------------- |
+| API          | `https://api-staging.gogocash.co`   | Railway `gogocash-api`     |
+| Admin        | `https://admin-staging.gogocash.co` | Railway `gogocash-admin`   |
+| Customer web | `https://app-staging.gogocash.co`   | Railway `@gogocash/mobile` |
 
-**GCP project:** `gogocash-staging` (729804769570)
+Pushes to `staging` are CI-gated and deployed by the Railway GitHub
+integration. GCP is not the normal staging deploy target.
+
+**Manual rollback project:** GCP `gogocash-staging` (729804769570), region
+`asia-southeast1`.
 
 Cloud Run services:
 
@@ -169,33 +182,39 @@ Cloud Run services:
 CI/CD:
 
 - **CI:** GitHub Actions `ci.yml` — path-filtered per app (Node 24 LTS, `npm ci` at root)
-- **Image build:** `build-staging.yml` on push to `main` (+ manual) — builds `:staging-candidate` images
-- **Deploy:** `release-staging.yml` — **manual `workflow_dispatch`** only (pick app + tag → Cloud Run)
-- **Alternative:** Cloud Build configs in `cloudbuild/` (see `docs/gcp-cicd.md`)
+- **Primary deploy:** push/merge to `staging` → `ci-staging.yml` → Railway auto-deploy; changed app code publishes staging OTA only after the reusable app CI gate succeeds
+- **GCP rollback build:** manual `build-staging.yml` from `main` — reviewed-ref preflight, CI gate, selected app(s), exact 40-character SHA image tags, canonical copyable service→digest map
+- **GCP rollback release:** manual `release-staging.yml` from `main` — reviewed-ref preflight, required exact SHA plus canonical selected build digest map, exact registry digest match, Cloud Run health smoke
+- **Native staging scaffold:** manual `deploy-app-native-eas.yml` from `staging`, or a reusable OTA call from `ci-staging.yml` — one non-canceling shared EAS queue; exact paginated Actions run/attempt/aggregate+app-job/SHA proof and current staging-head check; four required Firebase values fail closed; build proof binds the SHA, `preview` profile, `staging` channel, internal distribution, and runtime; SDK 57 OTA preflights the exact channel mapping and requires one Android + one iOS record sharing one group/runtime; build/update only
+- **Alternative artifacts:** Cloud Build configs remain under `cloudbuild/`; they are not the primary Railway path (see `docs/gcp-cicd.md`)
 
-Per-app deploy workflows (all manual dispatch): `deploy-api-staging.yml`, `deploy-admin-staging.yml`, `deploy-app-web-staging.yml`, `deploy-app-native-eas.yml`.
+Legacy one-shot GCP workflows remain pending a separate PR-B retirement after
+authorized rollback proof: `deploy-api-staging.yml`,
+`deploy-admin-staging.yml`, and `deploy-app-web-staging.yml`.
 
 ### 4.2 Local development
 
-| Service | Port | Notes |
-|---------|------|-------|
-| API | 8080 | `npm run start:dev` in `apps/api` |
-| Admin | 3000 | `npm run dev` in `apps/admin` |
-| Customer (Expo web) | 8081 | `npx expo start --web --port 8081` |
-| MongoDB | 27017 | Docker `gogocash-mongo` or Atlas |
+| Service             | Port  | Notes                              |
+| ------------------- | ----- | ---------------------------------- |
+| API                 | 8080  | `npm run start:dev` in `apps/api`  |
+| Admin               | 3000  | `npm run dev` in `apps/admin`      |
+| Customer (Expo web) | 8081  | `npx expo start --web --port 8081` |
+| MongoDB             | 27017 | Docker `gogocash-mongo` or Atlas   |
 
 See [`docs/E2E_QA_PLAN.md`](./E2E_QA_PLAN.md) for full local E2E setup.
 
 ### 4.3 Secrets & config
 
-Staging API reads from **GCP Secret Manager**, including:
+Primary Railway staging reads runtime values from Railway service variables.
+The manual GCP rollback API maps these **GCP Secret Manager names** at release:
 
 - `gogocash-staging-mongo-uri`
 - `gogocash-staging-jwt-secret` / `gogocash-staging-jwt-admin-secret`
 - `gogocash-staging-involve-secret`, `gogocash-staging-involve-postback-secret`
 - Firebase, PostHog, Telegram, Resend, etc.
 
-Runtime env (non-secret): `GCS_CATALOG_BUCKET=gogocash-catalog-staging`, staging URLs for `WEB_APP_URL`, `API_BASE_URL`, `ADMIN_APP_URL`.
+Runtime env (non-secret): staging URLs for `WEB_APP_URL`, `API_BASE_URL`, and
+`ADMIN_APP_URL`, plus the configured R2 staging media bucket/endpoints.
 
 Admin uses `NEXTAUTH_SECRET` + public `NEXT_PUBLIC_API_URL`. Customer uses `EXPO_PUBLIC_*` baked at build time.
 
@@ -205,11 +224,11 @@ Admin uses `NEXTAUTH_SECRET` + public `NEXT_PUBLIC_API_URL`. Customer uses `EXPO
 
 ### 5.1 Primary store
 
-| Environment | Cluster | Tier | Database name |
-|-------------|---------|------|---------------|
-| Production | `gogocash` | M10 | `gogocash` |
-| Staging | `gogocash-staging` | M0 (512 MB) | `gogocash` |
-| Local | Docker / Atlas | — | `gogocash` |
+| Environment | Cluster            | Tier        | Database name |
+| ----------- | ------------------ | ----------- | ------------- |
+| Production  | `gogocash`         | M10         | `gogocash`    |
+| Staging     | `gogocash-staging` | M0 (512 MB) | `gogocash`    |
+| Local       | Docker / Atlas     | —           | `gogocash`    |
 
 **Single logical database** — all apps read/write the same MongoDB via the API (admin never talks to Mongo directly in production).
 
@@ -221,16 +240,16 @@ Admin uses `NEXTAUTH_SECRET` + public `NEXT_PUBLIC_API_URL`. Customer uses `EXPO
 
 ### 5.3 Core domain collections (conceptual)
 
-| Domain | Examples | Owner module |
-|--------|----------|--------------|
-| Users | `users`, MyCashback links | `user/` |
-| Admins | `useradmins` | `admin/user-admin/` |
-| Offers & brands | `offers`, categories, coupons, banners, top brands | `offer/`, `brand/` |
-| Affiliates | deeplinks, conversions | `involve/` |
-| Money | withdrawals, methods, conversions, fee rates | `withdraw/` |
-| Engagement | points, quests, referrals | `point/` |
-| Ops | missing orders, wallet adjustments, search config | `admin/*` |
-| GoGoTrack | merchant detection config | `gototrack/` |
+| Domain          | Examples                                           | Owner module        |
+| --------------- | -------------------------------------------------- | ------------------- |
+| Users           | `users`, MyCashback links                          | `user/`             |
+| Admins          | `useradmins`                                       | `admin/user-admin/` |
+| Offers & brands | `offers`, categories, coupons, banners, top brands | `offer/`, `brand/`  |
+| Affiliates      | deeplinks, conversions                             | `involve/`          |
+| Money           | withdrawals, methods, conversions, fee rates       | `withdraw/`         |
+| Engagement      | points, quests, referrals                          | `point/`            |
+| Ops             | missing orders, wallet adjustments, search config  | `admin/*`           |
+| GoGoTrack       | merchant detection config                          | `gototrack/`        |
 
 ---
 
@@ -422,11 +441,11 @@ src/
 
 For admin changes to appear in the customer app:
 
-| Requirement | Admin | Customer |
-|-------------|-------|----------|
-| Same API host | `NEXT_PUBLIC_API_URL` | `EXPO_PUBLIC_API_URL` |
-| Real data | not mock mode | `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=backend` |
-| Shared DB | — | via API only |
+| Requirement   | Admin                 | Customer                                  |
+| ------------- | --------------------- | ----------------------------------------- |
+| Same API host | `NEXT_PUBLIC_API_URL` | `EXPO_PUBLIC_API_URL`                     |
+| Real data     | not mock mode         | `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=backend` |
+| Shared DB     | —                     | via API only                              |
 
 Example propagation: **Admin enables brand + saves top brands** → `PUT /admin/top-brands` → `GET /offer/top-brands` → customer home Top Brands rail.
 
@@ -434,26 +453,26 @@ Example propagation: **Admin enables brand + saves top brands** → `PUT /admin/
 
 ## 11. External systems
 
-| System | Role |
-|--------|------|
-| **Involve Asia / Optimise** | Offer ingestion, commissions, postbacks, deeplinks |
-| **Firebase** | Customer phone auth (staging: `gogocash-staging`) |
-| **Stripe** | Customer subscription billing (server-side) |
-| **Resend** | Admin invite, password reset, transactional email |
-| **PostHog** | Product analytics (API truth events + customer app) |
-| **Telegram** | Bot login + ops alert groups |
-| **EVM RPC + contracts** | On-chain withdraw (admin approve flow) |
-| **ExchangeRate API** | FX for withdraw balance (cached, fail-closed) |
+| System                      | Role                                                |
+| --------------------------- | --------------------------------------------------- |
+| **Involve Asia / Optimise** | Offer ingestion, commissions, postbacks, deeplinks  |
+| **Firebase**                | Customer phone auth (staging: `gogocash-staging`)   |
+| **Stripe**                  | Customer subscription billing (server-side)         |
+| **Resend**                  | Admin invite, password reset, transactional email   |
+| **PostHog**                 | Product analytics (API truth events + customer app) |
+| **Telegram**                | Bot login + ops alert groups                        |
+| **EVM RPC + contracts**     | On-chain withdraw (admin approve flow)              |
+| **ExchangeRate API**        | FX for withdraw balance (cached, fail-closed)       |
 
 ---
 
 ## 12. CI / quality gates
 
-| App | Required gates |
-|-----|----------------|
-| API | **lint** · **unit tests** · **build + boot smoke + Mongo integration** (`withdraw-balance.e2e-spec.ts`) |
-| Admin | **vitest** · **`next build`** — lint runs but is **informational** (~54 react-hooks warnings, #45) |
-| App | **typecheck** · **vitest unit** · **vitest render** · **web export** (no `lint` script) |
+| App   | Required gates                                                                                          |
+| ----- | ------------------------------------------------------------------------------------------------------- |
+| API   | **lint** · **unit tests** · **build + boot smoke + Mongo integration** (`withdraw-balance.e2e-spec.ts`) |
+| Admin | **vitest** · **`next build`** — lint runs but is **informational** (~54 react-hooks warnings, #45)      |
+| App   | **typecheck** · **vitest unit** · **vitest render** · **web export** (no `lint` script)                 |
 
 Path-filtered in `.github/workflows/ci.yml`. Deploys are **not** in CI — see §4.1 CI/CD pipeline.
 
@@ -463,56 +482,56 @@ Path-filtered in `.github/workflows/ci.yml`. Deploys are **not** in CI — see �
 
 See [`SECURITY_HARDENING.md`](../SECURITY_HARDENING.md) for full register.
 
-| Area | Control |
-|------|---------|
-| Input | Global ValidationPipe on API |
-| Withdraw | Balance gate, pending + admin approve, serialized bank-transfer txn |
-| IDOR | Withdraw methods scoped to `{ _id, user_id }` |
-| Involve AI route | Fail-closed API key (`INVOLVE_AI_API_KEY`) |
-| Admin session | 7-day NextAuth max age |
-| FX | Cached + timeout + fail-closed (no silent zero balance) |
+| Area             | Control                                                             |
+| ---------------- | ------------------------------------------------------------------- |
+| Input            | Global ValidationPipe on API                                        |
+| Withdraw         | Balance gate, pending + admin approve, serialized bank-transfer txn |
+| IDOR             | Withdraw methods scoped to `{ _id, user_id }`                       |
+| Involve AI route | Fail-closed API key (`INVOLVE_AI_API_KEY`)                          |
+| Admin session    | 7-day NextAuth max age                                              |
+| FX               | Cached + timeout + fail-closed (no silent zero balance)             |
 
 ---
 
 ## 14. Planned evolution
 
-| Item | Status |
-|------|--------|
-| `packages/contracts` — shared API types | Planned (#19) |
-| `packages/i18n` — shared ICU catalogs | Planned |
-| `packages/tsconfig` — shared TS bases | Planned |
-| BFF for admin token relay + revocation | Open (#43) |
-| Production cutover | Gated — explicit human approval |
+| Item                                    | Status                          |
+| --------------------------------------- | ------------------------------- |
+| `packages/contracts` — shared API types | Planned (#19)                   |
+| `packages/i18n` — shared ICU catalogs   | Planned                         |
+| `packages/tsconfig` — shared TS bases   | Planned                         |
+| BFF for admin token relay + revocation  | Open (#43)                      |
+| Production cutover                      | Gated — explicit human approval |
 
 ---
 
 ## 15. Key version pins (from `package.json`, 2026-07-14)
 
-| Package | Version |
-|---------|---------|
-| Node | ≥ 24 (LTS) |
-| npm | 10.9.8 |
-| TypeScript | ^7.0.2 / ~5.9.3 |
-| React / React DOM | 19.2.7 |
-| NestJS (`@nestjs/common` etc.) | ^11.1.28 |
-| Mongoose | ^9.7.4 |
-| mongodb driver | ^7.4.0 (7.5 resolved) |
-| Express | ^5.1.0 |
-| firebase-admin (api) | ^14.1.0 |
-| Next.js (admin) | 16.2.10 (pinned) |
-| next-auth | ^4.24.13 |
-| firebase (admin / app) | ^12.16.0 / ^12.16.0 |
-| @mui/material | ^9.2.0 |
-| @mui/x-data-grid | ^9.8.0 |
-| Tailwind CSS (admin) | ^4.0.0 |
-| Expo (app) | ^57.0.4 |
-| expo-router | ~57.0.4 |
-| React Native | 0.86.0 |
-| react-native-web | ^0.21.2 |
-| Jest (api) | ^30.0.0 |
-| Vitest (admin / app) | ^4.1.10 / ^4.1.9 |
-| Turbo (root) | ^2.10.5 |
-| Lint (API / admin) | Oxlint ^1.74.0 |
+| Package                        | Version               |
+| ------------------------------ | --------------------- |
+| Node                           | ≥ 24 (LTS)            |
+| npm                            | 10.9.8                |
+| TypeScript                     | ^7.0.2 / ~5.9.3       |
+| React / React DOM              | 19.2.7                |
+| NestJS (`@nestjs/common` etc.) | ^11.1.28              |
+| Mongoose                       | ^9.7.4                |
+| mongodb driver                 | ^7.4.0 (7.5 resolved) |
+| Express                        | ^5.1.0                |
+| firebase-admin (api)           | ^14.1.0               |
+| Next.js (admin)                | 16.2.10 (pinned)      |
+| next-auth                      | ^4.24.13              |
+| firebase (admin / app)         | ^12.16.0 / ^12.16.0   |
+| @mui/material                  | ^9.2.0                |
+| @mui/x-data-grid               | ^9.8.0                |
+| Tailwind CSS (admin)           | ^4.0.0                |
+| Expo (app)                     | ^57.0.4               |
+| expo-router                    | ~57.0.4               |
+| React Native                   | 0.86.0                |
+| react-native-web               | ^0.21.2               |
+| Jest (api)                     | ^30.0.0               |
+| Vitest (admin / app)           | ^4.1.10 / ^4.1.9      |
+| Turbo (root)                   | ^2.10.5               |
+| Lint (API / admin)             | Oxlint ^1.74.0        |
 
 Full upgrade history and staged rollout gates: [`UPGRADE_PLAN.md`](../UPGRADE_PLAN.md).
 

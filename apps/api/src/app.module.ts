@@ -23,6 +23,7 @@ import { InvolveModule } from './involve/involve.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PdpaModule } from './pdpa/pdpa.module';
 import { GolinkModule } from './golink/golink.module';
+import { QuestTaskEngineModule } from './quest-task-engine/quest-task-engine.module';
 @Module({
   imports: [
     // ScheduleModule stays the in-process scheduler (staging); feature/bug-old's
@@ -36,6 +37,7 @@ import { GolinkModule } from './golink/golink.module';
     CatalogModule,
     PdpaModule,
     GolinkModule,
+    QuestTaskEngineModule,
     ConfigModule.forRoot({
       load: [envConfig],
     }),

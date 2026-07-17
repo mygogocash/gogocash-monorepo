@@ -8,10 +8,10 @@
 # The single root package-lock.json drives the npm workspace install; the admin
 # app no longer carries its own lockfile.
 #
-# NEXT_PUBLIC_API_URL is inlined by Next at build time. Pass it explicitly at
-# build time — there is no Dockerfile default (avoids silently pointing prod
-# builds at the staging API). Example:
-#   docker build -f apps/admin/Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co .
+# NEXT_PUBLIC_API_URL and NEXT_PUBLIC_APP_URL are inlined by Next at build time.
+# Pass them explicitly so admin API calls and customer-app deep links target the
+# same environment. NEXT_PUBLIC_API_URL has no default to avoid silently pointing
+# production builds at staging.
 
 FROM node:24-slim AS builder
 WORKDIR /app
@@ -37,8 +37,10 @@ RUN npm install --global npm@10.9.8 \
 # 2) Copy the admin source and build the standalone bundle.
 COPY apps/admin ./apps/admin
 ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_APP_URL
 RUN test -n "$NEXT_PUBLIC_API_URL" || (echo "ERROR: NEXT_PUBLIC_API_URL build-arg is required" >&2 && exit 1)
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV STANDALONE=1
 ENV NEXT_TELEMETRY_DISABLED=1
 # Production mode for the Next compile only — after deps are fully installed.

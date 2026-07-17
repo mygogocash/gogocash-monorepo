@@ -13,6 +13,10 @@ function inactiveReasonLabel(reason: InactiveBannerSlotReason): string {
   switch (reason) {
     case "Empty":
       return "Empty slot";
+    case "Needs image":
+      return "Needs image";
+    case "Disabled":
+      return "Disabled";
     case "Ended":
       return "Ended";
     default: {
@@ -67,7 +71,7 @@ export default function BannerInactiveSlotsSection() {
                 Could not load banner data.
               </p>
             ) : inactive.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">No inactive slots (empty or past end date).</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">No inactive slots (empty, incomplete, disabled, or past end date).</p>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">

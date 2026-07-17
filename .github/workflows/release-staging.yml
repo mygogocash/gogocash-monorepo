@@ -7,17 +7,21 @@ on:
   workflow_dispatch:
     inputs:
       app:
-        description: Which app to release to staging
+        description: Which GCP rollback service(s) to release
         required: true
         type: choice
         options:
           - api
           - admin
           - app-web
-      tag:
-        description: Image tag to deploy (default = latest build-staging candidate)
-        required: false
-        default: staging-candidate
+          - all
+      image_sha:
+        description: Exact 40-character SHA reported by Build (staging)
+        required: true
+        type: string
+      image_digests:
+        description: 'Exact build digest JSON, keyed only by selected app(s), e.g. {"api":"sha256:..."}'
+        required: true
         type: string
 
 permissions:
@@ -25,15 +29,40 @@ permissions:
   id-token: write
 
 jobs:
+  preflight:
+    name: reviewed ref and image identity gate
+    runs-on: ubuntu-latest
+    outputs:
+      api_digest: ${{ steps.identity.outputs.api_digest }}
+      admin_digest: ${{ steps.identity.outputs.admin_digest }}
+      app_web_digest: ${{ steps.identity.outputs.app_web_digest }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "24"
+      - name: Require reviewed main branch and exact digest map
+        id: identity
+        env:
+          IMAGE_DIGESTS_JSON: ${{ inputs.image_digests }}
+          IMAGE_SHA: ${{ inputs.image_sha }}
+          SELECTED_APP: ${{ inputs.app }}
+          TARGET_REF: ${{ github.ref }}
+        run: node scripts/deployment/gcp-release-input.mjs
+
   release-api:
-    if: ${{ inputs.app == 'api' }}
+    needs: preflight
+    if: ${{ needs.preflight.result == 'success' && (inputs.app == 'api' || inputs.app == 'all') }}
     uses: ./.github/workflows/_deploy-cloudrun.yml
     with:
       service_name: gogocash-api-staging
-      image_tag: ${{ inputs.tag }}
+      image_sha: ${{ inputs.image_sha }}
+      expected_digest: ${{ needs.preflight.outputs.api_digest }}
       memory: 512Mi
       max_instances: "5"
-      health_path: "/gototrack/merchants"
+      health_path: "/health"
       env_vars: "NODE_ENV=production,WEB_APP_URL=https://app-staging.gogocash.co,API_BASE_URL=https://api-staging.gogocash.co,POSTHOG_HOST=https://us.i.posthog.com,POSTHOG_ENABLED=true,MAIL_FROM=GoGoCash <noreply@gogocash.co>,ADMIN_APP_URL=https://admin-staging.gogocash.co,R2_BUCKET=gogocash-catalog-staging,R2_ENDPOINT=https://187ab61ed9dbc6e616cb23e6b95aa8f1.r2.cloudflarestorage.com,R2_PUBLIC_BASE_URL=https://media-staging.gogocash.co"
       # INVOLVE_AI_API_KEY (V-5 create-affiliate-ai guard) is intentionally NOT
       # set here — create the gogocash-staging-involve-ai-api-key Secret Manager
@@ -41,11 +70,13 @@ jobs:
       secrets_map: "MONGO_URI=gogocash-staging-mongo-uri:latest,JWT_SECRET=gogocash-staging-jwt-secret:latest,JWT_ADMIN_SECRET=gogocash-staging-jwt-admin-secret:latest,FIREBASE_PROJECT_ID=gogocash-staging-firebase-project-id:latest,INVOLVE_SECRET=gogocash-staging-involve-secret:latest,INVOLVE_POSTBACK_SECRET=gogocash-staging-involve-postback-secret:latest,POSTHOG_KEY=gogocash-staging-posthog-key:latest,TELEGRAM_BOT_TOKEN=gogocash-staging-telegram-bot-token:latest,RESEND_API_KEY=gogocash-staging-resend-api-key:latest,R2_ACCESS_KEY_ID=gogocash-staging-r2-access-key-id:latest,R2_SECRET_ACCESS_KEY=gogocash-staging-r2-secret-access-key:latest"
 
   release-admin:
-    if: ${{ inputs.app == 'admin' }}
+    needs: preflight
+    if: ${{ needs.preflight.result == 'success' && (inputs.app == 'admin' || inputs.app == 'all') }}
     uses: ./.github/workflows/_deploy-cloudrun.yml
     with:
       service_name: gogocash-admin
-      image_tag: ${{ inputs.tag }}
+      image_sha: ${{ inputs.image_sha }}
+      expected_digest: ${{ needs.preflight.outputs.admin_digest }}
       memory: 512Mi
       max_instances: "3"
       # Admin redirects to /signin (307) when unauthenticated — a healthy 3xx.
@@ -54,11 +85,35 @@ jobs:
       # service's existing NextAuth env (NEXTAUTH_SECRET etc.) is retained.
 
   release-app-web:
-    if: ${{ inputs.app == 'app-web' }}
+    needs: preflight
+    if: ${{ needs.preflight.result == 'success' && (inputs.app == 'app-web' || inputs.app == 'all') }}
     uses: ./.github/workflows/_deploy-cloudrun.yml
     with:
       service_name: gogocash-app-web-staging
-      image_tag: ${{ inputs.tag }}
+      image_sha: ${{ inputs.image_sha }}
+      expected_digest: ${{ needs.preflight.outputs.app_web_digest }}
       memory: 256Mi
       max_instances: "3"
       health_path: "/"
+
+  release-summary:
+    name: require selected releases
+    needs: [preflight, release-api, release-admin, release-app-web]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "24"
+      - name: Require every selected Cloud Run release
+        env:
+          IMAGE_SHA: ${{ inputs.image_sha }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          SELECTED_APP: ${{ inputs.app }}
+          EXPECTED_API_DIGEST: ${{ needs.preflight.outputs.api_digest }}
+          EXPECTED_ADMIN_DIGEST: ${{ needs.preflight.outputs.admin_digest }}
+          EXPECTED_APP_WEB_DIGEST: ${{ needs.preflight.outputs.app_web_digest }}
+        run: node scripts/deployment/gcp-release-summary.mjs

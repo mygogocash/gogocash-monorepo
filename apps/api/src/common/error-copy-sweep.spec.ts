@@ -149,7 +149,9 @@ describe('error-copy standard (user-facing HttpException messages)', () => {
       "We couldn't complete your withdrawal right now. No funds were moved",
     );
     expect(src).toContain('can only be marked paid while it is pending');
-    expect(src).toContain("Rewards for this quest aren't set up yet.");
+    expect(src).toContain(
+      'This legacy quest has no immutable reward snapshot. Reconcile it before enabling payouts.',
+    );
     expect(src).not.toContain('Fee rate not found');
     expect(src).not.toContain('Failed to record withdrawal on chain');
     expect(src).not.toContain('Only pending withdrawals can be marked paid');

@@ -33,24 +33,18 @@ describe("getBannerSlotDescriptors", () => {
     ]);
   });
 
-  it("shows only the three wired slides for the All Brands page target", () => {
-    expect(getBannerSlotDescriptors("allBrand")).toEqual([
-      {
-        area: "All Brands page carousel",
-        label: "Slide No. 1",
-        slot: 1,
-      },
-      {
-        area: "All Brands page carousel",
-        label: "Slide No. 2",
-        slot: 2,
-      },
-      {
-        area: "All Brands page carousel",
-        label: "Slide No. 3",
-        slot: 3,
-      },
-    ]);
+  it.each([
+    ["all-brands", "All Brands"],
+    ["all-shops", "All Shops"],
+    ["product-discovery", "Product Discovery"],
+  ] as const)("shows three wired slides for %s", (target, label) => {
+    expect(getBannerSlotDescriptors(target)).toEqual(
+      [1, 2, 3].map((slot) => ({
+        area: `${label} page carousel`,
+        label: `Slide No. ${slot}`,
+        slot,
+      })),
+    );
   });
 
   it("does not resurrect the mock-only homeSmall surface", () => {

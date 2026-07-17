@@ -1,5 +1,8 @@
 import 'reflect-metadata';
+import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import type { Request } from 'express';
 import { WithdrawController } from './withdraw.controller';
 import { WithdrawService } from './withdraw.service';
@@ -64,6 +67,64 @@ function reqWithUser(sub: string | undefined): Request {
     user: sub === undefined ? undefined : { sub },
   } as unknown as Request;
 }
+
+describe('CreateWithdrawMethod account-number boundary', () => {
+  const methodDto = (accountNo: unknown) =>
+    plainToInstance(CreateWithdrawMethod, {
+      account_no: accountNo,
+      account_name: 'QA Shopper',
+      bank_name: 'KBANK',
+      bank_code: '004',
+      is_default: false,
+    });
+
+  it('preserves a leading-zero digit string exactly', async () => {
+    const dto = methodDto('0012345678');
+
+    expect(await validate(dto)).toHaveLength(0);
+    expect(dto.account_no).toBe('0012345678');
+  });
+
+  it.each([
+    [42, '42'],
+    [1e3, '1000'],
+  ])(
+    'accepts safe legacy JSON number %p and normalizes it to %s',
+    async (input, expected) => {
+      const dto = methodDto(input);
+
+      expect(await validate(dto)).toHaveLength(0);
+      expect(dto.account_no).toBe(expected);
+    },
+  );
+
+  it.each([
+    1.5,
+    -1,
+    Number.MAX_SAFE_INTEGER + 1,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    '1e3',
+    '12-34',
+    ' 1234',
+  ])('rejects invalid account-number input %p', async (input) => {
+    const errors = await validate(methodDto(input));
+
+    expect(errors.some((error) => error.property === 'account_no')).toBe(true);
+  });
+
+  it('records only a redacted compatibility counter for a legacy number', async () => {
+    const logger = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    const dto = methodDto(987654321);
+
+    expect(await validate(dto)).toHaveLength(0);
+    expect(logger).toHaveBeenCalledWith({
+      count: 1,
+      event: 'withdraw_method_legacy_account_number',
+    });
+    expect(JSON.stringify(logger.mock.calls)).not.toContain('987654321');
+  });
+});
 
 describe('WithdrawController', () => {
   let controller: WithdrawController;

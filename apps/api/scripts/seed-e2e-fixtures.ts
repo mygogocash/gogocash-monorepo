@@ -21,17 +21,27 @@ import {
   Conversion,
   ConversionSchema,
 } from '../src/withdraw/schemas/conversion.schema';
+import { writeLocalMediaFile } from '../src/media/local-object-storage';
 import { assertLocalMongoUri } from './seed-local-admin';
 
 export const E2E_BRAND_OFFER_ID = 900_001;
 export const E2E_DISABLED_BRAND_OFFER_ID = 900_002;
 export const E2E_BRAND_LOOKUP = 'e2e-brand-001';
+const E2E_BANNER_OBJECT_KEY = 'e2e-banner.png';
+const E2E_BANNER_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+);
 
 export type SeedE2eFixturesResult = {
   brandId: string;
   disabledBrandId: string;
   brandOfferId: number;
   couponCode: string;
+  visibleCodeCouponId: string;
+  linkOnlyCouponId: string;
+  linkOnlyCouponName: string;
+  couponDestinationUrl: string;
   questId: string;
   catalogSku: string;
 };
@@ -134,6 +144,10 @@ export async function seedE2eFixtures(
     );
 
     const today = todayIsoDate();
+    const e2eBannerRef = await writeLocalMediaFile(
+      E2E_BANNER_OBJECT_KEY,
+      E2E_BANNER_PNG,
+    );
     await BannerModel.findOneAndUpdate(
       {},
       {
@@ -144,23 +158,63 @@ export async function seedE2eFixtures(
           end_date_1: today,
           enabled_1: true,
           link_1: '/shops',
-          image_1: 'local-media:e2e-banner.png',
+          image_1: e2eBannerRef,
         },
       },
       { upsert: true, new: true },
     );
 
     const couponCode = 'E2E-COUPON-001';
-    await CouponModel.findOneAndUpdate(
+    const couponDestinationUrl = 'https://example.com/e2e-track';
+    const couponStartDate = new Date(Date.now() - 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const couponEndDate = new Date(Date.now() + 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const visibleCodeCoupon = await CouponModel.findOneAndUpdate(
       { code: couponCode },
       {
         $set: {
-          name: 'E2E Coupon',
+          name: 'E2E #339 visible-code coupon',
           code: couponCode,
+          code_enabled: true,
           offer_id: enabledBrand._id,
-          start_date: today,
-          end_date: today,
+          start_date: couponStartDate,
+          end_date: couponEndDate,
           discount: 10,
+          discount_type: 'percent',
+          terms_and_conditions: 'E2E #339 visible-code terms.',
+          unlimited_amount_enabled: true,
+          disabled: false,
+        },
+      },
+      { upsert: true, new: true },
+    );
+    const linkOnlyCouponName = 'E2E #339 link-only coupon';
+    const linkOnlyCoupon = await CouponModel.findOneAndUpdate(
+      { name: linkOnlyCouponName, offer_id: enabledBrand._id },
+      {
+        $set: {
+          name: linkOnlyCouponName,
+          code: '',
+          code_enabled: false,
+          offer_id: enabledBrand._id,
+          start_date: couponStartDate,
+          end_date: couponEndDate,
+          discount: 25,
+          discount_type: 'cash',
+          discount_currency: 'THB',
+          eligibility: 'all users',
+          max_cap: 100,
+          max_cap_enabled: true,
+          max_cap_currency: 'THB',
+          one_time_use_enabled: false,
+          usage_per_user: 3,
+          quantity: 10,
+          quantity_used: 0,
+          unlimited_amount_enabled: false,
+          terms_and_conditions: 'E2E #339 link-only terms.',
           disabled: false,
         },
       },
@@ -280,6 +334,10 @@ export async function seedE2eFixtures(
       disabledBrandId: disabledBrand._id.toString(),
       brandOfferId: E2E_BRAND_OFFER_ID,
       couponCode,
+      visibleCodeCouponId: visibleCodeCoupon._id.toString(),
+      linkOnlyCouponId: linkOnlyCoupon._id.toString(),
+      linkOnlyCouponName,
+      couponDestinationUrl,
       questId: quest._id.toString(),
       catalogSku,
     };

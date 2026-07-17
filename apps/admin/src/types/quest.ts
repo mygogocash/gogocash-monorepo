@@ -1,29 +1,76 @@
 import type { Offer } from "@/types/api";
 
+export type QuestTaskType =
+  "brand_purchase" | "friend_referral" | "spend_target";
+
+export type QuestRewardModel = "legacy_v1" | "task_v2";
+
+export type QuestAudience =
+  { kind: "all" } | { kind: "membership_tiers"; tier_ids: string[] };
+
+export interface QuestRewardCaps {
+  max_awards_per_user: number | null;
+  max_referrals_per_user: number | null;
+}
+
 export interface QuestTask {
-  offer: string | Offer;
-  offer_id: number;
-  merchant_id: number;
-  extra_point: number;
+  task_key: string;
+  task_type: QuestTaskType;
+  points: number;
   sort_order: number;
   enabled: boolean;
+  offer?: string | Offer;
+  offer_id?: number;
+  merchant_id?: number;
+  extra_point?: number;
+  completion_rule?: "account_created" | "first_earning_conversion";
+  spend_scope?: "any_shop_via_ggc";
+  target_thb_minor?: number;
   wording?: string;
   wording_en?: string;
   wording_th?: string;
   notes?: string;
 }
 
-export interface QuestTaskPayload {
+interface QuestTaskPayloadBase {
+  task_key?: string;
+  task_type: QuestTaskType;
+  points: number;
+  enabled: boolean;
+  wording: string;
+  wording_en: string;
+  wording_th: string;
+  notes: string;
+}
+
+export interface BrandPurchaseQuestTaskPayload extends QuestTaskPayloadBase {
+  task_type: "brand_purchase";
   offer: string;
-  offer_id: number;
-  merchant_id: number;
-  extra_point: number;
-  sort_order?: number;
-  enabled?: boolean;
-  wording?: string;
-  wording_en?: string;
-  wording_th?: string;
-  notes?: string;
+}
+
+export interface FriendReferralQuestTaskPayload extends QuestTaskPayloadBase {
+  task_type: "friend_referral";
+  completion_rule: "account_created" | "first_earning_conversion";
+}
+
+export interface SpendTargetQuestTaskPayload extends QuestTaskPayloadBase {
+  task_type: "spend_target";
+  spend_scope: "any_shop_via_ggc";
+  target_thb_minor: number;
+}
+
+export type QuestTaskPayload =
+  | BrandPurchaseQuestTaskPayload
+  | FriendReferralQuestTaskPayload
+  | SpendTargetQuestTaskPayload;
+
+export interface QuestTaskConfigSavePayload {
+  reward_model: QuestRewardModel;
+  expected_config_revision: number;
+  timezone: "Asia/Bangkok";
+  audience: QuestAudience;
+  reward_caps: QuestRewardCaps;
+  tasks: QuestTaskPayload[];
 }
 
 export interface QuestTaskDeeplinkSummary {
@@ -58,11 +105,10 @@ export interface QuestRewardPayload {
 }
 
 export type QuestRewardDistributionMode =
-  | "manual"
-  | "campaign_end"
-  | "after_days";
+  "manual" | "campaign_end" | "after_days";
 
 export interface QuestRewardSavePayload {
+  expected_config_revision: number;
   rewards: QuestRewardPayload[];
   reward_distribution_mode: QuestRewardDistributionMode;
   reward_distribution_delay_days: number;
@@ -104,6 +150,15 @@ export interface QuestLeaderboardResponse {
 
 export interface ResponseQuestDate {
   _id: string;
+  campaign_revision?: number;
+  config_revision?: number;
+  reward_model?: QuestRewardModel;
+  timezone?: "Asia/Bangkok";
+  audience?: QuestAudience;
+  reward_caps?: QuestRewardCaps;
+  task_v2_state_frozen_at?: Date | string;
+  task_v2_state_frozen_revision?: number;
+  task_v2_state_frozen_reason?: "outbox" | "progress" | "award";
   status: string;
   reward_status?: boolean;
   reward_distribution_mode?: QuestRewardDistributionMode;
@@ -131,8 +186,8 @@ export interface ResponseQuestCreateForm {
   facebook_page: string;
   facebook_post: string;
   line: string;
-  banner_en: File | string;
-  banner_th: File | string;
-  sub_banner_en: File | string;
-  sub_banner_th: File | string;
+  banner_en: File | null;
+  banner_th: File | null;
+  sub_banner_en: File | null;
+  sub_banner_th: File | null;
 }

@@ -30,9 +30,15 @@ import {
   FileFieldsInterceptor,
   FilesInterceptor,
 } from '@nestjs/platform-express';
+import { resolveDeploymentProof } from './deployment-proof';
 @Controller('offer')
 export class OfferController {
   constructor(private readonly offerService: OfferService) {}
+
+  @Get('deployment-proof')
+  getDeploymentProof() {
+    return resolveDeploymentProof();
+  }
 
   @Get('extra-point')
   getOfferExtraPoint() {
@@ -47,6 +53,11 @@ export class OfferController {
   @Get('banner-all-brand-page')
   getAllBrandBanner() {
     return this.offerService.getAllBrandBanner();
+  }
+
+  @Get('banner-specific-page/:target')
+  getSpecificPageBanner(@Param('target') target: string) {
+    return this.offerService.getSpecificPageBanner(target);
   }
 
   @Get('top-brands')

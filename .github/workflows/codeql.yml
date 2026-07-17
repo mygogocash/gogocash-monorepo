@@ -112,14 +112,18 @@ jobs:
 
   analyze-swift:
     name: Analyze (swift)
-    # Android-focus (founder decision 2026-07-11): the iOS build + analysis
-    # takes ~100 min on a macOS runner (10x billing) and the product ships
-    # Android-first — run it on the weekly schedule + manual dispatch only,
-    # not per push/PR. The java-kotlin (Android) lane stays on every PR.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Main already publishes the /language:swift CodeQL configuration, so each
+    # PR must upload the same real analysis or GitHub marks the aggregate gate
+    # incomplete. Avoid the expensive macOS lane on ordinary branch pushes;
+    # PRs, weekly schedules, and explicit reruns retain full Swift coverage.
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
     # macos-15: React Native 0.86 requires Xcode >= 16.1; the macos-14 image
     # defaults to 15.4 and `pod install` hard-fails ("Please upgrade XCode").
     runs-on: macos-15
+    timeout-minutes: 120
     permissions:
       actions: read
       contents: read
@@ -136,8 +140,9 @@ jobs:
         # the NEWEST Xcode on the image instead of pinning a major, and print
         # the inventory unconditionally so future bumps are diagnosable.
         run: |
-          ls -d /Applications/Xcode*.app
-          XCODE_APP=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+          shopt -s nullglob
+          printf '%s\n' /Applications/Xcode*.app
+          XCODE_APP=$(printf '%s\n' /Applications/Xcode_*.app | sort -V | tail -1)
           if [ -z "$XCODE_APP" ]; then
             echo "::error::No versioned Xcode found on runner image"; exit 1
           fi

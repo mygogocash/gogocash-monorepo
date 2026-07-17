@@ -154,6 +154,9 @@ export interface DashboardWithdrawStatusBucket {
 }
 
 export interface DashboardSummaryResponse {
+  /** Currency used by every scalar financial total in this response. */
+  currency: "THB";
+  /** Count of commercial conversions across currencies and statuses. */
   conversionCount: number;
   conversionTotalPayout: number;
   /** Sum of sale amounts for conversions in scope (when provided by API). */
@@ -216,10 +219,15 @@ export interface DashboardTopOfferRow {
   offerId: number;
   offerName: string;
   merchantId: number;
+  /** Affiliate network namespace for offerId. */
+  networkId: string;
+  /** Publisher/account namespace within the affiliate network. */
+  providerAccount: string;
   conversions: number;
   gmv: number;
   payout: number;
-  currency: string;
+  /** Financial values are fail-closed to THB; conversions span currencies. */
+  currency: "THB";
 }
 
 export interface DashboardNetworkRow {
@@ -229,12 +237,25 @@ export interface DashboardNetworkRow {
   conversions: number;
   gmv: number;
   payout: number;
+  /** Network totals are intentionally scoped to the dashboard currency. */
+  currency: "THB";
 }
 
 export interface DashboardCommissionHealth {
   missingAdminCap: number;
   missingPartnerCap: number;
   adminOverPartner: number;
+}
+
+export interface DashboardDataAvailability {
+  available: boolean;
+  reason: string;
+}
+
+export interface DashboardAnalyticsAvailability {
+  clicks: DashboardDataAvailability;
+  commissionHealth: DashboardDataAvailability;
+  quests: DashboardDataAvailability;
 }
 
 export type DashboardAlertSeverity = "low" | "medium" | "high";
@@ -363,6 +384,9 @@ export interface DashboardQuestMetrics {
 export interface DashboardInsightsResponse {
   lastUpdated: string;
   range: DashboardInsightRange | string;
+  /** Financial values are THB-only; commercial conversion counts span currencies. */
+  currency: "THB";
+  availability: DashboardAnalyticsAvailability;
   period: { from: string; to: string };
   kpis: DashboardKpiBlock;
   withdrawByStatus: DashboardSummaryResponse["withdrawByStatus"];

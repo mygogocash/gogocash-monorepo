@@ -38,6 +38,363 @@ import {
 import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
 import { AxiosRequestConfig } from "axios";
 
+type DashboardEndpoint = "stats" | "summary" | "insights";
+
+const DASHBOARD_UPGRADE_MESSAGE =
+  "Dashboard data is temporarily unavailable during an API upgrade. Please retry after the API deployment completes.";
+
+/**
+ * Raised when Admin and API dashboard contracts do not belong to the same
+ * release. Keeping this distinct from transport errors lets the UI fail closed
+ * instead of presenting legacy fields as zero-valued business data.
+ */
+export class DashboardResponseCompatibilityError extends Error {
+  readonly code = "DASHBOARD_API_INCOMPATIBLE";
+
+  constructor(readonly endpoint: DashboardEndpoint) {
+    super(DASHBOARD_UPGRADE_MESSAGE);
+    this.name = "DashboardResponseCompatibilityError";
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function hasFiniteNumbers(value: unknown, keys: readonly string[]): boolean {
+  return isRecord(value) && keys.every((key) => isFiniteNumber(value[key]));
+}
+
+function isNullableFiniteNumber(value: unknown): value is number | null {
+  return value === null || isFiniteNumber(value);
+}
+
+function isPeriod(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.from === "string" &&
+    typeof value.to === "string"
+  );
+}
+
+function isWithdrawBucket(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    hasFiniteNumbers(value, ["count", "total"]) &&
+    (value.oldestAt === undefined ||
+      value.oldestAt === null ||
+      typeof value.oldestAt === "string")
+  );
+}
+
+function isWithdrawByStatus(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isWithdrawBucket(value.pending) &&
+    isWithdrawBucket(value.approved) &&
+    isWithdrawBucket(value.rejected)
+  );
+}
+
+function isAvailabilityEntry(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.available === "boolean" &&
+    typeof value.reason === "string"
+  );
+}
+
+function isDashboardAvailability(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isAvailabilityEntry(value.clicks) &&
+    isAvailabilityEntry(value.commissionHealth) &&
+    isAvailabilityEntry(value.quests)
+  );
+}
+
+function isKpiSnapshot(value: unknown): boolean {
+  return hasFiniteNumbers(value, [
+    "gogocashUsers",
+    "mycashbackUsers",
+    "conversionCount",
+    "conversionTotalPayout",
+    "conversionTotalSaleAmount",
+  ]);
+}
+
+function isKpiBlock(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isKpiSnapshot(value.current) &&
+    (value.prior === null || isKpiSnapshot(value.prior)) &&
+    isFiniteNumber(value.newUsersInPeriod)
+  );
+}
+
+function isStatisticsBundle(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.categories) ||
+    !value.categories.every((category) => typeof category === "string") ||
+    !Array.isArray(value.series) ||
+    typeof value.description !== "string"
+  ) {
+    return false;
+  }
+  const expectedSeries = [
+    "Clicks",
+    "Conversions",
+    "Sale Amount",
+    "Estimated Earnings",
+  ];
+  const categoryCount = value.categories.length;
+  return (
+    value.series.length === expectedSeries.length &&
+    value.series.every(
+      (series, index) =>
+        isRecord(series) &&
+        series.name === expectedSeries[index] &&
+        Array.isArray(series.data) &&
+        series.data.length === categoryCount &&
+        series.data.every(isFiniteNumber),
+    )
+  );
+}
+
+function isStatisticsByTab(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    ["day", "week", "month", "quarter", "year"].every((tab) =>
+      isStatisticsBundle(value[tab]),
+    )
+  );
+}
+
+function isNumberRecord(value: unknown): boolean {
+  return isRecord(value) && Object.values(value).every(isFiniteNumber);
+}
+
+function isDashboardAlert(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    ["low", "medium", "high"].includes(String(value.severity)) &&
+    typeof value.title === "string" &&
+    typeof value.body === "string" &&
+    typeof value.href === "string" &&
+    (value.metric === undefined || typeof value.metric === "string") &&
+    (value.deltaPct === undefined || isFiniteNumber(value.deltaPct))
+  );
+}
+
+function isDashboardTopOffer(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isFiniteNumber(value.offerId) &&
+    typeof value.offerName === "string" &&
+    isFiniteNumber(value.merchantId) &&
+    typeof value.networkId === "string" &&
+    typeof value.providerAccount === "string" &&
+    hasFiniteNumbers(value, ["conversions", "gmv", "payout"]) &&
+    value.currency === "THB"
+  );
+}
+
+function isDashboardNetwork(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.networkId === "string" &&
+    typeof value.networkName === "string" &&
+    hasFiniteNumbers(value, ["offersCount", "conversions", "gmv", "payout"]) &&
+    value.currency === "THB"
+  );
+}
+
+function isQuestFunnel(value: unknown): boolean {
+  return hasFiniteNumbers(value, [
+    "viewed",
+    "joined",
+    "tasksStarted",
+    "fullyCompleted",
+  ]);
+}
+
+function isQuestLifecycle(value: unknown): boolean {
+  return ["live", "scheduled", "ended"].includes(String(value));
+}
+
+function isQuestRow(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    ["id", "status", "rewardStatus", "startDate", "endDate"].every(
+      (key) => typeof value[key] === "string",
+    ) &&
+    hasFiniteNumbers(value, [
+      "taskCount",
+      "participantCount",
+      "activeParticipants",
+      "pointsIssued",
+      "taskOfferCount",
+      "taskMerchantCount",
+      "conditionalTaskCount",
+      "attributedConversions",
+      "attributedGmv",
+      "attributedPayout",
+    ]) &&
+    isQuestLifecycle(value.lifecycle) &&
+    typeof value.overlapsSelectedRange === "boolean" &&
+    isQuestFunnel(value.funnel) &&
+    typeof value.channelFacebook === "boolean" &&
+    typeof value.channelLine === "boolean" &&
+    typeof value.channelBanner === "boolean" &&
+    isNullableFiniteNumber(value.daysUntilEnd)
+  );
+}
+
+function isQuestTimelineRow(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    ["id", "shortId", "startDate", "endDate"].every(
+      (key) => typeof value[key] === "string",
+    ) &&
+    isQuestLifecycle(value.lifecycle) &&
+    isFiniteNumber(value.progressThroughSchedulePct)
+  );
+}
+
+function isQuestLeaderboard(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.questId === "string" &&
+    typeof value.questShortId === "string" &&
+    Array.isArray(value.rows) &&
+    value.rows.every(
+      (row) =>
+        isRecord(row) &&
+        isFiniteNumber(row.rank) &&
+        typeof row.label === "string" &&
+        isFiniteNumber(row.points),
+    )
+  );
+}
+
+function isQuestMetrics(value: unknown): boolean {
+  if (
+    !isRecord(value) ||
+    !hasFiniteNumbers(value, [
+      "totalQuests",
+      "liveNow",
+      "scheduled",
+      "ended",
+      "overlappingSelectedRange",
+      "totalParticipantsInOverlapping",
+    ]) ||
+    !Array.isArray(value.rows) ||
+    !value.rows.every(isQuestRow) ||
+    !Array.isArray(value.timeline) ||
+    !value.timeline.every(isQuestTimelineRow) ||
+    !hasFiniteNumbers(value.engagement, [
+      "enrolledInOverlapping",
+      "activeInOverlapping",
+      "fullCompletesInOverlapping",
+      "pointsIssuedInOverlapping",
+    ]) ||
+    !isRecord(value.attribution) ||
+    !hasFiniteNumbers(value.attribution, [
+      "attributedConversionsInPeriod",
+      "attributedGmvInPeriod",
+      "attributedPayoutInPeriod",
+    ]) ||
+    !isNullableFiniteNumber(value.attribution.shareOfPeriodConversionsPct) ||
+    !isQuestFunnel(value.funnelTotals) ||
+    !hasFiniteNumbers(value.taskMix, [
+      "offerTasks",
+      "merchantTasks",
+      "conditionalTasks",
+    ]) ||
+    !hasFiniteNumbers(value.channels, [
+      "questsWithFacebook",
+      "questsWithLine",
+      "questsWithBanner",
+    ])
+  ) {
+    return false;
+  }
+  return (
+    value.leaderboardPreview === null ||
+    isQuestLeaderboard(value.leaderboardPreview)
+  );
+}
+
+function decodeDashboardStats(value: unknown): DashboardStatsResponse {
+  if (!hasFiniteNumbers(value, ["gogocashUsers", "mycashbackUsers"])) {
+    throw new DashboardResponseCompatibilityError("stats");
+  }
+  return value as unknown as DashboardStatsResponse;
+}
+
+function decodeDashboardSummary(value: unknown): DashboardSummaryResponse {
+  const valid =
+    isRecord(value) &&
+    value.currency === "THB" &&
+    hasFiniteNumbers(value, ["conversionCount", "conversionTotalPayout"]) &&
+    (value.conversionTotalSaleAmount === undefined ||
+      isFiniteNumber(value.conversionTotalSaleAmount)) &&
+    isWithdrawByStatus(value.withdrawByStatus) &&
+    (value.period === undefined || isPeriod(value.period)) &&
+    (value.lastUpdated === undefined ||
+      typeof value.lastUpdated === "string") &&
+    (value.priorPeriod === undefined ||
+      (isRecord(value.priorPeriod) &&
+        hasFiniteNumbers(value.priorPeriod, [
+          "conversionCount",
+          "conversionTotalPayout",
+        ]) &&
+        (value.priorPeriod.conversionTotalSaleAmount === undefined ||
+          isFiniteNumber(value.priorPeriod.conversionTotalSaleAmount))));
+  if (!valid) throw new DashboardResponseCompatibilityError("summary");
+  return value as unknown as DashboardSummaryResponse;
+}
+
+function decodeDashboardInsights(value: unknown): DashboardInsightsResponse {
+  const valid =
+    isRecord(value) &&
+    typeof value.lastUpdated === "string" &&
+    typeof value.range === "string" &&
+    value.currency === "THB" &&
+    isDashboardAvailability(value.availability) &&
+    isPeriod(value.period) &&
+    isKpiBlock(value.kpis) &&
+    isWithdrawByStatus(value.withdrawByStatus) &&
+    isRecord(value.withdrawMetrics) &&
+    isNullableFiniteNumber(value.withdrawMetrics.approvalRatePct) &&
+    isFiniteNumber(value.withdrawMetrics.pendingOver48hCount) &&
+    isNullableFiniteNumber(value.withdrawMetrics.rejectedSharePct) &&
+    isNumberRecord(value.conversionsByStatus) &&
+    isNullableFiniteNumber(value.payoutRatio) &&
+    Array.isArray(value.topOffers) &&
+    value.topOffers.every(isDashboardTopOffer) &&
+    Array.isArray(value.networkBreakdown) &&
+    value.networkBreakdown.every(isDashboardNetwork) &&
+    hasFiniteNumbers(value.commissionHealth, [
+      "missingAdminCap",
+      "missingPartnerCap",
+      "adminOverPartner",
+    ]) &&
+    Array.isArray(value.alerts) &&
+    value.alerts.every(isDashboardAlert) &&
+    typeof value.insightSummary === "string" &&
+    isStatisticsByTab(value.statistics) &&
+    isQuestMetrics(value.quests);
+  if (!valid) throw new DashboardResponseCompatibilityError("insights");
+  return value as unknown as DashboardInsightsResponse;
+}
+
 class ApiClient {
   private getRuntimeApiUrl(): string | undefined {
     const isBrowser = typeof window !== "undefined";
@@ -588,10 +945,14 @@ class ApiClient {
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-    return this.request<DashboardStatsResponse>("/dashboard/stats", {
+    const endpoint = this.isRealApi
+      ? "/admin/dashboard/stats"
+      : "/dashboard/stats";
+    const response = await this.request<unknown>(endpoint, {
       method: "GET",
       headers,
     });
+    return decodeDashboardStats(response);
   }
 
   // Dashboard summary (management insights: conversion + withdraw aggregates)
@@ -600,10 +961,14 @@ class ApiClient {
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-    return this.request<DashboardSummaryResponse>("/dashboard/summary", {
+    const endpoint = this.isRealApi
+      ? "/admin/dashboard/summary"
+      : "/dashboard/summary";
+    const response = await this.request<unknown>(endpoint, {
       method: "GET",
       headers,
     });
+    return decodeDashboardSummary(response);
   }
 
   async getDashboardInsights(
@@ -617,10 +982,14 @@ class ApiClient {
     const q = new URLSearchParams();
     if (params.range) q.set("range", params.range);
     const qs = q.toString();
-    return this.request<DashboardInsightsResponse>(
-      qs ? `/dashboard/insights?${qs}` : "/dashboard/insights",
+    const endpoint = this.isRealApi
+      ? "/admin/dashboard/insights"
+      : "/dashboard/insights";
+    const response = await this.request<unknown>(
+      qs ? `${endpoint}?${qs}` : endpoint,
       { method: "GET", headers },
     );
+    return decodeDashboardInsights(response);
   }
 
   // Offer Management (from /offer endpoint)

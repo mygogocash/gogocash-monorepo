@@ -1,53 +1,46 @@
 # ════════════════════════════════════════════════════════════════════════════
-# SCAFFOLD — EAS native build / submit / OTA update for the Expo app (apps/app).
+# SCAFFOLD — staging EAS native build / OTA update for the Expo app (apps/app).
 # ════════════════════════════════════════════════════════════════════════════
 #
-# THIS IS A SCAFFOLD, NOT A FINISHED PIPELINE. It needs Expo credentials the
-# OWNER provides and an `eas.json` profile decision the owner finalizes:
+# THIS IS A SCAFFOLD UNTIL A POST-PATCH BUILD + OTA + DEVICE PROOF EXISTS. It
+# needs the Expo credential the OWNER provides:
 #
 #   • REQUIRED SECRET (Settings → Secrets and variables → Actions → Secrets):
 #       EXPO_TOKEN   — an Expo access token (expo.dev → Account → Access Tokens).
-#                      Without it, `eas build/update/submit` cannot authenticate.
+#                      Without it, EAS build/update cannot authenticate.
 #
-#   • REQUIRED before `submit` works: store credentials configured on EAS
-#       (Apple App Store Connect API key / Google Play service-account JSON),
-#       set up via `eas credentials` or the eas.json `submit` profile. The
-#       submit job below is gated OFF by default (run it only once creds exist).
-#
-#   • eas.json profiles (apps/app/eas.json): `development` targets api.dev.gogocash.co
-#       (Android dev-client + GoGoTrack device QA). `preview` stays on staging API.
-#       EXPO_PUBLIC_EAS_PROJECT_ID is inlined per profile so native builds get OTA URL.
+#   • This packet locks the `preview` profile and EAS environment to the
+#       `staging` channel and URLs.
+#       EXPO_PUBLIC_EAS_PROJECT_ID is inlined so native builds get the OTA URL.
 #       EXPO_PUBLIC_FIREBASE_* is NOT in eas.json — eas.json does not expand $VAR.
-#       Native builds read Firebase from EAS secrets on expo.dev (see
-#       docs/firebase-native-eas.md). OTA/update steps on this runner use GitHub
-#       `staging` environment secrets (same pattern as app-ota-staging.yml).
+#       Builds and OTA updates read Firebase from the EAS `preview` environment
+#       on expo.dev (see docs/firebase-native-eas.md). GitHub `staging` secrets
+#       are the canonical comparison values and are never printed.
 #
 # Monorepo note: EAS auto-detects the workspace; the working-directory is
 # apps/app and `eas build` resolves the root lockfile. No app-source changes here.
 #
-# TRIGGER: workflow_dispatch ONLY (with inputs to pick platform / action).
+# TRIGGERS: workflow_dispatch from the actual `staging` branch, or the reusable
+# OTA call from ci-staging.yml after its OTA-safety and app gates succeed. A
+# manual OTA must prove that same exact OTA-safety job in the selected CI run.
+# Before any EAS provider mutation, the workflow proves the exact SHA against
+# the exact ci-staging.yml push run and its successful required gates.
 
 name: Deploy App Native (EAS) [scaffold]
 
 on:
   workflow_dispatch:
     inputs:
-      confirm_ci_green:
-        description: "Confirm CI is green on the current branch before EAS publish"
-        required: true
-        type: boolean
-        default: false
       action:
-        description: "What to run"
+        description: "Manual staging action (OTA requires an OTA-safe CI run)"
         required: true
-        default: "update"
+        default: "build"
         type: choice
         options:
           - build
           - update
-          - submit
       platform:
-        description: "Target platform (for build/submit)"
+        description: "Target platform (used by build; OTA update targets the staging channel)"
         # Android-first (2026-07-11): default to android so a habitual dispatch
         # doesn't queue an iOS build nobody ships; pick ios/all explicitly.
         required: true
@@ -57,50 +50,80 @@ on:
           - all
           - android
           - ios
-      profile:
-        description: "EAS build profile (from apps/app/eas.json)"
+      ci_run_id:
+        description: "Optional exact successful CI (staging) push run ID; auto-discovered when blank"
+        required: false
+        default: ""
+        type: string
+  workflow_call:
+    inputs:
+      action:
+        description: "Staging packet action"
         required: true
-        default: "development"
-        type: choice
-        options:
-          - development
-          - preview
-          - closedtest
-          - production
-      channel:
-        description: "EAS Update channel (for the update action)"
+        type: string
+      platform:
+        description: "Target platform"
         required: true
-        default: "development"
-        type: choice
-        options:
-          - development
-          - staging
-          - production
+        type: string
+      ci_run_id:
+        description: "Exact caller ci-staging.yml run ID"
+        required: true
+        type: string
+    secrets:
+      EXPO_TOKEN:
+        required: true
+      EXPO_PUBLIC_FIREBASE_API_KEY:
+        required: false
+      EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN:
+        required: false
+      EXPO_PUBLIC_FIREBASE_PROJECT_ID:
+        required: false
+      EXPO_PUBLIC_FIREBASE_APP_ID:
+        required: false
+      EXPO_PUBLIC_NATIVE_OAUTH_PROVIDERS:
+        required: false
+      EXPO_PUBLIC_POSTHOG_KEY:
+        required: false
+      EXPO_PUBLIC_POSTHOG_HOST:
+        required: false
+      EXPO_PUBLIC_SENTRY_DSN:
+        required: false
 
 permissions:
+  actions: read
   contents: read
   id-token: write
+
+# Literal shared queue for manual build/update and ci-staging reusable calls.
+# It is intentionally distinct from ci-staging's caller concurrency group.
+concurrency:
+  group: gogocash-eas-staging-deployment-queue
+  cancel-in-progress: false
 
 jobs:
   eas:
     name: EAS ${{ inputs.action }}
-    if: ${{ inputs.confirm_ci_green }}
     runs-on: ubuntu-latest
-    # Production dispatches use the `production` GitHub environment so OTA
-    # bundles never inherit staging Firebase/telemetry secrets. Create the
-    # environment + its EXPO_PUBLIC_* secrets before the first production run
-    # (docs/PLAYSTORE_LAUNCH.md §CI).
-    environment: ${{ inputs.profile == 'production' && 'production' || 'staging' }}
+    environment: staging
     env:
-      # Production Android builds are AABs (Play upload); others are APKs.
-      ANDROID_ARTIFACT_EXT: ${{ (inputs.profile == 'production' || inputs.profile == 'closedtest') && 'aab' || 'apk' }}
+      ANDROID_ARTIFACT_EXT: apk
+      EAS_CHANNEL: staging
+      EAS_ENVIRONMENT: preview
+      EAS_PROFILE: preview
       EXPO_PUBLIC_EAS_PROJECT_ID: 0039c25f-f88e-491d-8da9-85b8d6e66558
+      EXPO_PUBLIC_API_URL: https://api-staging.gogocash.co
+      EXPO_PUBLIC_APP_ENV: staging
+      EXPO_PUBLIC_ACCOUNT_DATA_SOURCE: backend
+      EXPO_PUBLIC_FRONTEND_URL: https://app-staging.gogocash.co
+      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: 729804769570-jlg4fpajbbvur587dcv9qpocfhn6aots.apps.googleusercontent.com
       NODE_PATH: ${{ github.workspace }}/node_modules:${{ github.workspace }}/apps/app/node_modules
     defaults:
       run:
         working-directory: apps/app
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.sha }}
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
@@ -109,6 +132,16 @@ jobs:
 
       - name: Use repository npm version
         run: npm install --global npm@10.9.8
+
+      - name: Validate staging packet and required Firebase configuration
+        env:
+          SELECTED_ACTION: ${{ inputs.action }}
+          SELECTED_PLATFORM: ${{ inputs.platform }}
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+        run: node "$GITHUB_WORKSPACE/scripts/deployment/eas-staging-env.mjs"
 
       - name: Verify EXPO_TOKEN
         env:
@@ -122,12 +155,65 @@ jobs:
       - name: Set up EAS / Expo
         uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # v9
         with:
-          eas-version: latest
+          eas-version: "21.0.1"
           token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Verify EAS preview environment
+        env:
+          EXPECTED_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPECTED_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPECTED_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPECTED_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+        run: |
+          expectations_file="$RUNNER_TEMP/eas-preview-expectations.json"
+          trap 'rm -f "$expectations_file"' EXIT
+          node "$GITHUB_WORKSPACE/scripts/deployment/eas-preview-expectations.mjs" "$expectations_file"
+
+          env \
+            -u EXPO_PUBLIC_FIREBASE_API_KEY \
+            -u EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN \
+            -u EXPO_PUBLIC_FIREBASE_PROJECT_ID \
+            -u EXPO_PUBLIC_FIREBASE_APP_ID \
+            -u EXPO_PUBLIC_EAS_PROJECT_ID \
+            -u EXPO_PUBLIC_API_URL \
+            -u EXPO_PUBLIC_APP_ENV \
+            -u EXPO_PUBLIC_ACCOUNT_DATA_SOURCE \
+            -u EXPO_PUBLIC_FRONTEND_URL \
+            -u EXPECTED_FIREBASE_API_KEY \
+            -u EXPECTED_FIREBASE_AUTH_DOMAIN \
+            -u EXPECTED_FIREBASE_PROJECT_ID \
+            -u EXPECTED_FIREBASE_APP_ID \
+            eas env:exec "$EAS_ENVIRONMENT" "node \"$GITHUB_WORKSPACE/scripts/deployment/eas-preview-env-proof.mjs\" \"$expectations_file\"" --non-interactive
 
       - name: Install (root, workspace-aware)
         working-directory: .
         run: npm ci
+
+      # This runs only after the job owns the shared EAS queue. Requiring the
+      # exact commit to still be staging HEAD prevents a slower older run from
+      # publishing after a newer commit has already reached the queue.
+      - name: Require exact CI and current staging head before EAS mutation
+        env:
+          CURRENT_RUN_ID: ${{ github.run_id }}
+          EXPECTED_CI_RUN_ID: ${{ inputs.ci_run_id }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          SELECTED_ACTION: ${{ inputs.action }}
+          TARGET_REF: ${{ github.ref }}
+          TARGET_SHA: ${{ github.sha }}
+        run: node "$GITHUB_WORKSPACE/scripts/deployment/eas-ci-proof.mjs"
+
+      - name: Verify exact staging channel mapping
+        if: ${{ inputs.action == 'update' }}
+        env:
+          EAS_CHANNEL_JSON: ${{ runner.temp }}/eas-channel.json
+        run: |
+          eas channel:view "$EAS_CHANNEL" \
+            --non-interactive \
+            --json \
+            > "$EAS_CHANNEL_JSON"
+
+          node "$GITHUB_WORKSPACE/scripts/deployment/eas-channel-proof.mjs"
 
       - name: Verify Expo config
         if: ${{ inputs.action == 'build' }}
@@ -139,70 +225,48 @@ jobs:
       - name: EAS Build
         id: eas-build
         if: ${{ inputs.action == 'build' }}
+        env:
+          EAS_PLATFORM: ${{ inputs.platform }}
         run: |
           eas build \
             --non-interactive \
+            --wait \
             --json \
-            --platform ${{ inputs.platform }} \
-            --profile ${{ inputs.profile }} \
+            --platform "$EAS_PLATFORM" \
+            --profile "$EAS_PROFILE" \
             > "$RUNNER_TEMP/eas-build.json" || {
               cat "$RUNNER_TEMP/eas-build.json"
               exit 1
             }
 
-      - name: Capture Android build artifact URL
-        if: ${{ inputs.action == 'build' && inputs.platform != 'ios' }}
+      - name: Validate and summarize EAS build result
+        if: ${{ inputs.action == 'build' }}
         env:
+          COMMIT_SHA: ${{ github.sha }}
           EAS_BUILD_JSON: ${{ runner.temp }}/eas-build.json
-        run: |
-          node <<'NODE'
-          const fs = require("fs");
-
-          const raw = fs.readFileSync(process.env.EAS_BUILD_JSON, "utf8").trim();
-          const parsed = JSON.parse(raw);
-          const builds = Array.isArray(parsed)
-            ? parsed
-            : Array.isArray(parsed.builds)
-              ? parsed.builds
-              : [parsed];
-          const androidBuild =
-            builds.find((build) => String(build.platform || "").toLowerCase() === "android") || builds[0];
-          const artifactUrl =
-            androidBuild?.artifacts?.applicationArchiveUrl ||
-            androidBuild?.artifacts?.buildUrl ||
-            androidBuild?.artifacts?.apkUrl ||
-            androidBuild?.buildUrl ||
-            "";
-
-          if (!artifactUrl) {
-            console.error("EAS build completed but no Android artifact URL was present.");
-            console.error(JSON.stringify(androidBuild, null, 2));
-            process.exit(1);
-          }
-
-          fs.appendFileSync(process.env.GITHUB_ENV, `EAS_BUILD_ID=${androidBuild.id || ""}\n`);
-          fs.appendFileSync(process.env.GITHUB_ENV, `EAS_BUILD_ARTIFACT_URL=${artifactUrl}\n`);
-          NODE
+          EAS_PLATFORM: ${{ inputs.platform }}
+        run: node "$GITHUB_WORKSPACE/scripts/deployment/eas-build-proof.mjs"
 
       - name: Download Android build artifact
         if: ${{ inputs.action == 'build' && inputs.platform != 'ios' }}
         run: |
           mkdir -p "$RUNNER_TEMP/eas-artifacts"
           curl --fail --location "$EAS_BUILD_ARTIFACT_URL" \
-            --output "$RUNNER_TEMP/eas-artifacts/gogocash-${{ inputs.profile }}-android.${ANDROID_ARTIFACT_EXT}"
+            --output "$RUNNER_TEMP/eas-artifacts/gogocash-preview-android.${ANDROID_ARTIFACT_EXT}"
 
       - name: Upload Android build artifact
         if: ${{ inputs.action == 'build' && inputs.platform != 'ios' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: gogocash-${{ inputs.profile }}-android
-          path: ${{ runner.temp }}/eas-artifacts/gogocash-${{ inputs.profile }}-android.${{ env.ANDROID_ARTIFACT_EXT }}
+          name: gogocash-preview-android
+          path: ${{ runner.temp }}/eas-artifacts/gogocash-preview-android.${{ env.ANDROID_ARTIFACT_EXT }}
           if-no-files-found: error
 
       - name: Authenticate to Google Cloud for Android artifact archive
         if: ${{ inputs.action == 'build' && inputs.platform != 'ios' && vars.GCP_EAS_ARTIFACT_BUCKET != '' }}
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
@@ -213,48 +277,41 @@ jobs:
       - name: Archive Android build artifact to GCS
         if: ${{ inputs.action == 'build' && inputs.platform != 'ios' && vars.GCP_EAS_ARTIFACT_BUCKET != '' }}
         env:
-          APK_PATH: ${{ runner.temp }}/eas-artifacts/gogocash-${{ inputs.profile }}-android.${{ env.ANDROID_ARTIFACT_EXT }}
+          APK_PATH: ${{ runner.temp }}/eas-artifacts/gogocash-preview-android.${{ env.ANDROID_ARTIFACT_EXT }}
           GCS_BUCKET: ${{ vars.GCP_EAS_ARTIFACT_BUCKET }}
-          GCS_PREFIX: eas/android/${{ inputs.profile }}/${{ github.run_id }}
+          GCS_PREFIX: eas/android/preview/${{ github.run_id }}
         run: |
           SHA_PATH="${APK_PATH}.sha256"
           sha256sum "$APK_PATH" | tee "$SHA_PATH"
 
-          gcloud storage cp "$APK_PATH" "gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-${{ inputs.profile }}-android.${ANDROID_ARTIFACT_EXT}"
-          gcloud storage cp "$SHA_PATH" "gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-${{ inputs.profile }}-android.${ANDROID_ARTIFACT_EXT}.sha256"
+          gcloud storage cp "$APK_PATH" "gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-preview-android.${ANDROID_ARTIFACT_EXT}"
+          gcloud storage cp "$SHA_PATH" "gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-preview-android.${ANDROID_ARTIFACT_EXT}.sha256"
 
           {
             echo "### Android artifact archive"
-            echo "- Artifact: \`gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-${{ inputs.profile }}-android.${ANDROID_ARTIFACT_EXT}\`"
+            echo "- Artifact: \`gs://${GCS_BUCKET}/${GCS_PREFIX}/gogocash-preview-android.${ANDROID_ARTIFACT_EXT}\`"
             echo "- SHA-256: \`$(cut -d ' ' -f1 "$SHA_PATH")\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       # ── update: OTA JS/asset update to a channel (no store review) ──────────
-      #   Pass user-provided inputs via env (not inline) to avoid shell-injection
-      #   from the free-text channel input.
+      #   Channel and URLs are fixed by the staging packet; the message binds the
+      #   provider result to the exact dispatched commit.
       - name: EAS Update (OTA)
         if: ${{ inputs.action == 'update' }}
         env:
-          EAS_CHANNEL: ${{ inputs.channel }}
           COMMIT_SHA: ${{ github.sha }}
-          # `eas update` inlines EXPO_PUBLIC_* at export time and does NOT read
-          # eas.json build-profile env — without these the OTA bundle falls back
-          # to app.config.ts envDefaults (fixtures mode). Mirror the eas.json
-          # profile matching the target channel.
-          EXPO_PUBLIC_API_URL: ${{ inputs.channel == 'development' && 'https://api.dev.gogocash.co' || inputs.channel == 'production' && 'https://api.gogocash.co' || 'https://api-staging.gogocash.co' }}
-          EXPO_PUBLIC_APP_ENV: ${{ inputs.channel == 'development' && 'dev' || inputs.channel == 'production' && 'production' || 'staging' }}
-          EXPO_PUBLIC_ACCOUNT_DATA_SOURCE: backend
-          EXPO_PUBLIC_FRONTEND_URL: ${{ inputs.channel == 'development' && 'http://localhost:8081' || inputs.channel == 'production' && 'https://app.gogocash.co' || 'https://app-staging.gogocash.co' }}
-          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
-          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+          EAS_UPDATE_JSON: ${{ runner.temp }}/eas-update.json
+          EXPO_PUBLIC_NATIVE_OAUTH_PROVIDERS: ${{ secrets.EXPO_PUBLIC_NATIVE_OAUTH_PROVIDERS }}
+          EXPO_PUBLIC_POSTHOG_KEY: ${{ secrets.EXPO_PUBLIC_POSTHOG_KEY }}
+          EXPO_PUBLIC_POSTHOG_HOST: ${{ secrets.EXPO_PUBLIC_POSTHOG_HOST }}
+          EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
         run: |
-          eas update --non-interactive --channel "$EAS_CHANNEL" --message "ci: $COMMIT_SHA"
+          eas update \
+            --non-interactive \
+            --json \
+            --branch "$EAS_CHANNEL" \
+            --environment "$EAS_ENVIRONMENT" \
+            --message "ci: $COMMIT_SHA" \
+            > "$EAS_UPDATE_JSON"
 
-      # ── submit: upload a finished build to the stores ───────────────────────
-      #   GATED: requires store credentials configured on EAS first (see header).
-      #   Leave this until the owner finalizes the eas.json submit profile.
-      - name: EAS Submit
-        if: ${{ inputs.action == 'submit' }}
-        run: eas submit --non-interactive --platform ${{ inputs.platform }} --profile ${{ inputs.profile }}
+          node "$GITHUB_WORKSPACE/scripts/deployment/eas-update-proof.mjs"

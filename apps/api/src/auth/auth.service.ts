@@ -22,7 +22,7 @@ import {
 } from './dto/auth.dto';
 import { ethers } from 'ethers';
 import { InjectModel } from '@nestjs/mongoose';
-import { isValidObjectId, Model, Types } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Point, PointDocument } from 'src/point/schemas/point.schema';
 import { getAdminAuth } from './firebase-admin.provider';
 import { JwtService } from '@nestjs/jwt';
@@ -30,6 +30,8 @@ import * as crypto from 'crypto';
 import { SiweNonce, SiweNonceDocument } from './schemas/siwe-nonce.schema';
 import { UserDocument } from 'src/user/schemas/user.schema';
 import { toIso2Server } from 'src/utils/country';
+import { AccountRegistrationService } from 'src/quest-task-engine/account-registration.service';
+import { assertRegistrationSourceEnabled } from 'src/quest-task-engine/registration-source.manifest';
 
 type FirebaseSignInOptions = {
   allowPhoneRegistration?: boolean;
@@ -54,6 +56,7 @@ export class AuthService {
     @InjectModel(Point.name) private pointModel: Model<PointDocument>,
     @InjectModel(SiweNonce.name)
     private siweNonceModel: Model<SiweNonceDocument>,
+    private readonly accountRegistration: AccountRegistrationService,
   ) {}
 
   async signIn(payload: SignInDto): Promise<never> {
@@ -177,7 +180,15 @@ export class AuthService {
         });
       }
 
-      const user = await this.userService.createFromFirebase({
+      const registrationSource = `firebase:${String(
+        data.firebase?.sign_in_provider ?? '',
+      )}`;
+      // The registration-source policy is independent of the task-v2 rollout
+      // flag. Existing accounts may continue to log in, but a newly verified
+      // identity from an unlisted provider must fail closed in both modes.
+      assertRegistrationSourceEnabled(registrationSource);
+
+      const newUser = {
         address:
           payload?.address && payload?.address !== 'undefined'
             ? payload?.address
@@ -195,8 +206,14 @@ export class AuthService {
           ? { verified_phone_e164: data.phone_number }
           : {}),
         provider: data?.firebase?.sign_in_provider,
-      });
-      await this.awardReferralOnRegistration(user, payload?.referral_id);
+      };
+      const user = (
+        await this.accountRegistration.registerVerified({
+          source: registrationSource,
+          user: newUser,
+          referral_id: payload?.referral_id,
+        })
+      ).user as UserDocument;
 
       if (user?.disabled) {
         throw new ForbiddenException(
@@ -322,6 +339,7 @@ export class AuthService {
           auth_flow: 'login' as const,
         };
       }
+      assertRegistrationSourceEnabled('telegram');
       const user = await this.userService.createFromFirebase({
         email: data?.email,
         username: data?.username || '',
@@ -404,37 +422,6 @@ export class AuthService {
       // Caller (admin endpoint) only checks Boolean(user); avoid throwing
       // raw upstream errors that could leak internals.
       return null;
-    }
-  }
-
-  private isUsableReferralId(referralId?: string): referralId is string {
-    return (
-      !!referralId &&
-      referralId !== 'undefined' &&
-      referralId !== 'null' &&
-      isValidObjectId(referralId)
-    );
-  }
-
-  private async awardReferralOnRegistration(
-    user: UserDocument,
-    referralId?: string,
-  ): Promise<void> {
-    if (!this.isUsableReferralId(referralId)) {
-      return;
-    }
-    try {
-      const refData = await this.userService.findOne({
-        _id: new Types.ObjectId(referralId),
-      });
-      if (refData && user._id?.toString() !== referralId.toString()) {
-        await this.updatePoint({
-          user_id: user._id.toString(),
-          referral_id: referralId,
-        });
-      }
-    } catch {
-      // Referral credit must not block registration.
     }
   }
 
@@ -665,6 +652,7 @@ export class AuthService {
       user = updated;
       isNewUser = false;
     } else {
+      assertRegistrationSourceEnabled('minipay_siwe');
       const created = (await this.userService.createFromFirebase({
         address: address.toLowerCase(),
         id_crossmint: '',
@@ -867,7 +855,7 @@ export class AuthService {
       }
 
       // Create new user - frontend enforces email requirement
-      const user = await this.userService.createFromFirebase({
+      const newUser = {
         email: payload.email,
         username: payload.username || 'LINE User',
         id_line: payload.id_line,
@@ -878,23 +866,14 @@ export class AuthService {
         id_crossmint: '',
         id_twitter: '',
         email_verified: !!payload.email,
-      });
-
-      // Handle referral
-      if (payload?.referral_id && payload.referral_id !== 'undefined') {
-        const refData = await this.userService.findOne({
-          _id: new Types.ObjectId(payload.referral_id),
-        });
-        if (
-          refData &&
-          user._id?.toString() !== payload.referral_id?.toString()
-        ) {
-          await this.updatePoint({
-            user_id: user._id.toString(),
-            referral_id: payload.referral_id,
-          });
-        }
-      }
+      };
+      const user = (
+        await this.accountRegistration.registerVerified({
+          source: 'line',
+          user: newUser,
+          referral_id: payload.referral_id,
+        })
+      ).user as UserDocument;
 
       if (user?.disabled) {
         throw new ForbiddenException(
@@ -1004,6 +983,8 @@ export class AuthService {
 
         return { user, token: accessToken };
       }
+
+      assertRegistrationSourceEnabled('email_otp');
 
       // Create new user - email already verified via OTP
       const user = await this.userService.createFromFirebase({

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import client from "@/lib/axios/client";
 import type { BannerRequestForm } from "@/types/banner";
@@ -14,6 +14,8 @@ vi.mock("@/lib/axios/client", () => ({
 }));
 
 const postMock = vi.mocked(client.post);
+
+afterEach(cleanup);
 
 vi.mock("@/hooks/usePermissions", () => ({
   usePermissions: () => ({
@@ -105,6 +107,28 @@ function SaveHarness({
   );
 }
 
+function DirtyCloseHarness({
+  onOpenChange,
+}: {
+  onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+  const [form, setForm] = useState(makeForm());
+  const [isLoading, setIsLoading] = useState(false);
+
+  return (
+    <FormUpdate
+      fetchData={vi.fn()}
+      form={form}
+      isLoading={isLoading}
+      openModal
+      setForm={setForm}
+      setIsLoading={setIsLoading}
+      setOpenModal={onOpenChange}
+      surfaceLabel="All Shops"
+    />
+  );
+}
+
 describe("Banner FormUpdate save", () => {
   beforeEach(() => {
     postMock.mockReset();
@@ -134,5 +158,27 @@ describe("Banner FormUpdate save", () => {
     expect(config?.headers).not.toHaveProperty("Authorization");
     expect(config?.timeout).toBe(120_000);
     expect(onSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it("warns before closing a dirty banner editor", async () => {
+    const setOpenModal = vi.fn();
+    render(<DirtyCloseHarness onOpenChange={setOpenModal} />);
+
+    const saveButton = screen.getByRole("button", { name: "Save Changes" });
+    await waitFor(() => expect(saveButton).toBeDisabled());
+
+    fireEvent.change(
+      document.querySelector('input[name="link_1"]') as HTMLInputElement,
+      { target: { value: "/draft" } },
+    );
+    await waitFor(() => expect(saveButton).toBeEnabled());
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.getByText("Discard unsaved banner changes?")).toBeInTheDocument();
+    expect(setOpenModal).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(setOpenModal).toHaveBeenCalledWith(false);
   });
 });

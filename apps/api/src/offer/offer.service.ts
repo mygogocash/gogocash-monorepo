@@ -1,13 +1,17 @@
 import {
   BadRequestException,
-  Injectable,
+  ConflictException,
   InternalServerErrorException,
+  Injectable,
   Logger,
   NotFoundException,
   OnApplicationBootstrap,
+  Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { createHash, randomUUID } from 'node:crypto';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { Offer, OfferDocument } from 'src/offer/schemas/offer.schema';
 import { User } from 'src/user/schemas/user.schema';
@@ -15,17 +19,31 @@ import { GetMyOfferDto, SaveMissingOrderDto } from './dto/create-offer.dto';
 import { join } from 'path';
 import { promises as fs } from 'fs';
 import { Category } from './schemas/category.schema';
+import { CategoryIntegrityService } from 'src/policy/category-integrity.service';
+import { PolicyMediaAssetRegistryService } from 'src/policy/policy-media-asset-registry.service';
+import { PolicyMediaCleanupService } from 'src/policy/policy-media-cleanup.service';
+import {
+  PolicyMediaWriteService,
+  policyMediaWritePayloadHash,
+  type PolicyMediaWriteAssets,
+} from 'src/policy/policy-media-write.service';
 import { FavoriteOffer } from './schemas/favorite-offer.schema';
 import { ALL_BRAND_BANNER_MODEL, Banner } from './schemas/banner.schema';
+import { SPECIFIC_PAGE_BANNER_MODEL } from './schemas/specific-page-banner.schema';
+import { requireSpecificPageBannerTarget } from './specific-page-banner.contract';
 import { TopBrandConfig } from './schemas/top-brand-config.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { UpdateCouponDto } from './dto/update-offer.dto';
 import { MissionOrder } from './schemas/missing-order.schema';
-import { StoredMediaService } from 'src/media/stored-media.service';
+import {
+  type CommandOwnedStoredMediaAsset,
+  StoredMediaService,
+} from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { parseOfferDisplayTagsField } from './offer-display-tags.util';
 import { resolvePublicOfferLogo } from './offer-logo.util';
 import { Quest, QuestTask } from 'src/point/schemas/quest.schema';
+import { effectiveQuestRewardModel } from 'src/point/quest-task.contract';
 import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schema';
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
 import { SearchBlacklist } from 'src/admin/search/schemas/blacklist.schema';
@@ -43,11 +61,49 @@ import {
   MAX_TOP_BRANDS,
   resolveOfferCashbackLabel,
 } from './top-brand.contract';
+import { MISSION_ORDER_SCHEMA_VERSION } from './schemas/missing-order.schema';
+import {
+  buildMissionOrderCustomerSnapshot,
+  buildMissionOrderDedupeKey,
+  MISSING_ORDER_EVIDENCE_UNAVAILABLE_MESSAGE,
+  toCustomerMissionOrderClaim,
+} from './mission-order.contract';
 
 const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
   status: { $nin: ['pending_review', 'rejected'] },
 };
+
+function commandOwnedOfferAssets(
+  offer: Record<string, unknown>,
+): CommandOwnedStoredMediaAsset[] {
+  const assets = new Map<string, CommandOwnedStoredMediaAsset>();
+  for (const field of ['logo_asset', 'banner_asset'] as const) {
+    const value = offer[field];
+    if (value == null) continue;
+    if (
+      typeof value !== 'object' ||
+      (value as { provider?: unknown }).provider !== 'r2' ||
+      (value as { ownership?: unknown }).ownership !== 'command-owned' ||
+      typeof (value as { owner_key?: unknown }).owner_key !== 'string' ||
+      typeof (value as { owner_attempt_token?: unknown })
+        .owner_attempt_token !== 'string' ||
+      typeof (value as { url?: unknown }).url !== 'string' ||
+      typeof (value as { bucket?: unknown }).bucket !== 'string' ||
+      typeof (value as { object_key?: unknown }).object_key !== 'string' ||
+      typeof (value as { sha256?: unknown }).sha256 !== 'string' ||
+      !/^[a-f0-9]{64}$/.test((value as { sha256: string }).sha256) ||
+      typeof (value as { original_name?: unknown }).original_name !== 'string'
+    ) {
+      throw new ConflictException(
+        'Offer contains invalid tracked media proof; deletion was refused',
+      );
+    }
+    const asset = value as CommandOwnedStoredMediaAsset;
+    assets.set(asset.object_key, asset);
+  }
+  return [...assets.values()];
+}
 
 function activeQuestFilter(now = new Date()) {
   return {
@@ -151,7 +207,6 @@ const PUBLIC_COUPON_FIELDS = [
   'unlimited_amount_enabled',
   'one_time_use_enabled',
   'usage_per_user',
-  'link',
   'terms_and_conditions',
 ] as const;
 const PUBLIC_COUPON_SELECT = [
@@ -190,6 +245,77 @@ function parseOptionalNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+const COUPON_OPTIONAL_STRING_FIELDS = [
+  'description',
+  'code',
+  'start_time',
+  'end_time',
+  'eligibility',
+  'min_spend',
+  'min_spend_currency',
+  'max_cap_currency',
+  'discount_currency',
+  'id',
+  'link',
+  'terms_and_conditions',
+] as const;
+
+const COUPON_OPTIONAL_BOOLEAN_FIELDS = [
+  'code_enabled',
+  'max_cap_enabled',
+  'unlimited_amount_enabled',
+  'one_time_use_enabled',
+] as const;
+
+const COUPON_OPTIONAL_NUMBER_FIELDS = [
+  'max_cap',
+  'discount',
+  'quantity',
+  'usage_per_user',
+] as const;
+
+function invalidCouponField(field: string): never {
+  throw new BadRequestException(`Invalid coupon field: ${field}`);
+}
+
+function assertCouponUpdateRuntimeShape(body: UpdateCouponDto): void {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new BadRequestException('Invalid coupon payload');
+  }
+  for (const field of COUPON_OPTIONAL_STRING_FIELDS) {
+    const value = body[field];
+    if (value !== undefined && typeof value !== 'string') {
+      invalidCouponField(field);
+    }
+  }
+  for (const field of COUPON_OPTIONAL_BOOLEAN_FIELDS) {
+    const value = body[field];
+    if (value !== undefined && typeof value !== 'boolean') {
+      invalidCouponField(field);
+    }
+  }
+  for (const field of COUPON_OPTIONAL_NUMBER_FIELDS) {
+    const value = body[field];
+    if (value === undefined) continue;
+    if (parseOptionalNumber(value) === null) invalidCouponField(field);
+  }
+  if (
+    body.disabled !== undefined &&
+    typeof body.disabled !== 'boolean' &&
+    body.disabled !== ('true' as never) &&
+    body.disabled !== ('false' as never)
+  ) {
+    invalidCouponField('disabled');
+  }
+  if (
+    body.discount_type !== undefined &&
+    body.discount_type !== 'percent' &&
+    body.discount_type !== 'cash'
+  ) {
+    invalidCouponField('discount_type');
+  }
 }
 
 function couponCalendarDate(value: unknown): string | null {
@@ -282,30 +408,56 @@ function pickPublicCoupon(coupon: Record<string, any>) {
   const code = typeof coupon.code === 'string' ? coupon.code.trim() : '';
   const quantity = parseOptionalNumber(coupon.quantity) ?? 0;
   const quantityUsed = parseOptionalNumber(coupon.quantity_used) ?? 0;
-  const usagePerUser = parseOptionalNumber(coupon.usage_per_user);
-  const maxCap = parseOptionalNumber(coupon.max_cap);
   const codeEnabled =
     coupon.code_enabled === undefined
       ? Boolean(code)
       : parseBoolean(coupon.code_enabled);
   result.code_enabled = codeEnabled;
   result.code = codeEnabled ? code : '';
-  result.one_time_use_enabled =
-    coupon.one_time_use_enabled === undefined
-      ? usagePerUser === null || usagePerUser <= 1
-      : parseBoolean(coupon.one_time_use_enabled);
+  if (coupon.one_time_use_enabled !== undefined) {
+    result.one_time_use_enabled = parseBoolean(coupon.one_time_use_enabled);
+  }
   result.unlimited_amount_enabled =
     coupon.unlimited_amount_enabled === undefined
       ? quantity <= 0
       : parseBoolean(coupon.unlimited_amount_enabled);
-  result.max_cap_enabled =
-    coupon.max_cap_enabled === undefined
-      ? maxCap !== null && maxCap > 0
-      : parseBoolean(coupon.max_cap_enabled);
+  if (coupon.max_cap_enabled !== undefined) {
+    result.max_cap_enabled = parseBoolean(coupon.max_cap_enabled);
+  }
+  const populatedOffer =
+    coupon.offer_id && typeof coupon.offer_id === 'object'
+      ? coupon.offer_id
+      : null;
+  if (populatedOffer) {
+    result.offer_id = ['_id', 'offer_name', 'offer_name_display'].reduce<
+      Record<string, unknown>
+    >((offer, field) => {
+      if (populatedOffer[field] !== undefined) {
+        offer[field] = populatedOffer[field];
+      }
+      return offer;
+    }, {});
+    const destination = safeCouponDestination(populatedOffer.tracking_link);
+    if (destination) result.destination_url = destination;
+  }
   result.remaining_quantity = result.unlimited_amount_enabled
     ? null
     : Math.max(0, quantity - quantityUsed);
   return result;
+}
+
+function safeCouponDestination(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    const hasSafeProtocol =
+      url.protocol === 'https:' || url.protocol === 'http:';
+    return hasSafeProtocol && !url.username && !url.password ? trimmed : null;
+  } catch {
+    return null;
+  }
 }
 
 function parseBoundedOptionalText(
@@ -331,6 +483,32 @@ function slugifyOfferLookup(value: string): string {
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_|_$/g, '');
+}
+
+function offerOwnerIdForRequestKey(requestKey: string): Types.ObjectId {
+  return new Types.ObjectId(
+    createHash('sha256')
+      .update(`gogocash:offer-create-owner:v1:${requestKey}`)
+      .digest('hex')
+      .slice(0, 24),
+  );
+}
+
+function stableOfferNumericId(ownerId: Types.ObjectId): number {
+  return Number.parseInt(ownerId.toHexString().slice(0, 12), 16);
+}
+
+function offerUploadIdentity(file: Express.Multer.File | undefined) {
+  if (!file) return null;
+  const buffer = Buffer.isBuffer(file.buffer) ? file.buffer : undefined;
+  return {
+    original_name: String(file.originalname ?? ''),
+    content_type: String(file.mimetype ?? ''),
+    size: Number.isSafeInteger(file.size) && file.size >= 0 ? file.size : null,
+    ...(buffer
+      ? { sha256: createHash('sha256').update(buffer).digest('hex') }
+      : {}),
+  };
 }
 
 function parseProductTypeRows(value: unknown): any[] {
@@ -373,6 +551,13 @@ export class OfferService implements OnApplicationBootstrap {
     @InjectModel(SearchBlacklist.name)
     private searchBlacklistModel: Model<SearchBlacklist>,
     private readonly storedMediaService: StoredMediaService,
+    private readonly categoryIntegrity: CategoryIntegrityService,
+    private readonly policyMediaWrite: PolicyMediaWriteService,
+    private readonly policyMediaRegistry: PolicyMediaAssetRegistryService,
+    private readonly policyMediaCleanup: PolicyMediaCleanupService,
+    @Optional()
+    @InjectModel(SPECIFIC_PAGE_BANNER_MODEL)
+    private specificPageBannerModel?: Model<Banner>,
   ) {}
 
   /**
@@ -590,28 +775,134 @@ export class OfferService implements OnApplicationBootstrap {
     };
   }
 
-  /** Permanent delete: remove the offer and clean up merchandising references. */
-  async removeOffer(id: string): Promise<{ message: string }> {
+  /** Permanent delete with a durable, globally fenced media cleanup replay. */
+  async removeOffer(id: string): Promise<{
+    message: string;
+    media_cleanup_pending?: boolean;
+    media_cleanup_request_key?: string;
+  }> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Offer not found');
     }
-    const offer = await this.offerModel.findById(id);
-    if (!offer) {
-      throw new NotFoundException('Offer not found');
+    return this.categoryIntegrity.withNormalWrite({
+      legacy: async () => {
+        const offer = await this.offerModel.findById(id);
+        if (!offer) throw new NotFoundException('Offer not found');
+        const offerObjectId = new Types.ObjectId(id);
+        await Promise.all([
+          this.favoriteOfferModel.deleteMany({ offer_id: offerObjectId }),
+          this.topBrandConfigModel.updateOne(
+            {},
+            { $pull: { brands: { offerId: id } } },
+          ),
+          this.searchBoostModel.deleteMany({ offer_id: id }),
+        ]);
+        await this.offerModel.findByIdAndDelete(id);
+        return { message: 'Offer deleted successfully' };
+      },
+      enforced: () => this.removeOfferWithIntegrity(id),
+    });
+  }
+
+  private async removeOfferWithIntegrity(id: string): Promise<{
+    message: string;
+    media_cleanup_pending?: boolean;
+    media_cleanup_request_key?: string;
+  }> {
+    const offerObjectId = new Types.ObjectId(id);
+    const cleanupRequestKey = `offer-delete:${id}:v1`;
+    try {
+      await this.categoryIntegrity.withIntegrityMutation(async (session) => {
+        const offer = await this.offerModel
+          .findById(id)
+          .session(session)
+          .lean();
+        if (!offer) return;
+        const assets = commandOwnedOfferAssets(
+          offer as unknown as Record<string, unknown>,
+        );
+        if (assets.length > 0) {
+          await this.policyMediaCleanup.journalCommandOwnedAssets(
+            {
+              owner_type: 'offer',
+              owner_id: offerObjectId,
+              request_key: cleanupRequestKey,
+              payload_hash: policyMediaWritePayloadHash({
+                operation: 'offer-delete',
+                owner_id: id,
+                assets: assets.map((asset) => ({
+                  owner_key: asset.owner_key,
+                  owner_attempt_token: asset.owner_attempt_token,
+                  object_key: asset.object_key,
+                  url: asset.url,
+                  sha256: asset.sha256,
+                })),
+              }),
+              attempt_token: cleanupRequestKey,
+              reason: 'content-delete',
+              assets,
+            },
+            session,
+          );
+        }
+        // MongoDB forbids parallel operations on one transaction session.
+        await this.favoriteOfferModel.deleteMany(
+          { offer_id: offerObjectId },
+          { session },
+        );
+        await this.topBrandConfigModel.updateOne(
+          {},
+          { $pull: { brands: { offerId: id } } },
+          { session },
+        );
+        await this.searchBoostModel.deleteMany({ offer_id: id }, { session });
+        const deleted = await this.offerModel.deleteOne(
+          { _id: offerObjectId },
+          { session },
+        );
+        if (deleted.deletedCount !== 1) {
+          throw new ConflictException('Offer changed; refresh and retry');
+        }
+      });
+    } catch (error) {
+      let authoritativeOwner: unknown;
+      try {
+        authoritativeOwner = await this.offerModel
+          .findById(id)
+          .read('primary')
+          .lean();
+      } catch {
+        throw new ServiceUnavailableException({
+          statusCode: 503,
+          code: 'OFFER_DELETE_OUTCOME_UNCERTAIN',
+          message:
+            'Offer deletion outcome is uncertain; media cleanup was refused.',
+          request_key: cleanupRequestKey,
+        });
+      }
+      if (authoritativeOwner) throw error;
     }
 
-    const offerObjectId = new Types.ObjectId(id);
-    await Promise.all([
-      this.favoriteOfferModel.deleteMany({ offer_id: offerObjectId }),
-      this.topBrandConfigModel.updateOne(
-        {},
-        { $pull: { brands: { offerId: id } } },
-      ),
-      this.searchBoostModel.deleteMany({ offer_id: id }),
-    ]);
-    await this.offerModel.findByIdAndDelete(id);
-
-    return { message: 'Offer deleted successfully' };
+    let cleanup: { deleted: number; pending: number };
+    try {
+      cleanup = await this.policyMediaCleanup.processRequest(cleanupRequestKey);
+    } catch {
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'OFFER_MEDIA_CLEANUP_PENDING',
+        message: `Offer deleted, but media cleanup is pending. Retry with key ${cleanupRequestKey}.`,
+        request_key: cleanupRequestKey,
+      });
+    }
+    return {
+      message: 'Offer deleted successfully',
+      ...(cleanup.pending > 0
+        ? {
+            media_cleanup_pending: true,
+            media_cleanup_request_key: cleanupRequestKey,
+          }
+        : {}),
+    };
   }
 
   async createAdminOffer(
@@ -648,96 +939,324 @@ export class OfferService implements OnApplicationBootstrap {
       MAX_NOTE_TO_USER_LENGTH,
     );
 
-    const upload = async (label: string, file?: Express.Multer.File) => {
-      if (!file) return '';
-      try {
-        return await this.storedMediaService.upload(file, MEDIA_FOLDER.BRANDS);
-      } catch (err) {
-        const reason = err instanceof Error ? err.message : String(err);
-        throw new InternalServerErrorException(
-          `Failed to upload ${label}: ${reason}`,
+    return this.categoryIntegrity.withNormalWrite({
+      legacy: async () => {
+        const upload = async (
+          label: string,
+          file?: Express.Multer.File,
+        ): Promise<string> => {
+          if (!file) return '';
+          try {
+            return await this.storedMediaService.upload(
+              file,
+              MEDIA_FOLDER.BRANDS,
+            );
+          } catch (error) {
+            const reason =
+              error instanceof Error ? error.message : String(error);
+            throw new InternalServerErrorException(
+              `Failed to upload ${label}: ${reason}`,
+            );
+          }
+        };
+        const logoFile = files.logo_desktop?.[0] ?? files.logo_mobile?.[0];
+        const bannerFile =
+          files.banner?.[0] ??
+          files.banner_mobile?.[0] ??
+          files.logo_circle?.[0];
+        const [logoAsset, bannerAsset] = await Promise.all([
+          upload('logo (desktop)', logoFile),
+          upload('banner', bannerFile),
+        ]);
+        const now = new Date();
+        const manualId = Date.now();
+        const commissionStore = parseOptionalNumber(body.commission_store);
+        const maxCap = parseOptionalNumber(body.max_cap);
+        return this.offerModel.create({
+          offer_id: manualId,
+          merchant_id: manualId,
+          offer_name: `${brandName} - CPS`,
+          offer_name_display: brandName,
+          description: String(body.description ?? '').trim(),
+          preview_url: trackingLink,
+          currency: String(body.currency ?? 'THB').trim() || 'THB',
+          logo: logoAsset || String(body.logo ?? ''),
+          lookup_value:
+            String(body.lookup_value ?? '').trim() ||
+            slugifyOfferLookup(brandName) ||
+            `brand_${manualId}`,
+          validation_terms: 30,
+          payment_terms: 60,
+          datetime_updated: now,
+          datetime_created: now,
+          marketplace_store_offer: true,
+          categories:
+            String(body.categories ?? 'Shopping').trim() || 'Shopping',
+          countries: String(body.countries ?? 'Thailand').trim() || 'Thailand',
+          commissions: [
+            {
+              Commission:
+                commissionStore != null && !Number.isNaN(commissionStore)
+                  ? `${commissionStore}%`
+                  : '0%',
+            },
+          ],
+          special_commissions: [],
+          tracking_link: trackingLink,
+          commission_tracking: 'CPS',
+          tracking_type: 'link',
+          directory_page: trackingLink,
+          logo_desktop: logoAsset,
+          logo_mobile: logoAsset,
+          banner: bannerAsset,
+          banner_mobile: bannerAsset,
+          logo_circle: bannerAsset,
+          disabled: parseBoolean(body.disabled, false),
+          commission_store: commissionStore,
+          max_cap: maxCap,
+          extra_store: parseBoolean(body.extra_store, false),
+          extra_point: parseOptionalNumber(body.extra_point) ?? 1,
+          product_type: parseProductTypeRows(
+            body.product_types ?? body.product_type,
+          ),
+          source: 'manual',
+          status: 'approved',
+          is_global: parseBoolean(body.is_global, false),
+          default_country:
+            String(body.default_country ?? '').trim() || undefined,
+          app_deeplink: String(body.app_deeplink ?? '').trim() || undefined,
+          offer_display_tags: parseOfferDisplayTagsField(
+            body.offer_display_tags,
+          ),
+          policy_category_id:
+            policyCategoryId === 'custom' ||
+            Types.ObjectId.isValid(policyCategoryId)
+              ? policyCategoryId
+              : undefined,
+          custom_terms: customTerms,
+          note_to_user: noteToUser,
+        });
+      },
+      enforced: async () => {
+        await this.categoryIntegrity.assertPolicyCategoryAssignmentReady(
+          policyCategoryId,
         );
-      }
-    };
-    // The admin exposes two physical assets. Older clients may still send a
-    // legacy field, so accept it as a fallback but upload each chosen file once.
-    const logoFile = files.logo_desktop?.[0] ?? files.logo_mobile?.[0];
-    const bannerFile =
-      files.banner?.[0] ?? files.banner_mobile?.[0] ?? files.logo_circle?.[0];
-    const [logoAsset, bannerAsset] = await Promise.all([
-      upload('logo (desktop)', logoFile),
-      upload('banner', bannerFile),
-    ]);
 
-    const now = new Date();
-    const manualId = Date.now();
-    const commissionStore = parseOptionalNumber(body.commission_store);
-    const maxCap = parseOptionalNumber(body.max_cap);
+        // The admin exposes two physical assets. Older clients may still send a
+        // legacy field, so accept it as a fallback but upload each chosen file once.
+        const logoFile = files.logo_desktop?.[0] ?? files.logo_mobile?.[0];
+        const bannerFile =
+          files.banner?.[0] ??
+          files.banner_mobile?.[0] ??
+          files.logo_circle?.[0];
 
-    return this.offerModel.create({
-      offer_id: manualId,
-      merchant_id: manualId,
-      offer_name: `${brandName} - CPS`,
-      offer_name_display: brandName,
-      description: String(body.description ?? '').trim(),
-      preview_url: trackingLink,
-      currency: String(body.currency ?? 'THB').trim() || 'THB',
-      logo: logoAsset || String(body.logo ?? ''),
-      lookup_value:
-        String(body.lookup_value ?? '').trim() ||
-        slugifyOfferLookup(brandName) ||
-        `brand_${manualId}`,
-      validation_terms: 30,
-      payment_terms: 60,
-      datetime_updated: now,
-      datetime_created: now,
-      marketplace_store_offer: true,
-      categories: String(body.categories ?? 'Shopping').trim() || 'Shopping',
-      countries: String(body.countries ?? 'Thailand').trim() || 'Thailand',
-      commissions: [
-        {
-          Commission:
-            commissionStore != null && !Number.isNaN(commissionStore)
-              ? `${commissionStore}%`
-              : '0%',
-        },
-      ],
-      special_commissions: [],
-      tracking_link: trackingLink,
-      commission_tracking: 'CPS',
-      tracking_type: 'link',
-      directory_page: trackingLink,
-      logo_desktop: logoAsset,
-      logo_mobile: logoAsset,
-      banner: bannerAsset,
-      banner_mobile: bannerAsset,
-      logo_circle: bannerAsset,
-      disabled: parseBoolean(body.disabled, false),
-      commission_store: commissionStore,
-      max_cap: maxCap,
-      extra_store: parseBoolean(body.extra_store, false),
-      extra_point: parseOptionalNumber(body.extra_point) ?? 1,
-      product_type: parseProductTypeRows(
-        body.product_types ?? body.product_type,
-      ),
-      source: 'manual',
-      status: 'approved',
-      is_global: parseBoolean(body.is_global, false),
-      default_country: String(body.default_country ?? '').trim() || undefined,
-      app_deeplink: String(body.app_deeplink ?? '').trim() || undefined,
-      offer_display_tags: parseOfferDisplayTagsField(body.offer_display_tags),
-      policy_category_id:
-        policyCategoryId === 'custom' ||
-        Types.ObjectId.isValid(policyCategoryId)
-          ? policyCategoryId
-          : undefined,
-      custom_terms: customTerms,
-      note_to_user: noteToUser,
+        const explicitRequestKey =
+          typeof body.request_key === 'string' && body.request_key.trim()
+            ? body.request_key.trim()
+            : undefined;
+        const offerOwnerId = explicitRequestKey
+          ? offerOwnerIdForRequestKey(explicitRequestKey)
+          : new Types.ObjectId();
+        const requestKey =
+          explicitRequestKey ??
+          `offer-create:${offerOwnerId.toHexString()}:${randomUUID()}`;
+        const now = new Date();
+        const manualId = stableOfferNumericId(offerOwnerId);
+        const commissionStore = parseOptionalNumber(body.commission_store);
+        const maxCap = parseOptionalNumber(body.max_cap);
+
+        const categories =
+          String(body.categories ?? 'Shopping').trim() || 'Shopping';
+        const document = {
+          _id: offerOwnerId,
+          offer_id: manualId,
+          merchant_id: manualId,
+          offer_name: `${brandName} - CPS`,
+          offer_name_display: brandName,
+          description: String(body.description ?? '').trim(),
+          preview_url: trackingLink,
+          currency: String(body.currency ?? 'THB').trim() || 'THB',
+          logo: String(body.logo ?? '').trim(),
+          lookup_value:
+            String(body.lookup_value ?? '').trim() ||
+            slugifyOfferLookup(brandName) ||
+            `brand_${manualId}`,
+          validation_terms: 30,
+          payment_terms: 60,
+          datetime_updated: now,
+          datetime_created: now,
+          marketplace_store_offer: true,
+          categories,
+          countries: String(body.countries ?? 'Thailand').trim() || 'Thailand',
+          commissions: [
+            {
+              Commission:
+                commissionStore != null && !Number.isNaN(commissionStore)
+                  ? `${commissionStore}%`
+                  : '0%',
+            },
+          ],
+          special_commissions: [],
+          tracking_link: trackingLink,
+          commission_tracking: 'CPS',
+          tracking_type: 'link',
+          directory_page: trackingLink,
+          logo_desktop: String(body.logo_desktop ?? body.logo ?? '').trim(),
+          logo_mobile: String(body.logo_mobile ?? body.logo ?? '').trim(),
+          banner: String(body.banner ?? '').trim(),
+          banner_mobile: String(body.banner_mobile ?? body.banner ?? '').trim(),
+          logo_circle: String(body.logo_circle ?? body.banner ?? '').trim(),
+          disabled: parseBoolean(body.disabled, false),
+          commission_store: commissionStore,
+          max_cap: maxCap,
+          extra_store: parseBoolean(body.extra_store, false),
+          extra_point: parseOptionalNumber(body.extra_point) ?? 1,
+          product_type: parseProductTypeRows(
+            body.product_types ?? body.product_type,
+          ),
+          source: 'manual' as const,
+          status: 'approved' as const,
+          is_global: parseBoolean(body.is_global, false),
+          default_country:
+            String(body.default_country ?? '').trim() || undefined,
+          app_deeplink: String(body.app_deeplink ?? '').trim() || undefined,
+          offer_display_tags: parseOfferDisplayTagsField(
+            body.offer_display_tags,
+          ),
+          custom_terms: customTerms,
+          note_to_user: noteToUser,
+        };
+        const persist = async (
+          assets: PolicyMediaWriteAssets,
+          session: import('mongoose').ClientSession,
+        ) => {
+          const assignment =
+            await this.categoryIntegrity.policyCategoryAssignmentInSession(
+              policyCategoryId,
+              categories,
+              session,
+            );
+          const uploadedLogo = assets.logo;
+          const uploadedBanner = assets.banner;
+          const payload = {
+            ...document,
+            ...assignment,
+            ...(uploadedLogo
+              ? {
+                  logo: uploadedLogo.url,
+                  logo_desktop: uploadedLogo.url,
+                  logo_mobile: uploadedLogo.url,
+                  logo_asset: uploadedLogo,
+                }
+              : {}),
+            ...(uploadedBanner
+              ? {
+                  banner: uploadedBanner.url,
+                  banner_mobile: uploadedBanner.url,
+                  logo_circle: uploadedBanner.url,
+                  banner_asset: uploadedBanner,
+                }
+              : {}),
+          };
+          for (const url of new Set(
+            [
+              payload.logo,
+              payload.logo_desktop,
+              payload.logo_mobile,
+              payload.banner,
+              payload.banner_mobile,
+              payload.logo_circle,
+            ].filter((value): value is string => Boolean(value)),
+          )) {
+            await this.policyMediaRegistry.touchAttachInSession(url, session);
+          }
+          const created = await this.offerModel.create(
+            [payload as unknown as Offer],
+            { session },
+          );
+          return created[0]!;
+        };
+
+        const uploads = [
+          ...(logoFile
+            ? [
+                {
+                  role: 'logo',
+                  file: logoFile,
+                  folder: MEDIA_FOLDER.BRANDS,
+                },
+              ]
+            : []),
+          ...(bannerFile
+            ? [
+                {
+                  role: 'banner',
+                  file: bannerFile,
+                  folder: MEDIA_FOLDER.BRANDS,
+                },
+              ]
+            : []),
+        ];
+        if (uploads.length === 0 && !explicitRequestKey) {
+          return this.categoryIntegrity.withIntegrityMutation((session) =>
+            persist({}, session),
+          );
+        }
+        return this.policyMediaWrite.execute({
+          requestKey,
+          payloadHash: policyMediaWritePayloadHash({
+            request_key: requestKey,
+            owner_id: String(offerOwnerId),
+            brand_name: brandName,
+            tracking_link: trackingLink,
+            policy_category_id: policyCategoryId || null,
+            categories,
+            description: document.description,
+            currency: document.currency,
+            countries: document.countries,
+            lookup_value: String(body.lookup_value ?? '').trim() || null,
+            logo: document.logo,
+            logo_desktop: document.logo_desktop,
+            logo_mobile: document.logo_mobile,
+            banner: document.banner,
+            banner_mobile: document.banner_mobile,
+            logo_circle: document.logo_circle,
+            disabled: document.disabled,
+            commission_store: document.commission_store,
+            max_cap: document.max_cap,
+            extra_store: document.extra_store,
+            extra_point: document.extra_point,
+            product_type: document.product_type,
+            is_global: document.is_global,
+            default_country: document.default_country ?? null,
+            app_deeplink: document.app_deeplink ?? null,
+            offer_display_tags: document.offer_display_tags ?? null,
+            custom_terms: document.custom_terms ?? null,
+            note_to_user: document.note_to_user ?? null,
+            uploads: {
+              logo: offerUploadIdentity(logoFile),
+              banner: offerUploadIdentity(bannerFile),
+            },
+          }),
+          ownerType: 'offer',
+          ownerId: offerOwnerId,
+          operation: 'offer-create',
+          uploads,
+          commit: persist,
+          readCommittedOwner: () =>
+            this.offerModel.findById(offerOwnerId).read('primary').exec(),
+        });
+      },
     });
   }
 
   async getCategoryList(search: string) {
-    const filter = {};
+    const filter: Record<string, unknown> = {
+      $or: [
+        { lifecycle_status: 'active' },
+        { lifecycle_status: { $exists: false } },
+      ],
+    };
     if (search) {
       filter['name'] = {
         $regex: escapeRegexLiteral(search),
@@ -843,6 +1362,16 @@ export class OfferService implements OnApplicationBootstrap {
   }
 
   async getAllBrandBanner() {
+    return this.getSpecificPageBanner('all-brands');
+  }
+
+  async getSpecificPageBanner(targetValue: string) {
+    const target = requireSpecificPageBannerTarget(targetValue);
+    const banner =
+      (await this.specificPageBannerModel?.findOne({ target }).exec()) ?? null;
+    if (banner || target !== 'all-brands') {
+      return banner;
+    }
     return this.allBrandBannerModel.findOne().exec();
   }
 
@@ -904,21 +1433,25 @@ export class OfferService implements OnApplicationBootstrap {
   }
 
   async updateCoupon(body: UpdateCouponDto) {
+    assertCouponUpdateRuntimeShape(body);
     const offerId = requireObjectId(String(body.offer_id), 'offer_id');
     const discount = body.discount ? Number(body.discount) : 0;
     const quantity = body.quantity ? Number(body.quantity) : 0;
     const disabled = parseBoolean(body.disabled);
     const codeEnabled = body.code_enabled ?? Boolean(body.code?.trim());
+    const isEdit = Boolean(body.id);
+    // New coupons retain the documented one-time / one-use default. Existing
+    // legacy coupons are sparse data: omitted fields must remain omitted on an
+    // unrelated edit instead of silently changing their redemption semantics.
     const oneTimeUseEnabled = body.one_time_use_enabled ?? true;
-    const usagePerUser = oneTimeUseEnabled
-      ? 1
-      : (parseOptionalNumber(body.usage_per_user) ?? 1);
+    const usagePerUser =
+      body.one_time_use_enabled === true ||
+      (!isEdit && body.one_time_use_enabled === undefined)
+        ? 1
+        : (parseOptionalNumber(body.usage_per_user) ?? 1);
     const unlimitedAmountEnabled =
       body.unlimited_amount_enabled ?? quantity <= 0;
     const maxCap = parseOptionalNumber(body.max_cap);
-    const maxCapEnabled = body.max_cap_enabled ?? maxCap !== null;
-    const discountType: 'percent' | 'cash' =
-      body.discount_type === 'cash' ? 'cash' : 'percent';
     const patch = {
       offer_id: offerId,
       discount,
@@ -930,21 +1463,41 @@ export class OfferService implements OnApplicationBootstrap {
       description: body.description ?? '',
       start_date: body.start_date,
       end_date: body.end_date,
-      start_time: body.start_time?.trim() ?? '',
-      end_time: body.end_time?.trim() ?? '',
+      ...(body.start_time !== undefined
+        ? { start_time: body.start_time.trim() }
+        : {}),
+      ...(body.end_time !== undefined
+        ? { end_time: body.end_time.trim() }
+        : {}),
       eligibility: body.eligibility ?? '',
       min_spend: body.min_spend ?? '',
-      min_spend_currency: body.min_spend_currency ?? 'THB',
-      max_cap: maxCapEnabled ? (maxCap ?? 0) : 0,
-      max_cap_enabled: maxCapEnabled,
-      max_cap_currency: body.max_cap_currency ?? 'THB',
-      discount_type: discountType,
-      discount_currency: body.discount_currency ?? 'THB',
-      one_time_use_enabled: oneTimeUseEnabled,
-      usage_per_user: usagePerUser,
+      ...(body.min_spend_currency !== undefined
+        ? { min_spend_currency: body.min_spend_currency }
+        : {}),
+      ...(body.max_cap !== undefined ? { max_cap: maxCap } : {}),
+      ...(body.max_cap_enabled !== undefined
+        ? { max_cap_enabled: body.max_cap_enabled }
+        : {}),
+      ...(body.max_cap_currency !== undefined
+        ? { max_cap_currency: body.max_cap_currency }
+        : {}),
+      ...(body.discount_type !== undefined
+        ? { discount_type: body.discount_type }
+        : {}),
+      ...(body.discount_currency !== undefined
+        ? { discount_currency: body.discount_currency }
+        : {}),
+      ...(!isEdit || body.one_time_use_enabled !== undefined
+        ? { one_time_use_enabled: oneTimeUseEnabled }
+        : {}),
+      ...(!isEdit || body.usage_per_user !== undefined
+        ? { usage_per_user: usagePerUser }
+        : {}),
       unlimited_amount_enabled: unlimitedAmountEnabled,
       link: body.link ?? '',
-      terms_and_conditions: body.terms_and_conditions?.trim() ?? '',
+      ...(body.terms_and_conditions !== undefined
+        ? { terms_and_conditions: body.terms_and_conditions.trim() }
+        : {}),
     };
     if (body?.id) {
       return this.couponModel.findByIdAndUpdate(
@@ -998,7 +1551,11 @@ export class OfferService implements OnApplicationBootstrap {
     const offerId = requireObjectId(id, 'offer id');
     const coupons = (await this.couponModel
       .find({ offer_id: offerId })
-      .populate('offer_id', ['offer_name', 'offer_name_display'])
+      .populate('offer_id', [
+        'offer_name',
+        'offer_name_display',
+        'tracking_link',
+      ])
       .select(PUBLIC_COUPON_SELECT)
       .sort({ end_date: 1, createdAt: -1 })
       .lean()) as unknown as Record<string, any>[];
@@ -1023,7 +1580,9 @@ export class OfferService implements OnApplicationBootstrap {
       .filter(
         (task: Partial<QuestTask>) =>
           task.enabled !== false &&
-          Number(task.extra_point) > 1 &&
+          (task.task_type === undefined ||
+            task.task_type === 'brand_purchase') &&
+          Number(task.points ?? task.extra_point) > 1 &&
           this.questTaskOfferObjectId(task),
       )
       .sort(
@@ -1067,7 +1626,7 @@ export class OfferService implements OnApplicationBootstrap {
               : `สั่งซื้อที่ ${brand}`;
           return {
             ...offer,
-            extra_point: Number(task.extra_point),
+            extra_point: Number(task.points ?? task.extra_point),
             quest_task_sort_order: Number(task.sort_order ?? 0),
             quest_task_wording: wordingEn,
             quest_task_wording_en: wordingEn,
@@ -1075,6 +1634,10 @@ export class OfferService implements OnApplicationBootstrap {
           };
         })
         .filter((offer) => offer !== null);
+    }
+
+    if (effectiveQuestRewardModel((quest as any)?.reward_model) === 'task_v2') {
+      return [];
     }
 
     return this.offerModel
@@ -1086,33 +1649,103 @@ export class OfferService implements OnApplicationBootstrap {
   async saveMissingOrder(
     user_id: string,
     payload: SaveMissingOrderDto,
-    files: Express.Multer.File[],
+    files: Express.Multer.File[] | undefined,
   ) {
-    // console.log('payload', payload);
-    // console.log('files', files);
-    // console.log('user_id', user_id);
-    // return true;
-    const fileId = [];
-    if (files.length > 0) {
-      for (const file of files) {
-        const upload = await this.storedMediaService.upload(
-          file,
-          MEDIA_FOLDER.MISSING_ORDERS,
-        );
-        fileId.push(upload);
-      }
+    if (files !== undefined && !Array.isArray(files)) {
+      throw new BadRequestException(
+        'Evidence files must be provided as an array.',
+      );
     }
+    const userObjectId = requireObjectId(user_id, 'user id');
+    const offerObjectId = requireObjectId(payload.offer_id, 'offer id');
+    const orderId = payload.orderId.trim();
+    const amount = Number(payload.amount);
+    const purchaseDate = new Date(payload.purchaseDate);
+    if (
+      !orderId ||
+      !Number.isFinite(amount) ||
+      amount <= 0 ||
+      Number.isNaN(purchaseDate.getTime())
+    ) {
+      throw new BadRequestException(
+        'Order ID, purchase date, and amount must be valid.',
+      );
+    }
+    if (files && files.length > 0) {
+      throw new ServiceUnavailableException(
+        MISSING_ORDER_EVIDENCE_UNAVAILABLE_MESSAGE,
+      );
+    }
+    const [offer, user] = await Promise.all([
+      this.offerModel
+        .findById(offerObjectId)
+        .select('source offer_id offer_name offer_name_display')
+        .lean(),
+      this.userModel
+        .findOne({ _id: userObjectId })
+        .select('username name email mobile phone')
+        .lean(),
+    ]);
+    if (!offer) {
+      throw new NotFoundException(`Offer ${payload.offer_id} not found`);
+    }
+    if (!user) {
+      throw new NotFoundException(`User ${user_id} not found`);
+    }
+
+    const offerRow = offer as unknown as {
+      source?: string;
+      offer_id?: number;
+      offer_name?: string;
+      offer_name_display?: string;
+    };
+    const userRow = user as unknown as {
+      username?: string;
+      name?: string;
+      email?: string;
+      mobile?: string;
+      phone?: string;
+    };
+    const offerSource = offerRow.source?.trim() ?? '';
+    const providerOfferId = Number(offerRow.offer_id);
+    const offerName =
+      offerRow.offer_name_display?.trim() || offerRow.offer_name?.trim() || '';
+    if (!offerSource || !Number.isFinite(providerOfferId) || !offerName) {
+      throw new ServiceUnavailableException(
+        'The selected offer is missing canonical provider details.',
+      );
+    }
+
     const missingOrder = new this.missionOrderModel({
-      user_id: new Types.ObjectId(user_id),
-      offer_id: new Types.ObjectId(payload.offer_id),
-      attachments: fileId,
-      orderId: payload.orderId,
-      purchaseDate: payload.purchaseDate,
-      note: payload.note,
-      amount: payload.amount,
+      user_id: userObjectId,
+      offer_id: offerObjectId,
+      customer_snapshot: buildMissionOrderCustomerSnapshot(userRow),
+      offer_snapshot: {
+        source: offerSource,
+        provider_offer_id: providerOfferId,
+        name: offerName,
+      },
+      evidence_refs: [],
+      order_id: orderId,
+      purchase_date: purchaseDate,
+      remarks: payload.note.trim(),
+      order_amount: amount,
+      currency: 'THB',
       status: 'pending',
+      notes: [],
+      schema_version: MISSION_ORDER_SCHEMA_VERSION,
+      dedupe_key: buildMissionOrderDedupeKey(
+        user_id,
+        payload.offer_id,
+        orderId,
+      ),
     });
-    return missingOrder.save();
+    const saved = await missingOrder.save();
+    const savedRow =
+      typeof (saved as any).toObject === 'function'
+        ? (saved as any).toObject()
+        : saved;
+    return toCustomerMissionOrderClaim(savedRow as Record<string, unknown>);
   }
 
   async getMissingOrder(
@@ -1125,7 +1758,10 @@ export class OfferService implements OnApplicationBootstrap {
     const safeSearch = escapeRegexLiteral(search ?? '');
     const filter = {
       user_id: new Types.ObjectId(user_id),
-      $or: [{ orderId: { $regex: safeSearch, $options: 'i' } }],
+      $or: [
+        { order_id: { $regex: safeSearch, $options: 'i' } },
+        { orderId: { $regex: safeSearch, $options: 'i' } },
+      ],
     };
     const data = await this.missionOrderModel
       .find(filter)
@@ -1138,6 +1774,14 @@ export class OfferService implements OnApplicationBootstrap {
     const total = await this.missionOrderModel.countDocuments(filter);
     const totalPages = Math.ceil(total / limit);
 
-    return { page, limit, total, totalPages, data };
+    return {
+      page,
+      limit,
+      total,
+      totalPages,
+      data: data.map((row) =>
+        toCustomerMissionOrderClaim(row as unknown as Record<string, unknown>),
+      ),
+    };
   }
 }

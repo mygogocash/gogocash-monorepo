@@ -54,9 +54,13 @@ describe("Play Store launch readiness", () => {
 
   it("assetlinks > given App Links verification > then the web export serves a statement for co.gogocash.app", () => {
     const assetlinks = JSON.parse(read("public/.well-known/assetlinks.json"));
-    expect(assetlinks[0].relation).toContain("delegate_permission/common.handle_all_urls");
+    expect(assetlinks[0].relation).toContain(
+      "delegate_permission/common.handle_all_urls",
+    );
     expect(assetlinks[0].target.package_name).toBe("co.gogocash.app");
-    expect(Array.isArray(assetlinks[0].target.sha256_cert_fingerprints)).toBe(true);
+    expect(Array.isArray(assetlinks[0].target.sha256_cert_fingerprints)).toBe(
+      true,
+    );
   });
 
   it("gototrack usage-access > given a store build > then the plugin actively strips the module-manifest permissions", () => {
@@ -80,22 +84,25 @@ describe("Play Store launch readiness", () => {
     expect(appConfig).toMatch(/compileSdkVersion: 36/);
   });
 
-  it("eas workflow > given a production dispatch > then env follows the profile and channel is a choice", () => {
+  it("staging EAS workflow > given a dispatch > then it cannot target production or submit", () => {
     const workflow = fs.readFileSync(
       path.join(repoRoot, ".github/workflows/deploy-app-native-eas.yml"),
       "utf8",
     );
-    expect(workflow).toContain(
-      "environment: ${{ inputs.profile == 'production' && 'production' || 'staging' }}",
-    );
-    // channel is a dropdown, not free text — no typo'd OTA channels.
-    expect(workflow).toMatch(/channel:[\s\S]{0,220}type: choice/);
-    // production artifacts are AABs, not mislabeled APKs.
-    expect(workflow).toContain("ANDROID_ARTIFACT_EXT");
+    expect(workflow).toContain("environment: staging");
+    expect(workflow).toContain("EAS_PROFILE: preview");
+    expect(workflow).toContain("EAS_CHANNEL: staging");
+    expect(workflow).toContain("ANDROID_ARTIFACT_EXT: apk");
+    expect(workflow).not.toMatch(/^      (?:profile|channel):/m);
+    expect(workflow).not.toMatch(/^\s*- submit\s*$/m);
+    expect(workflow).not.toContain("https://api.gogocash.co");
   });
 
   it("launch runbook > given the console checklist > then docs/PLAYSTORE_LAUNCH.md exists", () => {
-    const doc = fs.readFileSync(path.join(repoRoot, "docs/PLAYSTORE_LAUNCH.md"), "utf8");
+    const doc = fs.readFileSync(
+      path.join(repoRoot, "docs/PLAYSTORE_LAUNCH.md"),
+      "utf8",
+    );
     expect(doc).toContain("Data safety");
     expect(doc).toContain("account deletion");
     expect(doc).toContain("google-services");

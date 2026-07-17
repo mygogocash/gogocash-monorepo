@@ -293,6 +293,8 @@ type PolicyContentWire = ReturnType<typeof buildPolicyContentForSave>;
 
 export const NEW_POLICY_TERMS_REQUIRED_MESSAGE =
   "Terms & conditions are required for a new policy.";
+export const NEW_CATEGORY_BANNER_REQUIRED_MESSAGE =
+  "Localized policy banner text is required for a new category.";
 
 /**
  * Build the wire payload for `PUT /policy`. Centralises the rule that
@@ -339,6 +341,7 @@ export function buildSavePayload(input: {
 type UnifiedPolicySavePlanInput = {
   categoryId: string;
   isNewPolicy: boolean;
+  requireBannerText?: boolean;
   termsDirty: boolean;
   bannerDirty: boolean;
   termsParsed?: ParsedPolicy;
@@ -362,6 +365,9 @@ export function buildUnifiedPolicySavePlan(
   if (input.isNewPolicy && !input.termsParsed) {
     return { ok: false, message: NEW_POLICY_TERMS_REQUIRED_MESSAGE };
   }
+  if (input.requireBannerText && !input.bannerParsed) {
+    return { ok: false, message: NEW_CATEGORY_BANNER_REQUIRED_MESSAGE };
+  }
 
   return {
     ok: true,
@@ -369,7 +375,10 @@ export function buildUnifiedPolicySavePlan(
       categoryId: input.categoryId,
       termsParsed:
         input.isNewPolicy || input.termsDirty ? input.termsParsed : undefined,
-      bannerParsed: input.bannerDirty ? input.bannerParsed : undefined,
+      bannerParsed:
+        input.requireBannerText || input.bannerDirty
+          ? input.bannerParsed
+          : undefined,
       clearTerms: !input.isNewPolicy && input.termsDirty && !input.termsParsed,
       clearBanner:
         !input.isNewPolicy && input.bannerDirty && !input.bannerParsed,

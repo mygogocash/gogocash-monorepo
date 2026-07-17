@@ -9,8 +9,22 @@ import {
   QuestRewardDistributionMode,
 } from 'src/point/schemas/quest.schema';
 import { PointService } from 'src/point/point.service';
-import { Point } from 'src/point/schemas/point.schema';
-import { enrichConversionWithUserId } from 'src/withdraw/conversion-user-id.util';
+import { ConversionIngestService } from 'src/involve/conversion-ingest.service';
+import {
+  legacyQuestRewardFilter,
+  legacySpecialPointKey,
+} from './legacy-reward-identity';
+import {
+  assertLegacyRewardManifest,
+  legacyQuestPayoutConfigChecksum,
+  legacyRewardManifestKey,
+  LegacyRewardManifest,
+} from './legacy-reward-manifest';
+import { rateCurrencyUSD } from 'src/utils/helper';
+import {
+  awardReconciledPurchaseConversion,
+  legacyPurchaseReadyFilter,
+} from './legacy-purchase-writer';
 
 @Injectable()
 export class TasksService {
@@ -18,35 +32,86 @@ export class TasksService {
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
     @InjectModel(Quest.name) private questModel: Model<Quest>,
-    @InjectModel(Point.name) private pointModel: Model<Point>,
     private readonly involveService: InvolveService,
+    private readonly conversionIngestService: ConversionIngestService,
     private readonly pointService: PointService,
   ) {}
 
   private rewardDistributionDueFilter(now: Date): QueryFilter<Quest> {
     return {
       status: 'close',
-      reward_status: { $ne: true },
-      $or: [
-        { reward_distribution_mode: { $exists: false } },
+      legacy_payout_reconciliation_status: 'ready',
+      legacy_payout_reconciliation_version: 1,
+      legacy_special_point_completed_at: { $exists: false },
+      $and: [
+        legacyQuestRewardFilter(),
         {
-          reward_distribution_mode:
-            'campaign_end' as QuestRewardDistributionMode,
-        },
-        {
-          reward_distribution_mode: 'after_days' as QuestRewardDistributionMode,
-          reward_distribution_scheduled_at: { $lte: now },
+          $or: [
+            { reward_distribution_mode: { $exists: false } },
+            {
+              reward_distribution_mode:
+                'campaign_end' as QuestRewardDistributionMode,
+            },
+            {
+              reward_distribution_mode:
+                'after_days' as QuestRewardDistributionMode,
+              reward_distribution_scheduled_at: { $lte: now },
+            },
+          ],
         },
       ],
-    };
+    } as QueryFilter<Quest>;
   }
 
   async changeConversionPaid() {
-    const result = await this.conversionModel.updateMany(
-      { conversion_status: 'paid' },
-      { $set: { conversion_status: 'approved' } },
-    );
-    return result;
+    const conversions = await this.conversionModel
+      .find({ conversion_status: 'paid' })
+      .lean();
+    for (const conversion of conversions) {
+      const sourcePayload = {
+        ...(conversion as unknown as Record<string, unknown>),
+      };
+      delete sourcePayload._id;
+      delete sourcePayload.__v;
+      delete sourcePayload.createdAt;
+      delete sourcePayload.updatedAt;
+      await this.conversionIngestService.upsertConversion(
+        { ...sourcePayload, conversion_status: 'approved' },
+        { adapter: 'admin', authoritative: true },
+      );
+    }
+    return {
+      acknowledged: true,
+      matchedCount: conversions.length,
+      modifiedCount: conversions.length,
+    };
+  }
+
+  async awardApprovedConversionPoints(now = new Date(), windowDays = 30) {
+    const from = new Date(now);
+    from.setDate(from.getDate() - windowDays);
+    const conversions = await this.conversionModel
+      .find({
+        conversion_status: 'approved',
+        add_point: { $ne: true },
+        payout: { $gt: 0 },
+        ...legacyPurchaseReadyFilter,
+        datetime_conversion: { $gte: from, $lt: now },
+        $or: [
+          { user_id: { $exists: true, $ne: null } },
+          { aff_sub1: { $regex: '^user_id:' } },
+        ],
+      })
+      .lean();
+    const rate = await rateCurrencyUSD();
+    for (const conversion of conversions) {
+      await awardReconciledPurchaseConversion(conversion, {
+        conversionModel: this.conversionModel as never,
+        pointService: this.pointService,
+        thbPerUsd: rate['THB'],
+      });
+    }
+    return { scanned: conversions.length };
   }
 
   async updateStatusConversionIsPending() {
@@ -94,11 +159,7 @@ export class TasksService {
         const batch = allConversions.slice(i, i + batchSize);
         await Promise.all(
           batch.map((conversion) =>
-            this.conversionModel.findOneAndUpdate(
-              { conversion_id: conversion.conversion_id },
-              enrichConversionWithUserId(conversion),
-              { upsert: true, new: true },
-            ),
+            this.conversionIngestService.upsertConversion(conversion),
           ),
         );
       }
@@ -117,28 +178,75 @@ export class TasksService {
       // throw new HttpException({ message: 'Quest date not found' }, 400);
       return;
     }
-    const startDate = new Date(questDate.start_date).toLocaleDateString(
-      'en-CA',
+    const manifestCollection =
+      this.questModel.db.collection<LegacyRewardManifest>(
+        'legacyrewardmanifests',
+      );
+    const manifest = await manifestCollection.findOne({
+      manifest_key: legacyRewardManifestKey(
+        questDate._id,
+        'special-next-round',
+      ),
+    });
+    const questConfigChecksum = legacyQuestPayoutConfigChecksum(
+      questDate.toObject?.() ?? questDate,
     );
-    const endDate = new Date(questDate.end_date).toLocaleDateString('en-CA');
-    const lists = await this.pointService.getSpacialPointNextRound(
-      startDate,
-      endDate,
+    if (questDate.legacy_payout_config_checksum !== questConfigChecksum) {
+      throw new Error(
+        'Legacy special-point quest configuration checksum mismatch',
+      );
+    }
+    assertLegacyRewardManifest(
+      manifest,
+      questDate._id,
+      'special-next-round',
+      Number(questDate.legacy_payout_reconciliation_version),
+      questConfigChecksum,
     );
+    const lists = manifest.recipients;
 
     if (lists?.length > 0) {
       for (let i = 0; i < lists.length; i++) {
         const dt = lists[i];
-        const data = {
-          user_id: new Types.ObjectId(dt.user_id),
-          conversion_id: new Date().getTime() + i, // Use timestamp as unique ID for simplicity
-          point: dt?.special_point_next_round || 0,
-          type: 'add',
-          action: 'special_point_quest',
-        };
-        const pointEntry = new this.pointModel(data);
-        await pointEntry.save();
+        if (dt.excluded) continue;
+        const userId = new Types.ObjectId(dt.user_id).toString();
+        const payoutKey = legacySpecialPointKey(questDate._id, userId);
+        if (dt.payout_key !== payoutKey) {
+          throw new Error('Legacy special-point manifest identity mismatch');
+        }
+        await this.pointService.addPointsToUser(
+          userId,
+          dt.amount,
+          0,
+          'special_point_quest',
+          payoutKey,
+        );
       }
     }
+    const manifestCompletion = await manifestCollection.updateOne(
+      {
+        manifest_key: manifest.manifest_key,
+        manifest_hash: manifest.manifest_hash,
+        quest_config_checksum: questConfigChecksum,
+        status: { $in: ['ready', 'completed'] },
+      },
+      { $set: { status: 'completed', completed_at: new Date() } },
+    );
+    if (manifestCompletion.matchedCount !== 1) {
+      throw new Error(
+        'Legacy special-point manifest completion fence was lost',
+      );
+    }
+    await this.questModel.findOneAndUpdate(
+      {
+        _id: questDate._id,
+        legacy_payout_reconciliation_status: 'ready',
+        legacy_payout_reconciliation_version: 1,
+        legacy_payout_config_checksum: questConfigChecksum,
+        legacy_special_point_completed_at: { $exists: false },
+      },
+      { $set: { legacy_special_point_completed_at: new Date() } },
+      { new: true },
+    );
   }
 }

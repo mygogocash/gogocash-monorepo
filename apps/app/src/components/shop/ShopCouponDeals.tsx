@@ -34,10 +34,12 @@ type ShopCouponDealsProps = {
 
 function formatDiscount(coupon: ShopCoupon): string | null {
   const { discount } = coupon;
-  if (discount === null) return null;
+  if (discount === null || coupon.discountType === null) return null;
   const value = Number.isInteger(discount) ? discount : discount.toFixed(2);
   return coupon.discountType === "cash"
-    ? `${coupon.discountCurrency ?? "THB"} ${value} off`
+    ? coupon.discountCurrency
+      ? `${coupon.discountCurrency} ${value} off`
+      : `${value} off`
     : `${value}% off`;
 }
 
@@ -246,7 +248,11 @@ function ShopCouponCard({
             <Text style={styles.copyText}>{tc("Copy code")}</Text>
           </MotionPressable>
         </View>
-      ) : (
+      ) : coupon.codeEnabled ? (
+        <Text accessibilityRole="alert" style={styles.unavailableText}>
+          {tc("Coupon code unavailable")}
+        </Text>
+      ) : coupon.destinationUrl ? (
         <MotionPressable
           accessibilityLabel={`${tc("Use coupon")} ${coupon.name}`}
           accessibilityRole="button"
@@ -256,6 +262,10 @@ function ShopCouponCard({
         >
           <Text style={styles.useButtonText}>{tc("Use coupon")}</Text>
         </MotionPressable>
+      ) : (
+        <Text accessibilityRole="alert" style={styles.unavailableText}>
+          {tc("Coupon link unavailable")}
+        </Text>
       )}
       {coupon.termsAndConditions ? (
         <View style={styles.termsSection}>
@@ -391,6 +401,13 @@ function createStyles(colors: ThemeColors) {
       fontFamily: typography.family,
       fontSize: 14,
       fontWeight: "700",
+    },
+    unavailableText: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "600",
+      marginTop: spacing.xs,
     },
     termsSection: {
       borderTopColor: colors.border,

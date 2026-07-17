@@ -17,6 +17,8 @@ import { Offer, OfferDocument } from '../offer/schemas/offer.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { ListBrandsDto } from './dto/list-brands.dto';
+import { CategoryIntegrityService } from 'src/policy/category-integrity.service';
+import { PolicyMediaAssetRegistryService } from 'src/policy/policy-media-asset-registry.service';
 
 /**
  * Plain-object shapes used by the controller. Kept explicit so the
@@ -54,7 +56,7 @@ export interface BrandResolveResponse {
  * Mirrors the customer-app `slugifyBrandForLookup` so generated slugs line up
  * with `lookup_value` stems used for the dedupe heuristic.
  */
-export function slugifyBrand(name: string): string {
+function slugifyBrand(name: string): string {
   return name
     .trim()
     .toLowerCase()
@@ -70,6 +72,8 @@ export class BrandService {
   constructor(
     @InjectModel(Brand.name) private readonly brandModel: Model<BrandDocument>,
     @InjectModel(Offer.name) private readonly offerModel: Model<OfferDocument>,
+    private readonly categoryIntegrity: CategoryIntegrityService,
+    private readonly mediaRegistry: PolicyMediaAssetRegistryService,
   ) {}
 
   /** Create a new parent brand. Auto-generates `brand_slug` if omitted. */
@@ -80,22 +84,49 @@ export class BrandService {
         'Could not derive a brand_slug from the supplied name; pass `brand_slug` explicitly.',
       );
     }
-    const existing = await this.brandModel.findOne({ brand_slug: slug }).lean();
-    if (existing) {
-      throw new ConflictException(
-        `A brand with slug "${slug}" already exists. Pass a different brand_slug or update the existing record.`,
-      );
-    }
     if (dto.is_global && !dto.default_country) {
       throw new BadRequestException(
         'Global brands must specify a `default_country` so customers without a dedicated variant can be routed to it.',
       );
     }
-    const created = await this.brandModel.create({
-      ...dto,
-      brand_slug: slug,
+    return this.categoryIntegrity.withNormalWrite({
+      legacy: async () => {
+        const existing = await this.brandModel
+          .findOne({ brand_slug: slug })
+          .lean();
+        if (existing) {
+          throw new ConflictException(
+            `A brand with slug "${slug}" already exists. Pass a different brand_slug or update the existing record.`,
+          );
+        }
+        return this.brandModel.create({ ...dto, brand_slug: slug });
+      },
+      enforced: () =>
+        this.categoryIntegrity.withIntegrityMutation(async (session) => {
+          const existing = await this.brandModel
+            .findOne({ brand_slug: slug })
+            .session(session)
+            .lean();
+          if (existing) {
+            throw new ConflictException(
+              `A brand with slug "${slug}" already exists. Pass a different brand_slug or update the existing record.`,
+            );
+          }
+          for (const url of new Set(
+            [dto.logo, dto.logo_circle, dto.banner].filter(
+              (value): value is string =>
+                typeof value === 'string' && Boolean(value.trim()),
+            ),
+          )) {
+            await this.mediaRegistry.touchAttachInSession(url, session);
+          }
+          const created = await this.brandModel.create(
+            [{ ...dto, brand_slug: slug }],
+            { session },
+          );
+          return created[0]!;
+        }),
     });
-    return created;
   }
 
   /**
@@ -221,17 +252,6 @@ export class BrandService {
 
   async update(id: string, dto: UpdateBrandDto): Promise<BrandDocument> {
     const brandId = requireObjectId(id, 'brand id');
-    if (dto.brand_slug) {
-      const slug = dto.brand_slug.trim();
-      const conflict = await this.brandModel
-        .findOne({ brand_slug: slug, _id: { $ne: brandId } })
-        .lean();
-      if (conflict) {
-        throw new ConflictException(
-          `Slug "${slug}" is already used by another brand.`,
-        );
-      }
-    }
     if (dto.is_global === true && dto.default_country === '') {
       throw new BadRequestException(
         'Cannot enable is_global without a default_country. Set the fallback country first.',
@@ -263,30 +283,82 @@ export class BrandService {
       patch.shipping_policy = dto.shipping_policy;
     }
 
-    const updated = await this.brandModel.findByIdAndUpdate(
-      brandId,
-      mongoSetUpdate(patch),
-      {
-        new: true,
-        runValidators: true,
+    return this.categoryIntegrity.withNormalWrite({
+      legacy: async () => {
+        if (dto.brand_slug) {
+          const slug = dto.brand_slug.trim();
+          const conflict = await this.brandModel
+            .findOne({ brand_slug: slug, _id: { $ne: brandId } })
+            .lean();
+          if (conflict) {
+            throw new ConflictException(
+              `Slug "${slug}" is already used by another brand.`,
+            );
+          }
+        }
+        const updated = await this.brandModel.findByIdAndUpdate(
+          brandId,
+          mongoSetUpdate(patch),
+          { new: true, runValidators: true },
+        );
+        if (!updated) throw new NotFoundException('Brand not found.');
+        const variantPatch: Partial<Offer> = {};
+        if (dto.is_global !== undefined) variantPatch.is_global = dto.is_global;
+        if (dto.default_country !== undefined) {
+          variantPatch.default_country = dto.default_country;
+        }
+        if (Object.keys(variantPatch).length > 0) {
+          await this.offerModel.updateMany(
+            { brand_id: updated._id },
+            { $set: variantPatch },
+          );
+        }
+        return updated;
       },
-    );
-    if (!updated) throw new NotFoundException('Brand not found.');
+      enforced: () =>
+        this.categoryIntegrity.withIntegrityMutation(async (session) => {
+          if (dto.brand_slug) {
+            const slug = dto.brand_slug.trim();
+            const conflict = await this.brandModel
+              .findOne({ brand_slug: slug, _id: { $ne: brandId } })
+              .session(session)
+              .lean();
+            if (conflict) {
+              throw new ConflictException(
+                `Slug "${slug}" is already used by another brand.`,
+              );
+            }
+          }
+          for (const url of new Set(
+            [dto.logo, dto.logo_circle, dto.banner].filter(
+              (value): value is string =>
+                typeof value === 'string' && Boolean(value.trim()),
+            ),
+          )) {
+            await this.mediaRegistry.touchAttachInSession(url, session);
+          }
+          const updated = await this.brandModel.findByIdAndUpdate(
+            brandId,
+            mongoSetUpdate(patch),
+            { new: true, runValidators: true, session },
+          );
+          if (!updated) throw new NotFoundException('Brand not found.');
 
-    // Mirror visibility fields onto every variant so the customer-side filter stays
-    // consistent without a join. Touching only the changed flags avoids redundant writes.
-    const variantPatch: Partial<Offer> = {};
-    if (dto.is_global !== undefined) variantPatch.is_global = dto.is_global;
-    if (dto.default_country !== undefined)
-      variantPatch.default_country = dto.default_country;
-    if (Object.keys(variantPatch).length > 0) {
-      await this.offerModel.updateMany(
-        { brand_id: updated._id },
-        { $set: variantPatch },
-      );
-    }
-
-    return updated;
+          const variantPatch: Partial<Offer> = {};
+          if (dto.is_global !== undefined)
+            variantPatch.is_global = dto.is_global;
+          if (dto.default_country !== undefined)
+            variantPatch.default_country = dto.default_country;
+          if (Object.keys(variantPatch).length > 0) {
+            await this.offerModel.updateMany(
+              { brand_id: updated._id },
+              { $set: variantPatch },
+              { session },
+            );
+          }
+          return updated;
+        }),
+    });
   }
 
   /**
@@ -295,14 +367,33 @@ export class BrandService {
    */
   async softDelete(id: string): Promise<{ id: string; disabled: true }> {
     const brandId = requireObjectId(id, 'brand id');
-    const brand = await this.brandModel.findById(brandId);
-    if (!brand) throw new NotFoundException('Brand not found.');
-    brand.disabled = true;
-    await brand.save();
-    await this.offerModel.updateMany(
-      { brand_id: brand._id },
-      { $set: { disabled: true } },
-    );
-    return { id: String(brand._id), disabled: true };
+    return this.categoryIntegrity.withNormalWrite({
+      legacy: async () => {
+        const brand = await this.brandModel.findById(brandId);
+        if (!brand) throw new NotFoundException('Brand not found.');
+        brand.disabled = true;
+        await brand.save();
+        await this.offerModel.updateMany(
+          { brand_id: brand._id },
+          { $set: { disabled: true } },
+        );
+        return { id: String(brand._id), disabled: true };
+      },
+      enforced: () =>
+        this.categoryIntegrity.withIntegrityMutation(async (session) => {
+          const brand = await this.brandModel.findByIdAndUpdate(
+            brandId,
+            { $set: { disabled: true } },
+            { new: true, session },
+          );
+          if (!brand) throw new NotFoundException('Brand not found.');
+          await this.offerModel.updateMany(
+            { brand_id: brand._id },
+            { $set: { disabled: true } },
+            { session },
+          );
+          return { id: String(brand._id), disabled: true };
+        }),
+    });
   }
 }

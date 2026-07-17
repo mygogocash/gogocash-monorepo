@@ -39,10 +39,11 @@ export type DirectoryPromo = {
   title: string;
   slides: readonly {
     accessibilityLabel: string;
-    href: string;
+    href?: string;
     id: string;
     imageAsset?: string;
     imageUri?: string;
+    slot?: number;
   }[];
 };
 export type WebViewStyle = ViewStyle & {

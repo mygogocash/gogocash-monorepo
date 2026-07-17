@@ -4,6 +4,7 @@ import {
   NEW_POLICY_TERMS_REQUIRED_MESSAGE,
   asNonEmptyParsed,
   buildUnifiedPolicySavePlan,
+  NEW_CATEGORY_BANNER_REQUIRED_MESSAGE,
   buildSavePayload,
   emptyParsedPolicy,
   getTemplateBody,
@@ -155,6 +156,22 @@ describe("buildUnifiedPolicySavePlan", () => {
     if (!plan.ok) throw new Error("expected a save plan");
     expect(plan.payload.terms?.translations.en).toBe("Terms");
     expect(plan.payload.banner?.translations.en).toBe("Banner");
+  });
+
+  it("requires localized banner text when the save creates the category", () => {
+    expect(
+      buildUnifiedPolicySavePlan({
+        categoryId: "__new__",
+        isNewPolicy: true,
+        requireBannerText: true,
+        termsDirty: true,
+        bannerDirty: false,
+        termsParsed: makeParsed({ translations: { en: "Terms" } }),
+      }),
+    ).toEqual({
+      ok: false,
+      message: NEW_CATEGORY_BANNER_REQUIRED_MESSAGE,
+    });
   });
 
   it("keeps existing-policy partial updates scoped to dirty blocks", () => {

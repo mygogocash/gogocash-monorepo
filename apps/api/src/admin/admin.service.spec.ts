@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { HttpException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { AdminService } from './admin.service';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
@@ -12,6 +13,7 @@ import { Category } from 'src/offer/schemas/category.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
+import { SPECIFIC_PAGE_BANNER_MODEL } from 'src/offer/schemas/specific-page-banner.schema';
 import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { StoredMediaService } from 'src/media/stored-media.service';
@@ -19,6 +21,10 @@ import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { InvolveService } from 'src/involve/involve.service';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
+import { CategoryIntegrityService } from 'src/policy/category-integrity.service';
+import { PolicyMediaCleanupService } from 'src/policy/policy-media-cleanup.service';
+import { PolicyMediaWriteService } from 'src/policy/policy-media-write.service';
+import { PolicyMediaAssetRegistryService } from 'src/policy/policy-media-asset-registry.service';
 
 /** A chainable Mongoose query stub whose terminal `.exec()` resolves to `value`. */
 function makeQuery<T>(value: T) {
@@ -34,6 +40,8 @@ function makeQuery<T>(value: T) {
     'select',
     'sort',
     'populate',
+    'session',
+    'read',
   ]) {
     query[method] = jest.fn().mockReturnValue(query);
   }
@@ -56,6 +64,7 @@ describe('AdminService', () => {
   let userMyCashbackModel: any;
   let bannerModel: any;
   let allBrandBannerModel: any;
+  let specificPageBannerModel: any;
   let topBrandConfigModel: any;
   let deeplinkModel: any;
   let storedMediaService: {
@@ -67,6 +76,23 @@ describe('AdminService', () => {
   let involveService: { getConversionAll: jest.Mock };
   let userService: { getBalanceMyCashback: jest.Mock };
   let jobService: { syncConversionByConversionId: jest.Mock };
+  let categoryIntegrity: {
+    withNormalWrite: jest.Mock;
+    assertPolicyCategoryAssignmentReady: jest.Mock;
+    withPolicyCategoryAssignment: jest.Mock;
+    createLegacyCategory: jest.Mock;
+    updateLegacyCategoryMetadata: jest.Mock;
+    reserveLegacyCategoryRenameInSession: jest.Mock;
+    withIntegrityMutation: jest.Mock;
+    policyCategoryAssignmentInSession: jest.Mock;
+  };
+  let policyMediaCleanup: {
+    journalLegacyReplacements: jest.Mock;
+    journalUncertainUploads: jest.Mock;
+    processRequest: jest.Mock;
+  };
+  let policyMediaWrite: { execute: jest.Mock };
+  let policyMediaRegistry: { touchAttachInSession: jest.Mock };
 
   beforeEach(async () => {
     userAdminModel = {
@@ -97,7 +123,21 @@ describe('AdminService', () => {
     categoryModel = {
       create: jest.fn(),
       findById: jest.fn(),
+      findOne: jest.fn().mockReturnValue(
+        makeQuery({
+          _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+          lifecycle_status: 'active',
+          revision: 1,
+        }),
+      ),
       findByIdAndUpdate: jest.fn(),
+      findOneAndUpdate: jest.fn().mockReturnValue(
+        makeQuery({
+          _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+          lifecycle_status: 'active',
+          revision: 2,
+        }),
+      ),
     };
     conversionModel = {
       find: jest.fn(),
@@ -111,6 +151,10 @@ describe('AdminService', () => {
       updateOne: jest.fn(),
     };
     allBrandBannerModel = {
+      findOne: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+    };
+    specificPageBannerModel = {
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
     };
@@ -133,6 +177,76 @@ describe('AdminService', () => {
     involveService = { getConversionAll: jest.fn() };
     userService = { getBalanceMyCashback: jest.fn() };
     jobService = { syncConversionByConversionId: jest.fn() };
+    categoryIntegrity = {
+      withNormalWrite: jest.fn(({ enforced }) => enforced()),
+      assertPolicyCategoryAssignmentReady: jest
+        .fn()
+        .mockResolvedValue(undefined),
+      withPolicyCategoryAssignment: jest.fn(
+        (policyCategoryId, rawCategory, writer) =>
+          writer(
+            {
+              ...(String(policyCategoryId ?? '').trim()
+                ? { policy_category_id: String(policyCategoryId).trim() }
+                : {}),
+              categories_normalized:
+                String(rawCategory ?? '')
+                  .trim()
+                  .toLowerCase() || null,
+            },
+            undefined,
+          ),
+      ),
+      createLegacyCategory: jest.fn(async (name) => ({
+        _id: 'cat-1',
+        name,
+        image: '',
+      })),
+      updateLegacyCategoryMetadata: jest.fn(async (id, update) => ({
+        _id: id,
+        ...update,
+      })),
+      reserveLegacyCategoryRenameInSession: jest.fn(
+        async (_id, name, _session) => ({
+          name,
+          name_normalized: String(name).trim().toLowerCase(),
+        }),
+      ),
+      withIntegrityMutation: jest.fn((writer) =>
+        writer({ id: 'integrity-session' }),
+      ),
+      policyCategoryAssignmentInSession: jest.fn(
+        async (policyCategoryId, rawCategory) =>
+          categoryIntegrity.withPolicyCategoryAssignment(
+            policyCategoryId,
+            rawCategory,
+            (assignment) => assignment,
+          ),
+      ),
+    };
+    policyMediaCleanup = {
+      journalLegacyReplacements: jest.fn().mockResolvedValue([]),
+      journalUncertainUploads: jest.fn().mockResolvedValue([]),
+      processRequest: jest.fn().mockResolvedValue({ deleted: 0, pending: 0 }),
+    };
+    policyMediaRegistry = {
+      touchAttachInSession: jest.fn().mockResolvedValue({ tracked: false }),
+    };
+    policyMediaWrite = {
+      execute: jest.fn(async (input) => {
+        const assets: Record<string, any> = {};
+        for (const upload of input.uploads) {
+          const url = await storedMediaService.upload(
+            upload.file,
+            upload.folder,
+          );
+          assets[upload.role] = { url };
+        }
+        return categoryIntegrity.withIntegrityMutation((session) =>
+          input.commit(assets, session),
+        );
+      }),
+    };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -154,6 +268,10 @@ describe('AdminService', () => {
           useValue: allBrandBannerModel,
         },
         {
+          provide: getModelToken(SPECIFIC_PAGE_BANNER_MODEL),
+          useValue: specificPageBannerModel,
+        },
+        {
           provide: getModelToken(TopBrandConfig.name),
           useValue: topBrandConfigModel,
         },
@@ -162,6 +280,13 @@ describe('AdminService', () => {
         { provide: InvolveService, useValue: involveService },
         { provide: UserService, useValue: userService },
         { provide: JobService, useValue: jobService },
+        { provide: CategoryIntegrityService, useValue: categoryIntegrity },
+        { provide: PolicyMediaCleanupService, useValue: policyMediaCleanup },
+        { provide: PolicyMediaWriteService, useValue: policyMediaWrite },
+        {
+          provide: PolicyMediaAssetRegistryService,
+          useValue: policyMediaRegistry,
+        },
       ],
     }).compile();
 
@@ -516,6 +641,44 @@ describe('AdminService', () => {
   describe('updateOffer', () => {
     const offerId = new Types.ObjectId().toHexString();
 
+    it('updateOffer > before activation > preserves the standalone legacy update before readiness or durable media gates', async () => {
+      categoryIntegrity.withNormalWrite.mockImplementation(({ legacy }) =>
+        legacy(),
+      );
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          logo_desktop: 'old-logo',
+          logo_mobile: 'old-logo',
+          categories: 'Shopping',
+        }),
+      );
+      storedMediaService.replace.mockResolvedValue('legacy-new-logo');
+      offerModel.findByIdAndUpdate.mockReturnValue(
+        makeQuery({ _id: offerId, logo_desktop: 'legacy-new-logo' }),
+      );
+
+      await service.updateOffer(offerId, {
+        logo_desktop: { originalname: 'logo.png' } as Express.Multer.File,
+        policy_category_id: '507f1f77bcf86cd799439011',
+        product_type: [],
+      });
+
+      expect(storedMediaService.replace).toHaveBeenCalledWith(
+        expect.objectContaining({ originalname: 'logo.png' }),
+        MEDIA_FOLDER.BRANDS,
+        'old-logo',
+      );
+      expect(
+        categoryIntegrity.assertPolicyCategoryAssignmentReady,
+      ).not.toHaveBeenCalled();
+      expect(categoryIntegrity.withIntegrityMutation).not.toHaveBeenCalled();
+      expect(policyMediaWrite.execute).not.toHaveBeenCalled();
+      expect(offerModel.findByIdAndUpdate.mock.calls[0][2]).toEqual({
+        new: true,
+      });
+    });
+
     it('updateOffer > given an unknown offer id > then it throws "Offer not found"', async () => {
       offerModel.findById.mockReturnValue(makeQuery(null));
 
@@ -526,7 +689,25 @@ describe('AdminService', () => {
       ).rejects.toThrow('Offer not found');
     });
 
-    it('updateOffer > given a new desktop logo > then it uploads the new file, deletes the old, and persists the new URL', async () => {
+    it('updateOffer > ready v2 without media or category changes > fences the offer patch in an integrity transaction', async () => {
+      const session = { id: 'integrity-session' };
+      categoryIntegrity.withIntegrityMutation.mockImplementation((writer) =>
+        writer(session),
+      );
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, { product_type: [] });
+
+      expect(categoryIntegrity.withIntegrityMutation).toHaveBeenCalledTimes(1);
+      expect(offerModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        new Types.ObjectId(offerId),
+        expect.any(Object),
+        { new: true, session },
+      );
+    });
+
+    it('updateOffer > given a new desktop logo > then it journals old references transactionally and persists the new URL', async () => {
       offerModel.findById.mockReturnValue(
         makeQuery({
           _id: offerId,
@@ -534,7 +715,7 @@ describe('AdminService', () => {
           logo_mobile: 'keep-mobile',
         }),
       );
-      storedMediaService.replace.mockResolvedValue(
+      storedMediaService.upload.mockResolvedValue(
         'https://storage.googleapis.com/gogocash-catalog-staging/brands/new-logo.png',
       );
       offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
@@ -544,9 +725,24 @@ describe('AdminService', () => {
         product_type: [],
       });
 
-      expect(storedMediaService.replace).toHaveBeenCalledWith(
+      expect(storedMediaService.upload).toHaveBeenCalledWith(
         expect.objectContaining({ originalname: 'logo.png' }),
         'brands',
+      );
+      expect(storedMediaService.replace).not.toHaveBeenCalled();
+      expect(policyMediaCleanup.journalLegacyReplacements).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner_type: 'offer',
+          owner_id: new Types.ObjectId(offerId),
+          reason: 'offer-replaced',
+          references: expect.arrayContaining(['old-logo', 'keep-mobile']),
+        }),
+        expect.objectContaining({ id: 'integrity-session' }),
+      );
+      expect(policyMediaCleanup.processRequest).toHaveBeenCalledWith(
+        expect.stringMatching(/^offer-media:/),
+      );
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
         'old-logo',
       );
       const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
@@ -561,7 +757,62 @@ describe('AdminService', () => {
       );
     });
 
-    it('updateOffer > given a new canonical banner > then it uploads once and aliases the stored reference to legacy banner fields', async () => {
+    it('updateOffer > committed replacement still has cleanup debt > returns the cleanup request key explicitly', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          logo_desktop: 'old-logo',
+          logo_mobile: 'old-logo',
+        }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(
+        makeQuery({ _id: offerId, offer_name: 'Saved offer' }),
+      );
+      policyMediaCleanup.processRequest.mockResolvedValueOnce({
+        deleted: 0,
+        pending: 1,
+      });
+
+      await expect(
+        service.updateOffer(offerId, {
+          logo_desktop: { originalname: 'logo.png' } as Express.Multer.File,
+          product_type: [],
+        }),
+      ).resolves.toEqual(
+        expect.objectContaining({
+          _id: offerId,
+          media_cleanup_pending: true,
+          media_cleanup_request_key: expect.stringMatching(/^offer-media:/),
+        }),
+      );
+    });
+
+    it('updateOffer > cleanup processing is unavailable after commit > returns a deterministic 503 with the retry key', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({ _id: offerId, logo_desktop: 'old-logo' }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(
+        makeQuery({ _id: offerId, offer_name: 'Saved offer' }),
+      );
+      policyMediaCleanup.processRequest.mockRejectedValueOnce(
+        new Error('cleanup worker unavailable'),
+      );
+
+      await expect(
+        service.updateOffer(offerId, {
+          logo_desktop: { originalname: 'logo.png' } as Express.Multer.File,
+          product_type: [],
+        }),
+      ).rejects.toMatchObject({
+        status: 503,
+        response: expect.objectContaining({
+          code: 'OFFER_MEDIA_CLEANUP_PENDING',
+          request_key: expect.stringMatching(/^offer-media:/),
+        }),
+      });
+    });
+
+    it('updateOffer > given a new canonical banner > then it journals all replaced references and aliases the new reference', async () => {
       offerModel.findById.mockReturnValue(
         makeQuery({
           _id: offerId,
@@ -570,7 +821,7 @@ describe('AdminService', () => {
           logo_circle: 'old-circle-cover',
         }),
       );
-      storedMediaService.replace.mockResolvedValue(
+      storedMediaService.upload.mockResolvedValue(
         'https://storage.googleapis.com/gogocash-catalog-staging/brands/new-banner.png',
       );
       offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
@@ -580,10 +831,23 @@ describe('AdminService', () => {
         product_type: [],
       });
 
-      expect(storedMediaService.replace).toHaveBeenCalledTimes(1);
-      expect(storedMediaService.replace).toHaveBeenCalledWith(
+      expect(storedMediaService.upload).toHaveBeenCalledTimes(1);
+      expect(storedMediaService.upload).toHaveBeenCalledWith(
         expect.objectContaining({ originalname: 'banner.png' }),
         'brands',
+      );
+      expect(storedMediaService.replace).not.toHaveBeenCalled();
+      expect(policyMediaCleanup.journalLegacyReplacements).toHaveBeenCalledWith(
+        expect.objectContaining({
+          references: expect.arrayContaining([
+            'old-banner',
+            'old-mobile-banner',
+            'old-circle-cover',
+          ]),
+        }),
+        expect.objectContaining({ id: 'integrity-session' }),
+      );
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
         'old-banner',
       );
       const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
@@ -604,7 +868,7 @@ describe('AdminService', () => {
           banner: 'old-banner',
         }),
       );
-      storedMediaService.replace
+      storedMediaService.upload
         .mockResolvedValueOnce('stored-logo')
         .mockResolvedValueOnce('stored-banner');
       offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
@@ -618,10 +882,203 @@ describe('AdminService', () => {
         product_type: [],
       });
 
-      expect(storedMediaService.replace).toHaveBeenCalledTimes(2);
+      expect(storedMediaService.upload).toHaveBeenCalledTimes(2);
       expect(
-        storedMediaService.replace.mock.calls.map(([file]) => file),
+        storedMediaService.upload.mock.calls.map(([file]) => file),
       ).toEqual([logo, banner]);
+    });
+
+    it('updateOffer > category conflict after upload > delegates recovery to the durable media command', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          categories: 'Shopping',
+          logo_desktop: 'old-logo',
+          logo_mobile: 'old-logo',
+        }),
+      );
+      storedMediaService.upload.mockResolvedValue('new-logo');
+      categoryIntegrity.withPolicyCategoryAssignment.mockRejectedValueOnce(
+        new ConflictException('Category changed; refresh and try again.'),
+      );
+
+      await expect(
+        service.updateOffer(offerId, {
+          logo_desktop: { originalname: 'logo.png' } as Express.Multer.File,
+          policy_category_id: new Types.ObjectId().toHexString(),
+          product_type: [],
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalled();
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        'old-logo',
+      );
+      expect(offerModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('updateOffer > commit is applied before the transaction wrapper throws > retains the referenced fresh upload', async () => {
+      const freshLogo = 'https://media.example/fresh-logo.png';
+      const oldOffer = {
+        _id: offerId,
+        logo: 'old-logo',
+        logo_desktop: 'old-logo',
+        logo_mobile: 'old-logo',
+      };
+      const committedOffer = {
+        ...oldOffer,
+        logo: freshLogo,
+        logo_desktop: freshLogo,
+        logo_mobile: freshLogo,
+      };
+      const authoritativeRead = makeQuery(committedOffer);
+      offerModel.findById
+        .mockReturnValueOnce(makeQuery(oldOffer))
+        .mockReturnValueOnce(makeQuery(oldOffer))
+        .mockReturnValueOnce(authoritativeRead);
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery(committedOffer));
+      storedMediaService.upload.mockResolvedValue(freshLogo);
+      categoryIntegrity.withIntegrityMutation.mockImplementationOnce(
+        async (writer) => {
+          await writer({ id: 'ambiguous-commit-session' });
+          throw Object.assign(new Error('commit result is unknown'), {
+            errorLabels: ['UnknownTransactionCommitResult'],
+          });
+        },
+      );
+
+      await expect(
+        service.updateOffer(offerId, {
+          logo_desktop: { originalname: 'logo.png' } as Express.Multer.File,
+          product_type: [],
+        }),
+      ).rejects.toThrow('commit result is unknown');
+
+      expect(offerModel.findById).toHaveBeenCalledTimes(2);
+      expect(authoritativeRead.read).not.toHaveBeenCalled();
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        freshLogo,
+      );
+      expect(policyMediaCleanup.journalUncertainUploads).not.toHaveBeenCalled();
+    });
+
+    it('updateOffer > commit outcome is unknown > leaves the pre-Put command as the recovery journal', async () => {
+      const freshLogo = 'https://media.example/fresh-logo-pending.png';
+      const oldOffer = {
+        _id: offerId,
+        logo: 'old-logo',
+        logo_desktop: 'old-logo',
+        logo_mobile: 'old-logo',
+      };
+      offerModel.findById
+        .mockReturnValueOnce(makeQuery(oldOffer))
+        .mockReturnValueOnce(makeQuery(oldOffer));
+      storedMediaService.upload.mockResolvedValue(freshLogo);
+      categoryIntegrity.withIntegrityMutation.mockRejectedValueOnce(
+        Object.assign(new Error('commit result is unknown'), {
+          errorLabels: ['UnknownTransactionCommitResult'],
+        }),
+      );
+
+      await expect(
+        service.updateOffer(offerId, {
+          logo_desktop: { originalname: 'logo.png' } as Express.Multer.File,
+          product_type: [],
+        }),
+      ).rejects.toThrow('commit result is unknown');
+
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        freshLogo,
+      );
+      expect(policyMediaCleanup.journalUncertainUploads).not.toHaveBeenCalled();
+      expect(policyMediaWrite.execute).toHaveBeenCalledTimes(1);
+    });
+
+    it('updateOffer > the authoritative post-error read is unavailable > retains the fresh upload for reconciliation', async () => {
+      const freshLogo = 'https://media.example/fresh-logo-uncertain.png';
+      const failedRead = makeQuery(null);
+      failedRead.lean.mockRejectedValueOnce(new Error('primary unavailable'));
+      offerModel.findById
+        .mockReturnValueOnce(
+          makeQuery({
+            _id: offerId,
+            categories: 'Shopping',
+            logo_desktop: 'old-logo',
+          }),
+        )
+        .mockReturnValueOnce(failedRead);
+      storedMediaService.upload.mockResolvedValue(freshLogo);
+      categoryIntegrity.withPolicyCategoryAssignment.mockRejectedValueOnce(
+        new ConflictException('Category changed; refresh and try again.'),
+      );
+
+      await expect(
+        service.updateOffer(offerId, {
+          logo_desktop: { originalname: 'logo.png' } as Express.Multer.File,
+          policy_category_id: new Types.ObjectId().toHexString(),
+          product_type: [],
+        }),
+      ).rejects.toThrow('primary unavailable');
+
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        freshLogo,
+      );
+      expect(policyMediaCleanup.journalUncertainUploads).not.toHaveBeenCalled();
+    });
+
+    it('updateOffer > derives the raw category through a same-transaction loader instead of the stale preflight document', async () => {
+      const categoryId = new Types.ObjectId().toHexString();
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          categories: 'Category A',
+          policy_category_id: categoryId,
+        }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        policy_category_id: categoryId,
+        product_type: [],
+      });
+
+      const rawCategoryInput =
+        categoryIntegrity.withPolicyCategoryAssignment.mock.calls[0][1];
+      expect(rawCategoryInput).toEqual(expect.any(Function));
+    });
+
+    it('updateOffer > blank policy_category_id unsets an existing direct assignment atomically', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          categories: '',
+          policy_category_id: new Types.ObjectId().toHexString(),
+        }),
+      );
+      categoryIntegrity.withPolicyCategoryAssignment.mockImplementationOnce(
+        (_policyCategoryId, _rawCategory, writer) =>
+          writer(
+            {
+              unset_policy_category_id: true,
+              categories_normalized: null,
+            },
+            undefined,
+          ),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        policy_category_id: '   ',
+        product_type: [],
+      });
+
+      expect(offerModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        new Types.ObjectId(offerId),
+        expect.objectContaining({
+          $unset: { policy_category_id: 1 },
+        }),
+        expect.any(Object),
+      );
     });
 
     it('updateOffer > given a stringified product_type > then it is JSON-parsed before persistence', async () => {
@@ -863,11 +1320,13 @@ describe('AdminService', () => {
   describe('createCategory', () => {
     it('createCategory > given a name > then it creates the category and returns the created document', async () => {
       const created = { _id: 'cat-1', name: 'Fashion', image: '' };
-      categoryModel.create.mockResolvedValue(created);
+      categoryIntegrity.createLegacyCategory.mockResolvedValue(created);
 
       const result = await service.createCategory('Fashion');
 
-      expect(categoryModel.create).toHaveBeenCalledWith({ name: 'Fashion' });
+      expect(categoryIntegrity.createLegacyCategory).toHaveBeenCalledWith(
+        'Fashion',
+      );
       expect(result).toBe(created);
     });
 
@@ -876,25 +1335,23 @@ describe('AdminService', () => {
         status: 400,
         message: 'name is required',
       });
-      expect(categoryModel.create).not.toHaveBeenCalled();
+      expect(categoryIntegrity.createLegacyCategory).not.toHaveBeenCalled();
     });
 
     it('createCategory > given a Mongo duplicate-key error (unique name index) > then it rejects with a clear 400', async () => {
-      categoryModel.create.mockRejectedValue(
-        Object.assign(new Error('E11000 duplicate key error'), {
-          code: 11000,
-        }),
+      categoryIntegrity.createLegacyCategory.mockRejectedValue(
+        new ConflictException('A category named "Fashion" already exists'),
       );
 
       await expect(service.createCategory('Fashion')).rejects.toMatchObject({
-        status: 400,
+        status: 409,
         message: expect.stringContaining('already exists'),
       });
     });
 
     it('createCategory > given a non-duplicate database error > then it rethrows untouched (no silent 400)', async () => {
       const dbError = new Error('connection reset');
-      categoryModel.create.mockRejectedValue(dbError);
+      categoryIntegrity.createLegacyCategory.mockRejectedValue(dbError);
 
       await expect(service.createCategory('Fashion')).rejects.toBe(dbError);
     });
@@ -903,29 +1360,71 @@ describe('AdminService', () => {
   describe('updateCategory', () => {
     const categoryId = new Types.ObjectId().toHexString();
 
+    it('updateCategory > before activation > preserves the standalone legacy media update', async () => {
+      categoryIntegrity.withNormalWrite.mockImplementation(({ legacy }) =>
+        legacy(),
+      );
+      categoryModel.findById.mockReturnValue(
+        makeQuery({ _id: categoryId, name: 'Travel', image: 'old-image' }),
+      );
+      storedMediaService.replace.mockResolvedValue('legacy-new-image');
+      categoryModel.findByIdAndUpdate.mockReturnValue(
+        makeQuery({ _id: categoryId, image: 'legacy-new-image' }),
+      );
+
+      await service.updateCategory(categoryId, {
+        image: { originalname: 'image.png' } as Express.Multer.File,
+      });
+
+      expect(storedMediaService.replace).toHaveBeenCalledWith(
+        expect.objectContaining({ originalname: 'image.png' }),
+        MEDIA_FOLDER.CATEGORIES,
+        'old-image',
+      );
+      expect(policyMediaWrite.execute).not.toHaveBeenCalled();
+      expect(categoryIntegrity.withIntegrityMutation).not.toHaveBeenCalled();
+      expect(categoryModel.findByIdAndUpdate.mock.calls[0][2]).toEqual({
+        new: true,
+      });
+    });
+
+    it('updateCategory > before activation duplicate rename > preserves the established clear 400 response', async () => {
+      categoryIntegrity.withNormalWrite.mockImplementation(({ legacy }) =>
+        legacy(),
+      );
+      categoryModel.findById.mockReturnValue(
+        makeQuery({ _id: categoryId, name: 'Travel' }),
+      );
+      const duplicate = makeQuery(null);
+      duplicate.exec.mockRejectedValue(
+        Object.assign(new Error('E11000 duplicate key'), { code: 11000 }),
+      );
+      categoryModel.findByIdAndUpdate.mockReturnValue(duplicate);
+
+      await expect(
+        service.updateCategory(categoryId, { name: 'Taken' }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: 'A category named "Taken" already exists.',
+      });
+    });
+
     it('updateCategory > given a name > then it persists the rename', async () => {
       categoryModel.findById.mockReturnValue(
         makeQuery({ _id: categoryId, name: 'Old name', image: 'old.png' }),
       );
-      categoryModel.findByIdAndUpdate.mockReturnValue(
-        makeQuery({ _id: categoryId, name: 'New name' }),
-      );
-
       await service.updateCategory(categoryId, { name: 'New name' });
 
-      const persisted = categoryModel.findByIdAndUpdate.mock.calls[0][1];
-      expect(persisted.name).toBe('New name');
-      expect(persisted.image).toBe('old.png');
+      expect(
+        categoryIntegrity.updateLegacyCategoryMetadata,
+      ).toHaveBeenCalledWith(categoryId, { name: 'New name' });
     });
 
     it('updateCategory > given an image-only payload > then the update carries no name key (existing name untouched)', async () => {
       categoryModel.findById.mockReturnValue(
         makeQuery({ _id: categoryId, name: 'Keep me', image: 'old.png' }),
       );
-      categoryModel.findByIdAndUpdate.mockReturnValue(
-        makeQuery({ _id: categoryId }),
-      );
-      storedMediaService.replace.mockResolvedValue(
+      storedMediaService.upload.mockResolvedValue(
         'https://storage.googleapis.com/gogocash-catalog-staging/categories/new.png',
       );
 
@@ -933,11 +1432,318 @@ describe('AdminService', () => {
         image: { originalname: 'new.png' } as Express.Multer.File,
       });
 
-      const persisted = categoryModel.findByIdAndUpdate.mock.calls[0][1];
-      expect(persisted).not.toHaveProperty('name');
-      expect(persisted.image).toBe(
-        'https://storage.googleapis.com/gogocash-catalog-staging/categories/new.png',
+      expect(categoryModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: new Types.ObjectId(categoryId) }),
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            image:
+              'https://storage.googleapis.com/gogocash-catalog-staging/categories/new.png',
+          }),
+        }),
+        expect.objectContaining({ session: { id: 'integrity-session' } }),
       );
+      expect(
+        categoryModel.findOneAndUpdate.mock.calls[0][1].$set,
+      ).not.toHaveProperty('name');
+    });
+
+    it('updateCategory > given a banner upload > then it durably persists and journals the replaced banner', async () => {
+      categoryModel.findById.mockReturnValue(
+        makeQuery({
+          _id: categoryId,
+          name: 'Keep me',
+          image: 'icon.png',
+          banner: 'old-wide.png',
+        }),
+      );
+      storedMediaService.upload.mockResolvedValue(
+        'https://storage.googleapis.com/gogocash-catalog-staging/categories/new-wide.png',
+      );
+      const banner = {
+        originalname: 'new-wide.png',
+      } as Express.Multer.File;
+
+      await service.updateCategory(categoryId, { banner });
+
+      expect(storedMediaService.upload).toHaveBeenCalledWith(
+        banner,
+        MEDIA_FOLDER.CATEGORIES,
+      );
+      expect(categoryModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: new Types.ObjectId(categoryId) }),
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            banner:
+              'https://storage.googleapis.com/gogocash-catalog-staging/categories/new-wide.png',
+          }),
+        }),
+        expect.objectContaining({ session: { id: 'integrity-session' } }),
+      );
+    });
+
+    it('updateCategory > rename plus media > commits the rename inside the durable media transaction', async () => {
+      const session = { id: 'integrity-session' };
+      categoryModel.findById.mockReturnValue(
+        makeQuery({
+          _id: categoryId,
+          name: 'Old name',
+          image: 'old.png',
+          revision: 3,
+        }),
+      );
+      storedMediaService.upload.mockResolvedValue('new.png');
+      categoryIntegrity.reserveLegacyCategoryRenameInSession.mockResolvedValue({
+        name: 'New name',
+        name_normalized: 'new name',
+      });
+
+      await service.updateCategory(categoryId, {
+        name: 'New name',
+        image: { originalname: 'new.png' } as Express.Multer.File,
+      });
+
+      expect(
+        categoryIntegrity.updateLegacyCategoryMetadata,
+      ).not.toHaveBeenCalled();
+      expect(
+        categoryIntegrity.reserveLegacyCategoryRenameInSession,
+      ).toHaveBeenCalledWith(categoryId, 'New name', session);
+      expect(categoryModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+      expect(categoryModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: new Types.ObjectId(categoryId) }),
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            name: 'New name',
+            name_normalized: 'new name',
+            image: 'new.png',
+          }),
+          $inc: { revision: 1 },
+        }),
+        expect.objectContaining({ session }),
+      );
+    });
+
+    it('updateCategory > rename plus failed upload > leaves the rename unapplied', async () => {
+      categoryModel.findById.mockReturnValue(
+        makeQuery({ _id: categoryId, name: 'Old name', image: 'old.png' }),
+      );
+      storedMediaService.upload.mockRejectedValue(new Error('upload failed'));
+
+      await expect(
+        service.updateCategory(categoryId, {
+          name: 'New name',
+          image: { originalname: 'new.png' } as Express.Multer.File,
+        }),
+      ).rejects.toThrow('upload failed');
+
+      expect(
+        categoryIntegrity.updateLegacyCategoryMetadata,
+      ).not.toHaveBeenCalled();
+      expect(
+        categoryIntegrity.reserveLegacyCategoryRenameInSession,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('updateCategory > committed replacement still has cleanup debt > returns the cleanup request key explicitly', async () => {
+      categoryModel.findById.mockReturnValue(
+        makeQuery({
+          _id: categoryId,
+          name: 'Keep me',
+          image: 'old.png',
+        }),
+      );
+      categoryModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({
+          _id: categoryId,
+          name: 'Keep me',
+          image: 'new.png',
+          revision: 2,
+        }),
+      );
+      policyMediaCleanup.processRequest.mockResolvedValueOnce({
+        deleted: 0,
+        pending: 1,
+      });
+
+      await expect(
+        service.updateCategory(categoryId, {
+          image: { originalname: 'new.png' } as Express.Multer.File,
+        }),
+      ).resolves.toEqual(
+        expect.objectContaining({
+          _id: categoryId,
+          media_cleanup_pending: true,
+          media_cleanup_request_key: expect.stringMatching(/^category-media:/),
+        }),
+      );
+    });
+
+    it('updateCategory > cleanup processing is unavailable after commit > returns a deterministic 503 with the retry key', async () => {
+      categoryModel.findById.mockReturnValue(
+        makeQuery({ _id: categoryId, name: 'Keep me', image: 'old.png' }),
+      );
+      policyMediaCleanup.processRequest.mockRejectedValueOnce(
+        new Error('cleanup worker unavailable'),
+      );
+
+      await expect(
+        service.updateCategory(categoryId, {
+          image: { originalname: 'new.png' } as Express.Multer.File,
+        }),
+      ).rejects.toMatchObject({
+        status: 503,
+        response: expect.objectContaining({
+          code: 'CATEGORY_MEDIA_CLEANUP_PENDING',
+          request_key: expect.stringMatching(/^category-media:/),
+        }),
+      });
+    });
+
+    it('updateCategory > second upload fails > delegates recovery to the durable media command', async () => {
+      categoryModel.findById.mockReturnValue(
+        makeQuery({ _id: categoryId, name: 'Keep me' }),
+      );
+      storedMediaService.upload
+        .mockResolvedValueOnce('new-icon')
+        .mockRejectedValueOnce(new Error('banner upload failed'));
+
+      await expect(
+        service.updateCategory(categoryId, {
+          image: {} as Express.Multer.File,
+          banner: {} as Express.Multer.File,
+        }),
+      ).rejects.toThrow('banner upload failed');
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalled();
+      expect(policyMediaWrite.execute).toHaveBeenCalledTimes(1);
+      expect(
+        categoryIntegrity.updateLegacyCategoryMetadata,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('updateCategory > integrity fence rejects > leaves recovery to the durable media command', async () => {
+      categoryModel.findById.mockReturnValue(
+        makeQuery({ _id: categoryId, name: 'Keep me' }),
+      );
+      storedMediaService.upload
+        .mockResolvedValueOnce('new-icon')
+        .mockResolvedValueOnce('new-banner');
+      categoryIntegrity.withIntegrityMutation.mockRejectedValueOnce(
+        new ConflictException('Category changed; refresh and try again.'),
+      );
+
+      await expect(
+        service.updateCategory(categoryId, {
+          image: {} as Express.Multer.File,
+          banner: {} as Express.Multer.File,
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalled();
+    });
+
+    it('updateCategory > commit is applied before the transaction wrapper throws > retains the referenced fresh uploads', async () => {
+      const freshIcon = 'https://media.example/fresh-category-icon.png';
+      const freshBanner = 'https://media.example/fresh-category-banner.png';
+      const oldCategory = {
+        _id: categoryId,
+        name: 'Keep me',
+        image: 'old-icon',
+        banner: 'old-banner',
+      };
+      const authoritativeRead = makeQuery({
+        ...oldCategory,
+        image: freshIcon,
+        banner: freshBanner,
+      });
+      categoryModel.findById
+        .mockReturnValueOnce(makeQuery(oldCategory))
+        .mockReturnValueOnce(authoritativeRead);
+      storedMediaService.upload
+        .mockResolvedValueOnce(freshIcon)
+        .mockResolvedValueOnce(freshBanner);
+      categoryIntegrity.withIntegrityMutation.mockImplementationOnce(
+        async (writer) => {
+          await writer({ id: 'ambiguous-commit-session' });
+          throw Object.assign(new Error('commit result is unknown'), {
+            errorLabels: ['UnknownTransactionCommitResult'],
+          });
+        },
+      );
+
+      await expect(
+        service.updateCategory(categoryId, {
+          image: {} as Express.Multer.File,
+          banner: {} as Express.Multer.File,
+        }),
+      ).rejects.toThrow('commit result is unknown');
+
+      expect(categoryModel.findById).toHaveBeenCalledTimes(1);
+      expect(authoritativeRead.read).not.toHaveBeenCalled();
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        freshIcon,
+      );
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        freshBanner,
+      );
+      expect(policyMediaCleanup.journalUncertainUploads).not.toHaveBeenCalled();
+    });
+
+    it('updateCategory > commit outcome is unknown > leaves the pre-Put command as the recovery journal', async () => {
+      const freshIcon = 'https://media.example/fresh-category-pending.png';
+      const oldCategory = {
+        _id: categoryId,
+        name: 'Keep me',
+        image: 'old-icon',
+      };
+      categoryModel.findById
+        .mockReturnValueOnce(makeQuery(oldCategory))
+        .mockReturnValueOnce(makeQuery(oldCategory));
+      storedMediaService.upload.mockResolvedValueOnce(freshIcon);
+      categoryIntegrity.withIntegrityMutation.mockRejectedValueOnce(
+        Object.assign(new Error('commit result is unknown'), {
+          errorLabels: ['UnknownTransactionCommitResult'],
+        }),
+      );
+
+      await expect(
+        service.updateCategory(categoryId, {
+          image: {} as Express.Multer.File,
+        }),
+      ).rejects.toThrow('commit result is unknown');
+
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        freshIcon,
+      );
+      expect(policyMediaCleanup.journalUncertainUploads).not.toHaveBeenCalled();
+    });
+
+    it('updateCategory > the authoritative post-error read is unavailable > retains fresh media for reconciliation', async () => {
+      const freshIcon = 'https://media.example/fresh-category-uncertain.png';
+      const failedRead = makeQuery(null);
+      failedRead.lean.mockRejectedValueOnce(new Error('primary unavailable'));
+      categoryModel.findById
+        .mockReturnValueOnce(
+          makeQuery({
+            _id: categoryId,
+            name: 'Keep me',
+            image: 'old-icon',
+          }),
+        )
+        .mockReturnValueOnce(failedRead);
+      storedMediaService.upload.mockResolvedValueOnce(freshIcon);
+      categoryIntegrity.withIntegrityMutation.mockRejectedValueOnce(
+        new ConflictException('Category changed; refresh and try again.'),
+      );
+
+      await expect(
+        service.updateCategory(categoryId, {
+          image: {} as Express.Multer.File,
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        freshIcon,
+      );
+      expect(policyMediaCleanup.journalUncertainUploads).not.toHaveBeenCalled();
     });
 
     it('updateCategory > given a banner upload > then it replaces and persists the category banner', async () => {
@@ -949,10 +1755,17 @@ describe('AdminService', () => {
           banner: 'old-wide.png',
         }),
       );
-      categoryModel.findByIdAndUpdate.mockReturnValue(
-        makeQuery({ _id: categoryId }),
+      categoryModel.findOne.mockReturnValue(
+        makeQuery({
+          _id: categoryId,
+          name: 'Keep me',
+          image: 'icon.png',
+          banner: 'old-wide.png',
+          lifecycle_status: 'active',
+          revision: 1,
+        }),
       );
-      storedMediaService.replace.mockResolvedValue(
+      storedMediaService.upload.mockResolvedValue(
         'https://storage.googleapis.com/gogocash-catalog-staging/categories/new-wide.png',
       );
       const banner = {
@@ -961,34 +1774,50 @@ describe('AdminService', () => {
 
       await service.updateCategory(categoryId, { banner });
 
-      expect(storedMediaService.replace).toHaveBeenCalledWith(
+      expect(storedMediaService.upload).toHaveBeenCalledWith(
         banner,
         MEDIA_FOLDER.CATEGORIES,
-        'old-wide.png',
       );
-      const persisted = categoryModel.findByIdAndUpdate.mock.calls[0][1];
-      expect(persisted.banner).toBe(
-        'https://storage.googleapis.com/gogocash-catalog-staging/categories/new-wide.png',
+      expect(storedMediaService.replace).not.toHaveBeenCalled();
+      expect(policyMediaWrite.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ownerType: 'category',
+          operation: 'category-update',
+          uploads: [expect.objectContaining({ role: 'banner', file: banner })],
+        }),
       );
-      expect(persisted.image).toBe('icon.png');
+      expect(categoryModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: new Types.ObjectId(categoryId) }),
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            banner:
+              'https://storage.googleapis.com/gogocash-catalog-staging/categories/new-wide.png',
+          }),
+          $inc: { revision: 1 },
+        }),
+        expect.objectContaining({ session: { id: 'integrity-session' } }),
+      );
+      expect(policyMediaCleanup.journalLegacyReplacements).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner_type: 'category',
+          reason: 'legacy-category-replaced',
+          references: ['old-wide.png'],
+        }),
+        { id: 'integrity-session' },
+      );
     });
 
     it('updateCategory > given a rename that hits the unique name index > then it rejects with a clear 400', async () => {
       categoryModel.findById.mockReturnValue(
         makeQuery({ _id: categoryId, name: 'Old name', image: '' }),
       );
-      const query = makeQuery(null);
-      query.exec = jest.fn().mockRejectedValue(
-        Object.assign(new Error('E11000 duplicate key error'), {
-          code: 11000,
-        }),
+      categoryIntegrity.updateLegacyCategoryMetadata.mockRejectedValue(
+        new ConflictException('A category named "Taken" already exists'),
       );
-      categoryModel.findByIdAndUpdate.mockReturnValue(query);
-
       await expect(
         service.updateCategory(categoryId, { name: 'Taken' }),
       ).rejects.toMatchObject({
-        status: 400,
+        status: 409,
         message: expect.stringContaining('already exists'),
       });
     });
@@ -1242,45 +2071,211 @@ describe('AdminService', () => {
     });
   });
 
-  describe('all brand page banner', () => {
-    it('updateAllBrandBanner > given a slot update > then persists in the separate collection and media folder', async () => {
-      allBrandBannerModel.findOne.mockReturnValue(makeQuery(null));
-      allBrandBannerModel.findOneAndUpdate.mockReturnValue(
-        makeQuery({ _id: 'all-brand-banner-doc' }),
+  describe('specific page banners', () => {
+    it('updateSpecificPageBanner > given a valid target > then reads and upserts only that target with slots 1-3', async () => {
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(null));
+      specificPageBannerModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: 'all-shops-banner-doc' }),
+      );
+      storedMediaService.upload.mockResolvedValueOnce(
+        'https://media.gogocash.co/banner-specific-page/shops.png',
       );
 
-      await service.updateAllBrandBanner({
+      await service.updateSpecificPageBanner('all-shops', {
+        image_1: {
+          originalname: 'shops.png',
+          mimetype: 'image/png',
+          buffer: Buffer.from('png'),
+        },
+        image_4: {
+          originalname: 'hidden.png',
+          mimetype: 'image/png',
+          buffer: Buffer.from('png'),
+        },
+        link_1: '/shops/promo',
+        link_4: '/must-not-persist',
+      } as never);
+
+      expect(storedMediaService.upload).toHaveBeenCalledWith(
+        expect.objectContaining({ originalname: 'shops.png' }),
+        'banner-specific-page',
+      );
+      expect(storedMediaService.replace).not.toHaveBeenCalled();
+      expect(specificPageBannerModel.findOne).toHaveBeenCalledWith({
+        target: 'all-shops',
+      });
+      expect(specificPageBannerModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { target: 'all-shops' },
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            target: 'all-shops',
+            link_1: '/shops/promo',
+          }),
+        }),
+        { upsert: true, new: true },
+      );
+      const [, update] = specificPageBannerModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set.image_4).toBeUndefined();
+      expect(update.$set.link_4).toBeUndefined();
+      expect(bannerModel.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(allBrandBannerModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('updateSpecificPageBanner > after a successful Mongo write > deletes the replaced old image', async () => {
+      specificPageBannerModel.findOne.mockReturnValue(
+        makeQuery({ target: 'all-shops', image_1: 'old-shops.png' }),
+      );
+      specificPageBannerModel.findOneAndUpdate.mockReturnValue(makeQuery({}));
+      storedMediaService.upload.mockResolvedValueOnce('new-shops.png');
+
+      await service.updateSpecificPageBanner('all-shops', {
+        image_1: {
+          originalname: 'shops.png',
+          mimetype: 'image/png',
+          buffer: Buffer.from('png'),
+        } as Express.Multer.File,
+      });
+
+      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(
+        'old-shops.png',
+      );
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        'new-shops.png',
+      );
+    });
+
+    it('updateSpecificPageBanner > when first creating keyed all-brands storage > preserves fallback media for rollback', async () => {
+      const legacyUrl =
+        'https://media.gogocash.co/banner-specific-page/legacy-all-brands.png';
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(null));
+      allBrandBannerModel.findOne.mockReturnValue(
+        makeQuery({ image_1: legacyUrl }),
+      );
+      specificPageBannerModel.findOneAndUpdate.mockReturnValue(makeQuery({}));
+      storedMediaService.upload.mockResolvedValueOnce('new-all-brands.png');
+
+      await service.updateSpecificPageBanner('all-brands', {
         image_1: {
           originalname: 'brands.png',
           mimetype: 'image/png',
           buffer: Buffer.from('png'),
-        },
-        link_1: '/brand/promo',
-      } as never);
+        } as Express.Multer.File,
+      });
 
-      expect(storedMediaService.replace).toHaveBeenCalledWith(
-        expect.objectContaining({ originalname: 'brands.png' }),
-        'banner-all-brand',
-        undefined,
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        legacyUrl,
       );
-      expect(allBrandBannerModel.findOneAndUpdate).toHaveBeenCalledWith(
-        {},
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        'new-all-brands.png',
+      );
+      expect(specificPageBannerModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { target: 'all-brands' },
         expect.objectContaining({
-          $set: expect.objectContaining({ link_1: '/brand/promo' }),
+          $set: expect.objectContaining({ image_1: 'new-all-brands.png' }),
         }),
         { upsert: true, new: true },
       );
-      expect(bannerModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
-    it('getAllBrandBanner > then reads only the all-brand collection', async () => {
-      const banner = { image_1: 'all-brand.png' };
-      allBrandBannerModel.findOne.mockReturnValue(makeQuery(banner));
+    it('updateSpecificPageBanner > when Mongo persistence fails > rolls back the new upload and preserves the old image', async () => {
+      specificPageBannerModel.findOne.mockReturnValue(
+        makeQuery({ target: 'all-shops', image_1: 'old-shops.png' }),
+      );
+      const failedWrite = makeQuery(null);
+      failedWrite.exec.mockRejectedValue(new Error('mongo unavailable'));
+      specificPageBannerModel.findOneAndUpdate.mockReturnValue(failedWrite);
+      storedMediaService.upload.mockResolvedValueOnce('new-shops.png');
 
-      await expect(service.getAllBrandBanner()).resolves.toEqual(banner);
+      await expect(
+        service.updateSpecificPageBanner('all-shops', {
+          image_1: {
+            originalname: 'shops.png',
+            mimetype: 'image/png',
+            buffer: Buffer.from('png'),
+          } as Express.Multer.File,
+        }),
+      ).rejects.toThrow('mongo unavailable');
+
+      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(
+        'new-shops.png',
+      );
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        'old-shops.png',
+      );
+    });
+
+    it('updateSpecificPageBanner > given an unknown target > then rejects before querying Mongo', async () => {
+      await expect(
+        service.updateSpecificPageBanner('homepage', {} as never),
+      ).rejects.toThrow('Unknown specific page banner target');
+
+      expect(specificPageBannerModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('getSpecificPageBanner > given all-brands exists in keyed storage > then new storage wins', async () => {
+      const banner = { target: 'all-brands', image_1: 'new.png' };
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(banner));
+
+      await expect(
+        service.getSpecificPageBanner('all-brands'),
+      ).resolves.toEqual(banner);
+
+      expect(specificPageBannerModel.findOne).toHaveBeenCalledWith({
+        target: 'all-brands',
+      });
+      expect(allBrandBannerModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('getSpecificPageBanner > given keyed all-brands is absent > then falls back to the legacy collection', async () => {
+      const legacy = { image_1: 'legacy.png', link_1: '/legacy' };
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(null));
+      allBrandBannerModel.findOne.mockReturnValue(makeQuery(legacy));
+
+      await expect(
+        service.getSpecificPageBanner('all-brands'),
+      ).resolves.toEqual(legacy);
 
       expect(allBrandBannerModel.findOne).toHaveBeenCalledTimes(1);
-      expect(bannerModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('updateAllBrandBanner > legacy alias writes the new keyed collection only', async () => {
+      specificPageBannerModel.findOne.mockReturnValue(makeQuery(null));
+      allBrandBannerModel.findOne.mockReturnValue(
+        makeQuery({ image_2: 'legacy.png', link_2: '/legacy' }),
+      );
+      specificPageBannerModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ target: 'all-brands' }),
+      );
+
+      await service.updateAllBrandBanner({ link_1: '/brand/promo' } as never);
+
+      expect(specificPageBannerModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { target: 'all-brands' },
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            image_2: 'legacy.png',
+            link_2: '/legacy',
+          }),
+        }),
+        { upsert: true, new: true },
+      );
+      expect(allBrandBannerModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('updateBannerHome > given clear_image is the string false > then it does not delete the image', async () => {
+      bannerModel.findOne.mockReturnValue(
+        makeQuery({ image_1: 'existing.png', link_1: '/promo' }),
+      );
+      bannerModel.findOneAndUpdate.mockReturnValue(makeQuery({}));
+
+      await service.updateBannerHome({
+        clear_image_1: 'false',
+        image_1: null,
+      } as never);
+
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalled();
+      const [, update] = bannerModel.findOneAndUpdate.mock.calls[0];
+      expect(update.$set.image_1).toBe('existing.png');
     });
   });
 

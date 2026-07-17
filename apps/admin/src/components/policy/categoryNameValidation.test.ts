@@ -22,6 +22,13 @@ describe("policy category name validation (#318)", () => {
     });
   });
 
+  it("rejects a Unicode NFKC-equivalent duplicate name", () => {
+    expect(validateCategoryName("Ｆａｓｈｉｏｎ", categories)).toEqual({
+      normalizedName: "Fashion",
+      error: 'A category named "Fashion" already exists.',
+    });
+  });
+
   it("allows a rename to keep its own normalized name", () => {
     expect(validateCategoryName(" Fashion ", categories, "fashion-id")).toEqual(
       {

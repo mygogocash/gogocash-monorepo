@@ -13,6 +13,8 @@ import {
   mockBanner,
   mockBannerHomeSmall,
   mockBannerAllBrandPage,
+  mockBannerAllShopsPage,
+  mockBannerProductDiscoveryPage,
   mockCategories,
   mockCoupons,
   mockMyCashback,
@@ -77,6 +79,25 @@ export type MockApiInput = {
 };
 
 export type MockApiResult = { status: number; body: unknown };
+
+const mockSpecificPageBanners: Record<string, Record<string, unknown>> = {
+  "all-brands": mockBannerAllBrandPage,
+  "all-shops": mockBannerAllShopsPage,
+  "product-discovery": mockBannerProductDiscoveryPage,
+};
+
+function resolveMockSpecificPageBanner(
+  path: string[],
+  joined: string,
+): Record<string, unknown> | null {
+  if (joined === "admin/banner-all-brand-page") {
+    return mockSpecificPageBanners["all-brands"] ?? null;
+  }
+  if (path[0] !== "admin" || path[1] !== "banner-specific-page") {
+    return null;
+  }
+  return mockSpecificPageBanners[path[2] ?? ""] ?? null;
+}
 
 const ok = (body: unknown): MockApiResult => ({ status: 200, body });
 const jsonErr = (status: number, body: unknown): MockApiResult => ({
@@ -328,7 +349,17 @@ const mockQuestStore: MockQuest[] = [
 const policyStore = new Map<string, { banner?: unknown; terms?: unknown }>();
 // Categories created via Policy Management "Create New" (in-memory; resets on
 // server restart, like the rest of the mock). Merged into get-category/list.
-const createdCategories: (typeof mockCategories)[number][] = [];
+type MockPolicyCategory = (typeof mockCategories)[number] & {
+  icon_key?: string;
+  name_normalized?: string;
+  lifecycle_status?: "active" | "retired" | "purging";
+  revision?: number;
+};
+const createdCategories: MockPolicyCategory[] = [];
+const policyAggregateCommands = new Map<
+  string,
+  { signature: string; response: Record<string, unknown> }
+>();
 
 /** Mock OTP for admin verification when adding emails / phones on withdraw user (internal demo). */
 const MOCK_USER_CONTACT_OTP = "123456";
@@ -390,7 +421,7 @@ function buildWithdrawDetailUser(userId: string) {
   const edits = withdrawDetailUserEdits[userId];
   const u = mockUsers.find((x) => x._id === userId);
   if (!u) {
-    return { ...base, _id: userId, ...(edits ?? {}) };
+    return { ...base, _id: userId, ...edits };
   }
   const genderLabel =
     u.gender === "female" ? "Female" : u.gender === "male" ? "Male" : "";
@@ -410,7 +441,7 @@ function buildWithdrawDetailUser(userId: string) {
     subscriptionPlan: u.subscriptionPlan,
     creditScore: u.creditScore,
   };
-  return { ...next, ...(edits ?? {}) };
+  return { ...next, ...edits };
 }
 
 function emptyWithdrawDetailForDeletedUser(userId: string) {
@@ -825,7 +856,12 @@ function handleMockGET(
   }
 
   if (joined === "offer/get-category/list") {
-    let filtered = [...mockCategories, ...createdCategories];
+    let filtered = [...mockCategories, ...createdCategories].filter(
+      (category) =>
+        !("lifecycle_status" in category) ||
+        category.lifecycle_status == null ||
+        category.lifecycle_status === "active",
+    );
     if (search) {
       const s = search.toLowerCase();
       filtered = filtered.filter((c) => c.name.toLowerCase().includes(s));
@@ -994,8 +1030,9 @@ function handleMockGET(
     return ok(mockBannerHomeSmall);
   }
 
-  if (joined === "admin/banner-all-brand-page") {
-    return ok(mockBannerAllBrandPage);
+  const specificPageBanner = resolveMockSpecificPageBanner(path, joined);
+  if (specificPageBanner) {
+    return ok(specificPageBanner);
   }
 
   if (path[0] === "admin" && path[1] === "get-mycashback-user") {
@@ -1102,6 +1139,7 @@ async function handleMockPOST(
   joined: string,
   body: unknown,
 ): Promise<MockApiResult> {
+  const specificPageBanner = resolveMockSpecificPageBanner(path, joined);
   // Mirrors POST /admin/create-category (PolicyTable's "New category" flow).
   if (joined === "admin/create-category") {
     const b = body as { data?: { name?: string }; name?: string } | null;
@@ -1447,14 +1485,14 @@ async function handleMockPOST(
   if (
     joined === "admin/banner-home" ||
     joined === "admin/banner-home-small" ||
-    joined === "admin/banner-all-brand-page"
+    specificPageBanner != null
   ) {
     const target =
       joined === "admin/banner-home"
         ? mockBanner
         : joined === "admin/banner-home-small"
           ? mockBannerHomeSmall
-          : mockBannerAllBrandPage;
+          : specificPageBanner!;
     const raw = (body && typeof body === "object" ? body : {}) as Record<
       string,
       unknown
@@ -1911,6 +1949,169 @@ async function handleMockPUT(
     categoryId?: string;
     content?: string;
   };
+
+  if (joined === "policy/aggregate") {
+    const requestKey = mockBodyField(body, "request_key");
+    const categoryIdInput = mockBodyField(body, "category_id");
+    const categoryName = mockBodyField(body, "category_name")
+      .normalize("NFKC")
+      .trim()
+      .replace(/\s+/g, " ");
+    const iconKey = mockBodyField(body, "icon_key");
+    const rawPolicy = mockBodyField(body, "policy");
+    const formValue = (key: string): unknown =>
+      body &&
+      typeof body === "object" &&
+      "get" in body &&
+      typeof (body as { get: (name: string) => unknown }).get === "function"
+        ? (body as { get: (name: string) => unknown }).get(key)
+        : (b as Record<string, unknown>)[key];
+    const defaultBanner = formValue("default_banner");
+    if (!requestKey || !categoryName || !rawPolicy) {
+      return jsonErr(400, {
+        message: "request_key, category_name, and policy are required",
+      });
+    }
+    if (
+      ![
+        "shopping",
+        "travel",
+        "food",
+        "finance",
+        "entertainment",
+        "default",
+      ].includes(iconKey)
+    ) {
+      return jsonErr(400, { message: "icon_key is invalid" });
+    }
+    let policy: Record<string, unknown>;
+    try {
+      const decoded = JSON.parse(rawPolicy) as unknown;
+      if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) {
+        throw new Error("invalid policy");
+      }
+      policy = decoded as Record<string, unknown>;
+    } catch {
+      return jsonErr(400, { message: "policy must contain valid JSON" });
+    }
+    const fileIdentity =
+      typeof File !== "undefined" && defaultBanner instanceof File
+        ? {
+            name: defaultBanner.name,
+            size: defaultBanner.size,
+            type: defaultBanner.type,
+            lastModified: defaultBanner.lastModified,
+          }
+        : null;
+    const signature = JSON.stringify({
+      category_id: categoryIdInput || null,
+      category_name: categoryName,
+      icon_key: iconKey,
+      policy,
+      default_banner: fileIdentity,
+    });
+    const replay = policyAggregateCommands.get(requestKey);
+    if (replay) {
+      return replay.signature === signature
+        ? ok(replay.response)
+        : jsonErr(409, {
+            message:
+              "request_key was already used for a different policy payload",
+          });
+    }
+
+    const normalizedName = categoryName.toLocaleLowerCase("en-US");
+    const allCategories = [
+      ...(mockCategories as MockPolicyCategory[]),
+      ...createdCategories,
+    ];
+    let category = categoryIdInput
+      ? allCategories.find((item) => item._id === categoryIdInput)
+      : undefined;
+    if (categoryIdInput && !category) {
+      return jsonErr(404, { message: "Category not found or inactive" });
+    }
+    if (
+      allCategories.some(
+        (item) =>
+          item._id !== categoryIdInput &&
+          item.name
+            .normalize("NFKC")
+            .trim()
+            .replace(/\s+/g, " ")
+            .toLocaleLowerCase("en-US") === normalizedName,
+      )
+    ) {
+      return jsonErr(409, {
+        message: `A category named "${categoryName}" already exists.`,
+      });
+    }
+    const categoryId = categoryIdInput || `cat_${Date.now()}`;
+    const existingPolicy = policyStore.get(categoryId);
+    if (!existingPolicy && (!policy.terms || policy.clear_terms)) {
+      return jsonErr(400, {
+        message: "Terms & conditions are required for a new policy.",
+      });
+    }
+    if (!categoryIdInput && (!policy.banner || policy.clear_banner)) {
+      return jsonErr(400, {
+        message: "Localized policy banner text is required for a new category.",
+      });
+    }
+    if (
+      (policy.terms !== undefined && policy.clear_terms) ||
+      (policy.banner !== undefined && policy.clear_banner)
+    ) {
+      return jsonErr(400, {
+        message: "A policy block and its clear flag cannot be sent together.",
+      });
+    }
+
+    const now = new Date().toISOString();
+    const banner =
+      typeof File !== "undefined" && defaultBanner instanceof File
+        ? `category-banner/${categoryId}/${defaultBanner.name}`
+        : (category?.banner ?? "");
+    if (!category) {
+      category = {
+        _id: categoryId,
+        name: categoryName,
+        image: "",
+        banner,
+        icon_key: iconKey,
+        name_normalized: normalizedName,
+        lifecycle_status: "active",
+        revision: 1,
+        createdAt: now,
+        updatedAt: now,
+      } as MockPolicyCategory;
+      createdCategories.push(category);
+    } else {
+      Object.assign(category, {
+        name: categoryName,
+        name_normalized: normalizedName,
+        icon_key: iconKey,
+        lifecycle_status: "active",
+        revision: (category.revision ?? 1) + 1,
+        ...(banner ? { banner } : {}),
+        updatedAt: now,
+      });
+    }
+
+    const savedPolicy = { ...existingPolicy };
+    if (policy.banner !== undefined) savedPolicy.banner = policy.banner;
+    if (policy.terms !== undefined) savedPolicy.terms = policy.terms;
+    if (policy.clear_banner) delete savedPolicy.banner;
+    if (policy.clear_terms) delete savedPolicy.terms;
+    policyStore.set(categoryId, savedPolicy);
+    const response = {
+      request_key: requestKey,
+      category: { ...category },
+      policy: { category_id: categoryId, ...savedPolicy },
+    };
+    policyAggregateCommands.set(requestKey, { signature, response });
+    return ok(response);
+  }
 
   if (joined === "admin/top-brands") {
     const raw = b?.brands;
@@ -2614,14 +2815,15 @@ function requiredWritePermission(
   if (
     joined === "admin/banner-home" ||
     joined === "admin/banner-home-small" ||
-    joined === "admin/banner-all-brand-page"
+    joined === "admin/banner-all-brand-page" ||
+    (p0 === "admin" && p1 === "banner-specific-page")
   ) {
     return "banner:manage";
   }
 
   // Brands domain: offers, categories, top brands, commission management,
   // policy, missing orders, discover & search config.
-  if (p0 === "offer" || joined === "policy") return "brands:manage";
+  if (p0 === "offer" || p0 === "policy") return "brands:manage";
   if (
     p0 === "admin" &&
     (p1 === "top-brands" ||

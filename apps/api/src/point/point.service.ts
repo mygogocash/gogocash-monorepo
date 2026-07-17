@@ -1,16 +1,17 @@
 import {
   BadRequestException,
+  ConflictException,
   HttpException,
-  HttpStatus,
+  Inject,
   Injectable,
-  Logger,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { CreatePointDto } from './dto/create-point.dto';
 import { UpdatePointDto } from './dto/update-point.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/user/schemas/user.schema';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { Point } from './schemas/point.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { convertToTHB } from 'src/utils/helper';
@@ -31,11 +32,47 @@ import {
   UpdateQuestTasksDto,
 } from './dto/create-quest.dto';
 import { SocialReward } from './schemas/social-reward.schema';
-import { StoredMediaService } from 'src/media/stored-media.service';
-import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { requireObjectId, requireOneOf } from 'src/common/mongo-query';
 import { deriveQuestStatus, withDerivedQuestStatus } from './quest-status';
+import { createHash } from 'node:crypto';
+import {
+  deterministicQuestId,
+  questMediaPayloadHash,
+  QuestMediaWriteService,
+} from './quest-media-write.service';
+import {
+  QuestBannerFiles,
+  validateQuestBannerFiles,
+} from './quest-media.validation';
+import { assertQuestMediaQaMutationEnabled } from './quest-media-qa.guard';
+import {
+  CanonicalQuestTask,
+  canonicalizeStoredQuestTask,
+  effectiveQuestRewardModel,
+  hasQuestTaskConfigChange,
+  hasQuestTaskEconomicChange,
+  hasQuestTaskIdentityChange,
+  newQuestTaskKey,
+  revisedQuestTaskKey,
+  QUEST_CONFIG_REVISION_CONFLICT,
+  QUEST_TASK_CONFIG_FROZEN,
+  QUEST_TASK_STATE_INSPECTOR,
+  QUEST_TASK_STATE_INSPECTOR_UNAVAILABLE,
+  QUEST_TIMEZONE,
+  QuestEconomicCommitFence,
+  QuestAudience,
+  QuestRewardCaps,
+  QuestTaskStateInspection,
+  QuestTaskStateInspector,
+} from './quest-task.contract';
+import { assertSamePointLedgerEffect } from './point-ledger-idempotency';
+import {
+  legacyQuestPayoutConfigChecksum,
+  legacySocialRewardAllowlist,
+} from 'src/tasks/legacy-reward-manifest';
+import { legacySocialPayoutKey } from 'src/tasks/legacy-reward-identity';
+import { MembershipTier } from 'src/admin/membership/schemas/membership-tier.schema';
 
 const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
@@ -45,28 +82,7 @@ const ACTIVE_OFFER_FILTER = {
 const QUEST_TASK_OFFER_SELECT =
   'offer_id merchant_id offer_name offer_name_display logo logo_circle logo_mobile logo_desktop tracking_link preview_url disabled status extra_point';
 
-const QUEST_BANNER_FIELDS = [
-  { key: 'banner_en', label: 'Banner EN' },
-  { key: 'banner_th', label: 'Banner TH' },
-  { key: 'sub_banner_en', label: 'Sub banner EN' },
-  { key: 'sub_banner_th', label: 'Sub banner TH' },
-] as const;
-
-type QuestBannerKey = (typeof QUEST_BANNER_FIELDS)[number]['key'];
-type QuestBannerFiles = Partial<Record<QuestBannerKey, Express.Multer.File[]>>;
-
-type NormalizedQuestTask = {
-  offer: Types.ObjectId;
-  offer_id: number;
-  merchant_id: number;
-  extra_point: number;
-  sort_order: number;
-  enabled: boolean;
-  wording: string;
-  wording_en: string;
-  wording_th: string;
-  notes: string;
-};
+type NormalizedQuestTask = CanonicalQuestTask;
 
 type NormalizedQuestReward = {
   rank: number;
@@ -82,8 +98,6 @@ type NormalizedQuestRewardDistribution = {
 
 @Injectable()
 export class PointService {
-  private readonly logger = new Logger(PointService.name);
-
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Point.name) private pointModel: Model<Point>,
@@ -94,7 +108,12 @@ export class PointService {
     @InjectModel(SocialReward.name)
     private socialRewardModel: Model<SocialReward>,
     @InjectModel(Deeplink.name) private deeplinkModel: Model<Deeplink>,
-    private readonly storedMediaService: StoredMediaService,
+    @InjectModel(MembershipTier.name)
+    private membershipTierModel: Model<MembershipTier>,
+    private readonly questMediaWrite: QuestMediaWriteService,
+    @Optional()
+    @Inject(QUEST_TASK_STATE_INSPECTOR)
+    private readonly questTaskStateInspector?: QuestTaskStateInspector,
   ) {}
 
   private activeQuestFilter(now = new Date()) {
@@ -118,12 +137,77 @@ export class PointService {
     };
   }
 
+  private assertLegacyPayoutConfigEditable(
+    quest: Record<string, any>,
+    changed: boolean,
+  ) {
+    if (!changed) return;
+    if (effectiveQuestRewardModel(quest.reward_model) !== 'legacy_v1') return;
+    if (
+      quest.legacy_payout_resolution_started_at ||
+      quest.legacy_payout_resolution_command_key ||
+      quest.legacy_payout_config_checksum
+    ) {
+      throw new ConflictException(
+        'Legacy quest reward configuration is frozen after reconciliation begins',
+      );
+    }
+  }
+
+  private assertLegacyPayoutConfigChecksum(quest: Record<string, any>) {
+    const expected = String(quest.legacy_payout_config_checksum ?? '');
+    if (
+      !/^[a-f0-9]{64}$/.test(expected) ||
+      legacyQuestPayoutConfigChecksum({ ...quest, _id: quest._id }) !== expected
+    ) {
+      throw new ConflictException(
+        'Legacy quest reward configuration changed after reconciliation',
+      );
+    }
+    return expected;
+  }
+
   async addPointsToUser(
     userId: string,
     points: number,
     conversion_id: number,
     action?: string,
+    idempotencyKey?: string,
   ): Promise<Point> {
+    if (idempotencyKey !== undefined) {
+      const key = idempotencyKey.trim();
+      if (!key || key.length > 512) {
+        throw new BadRequestException(
+          'idempotencyKey must be a nonempty string',
+        );
+      }
+      const pointEntry = {
+        user_id: new Types.ObjectId(userId),
+        point: points,
+        conversion_id,
+        type: 'add',
+        action: action || 'purchase',
+        idempotency_key: key,
+      };
+      try {
+        const durable = await this.pointModel
+          .findOneAndUpdate(
+            { idempotency_key: key },
+            { $setOnInsert: pointEntry },
+            { upsert: true, new: true, setDefaultsOnInsert: true },
+          )
+          .exec();
+        return assertSamePointLedgerEffect(durable, pointEntry);
+      } catch (error) {
+        if ((error as { code?: number })?.code !== 11000) throw error;
+        const winner = await this.pointModel
+          .findOne({ idempotency_key: key })
+          .exec();
+        if (winner) return assertSamePointLedgerEffect(winner, pointEntry);
+        throw error;
+      }
+    }
+
     const pointDup = await this.pointModel
       .findOne({
         user_id: new Types.ObjectId(userId),
@@ -687,58 +771,444 @@ export class PointService {
     return Types.ObjectId.isValid(value) ? new Types.ObjectId(value) : null;
   }
 
-  private normalizeQuestTasks(
-    payload: UpdateQuestTasksDto,
-  ): NormalizedQuestTask[] {
-    const seenOffers = new Set<string>();
+  private normalizeQuestAudience(
+    value: unknown,
+    options: { requireCanonicalTierIds?: boolean } = {},
+  ): QuestAudience {
+    const audience = value as { kind?: unknown; tier_ids?: unknown[] } | null;
+    if (!audience || audience.kind === 'all') return { kind: 'all' };
+    if (audience.kind !== 'membership_tiers') {
+      throw new HttpException('Quest audience is invalid', 400);
+    }
+    const tierIds = [
+      ...new Set(
+        (audience.tier_ids ?? [])
+          .map((tier) => String(tier).trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ];
+    if (tierIds.length === 0) {
+      throw new HttpException(
+        'Quest membership-tier audience requires at least one tier',
+        400,
+      );
+    }
+    if (
+      options.requireCanonicalTierIds &&
+      tierIds.some((tierId) => !/^[a-f0-9]{24}$/.test(tierId))
+    ) {
+      throw new BadRequestException({
+        code: 'QUEST_MEMBERSHIP_TIER_ID_INVALID',
+        message:
+          'Quest membership tiers must use canonical membership tier IDs. Reload the tier list and try again.',
+      });
+    }
+    return { kind: 'membership_tiers', tier_ids: tierIds.sort() };
+  }
 
-    return (payload.tasks ?? []).map((task, index) => {
+  private async assertActiveMembershipAudienceTiers(
+    audience: QuestAudience,
+    session?: ClientSession,
+  ): Promise<void> {
+    if (audience.kind !== 'membership_tiers') return;
+    const tierIds = audience.tier_ids.map(
+      (tierId) => new Types.ObjectId(tierId),
+    );
+    const rows = await this.membershipTierModel
+      .find(
+        { _id: { $in: tierIds }, is_active: true },
+        { _id: 1 },
+        session ? { session } : {},
+      )
+      .lean();
+    const activeIds = new Set(
+      rows.map((row) => String((row as { _id: unknown })._id).toLowerCase()),
+    );
+    const unavailable = audience.tier_ids.filter(
+      (tierId) => !activeIds.has(tierId),
+    );
+    if (unavailable.length > 0) {
+      throw new BadRequestException({
+        code: 'QUEST_MEMBERSHIP_TIERS_UNAVAILABLE',
+        message:
+          'One or more selected membership tiers no longer exist or are inactive. Reload the tier list and choose active tiers.',
+        tier_ids: unavailable,
+      });
+    }
+  }
+
+  private normalizeQuestRewardCaps(value: unknown): QuestRewardCaps {
+    const caps = (value ?? {}) as {
+      max_awards_per_user?: unknown;
+      max_referrals_per_user?: unknown;
+    };
+    const normalize = (raw: unknown, field: string) => {
+      if (raw === undefined || raw === null || raw === '') return null;
+      const amount = Number(raw);
+      if (!Number.isSafeInteger(amount) || amount < 1 || amount > 1_000_000) {
+        throw new HttpException(`${field} must be a positive integer`, 400);
+      }
+      return amount;
+    };
+    return {
+      max_awards_per_user: normalize(
+        caps.max_awards_per_user,
+        'max_awards_per_user',
+      ),
+      max_referrals_per_user: normalize(
+        caps.max_referrals_per_user,
+        'max_referrals_per_user',
+      ),
+    };
+  }
+
+  private assertRewardModelSupportsEligibilityConfig(
+    rewardModel: 'legacy_v1' | 'task_v2',
+    audience: QuestAudience,
+    rewardCaps: QuestRewardCaps,
+  ): void {
+    if (
+      rewardModel !== 'legacy_v1' ||
+      (audience.kind === 'all' &&
+        rewardCaps.max_awards_per_user === null &&
+        rewardCaps.max_referrals_per_user === null)
+    ) {
+      return;
+    }
+    throw new BadRequestException({
+      code: 'QUEST_LEGACY_ADVANCED_CONFIG_UNSUPPORTED',
+      message:
+        'legacy_v1 supports only audience.kind=all with null reward caps. Set reward_model=task_v2 for membership audiences or per-user reward caps.',
+    });
+  }
+
+  private revisionClause(
+    field: 'campaign_revision' | 'config_revision',
+    expected: number,
+    current: unknown,
+  ): Record<string, unknown> {
+    return current === undefined && expected === 0
+      ? {
+          $or: [{ [field]: 0 }, { [field]: { $exists: false } }],
+        }
+      : { [field]: expected };
+  }
+
+  private questMutationFilter(
+    questId: Types.ObjectId,
+    clauses: Array<Record<string, unknown>>,
+  ): Record<string, unknown> {
+    const filter: Record<string, unknown> = { _id: questId };
+    const orClauses: unknown[][] = [];
+    for (const clause of clauses) {
+      if (Array.isArray(clause.$or)) {
+        orClauses.push(clause.$or as unknown[]);
+      } else {
+        Object.assign(filter, clause);
+      }
+    }
+    if (orClauses.length === 1) filter.$or = orClauses[0];
+    if (orClauses.length > 1) {
+      filter.$and = orClauses.map(($or) => ({ $or }));
+    }
+    return filter;
+  }
+
+  private taskV2EconomicCommitFence(
+    questId: string,
+    quest: Partial<Quest> | Record<string, unknown>,
+    nextStartDate?: Date,
+    nextEndDate?: Date,
+  ): QuestEconomicCommitFence {
+    if (!this.questTaskStateInspector) {
+      throw new HttpException(
+        {
+          code: QUEST_TASK_STATE_INSPECTOR_UNAVAILABLE,
+          message:
+            'Quest task state cannot be inspected safely. Try again after the task engine is available.',
+        },
+        503,
+      );
+    }
+    return (commit) =>
+      this.questTaskStateInspector!.withTaskConfigEditFence(
+        questId,
+        async (state: QuestTaskStateInspection, session: ClientSession) => {
+          const now = new Date();
+          const currentStart = new Date((quest as any).start_date);
+          const nextStart = nextStartDate ?? currentStart;
+          const hasStarted =
+            Number.isNaN(currentStart.getTime()) || currentStart <= now;
+          const nextWindowHasStarted =
+            Number.isNaN(nextStart.getTime()) || nextStart <= now;
+          const hasEffect = Boolean(
+            (quest as any).task_v2_state_frozen_at ||
+            state.has_outbox ||
+            state.has_progress ||
+            state.has_award,
+          );
+          if (hasStarted || nextWindowHasStarted || hasEffect) {
+            throw new ConflictException({
+              code: QUEST_TASK_CONFIG_FROZEN,
+              message:
+                'Quest economics are frozen after start or progress. Create a new revision with a future window.',
+            });
+          }
+          return commit(state, session);
+        },
+        {
+          start_at:
+            nextStartDate ??
+            new Date((quest as Record<string, any>).start_date),
+          end_at:
+            nextEndDate ?? new Date((quest as Record<string, any>).end_date),
+        },
+      );
+  }
+
+  private canonicalQuestTasksForRead(
+    quest: Partial<Quest> | Record<string, any>,
+  ): CanonicalQuestTask[] {
+    const questId = String((quest as any)?._id ?? 'unknown-quest');
+    return ((quest as any)?.tasks ?? []).map((task: any) =>
+      canonicalizeStoredQuestTask(questId, task, (quest as any)?.reward_model),
+    ) as CanonicalQuestTask[];
+  }
+
+  private withCanonicalQuestTasks<T extends Record<string, any>>(quest: T): T {
+    return {
+      ...quest,
+      reward_model: effectiveQuestRewardModel(quest.reward_model),
+      config_revision: Number(quest.config_revision ?? 0),
+      timezone: quest.timezone ?? QUEST_TIMEZONE,
+      audience: this.normalizeQuestAudience(quest.audience),
+      reward_caps: this.normalizeQuestRewardCaps(quest.reward_caps),
+      tasks: this.canonicalQuestTasksForRead(quest),
+    };
+  }
+
+  private async normalizeQuestTasks(
+    quest: Partial<Quest> | Record<string, any>,
+    payload: UpdateQuestTasksDto,
+    rewardModel: 'legacy_v1' | 'task_v2',
+  ): Promise<NormalizedQuestTask[]> {
+    const rawTasks = (payload.tasks ?? []) as Array<Record<string, any>>;
+    const seenOffers = new Set<string>();
+    const seenTaskKeys = new Set<string>();
+    const existingTaskKeys = new Set(
+      this.canonicalQuestTasksForRead(quest).map((task) => task.task_key),
+    );
+    const existingTasksByKey = new Map(
+      this.canonicalQuestTasksForRead(quest).map((task) => [
+        task.task_key,
+        task,
+      ]),
+    );
+    const reusableBrandOffersByTaskKey = new Map<
+      string,
+      { _id: Types.ObjectId; offer_id: number; merchant_id: number }
+    >();
+    const brandOfferIds = rawTasks.flatMap((task) => {
+      const taskType =
+        task.task_type ??
+        (rewardModel === 'legacy_v1' ? 'brand_purchase' : undefined);
+      if (taskType !== 'brand_purchase') return [];
       if (!Types.ObjectId.isValid(task.offer)) {
         throw new HttpException('Invalid quest task offer id', 400);
       }
-      const offer = new Types.ObjectId(task.offer);
-      const offerKey = offer.toHexString();
-      if (seenOffers.has(offerKey)) {
+      const offerId = String(task.offer);
+      if (seenOffers.has(offerId)) {
         throw new HttpException(
           'Quest tasks cannot contain duplicate offers',
           400,
         );
       }
-      seenOffers.add(offerKey);
+      seenOffers.add(offerId);
+      const requestedKey = task.task_key ? String(task.task_key) : '';
+      const existing = requestedKey
+        ? existingTasksByKey.get(requestedKey)
+        : undefined;
+      const existingBrand =
+        existing?.task_type === 'brand_purchase' ? existing : undefined;
+      const existingOfferId = existingBrand
+        ? this.questTaskOfferObjectId(existingBrand)
+        : null;
+      const existingOfferProviderId = Number(existingBrand?.offer_id);
+      const existingMerchantId = Number(existingBrand?.merchant_id);
+      const preservesStoredIdentity = Boolean(
+        existingBrand &&
+        existingOfferId?.equals(new Types.ObjectId(offerId)) &&
+        Number(existingBrand?.points) ===
+          Number(task.points ?? task.extra_point) &&
+        (existing.enabled !== false) === (task.enabled ?? true) &&
+        Number.isSafeInteger(existingOfferProviderId) &&
+        Number.isSafeInteger(existingMerchantId) &&
+        (task.offer_id === undefined ||
+          Number(task.offer_id) === existingOfferProviderId) &&
+        (task.merchant_id === undefined ||
+          Number(task.merchant_id) === existingMerchantId),
+      );
+      if (preservesStoredIdentity && existingOfferId) {
+        reusableBrandOffersByTaskKey.set(requestedKey, {
+          _id: existingOfferId,
+          offer_id: existingOfferProviderId,
+          merchant_id: existingMerchantId,
+        });
+        return [];
+      }
+      return [new Types.ObjectId(offerId)];
+    });
 
-      const extraPoint = Number(task.extra_point);
+    const offers =
+      brandOfferIds.length === 0
+        ? []
+        : await this.offerModel
+            .find({
+              _id: { $in: brandOfferIds },
+              ...ACTIVE_OFFER_FILTER,
+            } as any)
+            .lean();
+    const offersById = new Map(
+      (offers as any[]).map((offer) => [String(offer._id), offer]),
+    );
+    if (offersById.size !== brandOfferIds.length) {
+      throw new HttpException(
+        'Quest tasks can only use existing approved active offers',
+        400,
+      );
+    }
+
+    return rawTasks.map((task, index) => {
+      const taskType =
+        task.task_type ??
+        (rewardModel === 'legacy_v1' ? 'brand_purchase' : undefined);
       if (
-        !Number.isInteger(extraPoint) ||
-        extraPoint < 2 ||
-        extraPoint > 10000
+        taskType !== 'brand_purchase' &&
+        taskType !== 'friend_referral' &&
+        taskType !== 'spend_target'
       ) {
+        throw new HttpException('Quest task_type is invalid', 400);
+      }
+      if (rewardModel === 'legacy_v1' && taskType !== 'brand_purchase') {
         throw new HttpException(
-          'Quest task extra_point must be between 2 and 10000',
+          'legacy_v1 quests support only brand_purchase tasks',
           400,
         );
       }
 
-      const offerId = Number(task.offer_id);
-      const merchantId = Number(task.merchant_id);
-      if (!Number.isInteger(offerId) || !Number.isInteger(merchantId)) {
+      const points = Number(task.points ?? task.extra_point);
+      if (!Number.isSafeInteger(points) || points < 2 || points > 10000) {
         throw new HttpException(
-          'Quest task offer_id and merchant_id are required',
+          'Quest task points must be between 2 and 10000',
           400,
         );
       }
 
-      return {
-        offer,
-        offer_id: offerId,
-        merchant_id: merchantId,
-        extra_point: extraPoint,
+      const requestedKey = task.task_key ? String(task.task_key) : '';
+      if (requestedKey && !existingTaskKeys.has(requestedKey)) {
+        throw new HttpException(
+          'Quest task task_key is server-owned and does not belong to this quest',
+          400,
+        );
+      }
+      let taskKey = requestedKey || newQuestTaskKey();
+      if (seenTaskKeys.has(taskKey)) {
+        throw new HttpException('Quest tasks cannot duplicate task_key', 400);
+      }
+      seenTaskKeys.add(taskKey);
+
+      const wordingEn =
+        String(task.wording_en ?? '').trim() ||
+        String(task.wording ?? '').trim();
+      const wordingTh = String(task.wording_th ?? '').trim();
+      if (!wordingEn && !wordingTh) {
+        throw new HttpException(
+          'Quest task requires customer-visible wording in English or Thai',
+          400,
+        );
+      }
+      const common = {
+        task_key: taskKey,
+        task_type: taskType,
+        points,
         sort_order: index,
         enabled: task.enabled ?? true,
-        wording: task.wording_en?.trim() ?? task.wording?.trim() ?? '',
-        wording_en: task.wording_en?.trim() ?? task.wording?.trim() ?? '',
-        wording_th: task.wording_th?.trim() ?? '',
-        notes: task.notes?.trim() ?? '',
+        wording: wordingEn || wordingTh,
+        wording_en: wordingEn,
+        wording_th: wordingTh,
+        notes: String(task.notes ?? '').trim(),
       };
+
+      let normalized: NormalizedQuestTask;
+      if (taskType === 'brand_purchase') {
+        const offer =
+          reusableBrandOffersByTaskKey.get(requestedKey) ??
+          offersById.get(String(task.offer));
+        const offerId = Number(offer?.offer_id);
+        const merchantId = Number(offer?.merchant_id);
+        if (
+          !Number.isSafeInteger(offerId) ||
+          !Number.isSafeInteger(merchantId)
+        ) {
+          throw new HttpException(
+            'Selected offer is missing provider or merchant identity',
+            400,
+          );
+        }
+        normalized = {
+          ...common,
+          task_type: 'brand_purchase',
+          offer: new Types.ObjectId(String(offer._id)),
+          offer_id: offerId,
+          merchant_id: merchantId,
+          extra_point: points,
+        };
+      } else if (taskType === 'friend_referral') {
+        if (
+          task.completion_rule !== 'account_created' &&
+          task.completion_rule !== 'first_earning_conversion'
+        ) {
+          throw new HttpException(
+            'Quest referral completion_rule is invalid',
+            400,
+          );
+        }
+        normalized = {
+          ...common,
+          task_type: 'friend_referral',
+          completion_rule: task.completion_rule,
+        };
+      } else {
+        const target = Number(task.target_thb_minor);
+        if (
+          task.spend_scope !== 'any_shop_via_ggc' ||
+          !Number.isSafeInteger(target) ||
+          target < 1
+        ) {
+          throw new HttpException('Quest spend target is invalid', 400);
+        }
+        normalized = {
+          ...common,
+          task_type: 'spend_target',
+          spend_scope: 'any_shop_via_ggc',
+          target_thb_minor: target,
+        };
+      }
+
+      const existing = requestedKey
+        ? existingTasksByKey.get(requestedKey)
+        : undefined;
+      if (
+        existing &&
+        hasQuestTaskIdentityChange(
+          existing as unknown as Record<string, unknown>,
+          normalized as unknown as Record<string, unknown>,
+        )
+      ) {
+        taskKey = newQuestTaskKey();
+        normalized.task_key = taskKey;
+      }
+      return normalized;
     });
   }
 
@@ -895,33 +1365,10 @@ export class PointService {
     };
   }
 
-  private async assertQuestTaskOffersAreEligible(tasks: NormalizedQuestTask[]) {
-    if (tasks.length === 0) return;
-
-    const offerIds = tasks.map((task) => task.offer);
-    const offers = await this.offerModel
-      .find({
-        _id: { $in: offerIds },
-        ...ACTIVE_OFFER_FILTER,
-      } as any)
-      .lean();
-    const eligibleOfferIds = new Set(
-      offers.map((offer) => String((offer as any)._id)),
-    );
-    const missingOrInactive = tasks.filter(
-      (task) => !eligibleOfferIds.has(task.offer.toHexString()),
-    );
-    if (missingOrInactive.length > 0) {
-      throw new HttpException(
-        'Quest tasks can only use existing approved active offers',
-        400,
-      );
-    }
-  }
-
   private async mirrorActiveQuestExtraPoints(
     quest: Partial<Quest> | any,
     tasks: NormalizedQuestTask[],
+    session?: ClientSession,
   ) {
     const questStatus =
       quest?.start_date && quest?.end_date
@@ -932,12 +1379,21 @@ export class PointService {
     }
 
     const previousActiveOfferIds = (quest.tasks ?? [])
-      .filter((task: Partial<QuestTask>) => task.enabled !== false)
+      .filter(
+        (task: Partial<QuestTask>) =>
+          task.enabled !== false &&
+          (task.task_type === undefined || task.task_type === 'brand_purchase'),
+      )
       .map((task: Partial<QuestTask>) => this.questTaskOfferObjectId(task))
       .filter((id: Types.ObjectId | null): id is Types.ObjectId => Boolean(id));
-    const nextActiveTasks = tasks.filter((task) => task.enabled);
+    const nextActiveTasks = tasks.filter(
+      (
+        task,
+      ): task is Extract<CanonicalQuestTask, { task_type: 'brand_purchase' }> =>
+        task.enabled && task.task_type === 'brand_purchase',
+    );
     const nextActiveIds = new Set(
-      nextActiveTasks.map((task) => task.offer.toHexString()),
+      nextActiveTasks.map((task) => String(task.offer)),
     );
     const resetOfferIds = previousActiveOfferIds.filter(
       (id) => !nextActiveIds.has(id.toHexString()),
@@ -946,6 +1402,7 @@ export class PointService {
     await this.offerModel.updateMany(
       { _id: { $in: resetOfferIds } },
       { $set: { extra_point: 1 } },
+      session ? { session } : {},
     );
 
     if (nextActiveTasks.length === 0) return;
@@ -956,6 +1413,7 @@ export class PointService {
           update: { $set: { extra_point: task.extra_point } },
         },
       })),
+      session ? { session } : {},
     );
   }
 
@@ -976,7 +1434,9 @@ export class PointService {
       .filter(
         (task: Partial<QuestTask>) =>
           task.enabled !== false &&
-          Number(task.extra_point) > 1 &&
+          (task.task_type === undefined ||
+            task.task_type === 'brand_purchase') &&
+          Number(task.points ?? task.extra_point) > 1 &&
           Number.isFinite(Number(task.merchant_id)),
       )
       .sort(
@@ -985,10 +1445,14 @@ export class PointService {
       )
       .map((task: Partial<QuestTask>) => ({
         merchant_id: Number(task.merchant_id),
-        extra_point: Number(task.extra_point),
+        extra_point: Number(task.points ?? task.extra_point),
       }));
 
     if (questTasks.length > 0) return questTasks;
+
+    if (effectiveQuestRewardModel((quest as any)?.reward_model) === 'task_v2') {
+      return [];
+    }
 
     return this.offerModel
       .find({ extra_point: { $gt: 1 }, ...ACTIVE_OFFER_FILTER } as any)
@@ -1001,27 +1465,225 @@ export class PointService {
       throw new HttpException('Invalid quest id', 400);
     }
 
-    const normalizedTasks = this.normalizeQuestTasks(payload);
     const questId = new Types.ObjectId(id);
     const quest = await this.questModel.findById(questId).lean();
     if (!quest) {
       throw new HttpException('Quest not found', 404);
     }
 
-    await this.assertQuestTaskOffersAreEligible(normalizedTasks);
+    let rewardModel: 'legacy_v1' | 'task_v2';
+    try {
+      rewardModel = effectiveQuestRewardModel(
+        payload.reward_model ?? (quest as any).reward_model,
+      );
+    } catch (error) {
+      throw new HttpException((error as Error).message, 400);
+    }
+    const expectedRevision = Number(payload.expected_config_revision ?? 0);
+    const currentRevision = Number((quest as any).config_revision ?? 0);
+    if (
+      !Number.isSafeInteger(expectedRevision) ||
+      expectedRevision < 0 ||
+      expectedRevision !== currentRevision
+    ) {
+      throw new ConflictException({
+        code: QUEST_CONFIG_REVISION_CONFLICT,
+        message: 'Quest task configuration changed. Reload and try again.',
+      });
+    }
 
-    const updatedQuest = await this.questModel
-      .findOneAndUpdate(
-        { _id: questId },
-        { tasks: normalizedTasks },
-        { new: true },
-      )
-      .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
-      .lean();
+    let normalizedTasks = await this.normalizeQuestTasks(
+      quest as any,
+      payload,
+      rewardModel,
+    );
+    const timezone =
+      payload.timezone ?? (quest as any).timezone ?? QUEST_TIMEZONE;
+    if (timezone !== QUEST_TIMEZONE) {
+      throw new HttpException('Quest timezone must be Asia/Bangkok', 400);
+    }
+    const audience = this.normalizeQuestAudience(
+      payload.audience ?? (quest as any).audience,
+      { requireCanonicalTierIds: true },
+    );
+    const rewardCaps = this.normalizeQuestRewardCaps(
+      payload.reward_caps ?? (quest as any).reward_caps,
+    );
+    const currentTasks = this.canonicalQuestTasksForRead(quest as any);
+    const globalIdentityChange = hasQuestTaskEconomicChange(
+      {
+        reward_model: (quest as any).reward_model,
+        timezone: (quest as any).timezone,
+        audience: (quest as any).audience,
+        reward_caps: (quest as any).reward_caps,
+        tasks: [],
+      },
+      {
+        reward_model: rewardModel,
+        timezone,
+        audience,
+        reward_caps: rewardCaps,
+        tasks: [],
+      },
+    );
+    if (globalIdentityChange) {
+      normalizedTasks = normalizedTasks.map((task) => ({
+        ...task,
+        task_key: newQuestTaskKey(),
+      })) as NormalizedQuestTask[];
+    }
+    const nextConfig = {
+      reward_model: rewardModel,
+      timezone,
+      start_date: (quest as any).start_date,
+      end_date: (quest as any).end_date,
+      audience,
+      reward_caps: rewardCaps,
+      tasks: normalizedTasks as unknown as Array<Record<string, unknown>>,
+    };
+    const economicChange = hasQuestTaskEconomicChange(
+      {
+        reward_model: (quest as any).reward_model,
+        timezone: (quest as any).timezone,
+        start_date: (quest as any).start_date,
+        end_date: (quest as any).end_date,
+        audience: (quest as any).audience,
+        reward_caps: (quest as any).reward_caps,
+        tasks: currentTasks as unknown as Array<Record<string, unknown>>,
+      },
+      nextConfig,
+    );
+    const configChange = hasQuestTaskConfigChange(
+      {
+        reward_model: (quest as any).reward_model,
+        timezone: (quest as any).timezone,
+        start_date: (quest as any).start_date,
+        end_date: (quest as any).end_date,
+        audience: (quest as any).audience,
+        reward_caps: (quest as any).reward_caps,
+        tasks: currentTasks as unknown as Array<Record<string, unknown>>,
+      },
+      nextConfig,
+    );
+    if (!configChange) {
+      this.assertRewardModelSupportsEligibilityConfig(
+        rewardModel,
+        audience,
+        rewardCaps,
+      );
+      return this.withCanonicalQuestTasks(quest as any);
+    }
+    this.assertLegacyPayoutConfigEditable(quest as any, configChange);
+    this.assertRewardModelSupportsEligibilityConfig(
+      rewardModel,
+      audience,
+      rewardCaps,
+    );
+    const patch = {
+      reward_model: rewardModel,
+      timezone,
+      audience,
+      reward_caps: rewardCaps,
+      tasks: normalizedTasks,
+    };
 
-    await this.mirrorActiveQuestExtraPoints(quest, normalizedTasks);
+    const persist = async (
+      state?: {
+        has_outbox: boolean;
+        has_progress: boolean;
+        has_award: boolean;
+      },
+      session?: ClientSession,
+    ) => {
+      const now = new Date();
+      const start = new Date((quest as any).start_date);
+      const hasStarted =
+        Number.isNaN(start.getTime()) || start.getTime() <= now.getTime();
+      const hasEffect = Boolean(
+        (quest as any).task_v2_state_frozen_at ||
+        state?.has_outbox ||
+        state?.has_progress ||
+        state?.has_award,
+      );
+      if (economicChange && (hasStarted || hasEffect)) {
+        throw new ConflictException({
+          code: QUEST_TASK_CONFIG_FROZEN,
+          message:
+            'Quest economics are frozen after start or progress. Create a new revision with a future window.',
+        });
+      }
 
-    return updatedQuest;
+      if (audience.kind === 'membership_tiers' && economicChange) {
+        await this.assertActiveMembershipAudienceTiers(audience, session);
+      }
+
+      const revisionFilter =
+        (quest as any).config_revision === undefined
+          ? {
+              $or: [
+                { config_revision: 0 },
+                { config_revision: { $exists: false } },
+              ],
+            }
+          : { config_revision: expectedRevision };
+      const filter: Record<string, unknown> = { _id: questId };
+      if ((quest as any).config_revision === undefined) {
+        filter.$and = [revisionFilter];
+      } else {
+        Object.assign(filter, revisionFilter);
+      }
+      if (economicChange && rewardModel === 'task_v2') {
+        filter.start_date = { $gt: now };
+        const noStateFence = {
+          $or: [
+            { task_v2_state_frozen_at: { $exists: false } },
+            { task_v2_state_frozen_at: null },
+          ],
+        };
+        if (Array.isArray(filter.$and)) {
+          (filter.$and as unknown[]).push(noStateFence);
+        } else {
+          filter.$or = noStateFence.$or;
+        }
+      }
+
+      const updatedQuest = await this.questModel
+        .findOneAndUpdate(
+          filter,
+          { $set: patch, $inc: { config_revision: 1 } },
+          { new: true, ...(session ? { session } : {}) },
+        )
+        .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
+        .lean();
+      if (!updatedQuest) {
+        throw new ConflictException({
+          code:
+            economicChange && rewardModel === 'task_v2'
+              ? QUEST_TASK_CONFIG_FROZEN
+              : QUEST_CONFIG_REVISION_CONFLICT,
+          message:
+            economicChange && rewardModel === 'task_v2'
+              ? 'Quest economics became frozen while saving. Reload and create a new revision.'
+              : 'Quest task configuration changed. Reload and try again.',
+        });
+      }
+
+      await this.mirrorActiveQuestExtraPoints(quest, normalizedTasks, session);
+      return this.withCanonicalQuestTasks(updatedQuest as any);
+    };
+
+    if (rewardModel !== 'task_v2') return persist();
+    if (!this.questTaskStateInspector) {
+      throw new HttpException(
+        {
+          code: QUEST_TASK_STATE_INSPECTOR_UNAVAILABLE,
+          message:
+            'Quest task state cannot be inspected safely. Try again after the task engine is available.',
+        },
+        503,
+      );
+    }
+    return this.questTaskStateInspector.withTaskConfigEditFence(id, persist);
   }
 
   async updateQuestRewards(id: string, payload: UpdateQuestRewardsDto) {
@@ -1035,19 +1697,99 @@ export class PointService {
     if (!quest) {
       throw new HttpException('Quest not found', 404);
     }
+    const expectedRevision = Number(payload.expected_config_revision);
+    const currentRevision = Number((quest as any).config_revision ?? 0);
+    if (
+      !Number.isSafeInteger(expectedRevision) ||
+      expectedRevision < 0 ||
+      expectedRevision !== currentRevision
+    ) {
+      throw new ConflictException({
+        code: QUEST_CONFIG_REVISION_CONFLICT,
+        message: 'Quest reward configuration changed. Reload and try again.',
+      });
+    }
     const rewardDistribution = this.normalizeQuestRewardDistribution(
       payload,
       quest,
     );
+    const currentRewards = ((quest as any).rewards ?? [])
+      .map((reward: Partial<QuestReward>) => ({
+        rank: Number(reward.rank),
+        reward: Number(reward.reward),
+        currency: String(reward.currency || 'THB').toUpperCase(),
+      }))
+      .sort(
+        (left: NormalizedQuestReward, right: NormalizedQuestReward) =>
+          left.rank - right.rank,
+      );
+    const currentDistribution = this.normalizeQuestRewardDistribution(
+      {},
+      quest,
+    );
+    const economicChange =
+      JSON.stringify({ rewards: currentRewards, ...currentDistribution }) !==
+      JSON.stringify({ rewards: normalizedRewards, ...rewardDistribution });
+    if (!economicChange) return quest;
 
-    return this.questModel
-      .findOneAndUpdate(
-        { _id: questId },
-        { rewards: normalizedRewards, ...rewardDistribution },
-        { new: true },
-      )
-      .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
-      .lean();
+    let rewardModel: 'legacy_v1' | 'task_v2';
+    try {
+      rewardModel = effectiveQuestRewardModel((quest as any).reward_model);
+    } catch (error) {
+      throw new HttpException((error as Error).message, 400);
+    }
+    this.assertLegacyPayoutConfigEditable(quest as any, economicChange);
+    const persist = async (
+      _state?: QuestTaskStateInspection,
+      session?: ClientSession,
+    ) => {
+      const now = new Date();
+      const clauses = [
+        this.revisionClause(
+          'config_revision',
+          expectedRevision,
+          (quest as any).config_revision,
+        ),
+      ];
+      if (rewardModel === 'task_v2') {
+        clauses.push(
+          { start_date: { $gt: now } },
+          {
+            $or: [
+              { task_v2_state_frozen_at: { $exists: false } },
+              { task_v2_state_frozen_at: null },
+            ],
+          },
+        );
+      }
+      const updated = await this.questModel
+        .findOneAndUpdate(
+          this.questMutationFilter(questId, clauses),
+          {
+            $set: { rewards: normalizedRewards, ...rewardDistribution },
+            $inc: { config_revision: 1 },
+          },
+          { new: true, ...(session ? { session } : {}) },
+        )
+        .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
+        .lean();
+      if (!updated) {
+        throw new ConflictException({
+          code:
+            rewardModel === 'task_v2'
+              ? QUEST_TASK_CONFIG_FROZEN
+              : QUEST_CONFIG_REVISION_CONFLICT,
+          message:
+            rewardModel === 'task_v2'
+              ? 'Quest economics became frozen while saving. Reload and create a new revision.'
+              : 'Quest reward configuration changed. Reload and try again.',
+        });
+      }
+      return updated;
+    };
+
+    if (rewardModel !== 'task_v2') return persist();
+    return this.taskV2EconomicCommitFence(id, quest)(persist);
   }
 
   async getQuestAdminLeaderboard(id: string) {
@@ -1150,7 +1892,9 @@ export class PointService {
     }
 
     const enabledTasks = ((quest as any).tasks ?? []).filter(
-      (task: Partial<QuestTask>) => task.enabled !== false,
+      (task: Partial<QuestTask>) =>
+        task.enabled !== false &&
+        (task.task_type === undefined || task.task_type === 'brand_purchase'),
     );
     const taskKeys = enabledTasks.map((task: Partial<QuestTask>) => ({
       offer_id: Number(task.offer_id),
@@ -1212,7 +1956,7 @@ export class PointService {
             merchant_id: Number(task.merchant_id),
             offer: offerObjectId,
             offer_name: offer.offer_name_display || offer.offer_name || '',
-            extra_point: Number(task.extra_point),
+            extra_point: Number(task.points ?? task.extra_point),
             sort_order: Number(task.sort_order ?? 0),
             tracking_link: offer.tracking_link ?? '',
             customer_path: offerObjectId ? `/shop/${offerObjectId}` : '',
@@ -1228,66 +1972,129 @@ export class PointService {
     createQuestDto: CreateQuestDto,
     files: QuestBannerFiles = {},
   ) {
+    const requestKey = createQuestDto.request_key?.trim();
+    if (!requestKey) {
+      throw new BadRequestException('request_key is required');
+    }
+    const expectedRevision = Number(createQuestDto.campaign_revision ?? 0);
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
+      throw new BadRequestException(
+        'campaign_revision must be zero or greater',
+      );
+    }
+    const expectedConfigRevision = Number(
+      createQuestDto.expected_config_revision,
+    );
+    if (
+      !Number.isSafeInteger(expectedConfigRevision) ||
+      expectedConfigRevision < 0
+    ) {
+      throw new BadRequestException(
+        'expected_config_revision must be zero or greater',
+      );
+    }
+    const isCreateRequest = !createQuestDto._id;
     const questId = createQuestDto._id
       ? requireObjectId(String(createQuestDto._id), 'quest id')
-      : new Types.ObjectId();
+      : deterministicQuestId(requestKey);
+    const qaMarker = createQuestDto.qa_marker?.trim();
+    const qaCleanupNonce = createQuestDto.qa_cleanup_nonce?.trim();
+    if (Boolean(qaMarker) !== Boolean(qaCleanupNonce)) {
+      throw new BadRequestException(
+        'qa_marker and qa_cleanup_nonce must be supplied together',
+      );
+    }
+    if (qaMarker) {
+      if (!isCreateRequest || !requestKey.startsWith('quest-media:qa:')) {
+        throw new BadRequestException(
+          'QA markers are allowed only for a new quest-media:qa command',
+        );
+      }
+      assertQuestMediaQaMutationEnabled();
+    }
 
+    // Validate and decode the complete selected set before media preparation,
+    // durable intent creation, object storage, or quest persistence. Banner
+    // strings in the request body are never consulted as upload proof.
+    const selectedFiles = await validateQuestBannerFiles(
+      files,
+      isCreateRequest,
+    );
     const existingQuest = await this.questModel.findById(questId);
-
-    const existingQuestValues = (existingQuest?.toObject?.() ??
+    if (!isCreateRequest && !existingQuest) {
+      throw new HttpException('Quest not found', 404);
+    }
+    const existingQuestRecord = (existingQuest?.toObject?.() ??
       existingQuest ??
       {}) as Record<string, unknown>;
-    const uploadedRefs = new Map<QuestBannerKey, string>();
-
-    try {
-      // Upload every replacement first. Old media stays untouched until the
-      // quest document has atomically switched to all new refs.
-      for (const { key, label } of QUEST_BANNER_FIELDS) {
-        const file = files[key]?.[0];
-        if (!file) continue;
-        uploadedRefs.set(
-          key,
-          await this.uploadQuestBanner(label, file, MEDIA_FOLDER.QUESTS),
-        );
-      }
-    } catch (error) {
-      await this.deleteQuestBannerRefs(
-        [...uploadedRefs.values()],
-        'roll back an incomplete quest banner upload',
-      );
-      throw error;
-    }
-
-    const resolvedBannerRefs = {} as Record<QuestBannerKey, string | null>;
-    for (const { key } of QUEST_BANNER_FIELDS) {
-      const existingRef = this.questBannerRef(existingQuestValues[key]);
-      const submittedRef = this.questBannerRef(createQuestDto[key]);
-      resolvedBannerRefs[key] =
-        uploadedRefs.get(key) ??
-        (existingQuest ? existingRef : submittedRef) ??
-        null;
-    }
-
-    if (!existingQuest) {
-      const missingLabels = QUEST_BANNER_FIELDS.filter(
-        ({ key }) => !resolvedBannerRefs[key],
-      ).map(({ label }) => label);
-      if (missingLabels.length > 0) {
-        await this.deleteQuestBannerRefs(
-          [...uploadedRefs.values()],
-          'roll back an invalid new quest',
-        );
-        throw new BadRequestException(
-          `All four quest banners are required when creating a quest: ${missingLabels.join(', ')}.`,
-        );
+    for (const revisionField of [
+      'campaign_revision',
+      'config_revision',
+    ] as const) {
+      if (existingQuest?.$isDefault?.(revisionField)) {
+        delete existingQuestRecord[revisionField];
       }
     }
+    const scheduleEconomicChange = Boolean(
+      !isCreateRequest &&
+      existingQuest &&
+      (new Date(existingQuestRecord.start_date as Date | string).getTime() !==
+        new Date(createQuestDto.start_date).getTime() ||
+        new Date(existingQuestRecord.end_date as Date | string).getTime() !==
+          new Date(createQuestDto.end_date).getTime()),
+    );
+    if (
+      scheduleEconomicChange &&
+      expectedConfigRevision !==
+        Number(existingQuestRecord.config_revision ?? 0)
+    ) {
+      throw new ConflictException({
+        code: QUEST_CONFIG_REVISION_CONFLICT,
+        message: 'Quest schedule changed. Reload and try again.',
+      });
+    }
+    let existingRewardModel: 'legacy_v1' | 'task_v2' = 'legacy_v1';
+    if (existingQuest) {
+      try {
+        existingRewardModel = effectiveQuestRewardModel(
+          existingQuestRecord.reward_model,
+        );
+      } catch (error) {
+        throw new HttpException((error as Error).message, 400);
+      }
+    }
+    const taskV2EconomicChange =
+      scheduleEconomicChange && existingRewardModel === 'task_v2';
+    const legacyPayoutConfigChange = Boolean(
+      existingQuest &&
+      (scheduleEconomicChange ||
+        String(existingQuestRecord.facebook_page ?? '') !==
+          String(createQuestDto.facebook_page ?? '') ||
+        String(existingQuestRecord.facebook_post ?? '') !==
+          String(createQuestDto.facebook_post ?? '') ||
+        String(existingQuestRecord.line ?? '') !==
+          String(createQuestDto.line ?? '')),
+    );
+    this.assertLegacyPayoutConfigEditable(
+      existingQuestRecord,
+      legacyPayoutConfigChange,
+    );
+    const economicCommitFence = taskV2EconomicChange
+      ? this.taskV2EconomicCommitFence(
+          String(questId),
+          existingQuestRecord,
+          new Date(createQuestDto.start_date),
+          new Date(createQuestDto.end_date),
+        )
+      : undefined;
     const rewardDistribution = this.normalizeQuestRewardDistribution(
       {},
-      {
-        ...(existingQuest?.toObject?.() ?? existingQuest ?? {}),
-        end_date: createQuestDto.end_date ?? existingQuest?.end_date,
-      },
+      isCreateRequest
+        ? { end_date: createQuestDto.end_date }
+        : {
+            ...(existingQuest?.toObject?.() ?? existingQuest ?? {}),
+            end_date: createQuestDto.end_date ?? existingQuest?.end_date,
+          },
     );
     const questPatch: Record<string, unknown> = {
       start_date: createQuestDto.start_date,
@@ -1300,77 +2107,113 @@ export class PointService {
       facebook_page: createQuestDto.facebook_page,
       line: createQuestDto.line,
       ...rewardDistribution,
-      ...resolvedBannerRefs,
     };
     if (createQuestDto.reward_status !== undefined) {
       questPatch.reward_status = createQuestDto.reward_status;
     }
-
-    let savedQuest;
-    try {
-      savedQuest = await this.questModel.findByIdAndUpdate(
-        questId,
-        { $set: questPatch },
-        {
-          upsert: true,
-          new: true,
-          setDefaultsOnInsert: true,
-        },
-      );
-    } catch (error) {
-      await this.deleteQuestBannerRefs(
-        [...uploadedRefs.values()],
-        'roll back quest banners after a persistence failure',
-      );
-      throw error;
+    if (qaMarker) questPatch.qa_marker = qaMarker;
+    if (taskV2EconomicChange) {
+      questPatch.tasks = this.canonicalQuestTasksForRead(
+        existingQuestRecord,
+      ).map((task) => ({
+        ...task,
+        task_key: revisedQuestTaskKey(
+          String(questId),
+          task.task_key,
+          expectedConfigRevision + 1,
+        ),
+      }));
     }
 
-    const replacedOldRefs = QUEST_BANNER_FIELDS.flatMap(({ key }) => {
-      if (!uploadedRefs.has(key)) return [];
-      const oldRef = this.questBannerRef(existingQuestValues[key]);
-      return oldRef && oldRef !== uploadedRefs.get(key) ? [oldRef] : [];
-    });
-    await this.deleteQuestBannerRefs(
-      replacedOldRefs,
-      'delete superseded quest banner media',
-    );
-
-    return savedQuest;
-  }
-
-  private questBannerRef(value: unknown): string | null {
-    return typeof value === 'string' && value.trim() ? value.trim() : null;
-  }
-
-  private async uploadQuestBanner(
-    label: string,
-    file: Express.Multer.File,
-    folder: (typeof MEDIA_FOLDER)[keyof typeof MEDIA_FOLDER],
-  ): Promise<string> {
-    try {
-      return await this.storedMediaService.upload(file, folder);
-    } catch {
-      throw new HttpException(
-        `Could not upload ${label}. Please choose the image again and retry.`,
-        HttpStatus.BAD_GATEWAY,
-      );
-    }
-  }
-
-  private async deleteQuestBannerRefs(
-    refs: string[],
-    action: string,
-  ): Promise<void> {
-    const uniqueRefs = [...new Set(refs.filter(Boolean))];
-    const results = await Promise.allSettled(
-      uniqueRefs.map((ref) => this.storedMediaService.deleteStored(ref)),
-    );
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        this.logger.warn(
-          `Could not ${action} (${uniqueRefs[index]}): ${String(result.reason)}`,
+    if (selectedFiles.size === 0) {
+      if (!existingQuest) {
+        throw new BadRequestException(
+          'All four quest banners are required when creating a quest.',
         );
       }
+      const persist = async (
+        _state?: QuestTaskStateInspection,
+        session?: ClientSession,
+      ) => {
+        const now = new Date();
+        const clauses = [
+          this.revisionClause(
+            'campaign_revision',
+            expectedRevision,
+            existingQuestRecord.campaign_revision,
+          ),
+        ];
+        if (scheduleEconomicChange) {
+          clauses.push(
+            this.revisionClause(
+              'config_revision',
+              expectedConfigRevision,
+              existingQuestRecord.config_revision,
+            ),
+          );
+        }
+        if (taskV2EconomicChange) {
+          clauses.push(
+            { start_date: { $gt: now } },
+            {
+              $or: [
+                { task_v2_state_frozen_at: { $exists: false } },
+                { task_v2_state_frozen_at: null },
+              ],
+            },
+          );
+        }
+        const increment = scheduleEconomicChange
+          ? { campaign_revision: 1, config_revision: 1 }
+          : { campaign_revision: 1 };
+        const saved = await this.questModel.findOneAndUpdate(
+          this.questMutationFilter(questId, clauses),
+          { $set: questPatch, $inc: increment },
+          { new: true, ...(session ? { session } : {}) },
+        );
+        if (!saved) {
+          throw new ConflictException({
+            code: taskV2EconomicChange
+              ? QUEST_TASK_CONFIG_FROZEN
+              : QUEST_CONFIG_REVISION_CONFLICT,
+            message: taskV2EconomicChange
+              ? 'Quest economics became frozen while saving. Reload and create a new revision.'
+              : 'This quest changed while you were editing. Reload and try again.',
+          });
+        }
+        return saved;
+      };
+      return economicCommitFence ? economicCommitFence(persist) : persist();
+    }
+
+    const uploads = [...selectedFiles].map(([role, file]) => ({ role, file }));
+    const qaCleanupNonceHash = qaCleanupNonce
+      ? createHash('sha256').update(qaCleanupNonce).digest('hex')
+      : undefined;
+    const payloadHash = await questMediaPayloadHash({
+      questId,
+      expectedRevision,
+      expectedConfigRevision,
+      economicChange: scheduleEconomicChange,
+      taskV2EconomicChange,
+      questPatch,
+      uploads,
+      ...(qaMarker ? { qaMarker } : {}),
+      ...(qaCleanupNonceHash ? { qaCleanupNonceHash } : {}),
+    });
+    return this.questMediaWrite.execute({
+      requestKey,
+      payloadHash,
+      questId,
+      expectedRevision,
+      expectedConfigRevision,
+      economicChange: scheduleEconomicChange,
+      taskV2EconomicChange,
+      questPatch,
+      uploads,
+      ...(economicCommitFence ? { commitFence: economicCommitFence } : {}),
+      ...(qaMarker ? { qaMarker } : {}),
+      ...(qaCleanupNonceHash ? { qaCleanupNonceHash } : {}),
     });
   }
 
@@ -1412,7 +2255,9 @@ export class PointService {
       .find(filter)
       .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
       .lean();
-    return quests.map((quest) => withDerivedQuestStatus(quest));
+    return quests.map((quest) =>
+      withDerivedQuestStatus(this.withCanonicalQuestTasks(quest as any)),
+    );
   }
 
   async getQuestSocial(userId: string) {
@@ -1436,8 +2281,23 @@ export class PointService {
     };
   }
   async questSocial(userId: string, type: string, action: string) {
+    if (![type, action].every((value) => /^[^:\s]+$/.test(value?.trim()))) {
+      throw new HttpException('Invalid social reward identity', 400);
+    }
     const quest = await this.questModel
-      .findOne(this.activeQuestFilter())
+      .findOne({
+        $and: [
+          this.activeQuestFilter(),
+          {
+            $or: [
+              { reward_model: { $exists: false } },
+              { reward_model: 'legacy_v1' },
+            ],
+          },
+        ],
+        legacy_payout_reconciliation_status: 'ready',
+        legacy_payout_reconciliation_version: 1,
+      })
       .lean();
     if (!quest) {
       throw new HttpException(
@@ -1445,31 +2305,42 @@ export class PointService {
         400,
       );
     }
-    const filter = {
-      user_id: new Types.ObjectId(userId),
-      type,
-      action,
-    };
-    if (action != 'follow' && action != 'add_friend') {
-      filter['quest_id'] = quest?._id;
+    this.assertLegacyPayoutConfigChecksum(quest as any);
+    const normalizedType = type.trim();
+    const normalizedAction = action.trim();
+    const allowlist = legacySocialRewardAllowlist(quest as any);
+    if (
+      !allowlist.some(
+        (pair) =>
+          pair.type === normalizedType && pair.action === normalizedAction,
+      )
+    ) {
+      throw new HttpException(
+        'Social reward is not configured for this quest',
+        400,
+      );
     }
-    const socialReward = await this.socialRewardModel.findOne(filter).lean();
-    if (socialReward) {
-      return {
-        ...socialReward,
-      };
-    } else {
-      const newSocialReward = await this.socialRewardModel.create({
-        user_id: new Types.ObjectId(userId),
-        quest_id: new Types.ObjectId(quest?._id),
-        reward_status: false,
-        type,
-        action,
-      });
-      return {
-        ...newSocialReward.toObject(),
-      };
-    }
+    const payoutKey = legacySocialPayoutKey(
+      quest._id,
+      userId,
+      normalizedType,
+      normalizedAction,
+    );
+    const socialReward = await this.socialRewardModel.findOneAndUpdate(
+      { legacy_payout_key: payoutKey },
+      {
+        $setOnInsert: {
+          user_id: new Types.ObjectId(userId),
+          quest_id: new Types.ObjectId(quest._id),
+          reward_status: false,
+          type: normalizedType,
+          action: normalizedAction,
+          legacy_payout_key: payoutKey,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+    return socialReward?.toObject?.() ?? socialReward;
   }
 
   async updateQuestSocial(userId: string, id: string) {
@@ -1480,15 +2351,80 @@ export class PointService {
     if (!socialReward) {
       throw new HttpException('Social reward not found', 404);
     }
+    const quest = await this.questModel
+      .findOne({
+        _id: socialReward.quest_id,
+        legacy_payout_reconciliation_status: 'ready',
+        legacy_payout_reconciliation_version: 1,
+        $or: [
+          { reward_model: { $exists: false } },
+          { reward_model: 'legacy_v1' },
+        ],
+      })
+      .lean();
+    if (!quest) {
+      throw new HttpException('Legacy quest rewards are not reconciled', 409);
+    }
+    this.assertLegacyPayoutConfigChecksum(quest as any);
+    const allowlist = legacySocialRewardAllowlist(quest as any);
+    if (
+      !allowlist.some(
+        (pair) =>
+          pair.type === socialReward.type &&
+          pair.action === socialReward.action,
+      )
+    ) {
+      throw new HttpException('Social reward is not configured', 409);
+    }
+    const payoutKey = legacySocialPayoutKey(
+      socialReward.quest_id,
+      userId,
+      socialReward.type,
+      socialReward.action,
+    );
+    if (socialReward.legacy_payout_key !== payoutKey) {
+      throw new HttpException('Social reward identity mismatch', 409);
+    }
+    if (socialReward.reward_status) return socialReward;
+    const completedClaims = await this.socialRewardModel.countDocuments({
+      quest_id: socialReward.quest_id,
+      user_id: new Types.ObjectId(userId),
+      reward_status: true,
+    });
+    if (completedClaims >= allowlist.length) {
+      throw new HttpException('Social reward campaign cap reached', 409);
+    }
     await this.addPointsToUser(
       userId,
       50,
       0,
       `reward_quest_social:${socialReward.type}:${socialReward.action}:${socialReward._id.toString()}`,
+      payoutKey,
     );
-    socialReward.reward_status = true;
-    const result = await socialReward.save();
-    // console.log('re', result);
+    const result = await this.socialRewardModel.findOneAndUpdate(
+      {
+        _id: socialReward._id,
+        user_id: new Types.ObjectId(userId),
+        legacy_payout_key: payoutKey,
+        reward_status: false,
+      },
+      {
+        $set: {
+          reward_status: true,
+        },
+      },
+      { new: true },
+    );
+    if (!result) {
+      const winner = await this.socialRewardModel.findOne({
+        _id: socialReward._id,
+        user_id: new Types.ObjectId(userId),
+        legacy_payout_key: payoutKey,
+        reward_status: true,
+      });
+      if (winner) return winner;
+      throw new HttpException('Social reward claim changed concurrently', 409);
+    }
     return result;
   }
 
@@ -1500,7 +2436,9 @@ export class PointService {
         400,
       );
     }
-    return quest.map((item) => withDerivedQuestStatus(item));
+    return quest.map((item) =>
+      withDerivedQuestStatus(this.withCanonicalQuestTasks(item as any)),
+    );
   }
 
   async getQuestEndTRound(startDate: string, endDate: string) {

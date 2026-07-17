@@ -1,7 +1,10 @@
 # Reusable: deploy an ALREADY-BUILT Artifact Registry image to Cloud Run, then
 # health-check the new revision. Called by release-staging.yml (the human
 # approval/release step). Does NOT build — it deploys an existing tag produced
-# by _build-push.yml.
+# by _build-push.yml. The caller supplies both the full source commit SHA and the
+# build-reported digest. The workflow requires the SHA tag to resolve to that
+# exact digest, then deploys the digest so tag mutability cannot change the
+# revision being released.
 name: _deploy-cloudrun (reusable)
 
 on:
@@ -10,11 +13,14 @@ on:
       service_name:
         required: true
         type: string
-      image_tag:
-        description: Artifact Registry tag to deploy (e.g. staging-candidate or a sha)
-        required: false
+      image_sha:
+        description: Full 40-character source commit SHA produced by Build (staging)
+        required: true
         type: string
-        default: staging-candidate
+      expected_digest:
+        description: Exact sha256 digest reported by the selected Build (staging) job
+        required: true
+        type: string
       memory:
         required: false
         type: string
@@ -54,6 +60,16 @@ on:
         required: false
         type: string
         default: gogocash
+    outputs:
+      image_sha:
+        description: Validated source commit SHA used to locate the image
+        value: ${{ jobs.deploy.outputs.image_sha }}
+      image_digest:
+        description: Registry digest actually released to Cloud Run
+        value: ${{ jobs.deploy.outputs.image_digest }}
+      service_url:
+        description: Cloud Run service URL checked after deployment
+        value: ${{ jobs.deploy.outputs.service_url }}
 
 permissions:
   contents: read
@@ -64,20 +80,39 @@ jobs:
     name: deploy ${{ inputs.service_name }}
     runs-on: ubuntu-latest
     environment: staging
+    outputs:
+      image_sha: ${{ steps.image.outputs.image_sha }}
+      image_digest: ${{ steps.image.outputs.image_digest }}
+      service_url: ${{ steps.health.outputs.service_url }}
     env:
-      IMAGE: ${{ inputs.region }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ inputs.artifact_repo }}/${{ inputs.service_name }}:${{ inputs.image_tag }}
+      IMAGE_BASE: ${{ inputs.region }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ inputs.artifact_repo }}/${{ inputs.service_name }}
+      IMAGE_SHA: ${{ inputs.image_sha }}
+      EXPECTED_IMAGE_DIGEST: ${{ inputs.expected_digest }}
       PROJECT: ${{ vars.GCP_PROJECT_ID }}
       REGION: ${{ inputs.region }}
       SERVICE: ${{ inputs.service_name }}
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "24"
+
       - name: Authenticate to Google Cloud (WIF)
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+
+      - name: Verify exact SHA image matches build-reported digest
+        id: image
+        run: node scripts/deployment/gcp-image-proof.mjs
 
       - name: Deploy to Cloud Run
         # env_vars / secrets_map are passed through env (not inlined into the
@@ -90,9 +125,10 @@ jobs:
           MIN_INSTANCES: ${{ inputs.min_instances }}
           MAX_INSTANCES: ${{ inputs.max_instances }}
           MEMORY: ${{ inputs.memory }}
+          DEPLOY_IMAGE: ${{ steps.image.outputs.deploy_image }}
         run: |
           args=(run deploy "$SERVICE"
-            --image "$IMAGE"
+            --image "$DEPLOY_IMAGE"
             --region "$REGION"
             --platform managed
             --allow-unauthenticated
@@ -107,15 +143,18 @@ jobs:
           gcloud "${args[@]}"
 
       - name: Post-deploy health smoke
+        id: health
         env:
           HEALTH_PATH: ${{ inputs.health_path }}
         run: |
           URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --project "$PROJECT" --format "value(status.url)")
           echo "Service URL: $URL"
+          echo "service_url=$URL" >> "$GITHUB_OUTPUT"
           # Cloud Run min-instances 0 → first hit can cold-start (~10-15s); retry.
-          for i in $(seq 1 6); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${URL}${HEALTH_PATH}" || echo 000)
-            echo "attempt $i: HTTP $code"
+          for attempt in $(seq 1 6); do
+            code=$(curl --silent --show-error -o /dev/null -w "%{http_code}" --max-time 30 "${URL}${HEALTH_PATH}" || true)
+            [ -n "$code" ] || code=000
+            echo "attempt $attempt: HTTP $code"
             case "$code" in
               2*|3*) echo "$SERVICE is healthy ($code)."; exit 0 ;;
             esac
@@ -123,3 +162,11 @@ jobs:
           done
           echo "::error::Post-deploy health check failed for $SERVICE (no 2xx/3xx on ${HEALTH_PATH})"
           exit 1
+
+      - name: Summary
+        run: |
+          {
+            echo "Released **$SERVICE** from source SHA \`$IMAGE_SHA\`."
+            echo "Deployed digest: \`${{ steps.image.outputs.image_digest }}\`."
+            echo "Healthy URL: ${{ steps.health.outputs.service_url }}"
+          } >> "$GITHUB_STEP_SUMMARY"

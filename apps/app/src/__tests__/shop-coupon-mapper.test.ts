@@ -20,6 +20,7 @@ describe("mapPublicShopCoupons", () => {
           start_time: "09:30",
           end_date: "2026-07-22",
           end_time: "22:15",
+          destination_url: "https://tracking.example.test/godaddy?aff=1",
           link: "https://example.test/godaddy",
           code_enabled: false,
           eligibility: "members",
@@ -44,6 +45,7 @@ describe("mapPublicShopCoupons", () => {
         endDate: "2026-07-22",
         endTime: "22:15",
         eligibility: "members",
+        destinationUrl: "https://tracking.example.test/godaddy?aff=1",
         link: "https://example.test/godaddy",
         maxCap: 500,
         maxCapCurrency: "THB",
@@ -96,5 +98,43 @@ describe("mapPublicShopCoupons", () => {
         maxCapCurrency: null,
       }),
     ]);
+  });
+  it("given a sparse legacy coupon > then preserves unknown money and usage semantics", () => {
+    const [coupon] = mapPublicShopCoupons([
+      {
+        _id: "legacy-sparse",
+        name: "Legacy sparse",
+        discount: 10,
+        max_cap: 500,
+        min_spend: "100",
+      },
+    ]);
+
+    expect(coupon).toMatchObject({
+      destinationUrl: null,
+      discountCurrency: null,
+      discountType: null,
+      link: null,
+      maxCap: null,
+      maxCapCurrency: null,
+      minimumSpendCurrency: null,
+      oneTimeUse: null,
+    });
+  });
+
+  it.each([
+    [
+      " https://track.example/exact?aff=1 ",
+      "https://track.example/exact?aff=1",
+    ],
+    ["javascript:alert(1)", null],
+    ["/relative", null],
+    ["https://coupon-user@track.example/exact", null],
+    ["https://:coupon-secret@track.example/exact", null],
+  ])("maps only a verified HTTP destination %p", (destination, expected) => {
+    const [coupon] = mapPublicShopCoupons([
+      { _id: "destination", name: "Destination", destination_url: destination },
+    ]);
+    expect(coupon.destinationUrl).toBe(expected);
   });
 });

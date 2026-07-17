@@ -11,6 +11,23 @@
  * Returns null on ANY problem so callers can fall back to the raw tracking
  * link — losing attribution is bad, but losing the sale is worse.
  */
+function credentialFreeHttpUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    if (
+      (url.protocol !== "https:" && url.protocol !== "http:") ||
+      url.username ||
+      url.password
+    ) {
+      return null;
+    }
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export async function mintUserTrackingLink({
   accessToken,
   apiUrl,
@@ -32,7 +49,11 @@ export async function mintUserTrackingLink({
   }
   try {
     const response = await fetchImpl(`${apiUrl}/involve/create-affiliate`, {
-      body: JSON.stringify({ deeplink, merchant_id: merchantId, offer_id: offerId }),
+      body: JSON.stringify({
+        deeplink,
+        merchant_id: merchantId,
+        offer_id: offerId,
+      }),
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${accessToken}`,
@@ -44,7 +65,7 @@ export async function mintUserTrackingLink({
       return null;
     }
     const doc = (await response.json()) as { deeplink?: string };
-    return typeof doc?.deeplink === "string" && doc.deeplink ? doc.deeplink : null;
+    return credentialFreeHttpUrl(doc?.deeplink);
   } catch {
     return null;
   }

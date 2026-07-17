@@ -1,0 +1,99 @@
+# Full-stack integration gate for an immutable candidate commit.
+#
+# CI calls this workflow for every API/Admin/customer change. Manual dispatch is
+# retained for an exact-SHA rerun when release evidence needs to be reproduced.
+name: E2E clean runner
+
+on:
+  workflow_call:
+    inputs:
+      candidate_sha:
+        description: "Full 40-character commit SHA to test"
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: "Full 40-character commit SHA to test"
+        required: true
+        type: string
+
+concurrency:
+  group: e2e-clean-runner-${{ inputs.candidate_sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  root-e2e:
+    name: Root E2E (exact SHA)
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Validate candidate SHA input
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "candidate_sha must be a full lowercase 40-character commit SHA" >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          persist-credentials: false
+
+      - name: Verify exact candidate SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          actual_sha="$(git rev-parse HEAD)"
+          if [ "$actual_sha" != "$EXPECTED_SHA" ]; then
+            echo "Checked out $actual_sha, expected $EXPECTED_SHA" >&2
+            exit 1
+          fi
+          echo "### Root E2E candidate" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$actual_sha\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: ./.github/actions/setup-node-monorepo
+        with:
+          node-options: --max-old-space-size=4096
+
+      - name: Install exercised Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Run full-stack root E2E
+        env:
+          CI: "true"
+          COMPOSE_PROJECT_NAME: gogocash_e2e_${{ github.run_id }}_${{ github.run_attempt }}
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run e2e
+
+      - name: Clean E2E resources
+        if: ${{ always() }}
+        shell: bash
+        env:
+          COMPOSE_PROJECT_NAME: gogocash_e2e_${{ github.run_id }}_${{ github.run_attempt }}
+        run: |
+          npm run e2e:stack:stop || true
+          docker compose -f docker-compose.e2e.yml down -v --remove-orphans || true
+
+      - name: Upload failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: root-e2e-${{ inputs.candidate_sha }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            .e2e/*.log
+            playwright-report/
+            test-results/
+            apps/admin/playwright-report/
+            apps/admin/test-results/
+            apps/app/playwright-report/
+            apps/app/test-results/

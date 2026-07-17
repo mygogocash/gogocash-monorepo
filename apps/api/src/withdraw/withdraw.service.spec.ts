@@ -15,13 +15,19 @@ import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { InvolveService } from 'src/involve/involve.service';
 import { PointService } from 'src/point/point.service';
 import { thaiBanks } from 'src/utils/helper';
+import {
+  legacyQuestPayoutConfigChecksum,
+  legacyRewardManifestHash,
+  legacyRewardManifestKey,
+} from 'src/tasks/legacy-reward-manifest';
+import { legacyRankPayoutKey } from 'src/tasks/legacy-reward-identity';
 
 /**
  * Partial mongoose-model mock shape. Every method the SUT touches is a
  * jest.fn() so a single test can stub the exact return it needs without a
  * real DB (FIRST: fast + repeatable + no open handles).
  */
-type ModelMock = Record<string, jest.Mock>;
+type ModelMock = Record<string, any>;
 
 const makeModelMock = (): ModelMock => ({
   findOne: jest.fn(),
@@ -32,6 +38,7 @@ const makeModelMock = (): ModelMock => ({
   findOneAndDelete: jest.fn(),
   find: jest.fn(),
   create: jest.fn(),
+  updateOne: jest.fn(),
   countDocuments: jest.fn(),
   deleteOne: jest.fn(),
   aggregate: jest.fn(),
@@ -51,6 +58,7 @@ interface Mocks {
   userMyCashbackModel: ModelMock;
   involveService: { getConversionAll: jest.Mock };
   pointService: { getQuestRankListOfPoint: jest.Mock };
+  legacyManifestCollection: { findOne: jest.Mock; updateOne: jest.Mock };
 }
 
 async function buildService(): Promise<Mocks> {
@@ -61,6 +69,15 @@ async function buildService(): Promise<Mocks> {
   const conversionModel = makeModelMock();
   const rewardListModel = makeModelMock();
   const questModel = makeModelMock();
+  const legacyManifestCollection = {
+    findOne: jest.fn().mockResolvedValue(null),
+    updateOne: jest
+      .fn()
+      .mockResolvedValue({ matchedCount: 1, modifiedCount: 1 }),
+  };
+  questModel.db = {
+    collection: jest.fn().mockReturnValue(legacyManifestCollection),
+  };
   const withdrawMethodModel = makeModelMock();
   const userMyCashbackModel = makeModelMock();
   const involveService = { getConversionAll: jest.fn() };
@@ -113,6 +130,7 @@ async function buildService(): Promise<Mocks> {
     userMyCashbackModel,
     involveService,
     pointService,
+    legacyManifestCollection,
   };
 }
 
@@ -134,6 +152,33 @@ describe('WithdrawService', () => {
 
   it('should be defined', () => {
     expect(mocks.service).toBeDefined();
+  });
+
+  it('createConversionReward marks the active admin reward writer as synthetic', async () => {
+    const userId = new Types.ObjectId();
+    mocks.userModel.findOne.mockResolvedValue({ _id: userId });
+    mocks.conversionModel.create.mockImplementation(
+      async (value: Record<string, unknown>) => value,
+    );
+
+    await mocks.service.createConversionReward({
+      reward_type: 'Manual quest grant',
+      reward_amount: 75,
+      reward_currency: 'THB',
+      user: '0812345678',
+    });
+
+    expect(mocks.conversionModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        offer_id: 0,
+        offer_name: 'reward_conversion_quest',
+        source: 'involve',
+        quest_synthetic_reward: true,
+        payout: 75,
+        currency: 'THB',
+        user_id: userId,
+      }),
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -693,6 +738,44 @@ describe('WithdrawService', () => {
   // createWithdrawMethod — duplicate-account guard + ownership stamping.
   // ---------------------------------------------------------------------------
   describe('createWithdrawMethod', () => {
+    it.each([
+      ['object', { $ne: null }],
+      ['array', ['00123999']],
+    ])(
+      'createWithdrawMethod > given an %s account number > then rejects before any database query',
+      async (_kind, accountNo) => {
+        await expect(
+          mocks.service.createWithdrawMethod(
+            { account_no: accountNo } as never,
+            VALID_USER_ID,
+          ),
+        ).rejects.toMatchObject({ status: 400 });
+
+        expect(mocks.userModel.findOne).not.toHaveBeenCalled();
+        expect(mocks.withdrawMethodModel.findOne).not.toHaveBeenCalled();
+        expect(mocks.withdrawMethodModel.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ['object', { $ne: null }],
+      ['array', [VALID_USER_ID]],
+    ])(
+      'createWithdrawMethod > given an %s authenticated user id > then rejects before any database query',
+      async (_kind, userId) => {
+        await expect(
+          mocks.service.createWithdrawMethod(
+            { account_no: '00123999' } as never,
+            userId as never,
+          ),
+        ).rejects.toMatchObject({ status: 400 });
+
+        expect(mocks.userModel.findOne).not.toHaveBeenCalled();
+        expect(mocks.withdrawMethodModel.findOne).not.toHaveBeenCalled();
+        expect(mocks.withdrawMethodModel.create).not.toHaveBeenCalled();
+      },
+    );
+
     it('createWithdrawMethod > given an unknown user > then throws UnauthorizedException', async () => {
       mocks.userModel.findOne.mockResolvedValue(null);
 
@@ -719,7 +802,7 @@ describe('WithdrawService', () => {
       expect(mocks.withdrawMethodModel.create).not.toHaveBeenCalled();
     });
 
-    it('createWithdrawMethod > given a new account number > then stamps the owner user_id before persisting', async () => {
+    it('createWithdrawMethod > given a new leading-zero account number > then preserves it while stamping the owner user_id', async () => {
       // Ownership must be derived from the session, never trusted from the body,
       // so the method can't be created on behalf of another account.
       const userOid = new Types.ObjectId(VALID_USER_ID);
@@ -727,14 +810,21 @@ describe('WithdrawService', () => {
       mocks.withdrawMethodModel.findOne.mockResolvedValue(null);
       mocks.withdrawMethodModel.create.mockResolvedValue({ _id: 'm1' });
 
+      const input = { account_no: '00123999' } as never;
       const result = await mocks.service.createWithdrawMethod(
-        { account_no: '999' } as never,
+        input,
         VALID_USER_ID,
       );
 
       expect(result).toMatchObject({ status: 'success' });
+      expect(mocks.withdrawMethodModel.findOne).toHaveBeenCalledWith({
+        account_no: { $eq: '00123999' },
+        user_id: userOid,
+      });
       const persisted = mocks.withdrawMethodModel.create.mock.calls[0][0];
+      expect(persisted.account_no).toBe('00123999');
       expect(persisted.user_id.toString()).toBe(userOid.toString());
+      expect(input).not.toHaveProperty('user_id');
     });
   });
 
@@ -780,7 +870,7 @@ describe('WithdrawService', () => {
       mocks.withdrawMethodModel.findOneAndUpdate.mockResolvedValue(null);
 
       await mocks.service.updateMethodData(METHOD_ID, VALID_USER_ID, {
-        account_no: '123',
+        account_no: '00123',
       } as never);
 
       expect(
@@ -792,6 +882,10 @@ describe('WithdrawService', () => {
       const filter =
         mocks.withdrawMethodModel.findOneAndUpdate.mock.calls[0][0];
       expect(filter.user_id.toString()).toBe(VALID_USER_ID);
+      expect(
+        mocks.withdrawMethodModel.findOneAndUpdate.mock.calls[0][1].$set
+          .account_no,
+      ).toBe('00123');
     });
 
     it('getMethodId > given a malformed method id > then returns null without a query (no CastError / no unscoped read)', async () => {
@@ -981,53 +1075,388 @@ describe('WithdrawService', () => {
   });
 
   describe('adminAddRewardConversionForQuest', () => {
-    it('adminAddRewardConversionForQuest > given quest-level rewards > then it uses them instead of the legacy global reward list', async () => {
-      const questId = new Types.ObjectId();
-      mocks.questModel.findOne.mockResolvedValue({
+    function reconciledRankQuest(
+      questId: Types.ObjectId,
+      rewards: Array<{ rank: number; reward: number; currency?: string }>,
+    ) {
+      const quest = {
         _id: questId,
         status: 'close',
         reward_status: false,
+        reward_model: 'legacy_v1',
+        legacy_payout_reconciliation_status: 'ready',
+        legacy_payout_reconciliation_version: 1,
         start_date: new Date('2026-06-01T00:00:00.000Z'),
         end_date: new Date('2026-06-30T00:00:00.000Z'),
-        rewards: [
+        rewards,
+        facebook_page: '',
+        facebook_post: '',
+        line: '',
+        legacy_payout_config_checksum: '',
+      };
+      quest.legacy_payout_config_checksum =
+        legacyQuestPayoutConfigChecksum(quest);
+      return quest;
+    }
+
+    function setRankManifest(
+      questId: Types.ObjectId,
+      recipients: Array<{
+        user_id: string;
+        rank: number;
+        amount: number;
+        currency?: string;
+        excluded?: boolean;
+        exclusion_reason?: string;
+      }>,
+    ) {
+      const entries = recipients.map((recipient) => ({
+        ...recipient,
+        currency: recipient.currency || 'THB',
+        payout_key: legacyRankPayoutKey(
+          questId,
+          recipient.user_id,
+          recipient.rank,
+        ),
+      }));
+      const noRecipientReason =
+        entries.length === 0
+          ? 'Reviewed evidence found no rank recipients'
+          : undefined;
+      const quest = reconciledRankQuest(
+        questId,
+        entries.map((entry) => ({
+          rank: entry.rank,
+          reward: entry.amount,
+          currency: entry.currency,
+        })),
+      );
+      mocks.legacyManifestCollection.findOne.mockResolvedValue({
+        manifest_key: legacyRewardManifestKey(questId, 'rank'),
+        quest_id: questId.toString(),
+        reward_type: 'rank',
+        reconciliation_version: 1,
+        status: 'ready',
+        recipients: entries,
+        quest_config_checksum: quest.legacy_payout_config_checksum,
+        ...(noRecipientReason
+          ? { no_recipient_reason: noRecipientReason }
+          : {}),
+        manifest_hash: legacyRewardManifestHash(
+          questId,
+          'rank',
+          1,
+          entries,
+          noRecipientReason,
+          quest.legacy_payout_config_checksum,
+        ),
+      });
+    }
+
+    it('adminAddRewardConversionForQuest > given quest-level rewards > then it uses them instead of the legacy global reward list', async () => {
+      const questId = new Types.ObjectId();
+      mocks.questModel.findOne.mockResolvedValue(
+        reconciledRankQuest(questId, [
           { rank: 1, reward: 1200, currency: 'THB' },
           { rank: 2, reward: 800, currency: 'THB' },
-        ],
-      });
+        ]),
+      );
       mocks.rewardListModel.findOne.mockResolvedValue({
         name: 'quest',
         data: [{ rank: 1, reward: 1, currency: 'THB' }],
       });
-      mocks.pointService.getQuestRankListOfPoint.mockResolvedValue([
+      setRankManifest(questId, [
         {
           user_id: new Types.ObjectId().toHexString(),
-          username: 'winner',
-          email: 'winner@gogocash.co',
-          point: 500,
+          rank: 1,
+          amount: 1200,
         },
         {
           user_id: new Types.ObjectId().toHexString(),
-          username: 'runner',
-          email: 'runner@gogocash.co',
-          point: 400,
+          rank: 2,
+          amount: 800,
         },
       ]);
-      mocks.conversionModel.create.mockResolvedValue({});
-      mocks.questModel.findByIdAndUpdate.mockReturnValue({
-        exec: jest.fn().mockResolvedValue({}),
-      });
+      mocks.conversionModel.updateOne.mockResolvedValue({ upsertedCount: 1 });
+      mocks.questModel.findOneAndUpdate.mockResolvedValue({});
 
       await mocks.service.adminAddRewardConversionForQuest();
 
       expect(mocks.rewardListModel.findOne).not.toHaveBeenCalled();
-      expect(mocks.conversionModel.create).toHaveBeenCalledTimes(2);
-      expect(mocks.conversionModel.create).toHaveBeenNthCalledWith(
+      expect(mocks.pointService.getQuestRankListOfPoint).not.toHaveBeenCalled();
+      expect(mocks.conversionModel.updateOne).toHaveBeenCalledTimes(2);
+      expect(mocks.conversionModel.updateOne).toHaveBeenNthCalledWith(
         1,
-        expect.objectContaining({ payout: 1200, currency: 'THB' }),
+        {
+          quest_payout_key: expect.stringMatching(
+            /^legacy:quest:.+:rank:1:user:/,
+          ),
+        },
+        {
+          $setOnInsert: expect.objectContaining({
+            payout: 1200,
+            currency: 'THB',
+            quest_payout_key: expect.stringMatching(
+              /^legacy:quest:.+:rank:1:user:/,
+            ),
+            conversion_id: expect.any(Number),
+          }),
+        },
+        { upsert: true },
       );
-      expect(mocks.conversionModel.create).toHaveBeenNthCalledWith(
+      expect(mocks.conversionModel.updateOne).toHaveBeenNthCalledWith(
         2,
-        expect.objectContaining({ payout: 800, currency: 'THB' }),
+        {
+          quest_payout_key: expect.stringMatching(
+            /^legacy:quest:.+:rank:2:user:/,
+          ),
+        },
+        {
+          $setOnInsert: expect.objectContaining({
+            payout: 800,
+            currency: 'THB',
+            quest_payout_key: expect.stringMatching(
+              /^legacy:quest:.+:rank:2:user:/,
+            ),
+          }),
+        },
+        { upsert: true },
+      );
+      expect(mocks.questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        {
+          _id: questId,
+          legacy_payout_reconciliation_status: 'ready',
+          legacy_payout_reconciliation_version: 1,
+          legacy_payout_config_checksum: reconciledRankQuest(questId, [
+            { rank: 1, reward: 1200, currency: 'THB' },
+            { rank: 2, reward: 800, currency: 'THB' },
+          ]).legacy_payout_config_checksum,
+          legacy_rank_payout_completed_at: { $exists: false },
+        },
+        {
+          $set: {
+            legacy_rank_payout_completed_at: expect.any(Date),
+            reward_status: true,
+          },
+        },
+        { new: true },
+      );
+    });
+
+    it('requires ready reconciliation and a legacy reward model in its selection query', async () => {
+      mocks.questModel.findOne.mockResolvedValue(null);
+
+      await mocks.service.adminAddRewardConversionForQuest();
+
+      const query = mocks.questModel.findOne.mock.calls[0][0];
+      expect(query).toMatchObject({
+        status: 'close',
+        legacy_payout_reconciliation_status: 'ready',
+        legacy_payout_reconciliation_version: 1,
+        legacy_rank_payout_completed_at: { $exists: false },
+      });
+      expect(JSON.stringify(query)).toContain('legacy_v1');
+      expect(JSON.stringify(query)).not.toContain('task_v2');
+    });
+
+    it('completes an explicitly reviewed empty rank manifest without inventing an unpaid recipient', async () => {
+      const questId = new Types.ObjectId();
+      mocks.questModel.findOne.mockResolvedValue(
+        reconciledRankQuest(questId, []),
+      );
+      setRankManifest(questId, []);
+      mocks.questModel.findOneAndUpdate.mockResolvedValue({});
+
+      await expect(
+        mocks.service.adminAddRewardConversionForQuest(),
+      ).resolves.toBeNull();
+
+      expect(mocks.conversionModel.updateOne).not.toHaveBeenCalled();
+      expect(mocks.legacyManifestCollection.updateOne).toHaveBeenCalledTimes(1);
+      expect(mocks.questModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries the same recipients after a crash without marking the round complete early', async () => {
+      const questId = new Types.ObjectId();
+      const userA = new Types.ObjectId().toHexString();
+      const userB = new Types.ObjectId().toHexString();
+      mocks.questModel.findOne.mockResolvedValue(
+        reconciledRankQuest(questId, [
+          { rank: 1, reward: 1200, currency: 'THB' },
+          { rank: 2, reward: 800, currency: 'THB' },
+        ]),
+      );
+      setRankManifest(questId, [
+        { user_id: userA, rank: 1, amount: 1200 },
+        { user_id: userB, rank: 2, amount: 800 },
+      ]);
+      mocks.conversionModel.updateOne
+        .mockResolvedValueOnce({ upsertedCount: 1 })
+        .mockRejectedValueOnce(new Error('crash after recipient one'))
+        .mockResolvedValue({ matchedCount: 1 });
+      mocks.conversionModel.findOne.mockImplementation(
+        ({ quest_payout_key }: { quest_payout_key: string }) => {
+          const rank = quest_payout_key.includes(':rank:1:') ? 1 : 2;
+          const userId = rank === 1 ? userA : userB;
+          return {
+            lean: jest.fn().mockResolvedValue({
+              quest_payout_key,
+              user_id: new Types.ObjectId(userId),
+              aff_sub1: `user_id:${userId}`,
+              offer_name: 'reward_conversion_quest',
+              adv_sub3: questId.toString(),
+              adv_sub5: String(rank),
+              payout: rank === 1 ? 1200 : 800,
+              currency: 'THB',
+              source: 'involve',
+              provider_account: 'legacy-quest',
+              provider_conversion_id: quest_payout_key,
+              quest_synthetic_reward: true,
+            }),
+          };
+        },
+      );
+      mocks.questModel.findOneAndUpdate.mockResolvedValue({});
+
+      await expect(
+        mocks.service.adminAddRewardConversionForQuest(),
+      ).rejects.toThrow('crash after recipient one');
+      expect(mocks.questModel.findOneAndUpdate).not.toHaveBeenCalled();
+      await expect(
+        mocks.service.adminAddRewardConversionForQuest(),
+      ).resolves.toBeDefined();
+
+      const firstAttemptKeys = mocks.conversionModel.updateOne.mock.calls
+        .slice(0, 2)
+        .map((call) => call[0].quest_payout_key);
+      const retryKeys = mocks.conversionModel.updateOne.mock.calls
+        .slice(2)
+        .map((call) => call[0].quest_payout_key);
+      expect(retryKeys).toEqual(firstAttemptKeys);
+      expect(mocks.questModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('fails closed when an existing payout key names a different effect', async () => {
+      const questId = new Types.ObjectId();
+      const userId = new Types.ObjectId().toHexString();
+      mocks.questModel.findOne.mockResolvedValue(
+        reconciledRankQuest(questId, [
+          { rank: 1, reward: 1200, currency: 'THB' },
+        ]),
+      );
+      setRankManifest(questId, [{ user_id: userId, rank: 1, amount: 1200 }]);
+      mocks.conversionModel.updateOne.mockResolvedValue({ matchedCount: 1 });
+      mocks.conversionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          user_id: new Types.ObjectId(userId),
+          aff_sub1: `user_id:${userId}`,
+          offer_name: 'reward_conversion_quest',
+          adv_sub3: questId.toString(),
+          adv_sub5: '1',
+          payout: 999,
+          currency: 'THB',
+          source: 'involve',
+          provider_account: 'legacy-quest',
+          provider_conversion_id: legacyRankPayoutKey(questId, userId, 1),
+          quest_synthetic_reward: true,
+        }),
+      });
+
+      await expect(
+        mocks.service.adminAddRewardConversionForQuest(),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(mocks.legacyManifestCollection.updateOne).not.toHaveBeenCalled();
+      expect(mocks.questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('does not mark the quest paid when the manifest completion hash fence is lost', async () => {
+      const questId = new Types.ObjectId();
+      const userId = new Types.ObjectId().toHexString();
+      mocks.questModel.findOne.mockResolvedValue(
+        reconciledRankQuest(questId, [
+          { rank: 1, reward: 1200, currency: 'THB' },
+        ]),
+      );
+      setRankManifest(questId, [{ user_id: userId, rank: 1, amount: 1200 }]);
+      mocks.conversionModel.updateOne.mockResolvedValue({ upsertedCount: 1 });
+      mocks.legacyManifestCollection.updateOne.mockResolvedValue({
+        matchedCount: 0,
+      });
+
+      await expect(
+        mocks.service.adminAddRewardConversionForQuest(),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(mocks.questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('fails closed before any rank payout when the immutable manifest was tampered with', async () => {
+      const questId = new Types.ObjectId();
+      const userId = new Types.ObjectId().toHexString();
+      const quest = reconciledRankQuest(questId, [
+        { rank: 1, reward: 1200, currency: 'THB' },
+      ]);
+      mocks.questModel.findOne.mockResolvedValue(quest);
+      const originalRecipients = [
+        {
+          user_id: userId,
+          rank: 1,
+          amount: 1200,
+          currency: 'THB',
+          payout_key: legacyRankPayoutKey(questId, userId, 1),
+        },
+      ];
+      mocks.legacyManifestCollection.findOne.mockResolvedValue({
+        manifest_key: legacyRewardManifestKey(questId, 'rank'),
+        quest_id: questId.toString(),
+        reward_type: 'rank',
+        reconciliation_version: 1,
+        status: 'ready',
+        recipients: [{ ...originalRecipients[0], amount: 120_000 }],
+        quest_config_checksum: quest.legacy_payout_config_checksum,
+        manifest_hash: legacyRewardManifestHash(
+          questId,
+          'rank',
+          1,
+          originalRecipients,
+          undefined,
+          quest.legacy_payout_config_checksum,
+        ),
+      });
+
+      await expect(
+        mocks.service.adminAddRewardConversionForQuest(),
+      ).rejects.toThrow(/manifest hash mismatch/i);
+      expect(mocks.conversionModel.updateOne).not.toHaveBeenCalled();
+      expect(mocks.legacyManifestCollection.updateOne).not.toHaveBeenCalled();
+      expect(mocks.questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('ignores a changed retry-time leaderboard and pays only the reconciliation manifest', async () => {
+      const questId = new Types.ObjectId();
+      const frozenUser = new Types.ObjectId().toHexString();
+      mocks.questModel.findOne.mockResolvedValue(
+        reconciledRankQuest(questId, [
+          { rank: 1, reward: 1200, currency: 'THB' },
+        ]),
+      );
+      setRankManifest(questId, [
+        { user_id: frozenUser, rank: 1, amount: 1200 },
+      ]);
+      mocks.pointService.getQuestRankListOfPoint.mockResolvedValue([
+        { user_id: new Types.ObjectId().toHexString(), point: 9999 },
+      ]);
+      mocks.conversionModel.updateOne.mockResolvedValue({ upsertedCount: 1 });
+      mocks.questModel.findOneAndUpdate.mockResolvedValue({});
+
+      await mocks.service.adminAddRewardConversionForQuest();
+
+      expect(mocks.pointService.getQuestRankListOfPoint).not.toHaveBeenCalled();
+      expect(mocks.conversionModel.updateOne).toHaveBeenCalledWith(
+        {
+          quest_payout_key: legacyRankPayoutKey(questId, frozenUser, 1),
+        },
+        expect.any(Object),
+        { upsert: true },
       );
     });
   });

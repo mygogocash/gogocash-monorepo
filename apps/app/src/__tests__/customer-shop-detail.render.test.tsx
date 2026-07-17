@@ -4,8 +4,18 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Linking } from "react-native";
+
+const couponRedirectMocks = vi.hoisted(() => ({
+  auth: { isAuthed: true, ready: true },
+  mintUserTrackingLink: vi.fn(),
+  routerPush: vi.fn(),
+  session: {
+    current: { access_token: "backend-jwt" } as { access_token: string } | null,
+  },
+}));
 
 // CustomerShopDetailScreen reaches i18n/LocaleProvider (via useCopy/AccountPageShell-free
 // path it still uses tc()), which touches expo-localization (-> expo-modules-core) and the
@@ -13,6 +23,31 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // so mock the module at the seam — the same pattern the wallet/auth/profile render tests use.
 vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
+}));
+
+vi.mock("expo-router", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("expo-router")>();
+  const router = {
+    ...actual.router,
+    push: couponRedirectMocks.routerPush,
+  };
+  return {
+    ...actual,
+    router,
+    useRouter: () => router,
+  };
+});
+
+vi.mock("@mobile/api/affiliateDeeplink", () => ({
+  mintUserTrackingLink: couponRedirectMocks.mintUserTrackingLink,
+}));
+
+vi.mock("@mobile/auth/useAuthGuardSession", () => ({
+  useAuthGuardSession: () => couponRedirectMocks.auth,
+}));
+
+vi.mock("@mobile/auth/useMobileSessionSnapshot", () => ({
+  useMobileSessionSnapshot: () => couponRedirectMocks.session.current,
 }));
 
 const merchantResourceState = vi.hoisted(() => ({
@@ -28,10 +63,16 @@ const couponResourceState = vi.hoisted(() => ({
 }));
 
 vi.mock("@mobile/account/customerAccountResource", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@mobile/account/customerAccountResource")>();
+  const actual =
+    await importOriginal<
+      typeof import("@mobile/account/customerAccountResource")
+    >();
   return {
     ...actual,
-    useCustomerAccountResource: (options: { resourceId: string; fixtureData: unknown }) => {
+    useCustomerAccountResource: (options: {
+      resourceId: string;
+      fixtureData: unknown;
+    }) => {
       if (options.resourceId === "merchant") {
         return {
           data: merchantResourceState.data ?? options.fixtureData,
@@ -89,6 +130,11 @@ vi.mock("@mobile/account/customerAccountResource", async (importOriginal) => {
 
 import { ToastProvider } from "@mobile/components/Toast";
 import { ShopCouponDeals } from "@mobile/components/shop/ShopCouponDeals";
+import {
+  peekPendingShopNowIntent,
+  resetPendingShopNowIntentForTests,
+} from "@mobile/auth/shopNowIntent";
+import { getMobileEnv } from "@mobile/config/env";
 import { CustomerShopDetailScreen } from "@mobile/screens/CustomerShopDetailScreen";
 
 // Wave B (B4 — discovery cluster) per-screen UX adoption for the merchant/SHOP DETAIL
@@ -110,8 +156,11 @@ import { CustomerShopDetailScreen } from "@mobile/screens/CustomerShopDetailScre
 // and numberOfLines Thai-truncation guards on overflow-prone titles.
 // KeyboardAwareScreen is skipped: the screen has no text inputs.
 const shopSource = readFileSync(
-  resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerShopDetailScreen.tsx"),
-  "utf8"
+  resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../screens/CustomerShopDetailScreen.tsx",
+  ),
+  "utf8",
 );
 
 // Mount inside QueryClientProvider (useCustomerAccountResource calls useQuery
@@ -119,18 +168,34 @@ const shopSource = readFileSync(
 // "ready" and the screen renders its content) AND ToastProvider (the referral Share action
 // consumes useToast(), which throws without a provider — same as the offers render test).
 function renderScreen() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
     createElement(
       QueryClientProvider,
       { client: queryClient },
-      createElement(ToastProvider, {}, createElement(CustomerShopDetailScreen, {}))
-    )
+      createElement(
+        ToastProvider,
+        {},
+        createElement(CustomerShopDetailScreen, {}),
+      ),
+    ),
   );
 }
 
 describe("CustomerShopDetailScreen (render)", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
+    couponRedirectMocks.auth.isAuthed = true;
+    couponRedirectMocks.auth.ready = true;
+    couponRedirectMocks.session.current = { access_token: "backend-jwt" };
+    couponRedirectMocks.mintUserTrackingLink.mockReset();
+    couponRedirectMocks.mintUserTrackingLink.mockResolvedValue(
+      "https://attributed.example/user-coupon-link",
+    );
+    couponRedirectMocks.routerPush.mockReset();
+    resetPendingShopNowIntentForTests();
     merchantResourceState.data = null;
     merchantResourceState.status = "ready";
     merchantResourceState.source = "fixtures";
@@ -196,6 +261,7 @@ describe("CustomerShopDetailScreen (render)", () => {
         discount_type: "cash",
         discount_currency: "THB",
         code_enabled: false,
+        destination_url: "https://tracking.example/godaddy?coupon=love-u",
         eligibility: "members",
         min_spend: "100",
         min_spend_currency: "THB",
@@ -223,7 +289,9 @@ describe("CustomerShopDetailScreen (render)", () => {
     expect(screen.getByText("Valid from 2026-07-10 09:30")).toBeTruthy();
     expect(screen.getByText("Valid until 2026-07-22 22:15")).toBeTruthy();
     expect(screen.queryByText("Copy code")).toBeNull();
-    expect(screen.getByRole("button", { name: "Use coupon Love U" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Use coupon Love U" }),
+    ).toBeTruthy();
     const termsButton = screen.getByRole("button", {
       name: "Read terms & conditions for Love U",
     });
@@ -238,12 +306,243 @@ describe("CustomerShopDetailScreen (render)", () => {
     expect(screen.queryByText("No deals available right now")).toBeNull();
   });
 
+  it("mints a user-attributed link from the exact verified no-code coupon destination", async () => {
+    merchantResourceState.data = {
+      _id: "merchant-link-only",
+      merchant_id: 7339,
+      offer_name: "Link Merchant",
+      offer_id: 339,
+      tracking_link: "https://merchant.example/general",
+    };
+    merchantResourceState.source = "backend";
+    couponResourceState.data = [
+      {
+        _id: "coupon-link-only",
+        name: "Link-only deal",
+        code_enabled: false,
+        destination_url: "https://tracking.example/exact?coupon=1",
+        start_date: "2026-07-01",
+        end_date: "2026-07-31",
+      },
+    ];
+    couponResourceState.status = "ready";
+    couponResourceState.source = "backend";
+    const openUrl = vi.spyOn(Linking, "openURL").mockResolvedValue(true);
+
+    renderScreen();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Use coupon Link-only deal" }),
+    );
+
+    expect(couponRedirectMocks.mintUserTrackingLink).toHaveBeenCalledWith({
+      accessToken: "backend-jwt",
+      apiUrl: getMobileEnv().apiUrl,
+      deeplink: "https://tracking.example/exact?coupon=1",
+      merchantId: 7339,
+      offerId: 339,
+    });
+    expect(
+      screen.getByRole("alert", { name: "Moving to Link Merchant" }),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByText("Tap here"));
+
+    await waitFor(() => {
+      expect(openUrl).toHaveBeenCalledWith(
+        "https://attributed.example/user-coupon-link",
+      );
+    });
+    expect(openUrl).toHaveBeenCalledTimes(1);
+    expect(openUrl).not.toHaveBeenCalledWith(
+      "https://tracking.example/exact?coupon=1",
+    );
+    expect(openUrl).not.toHaveBeenCalledWith(
+      "https://merchant.example/general",
+    );
+  });
+
+  it("falls back to the live merchant tracking URL when Shop Now minting fails", async () => {
+    couponRedirectMocks.mintUserTrackingLink.mockResolvedValue(null);
+    merchantResourceState.data = {
+      _id: "merchant-shop-now-fallback",
+      merchant_id: 7339,
+      offer_name: "Fallback Merchant",
+      offer_id: 339,
+      tracking_link: "https://merchant.example/general-tracked",
+    };
+    merchantResourceState.source = "backend";
+    const openUrl = vi.spyOn(Linking, "openURL").mockResolvedValue(true);
+
+    renderScreen();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Shop now at Fallback Merchant" }),
+    );
+
+    expect(couponRedirectMocks.mintUserTrackingLink).toHaveBeenCalledWith({
+      accessToken: "backend-jwt",
+      apiUrl: getMobileEnv().apiUrl,
+      deeplink: "",
+      merchantId: 7339,
+      offerId: 339,
+    });
+    fireEvent.click(screen.getByText("Tap here"));
+
+    await waitFor(() => {
+      expect(openUrl).toHaveBeenCalledWith(
+        "https://merchant.example/general-tracked",
+      );
+    });
+    expect(openUrl).toHaveBeenCalledTimes(1);
+    expect(openUrl).not.toHaveBeenCalledWith(
+      "https://www.google.com/search?q=Fallback%20Merchant",
+    );
+  });
+
+  it("preserves only the coupon id through login and re-resolves the current backend destination", async () => {
+    couponRedirectMocks.auth.isAuthed = false;
+    couponRedirectMocks.session.current = null;
+    merchantResourceState.data = {
+      _id: "merchant-link-only",
+      merchant_id: 7339,
+      offer_name: "Link Merchant",
+      offer_id: 339,
+      tracking_link: "https://merchant.example/general",
+    };
+    merchantResourceState.source = "backend";
+    couponResourceState.data = [
+      {
+        _id: "coupon-link-only",
+        name: "Link-only deal",
+        code_enabled: false,
+        destination_url: "https://tracking.example/exact?coupon=1",
+        start_date: "2026-07-01",
+        end_date: "2026-07-31",
+      },
+    ];
+    couponResourceState.status = "ready";
+    couponResourceState.source = "backend";
+    const openUrl = vi.spyOn(Linking, "openURL").mockResolvedValue(true);
+
+    const loggedOutRender = renderScreen();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Use coupon Link-only deal" }),
+    );
+
+    expect(couponRedirectMocks.routerPush).toHaveBeenCalledWith(
+      "/login?callbackUrl=%2Fshop%2Fmerchant-link-only",
+    );
+    expect(peekPendingShopNowIntent("merchant-link-only")).toEqual({
+      couponId: "coupon-link-only",
+    });
+    expect(couponRedirectMocks.mintUserTrackingLink).not.toHaveBeenCalled();
+    expect(openUrl).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    loggedOutRender.unmount();
+    couponRedirectMocks.auth.isAuthed = true;
+    couponRedirectMocks.session.current = { access_token: "backend-jwt" };
+    couponResourceState.data = [
+      {
+        _id: "coupon-link-only",
+        name: "Link-only deal",
+        code_enabled: false,
+        destination_url:
+          "https://tracking.example/current-after-login?coupon=1",
+        start_date: "2026-07-01",
+        end_date: "2026-07-31",
+      },
+    ];
+
+    renderScreen();
+
+    await waitFor(() => {
+      expect(couponRedirectMocks.mintUserTrackingLink).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deeplink: "https://tracking.example/current-after-login?coupon=1",
+        }),
+      );
+    });
+    expect(couponRedirectMocks.mintUserTrackingLink).toHaveBeenCalledTimes(1);
+    expect(couponRedirectMocks.mintUserTrackingLink).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        deeplink: "https://tracking.example/exact?coupon=1",
+      }),
+    );
+  });
+
+  it("falls back only to the exact verified coupon destination when minting fails", async () => {
+    couponRedirectMocks.mintUserTrackingLink.mockResolvedValue(null);
+    merchantResourceState.data = {
+      _id: "merchant-link-only",
+      merchant_id: 7339,
+      offer_name: "Link Merchant",
+      offer_id: 339,
+      tracking_link: "https://merchant.example/general",
+    };
+    merchantResourceState.source = "backend";
+    couponResourceState.data = [
+      {
+        _id: "coupon-link-only",
+        name: "Link-only deal",
+        code_enabled: false,
+        destination_url: "https://tracking.example/exact?coupon=1",
+        start_date: "2026-07-01",
+        end_date: "2026-07-31",
+      },
+    ];
+    couponResourceState.status = "ready";
+    couponResourceState.source = "backend";
+    const openUrl = vi.spyOn(Linking, "openURL").mockResolvedValue(true);
+
+    renderScreen();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Use coupon Link-only deal" }),
+    );
+    fireEvent.click(screen.getByText("Tap here"));
+
+    await waitFor(() => {
+      expect(openUrl).toHaveBeenCalledWith(
+        "https://tracking.example/exact?coupon=1",
+      );
+    });
+    expect(openUrl).toHaveBeenCalledTimes(1);
+    expect(openUrl).not.toHaveBeenCalledWith(
+      "https://merchant.example/general",
+    );
+    expect(openUrl).not.toHaveBeenCalledWith(
+      "https://www.google.com/search?q=Link%20Merchant",
+    );
+  });
+
+  it("renders a safe unavailable state when a no-code coupon has no destination", () => {
+    couponResourceState.data = [
+      {
+        _id: "coupon-no-destination",
+        name: "Unavailable link deal",
+        code_enabled: false,
+        start_date: "2026-07-01",
+        end_date: "2026-07-31",
+      },
+    ];
+    couponResourceState.status = "ready";
+    couponResourceState.source = "backend";
+
+    renderScreen();
+
+    expect(screen.getByText("Coupon link unavailable")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", {
+        name: "Use coupon Unavailable link deal",
+      }),
+    ).toBeNull();
+  });
   it("invokes the no-code coupon callback with the selected coupon", () => {
     const onUseCoupon = vi.fn();
     const coupon = {
       code: null,
       codeEnabled: false,
       description: null,
+      destinationUrl: "https://tracking.example/no-code",
       discount: 10,
       discountCurrency: "THB",
       discountType: "percent" as const,
@@ -288,6 +587,55 @@ describe("CustomerShopDetailScreen (render)", () => {
     expect(onUseCoupon).toHaveBeenCalledWith(coupon);
   });
 
+  it("never reclassifies an enabled coupon with a missing code as link-only", () => {
+    const coupon = {
+      code: null,
+      codeEnabled: true,
+      description: null,
+      destinationUrl: "https://tracking.example/must-not-open",
+      discount: null,
+      discountCurrency: null,
+      discountType: null,
+      endDate: null,
+      endTime: null,
+      eligibility: null,
+      id: "malformed-code-coupon",
+      link: null,
+      maxCap: null,
+      maxCapCurrency: null,
+      minimumSpend: null,
+      minimumSpendCurrency: null,
+      name: "Malformed code deal",
+      oneTimeUse: null,
+      remainingQuantity: null,
+      startDate: null,
+      startTime: null,
+      termsAndConditions: "Legacy terms.",
+      usagePerUser: null,
+    };
+
+    render(
+      createElement(
+        ToastProvider,
+        {},
+        createElement(ShopCouponDeals, {
+          coupons: [coupon],
+          emptySubtitle: "No coupons",
+          emptyTitle: "No coupons",
+          onRetry: vi.fn(),
+          onUseCoupon: vi.fn(),
+          status: "ready",
+          title: "Deals",
+        }),
+      ),
+    );
+
+    expect(screen.getByText("Coupon code unavailable")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Use coupon Malformed code deal" }),
+    ).toBeNull();
+    expect(screen.queryByText("Copy code")).toBeNull();
+  });
   it("renders a code coupon with copy and terms actions but no use CTA", () => {
     couponResourceState.data = [
       {
@@ -450,7 +798,9 @@ describe("CustomerShopDetailScreen — Wave B foundations adopted (source signal
     // under Thai, so it (and the section titles) get a numberOfLines guard. Assert the
     // referral title specifically is now line-clamped.
     expect(shopSource).toContain("styles.referralTitle");
-    expect(shopSource).toMatch(/numberOfLines=\{\d+\}\s*\n?\s*style=\{styles\.referralTitle\}/);
+    expect(shopSource).toMatch(
+      /numberOfLines=\{\d+\}\s*\n?\s*style=\{styles\.referralTitle\}/,
+    );
   });
 
   it("encodes dynamic category links so backend categories with spaces and ampersands route correctly", () => {

@@ -1,3 +1,5 @@
+import { parseStoredPolicy } from "./policyPayload";
+
 /**
  * Generic sample terms used to pre-fill an offer's Terms & Conditions editor
  * when neither a configured policy nor a category-specific default applies.
@@ -72,6 +74,56 @@ export const CATEGORY_MOCK_TERMS: Record<string, string> = {
 export function categoryMockTerms(name: string | null | undefined): string {
   if (!name) return "";
   return CATEGORY_MOCK_TERMS[name.trim().toLowerCase()] ?? "";
+}
+
+/**
+ * Convert the current `GET /policy/category-list` response into the compact
+ * category-to-terms map consumed by the offer authoring forms. A string map is
+ * also accepted during rolling deploys so an older API response remains safe.
+ */
+export function policyTermsMapFromCategoryList(
+  payload: unknown,
+): Record<string, string> {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    return Object.fromEntries(
+      Object.entries(payload).flatMap(([categoryId, value]) =>
+        typeof value === "string" && value.trim()
+          ? [[categoryId, value.trim()]]
+          : [],
+      ),
+    );
+  }
+  if (!Array.isArray(payload)) return {};
+
+  const termsByCategory: Record<string, string> = {};
+  for (const value of payload) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    const entry = value as Record<string, unknown>;
+    const categoryId =
+      typeof entry.category_id === "string" ? entry.category_id.trim() : "";
+    if (!categoryId) continue;
+
+    const parsed = parseStoredPolicy(entry.terms);
+    const localeOrder = [
+      parsed.primary_locale,
+      "th",
+      "en",
+      ...Object.keys(parsed.translations),
+    ].filter((locale, index, all) => locale && all.indexOf(locale) === index);
+    const selectedLocale = localeOrder.find(
+      (locale) => parsed.translations[locale]?.trim(),
+    );
+    if (!selectedLocale) continue;
+
+    const base = parsed.translations[selectedLocale].trim();
+    const additional = (parsed.additionalTerms[selectedLocale] ?? "").trim();
+    const legacyTemplatePlusSeparator = "\n\n--- Additional terms ---\n\n";
+    termsByCategory[categoryId] =
+      additional && !base.includes(legacyTemplatePlusSeparator)
+      ? `${base}\n\n${additional}`
+      : base;
+  }
+  return termsByCategory;
 }
 
 export interface PolicyCategoryRef {

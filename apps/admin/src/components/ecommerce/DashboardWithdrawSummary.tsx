@@ -14,13 +14,19 @@ import {
 
 export function DashboardWithdrawSummary() {
   const hasRealApi = isRealApiConfigured();
-  const { data: summary, isLoading, isError, error } = useQuery({
+  const {
+    data: summary,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["dashboard", "withdraw-summary"],
     queryFn: fetchDashboardWithdrawSummary,
     staleTime: 60_000,
   });
 
-  const displaySummary = summary ?? (hasRealApi ? null : MOCK_DASHBOARD_SUMMARY);
+  const displaySummary =
+    summary ?? (hasRealApi ? null : MOCK_DASHBOARD_SUMMARY);
   const pendingCount = displaySummary?.withdrawByStatus?.pending?.count ?? 0;
   const showAttention = pendingCount > 0;
 
@@ -42,7 +48,10 @@ export function DashboardWithdrawSummary() {
 
   if (hasRealApi && isError) {
     return (
-      <p className="border-error-200 bg-error-50 text-error-800 dark:border-error-800 dark:bg-error-950/30 dark:text-error-200 rounded-xl border px-4 py-3 text-sm">
+      <p
+        role="alert"
+        className="border-error-200 bg-error-50 text-error-800 dark:border-error-800 dark:bg-error-950/30 dark:text-error-200 rounded-xl border px-4 py-3 text-sm"
+      >
         {getApiErrorMessage(
           error,
           "Could not load withdraw summary. Refresh the page or check your connection.",
@@ -146,7 +155,7 @@ export function DashboardWithdrawSummary() {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}{" "}
-                total
+                {displaySummary?.currency ?? "THB"} total
               </p>
             </div>
           ))}

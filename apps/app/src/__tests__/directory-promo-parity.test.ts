@@ -20,9 +20,9 @@ describe("Directory promo carousel parity", () => {
     expect(webBrandDirectory.promo).toEqual(webShopDirectory.promo);
   });
 
-  it("ShopDirectoryPromo > given premium carousel plan > then reuses home snap paging and animated dots", () => {
+  it("SpecificPageBannerCarousel > given premium carousel plan > then reuses home snap paging and animated dots", () => {
     const promoSource = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/discovery/ShopDirectoryPromo.tsx"),
+      path.join(mobileRoot, "src/screens/discovery/SpecificPageBannerCarousel.tsx"),
       "utf8",
     );
 
