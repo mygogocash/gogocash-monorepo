@@ -51,20 +51,26 @@ export function resolveBankCode(bankName: string): string {
   return "000";
 }
 
-export function parseAccountNumberForApi(accountNo: string): number {
-  const digits = accountNo.replace(/\D/g, "");
-  if (!digits) {
-    throw new Error("Account number is required.");
+export function parseAccountNumberForApi(accountNo: string | number): string {
+  if (typeof accountNo === "string") {
+    if (!/^[0-9]+$/.test(accountNo)) {
+      throw new Error("Account number must contain digits only.");
+    }
+    return accountNo;
   }
-  const parsed = Number(digits);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error("Account number must be numeric.");
+
+  if (
+    !Number.isFinite(accountNo) ||
+    !Number.isSafeInteger(accountNo) ||
+    accountNo < 0
+  ) {
+    throw new Error("Account number must be a nonnegative safe integer.");
   }
-  return parsed;
+  return String(accountNo);
 }
 
 export function mapWithdrawMethodRecordToPayoutMethod(record: WithdrawMethodRecord): PayoutMethod {
-  const accountNo = String(record.account_no);
+  const accountNo = parseAccountNumberForApi(record.account_no);
   return {
     id: record._id,
     type: inferPayoutMethodType(record.bank_name),

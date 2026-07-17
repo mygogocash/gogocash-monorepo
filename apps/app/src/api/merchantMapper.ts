@@ -208,6 +208,6 @@ export function mapMerchantOfferToShopDetail<
     // fixture's default 30/30 steps.
     trackingPeriod:
       buildTrackingPeriodSteps(offer.tracking_period) ?? fixtureShop.trackingPeriod,
-    trackingUrl: offer.tracking_link?.trim() || fixtureShop.trackingUrl,
+    trackingUrl: offer.tracking_link?.trim() || undefined,
   };
 }

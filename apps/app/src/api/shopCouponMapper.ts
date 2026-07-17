@@ -26,8 +26,21 @@ function optionalBoolean(value: unknown): boolean | null {
   return null;
 }
 
-function couponDiscountType(value: unknown): "percent" | "cash" {
-  return value === "cash" ? "cash" : "percent";
+function couponDiscountType(value: unknown): "percent" | "cash" | null {
+  return value === "cash" || value === "percent" ? value : null;
+}
+
+function verifiedHttpUrl(value: unknown): string | null {
+  const text = optionalText(value);
+  if (!text) return null;
+  try {
+    const url = new URL(text);
+    const hasSafeProtocol =
+      url.protocol === "https:" || url.protocol === "http:";
+    return hasSafeProtocol && !url.username && !url.password ? text : null;
+  } catch {
+    return null;
+  }
 }
 
 function couponRows(payload: unknown): unknown[] {
@@ -47,33 +60,29 @@ function mapCouponRow(value: unknown): ShopCoupon | null {
   const minimumSpend = optionalText(row.min_spend);
   const usagePerUser = optionalNumber(row.usage_per_user);
   const maxCap = optionalNumber(row.max_cap);
-  const maxCapEnabled =
-    optionalBoolean(row.max_cap_enabled) ?? (maxCap !== null && maxCap > 0);
+  const maxCapEnabled = optionalBoolean(row.max_cap_enabled);
   return {
     code,
     codeEnabled: optionalBoolean(row.code_enabled) ?? Boolean(code),
     description: optionalText(row.description),
+    destinationUrl: verifiedHttpUrl(row.destination_url),
     discount: optionalNumber(row.discount),
     discountCurrency:
-      discountType === "cash"
-        ? (optionalText(row.discount_currency) ?? "THB")
-        : null,
+      discountType === "cash" ? optionalText(row.discount_currency) : null,
     discountType,
     endDate: optionalText(row.end_date),
     endTime: optionalText(row.end_time),
     eligibility: optionalText(row.eligibility),
     id,
-    link: optionalText(row.link),
-    maxCap: maxCapEnabled ? maxCap : null,
-    maxCapCurrency: maxCapEnabled ? optionalText(row.max_cap_currency) : null,
+    maxCap: maxCapEnabled === true ? maxCap : null,
+    maxCapCurrency:
+      maxCapEnabled === true ? optionalText(row.max_cap_currency) : null,
     minimumSpend,
     minimumSpendCurrency: minimumSpend
-      ? (optionalText(row.min_spend_currency) ?? "THB")
+      ? optionalText(row.min_spend_currency)
       : null,
     name,
-    oneTimeUse:
-      optionalBoolean(row.one_time_use_enabled) ??
-      (usagePerUser === null || usagePerUser <= 1),
+    oneTimeUse: optionalBoolean(row.one_time_use_enabled),
     remainingQuantity: optionalNumber(row.remaining_quantity),
     startDate: optionalText(row.start_date),
     startTime: optionalText(row.start_time),

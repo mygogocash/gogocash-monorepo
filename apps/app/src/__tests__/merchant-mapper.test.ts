@@ -22,6 +22,7 @@ const fixtureShop = {
   productRates: [{ name: "Groceries", rate: "0%" }],
   note: "fixture merchant campaign note",
   shopNowLabel: "Shop Now",
+  trackingUrl: "https://fixture.example/must-not-leak",
   disclaimer: "static legal copy",
   trackingPeriod: [
     { label: "Purchase", detail: "with GoGoCash", icon: "shopping" },
@@ -110,6 +111,15 @@ describe("mapMerchantOfferToShopDetail", () => {
     );
     expect(shop.disclaimer).not.toBe("static legal copy");
     expect(shop.shopNowLabel).toBe("Shop Now");
+  });
+
+  it("given a live offer without tracking_link > never inherits a fixture destination", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      { ...liveOffer, tracking_link: undefined },
+      fixtureShop,
+    );
+
+    expect(shop.trackingUrl).toBeUndefined();
   });
 
   it("#310 > given the custom-writing sentinel > then no category policy endpoint is requested", () => {

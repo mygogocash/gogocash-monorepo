@@ -41,6 +41,7 @@ import {
 } from "@mobile/account/policyResource";
 import { mintUserTrackingLink } from "@mobile/api/affiliateDeeplink";
 import { mapPublicShopCoupons } from "@mobile/api/shopCouponMapper";
+import type { ShopCoupon } from "@mobile/api/shopCouponTypes";
 import {
   mapMerchantOfferToShopDetail,
   type TrackingPeriodStep,
@@ -50,7 +51,8 @@ import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot"
 import { isMerchantOfferResponse } from "@mobile/api/merchantTypes";
 import { buildLoginRedirectWithCallback } from "@mobile/auth/routeGuard";
 import {
-  consumePendingShopNowIntent,
+  consumePendingShopNowIntentDetails,
+  peekPendingShopNowIntent,
   setPendingShopNowIntent,
 } from "@mobile/auth/shopNowIntent";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
@@ -140,13 +142,16 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
     CategoryPolicyPayload | null,
     CategoryPolicyPayload
   >({
-    enabled: Boolean(shop.policyCategoryId) && merchantResource.source === "backend",
+    enabled:
+      Boolean(shop.policyCategoryId) && merchantResource.source === "backend",
     fixtureData: null,
     merchantId: shop.policyCategoryId ?? "policy-unset",
     resourceId: "policyCategory",
   });
   const couponResource = useCustomerAccountResource<never[], unknown>({
-    enabled: merchantResource.status === "ready" && merchantResource.source === "backend",
+    enabled:
+      merchantResource.status === "ready" &&
+      merchantResource.source === "backend",
     fixtureData: [],
     merchantId: shop.id,
     resourceId: "merchantCoupons",
@@ -175,10 +180,16 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   // attribution is bad, losing the sale is worse.
   const session = useMobileSessionSnapshot();
   const mintedLinkRef = useRef<Promise<string | null> | null>(null);
+  const redirectFallbackRef = useRef<string | undefined>(undefined);
+  const allowSearchFallbackRef = useRef(true);
   const beginShopNowRedirect = () => {
+    redirectFallbackRef.current = shop.trackingUrl;
+    allowSearchFallbackRef.current = true;
     mintedLinkRef.current = mintUserTrackingLink({
       accessToken:
-        typeof session?.access_token === "string" ? session.access_token : undefined,
+        typeof session?.access_token === "string"
+          ? session.access_token
+          : undefined,
       apiUrl: getMobileEnv().apiUrl,
       deeplink: "",
       merchantId: shop.merchantId,
@@ -187,13 +198,33 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
     setRedirecting(true);
   };
 
+  const beginCouponRedirect = (coupon: ShopCoupon) => {
+    if (!coupon.destinationUrl) return;
+    redirectFallbackRef.current = coupon.destinationUrl;
+    allowSearchFallbackRef.current = false;
+    mintedLinkRef.current = mintUserTrackingLink({
+      accessToken:
+        typeof session?.access_token === "string"
+          ? session.access_token
+          : undefined,
+      apiUrl: getMobileEnv().apiUrl,
+      deeplink: coupon.destinationUrl,
+      merchantId: shop.merchantId,
+      offerId: shop.offerId,
+    });
+    setRedirecting(true);
+  };
+
   const openMerchantUrl = async () => {
     const minted = await (mintedLinkRef.current ?? Promise.resolve(null));
-    void Linking.openURL(
+    const destination =
       minted ||
-        shop.trackingUrl ||
-        `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
-    ).catch(() => undefined);
+      redirectFallbackRef.current ||
+      (allowSearchFallbackRef.current
+        ? `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
+        : null);
+    if (!destination) return;
+    void Linking.openURL(destination).catch(() => undefined);
   };
 
   const handleShopNow = () => {
@@ -210,20 +241,59 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
     beginShopNowRedirect();
   };
 
+  const handleUseCoupon = (coupon: ShopCoupon) => {
+    if (!coupon.destinationUrl) return;
+    if (!authReady) return;
+    if (!isAuthed) {
+      setPendingShopNowIntent(shop.id, { couponId: coupon.id });
+      router.push(buildLoginRedirectWithCallback(`/shop/${shop.id}`) as never);
+      return;
+    }
+    beginCouponRedirect(coupon);
+  };
+
   useEffect(() => {
     if (!authReady || !isAuthed || merchantResource.status !== "ready") {
       return;
     }
 
-    if (consumePendingShopNowIntent(shop.id)) {
-      setRedirecting(true);
+    const pending = peekPendingShopNowIntent(shop.id);
+    if (!pending) return;
+    if (
+      pending.couponId &&
+      (couponResource.status !== "ready" || couponResource.source !== "backend")
+    ) {
+      return;
     }
-  }, [authReady, isAuthed, merchantResource.status, shop.id]);
+
+    const intent = consumePendingShopNowIntentDetails(shop.id);
+    if (!intent) return;
+    if (intent.couponId) {
+      const coupon = coupons.find(
+        (candidate) =>
+          candidate.id === intent.couponId &&
+          candidate.codeEnabled === false &&
+          Boolean(candidate.destinationUrl),
+      );
+      if (coupon) beginCouponRedirect(coupon);
+      return;
+    }
+    beginShopNowRedirect();
+  }, [
+    authReady,
+    couponResource.source,
+    couponResource.status,
+    isAuthed,
+    merchantResource.status,
+    shop.id,
+  ]);
 
   if (merchantResource.status !== "ready") {
     return (
       <CustomerAccountResourceState
-        emptyBody={tc("This merchant does not have active cashback details yet.")}
+        emptyBody={tc(
+          "This merchant does not have active cashback details yet.",
+        )}
         emptyTitle={tc("No merchant details yet")}
         loadingSkeleton={<ShopDetailSkeleton />}
         resource={merchantResource}
@@ -242,22 +312,39 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
 
   const shopPageContent = (
     <>
-      <ShopHero isDesktop={isDesktop} onBack={handleBack} onShopNow={handleShopNow} shop={shop} />
-      <View style={[styles.detailGrid, isDesktop ? styles.detailGridDesktop : null]}>
-        <View style={[styles.leftColumn, isDesktop ? styles.leftColumnDesktop : null]}>
+      <ShopHero
+        isDesktop={isDesktop}
+        onBack={handleBack}
+        onShopNow={handleShopNow}
+        shop={shop}
+      />
+      <View
+        style={[styles.detailGrid, isDesktop ? styles.detailGridDesktop : null]}
+      >
+        <View
+          style={[
+            styles.leftColumn,
+            isDesktop ? styles.leftColumnDesktop : null,
+          ]}
+        >
           <ShopCashbackRail shop={shop} />
           <ShopTrackingPeriod shop={shop} />
           <ShopReferralCard onShare={handleShareReferral} shop={shop} />
           {isDesktop ? <ShopTermsPanel terms={shopTerms} /> : null}
         </View>
-        <View style={[styles.rightColumn, isDesktop ? styles.rightColumnDesktop : null]}>
+        <View
+          style={[
+            styles.rightColumn,
+            isDesktop ? styles.rightColumnDesktop : null,
+          ]}
+        >
           <ShopQuestBanner shop={shop} />
           <ShopCouponDeals
             coupons={coupons}
             emptySubtitle={shop.deals.emptySubtitle}
             emptyTitle={shop.deals.emptyTitle}
             onRetry={couponResource.retry}
-            onUseCoupon={() => handleShopNow()}
+            onUseCoupon={handleUseCoupon}
             status={couponResource.status}
             title={shop.deals.title}
           />
@@ -335,7 +422,9 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}>
+      <View
+        style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}
+      >
         <ScrollView
           contentContainerStyle={[
             styles.page,
@@ -357,7 +446,10 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
           />
         </ScrollView>
         {showBottomNav ? (
-          <CustomerMobileBottomNav activeRouteId={undefined} bottomInset={insets.bottom} />
+          <CustomerMobileBottomNav
+            activeRouteId={undefined}
+            bottomInset={insets.bottom}
+          />
         ) : null}
       </View>
       {redirecting ? (
@@ -391,9 +483,10 @@ function ShopHero({
   useEffect(() => {
     setBannerFailed(false);
   }, [shop.bannerUri]);
-  const bannerSource = shop.bannerUri && !bannerFailed
-    ? { uri: shop.bannerUri }
-    : shopBannerAssets[shop.bannerAsset];
+  const bannerSource =
+    shop.bannerUri && !bannerFailed
+      ? { uri: shop.bannerUri }
+      : shopBannerAssets[shop.bannerAsset];
 
   return (
     <View style={styles.heroWrap}>
@@ -431,7 +524,11 @@ function ShopHero({
           </MotionPressable>
         ) : null}
       </View>
-      <ShopHeroSummaryCard isDesktop={isDesktop} onShopNow={onShopNow} shop={shop} />
+      <ShopHeroSummaryCard
+        isDesktop={isDesktop}
+        onShopNow={onShopNow}
+        shop={shop}
+      />
     </View>
   );
 }
@@ -469,28 +566,35 @@ function ShopHeroSummaryCard({
   const brandTitle = (
     <Text
       numberOfLines={isDesktop ? 1 : 2}
-      style={[styles.summaryTitle, isDesktop ? null : styles.summaryTitleMobile]}
+      style={[
+        styles.summaryTitle,
+        isDesktop ? null : styles.summaryTitleMobile,
+      ]}
       testID="shop-detail-brand-name"
     >
       {shop.brand}
     </Text>
   );
-  const brandLogo = shop.logoUri && !logoFailed ? (
-    <ExpoImage
-      accessibilityLabel={`${shop.brand} logo`}
-      cachePolicy="memory-disk"
-      contentFit="contain"
-      onError={() => setLogoFailed(true)}
-      recyclingKey={shop.logoUri}
-      source={{ uri: shop.logoUri }}
-      style={styles.summaryLogoImage}
-      testID="shop-detail-brand-logo"
-    />
-  ) : (
-    <View style={styles.summaryLogoFallback} testID="shop-detail-brand-logo-fallback">
-      <Text style={styles.summaryLogoFallbackText}>{shop.logoText}</Text>
-    </View>
-  );
+  const brandLogo =
+    shop.logoUri && !logoFailed ? (
+      <ExpoImage
+        accessibilityLabel={`${shop.brand} logo`}
+        cachePolicy="memory-disk"
+        contentFit="contain"
+        onError={() => setLogoFailed(true)}
+        recyclingKey={shop.logoUri}
+        source={{ uri: shop.logoUri }}
+        style={styles.summaryLogoImage}
+        testID="shop-detail-brand-logo"
+      />
+    ) : (
+      <View
+        style={styles.summaryLogoFallback}
+        testID="shop-detail-brand-logo-fallback"
+      >
+        <Text style={styles.summaryLogoFallbackText}>{shop.logoText}</Text>
+      </View>
+    );
   // Mobile drops the logo circle — the banner directly above already carries
   // the brand, so the pill keeps the room for the name (design feedback
   // 2026-07-10). Desktop keeps logo + name.
@@ -547,7 +651,9 @@ function ShopHeroSummaryCard({
   // stacked layout (identity row above a right-aligned actions row) left a
   // dead zone bottom-left for short brand names (design feedback 2026-07-10).
   return (
-    <View style={[styles.summaryCard, isDesktop ? styles.summaryCardDesktop : null]}>
+    <View
+      style={[styles.summaryCard, isDesktop ? styles.summaryCardDesktop : null]}
+    >
       {isDesktop ? (
         <>
           {brandIdentity}
@@ -576,16 +682,24 @@ function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
         <Text style={styles.cashbackValue}>{shop.cashback}</Text>
       </View>
       <View style={styles.tagRow} accessibilityLabel="Offer highlights">
-        <Link asChild href={`/category/${encodeURIComponent(shop.category)}` as never}>
+        <Link
+          asChild
+          href={`/category/${encodeURIComponent(shop.category)}` as never}
+        >
           <MotionPressable pressScale={0.98} style={styles.categoryTag}>
-            <ShirtIcon color={colors.ink} size={18} strokeWidth={typography.iconStrokeWidth} />
+            <ShirtIcon
+              color={colors.ink}
+              size={18}
+              strokeWidth={typography.iconStrokeWidth}
+            />
             <Text style={styles.tagText}>{shop.category}</Text>
           </MotionPressable>
         </Link>
         <View style={styles.extraTag}>
           <Text style={styles.fireIcon}>🔥</Text>
           <Text style={styles.tagText}>
-            {tc("Extra Cashback")} <Text style={styles.tagStrong}>{shop.extraCashback}</Text>
+            {tc("Extra Cashback")}{" "}
+            <Text style={styles.tagStrong}>{shop.extraCashback}</Text>
           </Text>
         </View>
       </View>
@@ -639,7 +753,10 @@ function ShopTrackingPeriod({ shop }: { shop: ShopDetail }) {
 // Tracking details like "within 30 day" carry a dynamic count, so the catalog
 // can't hold every variant — translate the "within"/"day" halves around the
 // number; anything else goes through tc() whole.
-function translateTrackingDetail(detail: string, tc: (s: string) => string): string {
+function translateTrackingDetail(
+  detail: string,
+  tc: (s: string) => string,
+): string {
   const match = detail.match(/^within (\d+) day$/);
   if (match) {
     return `${tc("within")} ${match[1]} ${tc("day")}`;
@@ -647,7 +764,13 @@ function translateTrackingDetail(detail: string, tc: (s: string) => string): str
   return tc(detail);
 }
 
-function TrackingStepItem({ showConnector, step }: { showConnector: boolean; step: TrackingStep }) {
+function TrackingStepItem({
+  showConnector,
+  step,
+}: {
+  showConnector: boolean;
+  step: TrackingStep;
+}) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const tc = useCopy();
   return (
@@ -655,11 +778,15 @@ function TrackingStepItem({ showConnector, step }: { showConnector: boolean; ste
       <View style={styles.trackingItem}>
         <TrackingIcon name={step.icon} />
         <Text style={styles.trackingLabel}>{tc(step.label)}</Text>
-        <Text style={styles.trackingDetail}>{translateTrackingDetail(step.detail, tc)}</Text>
+        <Text style={styles.trackingDetail}>
+          {translateTrackingDetail(step.detail, tc)}
+        </Text>
         {/* Default subtitles ("from the following month" / "after validation")
             have catalog entries so tc() localizes them; admin-entered custom
             subtitles miss the catalog and render as-typed. */}
-        {step.subtitle ? <Text style={styles.trackingSubtitle}>{tc(step.subtitle)}</Text> : null}
+        {step.subtitle ? (
+          <Text style={styles.trackingSubtitle}>{tc(step.subtitle)}</Text>
+        ) : null}
       </View>
       {showConnector ? <View style={styles.trackingConnector} /> : null}
     </View>
@@ -669,19 +796,39 @@ function TrackingStepItem({ showConnector, step }: { showConnector: boolean; ste
 function TrackingIcon({ name }: { name: TrackingStep["icon"] }) {
   const { colors } = useTheme();
   const Icon =
-    name === "shopping" ? ShoppingBagIcon : name === "check" ? CheckCircleIcon : BanknoteIcon;
+    name === "shopping"
+      ? ShoppingBagIcon
+      : name === "check"
+        ? CheckCircleIcon
+        : BanknoteIcon;
 
-  return <Icon color={colors.muted} size={24} strokeWidth={typography.iconStrokeWidth} />;
+  return (
+    <Icon
+      color={colors.muted}
+      size={24}
+      strokeWidth={typography.iconStrokeWidth}
+    />
+  );
 }
 
-function ShopReferralCard({ onShare, shop }: { onShare: () => void; shop: ShopDetail }) {
+function ShopReferralCard({
+  onShare,
+  shop,
+}: {
+  onShare: () => void;
+  shop: ShopDetail;
+}) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
   return (
     <View style={styles.referralCard}>
       <View style={styles.referralIcon}>
-        <BadgePercentIcon color={colors.primaryDark} size={26} strokeWidth={2} />
+        <BadgePercentIcon
+          color={colors.primaryDark}
+          size={26}
+          strokeWidth={2}
+        />
       </View>
       <View style={styles.referralCopy}>
         <Text numberOfLines={2} style={styles.referralTitle}>
@@ -700,7 +847,9 @@ function ShopReferralCard({ onShare, shop }: { onShare: () => void; shop: ShopDe
         style={styles.shareButton}
       >
         <ShareIcon color={colors.white} size={16} strokeWidth={2} />
-        <Text style={styles.shareButtonText}>{tc(shop.referral.actionLabel)}</Text>
+        <Text style={styles.shareButtonText}>
+          {tc(shop.referral.actionLabel)}
+        </Text>
       </MotionPressable>
     </View>
   );
@@ -747,7 +896,11 @@ function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
           <Text style={styles.sectionTitle}>{tc(terms.title)}</Text>
           <Text style={styles.termsSubtitle}>{tc(terms.subtitle)}</Text>
         </View>
-        <InfoIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
+        <InfoIcon
+          color={colors.primaryDark}
+          size={20}
+          strokeWidth={typography.iconStrokeWidth}
+        />
       </View>
       <Text style={styles.termsSectionTitle}>{tc(terms.exclusionsTitle)}</Text>
       <View style={styles.termsList}>
@@ -765,13 +918,18 @@ function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
 // Rail cards are the fixed-size compact BrandCard (144pt — the same card the
 // home carousels scroll), so the related rail inherits tile retry + corners.
 const FIXED_RELATED_CARD_WIDTH = 144;
-const relatedCardMetrics = getScaledCompactBrandCardMetrics(FIXED_RELATED_CARD_WIDTH);
+const relatedCardMetrics = getScaledCompactBrandCardMetrics(
+  FIXED_RELATED_CARD_WIDTH,
+);
 
 function ShopExploreRelated({ excludeShopId }: { excludeShopId: string }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const tc = useCopy();
   const { region } = useLocale();
-  const catalogResource = useCustomerAccountResource<OfferListResponse, OfferListResponse>({
+  const catalogResource = useCustomerAccountResource<
+    OfferListResponse,
+    OfferListResponse
+  >({
     fixtureData: { data: [], limit: 80, page: 1, total: 0, totalPages: 0 },
     resourceId: "brandCatalog",
   });
@@ -828,7 +986,12 @@ function ShopDetailSkeleton() {
   return (
     <View style={styles.skeletonWrap} testID="shop-detail-skeleton">
       <Skeleton height={200} radius={radii.lg} width="100%" />
-      <Skeleton height={68} radius={radii.lg} style={styles.skeletonSummary} width="90%" />
+      <Skeleton
+        height={68}
+        radius={radii.lg}
+        style={styles.skeletonSummary}
+        width="90%"
+      />
       <SkeletonText lines={3} style={styles.skeletonBlock} />
       <SkeletonText lines={4} style={styles.skeletonBlock} />
     </View>
@@ -837,560 +1000,560 @@ function ShopDetailSkeleton() {
 
 function createShopDetailScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  viewport: {
-    alignItems: "center",
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  skeletonWrap: {
-    gap: spacing.md,
-    padding: spacing.lg,
-    width: "100%",
-  },
-  skeletonSummary: {
-    alignSelf: "center",
-    marginTop: -28,
-  },
-  skeletonBlock: {
-    marginTop: spacing.md,
-  },
-  frame: {
-    backgroundColor: colors.background,
-    flex: 1,
-    position: "relative",
-    width: "100%",
-  },
-  phoneFrame: {
-    backgroundColor: colors.background,
-    flex: 1,
-    position: "relative",
-    width: "100%",
-  },
-  desktopShellFrame: {
-    backgroundColor: colors.background,
-    flex: 1,
-    position: "relative",
-    width: "100%",
-  },
-  desktopContentCap: {
-    alignSelf: "center",
-    width: "100%",
-  },
-  desktopFooterCap: {
-    alignSelf: "center",
-    width: "100%",
-  },
-  pageDesktopFullBleed: {
-    paddingHorizontal: 0,
-  },
-  page: {
-    gap: 32,
-  },
-  desktopFooter: {
-    marginTop: 64,
-  },
-  heroWrap: {
-    alignItems: "center",
-    paddingBottom: 32,
-  },
-  heroBanner: {
-    // Follows the 1200x410 banner design ratio at every width — deliberately
-    // no minimum-height override: one used to square the frame on phones,
-    // making contentFit="cover" crop same-ratio banner art (2400x820 uploads)
-    // hard on both sides. Pinned by shop-hero-banner-parity.test.ts.
-    aspectRatio: 1200 / 410,
-    backgroundColor: "#D9D9D9",
-    borderRadius: 24,
-    overflow: "hidden",
-    position: "relative",
-    width: "100%",
-  },
-  heroImage: {
-    height: "100%",
-    width: "100%",
-  },
-  heroBackButton: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: radii.chip,
-    boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
-    height: 40,
-    justifyContent: "center",
-    left: 12,
-    position: "absolute",
-    top: 12,
-    width: 40,
-  },
-  summaryCard: {
-    alignItems: "stretch",
-    backgroundColor: colors.card,
-    borderRadius: 32,
-    boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
-    flexDirection: "column",
-    gap: 12,
-    minHeight: 68,
-    marginTop: -39,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    width: "90%",
-    zIndex: 2,
-  },
-  summaryCardDesktop: {
-    alignItems: "center",
-    alignSelf: "center",
-    flexDirection: "row",
-    gap: 10,
-    maxWidth: 720,
-    width: "100%",
-  },
-  summaryTitleWrap: {
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 48,
-    minWidth: 0,
-  },
-  summaryIdentityRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 12,
-    width: "100%",
-  },
-  summaryLogoImage: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 24,
-    borderWidth: 1,
-    flexShrink: 0,
-    height: 48,
-    width: 48,
-  },
-  summaryLogoFallback: {
-    alignItems: "center",
-    backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
-    borderRadius: 24,
-    flexShrink: 0,
-    height: 48,
-    justifyContent: "center",
-    width: 48,
-  },
-  summaryLogoFallbackText: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 20,
-  },
-  summaryTitleMobile: {
-    fontSize: 17,
-    lineHeight: 22,
-    width: "100%",
-  },
-  summaryMobileRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-    width: "100%",
-  },
-  // Mobile row is tight (295px inner at 400px viewport): slim the heart and
-  // Shop Now so the flexed brand-name column keeps ~80px and short names
-  // stay on one line instead of breaking mid-word.
-  favoriteButtonCompact: {
-    height: 40,
-    width: 40,
-  },
-  shopNowButtonCompact: {
-    height: 40,
-    minWidth: 0,
-    paddingHorizontal: 16,
-  },
-  summaryTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 17,
-    fontWeight: "600",
-    lineHeight: 22,
-  },
-  favoriteButton: {
-    alignItems: "center",
-    backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
-    borderColor: pickThemed(colors, "#E6F7ED", colors.border),
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    flexShrink: 0,
-    height: 48,
-    justifyContent: "center",
-    width: 48,
-  },
-  shopNowButton: {
-    alignItems: "center",
-    backgroundColor: pickThemed(colors, colors.ink, colors.primary),
-    borderRadius: radii.chip,
-    flexShrink: 0,
-    height: 48,
-    justifyContent: "center",
-    minWidth: 126,
-    paddingHorizontal: 18,
-  },
-  shopNowText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  detailGrid: {
-    gap: 32,
-    width: "100%",
-  },
-  detailGridDesktop: {
-    flexDirection: "row",
-    gap: 80,
-  },
-  leftColumn: {
-    gap: 40,
-    minWidth: 0,
-  },
-  leftColumnDesktop: {
-    flexBasis: 400,
-    flexGrow: 0,
-    flexShrink: 0,
-  },
-  rightColumn: {
-    gap: 56,
-    minWidth: 0,
-  },
-  rightColumnDesktop: {
-    flexBasis: 0,
-    flexGrow: 1,
-    flexShrink: 1,
-  },
-  cashbackRail: {
-    gap: 24,
-  },
-  cashbackHeader: {
-    alignItems: "baseline",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  cashbackLabel: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 20,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 24,
-  },
-  cashbackValue: {
-    color: colors.primary,
-    flexShrink: 0,
-    fontFamily: typography.family,
-    fontSize: 40,
-    fontWeight: "600",
-    lineHeight: 42,
-  },
-  tagRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  categoryTag: {
-    alignItems: "center",
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    flexDirection: "row",
-    gap: 8,
-    minHeight: 40,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  extraTag: {
-    alignItems: "center",
-    backgroundColor: pickThemed(colors, "#F7FDFB", colors.card),
-    borderColor: pickThemed(colors, "#C8EBE0", colors.border),
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 8,
-    minHeight: 40,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  fireIcon: {
-    fontSize: 16,
-    lineHeight: 18,
-  },
-  tagText: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "500",
-    lineHeight: 18,
-  },
-  tagStrong: {
-    color: colors.primaryDark,
-    fontWeight: "600",
-  },
-  rateDetails: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    gap: 12,
-    paddingTop: 14,
-  },
-  disclaimer: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 24,
-  },
-  rateSummaryRow: {
-    alignItems: "baseline",
-    flexDirection: "row",
-    gap: 16,
-    justifyContent: "space-between",
-  },
-  // Quiet secondary info — bright 16px ink competed with the mint hero rate
-  // above and out-shouted the surrounding disclaimers (design feedback
-  // 2026-07-10).
-  rateSummaryText: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 20,
-  },
-  productRateList: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-  },
-  productRateRow: {
-    alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    justifyContent: "space-between",
-    paddingVertical: 11,
-  },
-  productRateName: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: typography.bodyWeight,
-  },
-  productRateValue: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  noteBox: {
-    backgroundColor: pickThemed(colors, "#F7FDFB", colors.card),
-    borderColor: pickThemed(colors, "#C8EBE0", colors.border),
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  noteTitle: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 0.4,
-    lineHeight: 16,
-    marginBottom: 6,
-  },
-  noteBody: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 22,
-  },
-  trackingSection: {
-    gap: 24,
-  },
-  sectionTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 20,
-    fontWeight: "600",
-    lineHeight: 26,
-  },
-  trackingRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  trackingItemWrap: {
-    alignItems: "center",
-    flex: 1,
-    flexDirection: "row",
-  },
-  trackingItem: {
-    alignItems: "center",
-    flex: 1,
-    gap: 6,
-  },
-  trackingConnector: {
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flex: 0.35,
-    marginTop: -34,
-  },
-  trackingLabel: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 15,
-    textAlign: "center",
-  },
-  trackingDetail: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 12,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 15,
-    textAlign: "center",
-  },
-  trackingSubtitle: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 10,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 13,
-    textAlign: "center",
-  },
-  referralCard: {
-    backgroundColor: colors.card,
-    borderColor: pickThemed(colors, "#C8EBE0", colors.border),
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 14,
-    padding: 18,
-    boxShadow: shadows.cardCss,
-  },
-  referralIcon: {
-    alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderRadius: radii.md,
-    height: 52,
-    justifyContent: "center",
-    width: 52,
-  },
-  referralCopy: {
-    gap: 6,
-  },
-  referralTitle: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  referralSubtitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 15,
-    fontWeight: "600",
-    lineHeight: 20,
-  },
-  referralBody: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 22,
-  },
-  shareButton: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: colors.primary,
-    borderRadius: radii.chip,
-    flexDirection: "row",
-    gap: 8,
-    minHeight: 38,
-    paddingHorizontal: 18,
-  },
-  shareButtonText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  questBannerFrame: {
-    overflow: "hidden",
-    width: "100%",
-  },
-  questBannerImage: {
-    height: "100%",
-    width: "100%",
-  },
-  termsPanel: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 16,
-    padding: 18,
-  },
-  termsHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 12,
-  },
-  termsEmoji: {
-    fontSize: 24,
-    lineHeight: 28,
-  },
-  termsTitleWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  termsSubtitle: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: typography.bodyWeight,
-  },
-  termsSectionTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  termsList: {
-    gap: 10,
-  },
-  termBulletRow: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: 8,
-  },
-  termBulletDot: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  termBulletText: {
-    color: colors.muted,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: typography.bodyWeight,
-    lineHeight: 22,
-  },
-  relatedSection: {
-    gap: 18,
-  },
-  relatedRow: {
-    gap: 12,
-    paddingRight: spacing.md,
-  },
-});
+    viewport: {
+      alignItems: "center",
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+    skeletonWrap: {
+      gap: spacing.md,
+      padding: spacing.lg,
+      width: "100%",
+    },
+    skeletonSummary: {
+      alignSelf: "center",
+      marginTop: -28,
+    },
+    skeletonBlock: {
+      marginTop: spacing.md,
+    },
+    frame: {
+      backgroundColor: colors.background,
+      flex: 1,
+      position: "relative",
+      width: "100%",
+    },
+    phoneFrame: {
+      backgroundColor: colors.background,
+      flex: 1,
+      position: "relative",
+      width: "100%",
+    },
+    desktopShellFrame: {
+      backgroundColor: colors.background,
+      flex: 1,
+      position: "relative",
+      width: "100%",
+    },
+    desktopContentCap: {
+      alignSelf: "center",
+      width: "100%",
+    },
+    desktopFooterCap: {
+      alignSelf: "center",
+      width: "100%",
+    },
+    pageDesktopFullBleed: {
+      paddingHorizontal: 0,
+    },
+    page: {
+      gap: 32,
+    },
+    desktopFooter: {
+      marginTop: 64,
+    },
+    heroWrap: {
+      alignItems: "center",
+      paddingBottom: 32,
+    },
+    heroBanner: {
+      // Follows the 1200x410 banner design ratio at every width — deliberately
+      // no minimum-height override: one used to square the frame on phones,
+      // making contentFit="cover" crop same-ratio banner art (2400x820 uploads)
+      // hard on both sides. Pinned by shop-hero-banner-parity.test.ts.
+      aspectRatio: 1200 / 410,
+      backgroundColor: "#D9D9D9",
+      borderRadius: 24,
+      overflow: "hidden",
+      position: "relative",
+      width: "100%",
+    },
+    heroImage: {
+      height: "100%",
+      width: "100%",
+    },
+    heroBackButton: {
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderRadius: radii.chip,
+      boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
+      height: 40,
+      justifyContent: "center",
+      left: 12,
+      position: "absolute",
+      top: 12,
+      width: 40,
+    },
+    summaryCard: {
+      alignItems: "stretch",
+      backgroundColor: colors.card,
+      borderRadius: 32,
+      boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+      flexDirection: "column",
+      gap: 12,
+      minHeight: 68,
+      marginTop: -39,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+      width: "90%",
+      zIndex: 2,
+    },
+    summaryCardDesktop: {
+      alignItems: "center",
+      alignSelf: "center",
+      flexDirection: "row",
+      gap: 10,
+      maxWidth: 720,
+      width: "100%",
+    },
+    summaryTitleWrap: {
+      flex: 1,
+      justifyContent: "center",
+      minHeight: 48,
+      minWidth: 0,
+    },
+    summaryIdentityRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 12,
+      width: "100%",
+    },
+    summaryLogoImage: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 24,
+      borderWidth: 1,
+      flexShrink: 0,
+      height: 48,
+      width: 48,
+    },
+    summaryLogoFallback: {
+      alignItems: "center",
+      backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
+      borderRadius: 24,
+      flexShrink: 0,
+      height: 48,
+      justifyContent: "center",
+      width: 48,
+    },
+    summaryLogoFallbackText: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 16,
+      fontWeight: "700",
+      lineHeight: 20,
+    },
+    summaryTitleMobile: {
+      fontSize: 17,
+      lineHeight: 22,
+      width: "100%",
+    },
+    summaryMobileRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 10,
+      width: "100%",
+    },
+    // Mobile row is tight (295px inner at 400px viewport): slim the heart and
+    // Shop Now so the flexed brand-name column keeps ~80px and short names
+    // stay on one line instead of breaking mid-word.
+    favoriteButtonCompact: {
+      height: 40,
+      width: 40,
+    },
+    shopNowButtonCompact: {
+      height: 40,
+      minWidth: 0,
+      paddingHorizontal: 16,
+    },
+    summaryTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 17,
+      fontWeight: "600",
+      lineHeight: 22,
+    },
+    favoriteButton: {
+      alignItems: "center",
+      backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
+      borderColor: pickThemed(colors, "#E6F7ED", colors.border),
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      flexShrink: 0,
+      height: 48,
+      justifyContent: "center",
+      width: 48,
+    },
+    shopNowButton: {
+      alignItems: "center",
+      backgroundColor: pickThemed(colors, colors.ink, colors.primary),
+      borderRadius: radii.chip,
+      flexShrink: 0,
+      height: 48,
+      justifyContent: "center",
+      minWidth: 126,
+      paddingHorizontal: 18,
+    },
+    shopNowText: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    detailGrid: {
+      gap: 32,
+      width: "100%",
+    },
+    detailGridDesktop: {
+      flexDirection: "row",
+      gap: 80,
+    },
+    leftColumn: {
+      gap: 40,
+      minWidth: 0,
+    },
+    leftColumnDesktop: {
+      flexBasis: 400,
+      flexGrow: 0,
+      flexShrink: 0,
+    },
+    rightColumn: {
+      gap: 56,
+      minWidth: 0,
+    },
+    rightColumnDesktop: {
+      flexBasis: 0,
+      flexGrow: 1,
+      flexShrink: 1,
+    },
+    cashbackRail: {
+      gap: 24,
+    },
+    cashbackHeader: {
+      alignItems: "baseline",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 16,
+      justifyContent: "space-between",
+      width: "100%",
+    },
+    cashbackLabel: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 20,
+      fontWeight: typography.bodyWeight,
+      lineHeight: 24,
+    },
+    cashbackValue: {
+      color: colors.primary,
+      flexShrink: 0,
+      fontFamily: typography.family,
+      fontSize: 40,
+      fontWeight: "600",
+      lineHeight: 42,
+    },
+    tagRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+    },
+    categoryTag: {
+      alignItems: "center",
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+      flexDirection: "row",
+      gap: 8,
+      minHeight: 40,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    extraTag: {
+      alignItems: "center",
+      backgroundColor: pickThemed(colors, "#F7FDFB", colors.card),
+      borderColor: pickThemed(colors, "#C8EBE0", colors.border),
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 8,
+      minHeight: 40,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    fireIcon: {
+      fontSize: 16,
+      lineHeight: 18,
+    },
+    tagText: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "500",
+      lineHeight: 18,
+    },
+    tagStrong: {
+      color: colors.primaryDark,
+      fontWeight: "600",
+    },
+    rateDetails: {
+      borderTopColor: colors.border,
+      borderTopWidth: 1,
+      gap: 12,
+      paddingTop: 14,
+    },
+    disclaimer: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: typography.bodyWeight,
+      lineHeight: 24,
+    },
+    rateSummaryRow: {
+      alignItems: "baseline",
+      flexDirection: "row",
+      gap: 16,
+      justifyContent: "space-between",
+    },
+    // Quiet secondary info — bright 16px ink competed with the mint hero rate
+    // above and out-shouted the surrounding disclaimers (design feedback
+    // 2026-07-10).
+    rateSummaryText: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: typography.bodyWeight,
+      lineHeight: 20,
+    },
+    productRateList: {
+      borderTopColor: colors.border,
+      borderTopWidth: 1,
+    },
+    productRateRow: {
+      alignItems: "center",
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flexDirection: "row",
+      gap: 12,
+      justifyContent: "space-between",
+      paddingVertical: 11,
+    },
+    productRateName: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: typography.bodyWeight,
+    },
+    productRateValue: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    noteBox: {
+      backgroundColor: pickThemed(colors, "#F7FDFB", colors.card),
+      borderColor: pickThemed(colors, "#C8EBE0", colors.border),
+      borderRadius: 12,
+      borderWidth: 1,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
+    noteTitle: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 12,
+      fontWeight: "600",
+      letterSpacing: 0.4,
+      lineHeight: 16,
+      marginBottom: 6,
+    },
+    noteBody: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: typography.bodyWeight,
+      lineHeight: 22,
+    },
+    trackingSection: {
+      gap: 24,
+    },
+    sectionTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 20,
+      fontWeight: "600",
+      lineHeight: 26,
+    },
+    trackingRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    trackingItemWrap: {
+      alignItems: "center",
+      flex: 1,
+      flexDirection: "row",
+    },
+    trackingItem: {
+      alignItems: "center",
+      flex: 1,
+      gap: 6,
+    },
+    trackingConnector: {
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flex: 0.35,
+      marginTop: -34,
+    },
+    trackingLabel: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 12,
+      fontWeight: "500",
+      lineHeight: 15,
+      textAlign: "center",
+    },
+    trackingDetail: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 12,
+      fontWeight: typography.bodyWeight,
+      lineHeight: 15,
+      textAlign: "center",
+    },
+    trackingSubtitle: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 10,
+      fontWeight: typography.bodyWeight,
+      lineHeight: 13,
+      textAlign: "center",
+    },
+    referralCard: {
+      backgroundColor: colors.card,
+      borderColor: pickThemed(colors, "#C8EBE0", colors.border),
+      borderRadius: 20,
+      borderWidth: 1,
+      gap: 14,
+      padding: 18,
+      boxShadow: shadows.cardCss,
+    },
+    referralIcon: {
+      alignItems: "center",
+      backgroundColor: colors.primarySoft,
+      borderRadius: radii.md,
+      height: 52,
+      justifyContent: "center",
+      width: 52,
+    },
+    referralCopy: {
+      gap: 6,
+    },
+    referralTitle: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 20,
+      fontWeight: "700",
+    },
+    referralSubtitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 15,
+      fontWeight: "600",
+      lineHeight: 20,
+    },
+    referralBody: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: typography.bodyWeight,
+      lineHeight: 22,
+    },
+    shareButton: {
+      alignItems: "center",
+      alignSelf: "flex-start",
+      backgroundColor: colors.primary,
+      borderRadius: radii.chip,
+      flexDirection: "row",
+      gap: 8,
+      minHeight: 38,
+      paddingHorizontal: 18,
+    },
+    shareButtonText: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "700",
+    },
+    questBannerFrame: {
+      overflow: "hidden",
+      width: "100%",
+    },
+    questBannerImage: {
+      height: "100%",
+      width: "100%",
+    },
+    termsPanel: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 20,
+      borderWidth: 1,
+      gap: 16,
+      padding: 18,
+    },
+    termsHeader: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 12,
+    },
+    termsEmoji: {
+      fontSize: 24,
+      lineHeight: 28,
+    },
+    termsTitleWrap: {
+      flex: 1,
+      gap: 2,
+    },
+    termsSubtitle: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: typography.bodyWeight,
+    },
+    termsSectionTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    termsList: {
+      gap: 10,
+    },
+    termBulletRow: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: 8,
+    },
+    termBulletDot: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 18,
+      lineHeight: 22,
+    },
+    termBulletText: {
+      color: colors.muted,
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: typography.bodyWeight,
+      lineHeight: 22,
+    },
+    relatedSection: {
+      gap: 18,
+    },
+    relatedRow: {
+      gap: 12,
+      paddingRight: spacing.md,
+    },
+  });
 }

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // CustomerQuestScreen renders inside AccountPageShell, which reaches i18n/LocaleProvider
@@ -15,6 +15,73 @@ import { describe, expect, it, vi } from "vitest";
 // this screen does not import Sentry — verified in source.)
 vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
+}));
+
+vi.mock("@mobile/quest/questTaskResource", () => ({
+  useQuestTaskRows: () => ({
+    error: null,
+    retry: vi.fn(),
+    status: "ready",
+    rows: [
+      {
+        current: 1,
+        href: "/shop/offer-1",
+        icon: "go",
+        key: "quest:brand",
+        points: "+50 Points",
+        progressLabel: "1 / 1 purchase",
+        state: "completed",
+        stateLabel: "Completed",
+        target: 1,
+        taskType: "brand_purchase",
+        title: "Brand purchase task",
+        unit: "purchase",
+      },
+      {
+        capLabel: "Reward limit reached",
+        capReached: true,
+        capReason: "max_referrals_per_user",
+        current: 2,
+        icon: "glow",
+        key: "quest:referral",
+        points: "+75 Points",
+        progressLabel: "2 / 2 referrals",
+        state: "in_progress",
+        stateLabel: "In progress",
+        target: 2,
+        taskType: "friend_referral",
+        title: "Friend referral task",
+        unit: "referral",
+      },
+      {
+        current: 125000,
+        icon: "orbit",
+        key: "quest:spend",
+        points: "+100 Points",
+        progressLabel: "THB 1,250 / THB 1,500",
+        state: "compensated",
+        stateLabel: "Reversed",
+        target: 150000,
+        taskType: "spend_target",
+        title: "Spend target task",
+        unit: "thb_minor",
+      },
+      {
+        current: 0,
+        href: "/shop/offer-2",
+        icon: "go",
+        key: "quest:not-started",
+        points: "+25 Points",
+        progressLabel: "0 / 1 purchase",
+        state: "not_started",
+        stateLabel: "Not started",
+        target: 1,
+        taskType: "brand_purchase",
+        title: "Not started task",
+        unit: "purchase",
+      },
+    ],
+  }),
 }));
 
 import { CustomerQuestScreen } from "@mobile/screens/CustomerQuestScreen";
@@ -53,18 +120,23 @@ import { CustomerQuestScreen } from "@mobile/screens/CustomerQuestScreen";
 //    hook here would be dead code. Skipped.
 //  - KeyboardAwareScreen: no inputs on this screen. Skipped.
 const questSource = readFileSync(
-  resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerQuestScreen.tsx"),
-  "utf8"
+  resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../screens/CustomerQuestScreen.tsx",
+  ),
+  "utf8",
 );
 
 function renderQuest(props?: { history?: boolean }) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
     createElement(
       QueryClientProvider,
       { client: queryClient },
-      createElement(CustomerQuestScreen, props)
-    )
+      createElement(CustomerQuestScreen, props),
+    ),
   );
 }
 
@@ -81,6 +153,23 @@ describe("CustomerQuestScreen (render)", () => {
     expect(screen.getByText(/Leaderboard/)).toBeTruthy();
     // "Explore other Shops" footer section renders below the grid.
     expect(screen.getByText("Explore other Shops")).toBeTruthy();
+  });
+
+  it("renders every canonical task type with current, target, points, and completion state", () => {
+    renderQuest();
+    fireEvent.click(screen.getByText("Tasks"));
+
+    expect(screen.getByText("Brand purchase task")).toBeTruthy();
+    expect(screen.getByText("Friend referral task")).toBeTruthy();
+    expect(screen.getByText("Spend target task")).toBeTruthy();
+    expect(screen.getByText("1 / 1 purchase")).toBeTruthy();
+    expect(screen.getByText("2 / 2 referrals")).toBeTruthy();
+    expect(screen.getByText("THB 1,250 / THB 1,500")).toBeTruthy();
+    expect(screen.getByText("Completed")).toBeTruthy();
+    expect(screen.getByText("In progress")).toBeTruthy();
+    expect(screen.getByText("Reward limit reached")).toBeTruthy();
+    expect(screen.getByText("Reversed")).toBeTruthy();
+    expect(screen.getByText("Not started")).toBeTruthy();
   });
 
   it("mounts the quest history view without throwing", () => {
@@ -118,27 +207,39 @@ describe("CustomerQuestScreen — Wave B (B5) foundations adopted (source signal
   it("fires the impact() haptic from the tab-strip selection handler", () => {
     // The tab MotionPressable onPress must both switch the tab and fire the haptic.
     expect(questSource).toMatch(/setActiveTab\(tab\.id\)/);
-    expect(questSource).toMatch(/onPress=\{\(\) => \{[\s\S]*?haptics\.impact\(\)[\s\S]*?\}\}/);
+    expect(questSource).toMatch(
+      /onPress=\{\(\) => \{[\s\S]*?haptics\.impact\(\)[\s\S]*?\}\}/,
+    );
   });
 
   it("caps the task titles with numberOfLines so they don't overflow in Thai", () => {
     // task titles (e.g. "Grocery Galaxy") grow in Thai; cap the <Text style={styles.taskName}>.
     // Format-agnostic (\s+) so a Prettier one-line/multi-line reflow doesn't break the assertion.
-    expect(questSource).toMatch(/numberOfLines=\{1\}\s+style=\{styles\.taskName\}/);
+    expect(questSource).toMatch(
+      /numberOfLines=\{1\}\s+style=\{styles\.taskName\}/,
+    );
   });
 
   it("caps the my-rank labels and View Points label with numberOfLines", () => {
     // "My Total Points" / "View Points" grow in Thai inside fixed-size rank chrome.
     // Format-agnostic: assert numberOfLines={1} co-occurs with each style on the same <Text>
     // (Prettier may keep both props on one line or wrap them).
-    expect(questSource).toMatch(/numberOfLines=\{1\}\s+style=\{styles\.myRankLabel\}/);
-    expect(questSource).toMatch(/numberOfLines=\{1\}\s+style=\{styles\.viewPointsText\}/);
+    expect(questSource).toMatch(
+      /numberOfLines=\{1\}\s+style=\{styles\.myRankLabel\}/,
+    );
+    expect(questSource).toMatch(
+      /numberOfLines=\{1\}\s+style=\{styles\.viewPointsText\}/,
+    );
   });
 
   it("gives the icon-led View Points and History buttons a hitSlop to reach a 44px tap target", () => {
     // Neither button declares a minHeight, so add hitSlop on each MotionPressable.
     expect(questSource).toContain("hitSlop=");
-    expect(questSource).toMatch(/hitSlop=[\s\S]*?style=\{styles\.viewPointsButton\}/);
-    expect(questSource).toMatch(/hitSlop=[\s\S]*?style=\{styles\.historyButton\}/);
+    expect(questSource).toMatch(
+      /hitSlop=[\s\S]*?style=\{styles\.viewPointsButton\}/,
+    );
+    expect(questSource).toMatch(
+      /hitSlop=[\s\S]*?style=\{styles\.historyButton\}/,
+    );
   });
 });
