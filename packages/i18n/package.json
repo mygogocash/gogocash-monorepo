@@ -1,0 +1,10 @@
+{
+  "name": "@gogocash/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Web-synced ICU base catalogs shared across GoGoCash apps (issue #19, P4-2). The hand-edited mobile-overlay.* catalogs deliberately stay in apps/app and are merged over these at runtime — never write overlay content here.",
+  "exports": {
+    "./messages/en.json": "./messages/en.json",
+    "./messages/th.json": "./messages/th.json"
+  }
+}

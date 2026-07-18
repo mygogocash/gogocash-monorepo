@@ -1,11 +1,11 @@
-export type OfferDisplayTags = {
-  brand_category_enabled: boolean;
-  brand_category_label: string;
-  extra_cashback_tag: boolean;
-  grab_coupon_tag: boolean;
-  expire_in_days_enabled: boolean;
-  expire_in_days: number | null;
-};
+import type { OfferDisplayTags } from '@gogocash/contracts';
+
+// The canonical OfferDisplayTags contract lives in @gogocash/contracts (#19
+// P4-1). The API imports the TYPE only: its SWC-built runtime never loads the
+// source-consumed contracts package, so the runtime normalizer below stays
+// here. Behavioral parity with the contracts implementation is enforced by
+// offer-display-tags.contract-parity.spec.ts — edit both together.
+export type { OfferDisplayTags };
 
 export const DEFAULT_OFFER_DISPLAY_TAGS: OfferDisplayTags = {
   brand_category_enabled: false,

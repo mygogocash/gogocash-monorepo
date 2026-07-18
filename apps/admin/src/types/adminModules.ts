@@ -104,47 +104,10 @@ export interface Referral {
   qualifyingTransactionId: string | null;
 }
 
-export const MISSING_ORDER_STATUSES = [
-  "pending",
-  "under_review",
-  "approved",
-  "rejected",
-] as const;
-
-export type MissingOrderStatus = (typeof MISSING_ORDER_STATUSES)[number];
-
-export interface MissingOrderClaim {
-  id: string;
-  userId: string;
-  userName: string;
-  email: string | null;
-  phone: string | null;
-  merchantId: string;
-  merchantName: string;
-  offerSource: string;
-  providerOfferId: number | null;
-  orderId: string;
-  orderAmount: number;
-  currency: string;
-  purchaseDate: string;
-  expectedCashback: number | null;
-  overrideCashback: number | null;
-  submittedDate: string;
-  remarks: string;
-  status: MissingOrderStatus;
-  assignedTo: string | null;
-  evidence: string[];
-  notes: {
-    adminId: string;
-    adminName: string;
-    note: string;
-    timestamp: string;
-  }[];
-  resolutionNote: string | null;
-  rejectionReason: string | null;
-  resolvedAt: string | null;
-  schemaVersion: number;
-}
+// Missing Conversions contract lives in @gogocash/contracts (#19 P4-1);
+// re-exported here so existing "@/types/adminModules" import sites keep working.
+export { MISSING_ORDER_STATUSES } from "@gogocash/contracts";
+export type { MissingOrderClaim, MissingOrderStatus } from "@gogocash/contracts";
 
 export interface UserWallet {
   userId: string;

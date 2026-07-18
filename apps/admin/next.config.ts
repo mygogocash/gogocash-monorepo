@@ -23,6 +23,9 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["@mui/material", "@mui/x-data-grid"],
   },
+  // @gogocash/contracts is a source-consumed (JIT) workspace package — Next
+  // must transpile its TS directly (#19 P4-1).
+  transpilePackages: ["@gogocash/contracts"],
   ...(basePath ? { basePath } : {}),
   ...(assetPrefix ? { assetPrefix } : {}),
   ...(process.env.BUILD_FOR_FIREBASE === "1"

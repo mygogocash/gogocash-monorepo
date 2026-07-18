@@ -78,7 +78,7 @@ gogocash-monorepo/
 │   ├── api/          # NestJS backend (contract source of truth)
 │   ├── admin/        # Next.js internal dashboard
 │   └── app/          # Expo customer app (@gogocash/mobile)
-├── packages/         # planned (directory not created yet): contracts, i18n, tsconfig
+├── packages/         # shared workspaces: contracts, i18n, tsconfig (#19), gototrack-mcp
 ├── cloudbuild/       # GCP Cloud Build CI/CD
 ├── docs/             # runbooks, QA plans, this file
 ├── turbo.json
@@ -497,9 +497,9 @@ See [`SECURITY_HARDENING.md`](../SECURITY_HARDENING.md) for full register.
 
 | Item                                    | Status                          |
 | --------------------------------------- | ------------------------------- |
-| `packages/contracts` — shared API types | Planned (#19)                   |
-| `packages/i18n` — shared ICU catalogs   | Planned                         |
-| `packages/tsconfig` — shared TS bases   | Planned                         |
+| `packages/contracts` — shared API types | Landed (#19) — offer display tags + missing-order claim; further domains incremental |
+| `packages/i18n` — shared ICU catalogs   | Landed (#19) — base `en/th.json`; mobile overlays stay in `apps/app` |
+| `packages/tsconfig` — shared TS bases   | Landed (#19) — `base.json` + `react-native.json` presets |
 | BFF for admin token relay + revocation  | Open (#43)                      |
 | Production cutover                      | Gated — explicit human approval |
 

@@ -12,8 +12,14 @@
     "interface": true,
     "type": true
   },
-  "ignoreBinaries": ["eas", "maestro", "gcloud"],
-  "ignoreUnresolved": ["dotenv/config"],
+  "ignoreBinaries": [
+    "eas",
+    "maestro",
+    "gcloud"
+  ],
+  "ignoreUnresolved": [
+    "dotenv/config"
+  ],
   "ignoreDependencies": [
     "@nestjs/common",
     "@nestjs/core",
@@ -43,7 +49,6 @@
     "@types/react-transition-group",
     "tailwindcss",
     "source-map-support",
-
     "babel-preset-expo",
     "react-test-renderer",
     "react-native-screens",
@@ -56,21 +61,55 @@
     "cache-manager"
   ],
   "ignoreIssues": {
-    "apps/admin/src/lib/api.ts": ["duplicates"],
-    "apps/admin/src/types/**": ["exports", "enumMembers", "types"],
-    "apps/admin/src/data/executive/**": ["exports"],
-    "apps/admin/src/icons/index.tsx": ["exports"],
-    "apps/admin/src/layout/**": ["exports"],
-    "apps/admin/src/lib/**": ["exports"],
-    "apps/admin/src/config/**": ["exports"],
-    "apps/admin/src/data/mockPendingOffers.ts": ["exports"],
-    "apps/admin/src/utils/**": ["exports"],
-    "apps/api/src/**/schemas/*.schema.ts": ["exports", "types"],
-    "apps/api/src/**/dto/**": ["exports", "types"],
-    "apps/api/scripts/**": ["unlisted"],
-    "apps/app/app.config.js": ["unlisted"],
-    "apps/admin/src/lib/policyPayload.ts": ["types"],
-    "apps/api/src/media/local-object-storage.ts": ["exports"]
+    "apps/admin/src/lib/api.ts": [
+      "duplicates"
+    ],
+    "apps/admin/src/types/**": [
+      "exports",
+      "enumMembers",
+      "types"
+    ],
+    "apps/admin/src/data/executive/**": [
+      "exports"
+    ],
+    "apps/admin/src/icons/index.tsx": [
+      "exports"
+    ],
+    "apps/admin/src/layout/**": [
+      "exports"
+    ],
+    "apps/admin/src/lib/**": [
+      "exports"
+    ],
+    "apps/admin/src/config/**": [
+      "exports"
+    ],
+    "apps/admin/src/data/mockPendingOffers.ts": [
+      "exports"
+    ],
+    "apps/admin/src/utils/**": [
+      "exports"
+    ],
+    "apps/api/src/**/schemas/*.schema.ts": [
+      "exports",
+      "types"
+    ],
+    "apps/api/src/**/dto/**": [
+      "exports",
+      "types"
+    ],
+    "apps/api/scripts/**": [
+      "unlisted"
+    ],
+    "apps/app/app.config.js": [
+      "unlisted"
+    ],
+    "apps/admin/src/lib/policyPayload.ts": [
+      "types"
+    ],
+    "apps/api/src/media/local-object-storage.ts": [
+      "exports"
+    ]
   },
   "workspaces": {
     ".": {
@@ -80,15 +119,31 @@
         "scripts/staging-coupon-qa-evidence.cjs",
         "scripts/staging-coupon-qa-mongo.cjs"
       ],
-      "project": ["scripts/**/*.{js,mjs,cjs}"]
+      "project": [
+        "scripts/**/*.{js,mjs,cjs}"
+      ]
     },
     "apps/api": {
-      "entry": ["src/main.ts", "scripts/*.ts", "test/**/*.ts"],
-      "project": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
-      "ignore": ["dist/**"]
+      "entry": [
+        "src/main.ts",
+        "scripts/*.ts",
+        "test/**/*.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "test/**/*.ts",
+        "scripts/**/*.ts"
+      ],
+      "ignore": [
+        "dist/**"
+      ]
     },
     "apps/app": {
-      "entry": ["expo-router/entry", "app/**/*.{ts,tsx}", "src/**/*.{ts,tsx}"],
+      "entry": [
+        "expo-router/entry",
+        "app/**/*.{ts,tsx}",
+        "src/**/*.{ts,tsx}"
+      ],
       "project": [
         "src/**/*.{ts,tsx}",
         "app/**/*.{ts,tsx}",
@@ -105,12 +160,28 @@
       ]
     },
     "apps/admin": {
-      "entry": ["src/app/**/*.{ts,tsx}"],
-      "project": ["src/**/*.{ts,tsx}"]
+      "entry": [
+        "src/app/**/*.{ts,tsx}"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ]
     },
     "packages/gototrack-mcp": {
-      "entry": ["src/index.ts"],
-      "project": ["src/**/*.ts"]
+      "entry": [
+        "src/index.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
+    },
+    "packages/contracts": {
+      "entry": [
+        "src/index.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
     }
   }
 }

@@ -1,6 +1,12 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    // Emit options moved here from tsconfig.json (#19): the base config is
+    // pure `tsc --noEmit`, this file owns any tsc emit path.
+    "declaration": true,
+    "removeComments": true,
+    "sourceMap": true,
+    "outDir": "./dist",
     // TS 6.0 changed the default rootDir from "common dir of inputs" to "the
     // tsconfig directory". Without this, src/main.ts emits to dist/src/main.js
     // and `node dist/main` (start:prod / the CI boot smoke) breaks. Pin it back
