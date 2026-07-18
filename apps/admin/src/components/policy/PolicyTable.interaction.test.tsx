@@ -128,6 +128,20 @@ describe("PolicyTable interactions", () => {
     expect(apiMock.put).not.toHaveBeenCalled();
   });
 
+  it("#376 Category icon dropdown explains that the icon set is built-in", async () => {
+    const user = userEvent.setup();
+    renderTable();
+
+    await user.click(await screen.findByRole("button", { name: "Create New" }));
+
+    // There is intentionally no icon-management section: the options are a
+    // fixed set shipped with the admin app, so the dropdown must say so.
+    const iconSelect = screen.getByLabelText("Category icon");
+    expect(iconSelect.closest("label")).toHaveTextContent(
+      "Choose from the built-in icon set. New icons are added by engineering, not uploaded here.",
+    );
+  });
+
   it("#349 Create -> fill name/icon/terms/banner -> Close discards the draft so reopening starts fresh", async () => {
     const user = userEvent.setup();
     renderTable();
