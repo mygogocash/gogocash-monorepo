@@ -51,6 +51,9 @@ vi.mock("@mobile/auth/lineLogin", () => {
     LINE_AUTH_DEFAULT_POST_LOGIN_PATH: "/link-mycashback",
     LineAuthExchangeError,
     LineLoginSessionMissingError,
+    navigateAfterLineAuthSuccess: (path: string, replaceFn: (href: string) => void) => {
+      replaceFn(path);
+    },
     resumeLineLogin: (...args: unknown[]) => lineAuth.resume(...args),
   };
 });

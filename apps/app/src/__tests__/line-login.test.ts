@@ -2,14 +2,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildLineLoginCallbackUrl,
+  captureLineAuthReturnHref,
   exchangeLineAuth,
   getLiffId,
   getLineAuthUserMessage,
+  hasLineAuthReturnParams,
   isLineLoginConfigured,
   LineAuthExchangeError,
   LineLoginRedirectStartedError,
   LineLoginSessionMissingError,
+  navigateAfterLineAuthSuccess,
   requestLineLogin,
+  restoreLineAuthReturnHrefIfNeeded,
   resumeLineLogin,
 } from "@mobile/auth/lineLogin";
 
@@ -17,6 +21,70 @@ describe("lineLogin", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it.each([
+    "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fwallet&code=abc&state=xyz",
+    "https://app-staging.gogocash.co/auth/line-callback?liffClientId=2008237916&liffRedirectUri=%2F",
+    "https://app-staging.gogocash.co/auth/line-callback#error=access_denied",
+  ])("hasLineAuthReturnParams > detects LIFF/OAuth return markers in %s", (href) => {
+    expect(hasLineAuthReturnParams(href)).toBe(true);
+  });
+
+  it("hasLineAuthReturnParams > ignores plain callback loads without provider return params", () => {
+    expect(
+      hasLineAuthReturnParams(
+        "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fwallet",
+      ),
+    ).toBe(false);
+  });
+
+  it("captureLineAuthReturnHref > snapshots the provider return URL before the SPA can strip it", () => {
+    const storage = createMemoryStorage();
+    const returnHref =
+      "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fwallet&code=abc&state=xyz";
+    vi.stubGlobal("window", {
+      location: { href: returnHref },
+      sessionStorage: storage,
+    });
+
+    expect(captureLineAuthReturnHref()).toBe(returnHref);
+    expect(storage.getItem("gogocash.line.auth.returnHref.v1")).toBe(returnHref);
+  });
+
+  it("restoreLineAuthReturnHrefIfNeeded > restores stripped OAuth params before LIFF init", () => {
+    const storage = createMemoryStorage();
+    const returnHref =
+      "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fwallet&code=abc&state=xyz";
+    storage.setItem("gogocash.line.auth.returnHref.v1", returnHref);
+    const replaceState = vi.fn();
+    vi.stubGlobal("window", {
+      history: { replaceState },
+      location: {
+        href: "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fwallet",
+      },
+      sessionStorage: storage,
+    });
+
+    expect(restoreLineAuthReturnHrefIfNeeded()).toBe(true);
+    expect(replaceState).toHaveBeenCalledWith(null, "", returnHref);
+  });
+
+  it("navigateAfterLineAuthSuccess > web > hard-replaces so the shell reloads the session", () => {
+    const replaceFn = vi.fn();
+    const locationReplace = vi.fn();
+    vi.stubGlobal("window", {
+      location: {
+        href: "https://app-staging.gogocash.co/auth/line-callback",
+        origin: "https://app-staging.gogocash.co",
+        replace: locationReplace,
+      },
+    });
+
+    navigateAfterLineAuthSuccess("/wallet", replaceFn);
+
+    expect(locationReplace).toHaveBeenCalledWith("/wallet");
+    expect(replaceFn).not.toHaveBeenCalled();
   });
 
   it("buildLineLoginCallbackUrl > preserves only a sanitized in-app callback on the same origin", () => {
@@ -55,6 +123,7 @@ describe("lineLogin", () => {
       location: {
         href: "https://app-staging.gogocash.co/login?callbackUrl=%2Fwallet&state=private",
       },
+      sessionStorage: createMemoryStorage(),
     });
 
     const loginPromise = requestLineLogin("line-id");
@@ -65,6 +134,7 @@ describe("lineLogin", () => {
     await expect(loginPromise).rejects.toMatchObject({
       code: "auth/popup-closed-by-user",
     });
+    expect(liff.init).toHaveBeenCalledWith({ liffId: "line-id" });
     expect(liff.login).toHaveBeenCalledWith({
       redirectUri:
         "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fwallet",
@@ -75,9 +145,11 @@ describe("lineLogin", () => {
     const liff = createLiffStub({ isLoggedIn: true });
     vi.stubGlobal("window", {
       liff,
+      history: { replaceState: vi.fn() },
       location: {
         href: "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fwallet",
       },
+      sessionStorage: createMemoryStorage(),
     });
 
     await expect(resumeLineLogin("line-id")).resolves.toEqual({
@@ -92,13 +164,43 @@ describe("lineLogin", () => {
     expect(liff.login).not.toHaveBeenCalled();
   });
 
+  it("resumeLineLogin > restores stripped OAuth return params before LIFF init", async () => {
+    const storage = createMemoryStorage();
+    const returnHref =
+      "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fwallet&code=abc&state=xyz";
+    storage.setItem("gogocash.line.auth.returnHref.v1", returnHref);
+    const replaceState = vi.fn(() => {
+      (window as { location: { href: string } }).location.href = returnHref;
+    });
+    const liff = createLiffStub({ isLoggedIn: true });
+    vi.stubGlobal("window", {
+      liff,
+      history: { replaceState },
+      location: {
+        href: "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fwallet",
+      },
+      sessionStorage: storage,
+    });
+
+    await expect(resumeLineLogin("line-id")).resolves.toMatchObject({
+      accessToken: "line-access",
+    });
+    expect(replaceState).toHaveBeenCalledWith(null, "", returnHref);
+    expect(liff.init.mock.invocationCallOrder[0]).toBeGreaterThan(
+      replaceState.mock.invocationCallOrder[0],
+    );
+    expect(liff.login).not.toHaveBeenCalled();
+  });
+
   it("resumeLineLogin > given no returned LINE session > fails without a redirect loop", async () => {
     const liff = createLiffStub({ isLoggedIn: false });
     vi.stubGlobal("window", {
       liff,
+      history: { replaceState: vi.fn() },
       location: {
         href: "https://app-staging.gogocash.co/auth/line-callback",
       },
+      sessionStorage: createMemoryStorage(),
     });
 
     await expect(resumeLineLogin("line-id")).rejects.toBeInstanceOf(
@@ -266,5 +368,23 @@ function createLiffStub({ isLoggedIn }: { isLoggedIn: boolean }) {
     init: vi.fn(async () => undefined),
     isLoggedIn: vi.fn(() => isLoggedIn),
     login: vi.fn(),
+  };
+}
+
+function createMemoryStorage(): Storage {
+  const values = new Map<string, string>();
+  return {
+    clear: () => values.clear(),
+    getItem: (key: string) => values.get(key) ?? null,
+    key: (index: number) => [...values.keys()][index] ?? null,
+    get length() {
+      return values.size;
+    },
+    removeItem: (key: string) => {
+      values.delete(key);
+    },
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
   };
 }
