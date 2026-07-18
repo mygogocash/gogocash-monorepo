@@ -186,6 +186,66 @@ export function captureLineAuthReturnHref(
 }
 
 /**
+ * When LINE/LIFF returns to the Endpoint URL (or any non-callback path) with
+ * OAuth params, build a same-origin handoff onto `/auth/line-callback` so
+ * `resumeLineLogin()` can finish the exchange.
+ */
+export function buildLineAuthCallbackHandoffUrl(
+  currentHref: string,
+): string | null {
+  if (!hasLineAuthReturnParams(currentHref)) {
+    return null;
+  }
+
+  let current: URL;
+  try {
+    current = new URL(currentHref);
+  } catch {
+    return null;
+  }
+
+  const normalizedPath = current.pathname.replace(/\/+$/, "") || "/";
+  if (normalizedPath === LINE_AUTH_CALLBACK_PATH) {
+    return null;
+  }
+
+  const handoff = new URL(LINE_AUTH_CALLBACK_PATH, current.origin);
+  current.searchParams.forEach((value, key) => {
+    handoff.searchParams.set(key, value);
+  });
+  handoff.hash = current.hash;
+  if (!handoff.searchParams.get("callbackUrl")) {
+    handoff.searchParams.set(
+      "callbackUrl",
+      LINE_AUTH_DEFAULT_POST_LOGIN_PATH,
+    );
+  }
+
+  return handoff.toString();
+}
+
+/**
+ * Top-level web redirect: capture LIFF return params, then bounce Endpoint
+ * URL (or other non-callback) OAuth landings onto `/auth/line-callback`.
+ */
+export function redirectLineAuthReturnToCallbackRoute(): boolean {
+  if (Platform.OS !== "web" || typeof window === "undefined") {
+    return false;
+  }
+
+  const href = window.location.href;
+  captureLineAuthReturnHref(href);
+
+  const handoff = buildLineAuthCallbackHandoffUrl(href);
+  if (!handoff) {
+    return false;
+  }
+
+  window.location.replace(handoff);
+  return true;
+}
+
+/**
  * If the SPA already cleaned OAuth/LIFF params from the address bar, put them
  * back so `liff.init()` can finish the external-browser login.
  */
