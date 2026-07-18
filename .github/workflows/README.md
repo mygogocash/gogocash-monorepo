@@ -102,22 +102,14 @@ Use when Railway is unavailable or during production migration.
    SHA tag must still resolve to the supplied build-reported digest; only that
    digest is deployed and health-checked.
 
-Legacy one-shot workflows (same behavior, duplicated logic):
-
-- `deploy-api-staging.yml` — ⚠️ **paused / known-broken** (2026-07-10): the
-  Secret Manager secrets `gogocash-staging-r2-access-key-id` and
-  `gogocash-staging-r2-secret-access-key` were never created, so every run
-  fails at Cloud Run revision creation. Live staging is Railway and is NOT
-  affected. Revival steps are in the workflow's header comment.
-- `deploy-admin-staging.yml`
-- `deploy-app-web-staging.yml`
-
-Prefer `build-staging` + `release-staging` after their new post-patch live proof.
-The three one-shot workflows remain present for now. Their deletion is a
-separate PR-B, blocked until an authorized build/release/rollback proof succeeds;
-do not delete them based on repository-only validation.
+The one-shot `deploy-{api,admin,app-web}-staging.yml` lanes were retired in
+PR-B (#52). Use `build-staging` + `release-staging` for any GCP Cloud Run
+rollback; Railway remains the day-to-day staging path.
 
 WIF vars live in GitHub Environment **`staging`**: `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER`, `GCP_SERVICE_ACCOUNT`.
+After retirement, delete only **repository-level** copies of those three
+variables if still present; keep the Environment-scoped values for the
+retained build/release path.
 
 ---
 
