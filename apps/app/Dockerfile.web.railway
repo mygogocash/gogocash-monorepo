@@ -54,6 +54,9 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL \
 # still needs typescript and other build-time workspace deps.
 COPY package.json package-lock.json .npmrc ./
 COPY apps/app/package.json ./apps/app/package.json
+# Shared workspace packages (#19): the app imports @gogocash/i18n base catalogs
+# (bundled by Metro at export time) and extends @gogocash/tsconfig.
+COPY packages ./packages
 RUN npm install --global npm@10.9.8 \
  && npm ci --legacy-peer-deps --ignore-scripts --include=dev
 

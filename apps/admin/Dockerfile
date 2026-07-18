@@ -26,6 +26,10 @@ COPY package.json package-lock.json .npmrc ./
 COPY apps/admin/package.json ./apps/admin/package.json
 COPY apps/admin/.npmrc ./apps/admin/.npmrc
 COPY apps/admin/scripts ./apps/admin/scripts
+# Shared workspace packages (#19): admin depends on @gogocash/contracts (source
+# transpiled by Next via transpilePackages) and @gogocash/tsconfig — npm ci
+# must see the workspace dirs, and next build must see the contracts source.
+COPY packages ./packages
 # --legacy-peer-deps: the lockfile carries a peerOptional conflict
 # (@types/node vs vite) that strict `npm ci` rejects; mirrored in .npmrc.
 # --include=dev: Railway injects NODE_ENV=production into the image build,

@@ -98,6 +98,8 @@
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
+    "@gogocash/contracts": "0.1.0",
+    "@gogocash/tsconfig": "0.1.0",
     "@nestjs/config": "^4.0.2",
     "@nestjs/testing": "^11.1.28",
     "@swc/cli": "^0.8.1",

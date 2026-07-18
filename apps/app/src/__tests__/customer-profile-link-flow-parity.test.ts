@@ -15,7 +15,10 @@ const read = (rel: string): string => fs.readFileSync(path.join(mobileRoot, rel)
 
 describe("Profile link sections — same coming-soon flow as the Next.js web app", () => {
   const panel = read("src/components/ProfileInfoPanel.tsx");
-  const enCatalog = JSON.parse(read("src/messages/en.json")) as Record<string, string>;
+  // Base catalogs live in the shared package since #19 (P4-2); overlays stay app-local.
+  const enCatalog = JSON.parse(
+    read("../../packages/i18n/messages/en.json"),
+  ) as Record<string, string>;
   const comingSoon = enCatalog.authFeatureComingSoon;
 
   it("link flow > given Link/Unlink placeholders > then fires the web's authFeatureComingSoon toast copy", () => {

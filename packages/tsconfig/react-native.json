@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Single-extends chain (no extends array: admin's TS 5.9 must never be
+  // asked to parse one via a shared file). Expo's base provides the RN
+  // bundler/module defaults; the three shared flags below mirror base.json —
+  // keep them in sync with it.
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+  }
+}
