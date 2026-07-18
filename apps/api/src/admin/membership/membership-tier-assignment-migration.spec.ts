@@ -240,13 +240,17 @@ describe('membership tier-assignment boundary migration', () => {
       '--confirm-database=test',
       `--baseline=${baseline}`,
     ];
-    const productionUri =
-      'mongodb+srv://operator:secret@gogocash.abcd1.mongodb.net/test';
+    const productionUri = 'mongodb+srv://gogocash.abcd1.mongodb.net/test';
 
     expect(mongoUriLooksProduction(productionUri)).toBe(true);
     expect(
       mongoUriLooksProduction(
-        'mongodb+srv://operator:secret@gogocash-staging.abcd1.mongodb.net/test',
+        'mongodb+srv://operator:secret@gogocash-prod.internal.example/test',
+      ),
+    ).toBe(true);
+    expect(
+      mongoUriLooksProduction(
+        'mongodb+srv://gogocash-staging.abcd1.mongodb.net/test',
       ),
     ).toBe(false);
     await expect(
