@@ -47,6 +47,7 @@ export function TopBrandSection({
     brandCatalogData,
     region,
     apiBaseUrl,
+    homeLayout.isDesktop ? "desktop" : "mobile",
   );
   const topBrandPages = chunkTopBrandCards(topBrands, homeLayout.topBrandCardsPerPage);
   // Same mobile treatment as the promo rails (founder feedback 2026-07-11):

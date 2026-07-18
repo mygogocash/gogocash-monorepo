@@ -12,6 +12,7 @@ import { CreateAdminDto } from './dto/create-admin.dto';
 import {
   ProductTypeDto,
   ADMIN_ASSIGNABLE_ROLES,
+  SaveTopBrandsDto,
   UpdateAdminDto,
   UpdateBannerHomeDto,
   UpdateSpecificPageBannerDto,
@@ -51,6 +52,8 @@ import { requireSpecificPageBannerTarget } from 'src/offer/specific-page-banner.
 import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
 import {
   MAX_TOP_BRANDS,
+  normalizeTopBrandEntries,
+  resolveDeviceBrandEntries,
   resolveOfferCashbackLabel,
 } from 'src/offer/top-brand.contract';
 import { UserService } from 'src/user/user.service';
@@ -1880,34 +1883,53 @@ export class AdminService {
 
   /** Saved homepage top-brand config for the admin editor. */
   async getTopBrands() {
-    const config = await this.topBrandConfigModel.findOne().exec();
-    const brands = (config?.brands ?? [])
-      .slice(0, MAX_TOP_BRANDS)
-      .map((entry) => ({
-        offerId: String(entry.offerId ?? '').trim(),
-        cashback: '',
-      }))
-      .filter((entry) => entry.offerId);
+    const config = await this.topBrandConfigModel.findOne().lean().exec();
+    const brandsDesktop = resolveDeviceBrandEntries(config, 'desktop');
+    const brandsMobile = resolveDeviceBrandEntries(config, 'mobile');
+    const orderDesktop = brandsDesktop.map((entry) => entry.offerId);
+    const orderMobile = brandsMobile.map((entry) => entry.offerId);
+    const order = orderDesktop;
+    const unionIds = [...new Set([...orderDesktop, ...orderMobile])];
 
-    if (brands.length === 0) {
-      return { order: [], brands: [], items: [], maxBrands: MAX_TOP_BRANDS };
+    if (unionIds.length === 0) {
+      return {
+        order: [],
+        orderDesktop: [],
+        orderMobile: [],
+        brands: [],
+        brandsDesktop: [],
+        brandsMobile: [],
+        items: [],
+        maxBrands: MAX_TOP_BRANDS,
+      };
     }
 
-    const order = brands.map((entry) => entry.offerId);
-    const offers = await this.offerModel.find({ _id: { $in: order } }).exec();
+    const offers = await this.offerModel
+      .find({ _id: { $in: unionIds } })
+      .exec();
     const offerById = new Map(
       offers.map((offer) => [String(offer._id), offer]),
     );
 
-    const liveBrands = brands.map((entry) => ({
-      ...entry,
-      cashback: resolveOfferCashbackLabel(offerById.get(entry.offerId)),
-    }));
+    const withLiveCashback = (
+      entries: { offerId: string; cashback: string }[],
+    ) =>
+      entries.map((entry) => ({
+        ...entry,
+        cashback: resolveOfferCashbackLabel(offerById.get(entry.offerId)),
+      }));
+
+    const liveDesktop = withLiveCashback(brandsDesktop);
+    const liveMobile = withLiveCashback(brandsMobile);
 
     return {
       order,
-      brands: liveBrands,
-      items: order
+      orderDesktop,
+      orderMobile,
+      brands: liveDesktop,
+      brandsDesktop: liveDesktop,
+      brandsMobile: liveMobile,
+      items: unionIds
         .map((offerId) => offerById.get(offerId))
         .filter((offer) => offer != null),
       maxBrands: MAX_TOP_BRANDS,
@@ -1915,39 +1937,82 @@ export class AdminService {
   }
 
   /**
-   * Save the admin-curated top-brands list as ordered offer identities. The
-   * cashback label is derived from each live offer when read. Stored as a
-   * single config doc (empty
-   * filter = the singleton) in its own collection, so it never collides with
-   * the image-banner doc that OfferService.getBannerHome() reads.
+   * Save admin-curated top-brands as ordered offer identities.
+   * Legacy `{ brands }` writes the same list to all three fields.
+   * Phase 2 `{ brandsDesktop, brandsMobile }` persists independent orders
+   * and mirrors desktop into legacy `brands` for older readers.
    */
-  async saveTopBrands(brands: { offerId: string; cashback: string }[]) {
-    if ((brands?.length ?? 0) > MAX_TOP_BRANDS) {
+  async saveTopBrands(
+    input:
+      | { offerId: string; cashback: string }[]
+      | SaveTopBrandsDto
+      | null
+      | undefined,
+  ) {
+    const body = Array.isArray(input)
+      ? { brands: input }
+      : (input ?? {});
+    const hasDeviceLists =
+      body.brandsDesktop !== undefined || body.brandsMobile !== undefined;
+
+    if (hasDeviceLists) {
+      if (
+        (body.brandsDesktop?.length ?? 0) > MAX_TOP_BRANDS ||
+        (body.brandsMobile?.length ?? 0) > MAX_TOP_BRANDS
+      ) {
+        throw new BadRequestException(
+          `Top brands is limited to ${MAX_TOP_BRANDS} offers.`,
+        );
+      }
+      const brandsDesktop = normalizeTopBrandEntries(
+        body.brandsDesktop ?? body.brands,
+      );
+      const brandsMobile = normalizeTopBrandEntries(
+        body.brandsMobile ?? body.brands,
+      );
+      await this.topBrandConfigModel.updateOne(
+        {},
+        {
+          $set: {
+            brands: brandsDesktop,
+            brandsDesktop,
+            brandsMobile,
+          },
+        },
+        { upsert: true },
+      );
+      return {
+        success: true,
+        brands: brandsDesktop,
+        brandsDesktop,
+        brandsMobile,
+      };
+    }
+
+    const normalizedBrands = normalizeTopBrandEntries(body.brands);
+    if ((body.brands?.length ?? 0) > MAX_TOP_BRANDS) {
       throw new BadRequestException(
         `Top brands is limited to ${MAX_TOP_BRANDS} offers.`,
       );
     }
 
-    const seen = new Set<string>();
-    const normalizedBrands = (brands ?? [])
-      .map((entry) => ({
-        offerId: String(entry.offerId ?? '').trim(),
-        cashback: '',
-      }))
-      .filter((entry) => {
-        if (!entry.offerId || seen.has(entry.offerId)) {
-          return false;
-        }
-        seen.add(entry.offerId);
-        return true;
-      });
-
     await this.topBrandConfigModel.updateOne(
       {},
-      { $set: { brands: normalizedBrands } },
+      {
+        $set: {
+          brands: normalizedBrands,
+          brandsDesktop: normalizedBrands,
+          brandsMobile: normalizedBrands,
+        },
+      },
       { upsert: true },
     );
-    return { success: true, brands: normalizedBrands };
+    return {
+      success: true,
+      brands: normalizedBrands,
+      brandsDesktop: normalizedBrands,
+      brandsMobile: normalizedBrands,
+    };
   }
 
   /**

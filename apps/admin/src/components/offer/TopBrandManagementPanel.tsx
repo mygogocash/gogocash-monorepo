@@ -96,9 +96,17 @@ export default function TopBrandManagementPanel() {
   const queryClient = useQueryClient();
   const { can } = usePermissions();
   const canManageBrands = can("brands:manage");
-  /** When non-null, unsaved edits; otherwise show server order from `data`. */
-  const [draftOrder, setDraftOrder] = useState<string[] | null>(null);
+  /** When non-null, unsaved edits for that device; otherwise use server order. */
+  const [draftOrderDesktop, setDraftOrderDesktop] = useState<string[] | null>(
+    null,
+  );
+  const [draftOrderMobile, setDraftOrderMobile] = useState<string[] | null>(
+    null,
+  );
   const [pickerSearch, setPickerSearch] = useState("");
+  const [draggingDevice, setDraggingDevice] = useState<
+    "desktop" | "mobile" | null
+  >(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -107,15 +115,30 @@ export default function TopBrandManagementPanel() {
     queryFn: () => apiClient.getTopBrands(),
   });
 
-  const serverBrands = useMemo(
-    () => data?.brands ?? EMPTY_BRANDS,
-    [data?.brands],
+  const serverOrderDesktop = useMemo(
+    () =>
+      data?.orderDesktop ??
+      data?.order ??
+      (data?.brandsDesktop ?? data?.brands ?? EMPTY_BRANDS).map(
+        (entry) => entry.offerId,
+      ),
+    [data?.brands, data?.brandsDesktop, data?.order, data?.orderDesktop],
   );
-  const serverOrder = useMemo(
-    () => data?.order ?? serverBrands.map((entry) => entry.offerId),
-    [data?.order, serverBrands],
+  const serverOrderMobile = useMemo(
+    () =>
+      data?.orderMobile ??
+      data?.order ??
+      (data?.brandsMobile ?? data?.brands ?? EMPTY_BRANDS).map(
+        (entry) => entry.offerId,
+      ),
+    [data?.brands, data?.brandsMobile, data?.order, data?.orderMobile],
   );
-  const localOrder = draftOrder ?? serverOrder;
+  const localOrderDesktop = draftOrderDesktop ?? serverOrderDesktop;
+  const localOrderMobile = draftOrderMobile ?? serverOrderMobile;
+  const localOrder = useMemo(
+    () => [...new Set([...localOrderDesktop, ...localOrderMobile])],
+    [localOrderDesktop, localOrderMobile],
+  );
   const maxBrands = data?.maxBrands ?? 16;
 
   const pickerQuery = useMemo(
@@ -150,13 +173,21 @@ export default function TopBrandManagementPanel() {
     }
     return m;
   }, [data?.items, offersPick?.data]);
-  const localBrands = useMemo(
+  const localBrandsDesktop = useMemo(
     () =>
-      localOrder.map((offerId) => ({
+      localOrderDesktop.map((offerId) => ({
         offerId,
         cashback: resolveTopBrandCashbackLabel(offerById.get(offerId), ""),
       })),
-    [localOrder, offerById],
+    [localOrderDesktop, offerById],
+  );
+  const localBrandsMobile = useMemo(
+    () =>
+      localOrderMobile.map((offerId) => ({
+        offerId,
+        cashback: resolveTopBrandCashbackLabel(offerById.get(offerId), ""),
+      })),
+    [localOrderMobile, offerById],
   );
 
   const listedOfferIds = useMemo(() => new Set(localOrder), [localOrder]);
@@ -182,13 +213,19 @@ export default function TopBrandManagementPanel() {
     pickerSearch,
   ]);
 
-  const dirty = !ordersEqual(localOrder, serverOrder);
+  const dirty =
+    !ordersEqual(localOrderDesktop, serverOrderDesktop) ||
+    !ordersEqual(localOrderMobile, serverOrderMobile);
 
   const saveMutation = useMutation({
-    mutationFn: (brands: TopBrandConfigEntry[]) =>
-      apiClient.saveTopBrands(brands),
+    mutationFn: () =>
+      apiClient.saveTopBrands({
+        brandsDesktop: localBrandsDesktop,
+        brandsMobile: localBrandsMobile,
+      }),
     onSuccess: () => {
-      setDraftOrder(null);
+      setDraftOrderDesktop(null);
+      setDraftOrderMobile(null);
       void queryClient.invalidateQueries({ queryKey: TOP_BRANDS_QUERY_KEY });
       toast.success("Top brands saved.");
     },
@@ -199,41 +236,61 @@ export default function TopBrandManagementPanel() {
     },
   });
 
-  const removeAt = useCallback(
-    (index: number) => {
-      setDraftOrder((d) => {
-        const prev = d ?? serverOrder;
-        return prev.filter((_, i) => i !== index);
-      });
+  const removeOffer = useCallback(
+    (offerId: string) => {
+      setDraftOrderDesktop((d) =>
+        (d ?? serverOrderDesktop).filter((id) => id !== offerId),
+      );
+      setDraftOrderMobile((d) =>
+        (d ?? serverOrderMobile).filter((id) => id !== offerId),
+      );
     },
-    [serverOrder],
+    [serverOrderDesktop, serverOrderMobile],
   );
 
   const addOfferFromPicker = useCallback(
     (offer: Offer) => {
       const id = offer._id.trim();
       if (!id) return;
-      setDraftOrder((d) => {
-        const prev = d ?? serverOrder;
+      let blocked = false;
+      setDraftOrderDesktop((d) => {
+        const prev = d ?? serverOrderDesktop;
         if (prev.includes(id)) return prev;
         if (prev.length >= maxBrands) {
-          toast.error(`You can select up to ${maxBrands} top brands.`);
+          blocked = true;
           return prev;
         }
         return [...prev, id];
       });
+      setDraftOrderMobile((d) => {
+        const prev = d ?? serverOrderMobile;
+        if (prev.includes(id)) return prev;
+        if (prev.length >= maxBrands) {
+          blocked = true;
+          return prev;
+        }
+        return [...prev, id];
+      });
+      if (blocked) {
+        toast.error(`You can select up to ${maxBrands} top brands per device.`);
+      }
     },
-    [maxBrands, serverOrder],
+    [maxBrands, serverOrderDesktop, serverOrderMobile],
   );
 
-  const handleRowDragStart = useCallback((e: DragEvent, index: number) => {
-    setDraggingIndex(index);
-    e.dataTransfer.setData(DND_INDEX_KEY, String(index));
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(index));
-  }, []);
+  const handleRowDragStart = useCallback(
+    (e: DragEvent, device: "desktop" | "mobile", index: number) => {
+      setDraggingDevice(device);
+      setDraggingIndex(index);
+      e.dataTransfer.setData(DND_INDEX_KEY, `${device}:${index}`);
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", `${device}:${index}`);
+    },
+    [],
+  );
 
   const handleRowDragEnd = useCallback(() => {
+    setDraggingDevice(null);
     setDraggingIndex(null);
     setDragOverIndex(null);
   }, []);
@@ -251,21 +308,28 @@ export default function TopBrandManagementPanel() {
   }, []);
 
   const handleRowDrop = useCallback(
-    (e: DragEvent, dropIndex: number) => {
+    (e: DragEvent, device: "desktop" | "mobile", dropIndex: number) => {
       e.preventDefault();
       const raw =
         e.dataTransfer.getData(DND_INDEX_KEY) ||
         e.dataTransfer.getData("text/plain");
-      const from = parseInt(raw, 10);
+      const [rawDevice, rawFrom] = raw.split(":");
+      const from = parseInt(rawFrom, 10);
+      setDraggingDevice(null);
       setDraggingIndex(null);
       setDragOverIndex(null);
-      if (Number.isNaN(from)) return;
-      setDraftOrder((d) => {
-        const prev = d ?? serverOrder;
-        return reorderIds(prev, from, dropIndex);
-      });
+      if (rawDevice !== device || Number.isNaN(from)) return;
+      if (device === "desktop") {
+        setDraftOrderDesktop((d) =>
+          reorderIds(d ?? serverOrderDesktop, from, dropIndex),
+        );
+      } else {
+        setDraftOrderMobile((d) =>
+          reorderIds(d ?? serverOrderMobile, from, dropIndex),
+        );
+      }
     },
-    [serverOrder],
+    [serverOrderDesktop, serverOrderMobile],
   );
 
   if (isLoading && !data) {
@@ -382,7 +446,9 @@ export default function TopBrandManagementPanel() {
           />
         </div>
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Top brands selected: {localOrder.length} / {maxBrands}
+          Top brands selected: {localOrder.length} unique / {maxBrands} per
+          device (desktop {localOrderDesktop.length}, mobile{" "}
+          {localOrderMobile.length})
         </p>
         {hiddenPickerMatches.length > 0 && pickerSearch.trim() ? (
           <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
@@ -402,124 +468,156 @@ export default function TopBrandManagementPanel() {
         ) : null}
       </div>
 
-      <div className="mt-8 space-y-3 border-t border-gray-200 pt-6 dark:border-gray-700">
-        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-          Current order
-        </h3>
-        {localOrder.length > 0 ? (
-          <p
-            id="top-brand-dnd-help"
-            className="text-xs text-gray-500 dark:text-gray-400"
-          >
-            Press, hold briefly, and drag a row to a new spot (or drag from the
-            grip).
-          </p>
-        ) : null}
-        {localOrder.length === 0 ? (
-          <NoData>
-            No brands selected yet. Use the form above to add offers.
-          </NoData>
-        ) : null}
-        <ul
-          className="space-y-2"
-          aria-describedby={
-            localOrder.length > 0 ? "top-brand-dnd-help" : undefined
-          }
+      {(
+        [
+          {
+            device: "desktop" as const,
+            title: "Desktop order",
+            helpId: "top-brand-dnd-help-desktop",
+            order: localOrderDesktop,
+          },
+          {
+            device: "mobile" as const,
+            title: "Mobile order",
+            helpId: "top-brand-dnd-help-mobile",
+            order: localOrderMobile,
+          },
+        ] as const
+      ).map(({ device, title, helpId, order }) => (
+        <div
+          key={device}
+          className="mt-8 space-y-3 border-t border-gray-200 pt-6 dark:border-gray-700"
         >
-          {localOrder.map((id, index) => {
-            const offer = offerById.get(id);
-            const isDragging = draggingIndex === index;
-            const isDropTarget =
-              dragOverIndex === index &&
-              draggingIndex !== null &&
-              draggingIndex !== index;
-            return (
-              <li
-                key={id}
-                draggable={canManageBrands}
-                aria-grabbed={isDragging ? true : undefined}
-                onDragStart={canManageBrands ? (e) => handleRowDragStart(e, index) : undefined}
-                onDragEnd={canManageBrands ? handleRowDragEnd : undefined}
-                onDragOver={canManageBrands ? (e) => handleRowDragOver(e, index) : undefined}
-                onDragLeave={canManageBrands ? handleRowDragLeave : undefined}
-                onDrop={canManageBrands ? (e) => handleRowDrop(e, index) : undefined}
-                className={`flex flex-wrap items-center gap-3 rounded-xl border bg-gray-50/80 px-3 py-2.5 transition-[opacity,box-shadow] dark:bg-gray-900/40 ${
-                  isDragging
-                    ? "cursor-grabbing border-gray-200 opacity-60 dark:border-gray-700"
-                    : canManageBrands
-                      ? "cursor-grab border-gray-200 dark:border-gray-700"
-                      : "border-gray-200 dark:border-gray-700"
-                } ${
-                  isDropTarget
-                    ? "border-brand-400 ring-brand-400/40 dark:border-brand-500 ring-2"
-                    : ""
-                }`}
-              >
-                <span
-                  className="inline-flex shrink-0 cursor-grab touch-none items-center rounded-md px-1 py-1 text-gray-400 hover:bg-gray-200/80 active:cursor-grabbing dark:hover:bg-gray-700/80"
-                  title="Drag to reorder"
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+            {title}
+          </h3>
+          {order.length > 0 ? (
+            <p id={helpId} className="text-xs text-gray-500 dark:text-gray-400">
+              Drag to reorder this device independently. Remove drops the brand
+              from both desktop and mobile.
+            </p>
+          ) : null}
+          {order.length === 0 ? (
+            <NoData>
+              No brands selected yet. Use the form above to add offers.
+            </NoData>
+          ) : null}
+          <ul
+            className="space-y-2"
+            aria-describedby={order.length > 0 ? helpId : undefined}
+          >
+            {order.map((id, index) => {
+              const offer = offerById.get(id);
+              const isDragging =
+                draggingDevice === device && draggingIndex === index;
+              const isDropTarget =
+                draggingDevice === device &&
+                dragOverIndex === index &&
+                draggingIndex !== null &&
+                draggingIndex !== index;
+              return (
+                <li
+                  key={`${device}-${id}`}
+                  draggable={canManageBrands}
+                  aria-grabbed={isDragging ? true : undefined}
+                  onDragStart={
+                    canManageBrands
+                      ? (e) => handleRowDragStart(e, device, index)
+                      : undefined
+                  }
+                  onDragEnd={canManageBrands ? handleRowDragEnd : undefined}
+                  onDragOver={
+                    canManageBrands
+                      ? (e) => handleRowDragOver(e, index)
+                      : undefined
+                  }
+                  onDragLeave={
+                    canManageBrands ? handleRowDragLeave : undefined
+                  }
+                  onDrop={
+                    canManageBrands
+                      ? (e) => handleRowDrop(e, device, index)
+                      : undefined
+                  }
+                  className={`flex flex-wrap items-center gap-3 rounded-xl border bg-gray-50/80 px-3 py-2.5 transition-[opacity,box-shadow] dark:bg-gray-900/40 ${
+                    isDragging
+                      ? "cursor-grabbing border-gray-200 opacity-60 dark:border-gray-700"
+                      : canManageBrands
+                        ? "cursor-grab border-gray-200 dark:border-gray-700"
+                        : "border-gray-200 dark:border-gray-700"
+                  } ${
+                    isDropTarget
+                      ? "border-brand-400 ring-brand-400/40 dark:border-brand-500 ring-2"
+                      : ""
+                  }`}
                 >
-                  <DragRowGrip />
-                </span>
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-xs font-semibold text-gray-600 shadow-sm dark:bg-gray-800 dark:text-gray-300">
-                  {index + 1}
-                </span>
-                {offer ? (
-                  <RemoteOrBlobImage
-                    src={pathImage(resolveAdminOfferLogoPath(offer))}
-                    alt=""
-                    width={40}
-                    height={40}
-                    className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain p-0.5 dark:bg-gray-800"
-                    sizes={OFFER_THUMB_SIZES}
-                  />
-                ) : (
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-200 text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                    ?
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
-                    {offer ? offerLabel(offer) : "Unknown offer"}
-                  </p>
-                  <p className="truncate font-mono text-xs text-gray-500 dark:text-gray-400">
-                    {id}
-                  </p>
-                </div>
-                {offer?.disabled ? (
-                  <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-200">
-                    Disabled
-                  </span>
-                ) : null}
-                <span
-                  aria-label={`Cashback for ${offer ? offerLabel(offer) : id}`}
-                  className="min-w-24 rounded-lg bg-white px-3 py-2 text-right text-sm font-medium text-gray-900 dark:bg-gray-800 dark:text-white"
-                >
-                  {resolveTopBrandCashbackLabel(offer, "") || "—"}
-                </span>
-                <div
-                  className="flex shrink-0 items-center gap-1"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    title="Remove from homepage list"
-                    draggable={false}
-                    disabled={!canManageBrands}
-                    onClick={() => removeAt(index)}
-                    className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-950/40"
+                  <span
+                    className="inline-flex shrink-0 cursor-grab touch-none items-center rounded-md px-1 py-1 text-gray-400 hover:bg-gray-200/80 active:cursor-grabbing dark:hover:bg-gray-700/80"
+                    title="Drag to reorder"
                   >
-                    Remove
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+                    <DragRowGrip />
+                  </span>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-xs font-semibold text-gray-600 shadow-sm dark:bg-gray-800 dark:text-gray-300">
+                    {index + 1}
+                  </span>
+                  {offer ? (
+                    <RemoteOrBlobImage
+                      src={pathImage(resolveAdminOfferLogoPath(offer))}
+                      alt=""
+                      width={40}
+                      height={40}
+                      className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain p-0.5 dark:bg-gray-800"
+                      sizes={OFFER_THUMB_SIZES}
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-200 text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                      ?
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                      {offer ? offerLabel(offer) : "Unknown offer"}
+                    </p>
+                    <p className="truncate font-mono text-xs text-gray-500 dark:text-gray-400">
+                      {id}
+                    </p>
+                  </div>
+                  {offer?.disabled ? (
+                    <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                      Disabled
+                    </span>
+                  ) : null}
+                  <span
+                    aria-label={`Cashback for ${offer ? offerLabel(offer) : id}`}
+                    className="min-w-24 rounded-lg bg-white px-3 py-2 text-right text-sm font-medium text-gray-900 dark:bg-gray-800 dark:text-white"
+                  >
+                    {resolveTopBrandCashbackLabel(offer, "") || "—"}
+                  </span>
+                  <div
+                    className="flex shrink-0 items-center gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      title="Remove from both device lists"
+                      draggable={false}
+                      disabled={!canManageBrands}
+                      onClick={() => removeOffer(id)}
+                      className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-950/40"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
 
       <TopBrandLandingPreview
-        order={localOrder}
+        orderDesktop={localOrderDesktop}
+        orderMobile={localOrderMobile}
         labelFor={(offerId) => {
           const previewOffer = offerById.get(offerId);
           return previewOffer ? offerLabel(previewOffer) : offerId;
@@ -531,7 +629,7 @@ export default function TopBrandManagementPanel() {
           type="button"
           size="sm"
           disabled={!canManageBrands || !dirty || saveMutation.isPending}
-          onClick={() => saveMutation.mutate(localBrands)}
+          onClick={() => saveMutation.mutate()}
         >
           {saveMutation.isPending ? "Saving…" : "Save top brands"}
         </Button>
@@ -541,7 +639,8 @@ export default function TopBrandManagementPanel() {
           variant="outline"
           disabled={!canManageBrands || !dirty || saveMutation.isPending}
           onClick={() => {
-            setDraftOrder(null);
+            setDraftOrderDesktop(null);
+            setDraftOrderMobile(null);
           }}
         >
           Reset

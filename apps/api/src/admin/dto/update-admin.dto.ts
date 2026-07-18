@@ -559,12 +559,35 @@ export class TopBrandConfigEntryDto {
 }
 
 export class SaveTopBrandsDto {
-  @ApiProperty({ type: [TopBrandConfigEntryDto] })
+  /**
+   * Legacy single-list payload. When device lists are omitted, this value is
+   * written to brands + brandsDesktop + brandsMobile.
+   */
+  @ApiProperty({ type: [TopBrandConfigEntryDto], required: false })
+  @IsOptional()
   @IsArray()
   @ArrayMaxSize(MAX_TOP_BRANDS)
   @ValidateNested({ each: true })
   @Type(() => TopBrandConfigEntryDto)
-  brands: TopBrandConfigEntryDto[];
+  brands?: TopBrandConfigEntryDto[];
+
+  /** #378 Phase 2 — desktop homepage order. */
+  @ApiProperty({ type: [TopBrandConfigEntryDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_TOP_BRANDS)
+  @ValidateNested({ each: true })
+  @Type(() => TopBrandConfigEntryDto)
+  brandsDesktop?: TopBrandConfigEntryDto[];
+
+  /** #378 Phase 2 — mobile homepage order. */
+  @ApiProperty({ type: [TopBrandConfigEntryDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_TOP_BRANDS)
+  @ValidateNested({ each: true })
+  @Type(() => TopBrandConfigEntryDto)
+  brandsMobile?: TopBrandConfigEntryDto[];
 }
 
 export class GetConversionInWithdrawDto {

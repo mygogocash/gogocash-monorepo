@@ -414,7 +414,7 @@ export class AdminController {
   @Roles('approver')
   @Put('top-brands')
   saveTopBrands(@Body() body: SaveTopBrandsDto) {
-    return this.adminService.saveTopBrands(body.brands);
+    return this.adminService.saveTopBrands(body);
   }
 
   // Creating an admin account is a superadmin action (parallels the gated

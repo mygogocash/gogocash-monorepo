@@ -6,8 +6,10 @@ import {
 } from "@/lib/topBrandPreviewLayout";
 
 type TopBrandLandingPreviewProps = {
-  /** Current (possibly unsaved) top-brand order — offer ids. */
-  order: readonly string[];
+  /** Desktop homepage order (possibly unsaved) — offer ids. */
+  orderDesktop: readonly string[];
+  /** Mobile homepage order (possibly unsaved) — offer ids. */
+  orderMobile: readonly string[];
   /** Resolves an offer id to the label admins recognise. */
   labelFor: (offerId: string) => string;
 };
@@ -35,21 +37,22 @@ function SlotChip({
 }
 
 /**
- * Schematic preview of where the current order lands on the customer
- * homepage per device. Layout math mirrors the customer app — see
+ * Schematic preview of where each device order lands on the customer
+ * homepage. Layout math mirrors the customer app — see
  * topBrandPreviewLayout.ts for the pinned contract (#378).
  */
 export default function TopBrandLandingPreview({
-  order,
+  orderDesktop,
+  orderMobile,
   labelFor,
 }: TopBrandLandingPreviewProps) {
-  if (order.length === 0) return null;
+  if (orderDesktop.length === 0 && orderMobile.length === 0) return null;
 
   const columns = desktopColumnsPerRow();
-  const pages = desktopPreviewPages(order);
+  const pages = desktopPreviewPages(orderDesktop);
   const pageSize = columns * 2;
-  const mobileGrid = isMobileStaticGrid(order.length);
-  const mobileColumns = mobilePreviewColumns(order);
+  const mobileGrid = isMobileStaticGrid(orderMobile.length);
+  const mobileColumns = mobilePreviewColumns(orderMobile);
 
   return (
     <div
@@ -61,10 +64,8 @@ export default function TopBrandLandingPreview({
           Landing preview
         </h3>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Where the order above (including unsaved changes) lands on the
-          customer homepage. Desktop fills each page left to right, top to
-          bottom; the phone rail stacks brands in vertical pairs — so the same
-          brand sits in a different spot on each device.
+          Where each device order (including unsaved changes) lands on the
+          customer homepage. Desktop and mobile can diverge after Phase 2.
         </p>
       </div>
 
@@ -113,7 +114,7 @@ export default function TopBrandLandingPreview({
         </h4>
         {mobileGrid ? (
           <div className="mt-2 grid max-w-xs grid-cols-2 gap-1.5">
-            {order.map((offerId, index) => (
+            {orderMobile.map((offerId, index) => (
               <SlotChip
                 key={offerId}
                 position={index + 1}

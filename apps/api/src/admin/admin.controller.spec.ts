@@ -298,11 +298,15 @@ describe('AdminController', () => {
   });
 
   describe('saveTopBrands', () => {
-    it('saveTopBrands > given a brands array > then it unwraps body.brands', () => {
-      const brands = [{ offerId: 'offer-1', cashback: '5%' }];
-      controller.saveTopBrands({ brands });
+    it('saveTopBrands > given a brands body > then it forwards the full DTO', () => {
+      const body = {
+        brands: [{ offerId: 'offer-1', cashback: '5%' }],
+        brandsDesktop: [{ offerId: 'offer-1', cashback: '5%' }],
+        brandsMobile: [{ offerId: 'offer-2', cashback: '5%' }],
+      };
+      controller.saveTopBrands(body);
 
-      expect(adminService.saveTopBrands).toHaveBeenCalledWith(brands);
+      expect(adminService.saveTopBrands).toHaveBeenCalledWith(body);
     });
   });
 

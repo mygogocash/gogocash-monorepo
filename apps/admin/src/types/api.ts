@@ -730,15 +730,28 @@ export interface TopBrandConfigEntry {
 
 /** Curated homepage top-brand rail (admin). Mock: in-memory ordered entries. */
 export interface TopBrandsAdminResponse {
+  /** Legacy alias of desktop order. */
   order: string[];
+  orderDesktop: string[];
+  orderMobile: string[];
+  /** Legacy alias of brandsDesktop. */
   brands: TopBrandConfigEntry[];
+  brandsDesktop: TopBrandConfigEntry[];
+  brandsMobile: TopBrandConfigEntry[];
   items: Offer[];
   maxBrands: number;
+}
+
+export interface SaveTopBrandsPayload {
+  brandsDesktop: TopBrandConfigEntry[];
+  brandsMobile: TopBrandConfigEntry[];
 }
 
 export interface SaveTopBrandsResponse {
   success: boolean;
   brands: TopBrandConfigEntry[];
+  brandsDesktop?: TopBrandConfigEntry[];
+  brandsMobile?: TopBrandConfigEntry[];
   message?: string;
 }
 
