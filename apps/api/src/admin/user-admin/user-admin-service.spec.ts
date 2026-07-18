@@ -35,10 +35,17 @@ describe('UserAdminService', () => {
       if (Array.isArray(or)) {
         return or.some(matches);
       }
-      return Object.entries(filter).every(
-        ([key, value]) =>
-          (storedAdmin as Record<string, unknown>)[key] === value,
-      );
+      return Object.entries(filter).every(([key, expected]) => {
+        const actual = (storedAdmin as Record<string, unknown>)[key];
+        if (
+          expected !== null &&
+          typeof expected === 'object' &&
+          '$eq' in (expected as Record<string, unknown>)
+        ) {
+          return actual === (expected as { $eq: unknown }).$eq;
+        }
+        return actual === expected;
+      });
     };
     const doc = {
       ...storedAdmin,
