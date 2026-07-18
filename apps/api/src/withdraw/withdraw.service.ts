@@ -3655,45 +3655,53 @@ export class WithdrawService {
       if (autoFields) {
         await this.withdrawModel.create([autoFields], { session });
       }
+
+      const actorLabel =
+        user.username || user.email || String(user._id);
+      await this.adminActivity.appendRequired(
+        {
+          actor_type: 'customer',
+          actor_id: String(user._id),
+          actor_label: actorLabel,
+          action: 'withdraw.created',
+          entity_type: 'withdraw',
+          entity_id: String(record._id),
+          summary: `Bank transfer withdraw ${amountNet} ${currency}`,
+          metadata: {
+            amount_net: amountNet,
+            currency,
+            method: 'bank_transfer',
+            coupon_code: couponCodeRaw
+              ? normalizeWithdrawFeeCouponCode(couponCodeRaw)
+              : undefined,
+            withdraw_fee_final: record.withdraw_fee_final,
+          },
+        },
+        session,
+      );
+      if (couponDoc) {
+        await this.adminActivity.appendRequired(
+          {
+            actor_type: 'customer',
+            actor_id: String(user._id),
+            actor_label: actorLabel,
+            action: 'withdraw.fee_coupon.redeemed',
+            entity_type: 'withdraw_fee_coupon',
+            entity_id: String(couponDoc._id),
+            summary: `Redeemed fee coupon ${normalizeWithdrawFeeCouponCode(couponDoc.code)}`,
+            metadata: {
+              withdraw_id: String(record._id),
+              discount: record.withdraw_fee_discount,
+              final_fee: record.withdraw_fee_final,
+            },
+          },
+          session,
+        );
+      }
+
       return { record, replayed: false };
     });
     const dt = command.record;
-
-    if (!command.replayed)
-      await this.adminActivity.append({
-        actor_type: 'customer',
-        actor_id: String(user._id),
-        actor_label: user.username || user.email || String(user._id),
-        action: 'withdraw.created',
-        entity_type: 'withdraw',
-        entity_id: String(dt._id),
-        summary: `Bank transfer withdraw ${amountNet} ${currency}`,
-        metadata: {
-          amount_net: amountNet,
-          currency,
-          method: 'bank_transfer',
-          coupon_code: couponCodeRaw
-            ? normalizeWithdrawFeeCouponCode(couponCodeRaw)
-            : undefined,
-          withdraw_fee_final: dt.withdraw_fee_final,
-        },
-      });
-    if (!command.replayed && couponCodeRaw && dt.coupon_id) {
-      await this.adminActivity.append({
-        actor_type: 'customer',
-        actor_id: String(user._id),
-        actor_label: user.username || user.email || String(user._id),
-        action: 'withdraw.fee_coupon.redeemed',
-        entity_type: 'withdraw_fee_coupon',
-        entity_id: String(dt.coupon_id),
-        summary: `Redeemed fee coupon ${normalizeWithdrawFeeCouponCode(couponCodeRaw)}`,
-        metadata: {
-          withdraw_id: String(dt._id),
-          discount: dt.withdraw_fee_discount,
-          final_fee: dt.withdraw_fee_final,
-        },
-      });
-    }
 
     return {
       message: 'Withdraw request created',

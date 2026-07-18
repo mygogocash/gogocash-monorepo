@@ -48,6 +48,12 @@ export type ListActivityQuery = {
   search?: string;
 };
 
+/** Payout evidence / media refs must not ship to the activity list UI. */
+const REDACTED_METADATA_KEYS = new Set([
+  'slip_file',
+  'previous_slip_file',
+]);
+
 @Injectable()
 export class AdminActivityService {
   constructor(
@@ -157,7 +163,7 @@ export class AdminActivityService {
       ];
     }
 
-    const [data, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.activityModel
         .find(filter)
         .sort({ occurred_at: -1 })
@@ -168,7 +174,25 @@ export class AdminActivityService {
       this.activityModel.countDocuments(filter).exec(),
     ]);
 
+    const data = rows.map((row) => ({
+      ...row,
+      metadata: this.redactMetadata(row.metadata),
+    }));
+
     return { data, total, page, limit };
+  }
+
+  private redactMetadata(
+    metadata: Record<string, unknown> | undefined | null,
+  ): Record<string, unknown> {
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+      return {};
+    }
+    const redacted: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(metadata)) {
+      redacted[key] = REDACTED_METADATA_KEYS.has(key) ? '[redacted]' : value;
+    }
+    return redacted;
   }
 
   private boundedInteger(

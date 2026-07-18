@@ -141,6 +141,35 @@ describe('AdminActivityService', () => {
     expect(result).toEqual({ data: [], total: 0, page: 2, limit: 10 });
   });
 
+  it('list > redacts payout-evidence metadata keys for viewers', async () => {
+    const leanExec = jest.fn().mockResolvedValue([
+      {
+        action: 'withdraw.slip_updated',
+        summary: 'Updated withdrawal payout evidence',
+        metadata: {
+          slip_file: 'gs://bucket/slip.png',
+          previous_slip_file: 'gs://bucket/old.png',
+          status: 'approved',
+        },
+      },
+    ]);
+    activityModel.find.mockReturnValue({
+      sort: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockReturnValue({ exec: leanExec }),
+      exec: leanExec,
+    });
+
+    const result = await service.list({ page: 1, limit: 20 });
+
+    expect(result.data[0].metadata).toEqual({
+      slip_file: '[redacted]',
+      previous_slip_file: '[redacted]',
+      status: 'approved',
+    });
+  });
+
   it('list > accepts integer query-string pagination values', async () => {
     const result = await service.list({ page: '2', limit: '10' });
 

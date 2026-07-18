@@ -344,6 +344,26 @@ export class WalletsService {
           ],
           { session },
         );
+
+        await this.adminActivity.appendRequired(
+          {
+            actor_type: 'admin',
+            actor_id: actor.id,
+            actor_label: actor.label,
+            action: 'wallet.adjusted',
+            entity_type: 'user',
+            entity_id: userId,
+            summary: `Wallet ${type} ${amount} ${currency}`,
+            metadata: {
+              adjustment_id: String(adjustment._id),
+              type,
+              amount,
+              currency,
+              reason,
+            },
+          },
+          session,
+        );
       });
     } finally {
       await session.endSession();
@@ -352,24 +372,6 @@ export class WalletsService {
     if (!adjustment) {
       throw new ConflictException('Wallet adjustment was not committed');
     }
-
-    if (!replayed)
-      await this.adminActivity.append({
-        actor_type: 'admin',
-        actor_id: actor.id,
-        actor_label: actor.label,
-        action: 'wallet.adjusted',
-        entity_type: 'user',
-        entity_id: userId,
-        summary: `Wallet ${type} ${amount} ${currency}`,
-        metadata: {
-          adjustment_id: String(adjustment._id),
-          type,
-          amount,
-          currency,
-          reason,
-        },
-      });
 
     return adjustment.toObject();
   }

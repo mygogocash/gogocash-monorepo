@@ -15,6 +15,7 @@ const query = <T>(value: T) => {
 
 describe('WalletsService', () => {
   const append = jest.fn().mockResolvedValue(undefined);
+  const appendRequired = jest.fn().mockResolvedValue(undefined);
   const findByIdAndUpdate = jest.fn();
   const findOneAndUpdate = jest.fn();
   const find = jest.fn();
@@ -31,7 +32,7 @@ describe('WalletsService', () => {
     {} as never,
     {} as never,
     { findOne: adjustmentFindOne, create: adjustmentCreate } as never,
-    { append } as never,
+    { append, appendRequired } as never,
     { checkWithdraw } as never,
     { startSession: jest.fn().mockResolvedValue(session) } as never,
   );
@@ -86,7 +87,7 @@ describe('WalletsService', () => {
     });
   });
 
-  it('commits one canonical credit and audits only after the transaction', async () => {
+  it('commits one canonical credit and audits inside the same transaction', async () => {
     findOneAndUpdate.mockReturnValue(query({ _id: userId }));
     adjustmentFindOne.mockReturnValue(query(null));
     const adjustment = {
@@ -114,9 +115,18 @@ describe('WalletsService', () => {
       ],
       { session },
     );
+    expect(appendRequired).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'wallet.adjusted',
+        actor_id: actor.id,
+        entity_id: userId,
+      }),
+      session,
+    );
+    expect(append).not.toHaveBeenCalled();
     expect(session.endSession).toHaveBeenCalled();
     expect(adjustmentCreate.mock.invocationCallOrder[0]).toBeLessThan(
-      append.mock.invocationCallOrder[0],
+      appendRequired.mock.invocationCallOrder[0],
     );
   });
 
@@ -148,6 +158,7 @@ describe('WalletsService', () => {
     );
 
     expect(adjustmentCreate).not.toHaveBeenCalled();
+    expect(appendRequired).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -166,6 +177,7 @@ describe('WalletsService', () => {
     ).rejects.toMatchObject({ status: 409 });
 
     expect(adjustmentCreate).not.toHaveBeenCalled();
+    expect(appendRequired).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
   });
 });

@@ -928,6 +928,21 @@ describe('WithdrawService', () => {
       const persisted = mocks.withdrawModel.create.mock.calls[0][0][0];
       expect(persisted.amount_net).toBe(500);
       expect(persisted.amount_total).toBe(500);
+      expect(mocks.adminActivity.appendRequired).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'withdraw.created',
+          actor_type: 'customer',
+          actor_id: VALID_USER_ID,
+          actor_label: 'alice',
+          metadata: expect.objectContaining({
+            amount_net: 500,
+            currency: 'USD',
+            method: 'bank_transfer',
+          }),
+        }),
+        expect.anything(),
+      );
+      expect(mocks.adminActivity.append).not.toHaveBeenCalled();
     });
 
     it('createBankTransfer > given server MyCashback > then companion is linked and classified as bank transfer', async () => {
@@ -1017,6 +1032,8 @@ describe('WithdrawService', () => {
       expect(mocks.feeRateModel.findOne).not.toHaveBeenCalled();
       expect(balance).not.toHaveBeenCalled();
       expect(mocks.withdrawModel.create).not.toHaveBeenCalled();
+      expect(mocks.adminActivity.appendRequired).not.toHaveBeenCalled();
+      expect(mocks.adminActivity.append).not.toHaveBeenCalled();
     });
 
     it('createBankTransfer > given a reused key with a different effect > then rejects without a write', async () => {

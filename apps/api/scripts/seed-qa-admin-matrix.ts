@@ -317,22 +317,23 @@ export async function seedQaAdminMatrix(
     await AllBrandBannerModel.deleteMany({ link_1: { $regex: QA_TAG } });
 
     // --- FEE ---
-    await FeeRateModel.findOneAndUpdate(
-      {},
-      {
-        $set: {
-          system: 5,
-          store: 5,
-          max_cap: 100_000,
-          fee_withdraw_thb: 0,
-          fee_withdraw_usd: 0,
-          minimum_withdraw_thb: 1,
-          minimum_withdraw_usd: 1,
-        },
-      },
-      { upsert: true, new: true },
-    );
-    counts.feerates = 1;
+    // Never overwrite a shared FeeRate singleton (staging/prod config). Only
+    // insert a QA-friendly row when the collection is empty.
+    const existingFee = await FeeRateModel.findOne().lean().exec();
+    if (!existingFee) {
+      await FeeRateModel.create({
+        system: 5,
+        store: 5,
+        max_cap: 100_000,
+        fee_withdraw_thb: 20,
+        fee_withdraw_usd: 1,
+        minimum_withdraw_thb: 300,
+        minimum_withdraw_usd: 10,
+      });
+      counts.feerates = 1;
+    } else {
+      counts.feerates_skipped_existing = 1;
+    }
 
     // --- BRANDS ---
     const enabledBrand = await OfferModel.findOneAndUpdate(
@@ -398,22 +399,22 @@ export async function seedQaAdminMatrix(
     );
     counts.offers = 3;
 
-    await TopBrandModel.findOneAndUpdate(
-      {},
-      {
-        $set: {
-          brands: [
-            {
-              offerId: enabledBrand._id.toString(),
-              sortOrder: 0,
-              enabled: true,
-            },
-          ],
-        },
-      },
-      { upsert: true, new: true },
-    );
-    counts.topbrandconfigs = 1;
+    // Same singleton caution as FeeRate — do not clobber live top brands.
+    const existingTopBrands = await TopBrandModel.findOne().lean().exec();
+    if (!existingTopBrands) {
+      await TopBrandModel.create({
+        brands: [
+          {
+            offerId: enabledBrand._id.toString(),
+            sortOrder: 0,
+            enabled: true,
+          },
+        ],
+      });
+      counts.topbrandconfigs = 1;
+    } else {
+      counts.topbrandconfigs_skipped_existing = 1;
+    }
 
     // --- CONVERSIONS ---
     const now = new Date();

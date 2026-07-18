@@ -295,6 +295,18 @@ describe('WithdrawFeeCouponsService', () => {
         label: '100 percent',
         patch: { discount_mode: 'percent' as const, discount_value: 100 },
       },
+      {
+        // Large fixed discounts cap to baseFee and become a full waive.
+        label: 'large fixed',
+        patch: {
+          discount_mode: 'fixed' as const,
+          discount_value: 1_000_000,
+        },
+      },
+      {
+        label: 'any fixed discount',
+        patch: { discount_mode: 'fixed' as const, discount_value: 10 },
+      },
     ])('denies $label coupon creation to an approver', async ({ patch }) => {
       const service = await buildService();
       mockCreatedCoupon();
@@ -390,6 +402,10 @@ describe('WithdrawFeeCouponsService', () => {
       {
         label: '100 percent',
         dto: { discount_mode: 'percent' as const, discount_value: 100 },
+      },
+      {
+        label: 'fixed discount',
+        dto: { discount_mode: 'fixed' as const, discount_value: 10 },
       },
     ] satisfies Array<{ label: string; dto: UpdateWithdrawFeeCouponDto }>)(
       'denies an approver updating a coupon to $label',

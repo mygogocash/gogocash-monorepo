@@ -262,8 +262,10 @@ export class WithdrawFeeCouponsService {
   }
 
   /**
-   * Approvers may manage bounded partial-discount coupons only.
-   * Unlimited inventory, full waive, and 100% discounts require superadmin.
+   * Approvers may manage bounded percent coupons only (< 100%).
+   * Unlimited inventory, waive, 100% percent, and any fixed discount require
+   * superadmin — fixed values are capped to baseFee at redeem time, so a
+   * large fixed coupon is a de-facto full waive.
    */
   private assertActorMayManagePrivilege(
     actor: AdminActor,
@@ -274,7 +276,7 @@ export class WithdrawFeeCouponsService {
     }
     if (this.isElevatedCouponPrivilege(shape)) {
       throw new ForbiddenException(
-        'Unlimited, waive, and 100% fee coupons require a superadmin.',
+        'Unlimited, waive, fixed, and 100% fee coupons require a superadmin.',
       );
     }
   }
@@ -282,6 +284,7 @@ export class WithdrawFeeCouponsService {
   private isElevatedCouponPrivilege(shape: CouponPrivilegeShape): boolean {
     if (shape.unlimited_quantity) return true;
     if (shape.discount_mode === 'waive') return true;
+    if (shape.discount_mode === 'fixed') return true;
     if (shape.discount_mode === 'percent' && shape.discount_value >= 100) {
       return true;
     }
