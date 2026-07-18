@@ -24,7 +24,8 @@
 #   GCP_PROJECT_ID        gogocash-staging
 #   GCP_WIF_PROVIDER      projects/729804769570/locations/global/workloadIdentityPools/github-actions/providers/github
 #   GCP_SERVICE_ACCOUNT   github-actions-api@gogocash-staging.iam.gserviceaccount.com
-#   EXPO_PUBLIC_LIFF_ID    LINE Developing LIFF ID (public client identifier)
+#   EXPO_PUBLIC_LIFF_ID    LINE LIFF ID (public). Channel must be Published for
+#                         non-Tester users — see docs/line-login-channel.md
 #
 # ─── No Secret Manager secrets ───
 #   The web export is a static bundle. EXPO_PUBLIC_* values are baked at export
