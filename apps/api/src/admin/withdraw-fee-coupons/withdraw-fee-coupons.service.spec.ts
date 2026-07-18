@@ -3,18 +3,21 @@ import { Test } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { WithdrawFeeCouponsService } from './withdraw-fee-coupons.service';
 import { WithdrawFeeCoupon } from 'src/withdraw/schemas/withdraw-fee-coupon.schema';
+import { AdminActivityService } from '../activity/admin-activity.service';
 
 describe('WithdrawFeeCouponsService', () => {
   const create = jest.fn();
   const find = jest.fn();
   const countDocuments = jest.fn();
   const findById = jest.fn();
+  const append = jest.fn().mockResolvedValue(undefined);
 
   beforeEach(async () => {
     create.mockReset();
     find.mockReset();
     countDocuments.mockReset();
     findById.mockReset();
+    append.mockClear();
   });
 
   async function buildService() {
@@ -30,6 +33,7 @@ describe('WithdrawFeeCouponsService', () => {
             findById,
           },
         },
+        { provide: AdminActivityService, useValue: { append } },
       ],
     }).compile();
     return moduleRef.get(WithdrawFeeCouponsService);

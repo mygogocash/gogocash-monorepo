@@ -40,12 +40,14 @@ import {
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { PointModule } from 'src/point/point.module';
+import { AdminActivityModule } from 'src/admin/activity/admin-activity.module';
 
 @Module({
   imports: [
     CacheModule.register(),
     PointModule,
     InvolveModule,
+    AdminActivityModule,
     MongooseModule.forFeature([
       { name: Offer.name, schema: OfferSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },

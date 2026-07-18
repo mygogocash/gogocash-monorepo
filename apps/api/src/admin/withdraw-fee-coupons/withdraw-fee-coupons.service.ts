@@ -15,12 +15,14 @@ import {
   CreateWithdrawFeeCouponDto,
   UpdateWithdrawFeeCouponDto,
 } from './dto/withdraw-fee-coupon.dto';
+import { AdminActivityService } from '../activity/admin-activity.service';
 
 @Injectable()
 export class WithdrawFeeCouponsService {
   constructor(
     @InjectModel(WithdrawFeeCoupon.name)
     private readonly couponModel: Model<WithdrawFeeCoupon>,
+    private readonly adminActivity: AdminActivityService,
   ) {}
 
   async list(params: { page?: number; limit?: number; search?: string }) {
@@ -78,7 +80,20 @@ export class WithdrawFeeCouponsService {
           : ['bank_transfer'],
         min_withdraw_amount: dto.min_withdraw_amount,
       });
-      return created.toObject();
+      const createdObj = created.toObject();
+      await this.adminActivity.append({
+        actor_type: 'admin',
+        action: 'fee_coupon.created',
+        entity_type: 'withdraw_fee_coupon',
+        entity_id: String(createdObj._id),
+        summary: `Created fee coupon ${code}`,
+        metadata: {
+          code,
+          discount_mode: dto.discount_mode,
+          currency: createdObj.currency,
+        },
+      });
+      return createdObj;
     } catch (error: unknown) {
       if (
         typeof error === 'object' &&
@@ -151,7 +166,20 @@ export class WithdrawFeeCouponsService {
     }
 
     await existing.save();
-    return existing.toObject();
+    const updated = existing.toObject();
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      action: 'fee_coupon.updated',
+      entity_type: 'withdraw_fee_coupon',
+      entity_id: String(existing._id),
+      summary: `Updated fee coupon ${existing.code}`,
+      metadata: {
+        code: existing.code,
+        disabled: existing.disabled,
+        discount_mode: existing.discount_mode,
+      },
+    });
+    return updated;
   }
 
   private assertDiscountValue(

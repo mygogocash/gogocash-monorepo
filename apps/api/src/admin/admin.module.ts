@@ -55,6 +55,7 @@ import { CommissionManagementController } from './commission-management/commissi
 import { CommissionManagementService } from './commission-management/commission-management.service';
 import { WithdrawFeeCouponsController } from './withdraw-fee-coupons/withdraw-fee-coupons.controller';
 import { WithdrawFeeCouponsService } from './withdraw-fee-coupons/withdraw-fee-coupons.service';
+import { AdminActivityModule } from './activity/admin-activity.module';
 import {
   WithdrawFeeCoupon,
   WithdrawFeeCouponSchema,
@@ -248,6 +249,7 @@ import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
       secret: process.env.JWT_ADMIN_SECRET,
       signOptions: { expiresIn: '7d' },
     }),
+    AdminActivityModule,
   ],
   controllers: [
     AdminController,
@@ -287,6 +289,6 @@ import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
     RateLimitGuard,
     RolesGuard,
   ],
-  exports: [AdminService, UserAdminService],
+  exports: [AdminService, UserAdminService, AdminActivityModule],
 })
 export class AdminModule {}

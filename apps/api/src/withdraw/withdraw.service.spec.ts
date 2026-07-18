@@ -14,6 +14,7 @@ import { WithdrawMethod } from './schemas/withdrawMethod.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { WithdrawFeeCoupon } from './schemas/withdraw-fee-coupon.schema';
 import { WithdrawFeeCouponRedemption } from './schemas/withdraw-fee-coupon-redemption.schema';
+import { AdminActivityService } from 'src/admin/activity/admin-activity.service';
 import { InvolveService } from 'src/involve/involve.service';
 import { PointService } from 'src/point/point.service';
 import { thaiBanks } from 'src/utils/helper';
@@ -128,6 +129,10 @@ async function buildService(): Promise<Mocks> {
       { provide: InvolveService, useValue: involveService },
       { provide: PointService, useValue: pointService },
       { provide: getConnectionToken(), useValue: connection },
+      {
+        provide: AdminActivityService,
+        useValue: { append: jest.fn().mockResolvedValue(undefined) },
+      },
     ],
   }).compile();
 

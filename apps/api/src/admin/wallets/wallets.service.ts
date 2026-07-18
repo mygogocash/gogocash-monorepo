@@ -6,6 +6,7 @@ import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
 import { WalletAdjustment } from './schemas/wallet-adjustment.schema';
 import { WalletAdjustDto } from './dto/wallet.dto';
+import { AdminActivityService } from '../activity/admin-activity.service';
 
 @Injectable()
 export class WalletsService {
@@ -18,6 +19,7 @@ export class WalletsService {
     private readonly withdrawModel: Model<Withdraw>,
     @InjectModel(WalletAdjustment.name)
     private readonly walletAdjustmentModel: Model<WalletAdjustment>,
+    private readonly adminActivity: AdminActivityService,
   ) {}
 
   async findAll(query: { page?: string; limit?: string; search?: string }) {
@@ -196,6 +198,23 @@ export class WalletsService {
       reason: dto.reason,
       admin_id: adminId,
       admin_name: adminName,
+    });
+
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: adminId,
+      actor_label: adminName,
+      action: 'wallet.adjusted',
+      entity_type: 'user',
+      entity_id: userId,
+      summary: `Wallet ${dto.type} ${dto.amount} ${dto.currency ?? 'USD'}`,
+      metadata: {
+        adjustment_id: String(adjustment._id),
+        type: dto.type,
+        amount: dto.amount,
+        currency: dto.currency ?? 'USD',
+        reason: dto.reason,
+      },
     });
 
     return adjustment.toObject();

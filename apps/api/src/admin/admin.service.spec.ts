@@ -27,6 +27,7 @@ import { CategoryIntegrityService } from 'src/policy/category-integrity.service'
 import { PolicyMediaCleanupService } from 'src/policy/policy-media-cleanup.service';
 import { PolicyMediaWriteService } from 'src/policy/policy-media-write.service';
 import { PolicyMediaAssetRegistryService } from 'src/policy/policy-media-asset-registry.service';
+import { AdminActivityService } from './activity/admin-activity.service';
 
 /** A chainable Mongoose query stub whose terminal `.exec()` resolves to `value`. */
 function makeQuery<T>(value: T) {
@@ -97,6 +98,7 @@ describe('AdminService', () => {
   };
   let policyMediaWrite: { execute: jest.Mock };
   let policyMediaRegistry: { touchAttachInSession: jest.Mock };
+  let adminActivity: { append: jest.Mock };
 
   beforeEach(async () => {
     userAdminModel = {
@@ -115,8 +117,11 @@ describe('AdminService', () => {
       updateOne: jest.fn().mockReturnValue(makeQuery({ acknowledged: true })),
     };
     withdrawFeeCouponRedemptionModel = {
+      findOne: jest.fn().mockReturnValue(makeQuery(null)),
       findOneAndDelete: jest.fn().mockReturnValue(makeQuery(null)),
+      deleteOne: jest.fn().mockReturnValue(makeQuery({ deletedCount: 1 })),
     };
+    adminActivity = { append: jest.fn().mockResolvedValue(undefined) };
     userModel = {
       findById: jest.fn(),
       findOne: jest.fn(),
@@ -306,6 +311,7 @@ describe('AdminService', () => {
           provide: PolicyMediaAssetRegistryService,
           useValue: policyMediaRegistry,
         },
+        { provide: AdminActivityService, useValue: adminActivity },
       ],
     }).compile();
 
@@ -437,6 +443,7 @@ describe('AdminService', () => {
     it('updateRequestWithdraw > given pending coupon withdraw rejected > then restores inventory once', async () => {
       const id = new Types.ObjectId().toString();
       const couponId = new Types.ObjectId();
+      const redemptionId = new Types.ObjectId();
       withdrawModel.findById.mockReturnValue(
         makeQuery({
           status: 'pending',
@@ -446,8 +453,13 @@ describe('AdminService', () => {
       withdrawModel.findByIdAndUpdate.mockReturnValue(
         makeQuery({ _id: id, status: 'rejected' }),
       );
-      withdrawFeeCouponRedemptionModel.findOneAndDelete.mockReturnValue(
-        makeQuery({ coupon_id: couponId, withdraw_id: id }),
+      withdrawFeeCouponRedemptionModel.findOne.mockReturnValue(
+        makeQuery({
+          _id: redemptionId,
+          coupon_id: couponId,
+          withdraw_id: id,
+          code_snapshot: 'TESTFEE',
+        }),
       );
 
       await service.updateRequestWithdraw(
@@ -455,11 +467,17 @@ describe('AdminService', () => {
         undefined as never,
       );
 
-      expect(
-        withdrawFeeCouponRedemptionModel.findOneAndDelete,
-      ).toHaveBeenCalledWith({
-        withdraw_id: expect.any(Types.ObjectId),
-      });
+      expect(adminActivity.append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'withdraw.fee_coupon.restored',
+        }),
+      );
+      expect(adminActivity.append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'withdraw.status_changed',
+        }),
+      );
+      expect(withdrawFeeCouponRedemptionModel.deleteOne).toHaveBeenCalled();
       expect(withdrawFeeCouponModel.updateOne).toHaveBeenCalledWith(
         { _id: couponId, quantity_used: { $gt: 0 } },
         { $inc: { quantity_used: -1 } },
@@ -480,10 +498,11 @@ describe('AdminService', () => {
         undefined as never,
       );
 
-      expect(
-        withdrawFeeCouponRedemptionModel.findOneAndDelete,
-      ).not.toHaveBeenCalled();
+      expect(withdrawFeeCouponRedemptionModel.findOne).not.toHaveBeenCalled();
       expect(withdrawFeeCouponModel.updateOne).not.toHaveBeenCalled();
+      expect(adminActivity.append).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'withdraw.status_changed' }),
+      );
     });
 
     it('updateRequestWithdraw > given already-rejected coupon withdraw > then does not double-restore', async () => {
@@ -504,9 +523,7 @@ describe('AdminService', () => {
         undefined as never,
       );
 
-      expect(
-        withdrawFeeCouponRedemptionModel.findOneAndDelete,
-      ).not.toHaveBeenCalled();
+      expect(withdrawFeeCouponRedemptionModel.findOne).not.toHaveBeenCalled();
       expect(withdrawFeeCouponModel.updateOne).not.toHaveBeenCalled();
     });
   });

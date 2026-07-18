@@ -13,6 +13,7 @@ import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { CreditScoreConfig } from './schemas/credit-score-config.schema';
 import { CreditScoreAudit } from './schemas/credit-score-audit.schema';
 import { UpdateCreditScoreConfigDto } from './dto/credit-score.dto';
+import { AdminActivityService } from '../activity/admin-activity.service';
 
 export interface ScoreBreakdown {
   conversion_count: number;
@@ -38,6 +39,7 @@ export class CreditScoresService {
     private readonly creditScoreAuditModel: Model<CreditScoreAudit>,
     @InjectModel(Conversion.name)
     private readonly conversionModel: Model<Conversion>,
+    private readonly adminActivity: AdminActivityService,
   ) {}
 
   async findAll(query: {
@@ -256,6 +258,22 @@ export class CreditScoresService {
       reason,
       admin_id: adminId,
       score_breakdown: {},
+    });
+
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: adminId,
+      action: 'credit_score.overridden',
+      entity_type: 'user',
+      entity_id: userId,
+      summary: `Credit score ${previousScore} → ${newScore} (${previousTier} → ${newTier})`,
+      metadata: {
+        previous_score: previousScore,
+        new_score: newScore,
+        previous_tier: previousTier,
+        new_tier: newTier,
+        reason,
+      },
     });
 
     return audit.toObject();

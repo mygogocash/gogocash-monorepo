@@ -21,6 +21,7 @@ import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
 import { WithdrawFeeCoupon } from 'src/withdraw/schemas/withdraw-fee-coupon.schema';
 import { WithdrawFeeCouponRedemption } from 'src/withdraw/schemas/withdraw-fee-coupon-redemption.schema';
 import { shouldRestoreWithdrawFeeCoupon } from './restore-withdraw-fee-coupon';
+import { AdminActivityService } from './activity/admin-activity.service';
 import { InvolveService } from 'src/involve/involve.service';
 import { User } from 'src/user/schemas/user.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
@@ -130,6 +131,7 @@ export class AdminService {
     private readonly policyMediaCleanup: PolicyMediaCleanupService,
     private readonly policyMediaWrite: PolicyMediaWriteService,
     private readonly policyMediaRegistry: PolicyMediaAssetRegistryService,
+    private readonly adminActivity: AdminActivityService,
   ) {}
 
   private async surfaceMediaCleanup<T>(
@@ -251,17 +253,34 @@ export class AdminService {
         .exec();
     }
 
+    const previousStatus = existing?.status;
     if (
       shouldRestoreWithdrawFeeCoupon({
-        previousStatus: existing?.status,
+        previousStatus,
         nextStatus,
         couponId: existing?.coupon_id,
       })
     ) {
       const redemption = await this.withdrawFeeCouponRedemptionModel
-        .findOneAndDelete({ withdraw_id: withdrawId })
+        .findOne({ withdraw_id: withdrawId })
         .exec();
-      if (redemption?.coupon_id) {
+      if (redemption) {
+        await this.adminActivity.append({
+          actor_type: 'admin',
+          action: 'withdraw.fee_coupon.restored',
+          entity_type: 'withdraw',
+          entity_id: String(withdrawId),
+          summary: `Restored fee coupon ${redemption.code_snapshot ?? ''} after withdraw reject`,
+          metadata: {
+            coupon_id: String(redemption.coupon_id),
+            code: redemption.code_snapshot,
+            previous_status: previousStatus,
+            next_status: nextStatus,
+          },
+        });
+        await this.withdrawFeeCouponRedemptionModel
+          .deleteOne({ _id: redemption._id })
+          .exec();
         await this.withdrawFeeCouponModel
           .updateOne(
             {
@@ -272,6 +291,22 @@ export class AdminService {
           )
           .exec();
       }
+    }
+
+    if (String(previousStatus ?? '') !== String(nextStatus)) {
+      await this.adminActivity.append({
+        actor_type: 'admin',
+        action: 'withdraw.status_changed',
+        entity_type: 'withdraw',
+        entity_id: String(withdrawId),
+        summary: `Withdraw status ${previousStatus ?? 'unknown'} → ${nextStatus}`,
+        metadata: {
+          from: previousStatus,
+          to: nextStatus,
+          coupon_code: existing?.coupon_code,
+          amount_net: existing?.amount_net,
+        },
+      });
     }
 
     return updated;

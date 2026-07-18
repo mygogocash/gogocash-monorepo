@@ -48,6 +48,7 @@ import { escapeRegexLiteral } from 'src/common/escape-regex';
 import { buildAutoMyCashbackWithdrawFields } from './withdraw-mycashback-auto';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Conversion } from './schemas/conversion.schema';
+import { AdminActivityService } from 'src/admin/activity/admin-activity.service';
 import { RewardList } from './schemas/rewardList.schema';
 import { PointService } from 'src/point/point.service';
 import { Quest } from 'src/point/schemas/quest.schema';
@@ -99,6 +100,7 @@ export class WithdrawService {
     private readonly involveService: InvolveService,
     private readonly pointService: PointService,
     @InjectConnection() private readonly connection: Connection,
+    private readonly adminActivity: AdminActivityService,
   ) {}
 
   private toCouponLike(doc: WithdrawFeeCouponDocument): WithdrawFeeCouponLike {
@@ -2314,6 +2316,42 @@ export class WithdrawService {
     if (autoMyCashbackWithdraw) {
       await this.withdrawModel.create(autoMyCashbackWithdraw);
     }
+
+    await this.adminActivity.append({
+      actor_type: 'customer',
+      actor_id: String(user._id),
+      actor_label: user.username || user.email || String(user._id),
+      action: 'withdraw.created',
+      entity_type: 'withdraw',
+      entity_id: String(dt._id),
+      summary: `Bank transfer withdraw ${amountNet} ${currency}`,
+      metadata: {
+        amount_net: amountNet,
+        currency,
+        method: 'bank_transfer',
+        coupon_code: couponCodeRaw
+          ? normalizeWithdrawFeeCouponCode(couponCodeRaw)
+          : undefined,
+        withdraw_fee_final: dt.withdraw_fee_final,
+      },
+    });
+    if (couponCodeRaw && dt.coupon_id) {
+      await this.adminActivity.append({
+        actor_type: 'customer',
+        actor_id: String(user._id),
+        actor_label: user.username || user.email || String(user._id),
+        action: 'withdraw.fee_coupon.redeemed',
+        entity_type: 'withdraw_fee_coupon',
+        entity_id: String(dt.coupon_id),
+        summary: `Redeemed fee coupon ${normalizeWithdrawFeeCouponCode(couponCodeRaw)}`,
+        metadata: {
+          withdraw_id: String(dt._id),
+          discount: dt.withdraw_fee_discount,
+          final_fee: dt.withdraw_fee_final,
+        },
+      });
+    }
+
     return { message: 'Withdraw request created', data: dt, status: 'success' };
   }
 

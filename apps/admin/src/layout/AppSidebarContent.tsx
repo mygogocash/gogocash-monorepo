@@ -49,6 +49,12 @@ export const navItems: NavItem[] = [
     permission: "dashboard:view",
   },
   {
+    icon: <ListIcon />,
+    name: "Platform Activity",
+    path: "/activity",
+    permission: "activity:view",
+  },
+  {
     icon: <GroupIcon />,
     name: "Users Management",
     subItems: [
