@@ -1,7 +1,11 @@
-export type OfferDisplayTags = {
-  brand_category_enabled?: boolean;
-  brand_category_label?: string;
-};
+import type { OfferDisplayTags as OfferDisplayTagsContract } from "@gogocash/contracts";
+
+// Defensive partial of the canonical contract (#19 P4-1): the customer app
+// types only the fields it consumes and treats them all as optional, but the
+// field names/types are derived from @gogocash/contracts so they cannot drift.
+export type OfferDisplayTags = Partial<
+  Pick<OfferDisplayTagsContract, "brand_category_enabled" | "brand_category_label">
+>;
 
 export type OfferDisplayCategorySource = {
   categories?: string;

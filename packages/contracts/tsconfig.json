@@ -1,0 +1,18 @@
+{
+  "extends": "@gogocash/tsconfig/base.json",
+  "compilerOptions": {
+    // Standalone-typecheck config. Content must satisfy the STRICTEST
+    // consumer: admin (TS 5.9, strict) and the app (TS 7, strict) compile this
+    // source directly, and the API includes it in its non-strict program.
+    // Keep everything here erasable TS (no enums/namespaces/decorators) so any
+    // consumer toolchain (Turbopack, Metro/Babel, SWC-test transforms) can
+    // strip types without semantic transforms.
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "ES2021",
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true
+  },
+  "include": ["src"]
+}

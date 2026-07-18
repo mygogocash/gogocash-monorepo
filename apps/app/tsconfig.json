@@ -19,5 +19,5 @@
     }
   },
   "include": ["app", "src", "app.config.js", "vitest.config.ts"],
-  "extends": "expo/tsconfig.base"
+  "extends": "@gogocash/tsconfig/react-native.json"
 }

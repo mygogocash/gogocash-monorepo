@@ -4,40 +4,15 @@ import {
   nullableMissionOrderCustomerField,
 } from '../../../offer/mission-order.contract';
 
+import type { MissingOrderClaim } from '@gogocash/contracts';
+
 type UnknownRecord = Record<string, any>;
 
-export type MissingOrderClaimDto = {
-  id: string;
-  userId: string;
-  userName: string;
-  email: string | null;
-  phone: string | null;
-  merchantId: string;
-  merchantName: string;
-  offerSource: string;
-  providerOfferId: number | null;
-  orderId: string;
-  orderAmount: number;
-  currency: string;
-  purchaseDate: string;
-  expectedCashback: null;
-  overrideCashback: null;
-  submittedDate: string;
-  remarks: string;
-  status: 'pending' | 'under_review' | 'approved' | 'rejected';
-  assignedTo: string | null;
-  evidence: string[];
-  notes: {
-    adminId: string;
-    adminName: string;
-    note: string;
-    timestamp: string;
-  }[];
-  resolutionNote: string | null;
-  rejectionReason: string | null;
-  resolvedAt: string | null;
-  schemaVersion: number;
-};
+// Shape shared with admin and the customer app via @gogocash/contracts (#19
+// P4-1). Type-only import: the API runtime never loads the contracts package.
+// (The serializer below narrows expectedCashback/overrideCashback to literal
+// null today — assignable to the contract's number | null.)
+export type MissingOrderClaimDto = MissingOrderClaim;
 
 function idString(value: unknown): string {
   if (

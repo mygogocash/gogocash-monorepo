@@ -22,6 +22,11 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 # build stage; without this, npm omits build tools (typescript/@swc/cli).
 COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json ./apps/api/package.json
+# Shared workspace packages (#19): npm ci must see every workspace dir that the
+# api declares (@gogocash/contracts, @gogocash/tsconfig) or it fails to link.
+# contracts is types-only for the api — nothing from packages/ is loaded at
+# runtime, so the runtime stage deliberately does not copy it.
+COPY packages ./packages
 RUN npm install --global npm@10.9.8 \
  && npm ci --legacy-peer-deps --ignore-scripts --include=dev
 

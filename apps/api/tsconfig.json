@@ -1,4 +1,8 @@
 {
+  // Shared monorepo base (#19 P4-3): contributes skipLibCheck/esModuleInterop/
+  // allowSyntheticDefaultImports. This file re-pins them below with their
+  // load-bearing rationale; the resolved config is identical either way.
+  "extends": "@gogocash/tsconfig/base.json",
   "compilerOptions": {
     // TS 7 removed node10 resolution (the old commonjs default). node16 is the
     // faithful replacement for this CJS Nest app: no package.json "type" field →
@@ -6,8 +10,6 @@
     // the "require" exports condition — matching what Node does at runtime.
     "module": "node16",
     "moduleResolution": "node16",
-    "declaration": true,
-    "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
@@ -19,8 +21,10 @@
     // (undefined) and crash `app.use(cookieParser())` in the boot smoke.
     "esModuleInterop": true,
     "target": "ES2021",
-    "sourceMap": true,
-    "outDir": "./dist",
+    // Emit-only options (declaration/outDir/sourceMap/removeComments) live in
+    // tsconfig.build.json: this config's only job is `tsc --noEmit`, and under
+    // TS 7 an outDir+declaration pair forces a rootDir check that rejects the
+    // source-consumed @gogocash/contracts files outside apps/api (#19 P4-1).
     "incremental": true,
     "skipLibCheck": true,
     // TS 7 removed `baseUrl`; the bare `src/...` specifiers used across the app

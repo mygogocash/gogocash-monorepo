@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    // The proven-identical intersection across apps/api (TS7, CJS Nest),
+    // apps/admin (TS 5.9, Next bundler), and apps/app (TS7, Expo bundler).
+    // Everything else (target, module, moduleResolution, strict, jsx, lib,
+    // paths, decorators) diverges deliberately and stays per-app — do not
+    // add options here unless they are safe under BOTH TS 5.9 and TS 7.
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+  }
+}
