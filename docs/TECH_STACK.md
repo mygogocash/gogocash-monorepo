@@ -31,7 +31,7 @@ flowchart TB
   end
 
   subgraph Data
-    Atlas["MongoDB Atlas<br/>db: gogocash"]
+    Atlas["MongoDB<br/>db: gogocash<br/>dev/staging: single-node rs0 replica sets<br/>production: Atlas"]
     FB["Firebase Auth<br/>gogocash-staging"]
   end
 
@@ -224,11 +224,15 @@ Admin uses `NEXTAUTH_SECRET` + public `NEXT_PUBLIC_API_URL`. Customer uses `EXPO
 
 ### 5.1 Primary store
 
-| Environment | Cluster            | Tier        | Database name |
-| ----------- | ------------------ | ----------- | ------------- |
-| Production  | `gogocash`         | M10         | `gogocash`    |
-| Staging     | `gogocash-staging` | M0 (512 MB) | `gogocash`    |
-| Local       | Docker / Atlas     | —           | `gogocash`    |
+| Environment | Cluster                                       | Tier / version | Database name |
+| ----------- | --------------------------------------------- | -------------- | ------------- |
+| Production  | `gogocash`                                    | M10            | `gogocash`    |
+| Staging     | single-node replica set `rs0` (authenticated) | MongoDB 8.3.4  | `gogocash`    |
+| Dev         | single-node replica set `rs0` (authenticated) | MongoDB 8.0.4  | `gogocash`    |
+| Local       | Docker / Atlas                                | —              | `gogocash`    |
+
+> Dev/staging conversion to authenticated single-node replica sets completed
+> 2026-07-18; transactions commit (required by quest task-v2).
 
 **Single logical database** — all apps read/write the same MongoDB via the API (admin never talks to Mongo directly in production).
 
@@ -319,6 +323,13 @@ Guards: **AuthAdminGuard** (`jwt-auth-admin.guard.ts`), **RolesGuard**, **RateLi
 
 - **In-process cron** via `@nestjs/schedule` in `withdraw/cronjob/` (conversion sync, points, offer updates)
 - **HTTP triggers** via `TasksController` for admin break-glass (protected by admin auth)
+- **Quest task-v2 outbox consumer** — drains `affiliate_conversion` outbox
+  rows and credits quests transactionally (requires replica-set Mongo); gated
+  by `QUEST_TASK_V2_ENABLED` — true on dev + staging since 2026-07-18, not yet
+  enabled in production. Note: if a required index conflicts (e.g.
+  `conversion_id_1` still unique), `assertReady()` failures are swallowed by
+  the drain loop and outbox rows sit `status: pending, attempts: 0` with no
+  error logs.
 
 ---
 
@@ -501,6 +512,7 @@ See [`SECURITY_HARDENING.md`](../SECURITY_HARDENING.md) for full register.
 | `packages/i18n` — shared ICU catalogs   | Landed (#19) — base `en/th.json`; mobile overlays stay in `apps/app` |
 | `packages/tsconfig` — shared TS bases   | Landed (#19) — `base.json` + `react-native.json` presets |
 | BFF for admin token relay + revocation  | Open (#43)                      |
+| Quest task-v2 (transactional quest crediting) | Enabled on dev + staging 2026-07-18 — 18 required indexes + fence doc in place, conversion identity uniqueness moved to composite index, 7/7 exact-once acceptance passed, #353 closed; production NOT yet enabled. Rollback: set `QUEST_TASK_V2_ENABLED=false` (`conversion_id_1` must stay non-unique) |
 | Production cutover                      | Gated — explicit human approval |
 
 ---
