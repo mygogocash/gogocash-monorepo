@@ -16,6 +16,8 @@ import {
   UpdateWithdrawFeeCouponDto,
 } from './dto/withdraw-fee-coupon.dto';
 import { AdminActivityService } from '../activity/admin-activity.service';
+import { AdminActor } from '../activity/admin-activity.actor';
+import { escapeRegexLiteral } from 'src/common/escape-regex';
 
 @Injectable()
 export class WithdrawFeeCouponsService {
@@ -31,7 +33,7 @@ export class WithdrawFeeCouponsService {
     const skip = (page - 1) * limit;
     const filter: Record<string, unknown> = {};
     if (params.search?.trim()) {
-      const q = params.search.trim();
+      const q = escapeRegexLiteral(params.search.trim().slice(0, 100));
       filter.$or = [
         { code: { $regex: q, $options: 'i' } },
         { name: { $regex: q, $options: 'i' } },
@@ -49,10 +51,11 @@ export class WithdrawFeeCouponsService {
     return { data, total, page, limit };
   }
 
-  async create(dto: CreateWithdrawFeeCouponDto) {
+  async create(dto: CreateWithdrawFeeCouponDto, actor: AdminActor) {
     this.assertDiscountValue(dto.discount_mode, dto.discount_value);
     const unlimited = dto.unlimited_quantity ?? true;
     this.assertQuantity(unlimited, dto.quantity);
+    this.assertUsagePerUser(dto.usage_per_user ?? 1);
     const code = normalizeWithdrawFeeCouponCode(dto.code);
     const startAt = new Date(dto.start_at);
     const endAt = new Date(dto.end_at);
@@ -75,14 +78,14 @@ export class WithdrawFeeCouponsService {
         quantity_used: 0,
         unlimited_quantity: unlimited,
         usage_per_user: dto.usage_per_user ?? 1,
-        applies_to: dto.applies_to?.length
-          ? dto.applies_to
-          : ['bank_transfer'],
+        applies_to: dto.applies_to?.length ? dto.applies_to : ['bank_transfer'],
         min_withdraw_amount: dto.min_withdraw_amount,
       });
       const createdObj = created.toObject();
       await this.adminActivity.append({
         actor_type: 'admin',
+        actor_id: actor.id,
+        actor_label: actor.label,
         action: 'fee_coupon.created',
         entity_type: 'withdraw_fee_coupon',
         entity_id: String(createdObj._id),
@@ -107,7 +110,7 @@ export class WithdrawFeeCouponsService {
     }
   }
 
-  async update(id: string, dto: UpdateWithdrawFeeCouponDto) {
+  async update(id: string, dto: UpdateWithdrawFeeCouponDto, actor: AdminActor) {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid coupon id');
     }
@@ -137,14 +140,16 @@ export class WithdrawFeeCouponsService {
     if (dto.description !== undefined) {
       existing.description = dto.description.trim() || undefined;
     }
-    if (dto.discount_mode !== undefined) existing.discount_mode = dto.discount_mode;
+    if (dto.discount_mode !== undefined)
+      existing.discount_mode = dto.discount_mode;
     if (dto.discount_value !== undefined) {
       existing.discount_value =
         discountMode === 'waive' ? 0 : Number(dto.discount_value);
     } else if (dto.discount_mode === 'waive') {
       existing.discount_value = 0;
     }
-    if (dto.currency !== undefined) existing.currency = dto.currency.toUpperCase();
+    if (dto.currency !== undefined)
+      existing.currency = dto.currency.toUpperCase();
     if (dto.disabled !== undefined) existing.disabled = dto.disabled;
     if (dto.unlimited_quantity !== undefined) {
       existing.unlimited_quantity = dto.unlimited_quantity;
@@ -158,6 +163,7 @@ export class WithdrawFeeCouponsService {
       dto.quantity !== undefined ? dto.quantity : existing.quantity;
     this.assertQuantity(nextUnlimited, nextQuantity);
     if (dto.usage_per_user !== undefined) {
+      this.assertUsagePerUser(dto.usage_per_user);
       existing.usage_per_user = dto.usage_per_user;
     }
     if (dto.applies_to !== undefined) existing.applies_to = dto.applies_to;
@@ -169,6 +175,8 @@ export class WithdrawFeeCouponsService {
     const updated = existing.toObject();
     await this.adminActivity.append({
       actor_type: 'admin',
+      actor_id: actor.id,
+      actor_label: actor.label,
       action: 'fee_coupon.updated',
       entity_type: 'withdraw_fee_coupon',
       entity_id: String(existing._id),
@@ -206,9 +214,21 @@ export class WithdrawFeeCouponsService {
     if (unlimited) {
       return;
     }
-    if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity < 1) {
+    if (
+      typeof quantity !== 'number' ||
+      !Number.isInteger(quantity) ||
+      quantity < 1
+    ) {
       throw new BadRequestException(
-        'quantity is required when unlimited_quantity is false',
+        'quantity must be a positive integer when unlimited_quantity is false',
+      );
+    }
+  }
+
+  private assertUsagePerUser(value: number): void {
+    if (!Number.isInteger(value) || value < 1 || value > 1000) {
+      throw new BadRequestException(
+        'usage_per_user must be an integer between 1 and 1000',
       );
     }
   }

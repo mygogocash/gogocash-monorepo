@@ -16,6 +16,7 @@ import { RolesGuard } from '../roles.guard';
 import { Roles } from '../roles.decorator';
 import { WalletsService } from './wallets.service';
 import { WalletQueryDto, WalletAdjustDto } from './dto/wallet.dto';
+import { requireAdminActor } from '../activity/admin-activity.actor';
 
 @ApiTags('Admin Wallets')
 @Controller('admin/wallets')
@@ -42,14 +43,14 @@ export class WalletsController {
 
   @Roles('approver')
   @Put(':userId/freeze')
-  freeze(@Param('userId') userId: string) {
-    return this.walletsService.freeze(userId);
+  freeze(@Param('userId') userId: string, @Req() req: Request) {
+    return this.walletsService.freeze(userId, requireAdminActor(req));
   }
 
   @Roles('approver')
   @Put(':userId/unfreeze')
-  unfreeze(@Param('userId') userId: string) {
-    return this.walletsService.unfreeze(userId);
+  unfreeze(@Param('userId') userId: string, @Req() req: Request) {
+    return this.walletsService.unfreeze(userId, requireAdminActor(req));
   }
 
   // Direct balance credit/debit — highest-trust money action.
@@ -60,9 +61,6 @@ export class WalletsController {
     @Body() dto: WalletAdjustDto,
     @Req() req: Request,
   ) {
-    const admin = req['user'] as any;
-    const adminId = admin?.sub ?? '';
-    const adminName = admin?.username ?? admin?.email ?? '';
-    return this.walletsService.adjust(userId, dto, adminId, adminName);
+    return this.walletsService.adjust(userId, dto, requireAdminActor(req));
   }
 }

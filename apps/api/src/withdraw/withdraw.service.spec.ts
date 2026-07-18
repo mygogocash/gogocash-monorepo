@@ -396,6 +396,45 @@ describe('WithdrawService', () => {
       ).rejects.toMatchObject({ status: 400 });
       expect(mocks.withdrawModel.create).not.toHaveBeenCalled();
     });
+
+    it('createBankTransfer > given client amount_total is zero > then reserves the validated amount_net server-side', async () => {
+      const userId = new Types.ObjectId(VALID_USER_ID);
+      mocks.userModel.findOne.mockResolvedValue({
+        _id: userId,
+        username: 'alice',
+      });
+      mocks.userModel.findOneAndUpdate.mockResolvedValue({ _id: userId });
+      mocks.feeRateModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          minimum_withdraw_thb: 100,
+          minimum_withdraw_usd: 5,
+          fee_withdraw_thb: 20,
+          fee_withdraw_usd: 1,
+        }),
+      });
+      jest
+        .spyOn(mocks.service, 'checkWithdraw')
+        .mockResolvedValue({ netAmount: 1_000, netAmountTHB: 35_000 } as never);
+      jest
+        .spyOn(mocks.service, 'checkWithdrawMyCashback')
+        .mockResolvedValue({ availableTHB: 0, availableUSD: 0 } as never);
+      mocks.withdrawModel.create.mockResolvedValue([
+        {
+          _id: new Types.ObjectId(),
+          amount_net: 500,
+          withdraw_fee_final: 1,
+        },
+      ]);
+
+      await mocks.service.createBankTransfer(
+        { amount_net: 500, amount_total: 0, currency: 'USD' } as never,
+        VALID_USER_ID,
+      );
+
+      const persisted = mocks.withdrawModel.create.mock.calls[0][0][0];
+      expect(persisted.amount_net).toBe(500);
+      expect(persisted.amount_total).toBe(500);
+    });
   });
 
   // ---------------------------------------------------------------------------

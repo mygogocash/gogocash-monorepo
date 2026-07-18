@@ -89,7 +89,9 @@ export function resolveBaseWithdrawFee(
   const usesThbLane = normalized === 'THB';
   const feeCurrency = usesThbLane ? 'THB' : 'USD';
 
-  const globalCurrency = (feeRate.global_withdraw_currency || 'THB').toUpperCase();
+  const globalCurrency = (
+    feeRate.global_withdraw_currency || 'THB'
+  ).toUpperCase();
   const useGlobal =
     typeof feeRate.global_withdraw_fee === 'number' &&
     globalCurrency === feeCurrency;
@@ -100,7 +102,10 @@ export function resolveBaseWithdrawFee(
         ? asNonNegativeNumber(feeRate.global_withdraw_fee)
         : asNonNegativeNumber(feeRate.fee_withdraw_thb),
       minWithdraw: useGlobal
-        ? asNonNegativeNumber(feeRate.global_minimum_withdraw)
+        ? asNonNegativeNumber(
+            feeRate.global_minimum_withdraw,
+            asNonNegativeNumber(feeRate.minimum_withdraw_thb),
+          )
         : asNonNegativeNumber(feeRate.minimum_withdraw_thb),
       currency: 'THB',
     };
@@ -111,7 +116,10 @@ export function resolveBaseWithdrawFee(
       ? asNonNegativeNumber(feeRate.global_withdraw_fee)
       : asNonNegativeNumber(feeRate.fee_withdraw_usd),
     minWithdraw: useGlobal
-      ? asNonNegativeNumber(feeRate.global_minimum_withdraw)
+      ? asNonNegativeNumber(
+          feeRate.global_minimum_withdraw,
+          asNonNegativeNumber(feeRate.minimum_withdraw_usd),
+        )
       : asNonNegativeNumber(feeRate.minimum_withdraw_usd),
     currency: 'USD',
   };
@@ -164,7 +172,8 @@ export function applyWithdrawFeeCouponDiscount(input: {
       discount = asNonNegativeNumber(coupon.discount_value);
       break;
     case 'percent':
-      discount = (input.baseFee * asNonNegativeNumber(coupon.discount_value)) / 100;
+      discount =
+        (input.baseFee * asNonNegativeNumber(coupon.discount_value)) / 100;
       break;
     case 'waive':
       discount = input.baseFee;

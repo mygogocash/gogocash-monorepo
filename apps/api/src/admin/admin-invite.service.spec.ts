@@ -2,6 +2,8 @@ import { createHash } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { AdminInviteService } from './admin-invite.service';
 
+const actor = { id: 'admin-1', label: 'owner@gogocash.co' };
+
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
 function mockQuery<T>(value: T) {
@@ -15,8 +17,10 @@ function makeService(over: {
   token?: Partial<Record<string, jest.Mock>>;
   inviteState?: Partial<Record<string, jest.Mock>>;
   sendEmail?: jest.Mock;
+  append?: jest.Mock;
 }) {
   const sendEmail = over.sendEmail ?? jest.fn().mockResolvedValue(undefined);
+  const append = over.append ?? jest.fn().mockResolvedValue(undefined);
   const userAdminModel = {
     findOne: mockQuery(null),
     create: jest.fn().mockResolvedValue({ _id: 'a1' }),
@@ -51,6 +55,7 @@ function makeService(over: {
     inviteStateModel,
     sendEmailService(sendEmail),
     config,
+    { append } as never,
   );
   return {
     service,
@@ -58,6 +63,7 @@ function makeService(over: {
     userAdminModel,
     tokenModel,
     inviteStateModel,
+    append,
   };
 }
 
@@ -71,7 +77,7 @@ describe('AdminInviteService', () => {
       const { service, sendEmail, tokenModel, inviteStateModel } = makeService(
         {},
       );
-      const res = await service.invite('New@GoGoCash.co', 'editor');
+      const res = await service.invite('New@GoGoCash.co', 'editor', actor);
 
       const findOneAndUpdate = (
         inviteStateModel as unknown as { findOneAndUpdate: jest.Mock }
@@ -200,10 +206,14 @@ describe('AdminInviteService', () => {
         },
       });
 
-      const leaseOwnerRequest = service.invite('new@gogocash.co', 'editor');
+      const leaseOwnerRequest = service.invite(
+        'new@gogocash.co',
+        'editor',
+        actor,
+      );
       await sendStarted;
       const error = await service
-        .invite('new@gogocash.co', 'editor')
+        .invite('new@gogocash.co', 'editor', actor)
         .catch((caught: unknown) => caught);
 
       expect(error).toEqual(
@@ -231,9 +241,9 @@ describe('AdminInviteService', () => {
         sendEmail,
       });
 
-      await expect(service.invite('new@gogocash.co', 'editor')).rejects.toBe(
-        deliveryError,
-      );
+      await expect(
+        service.invite('new@gogocash.co', 'editor', actor),
+      ).rejects.toBe(deliveryError);
 
       expect(
         (tokenModel as unknown as { deleteOne: jest.Mock }).deleteOne,
@@ -261,15 +271,40 @@ describe('AdminInviteService', () => {
         },
       });
       await expect(
-        service.invite('dupe@gogocash.co', 'viewer'),
+        service.invite('dupe@gogocash.co', 'viewer', actor),
       ).rejects.toThrow();
+    });
+
+    it('records the verified inviter only after successful delivery and promotion', async () => {
+      const append = jest.fn().mockResolvedValue(undefined);
+      const { service, inviteStateModel } = makeService({ append });
+
+      await service.invite('new@gogocash.co', 'editor', actor);
+
+      expect(append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_type: 'admin',
+          actor_id: actor.id,
+          actor_label: actor.label,
+          action: 'admin_user.invited',
+          summary: expect.not.stringContaining(actor.id),
+        }),
+      );
+      const promote = (
+        inviteStateModel as unknown as { findOneAndUpdate: jest.Mock }
+      ).findOneAndUpdate;
+      expect(promote.mock.invocationCallOrder[1]).toBeLessThan(
+        append.mock.invocationCallOrder[0],
+      );
     });
   });
 
   describe('acceptInvite', () => {
     it('creates the admin with the invited role + hashed password and consumes the token', async () => {
       const raw = 'rawtoken123';
+      const append = jest.fn().mockResolvedValue(undefined);
       const { service, userAdminModel, tokenModel } = makeService({
+        append,
         token: {
           findOne: mockQuery({
             _id: 't1',
@@ -303,6 +338,14 @@ describe('AdminInviteService', () => {
       ).toHaveBeenCalled();
       expect(res).toEqual(
         expect.objectContaining({ message: expect.any(String) }),
+      );
+      expect(append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_type: 'admin',
+          actor_id: 'a1',
+          actor_label: 'new@gogocash.co',
+          action: 'admin_user.accepted_invite',
+        }),
       );
     });
 
@@ -494,11 +537,17 @@ describe('AdminInviteService', () => {
     it('sets a new hashed password for a valid token and consumes it', async () => {
       const raw = 'resetraw';
       const save = jest.fn().mockResolvedValue(undefined);
-      const adminDoc: { password?: string; save: jest.Mock; email: string } = {
+      const adminDoc: {
+        _id: string;
+        password?: string;
+        save: jest.Mock;
+        email: string;
+      } = {
+        _id: 'a1',
         email: 'me@gogocash.co',
         save,
       } as never;
-      const { service, tokenModel } = makeService({
+      const { service, tokenModel, append } = makeService({
         token: {
           findOne: mockQuery({ _id: 't1', email: 'me@gogocash.co' }),
         },
@@ -520,6 +569,14 @@ describe('AdminInviteService', () => {
       expect(
         (tokenModel as unknown as { updateOne: jest.Mock }).updateOne,
       ).toHaveBeenCalled();
+      expect(append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_type: 'admin',
+          actor_id: 'a1',
+          actor_label: 'me@gogocash.co',
+          action: 'admin_user.password_reset',
+        }),
+      );
     });
 
     it('rejects an invalid/expired reset token', async () => {

@@ -14,6 +14,7 @@ import { CreditScoreConfig } from './schemas/credit-score-config.schema';
 import { CreditScoreAudit } from './schemas/credit-score-audit.schema';
 import { UpdateCreditScoreConfigDto } from './dto/credit-score.dto';
 import { AdminActivityService } from '../activity/admin-activity.service';
+import { AdminActor } from '../activity/admin-activity.actor';
 
 export interface ScoreBreakdown {
   conversion_count: number;
@@ -174,7 +175,7 @@ export class CreditScoresService {
     return created.toObject();
   }
 
-  async updateConfig(data: UpdateCreditScoreConfigDto) {
+  async updateConfig(data: UpdateCreditScoreConfigDto, actor: AdminActor) {
     const patch: Partial<UpdateCreditScoreConfigDto> = {};
     if (data.tiers !== undefined) patch.tiers = data.tiers;
     if (data.weights !== undefined) patch.weights = data.weights;
@@ -184,6 +185,18 @@ export class CreditScoresService {
       .findOneAndUpdate({}, { $set: patch }, { new: true, upsert: true })
       .lean()
       .exec();
+
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: actor.id,
+      actor_label: actor.label,
+      action: 'credit_score.config_updated',
+      entity_type: 'credit_score_config',
+      summary: 'Updated credit score configuration',
+      metadata: {
+        changed_fields: Object.keys(patch),
+      },
+    });
 
     return config;
   }
@@ -225,7 +238,7 @@ export class CreditScoresService {
     userId: string,
     newScore: number,
     reason: string,
-    adminId: string,
+    actor: AdminActor,
   ) {
     const userObjectId = requireObjectId(userId, 'user id');
 
@@ -256,13 +269,14 @@ export class CreditScoresService {
       new_tier: newTier,
       change_type: 'manual_override',
       reason,
-      admin_id: adminId,
+      admin_id: actor.id,
       score_breakdown: {},
     });
 
     await this.adminActivity.append({
       actor_type: 'admin',
-      actor_id: adminId,
+      actor_id: actor.id,
+      actor_label: actor.label,
       action: 'credit_score.overridden',
       entity_type: 'user',
       entity_id: userId,

@@ -6,6 +6,7 @@ import { WithdrawFeeCoupon } from 'src/withdraw/schemas/withdraw-fee-coupon.sche
 import { AdminActivityService } from '../activity/admin-activity.service';
 
 describe('WithdrawFeeCouponsService', () => {
+  const actor = { id: 'admin-1', label: 'ops@gogocash.co' };
   const create = jest.fn();
   const find = jest.fn();
   const countDocuments = jest.fn();
@@ -42,13 +43,16 @@ describe('WithdrawFeeCouponsService', () => {
   it('create > given fixed mode without discount_value > then rejects', async () => {
     const service = await buildService();
     await expect(
-      service.create({
-        code: 'SAVE10',
-        name: 'Save',
-        discount_mode: 'fixed',
-        start_at: '2026-01-01T00:00:00.000Z',
-        end_at: '2026-12-31T00:00:00.000Z',
-      }),
+      service.create(
+        {
+          code: 'SAVE10',
+          name: 'Save',
+          discount_mode: 'fixed',
+          start_at: '2026-01-01T00:00:00.000Z',
+          end_at: '2026-12-31T00:00:00.000Z',
+        },
+        actor,
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(create).not.toHaveBeenCalled();
   });
@@ -56,14 +60,17 @@ describe('WithdrawFeeCouponsService', () => {
   it('create > given limited inventory without quantity > then rejects', async () => {
     const service = await buildService();
     await expect(
-      service.create({
-        code: 'LIMITED1',
-        name: 'Limited',
-        discount_mode: 'waive',
-        unlimited_quantity: false,
-        start_at: '2026-01-01T00:00:00.000Z',
-        end_at: '2026-12-31T00:00:00.000Z',
-      }),
+      service.create(
+        {
+          code: 'LIMITED1',
+          name: 'Limited',
+          discount_mode: 'waive',
+          unlimited_quantity: false,
+          start_at: '2026-01-01T00:00:00.000Z',
+          end_at: '2026-12-31T00:00:00.000Z',
+        },
+        actor,
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(create).not.toHaveBeenCalled();
   });
@@ -78,13 +85,16 @@ describe('WithdrawFeeCouponsService', () => {
       }),
     });
 
-    const result = await service.create({
-      code: 'freefee',
-      name: 'Free fee',
-      discount_mode: 'waive',
-      start_at: '2026-01-01T00:00:00.000Z',
-      end_at: '2026-12-31T00:00:00.000Z',
-    });
+    const result = await service.create(
+      {
+        code: 'freefee',
+        name: 'Free fee',
+        discount_mode: 'waive',
+        start_at: '2026-01-01T00:00:00.000Z',
+        end_at: '2026-12-31T00:00:00.000Z',
+      },
+      actor,
+    );
 
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -95,5 +105,38 @@ describe('WithdrawFeeCouponsService', () => {
       }),
     );
     expect(result).toMatchObject({ code: 'FREEFEE' });
+    expect(append).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor_type: 'admin',
+        actor_id: actor.id,
+        actor_label: actor.label,
+      }),
+    );
   });
+
+  it.each([
+    ['quantity', 1.5],
+    ['usage_per_user', 1.5],
+  ] as const)(
+    'create > rejects fractional %s in the service boundary',
+    async (property, value) => {
+      const service = await buildService();
+
+      await expect(
+        service.create(
+          {
+            code: 'FRACTION',
+            name: 'Fractional',
+            discount_mode: 'waive',
+            unlimited_quantity: property === 'quantity' ? false : true,
+            start_at: '2026-01-01T00:00:00.000Z',
+            end_at: '2026-12-31T00:00:00.000Z',
+            [property]: value,
+          },
+          actor,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(create).not.toHaveBeenCalled();
+    },
+  );
 });

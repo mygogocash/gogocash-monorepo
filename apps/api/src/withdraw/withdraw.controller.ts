@@ -173,10 +173,7 @@ export class WithdrawController {
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @Post('preview-fee')
-  previewWithdrawFee(
-    @Req() req: Request,
-    @Body() body: PreviewWithdrawFeeDto,
-  ) {
+  previewWithdrawFee(@Req() req: Request, @Body() body: PreviewWithdrawFeeDto) {
     const user = req['user'] as { sub?: string };
     const id = user?.sub;
     return this.withdrawService.previewWithdrawFee(body, id as string);

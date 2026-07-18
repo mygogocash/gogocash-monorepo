@@ -39,6 +39,22 @@ describe('resolveBaseWithdrawFee', () => {
       currency: 'USD',
     });
   });
+
+  it('resolveBaseWithdrawFee > given a global fee without a global minimum > then keeps the currency minimum', () => {
+    expect(
+      resolveBaseWithdrawFee(
+        {
+          ...feeRate,
+          global_minimum_withdraw: undefined,
+        },
+        'THB',
+      ),
+    ).toEqual({
+      baseFee: 20,
+      minWithdraw: 300,
+      currency: 'THB',
+    });
+  });
 });
 
 describe('applyWithdrawFeeCouponDiscount', () => {

@@ -1,4 +1,8 @@
-import { shouldRestoreWithdrawFeeCoupon } from './restore-withdraw-fee-coupon';
+import {
+  isAllowedWithdrawStatusTransition,
+  shouldRestoreWithdrawFeeCoupon,
+  type WithdrawAdminStatus,
+} from './restore-withdraw-fee-coupon';
 
 describe('shouldRestoreWithdrawFeeCoupon', () => {
   it('shouldRestoreWithdrawFeeCoupon > given pending to rejected with coupon > then true', () => {
@@ -38,6 +42,38 @@ describe('shouldRestoreWithdrawFeeCoupon', () => {
         nextStatus: 'approved',
         couponId: 'abc',
       }),
+    ).toBe(false);
+  });
+});
+
+describe('isAllowedWithdrawStatusTransition', () => {
+  it.each([
+    ['pending', 'approved'],
+    ['pending', 'rejected'],
+    ['approved', 'rejected'],
+    ['approved', 'paid'],
+    ['rejected', 'rejected'],
+  ])('allows %s -> %s', (previousStatus, nextStatus) => {
+    expect(
+      isAllowedWithdrawStatusTransition(
+        previousStatus,
+        nextStatus as WithdrawAdminStatus,
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    ['rejected', 'pending'],
+    ['rejected', 'approved'],
+    ['pending', 'paid'],
+    ['paid', 'pending'],
+    ['paid', 'rejected'],
+  ])('rejects terminal transition %s -> %s', (previousStatus, nextStatus) => {
+    expect(
+      isAllowedWithdrawStatusTransition(
+        previousStatus,
+        nextStatus as WithdrawAdminStatus,
+      ),
     ).toBe(false);
   });
 });

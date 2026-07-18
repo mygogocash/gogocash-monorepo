@@ -1,27 +1,35 @@
 import {
   BadRequestException,
+  ConflictException,
   HttpException,
   Injectable,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import {
   ProductTypeDto,
+  ADMIN_ASSIGNABLE_ROLES,
   UpdateAdminDto,
   UpdateBannerHomeDto,
   UpdateSpecificPageBannerDto,
   UpdateFeeRateDto,
   UpdateRequestWithdrawDto,
 } from './dto/update-admin.dto';
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
-import { Model, Types } from 'mongoose';
+import { Connection, Model, Types } from 'mongoose';
 import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
 import { WithdrawFeeCoupon } from 'src/withdraw/schemas/withdraw-fee-coupon.schema';
 import { WithdrawFeeCouponRedemption } from 'src/withdraw/schemas/withdraw-fee-coupon-redemption.schema';
-import { shouldRestoreWithdrawFeeCoupon } from './restore-withdraw-fee-coupon';
+import {
+  isAllowedWithdrawStatusTransition,
+  shouldRestoreWithdrawFeeCoupon,
+  WITHDRAW_ADMIN_STATUSES,
+} from './restore-withdraw-fee-coupon';
 import { AdminActivityService } from './activity/admin-activity.service';
+import type { AdminActor } from './activity/admin-activity.actor';
 import { InvolveService } from 'src/involve/involve.service';
 import { User } from 'src/user/schemas/user.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
@@ -132,6 +140,7 @@ export class AdminService {
     private readonly policyMediaWrite: PolicyMediaWriteService,
     private readonly policyMediaRegistry: PolicyMediaAssetRegistryService,
     private readonly adminActivity: AdminActivityService,
+    @InjectConnection() private readonly connection: Connection,
   ) {}
 
   private async surfaceMediaCleanup<T>(
@@ -205,97 +214,204 @@ export class AdminService {
     return this.userAdminModel.findById(requireObjectId(id)).exec();
   }
 
-  update(id: string, _updateAdminDto: UpdateAdminDto) {
-    void _updateAdminDto;
-    return this.userAdminModel
-      .findByIdAndUpdate(requireObjectId(id), mongoSetUpdate({}))
+  async update(id: string, updateAdminDto: UpdateAdminDto, actor: AdminActor) {
+    const adminId = requireObjectId(id, 'admin id');
+    const role = requireOneOf(
+      requireTrimmedString(updateAdminDto.role, 32, 'admin role'),
+      ADMIN_ASSIGNABLE_ROLES,
+      'admin role',
+    );
+    const actorId = requireTrimmedString(actor.id, 128, 'admin actor id');
+    const actorLabel = requireTrimmedString(
+      actor.label || actor.id,
+      320,
+      'admin actor label',
+    );
+    const previous = await this.userAdminModel.findById(adminId).exec();
+    if (!previous) {
+      throw new NotFoundException('Admin user not found.');
+    }
+    if (String(previous.role) === role) {
+      return previous;
+    }
+
+    const updated = await this.userAdminModel
+      .findOneAndUpdate(
+        { _id: adminId, role: previous.role },
+        mongoSetUpdate({ role }),
+        { new: true },
+      )
       .exec();
+    if (!updated) {
+      throw new ConflictException(
+        'The admin role changed while you were editing. Refresh and try again.',
+      );
+    }
+
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: actorId,
+      actor_label: actorLabel,
+      action: 'admin_role.changed',
+      entity_type: 'admin_user',
+      entity_id: String(updated._id),
+      summary: `Admin role ${previous.role} → ${updated.role}`,
+      metadata: {
+        email: updated.email,
+        previous_role: previous.role,
+        role: updated.role,
+      },
+    });
+    return updated;
   }
 
   async updateRequestWithdraw(
     updateRequestWithdrawDto: UpdateRequestWithdrawDto,
     file: Express.Multer.File,
+    actor: AdminActor,
   ) {
     const withdrawId = requireObjectId(
       updateRequestWithdrawDto.id,
       'withdraw id',
     );
-    const nextStatus = requireTrimmedString(
-      updateRequestWithdrawDto.status,
-      64,
+    const nextStatus = requireOneOf(
+      requireTrimmedString(
+        updateRequestWithdrawDto.status,
+        64,
+        'withdraw status',
+      ).toLowerCase(),
+      WITHDRAW_ADMIN_STATUSES,
       'withdraw status',
     );
-    const existing = await this.withdrawModel.findById(withdrawId).exec();
-
-    let updated;
+    const actorId = requireTrimmedString(actor.id, 128, 'admin actor id');
+    const actorLabel = requireTrimmedString(
+      actor.label || actor.id,
+      320,
+      'admin actor label',
+    );
+    let slipFile: string | undefined;
     if (file) {
-      const slipFile = await this.storedMediaService.upload(
+      slipFile = await this.storedMediaService.upload(
         file,
         MEDIA_FOLDER.WITHDRAW_SLIPS,
       );
-      updated = await this.withdrawModel
-        .findByIdAndUpdate(
-          withdrawId,
-          mongoSetUpdate({
-            status: nextStatus,
-            slip_file: slipFile,
-          }),
-        )
-        .exec();
-    } else {
-      updated = await this.withdrawModel
-        .findByIdAndUpdate(
-          withdrawId,
-          mongoSetUpdate({
-            status: nextStatus,
-          }),
-        )
-        .exec();
     }
 
-    const previousStatus = existing?.status;
-    if (
-      shouldRestoreWithdrawFeeCoupon({
-        previousStatus,
-        nextStatus,
-        couponId: existing?.coupon_id,
-      })
-    ) {
-      const redemption = await this.withdrawFeeCouponRedemptionModel
-        .findOne({ withdraw_id: withdrawId })
-        .exec();
-      if (redemption) {
-        await this.adminActivity.append({
-          actor_type: 'admin',
-          action: 'withdraw.fee_coupon.restored',
-          entity_type: 'withdraw',
-          entity_id: String(withdrawId),
-          summary: `Restored fee coupon ${redemption.code_snapshot ?? ''} after withdraw reject`,
-          metadata: {
-            coupon_id: String(redemption.coupon_id),
-            code: redemption.code_snapshot,
-            previous_status: previousStatus,
-            next_status: nextStatus,
-          },
-        });
-        await this.withdrawFeeCouponRedemptionModel
-          .deleteOne({ _id: redemption._id })
+    const session = await this.connection.startSession();
+    let updated: any;
+    let previousStatus: string | undefined;
+    let statusChanged = false;
+    let restoredCoupon: { couponId: string; code?: string | null } | undefined;
+    try {
+      await session.withTransaction(async () => {
+        // Mongo may retry this callback after a transient conflict. Clear all
+        // attempt-local audit state so an aborted attempt cannot leak events.
+        updated = undefined;
+        previousStatus = undefined;
+        statusChanged = false;
+        restoredCoupon = undefined;
+
+        const existing = await this.withdrawModel
+          .findById(withdrawId)
+          .session(session)
           .exec();
-        await this.withdrawFeeCouponModel
-          .updateOne(
-            {
-              _id: redemption.coupon_id,
-              quantity_used: { $gt: 0 },
-            },
-            { $inc: { quantity_used: -1 } },
+        if (!existing) {
+          throw new NotFoundException('Withdrawal request not found.');
+        }
+
+        previousStatus = String(existing.status).trim().toLowerCase();
+        if (!isAllowedWithdrawStatusTransition(previousStatus, nextStatus)) {
+          throw new ConflictException(
+            `Withdrawal status cannot change from ${previousStatus} to ${nextStatus}.`,
+          );
+        }
+        statusChanged = previousStatus !== nextStatus;
+
+        if (!statusChanged && !slipFile) {
+          updated = existing;
+          return;
+        }
+
+        updated = await this.withdrawModel
+          .findOneAndUpdate(
+            { _id: withdrawId, status: existing.status },
+            mongoSetUpdate({
+              status: nextStatus,
+              ...(slipFile ? { slip_file: slipFile } : {}),
+            }),
+            { new: true, session },
           )
           .exec();
-      }
+        if (!updated) {
+          throw new ConflictException(
+            'The withdrawal changed while you were editing. Refresh and try again.',
+          );
+        }
+
+        if (
+          shouldRestoreWithdrawFeeCoupon({
+            previousStatus,
+            nextStatus,
+            couponId: existing.coupon_id,
+          })
+        ) {
+          // findOneAndDelete is the idempotency claim: only the transaction that
+          // actually consumes the redemption may restore one inventory unit.
+          const redemption = await this.withdrawFeeCouponRedemptionModel
+            .findOneAndDelete({ withdraw_id: withdrawId }, { session })
+            .exec();
+          if (redemption) {
+            const inventory = await this.withdrawFeeCouponModel
+              .updateOne(
+                {
+                  _id: redemption.coupon_id,
+                  quantity_used: { $gt: 0 },
+                },
+                { $inc: { quantity_used: -1 } },
+                { session },
+              )
+              .exec();
+            if (inventory.modifiedCount !== 1) {
+              throw new ConflictException(
+                'Coupon inventory could not be restored safely.',
+              );
+            }
+            restoredCoupon = {
+              couponId: String(redemption.coupon_id),
+              code: redemption.code_snapshot,
+            };
+          }
+        }
+      });
+    } finally {
+      await session.endSession();
     }
 
-    if (String(previousStatus ?? '') !== String(nextStatus)) {
+    // Audit only committed state. A transaction retry/failure must never emit
+    // an event that claims the status or coupon inventory changed.
+    if (restoredCoupon) {
       await this.adminActivity.append({
         actor_type: 'admin',
+        actor_id: actorId,
+        actor_label: actorLabel,
+        action: 'withdraw.fee_coupon.restored',
+        entity_type: 'withdraw',
+        entity_id: String(withdrawId),
+        summary: `Restored fee coupon ${restoredCoupon.code ?? ''} after withdraw reject`,
+        metadata: {
+          coupon_id: restoredCoupon.couponId,
+          code: restoredCoupon.code,
+          previous_status: previousStatus,
+          next_status: nextStatus,
+        },
+      });
+    }
+
+    if (statusChanged) {
+      await this.adminActivity.append({
+        actor_type: 'admin',
+        actor_id: actorId,
+        actor_label: actorLabel,
         action: 'withdraw.status_changed',
         entity_type: 'withdraw',
         entity_id: String(withdrawId),
@@ -303,8 +419,8 @@ export class AdminService {
         metadata: {
           from: previousStatus,
           to: nextStatus,
-          coupon_code: existing?.coupon_code,
-          amount_net: existing?.amount_net,
+          coupon_code: updated?.coupon_code,
+          amount_net: updated?.amount_net,
         },
       });
     }
@@ -312,9 +428,36 @@ export class AdminService {
     return updated;
   }
 
-  remove(_id: string) {
-    void _id;
-    return null;
+  async remove(id: string, actor: AdminActor) {
+    const adminId = requireObjectId(id, 'admin id');
+    const actorId = requireTrimmedString(actor.id, 128, 'admin actor id');
+    const actorLabel = requireTrimmedString(
+      actor.label || actor.id,
+      320,
+      'admin actor label',
+    );
+    const deleted = await this.userAdminModel
+      .findOneAndDelete({ _id: adminId })
+      .exec();
+    if (!deleted) {
+      throw new NotFoundException('Admin user not found.');
+    }
+
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: actorId,
+      actor_label: actorLabel,
+      action: 'admin_user.deleted',
+      entity_type: 'admin_user',
+      entity_id: String(deleted._id),
+      summary: `Deleted admin user ${deleted.email || deleted.username}`,
+      metadata: {
+        email: deleted.email,
+        role: deleted.role,
+      },
+    });
+    // Do not return the deleted document: it still contains the password hash.
+    return { acknowledged: true, deletedCount: 1 };
   }
 
   async getWithdrawAll(page: number = 1, limit: number = 10, search?: string) {

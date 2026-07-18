@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import NoData from "@/components/common/NoData";
 import { AdminPaginationBar } from "@/components/common/AdminPaginationBar";
@@ -37,21 +37,40 @@ const ENTITY_OPTIONS = [
 export default function PlatformActivityTable() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [action, setAction] = useState("");
   const [entityType, setEntityType] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const limit = 25;
 
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
   const query = useQuery({
-    queryKey: ["admin-activity", page, limit, search, action, entityType],
-    queryFn: () =>
-      listAdminActivity({
-        page,
-        limit,
-        search: search.trim() || undefined,
-        action: action || undefined,
-        entity_type: entityType || undefined,
-      }),
+    queryKey: [
+      "admin-activity",
+      page,
+      limit,
+      debouncedSearch,
+      action,
+      entityType,
+    ],
+    queryFn: ({ signal }) =>
+      listAdminActivity(
+        {
+          page,
+          limit,
+          search: debouncedSearch || undefined,
+          action: action || undefined,
+          entity_type: entityType || undefined,
+        },
+        signal,
+      ),
   });
 
   const rows = query.data?.data ?? [];
@@ -79,11 +98,12 @@ export default function PlatformActivityTable() {
             Search
           </span>
           <input
+            aria-label="Search activity"
             className="w-56 rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
             placeholder="Summary, actor, action…"
+            role="searchbox"
             value={search}
             onChange={(e) => {
-              setPage(1);
               setSearch(e.target.value);
             }}
           />
@@ -128,22 +148,18 @@ export default function PlatformActivityTable() {
         </label>
       </div>
 
-      {loadError ? (
-        <p className="text-sm text-error-500">{loadError}</p>
-      ) : null}
+      {loadError ? <p className="text-error-500 text-sm">{loadError}</p> : null}
 
       {query.isLoading ? (
         <p className="text-sm text-gray-500">Loading activity…</p>
       ) : null}
 
-      {!query.isLoading && !loadError && rows.length === 0 ? (
-        <NoData />
-      ) : null}
+      {!query.isLoading && !loadError && rows.length === 0 ? <NoData /> : null}
 
       {rows.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
+            <thead className="bg-gray-50 text-xs text-gray-500 uppercase dark:bg-white/[0.03] dark:text-gray-400">
               <tr>
                 <th className="px-4 py-3">Time</th>
                 <th className="px-4 py-3">Actor</th>
@@ -192,13 +208,11 @@ function ActivityRow({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const metadataId = `activity-metadata-${row._id}`;
   return (
     <>
-      <tr
-        className="cursor-pointer border-t border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]"
-        onClick={onToggle}
-      >
-        <td className="whitespace-nowrap px-4 py-3 text-gray-700 dark:text-gray-300">
+      <tr className="border-t border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]">
+        <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300">
           {formatDateTime(row.occurred_at)}
         </td>
         <td className="px-4 py-3">
@@ -211,17 +225,34 @@ function ActivityRow({
           {row.action}
         </td>
         <td className="px-4 py-3">
-          <div className="text-gray-800 dark:text-white/90">{row.entity_type}</div>
+          <div className="text-gray-800 dark:text-white/90">
+            {row.entity_type}
+          </div>
           <div className="font-mono text-xs text-gray-500">
             {row.entity_id || "—"}
           </div>
         </td>
         <td className="px-4 py-3 text-gray-800 dark:text-white/90">
-          {row.summary}
+          <button
+            aria-controls={metadataId}
+            aria-expanded={expanded}
+            aria-label={`${expanded ? "Hide" : "Show"} metadata for ${row.summary}`}
+            className="focus-visible:outline-brand-500 flex w-full items-center justify-between gap-3 text-left focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2"
+            onClick={onToggle}
+            type="button"
+          >
+            <span>{row.summary}</span>
+            <span aria-hidden="true" className="text-xs text-gray-500">
+              {expanded ? "Hide" : "Details"}
+            </span>
+          </button>
         </td>
       </tr>
       {expanded ? (
-        <tr className="border-t border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-white/[0.02]">
+        <tr
+          className="border-t border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-white/[0.02]"
+          id={metadataId}
+        >
           <td colSpan={5} className="px-4 py-3">
             <pre className="overflow-x-auto rounded-lg bg-white p-3 text-xs text-gray-700 dark:bg-gray-900 dark:text-gray-300">
               {JSON.stringify(row.metadata ?? {}, null, 2)}

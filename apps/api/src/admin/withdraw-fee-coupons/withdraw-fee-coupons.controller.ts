@@ -6,8 +6,10 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AuthAdminGuard } from '../jwt-auth-admin.guard';
 import { RolesGuard } from '../roles.guard';
@@ -17,6 +19,7 @@ import {
   CreateWithdrawFeeCouponDto,
   UpdateWithdrawFeeCouponDto,
 } from './dto/withdraw-fee-coupon.dto';
+import { requireAdminActor } from '../activity/admin-activity.actor';
 
 @ApiTags('Withdraw Fee Coupons')
 @Controller('admin/withdraw-fee-coupons')
@@ -41,13 +44,17 @@ export class WithdrawFeeCouponsController {
 
   @Post()
   @Roles('support')
-  create(@Body() dto: CreateWithdrawFeeCouponDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateWithdrawFeeCouponDto, @Req() req: Request) {
+    return this.service.create(dto, requireAdminActor(req));
   }
 
   @Patch(':id')
   @Roles('support')
-  update(@Param('id') id: string, @Body() dto: UpdateWithdrawFeeCouponDto) {
-    return this.service.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateWithdrawFeeCouponDto,
+    @Req() req: Request,
+  ) {
+    return this.service.update(id, dto, requireAdminActor(req));
   }
 }

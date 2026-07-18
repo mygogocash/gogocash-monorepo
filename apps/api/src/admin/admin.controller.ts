@@ -59,6 +59,7 @@ import { parseOfferDisplayTagsField } from 'src/offer/offer-display-tags.util';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
+import { requireAdminActor } from './activity/admin-activity.actor';
 import { Public } from './public.decorator';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 import { RateLimit } from 'src/auth/rate-limit.decorator';
@@ -323,8 +324,15 @@ export class AdminController {
   @ApiBearerAuth()
   @ApiBody({ type: InviteAdminUserDto })
   @Post('invite')
-  invite(@Body(adminAuthValidation) body: InviteAdminUserDto) {
-    return this.adminInviteService.invite(body.email, body.role);
+  invite(
+    @Body(adminAuthValidation) body: InviteAdminUserDto,
+    @Req() req: Request,
+  ) {
+    return this.adminInviteService.invite(
+      body.email,
+      body.role,
+      requireAdminActor(req),
+    );
   }
 
   @Public()
@@ -418,8 +426,11 @@ export class AdminController {
   @ApiBearerAuth()
   @ApiBody({ type: RegisterAdminDto })
   @Post('register')
-  register(@Body() createAdminDto: RegisterAdminDto) {
-    return this.userAdminService.register(createAdminDto);
+  register(@Body() createAdminDto: RegisterAdminDto, @Req() req: Request) {
+    return this.userAdminService.register(
+      createAdminDto,
+      requireAdminActor(req),
+    );
   }
 
   @UseGuards(AuthAdminGuard)
@@ -516,8 +527,13 @@ export class AdminController {
   updateRequestWithdraw(
     @UploadedFile() file: Express.Multer.File,
     @Body() updateAdminDto: UpdateRequestWithdrawDto,
+    @Req() req: Request,
   ) {
-    return this.adminService.updateRequestWithdraw(updateAdminDto, file);
+    return this.adminService.updateRequestWithdraw(
+      updateAdminDto,
+      file,
+      requireAdminActor(req),
+    );
   }
 
   // Admin-account management (change role / delete). Superadmin-only: these
@@ -528,8 +544,12 @@ export class AdminController {
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAdminDto: UpdateAdminDto) {
-    return this.adminService.update(id, updateAdminDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateAdminDto: UpdateAdminDto,
+    @Req() req: Request,
+  ) {
+    return this.adminService.update(id, updateAdminDto, requireAdminActor(req));
   }
 
   @UseGuards(AuthAdminGuard, RolesGuard)
@@ -537,8 +557,8 @@ export class AdminController {
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.adminService.remove(id);
+  remove(@Param('id') id: string, @Req() req: Request) {
+    return this.adminService.remove(id, requireAdminActor(req));
   }
 
   @UseGuards(AuthAdminGuard)

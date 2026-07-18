@@ -33,7 +33,7 @@ import { invalidateCustomerWalletQueries } from "@mobile/account/invalidateCusto
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import { getMobileEnv } from "@mobile/config/env";
-import { createWithdrawApi } from "@mobile/withdraw/api";
+import { createWithdrawApi, type WithdrawFeePreviewResponse } from "@mobile/withdraw/api";
 import {
   nextCouponApplyGeneration,
   shouldAcceptCouponPreview,
@@ -261,7 +261,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const [withdrawing, setWithdrawing] = useState(false);
   const [couponInput, setCouponInput] = useState("");
   const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
-  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [appliedFeePreview, setAppliedFeePreview] = useState<WithdrawFeePreviewResponse | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponApplying, setCouponApplying] = useState(false);
   const couponApplyGenerationRef = useRef(0);
@@ -318,7 +318,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   // null when no valid positive amount is entered yet, so the row reads "—" instead of a
   // misleading "0.00 THB" on the empty form.
   const parsedWithdrawAmount = parseWithdrawAmount(withdrawAmount);
-  const feePreviewResult =
+  const localFeePreviewResult =
     Number.isNaN(parsedWithdrawAmount) || parsedWithdrawAmount <= 0
       ? null
       : localWithdrawFeePreview({
@@ -326,13 +326,19 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           availableBalance: balance,
           baseFee: withdrawFee,
           minWithdraw,
-          discount: couponDiscount,
         });
-  const feePreview =
-    feePreviewResult && !("ok" in feePreviewResult) ? feePreviewResult : null;
+  const localFeePreview =
+    localFeePreviewResult && !("ok" in localFeePreviewResult) ? localFeePreviewResult : null;
+  // Once a coupon is applied, its server preview is the complete, immutable quote shown to
+  // the customer. Recomputing from only `discount` can disagree with changed fees or balances.
+  const feePreview = appliedFeePreview ?? localFeePreview;
   const youWillReceive = feePreview?.you_will_receive ?? null;
   const remainingCashback = feePreview?.remaining_cashback ?? null;
   const displayFee = feePreview?.final_fee ?? withdrawFee;
+  const displayBaseFee = feePreview?.base_fee ?? withdrawFee;
+  const displayBalance = feePreview?.available_balance ?? balance;
+  const displayDiscount = feePreview?.discount ?? 0;
+  const effectiveMinWithdraw = appliedFeePreview?.min_withdraw ?? minWithdraw;
 
   // Prefill the form when editing an existing method. The mock fixture only carries bank methods and a
   // MASKED account number, so the account-number field shows the masked value until it is re-entered.
@@ -469,8 +475,19 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       ) {
         return;
       }
+      const preview = localWithdrawFeePreview({
+        amount: parsedWithdrawAmount,
+        availableBalance: balance,
+        baseFee: withdrawFee,
+        minWithdraw,
+        discount: withdrawFee,
+      });
+      if ("ok" in preview) {
+        setCouponError(tc("Enter a valid withdrawal amount first."));
+        return;
+      }
       setAppliedCouponCode(code);
-      setCouponDiscount(withdrawFee);
+      setAppliedFeePreview({ ...preview, coupon: { code, name: code } });
       setCouponError(null);
       return;
     }
@@ -495,8 +512,10 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
         ) {
           return;
         }
-        setAppliedCouponCode(preview.coupon?.code ?? code);
-        setCouponDiscount(preview.discount);
+        const canonicalCode = preview.coupon?.code ?? code;
+        setAppliedCouponCode(canonicalCode);
+        setCouponInput(canonicalCode);
+        setAppliedFeePreview(preview);
         setCouponError(null);
       } catch (error) {
         if (
@@ -508,9 +527,9 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           return;
         }
         setAppliedCouponCode(null);
-        setCouponDiscount(0);
+        setAppliedFeePreview(null);
         setCouponError(
-          tc(userErrorMessageFromUnknown(error, "Could not apply coupon.")),
+          tc(userErrorMessageFromUnknown(error, toastErrorMessages.requestFailed)),
         );
       } finally {
         if (
@@ -526,8 +545,12 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   };
 
   const handleRemoveCoupon = () => {
+    couponApplyGenerationRef.current = nextCouponApplyGeneration(
+      couponApplyGenerationRef.current,
+    );
+    setCouponApplying(false);
     setAppliedCouponCode(null);
-    setCouponDiscount(0);
+    setAppliedFeePreview(null);
     setCouponInput("");
     setCouponError(null);
   };
@@ -540,20 +563,21 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     );
     setCouponApplying(false);
     if (!appliedCouponCode) {
+      setAppliedFeePreview(null);
       return;
     }
     setAppliedCouponCode(null);
-    setCouponDiscount(0);
+    setAppliedFeePreview(null);
     setCouponError(tc("Amount changed — re-apply your coupon code."));
   }, [withdrawAmount]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: only amount edits clear coupon
 
   const handleWithdraw = () => {
     const decision = evaluateWithdraw(
       withdrawAmount,
-      balance,
+      displayBalance,
       !!selectedMethod,
       !!successMsg,
-      minWithdraw
+      effectiveMinWithdraw
     );
     if (!decision.ok) {
       // error === null means "already submitted" — silently ignore the repeat tap (no buzz).
@@ -562,7 +586,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
         haptics.error();
         // Interpolate the {min} placeholder AFTER translation so the localized copy shows the real
         // floor; a no-op for errors without the placeholder.
-        setErrors([tc(decision.error).replace("{min}", formatThb(minWithdraw))]);
+        setErrors([tc(decision.error).replace("{min}", formatThb(effectiveMinWithdraw))]);
       }
       return;
     }
@@ -681,7 +705,19 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                     the seam for adding Cryptocurrency later, matching the web method dropdown. */}
                 <MoneyActionSelect
                   accessibilityLabel={tc(withdrawCopy.methodLabel)}
-                  onSelect={setWithdrawMethod}
+                  onSelect={(method) => {
+                    if (method === withdrawMethod) return;
+                    couponApplyGenerationRef.current = nextCouponApplyGeneration(
+                      couponApplyGenerationRef.current,
+                    );
+                    setCouponApplying(false);
+                    if (appliedCouponCode) {
+                      setCouponError(tc("Withdrawal method changed — re-apply your coupon code."));
+                    }
+                    setAppliedCouponCode(null);
+                    setAppliedFeePreview(null);
+                    setWithdrawMethod(method);
+                  }}
                   options={[{ value: "bank_transfer", label: tc(withdrawCopy.bankTransfer) }]}
                   placeholder={tc(withdrawCopy.bankTransfer)}
                   testID="withdraw-method-select"
@@ -704,7 +740,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                 />
                 <View style={styles.minRow}>
                   <Text style={styles.minText}>
-                    {tc(withdrawCopy.minWithdrawLabel)}: {formatThb(minWithdraw)} THB
+                    {tc(withdrawCopy.minWithdrawLabel)}: {formatThb(effectiveMinWithdraw)} THB
                   </Text>
                   <Link asChild href="/method">
                     <Pressable accessibilityRole="button" style={styles.manageButton}>
@@ -719,10 +755,10 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                 <View style={styles.minRow}>
                   <TextInput
                     autoCapitalize="characters"
-                    editable={!appliedCouponCode}
+                    editable={!appliedCouponCode && !couponApplying}
                     onChangeText={setCouponInput}
                     placeholder={tc(withdrawCopy.couponPlaceholder)}
-                    placeholderTextColor={colors.textMuted}
+                    placeholderTextColor={colors.muted}
                     style={[styles.amountInput, { flex: 1, marginBottom: 0 }]}
                     value={couponInput}
                   />
@@ -754,7 +790,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                 ) : null}
                 {appliedCouponCode ? (
                   <Text style={styles.minText}>
-                    {appliedCouponCode} · −{formatThb(couponDiscount)} THB
+                    {appliedCouponCode} · −{formatThb(displayDiscount)} THB
                   </Text>
                 ) : null}
               </View>
@@ -764,11 +800,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                 <Text style={styles.fieldLabel}>{tc(withdrawCopy.totalLabel)}</Text>
                 <View style={styles.totalRow}>
                   <Text style={styles.totalRowLabel}>{tc(withdrawCopy.activeBalanceLabel)}</Text>
-                  <Text style={styles.totalRowValue}>{formatThb(balance)} THB</Text>
+                  <Text style={styles.totalRowValue}>{formatThb(displayBalance)} THB</Text>
                 </View>
                 <View style={styles.totalRow}>
                   <Text style={styles.totalRowLabel}>{tc(withdrawCopy.feeLabel)}</Text>
-                  {couponDiscount > 0 ? (
+                  {displayDiscount > 0 ? (
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                       <Text
                         style={[
@@ -776,7 +812,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                           { textDecorationLine: "line-through", opacity: 0.55 },
                         ]}
                       >
-                        {formatThb(withdrawFee)}
+                        {formatThb(displayBaseFee)}
                       </Text>
                       <Text style={styles.totalRowValue}>
                         {formatThb(displayFee)} THB
@@ -788,12 +824,12 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                     </Text>
                   )}
                 </View>
-                {couponDiscount > 0 ? (
+                {displayDiscount > 0 ? (
                   <View style={styles.totalRow}>
                     <Text style={styles.totalRowLabel}>
                       {tc(withdrawCopy.couponDiscountLabel)}
                     </Text>
-                    <Text style={styles.totalRowValue}>−{formatThb(couponDiscount)} THB</Text>
+                    <Text style={styles.totalRowValue}>−{formatThb(displayDiscount)} THB</Text>
                   </View>
                 ) : null}
                 <View style={styles.totalDivider} />
@@ -1816,4 +1852,3 @@ function createMoneyActionScreenStyles(colors: ThemeColors) {
   },
 });
 }
-

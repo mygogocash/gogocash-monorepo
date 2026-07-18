@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { AdminActivityService } from './admin-activity.service';
@@ -92,5 +93,24 @@ describe('AdminActivityService', () => {
       }),
     );
     expect(result).toEqual({ data: [], total: 0, page: 2, limit: 10 });
+  });
+
+  it('list > accepts integer query-string pagination values', async () => {
+    const result = await service.list({ page: '2', limit: '10' });
+
+    expect(result).toMatchObject({ page: 2, limit: 10 });
+  });
+
+  it.each([
+    [{ page: 0 }, 'page'],
+    [{ limit: 101 }, 'limit'],
+    [{ from: 'not-a-date' }, 'from'],
+    [{ from: '2026-02-01', to: '2026-01-01' }, 'range'],
+    [{ search: 'x'.repeat(101) }, 'search'],
+  ])('list > rejects unsafe %s query input', async (query, _field) => {
+    await expect(service.list(query)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(activityModel.find).not.toHaveBeenCalled();
   });
 });

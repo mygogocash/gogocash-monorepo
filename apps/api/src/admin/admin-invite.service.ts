@@ -14,6 +14,8 @@ import { AdminToken } from './schemas/admin-token.schema';
 import { AdminInviteState } from './schemas/admin-invite-state.schema';
 import { EmailService } from 'src/email/email.service';
 import { adminEmailEquals, normalizeAdminEmail } from './normalize-admin-email';
+import { AdminActivityService } from './activity/admin-activity.service';
+import { AdminActor } from './activity/admin-activity.actor';
 
 const BCRYPT_ROUNDS = 10;
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -47,6 +49,7 @@ export class AdminInviteService {
     private readonly inviteStateModel: Model<AdminInviteState>,
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
+    private readonly adminActivity: AdminActivityService,
   ) {}
 
   private appUrl(): string {
@@ -134,6 +137,7 @@ export class AdminInviteService {
   async invite(
     email: string,
     role: string,
+    actor: AdminActor,
   ): Promise<{
     message: string;
     deliveryStatus: 'accepted';
@@ -238,6 +242,17 @@ export class AdminInviteService {
       }
     }
 
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: actor.id,
+      actor_label: actor.label,
+      action: 'admin_user.invited',
+      entity_type: 'admin_user',
+      entity_id: normalizedEmail,
+      summary: `Invited admin user ${normalizedEmail}`,
+      metadata: { email: normalizedEmail, role },
+    });
+
     return {
       message: 'Invitation accepted for delivery',
       deliveryStatus: 'accepted',
@@ -288,7 +303,7 @@ export class AdminInviteService {
 
     const username = input.username?.trim() || normalizedEmail.split('@')[0];
     const password = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
-    await this.userAdminModel.create({
+    const created = await this.userAdminModel.create({
       username,
       email: normalizedEmail,
       password,
@@ -297,6 +312,17 @@ export class AdminInviteService {
     await this.tokenModel
       .updateOne({ _id: rec._id }, { usedAt: new Date() })
       .exec();
+
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: String(created._id),
+      actor_label: normalizedEmail,
+      action: 'admin_user.accepted_invite',
+      entity_type: 'admin_user',
+      entity_id: String(created._id),
+      summary: `Activated admin user ${normalizedEmail}`,
+      metadata: { email: normalizedEmail, role: rec.role },
+    });
 
     return { message: 'Account created. You can now sign in.' };
   }
@@ -394,6 +420,17 @@ export class AdminInviteService {
     await this.tokenModel
       .updateOne({ _id: rec._id }, { usedAt: new Date() })
       .exec();
+
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: String(admin._id),
+      actor_label: normalizedEmail,
+      action: 'admin_user.password_reset',
+      entity_type: 'admin_user',
+      entity_id: String(admin._id),
+      summary: `Reset password for admin user ${normalizedEmail}`,
+      metadata: { email: normalizedEmail },
+    });
 
     return { message: 'Password updated. You can now sign in.' };
   }

@@ -2268,7 +2268,10 @@ export class WithdrawService {
             tx_hash: '',
             tx_hash_record: '',
             percent_fee: createWithdrawDto.percent_fee || 0,
-            amount_total: createWithdrawDto.amount_total ?? amountNet,
+            // amount_total reserves balance in checkWithdraw(), so it must be
+            // derived from the amount the server just validated. Trusting the
+            // body here lets amount_net=500 + amount_total=0 reserve nothing.
+            amount_total: amountNet,
             amount_net: amountNet,
             method: 'bank_transfer',
             currency,

@@ -27,8 +27,29 @@ import {
   MAX_CUSTOM_TERMS_LENGTH,
   MAX_NOTE_TO_USER_LENGTH,
 } from 'src/offer/offer-text-limits';
+import {
+  WITHDRAW_ADMIN_STATUSES,
+  type WithdrawAdminStatus,
+} from '../restore-withdraw-fee-coupon';
 
-export class UpdateAdminDto extends PartialType(CreateAdminDto) {}
+export const ADMIN_ASSIGNABLE_ROLES = [
+  'viewer',
+  'support',
+  'approver',
+  'superadmin',
+  'super_admin',
+  'admin',
+  'editor',
+] as const;
+
+export type AdminAssignableRole = (typeof ADMIN_ASSIGNABLE_ROLES)[number];
+
+export class UpdateAdminDto extends PartialType(CreateAdminDto) {
+  @ApiPropertyOptional({ enum: ADMIN_ASSIGNABLE_ROLES })
+  @IsOptional()
+  @IsIn(ADMIN_ASSIGNABLE_ROLES)
+  role?: AdminAssignableRole;
+}
 
 export const FEE_MAX_CAP_MODES = ['percent', 'fixed'] as const;
 
@@ -196,10 +217,10 @@ export class UpdateFeeRateDto {
 }
 
 export class UpdateRequestWithdrawDto {
-  @ApiProperty()
+  @ApiProperty({ enum: WITHDRAW_ADMIN_STATUSES })
   @IsNotEmpty()
-  @IsString()
-  status: string;
+  @IsIn(WITHDRAW_ADMIN_STATUSES)
+  status: WithdrawAdminStatus;
 
   @ApiProperty()
   @IsNotEmpty()

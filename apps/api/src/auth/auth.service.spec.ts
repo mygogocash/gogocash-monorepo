@@ -60,6 +60,7 @@ type MockUser = {
   provider?: string;
   id_telegram?: string;
   address?: string;
+  avatar_url?: string;
 };
 
 function makeUser(overrides: Partial<MockUser> = {}): MockUser {

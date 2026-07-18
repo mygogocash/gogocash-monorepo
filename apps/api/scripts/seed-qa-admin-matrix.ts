@@ -5,19 +5,19 @@
  * orders, payments, coupon, quest, missing-orders — enough rows for each
  * admin page to be non-empty. Dashboard is exercised via aggregates.
  *
- * Usage (staging — requires --force):
+ * Usage (staging — requires explicit environment, database, and confirmation):
  *   Staging MONGO_URI is internal-only. Either:
- *   A) Temporary TCP proxy, then rewrite host + directConnection=true:
- *        railway tcp-proxy create --port 27017 \
- *          --project <id> --environment staging --service mongo-staging
- *        # rewrite @mongo-staging.railway.internal:27017 → @<proxy.host:port>
- *        QA_USER_ID=6a5b5a2b3ed0b51d9e113ccf QA_USERNAME=fronk98 MONGO_URI=... \
- *          npm run seed:qa-admin-matrix -w gogocash-api -- --force
- *        railway tcp-proxy delete <proxy-id> --yes
- *   B) SSH into gogocash-api (has internal Mongo access) after deploying this script.
+ *   SSH into the staging gogocash-api service so Railway supplies the verified
+ *   staging environment marker and the mongo-staging internal hostname. Then:
+ *     QA_USER_ID=6a5b5a2b3ed0b51d9e113ccf QA_USERNAME=fronk98 \
+ *       npm run seed:qa-admin-matrix -w gogocash-api -- \
+ *         --environment=staging --expected-db=test \
+ *         --confirm-staging=SEED-QA-MATRIX-STAGING --dry-run
+ *   Remove --dry-run only after checking the target summary.
  *
  * Local:
- *   MONGO_URI=mongodb://127.0.0.1:27017/gogocash npm run seed:qa-admin-matrix -w gogocash-api
+ *   MONGO_URI=mongodb://127.0.0.1:27017/gogocash \
+ *     npm run seed:qa-admin-matrix -w gogocash-api -- --expected-db=gogocash
  *
  * Idempotent: deletes prior QA-MATRIX-tagged rows / conversion_id range
  * 910000000–910000999 for the target user before re-inserting.
@@ -57,23 +57,26 @@ import {
   MissionOrderSchema,
 } from '../src/offer/schemas/missing-order.schema';
 import { Offer, OfferSchema } from '../src/offer/schemas/offer.schema';
-import {
-  TopBrandConfig,
-  TopBrandConfigSchema,
-} from '../src/offer/schemas/top-brand-config.schema';
 import { Quest, QuestSchema } from '../src/point/schemas/quest.schema';
 import { User, UserSchema } from '../src/user/schemas/user.schema';
 import {
   Conversion,
   ConversionSchema,
 } from '../src/withdraw/schemas/conversion.schema';
-import { FeeRate, FeeRateSchema } from '../src/withdraw/schemas/feeRate.schema';
-import { Withdraw, WithdrawSchema } from '../src/withdraw/schemas/withdraw.schema';
+import {
+  Withdraw,
+  WithdrawSchema,
+} from '../src/withdraw/schemas/withdraw.schema';
 import {
   WithdrawMethod,
   WithdrawMethodSchema,
 } from '../src/withdraw/schemas/withdrawMethod.schema';
-import { assertLocalMongoUri } from './seed-local-admin';
+import {
+  QA_STAGING_CONFIRMATION,
+  QaSeedEnvironment,
+  assertConnectedQaDatabase,
+  assertQaSeedTarget,
+} from '../src/admin/qa-seed/qa-seed-safety';
 
 const QA_TAG = 'QA-MATRIX';
 const CONVERSION_ID_MIN = 910_000_000;
@@ -87,37 +90,67 @@ const DEFAULT_USERNAME = 'fronk98';
 
 type SeedCounts = Record<string, number>;
 
-function parseArgs(argv: string[]): {
-  force: boolean;
+type SeedQaAdminMatrixOptions = {
   userId: string;
   username: string;
-} {
-  const force = argv.includes('--force');
+  environment: QaSeedEnvironment;
+  expectedDatabase: string;
+  confirmation?: string;
+  platformEnvironment?: string;
+  dryRun: boolean;
+};
+
+function optionValue(argv: string[], name: string): string | undefined {
+  const equalsPrefix = `${name}=`;
+  const equalsValue = argv.find((arg) => arg.startsWith(equalsPrefix));
+  if (equalsValue) return equalsValue.slice(equalsPrefix.length).trim();
+  const index = argv.indexOf(name);
+  return index >= 0 ? argv[index + 1]?.trim() : undefined;
+}
+
+export function parseArgs(argv: string[]): SeedQaAdminMatrixOptions {
+  if (argv.includes('--force')) {
+    throw new Error(
+      `--force is not supported; select --environment, --expected-db, and ${QA_STAGING_CONFIRMATION} explicitly`,
+    );
+  }
   let userId =
     process.env.QA_USER_ID?.trim() ||
     process.env.USER_ID?.trim() ||
     DEFAULT_USER_ID;
-  let username =
-    process.env.QA_USERNAME?.trim() || DEFAULT_USERNAME;
+  let username = process.env.QA_USERNAME?.trim() || DEFAULT_USERNAME;
 
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === '--user-id') {
-      userId = argv[++i]?.trim() || userId;
-    } else if (arg?.startsWith('--user-id=')) {
-      userId = arg.slice('--user-id='.length).trim() || userId;
-    } else if (arg === '--username') {
-      username = argv[++i]?.trim() || username;
-    } else if (arg?.startsWith('--username=')) {
-      username = arg.slice('--username='.length).trim() || username;
-    }
+  userId = optionValue(argv, '--user-id') || userId;
+  username = optionValue(argv, '--username') || username;
+
+  const rawEnvironment =
+    optionValue(argv, '--environment') ||
+    process.env.QA_SEED_ENVIRONMENT?.trim() ||
+    'local';
+  if (rawEnvironment !== 'local' && rawEnvironment !== 'staging') {
+    throw new Error('--environment must be local or staging');
   }
+  const expectedDatabase =
+    optionValue(argv, '--expected-db') ||
+    process.env.QA_EXPECTED_DATABASE?.trim() ||
+    '';
+  const confirmation =
+    optionValue(argv, '--confirm-staging') ||
+    process.env.QA_STAGING_CONFIRMATION?.trim();
 
   if (!Types.ObjectId.isValid(userId)) {
     throw new Error(`Invalid USER_ID / --user-id: ${userId}`);
   }
 
-  return { force, userId, username };
+  return {
+    userId,
+    username,
+    environment: rawEnvironment,
+    expectedDatabase,
+    confirmation,
+    platformEnvironment: process.env.RAILWAY_ENVIRONMENT_NAME?.trim(),
+    dryRun: argv.includes('--dry-run'),
+  };
 }
 
 function isoDaysFromNow(days: number): string {
@@ -137,32 +170,38 @@ function uniqueTxHash(suffix: string): string {
 
 export async function seedQaAdminMatrix(
   mongoUri: string,
-  options: { userId: string; username: string; force: boolean },
+  options: SeedQaAdminMatrixOptions,
 ): Promise<SeedCounts> {
-  assertLocalMongoUri(mongoUri, options.force);
+  assertQaSeedTarget(mongoUri, options);
   await mongoose.connect(mongoUri);
+  assertConnectedQaDatabase(
+    mongoose.connection.db?.databaseName,
+    options.expectedDatabase,
+  );
 
   const counts: SeedCounts = {};
   const userOid = new Types.ObjectId(options.userId);
   const affSub1 = `user_id:${options.userId}`;
 
   const UserModel = modelOf<User>(User.name, UserSchema);
-  const FeeRateModel = modelOf<FeeRate>(FeeRate.name, FeeRateSchema);
-  const ConversionModel = modelOf<Conversion>(Conversion.name, ConversionSchema);
+  const ConversionModel = modelOf<Conversion>(
+    Conversion.name,
+    ConversionSchema,
+  );
   const WithdrawModel = modelOf<Withdraw>(Withdraw.name, WithdrawSchema);
   const MethodModel = modelOf<WithdrawMethod>(
     WithdrawMethod.name,
     WithdrawMethodSchema,
   );
   const OfferModel = modelOf<Offer>(Offer.name, OfferSchema);
-  const TopBrandModel = modelOf<TopBrandConfig>(
-    TopBrandConfig.name,
-    TopBrandConfigSchema,
-  );
   const BannerModel = modelOf<Banner>(Banner.name, BannerSchema);
   const AllBrandBannerModel =
     (mongoose.models[ALL_BRAND_BANNER_MODEL] as Model<Banner>) ||
-    mongoose.model(ALL_BRAND_BANNER_MODEL, BannerSchema, ALL_BRAND_BANNER_COLLECTION);
+    mongoose.model(
+      ALL_BRAND_BANNER_MODEL,
+      BannerSchema,
+      ALL_BRAND_BANNER_COLLECTION,
+    );
   const CouponModel = modelOf<Coupon>(Coupon.name, CouponSchema);
   const QuestModel = modelOf<Quest>(Quest.name, QuestSchema);
   const CatalogModel = modelOf<CatalogProduct>(
@@ -198,25 +237,36 @@ export async function seedQaAdminMatrix(
       typeof user.username === 'string' &&
       user.username.toLowerCase() === options.username.toLowerCase();
     if (!usernameMatch) {
-      console.warn(
-        `[seed-qa-admin-matrix] warning: user ${options.userId} username=${String(user.username)} (expected ${options.username}) — continuing`,
+      throw new Error(
+        `User ${options.userId} username=${String(user.username)} does not match expected ${options.username}`,
       );
-    } else {
+    }
+    console.log(
+      `[seed-qa-admin-matrix] target user ok username=${options.username} _id=${options.userId}`,
+    );
+
+    if (options.dryRun) {
       console.log(
-        `[seed-qa-admin-matrix] target user ok username=${options.username} _id=${options.userId}`,
+        `[seed-qa-admin-matrix] dry-run target db=${mongoose.connection.db?.databaseName} user=${options.userId}; no writes performed`,
       );
+      return { dry_run: 1 };
     }
 
     // --- wipe prior QA rows ---
     const convDel = await ConversionModel.deleteMany({
-      $or: [
+      $and: [
+        { $or: [{ user_id: userOid }, { aff_sub1: affSub1 }] },
         {
-          conversion_id: {
-            $gte: CONVERSION_ID_MIN,
-            $lte: CONVERSION_ID_MAX,
-          },
+          $or: [
+            {
+              conversion_id: {
+                $gte: CONVERSION_ID_MIN,
+                $lte: CONVERSION_ID_MAX,
+              },
+            },
+            { offer_name: { $regex: `^${QA_TAG}` } },
+          ],
         },
-        { offer_name: { $regex: `^${QA_TAG}` } },
       ],
     });
     counts.conversions_deleted = convDel.deletedCount ?? 0;
@@ -255,24 +305,6 @@ export async function seedQaAdminMatrix(
     });
     await BannerModel.deleteMany({ link_1: { $regex: QA_TAG } });
     await AllBrandBannerModel.deleteMany({ link_1: { $regex: QA_TAG } });
-
-    // --- FEE ---
-    await FeeRateModel.findOneAndUpdate(
-      {},
-      {
-        $set: {
-          system: 5,
-          store: 5,
-          max_cap: 100_000,
-          fee_withdraw_thb: 0,
-          fee_withdraw_usd: 0,
-          minimum_withdraw_thb: 1,
-          minimum_withdraw_usd: 1,
-        },
-      },
-      { upsert: true, new: true },
-    );
-    counts.feerates = 1;
 
     // --- BRANDS ---
     const enabledBrand = await OfferModel.findOneAndUpdate(
@@ -337,23 +369,6 @@ export async function seedQaAdminMatrix(
       { upsert: true, new: true },
     );
     counts.offers = 3;
-
-    await TopBrandModel.findOneAndUpdate(
-      {},
-      {
-        $set: {
-          brands: [
-            {
-              offerId: enabledBrand._id.toString(),
-              sortOrder: 0,
-              enabled: true,
-            },
-          ],
-        },
-      },
-      { upsert: true, new: true },
-    );
-    counts.topbrandconfigs = 1;
 
     // --- CONVERSIONS ---
     const now = new Date();
@@ -924,7 +939,8 @@ export async function seedQaAdminMatrix(
       {
         $set: {
           title: `${QA_TAG} Home Hero`,
-          image_url: 'https://media-staging.gogocash.co/qa-matrix/catalog-hero.png',
+          image_url:
+            'https://media-staging.gogocash.co/qa-matrix/catalog-hero.png',
           placement: 'home_hero',
           status: 'published',
           priority: 10,
@@ -1035,7 +1051,12 @@ export async function seedQaAdminMatrix(
     counts.commerce_payment_attempts = paymentCount;
 
     // --- MISSING ORDERS ---
-    const missionStatuses = ['pending', 'under_review', 'approved', 'rejected'] as const;
+    const missionStatuses = [
+      'pending',
+      'under_review',
+      'approved',
+      'rejected',
+    ] as const;
     for (const status of missionStatuses) {
       await MissionOrderModel.findOneAndUpdate(
         {

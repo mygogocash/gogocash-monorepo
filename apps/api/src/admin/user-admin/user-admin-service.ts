@@ -11,6 +11,7 @@ import { UserAdmin } from './schemas/user-admin.schema';
 import { UpdateAdminDto } from '../dto/update-admin.dto';
 import * as bcrypt from 'bcrypt';
 import { AdminActivityService } from '../activity/admin-activity.service';
+import { AdminActor } from '../activity/admin-activity.actor';
 
 @Injectable()
 export class UserAdminService {
@@ -64,19 +65,43 @@ export class UserAdminService {
     };
   }
 
-  async register(createUserAdminDto: RegisterAdminDto): Promise<UserAdmin> {
+  async register(
+    createUserAdminDto: RegisterAdminDto,
+    actor: AdminActor,
+  ): Promise<UserAdmin> {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(
       createUserAdminDto.password,
       saltRounds,
     );
-    createUserAdminDto.password = hashedPassword;
-    return this.userAdmin.create(createUserAdminDto);
+    const created = await this.userAdmin.create({
+      ...createUserAdminDto,
+      password: hashedPassword,
+    });
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: actor.id,
+      actor_label: actor.label,
+      action: 'admin_user.created',
+      entity_type: 'admin_user',
+      entity_id: String(created._id),
+      summary: `Created admin user ${created.email || created.username}`,
+      metadata: {
+        email: created.email,
+        role: created.role,
+      },
+    });
+    return created;
   }
-  async create(createUserAdminDto: CreateAdminDto): Promise<UserAdmin> {
+  async create(
+    createUserAdminDto: CreateAdminDto,
+    actor: AdminActor,
+  ): Promise<UserAdmin> {
     const created = await this.userAdmin.create(createUserAdminDto);
     await this.adminActivity.append({
       actor_type: 'admin',
+      actor_id: actor.id,
+      actor_label: actor.label,
       action: 'admin_user.updated',
       entity_type: 'admin_user',
       entity_id: String(created._id),
@@ -100,24 +125,21 @@ export class UserAdminService {
   async update(
     id: number,
     updateUserAdminDto: UpdateAdminDto,
+    actor: AdminActor,
   ): Promise<UserAdmin | null> {
     const previous = await this.userAdmin.findById(id).exec();
     const updated = await this.userAdmin
       .findByIdAndUpdate(id, updateUserAdminDto, { new: true })
       .exec();
     if (updated) {
-      const roleChanged =
-        previous?.role !== undefined &&
-        updateUserAdminDto.role !== undefined &&
-        previous.role !== updateUserAdminDto.role;
       await this.adminActivity.append({
         actor_type: 'admin',
-        action: roleChanged ? 'admin_role.changed' : 'admin_user.updated',
+        actor_id: actor.id,
+        actor_label: actor.label,
+        action: 'admin_user.updated',
         entity_type: 'admin_user',
         entity_id: String(updated._id),
-        summary: roleChanged
-          ? `Admin role ${previous?.role} → ${updated.role}`
-          : `Updated admin user ${updated.email || updated.username}`,
+        summary: `Updated admin user ${updated.email || updated.username}`,
         metadata: {
           email: updated.email,
           role: updated.role,

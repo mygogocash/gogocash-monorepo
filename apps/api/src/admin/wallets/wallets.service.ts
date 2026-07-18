@@ -7,6 +7,7 @@ import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
 import { WalletAdjustment } from './schemas/wallet-adjustment.schema';
 import { WalletAdjustDto } from './dto/wallet.dto';
 import { AdminActivityService } from '../activity/admin-activity.service';
+import { AdminActor } from '../activity/admin-activity.actor';
 
 @Injectable()
 export class WalletsService {
@@ -121,7 +122,7 @@ export class WalletsService {
       .exec();
   }
 
-  async freeze(userId: string) {
+  async freeze(userId: string, actor: AdminActor) {
     if (!Types.ObjectId.isValid(userId)) {
       throw new NotFoundException(`User ${userId} not found`);
     }
@@ -142,6 +143,17 @@ export class WalletsService {
       throw new NotFoundException(`User ${userId} not found`);
     }
 
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: actor.id,
+      actor_label: actor.label,
+      action: 'wallet.frozen',
+      entity_type: 'user',
+      entity_id: userId,
+      summary: 'Froze customer wallet',
+      metadata: {},
+    });
+
     return {
       _id: user._id?.toString(),
       wallet_frozen: user.wallet_frozen,
@@ -149,7 +161,7 @@ export class WalletsService {
     };
   }
 
-  async unfreeze(userId: string) {
+  async unfreeze(userId: string, actor: AdminActor) {
     if (!Types.ObjectId.isValid(userId)) {
       throw new NotFoundException(`User ${userId} not found`);
     }
@@ -169,18 +181,24 @@ export class WalletsService {
       throw new NotFoundException(`User ${userId} not found`);
     }
 
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: actor.id,
+      actor_label: actor.label,
+      action: 'wallet.unfrozen',
+      entity_type: 'user',
+      entity_id: userId,
+      summary: 'Unfroze customer wallet',
+      metadata: {},
+    });
+
     return {
       _id: user._id?.toString(),
       wallet_frozen: user.wallet_frozen,
     };
   }
 
-  async adjust(
-    userId: string,
-    dto: WalletAdjustDto,
-    adminId: string,
-    adminName: string,
-  ) {
+  async adjust(userId: string, dto: WalletAdjustDto, actor: AdminActor) {
     if (!Types.ObjectId.isValid(userId)) {
       throw new NotFoundException(`User ${userId} not found`);
     }
@@ -196,14 +214,14 @@ export class WalletsService {
       amount: dto.amount,
       currency: dto.currency ?? 'USD',
       reason: dto.reason,
-      admin_id: adminId,
-      admin_name: adminName,
+      admin_id: actor.id,
+      admin_name: actor.label,
     });
 
     await this.adminActivity.append({
       actor_type: 'admin',
-      actor_id: adminId,
-      actor_label: adminName,
+      actor_id: actor.id,
+      actor_label: actor.label,
       action: 'wallet.adjusted',
       entity_type: 'user',
       entity_id: userId,

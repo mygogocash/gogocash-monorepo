@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
+import { getConnectionToken, getModelToken } from '@nestjs/mongoose';
 import { HttpException } from '@nestjs/common';
 import { ConflictException } from '@nestjs/common';
 import { Types } from 'mongoose';
@@ -99,22 +99,36 @@ describe('AdminService', () => {
   let policyMediaWrite: { execute: jest.Mock };
   let policyMediaRegistry: { touchAttachInSession: jest.Mock };
   let adminActivity: { append: jest.Mock };
+  let connection: {
+    startSession: jest.Mock;
+  };
+  let session: {
+    withTransaction: jest.Mock;
+    endSession: jest.Mock;
+  };
 
   beforeEach(async () => {
     userAdminModel = {
       find: jest.fn(),
       findById: jest.fn(),
       findByIdAndUpdate: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+      findOneAndDelete: jest.fn(),
       countDocuments: jest.fn(),
     };
     withdrawModel = {
       find: jest.fn(),
       findById: jest.fn().mockReturnValue(makeQuery({ status: 'pending' })),
       findByIdAndUpdate: jest.fn(),
+      findOneAndUpdate: jest.fn(),
       countDocuments: jest.fn(),
     };
     withdrawFeeCouponModel = {
-      updateOne: jest.fn().mockReturnValue(makeQuery({ acknowledged: true })),
+      updateOne: jest
+        .fn()
+        .mockReturnValue(
+          makeQuery({ acknowledged: true, matchedCount: 1, modifiedCount: 1 }),
+        ),
     };
     withdrawFeeCouponRedemptionModel = {
       findOne: jest.fn().mockReturnValue(makeQuery(null)),
@@ -122,6 +136,13 @@ describe('AdminService', () => {
       deleteOne: jest.fn().mockReturnValue(makeQuery({ deletedCount: 1 })),
     };
     adminActivity = { append: jest.fn().mockResolvedValue(undefined) };
+    session = {
+      withTransaction: jest.fn(async (work: () => Promise<void>) => work()),
+      endSession: jest.fn().mockResolvedValue(undefined),
+    };
+    connection = {
+      startSession: jest.fn().mockResolvedValue(session),
+    };
     userModel = {
       findById: jest.fn(),
       findOne: jest.fn(),
@@ -312,6 +333,7 @@ describe('AdminService', () => {
           useValue: policyMediaRegistry,
         },
         { provide: AdminActivityService, useValue: adminActivity },
+        { provide: getConnectionToken(), useValue: connection },
       ],
     }).compile();
 
@@ -322,7 +344,7 @@ describe('AdminService', () => {
     expect(service).toBeDefined();
   });
 
-  it('admin scaffold mutations > given request data > then they do not print payloads or ids to stdout', () => {
+  it('admin scaffold mutations > given request data > then they do not print payloads or ids to stdout', async () => {
     const logSpy = jest
       .spyOn(console, 'log')
       .mockImplementation(() => undefined);
@@ -332,7 +354,17 @@ describe('AdminService', () => {
         email: 'admin@example.com',
         password: 'secret',
       } as never);
-      service.remove(new Types.ObjectId().toHexString());
+      userAdminModel.findOneAndDelete.mockReturnValue(
+        makeQuery({
+          _id: new Types.ObjectId(),
+          email: 'old-admin@gogocash.co',
+          role: 'viewer',
+        }),
+      );
+      await service.remove(new Types.ObjectId().toHexString(), {
+        id: 'root-1',
+        label: 'Root Admin',
+      });
 
       expect(logSpy).not.toHaveBeenCalled();
     } finally {
@@ -403,17 +435,21 @@ describe('AdminService', () => {
     // ObjectId or the update silently matches nothing.
     it('updateRequestWithdraw > given no slip file > then it updates status only and casts the id to ObjectId', async () => {
       const id = new Types.ObjectId().toString();
-      withdrawModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: id }));
-
-      await service.updateRequestWithdraw(
-        { id, status: 'APPROVED' },
-        undefined as never,
+      withdrawModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'approved' }),
       );
 
-      const [arg0, arg1] = withdrawModel.findByIdAndUpdate.mock.calls[0];
-      expect(arg0).toBeInstanceOf(Types.ObjectId);
-      expect(arg0.toString()).toBe(id);
-      expect(arg1).toEqual({ $set: { status: 'APPROVED' } });
+      await service.updateRequestWithdraw(
+        { id, status: 'approved' },
+        undefined as never,
+        { id: 'admin-1', label: 'Approver' },
+      );
+
+      const [arg0, arg1] = withdrawModel.findOneAndUpdate.mock.calls[0];
+      expect(arg0._id).toBeInstanceOf(Types.ObjectId);
+      expect(arg0._id.toString()).toBe(id);
+      expect(arg0.status).toBe('pending');
+      expect(arg1).toEqual({ $set: { status: 'approved' } });
       expect(storedMediaService.upload).not.toHaveBeenCalled();
     });
 
@@ -422,18 +458,26 @@ describe('AdminService', () => {
       storedMediaService.upload.mockResolvedValue(
         'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png',
       );
-      withdrawModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: id }));
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({ _id: id, status: 'approved' }),
+      );
+      withdrawModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'paid' }),
+      );
       const file = { originalname: 'slip.png' } as Express.Multer.File;
 
-      await service.updateRequestWithdraw({ id, status: 'PAID' }, file);
+      await service.updateRequestWithdraw({ id, status: 'paid' }, file, {
+        id: 'admin-1',
+        label: 'Approver',
+      });
 
       expect(storedMediaService.upload).toHaveBeenCalledWith(
         file,
         'withdraw-slips',
       );
-      expect(withdrawModel.findByIdAndUpdate.mock.calls[0][1]).toEqual({
+      expect(withdrawModel.findOneAndUpdate.mock.calls[0][1]).toEqual({
         $set: {
-          status: 'PAID',
+          status: 'paid',
           slip_file:
             'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png',
         },
@@ -450,10 +494,10 @@ describe('AdminService', () => {
           coupon_id: couponId,
         }),
       );
-      withdrawModel.findByIdAndUpdate.mockReturnValue(
+      withdrawModel.findOneAndUpdate.mockReturnValue(
         makeQuery({ _id: id, status: 'rejected' }),
       );
-      withdrawFeeCouponRedemptionModel.findOne.mockReturnValue(
+      withdrawFeeCouponRedemptionModel.findOneAndDelete.mockReturnValue(
         makeQuery({
           _id: redemptionId,
           coupon_id: couponId,
@@ -465,6 +509,7 @@ describe('AdminService', () => {
       await service.updateRequestWithdraw(
         { id, status: 'rejected' },
         undefined as never,
+        { id: 'admin-1', label: 'Approver' },
       );
 
       expect(adminActivity.append).toHaveBeenCalledWith(
@@ -477,28 +522,32 @@ describe('AdminService', () => {
           action: 'withdraw.status_changed',
         }),
       );
-      expect(withdrawFeeCouponRedemptionModel.deleteOne).toHaveBeenCalled();
+      expect(
+        withdrawFeeCouponRedemptionModel.findOneAndDelete,
+      ).toHaveBeenCalled();
       expect(withdrawFeeCouponModel.updateOne).toHaveBeenCalledWith(
         { _id: couponId, quantity_used: { $gt: 0 } },
         { $inc: { quantity_used: -1 } },
+        { session },
       );
     });
 
     it('updateRequestWithdraw > given reject without coupon > then does not touch redemptions', async () => {
       const id = new Types.ObjectId().toString();
-      withdrawModel.findById.mockReturnValue(
-        makeQuery({ status: 'pending' }),
-      );
-      withdrawModel.findByIdAndUpdate.mockReturnValue(
+      withdrawModel.findById.mockReturnValue(makeQuery({ status: 'pending' }));
+      withdrawModel.findOneAndUpdate.mockReturnValue(
         makeQuery({ _id: id, status: 'rejected' }),
       );
 
       await service.updateRequestWithdraw(
         { id, status: 'rejected' },
         undefined as never,
+        { id: 'admin-1', label: 'Approver' },
       );
 
-      expect(withdrawFeeCouponRedemptionModel.findOne).not.toHaveBeenCalled();
+      expect(
+        withdrawFeeCouponRedemptionModel.findOneAndDelete,
+      ).not.toHaveBeenCalled();
       expect(withdrawFeeCouponModel.updateOne).not.toHaveBeenCalled();
       expect(adminActivity.append).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'withdraw.status_changed' }),
@@ -514,17 +563,255 @@ describe('AdminService', () => {
           coupon_id: couponId,
         }),
       );
-      withdrawModel.findByIdAndUpdate.mockReturnValue(
-        makeQuery({ _id: id, status: 'rejected' }),
+      await service.updateRequestWithdraw(
+        { id, status: 'rejected' },
+        undefined as never,
+        { id: 'admin-1', label: 'Approver' },
+      );
+
+      expect(
+        withdrawFeeCouponRedemptionModel.findOneAndDelete,
+      ).not.toHaveBeenCalled();
+      expect(withdrawFeeCouponModel.updateOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('withdraw status transaction invariants', () => {
+    const actor = { id: 'admin-7', label: 'Approver' };
+
+    it('given rejected coupon withdrawal > then it cannot be reopened to pending', async () => {
+      const id = new Types.ObjectId().toString();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({
+          _id: id,
+          status: 'rejected',
+          coupon_id: new Types.ObjectId(),
+        }),
+      );
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'pending' },
+          undefined as never,
+          actor,
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(withdrawModel.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(adminActivity.append).not.toHaveBeenCalled();
+    });
+
+    it('given a stale concurrent status write > then CAS fails without an audit event', async () => {
+      const id = new Types.ObjectId().toString();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({ _id: id, status: 'pending' }),
+      );
+      withdrawModel.findOneAndUpdate.mockReturnValue(makeQuery(null));
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'approved' },
+          undefined as never,
+          actor,
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(adminActivity.append).not.toHaveBeenCalled();
+    });
+
+    it('given coupon restore update fails > then no success activity is appended before transaction commit', async () => {
+      const id = new Types.ObjectId().toString();
+      const couponId = new Types.ObjectId();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({ _id: id, status: 'pending', coupon_id: couponId }),
+      );
+      withdrawModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'rejected', coupon_id: couponId }),
+      );
+      withdrawFeeCouponRedemptionModel.findOneAndDelete.mockReturnValue(
+        makeQuery({
+          _id: new Types.ObjectId(),
+          coupon_id: couponId,
+          code_snapshot: 'SAVEFEE',
+        }),
+      );
+      withdrawFeeCouponModel.updateOne.mockReturnValue(
+        makeQuery({ matchedCount: 0, modifiedCount: 0 }),
+      );
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'rejected' },
+          undefined as never,
+          actor,
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(adminActivity.append).not.toHaveBeenCalled();
+    });
+
+    it('given redemption was already consumed > then inventory is not decremented again', async () => {
+      const id = new Types.ObjectId().toString();
+      const couponId = new Types.ObjectId();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({ _id: id, status: 'pending', coupon_id: couponId }),
+      );
+      withdrawModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'rejected', coupon_id: couponId }),
+      );
+      withdrawFeeCouponRedemptionModel.findOneAndDelete.mockReturnValue(
+        makeQuery(null),
       );
 
       await service.updateRequestWithdraw(
         { id, status: 'rejected' },
         undefined as never,
+        actor,
       );
 
-      expect(withdrawFeeCouponRedemptionModel.findOne).not.toHaveBeenCalled();
       expect(withdrawFeeCouponModel.updateOne).not.toHaveBeenCalled();
+      expect(adminActivity.append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_id: 'admin-7',
+          actor_label: 'Approver',
+          action: 'withdraw.status_changed',
+        }),
+      );
+    });
+
+    it('given a transaction retry loses to another reject > then aborted-attempt audit state is discarded', async () => {
+      const id = new Types.ObjectId().toString();
+      const couponId = new Types.ObjectId();
+      withdrawModel.findById
+        .mockReturnValueOnce(
+          makeQuery({ _id: id, status: 'pending', coupon_id: couponId }),
+        )
+        .mockReturnValueOnce(
+          makeQuery({ _id: id, status: 'rejected', coupon_id: couponId }),
+        );
+      withdrawModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'rejected', coupon_id: couponId }),
+      );
+      withdrawFeeCouponRedemptionModel.findOneAndDelete.mockReturnValue(
+        makeQuery({
+          _id: new Types.ObjectId(),
+          coupon_id: couponId,
+          code_snapshot: 'SAVEFEE',
+        }),
+      );
+      session.withTransaction.mockImplementationOnce(
+        async (work: () => Promise<void>) => {
+          await work();
+          // Simulate Mongo retrying after this attempt aborts while a competing
+          // transaction commits the same terminal transition.
+          await work();
+        },
+      );
+
+      await service.updateRequestWithdraw(
+        { id, status: 'rejected' },
+        undefined as never,
+        actor,
+      );
+
+      expect(withdrawFeeCouponModel.updateOne).toHaveBeenCalledTimes(1);
+      expect(adminActivity.append).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('live admin role mutation', () => {
+    it('updates only an allowlisted role and records the authenticated actor after success', async () => {
+      const targetId = new Types.ObjectId().toString();
+      userAdminModel.findById.mockReturnValue(
+        makeQuery({
+          _id: targetId,
+          role: 'viewer',
+          email: 'target@gogocash.co',
+        }),
+      );
+      userAdminModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({
+          _id: targetId,
+          role: 'support',
+          email: 'target@gogocash.co',
+        }),
+      );
+
+      await service.update(
+        targetId,
+        { role: 'support' },
+        { id: 'root-1', label: 'Root Admin' },
+      );
+
+      expect(userAdminModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'viewer' }),
+        { $set: { role: 'support' } },
+        { new: true },
+      );
+      expect(adminActivity.append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_id: 'root-1',
+          actor_label: 'Root Admin',
+          action: 'admin_role.changed',
+        }),
+      );
+    });
+
+    it('does not append activity when the target admin no longer matches', async () => {
+      const targetId = new Types.ObjectId().toString();
+      userAdminModel.findById.mockReturnValue(
+        makeQuery({ _id: targetId, role: 'viewer' }),
+      );
+      userAdminModel.findOneAndUpdate.mockReturnValue(makeQuery(null));
+
+      await expect(
+        service.update(
+          targetId,
+          { role: 'support' },
+          { id: 'root-1', label: 'Root Admin' },
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(adminActivity.append).not.toHaveBeenCalled();
+    });
+
+    it('deletes an existing admin and attributes the audit event to the caller', async () => {
+      const targetId = new Types.ObjectId().toString();
+      userAdminModel.findOneAndDelete.mockReturnValue(
+        makeQuery({
+          _id: targetId,
+          role: 'viewer',
+          email: 'target@gogocash.co',
+        }),
+      );
+
+      const result = await service.remove(targetId, {
+        id: 'root-1',
+        label: 'Root Admin',
+      });
+
+      expect(result).toEqual({ acknowledged: true, deletedCount: 1 });
+      expect(adminActivity.append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_id: 'root-1',
+          actor_label: 'Root Admin',
+          action: 'admin_user.deleted',
+          entity_id: targetId,
+        }),
+      );
+    });
+
+    it('does not append delete activity for a nonexistent admin', async () => {
+      userAdminModel.findOneAndDelete.mockReturnValue(makeQuery(null));
+
+      await expect(
+        service.remove(new Types.ObjectId().toString(), {
+          id: 'root-1',
+          label: 'Root Admin',
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+
+      expect(adminActivity.append).not.toHaveBeenCalled();
     });
   });
 
