@@ -1004,6 +1004,48 @@ describe('AuthService', () => {
       expect(userService.createFromFirebase).not.toHaveBeenCalled();
     });
 
+    it('given a new LINE identity with a picture_url > persists avatar_url on the created user', async () => {
+      const created = makeUser({
+        id_firebase: `line_${payload.id_line}`,
+        id_line: payload.id_line,
+        avatar_url: 'https://profile.line-scdn.net/avatar.png',
+      });
+      const accountRegistration = {
+        registerVerified: jest.fn().mockResolvedValue({
+          user: created,
+          created: true,
+        }),
+      };
+      const { service, userService } = makeService({
+        userService: { findOne: jest.fn().mockResolvedValue(null) },
+        accountRegistration,
+      });
+      (axios.get as jest.Mock)
+        .mockResolvedValueOnce({ data: { client_id: 'channel' } })
+        .mockResolvedValueOnce({ data: { userId: payload.id_line } });
+
+      await expect(
+        service.signInLine(
+          {
+            ...payload,
+            picture_url: 'https://profile.line-scdn.net/avatar.png',
+          },
+          'token',
+        ),
+      ).resolves.toEqual({
+        user: created,
+        token: 'signed.jwt.token',
+      });
+      expect(accountRegistration.registerVerified).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user: expect.objectContaining({
+            avatar_url: 'https://profile.line-scdn.net/avatar.png',
+          }),
+        }),
+      );
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
     it('given a legacy LINE account without a stored Firebase id > persists the synthetic session identity used by the auth guard', async () => {
       const existing = makeUser({
         id_firebase: '',

@@ -838,6 +838,10 @@ export class AuthService {
           id_firebase: userExist.id_firebase || `line_${payload.id_line}`,
           provider: userExist.provider || 'line',
           email_verified: payload.email ? true : userExist.email_verified,
+          // Keep the LINE profile photo when the account has none yet.
+          ...(payload.picture_url && !userExist.avatar_url
+            ? { avatar_url: payload.picture_url }
+            : {}),
         });
 
         if (user?.disabled) {
@@ -866,6 +870,7 @@ export class AuthService {
         id_crossmint: '',
         id_twitter: '',
         email_verified: !!payload.email,
+        ...(payload.picture_url ? { avatar_url: payload.picture_url } : {}),
       };
       const user = (
         await this.accountRegistration.registerVerified({

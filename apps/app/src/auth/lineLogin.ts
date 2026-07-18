@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 
+import { resolveLineLoginOrigin } from "@mobile/auth/canonicalWebOrigin";
 import type { BackendLoginResponse } from "@mobile/auth/firebaseLogin";
 import { mapLoginResponseToMobileSession } from "@mobile/auth/firebaseLogin";
 import { sanitizeCallbackPath } from "@mobile/auth/routeGuard";
@@ -32,7 +33,8 @@ declare global {
 
 const LIFF_SDK_SCRIPT = "https://static.line-scdn.net/liff/edge/2/sdk.js";
 export const LINE_AUTH_CALLBACK_PATH = "/auth/line-callback";
-export const LINE_AUTH_DEFAULT_POST_LOGIN_PATH = "/link-mycashback";
+/** After LINE handoff, land on Profile so the logged-in account is visible. */
+export const LINE_AUTH_DEFAULT_POST_LOGIN_PATH = "/profile";
 /** sessionStorage key for the Safari←LINE OAuth/LIFF return URL. */
 export const LINE_AUTH_RETURN_HREF_KEY = "gogocash.line.auth.returnHref.v1";
 
@@ -124,7 +126,13 @@ export function buildLineLoginCallbackUrl(currentHref: string): string {
     currentUrl.searchParams.get("callbackUrl"),
     LINE_AUTH_DEFAULT_POST_LOGIN_PATH,
   );
-  const callbackUrl = new URL(LINE_AUTH_CALLBACK_PATH, currentUrl.origin);
+  // Prefer the configured customer-web origin (LIFF Endpoint URL) over the
+  // current window origin so alias hosts like staging.gogocash.co still return
+  // to app-staging where the GoGoCash session is stored.
+  const callbackUrl = new URL(
+    LINE_AUTH_CALLBACK_PATH,
+    resolveLineLoginOrigin(currentHref),
+  );
   callbackUrl.searchParams.set("callbackUrl", postLoginPath);
 
   return callbackUrl.toString();

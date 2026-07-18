@@ -165,6 +165,13 @@ async function completeLineCallback(apiUrl: string): Promise<void> {
     apiUrl,
     profile,
   });
+  // Prefer LINE profile fields when the API user row is still sparse.
+  if (!session.username && profile.displayName) {
+    session.username = profile.displayName;
+  }
+  if (!session.avatar_url && profile.pictureUrl) {
+    session.avatar_url = profile.pictureUrl;
+  }
   await persistMobileSession(session);
   markIntroModalPending();
 }
