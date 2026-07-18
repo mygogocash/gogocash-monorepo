@@ -379,4 +379,48 @@ describe("TopBrandManagementPanel", () => {
       expect(select).toHaveTextContent("o2");
     });
   });
+
+  it("#378 landing preview > given 5 brands > then mirrors desktop row-major slots and mobile vertical pairs", async () => {
+    const five = Array.from({ length: 5 }, (_, index) => ({
+      ...offer,
+      _id: `o${index + 1}`,
+      offer_id: 1001 + index,
+      offer_name: `Brand ${index + 1} TH - CPS`,
+      offer_name_display: `Brand ${index + 1}`,
+    }));
+    apiClientMock.getTopBrands.mockResolvedValue({
+      brands: five.map((o) => ({ offerId: o._id, cashback: "1%" })),
+      items: five,
+      order: five.map((o) => o._id),
+    });
+
+    renderPanel();
+    const preview = await screen.findByTestId("top-brand-landing-preview");
+    expect(preview).toHaveTextContent("Landing preview");
+
+    // Desktop fits 6 per row, so all five land on page 1, row 1, in order.
+    expect(
+      screen.getByTestId("top-brand-preview-desktop-page-0-slot-0"),
+    ).toHaveTextContent("Brand 1");
+    expect(
+      screen.getByTestId("top-brand-preview-desktop-page-0-slot-4"),
+    ).toHaveTextContent("Brand 5");
+
+    // The mobile rail stacks consecutive pairs vertically: Brand 2 sits
+    // BELOW Brand 1 (column 0, row 1), and Brand 5 opens column 2 —
+    // the per-device divergence #378 asks admins to be able to see.
+    expect(
+      screen.getByTestId("top-brand-preview-mobile-col-0-row-1"),
+    ).toHaveTextContent("Brand 2");
+    expect(
+      screen.getByTestId("top-brand-preview-mobile-col-2-row-0"),
+    ).toHaveTextContent("Brand 5");
+  });
+
+  it("#378 landing preview > given 4 or fewer brands > then shows the mobile static-grid mode", async () => {
+    renderPanel();
+
+    const preview = await screen.findByTestId("top-brand-landing-preview");
+    expect(preview).toHaveTextContent("static 2-column grid");
+  });
 });

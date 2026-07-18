@@ -27,6 +27,7 @@ import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import Button from "@/components/ui/button/Button";
 import toast from "react-hot-toast";
 import { OFFER_THUMB_SIZES } from "./offerMedia";
+import TopBrandLandingPreview from "./TopBrandLandingPreview";
 
 const TOP_BRANDS_QUERY_KEY = ["admin", "top-brands"] as const;
 const PICKER_RESULTS_LIMIT = 100;
@@ -516,6 +517,14 @@ export default function TopBrandManagementPanel() {
           })}
         </ul>
       </div>
+
+      <TopBrandLandingPreview
+        order={localOrder}
+        labelFor={(offerId) => {
+          const previewOffer = offerById.get(offerId);
+          return previewOffer ? offerLabel(previewOffer) : offerId;
+        }}
+      />
 
       <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-gray-200 pt-6 dark:border-gray-700">
         <Button
