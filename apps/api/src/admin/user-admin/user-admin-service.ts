@@ -24,13 +24,12 @@ export class UserAdminService {
   async login(
     createUserAdminDto: LoginAdminDto,
   ): Promise<Omit<UserAdmin, 'password'> & { token: string }> {
+    // Match on email only: usernames are not unique (invite flow derives
+    // them from email local-parts), so a username lookup can resolve to the
+    // wrong account (#374). $eq + String() pin the filter to literal string
+    // equality so a crafted object payload can never become a Mongo operator.
     const user = await this.userAdmin
-      .findOne({
-        $or: [
-          { email: createUserAdminDto.email },
-          { username: createUserAdminDto.email },
-        ],
-      })
+      .findOne({ email: { $eq: String(createUserAdminDto.email) } })
       .select('+password')
       .exec();
 
