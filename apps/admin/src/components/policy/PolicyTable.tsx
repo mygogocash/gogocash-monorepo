@@ -1332,6 +1332,10 @@ export default function PolicyTable() {
                     </option>
                   ))}
                 </select>
+                <span className="mt-1 block text-[11px] font-normal text-gray-500 dark:text-gray-400">
+                  Choose from the built-in icon set. New icons are added by
+                  engineering, not uploaded here.
+                </span>
               </label>
             </div>
             <div className="flex shrink-0 items-center gap-3">
