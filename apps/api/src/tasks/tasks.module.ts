@@ -39,7 +39,20 @@ import {
   RewardList,
   RewardListSchema,
 } from 'src/withdraw/schemas/rewardList.schema';
+import {
+  WithdrawFeeCoupon,
+  WithdrawFeeCouponSchema,
+} from 'src/withdraw/schemas/withdraw-fee-coupon.schema';
+import {
+  WithdrawFeeCouponRedemption,
+  WithdrawFeeCouponRedemptionSchema,
+} from 'src/withdraw/schemas/withdraw-fee-coupon-redemption.schema';
 import { PointModule } from 'src/point/point.module';
+import { AdminActivityModule } from 'src/admin/activity/admin-activity.module';
+import {
+  WalletAdjustment,
+  WalletAdjustmentSchema,
+} from 'src/admin/wallets/schemas/wallet-adjustment.schema';
 import {
   LegacyRewardManifestRecord,
   LegacyRewardManifestSchema,
@@ -58,6 +71,10 @@ import {
     // dispatches through.
     InvolveModule,
     AffiliateModule,
+    // WithdrawService (provided below) audits via AdminActivityService — same
+    // seam as WithdrawModule. Without this import Nest fails Railway health
+    // checks with UnknownDependenciesException on boot.
+    AdminActivityModule,
     // TasksController is guarded by AuthAdminGuard, which injects JwtService.
     // Without this registration Nest cannot resolve the guard's dependency and
     // the whole app fails to boot (UnknownDependenciesException). Mirrors the
@@ -77,6 +94,14 @@ import {
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
       { name: RewardList.name, schema: RewardListSchema },
+      // Keep in lockstep with WithdrawModule — TasksModule re-provides
+      // WithdrawService for cron/job wiring and must own the same models.
+      { name: WithdrawFeeCoupon.name, schema: WithdrawFeeCouponSchema },
+      {
+        name: WithdrawFeeCouponRedemption.name,
+        schema: WithdrawFeeCouponRedemptionSchema,
+      },
+      { name: WalletAdjustment.name, schema: WalletAdjustmentSchema },
       {
         name: LegacyRewardManifestRecord.name,
         schema: LegacyRewardManifestSchema,
