@@ -101,16 +101,28 @@ describe('PolicyController lifecycle contract', () => {
     }
   });
 
-  it('keeps delete-content and retire support-gated', () => {
-    for (const method of [
-      PolicyController.prototype.deleteContent,
-      PolicyController.prototype.retire,
-    ]) {
-      expect(Reflect.getMetadata(ROLES_KEY, method)).toEqual(['support']);
-      expect(Reflect.getMetadata(GUARDS_METADATA, method)).toEqual(
-        expect.arrayContaining([RolesGuard, CategoryIntegrityReadinessGuard]),
-      );
-    }
+  it('keeps retire support-gated', () => {
+    const method = PolicyController.prototype.retire;
+    expect(Reflect.getMetadata(ROLES_KEY, method)).toEqual(['support']);
+    expect(Reflect.getMetadata(GUARDS_METADATA, method)).toEqual(
+      expect.arrayContaining([RolesGuard, CategoryIntegrityReadinessGuard]),
+    );
+  });
+
+  it('#377: gates policy content deletion at approver on both routes', () => {
+    // Hard-deleting every locale's policy content is unrecoverable (no
+    // revision history), so it matches the offer-delete tier (approver+):
+    // the UI "Admin" role keeps it, UI "editor" (API support) does not.
+    const deleteContent = PolicyController.prototype.deleteContent;
+    expect(Reflect.getMetadata(ROLES_KEY, deleteContent)).toEqual(['approver']);
+    expect(Reflect.getMetadata(GUARDS_METADATA, deleteContent)).toEqual(
+      expect.arrayContaining([RolesGuard, CategoryIntegrityReadinessGuard]),
+    );
+    // The legacy DELETE compat route deletes the same content, so it moves
+    // in lockstep.
+    expect(
+      Reflect.getMetadata(ROLES_KEY, PolicyController.prototype.remove),
+    ).toEqual(['approver']);
   });
 
   it('makes purge superadmin-only and readiness-gated', () => {
