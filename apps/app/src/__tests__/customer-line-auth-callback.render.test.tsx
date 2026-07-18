@@ -48,7 +48,7 @@ vi.mock("@mobile/auth/lineLogin", () => {
 
   return {
     exchangeLineAuth: (...args: unknown[]) => lineAuth.exchange(...args),
-    LINE_AUTH_DEFAULT_POST_LOGIN_PATH: "/link-mycashback",
+    LINE_AUTH_DEFAULT_POST_LOGIN_PATH: "/profile",
     LineAuthExchangeError,
     LineLoginSessionMissingError,
     navigateAfterLineAuthSuccess: (path: string, replaceFn: (href: string) => void) => {
@@ -128,6 +128,7 @@ describe("CustomerLineAuthCallbackScreen", () => {
     expect(persistMobileSession).toHaveBeenCalledWith({
       access_token: "backend-token",
       provider: "line",
+      username: "LINE User",
     });
     expect(markIntroModalPending).toHaveBeenCalledOnce();
     expect(hapticsSuccess).toHaveBeenCalledOnce();
@@ -142,7 +143,7 @@ describe("CustomerLineAuthCallbackScreen", () => {
     render(createElement(CustomerLineAuthCallbackScreen));
 
     await waitFor(() => {
-      expect(routerState.replace).toHaveBeenCalledWith("/link-mycashback");
+      expect(routerState.replace).toHaveBeenCalledWith("/profile");
     });
   });
 
@@ -200,7 +201,7 @@ describe("CustomerLineAuthCallbackScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
 
     await waitFor(() => {
-      expect(routerState.replace).toHaveBeenCalledWith("/link-mycashback");
+      expect(routerState.replace).toHaveBeenCalledWith("/profile");
     });
     expect(lineAuth.resume).toHaveBeenCalledTimes(2);
     expect(lineAuth.exchange).toHaveBeenCalledTimes(2);

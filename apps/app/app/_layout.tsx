@@ -5,10 +5,15 @@ import {
   ThemeProvider as NavThemeProvider,
 } from "expo-router";
 
+import { redirectStagingWebAliasToCanonicalHost } from "@mobile/auth/canonicalWebOrigin";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { CustomerDesktopRouteChrome } from "@mobile/components/CustomerDesktopRouteChrome";
 import { AppProviders } from "@mobile/providers/AppProviders";
 import { ThemedStatusBar, useThemeColors } from "@mobile/theme/ThemeProvider";
+
+// Alias hosts (e.g. staging.gogocash.co) share this Railway service but not
+// localStorage / LIFF Endpoint URL with app-staging — bounce before auth UI.
+redirectStagingWebAliasToCanonicalHost();
 
 // Authenticated-only routes — the `requiresAuth: true` entries from
 // `mobileParityRoutes` (src/navigation/routes.ts). Listed as expo-router screen

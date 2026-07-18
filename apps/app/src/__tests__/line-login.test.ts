@@ -99,6 +99,21 @@ describe("lineLogin", () => {
     expect(callbackUrl).not.toContain("token");
   });
 
+  it("buildLineLoginCallbackUrl > uses EXPO_PUBLIC_FRONTEND_URL origin so LIFF redirectUri matches Endpoint URL", () => {
+    vi.stubEnv("EXPO_PUBLIC_FRONTEND_URL", "https://app-staging.gogocash.co");
+
+    // staging.gogocash.co is an alias host — LIFF Endpoint is app-staging, so a
+    // same-origin callback on the alias fails LINE's redirectUri prefix check
+    // and never establishes a GoGoCash session on the canonical host.
+    expect(
+      buildLineLoginCallbackUrl(
+        "https://staging.gogocash.co/login?callbackUrl=%2Fprofile",
+      ),
+    ).toBe(
+      "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fprofile",
+    );
+  });
+
   it.each([
     "https://evil.example/steal",
     "//evil.example/steal",
@@ -111,7 +126,7 @@ describe("lineLogin", () => {
       currentUrl.searchParams.set("callbackUrl", unsafeCallback);
 
       expect(buildLineLoginCallbackUrl(currentUrl.toString())).toBe(
-        "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Flink-mycashback",
+        "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fprofile",
       );
     },
   );
