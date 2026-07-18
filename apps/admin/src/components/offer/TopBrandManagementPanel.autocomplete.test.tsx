@@ -84,8 +84,13 @@ describe("TopBrandManagementPanel Autocomplete", () => {
   beforeEach(() => {
     apiClientMock.getTopBrands.mockResolvedValue({
       brands: [],
+      brandsDesktop: [],
+      brandsMobile: [],
       items: [],
       order: [],
+      orderDesktop: [],
+      orderMobile: [],
+      maxBrands: 16,
     });
     fetchOffersListMock.mockResolvedValue({
       data: [shopeeOffer],

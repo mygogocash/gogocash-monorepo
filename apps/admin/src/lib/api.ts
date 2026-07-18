@@ -23,6 +23,7 @@ import {
   OffersResponse,
   TopBrandConfigEntry,
   TopBrandsAdminResponse,
+  SaveTopBrandsPayload,
   SaveTopBrandsResponse,
   WithdrawQuery,
   ResponseWithdraws,
@@ -1023,11 +1024,18 @@ class ApiClient {
   }
 
   async saveTopBrands(
-    brands: TopBrandConfigEntry[],
+    payload: SaveTopBrandsPayload | TopBrandConfigEntry[],
   ): Promise<SaveTopBrandsResponse> {
+    const body = Array.isArray(payload)
+      ? { brands: payload }
+      : {
+          brandsDesktop: payload.brandsDesktop,
+          brandsMobile: payload.brandsMobile,
+          brands: payload.brandsDesktop,
+        };
     return this.request<SaveTopBrandsResponse>("/admin/top-brands", {
       method: "PUT",
-      body: JSON.stringify({ brands }),
+      body: JSON.stringify(body),
     });
   }
 

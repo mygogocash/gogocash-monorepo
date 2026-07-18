@@ -49,7 +49,7 @@ function makeQuery<T>(value: T) {
     query[method] = jest.fn().mockReturnValue(query);
   }
   query.exec = jest.fn().mockResolvedValue(value);
-  query.lean = jest.fn().mockResolvedValue(value);
+  query.lean = jest.fn().mockReturnValue(query);
   return query;
 }
 
@@ -3137,9 +3137,18 @@ describe('AdminService', () => {
         { offerId: 'offer-1', cashback: '' },
         { offerId: 'offer-2', cashback: '' },
       ];
-      expect(update.$set).toEqual({ brands: persistedBrands });
+      expect(update.$set).toEqual({
+        brands: persistedBrands,
+        brandsDesktop: persistedBrands,
+        brandsMobile: persistedBrands,
+      });
       expect(opts).toEqual({ upsert: true });
-      expect(result).toEqual({ success: true, brands: persistedBrands });
+      expect(result).toEqual({
+        success: true,
+        brands: persistedBrands,
+        brandsDesktop: persistedBrands,
+        brandsMobile: persistedBrands,
+      });
     });
 
     it('saveTopBrands > given a forged cashback label > then discards it', async () => {
@@ -3165,6 +3174,34 @@ describe('AdminService', () => {
         ),
       ).rejects.toMatchObject({ status: 400 });
       expect(topBrandConfigModel.updateOne).not.toHaveBeenCalled();
+    });
+
+    it('#378 saveTopBrands > given independent device lists > then persists both and mirrors desktop into brands', async () => {
+      topBrandConfigModel.updateOne.mockResolvedValue({ acknowledged: true });
+      const brandsDesktop = [
+        { offerId: 'd1', cashback: 'x' },
+        { offerId: 'd2', cashback: 'y' },
+      ];
+      const brandsMobile = [{ offerId: 'm1', cashback: 'z' }];
+
+      const result = await service.saveTopBrands({ brandsDesktop, brandsMobile });
+
+      const persistedDesktop = [
+        { offerId: 'd1', cashback: '' },
+        { offerId: 'd2', cashback: '' },
+      ];
+      const persistedMobile = [{ offerId: 'm1', cashback: '' }];
+      expect(topBrandConfigModel.updateOne.mock.calls[0][1].$set).toEqual({
+        brands: persistedDesktop,
+        brandsDesktop: persistedDesktop,
+        brandsMobile: persistedMobile,
+      });
+      expect(result).toEqual({
+        success: true,
+        brands: persistedDesktop,
+        brandsDesktop: persistedDesktop,
+        brandsMobile: persistedMobile,
+      });
     });
   });
 
@@ -3198,7 +3235,19 @@ describe('AdminService', () => {
       });
       expect(result).toEqual({
         order: ['offer-2', 'missing-offer', 'offer-1'],
+        orderDesktop: ['offer-2', 'missing-offer', 'offer-1'],
+        orderMobile: ['offer-2', 'missing-offer', 'offer-1'],
         brands: [
+          { offerId: 'offer-2', cashback: '12%' },
+          { offerId: 'missing-offer', cashback: '' },
+          { offerId: 'offer-1', cashback: '8%' },
+        ],
+        brandsDesktop: [
+          { offerId: 'offer-2', cashback: '12%' },
+          { offerId: 'missing-offer', cashback: '' },
+          { offerId: 'offer-1', cashback: '8%' },
+        ],
+        brandsMobile: [
           { offerId: 'offer-2', cashback: '12%' },
           { offerId: 'missing-offer', cashback: '' },
           { offerId: 'offer-1', cashback: '8%' },
@@ -3213,11 +3262,35 @@ describe('AdminService', () => {
 
       await expect(service.getTopBrands()).resolves.toEqual({
         order: [],
+        orderDesktop: [],
+        orderMobile: [],
         brands: [],
+        brandsDesktop: [],
+        brandsMobile: [],
         items: [],
         maxBrands: 16,
       });
       expect(offerModel.find).not.toHaveBeenCalled();
+    });
+
+    it('#378 getTopBrands > given independent device lists > then returns divergent orders', async () => {
+      const offer1 = { _id: 'd1', offer_name: 'Desk', commission_store: 1 };
+      const offer2 = { _id: 'm1', offer_name: 'Mob', commission_store: 2 };
+      topBrandConfigModel.findOne.mockReturnValue(
+        makeQuery({
+          brands: [{ offerId: 'legacy' }],
+          brandsDesktop: [{ offerId: 'd1' }],
+          brandsMobile: [{ offerId: 'm1' }],
+        }),
+      );
+      offerModel.find.mockReturnValue(makeQuery([offer1, offer2]));
+
+      const result = await service.getTopBrands();
+
+      expect(result.orderDesktop).toEqual(['d1']);
+      expect(result.orderMobile).toEqual(['m1']);
+      expect(result.order).toEqual(['d1']);
+      expect(result.items).toEqual([offer1, offer2]);
     });
   });
 

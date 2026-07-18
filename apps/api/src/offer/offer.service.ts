@@ -58,7 +58,7 @@ import {
 import { rankOffersWithSearchRules } from './search-ranking';
 import { normalizeSearchRuleKeywords } from 'src/admin/search/search-rule.contract';
 import {
-  MAX_TOP_BRANDS,
+  resolveDeviceBrandEntries,
   resolveOfferCashbackLabel,
 } from './top-brand.contract';
 import { MISSION_ORDER_SCHEMA_VERSION } from './schemas/missing-order.schema';
@@ -793,7 +793,13 @@ export class OfferService implements OnApplicationBootstrap {
           this.favoriteOfferModel.deleteMany({ offer_id: offerObjectId }),
           this.topBrandConfigModel.updateOne(
             {},
-            { $pull: { brands: { offerId: id } } },
+            {
+              $pull: {
+                brands: { offerId: id },
+                brandsDesktop: { offerId: id },
+                brandsMobile: { offerId: id },
+              },
+            },
           ),
           this.searchBoostModel.deleteMany({ offer_id: id }),
         ]);
@@ -852,7 +858,13 @@ export class OfferService implements OnApplicationBootstrap {
         );
         await this.topBrandConfigModel.updateOne(
           {},
-          { $pull: { brands: { offerId: id } } },
+          {
+            $pull: {
+              brands: { offerId: id },
+              brandsDesktop: { offerId: id },
+              brandsMobile: { offerId: id },
+            },
+          },
           { session },
         );
         await this.searchBoostModel.deleteMany({ offer_id: id }, { session });
@@ -1383,14 +1395,21 @@ export class OfferService implements OnApplicationBootstrap {
    */
   async getDisplayTopBrands() {
     const config = await this.topBrandConfigModel.findOne().exec();
-    const entries = (config?.brands ?? []).slice(0, MAX_TOP_BRANDS);
-    if (entries.length === 0) {
-      return { data: [] };
+    const desktopEntries = resolveDeviceBrandEntries(config, 'desktop');
+    const mobileEntries = resolveDeviceBrandEntries(config, 'mobile');
+    const unionIds = [
+      ...new Set([
+        ...desktopEntries.map((entry) => entry.offerId),
+        ...mobileEntries.map((entry) => entry.offerId),
+      ]),
+    ];
+    if (unionIds.length === 0) {
+      return { data: [], dataDesktop: [], dataMobile: [] };
     }
 
     const offers = await this.offerModel
       .find({
-        _id: { $in: entries.map((entry) => entry.offerId) },
+        _id: { $in: unionIds },
         ...ACTIVE_OFFER_FILTER,
       } as any)
       .select(
@@ -1401,35 +1420,41 @@ export class OfferService implements OnApplicationBootstrap {
       offers.map((offer) => [String(offer._id), offer]),
     );
 
-    const data = entries
-      .map((entry) => {
-        const offer = offerById.get(entry.offerId);
-        if (!offer) {
-          return null;
-        }
-        const row = offer as {
-          _id: unknown;
-          offer_id: number;
-          offer_name: string;
-          offer_name_display?: string;
-          logo?: string;
-          logo_desktop?: string;
-          logo_mobile?: string;
-          logo_circle?: string;
-          commission_store?: unknown;
-          commissions?: unknown[];
-        };
-        return {
-          _id: String(row._id),
-          offer_id: row.offer_id,
-          brand: row.offer_name_display?.trim() || row.offer_name,
-          logo: resolvePublicOfferLogo(row),
-          cashback: resolveOfferCashbackLabel(row),
-        };
-      })
-      .filter((brand) => brand !== null);
+    const toDisplay = (
+      entries: { offerId: string; cashback: string }[],
+    ) =>
+      entries
+        .map((entry) => {
+          const offer = offerById.get(entry.offerId);
+          if (!offer) {
+            return null;
+          }
+          const row = offer as {
+            _id: unknown;
+            offer_id: number;
+            offer_name: string;
+            offer_name_display?: string;
+            logo?: string;
+            logo_desktop?: string;
+            logo_mobile?: string;
+            logo_circle?: string;
+            commission_store?: unknown;
+            commissions?: unknown[];
+          };
+          return {
+            _id: String(row._id),
+            offer_id: row.offer_id,
+            brand: row.offer_name_display?.trim() || row.offer_name,
+            logo: resolvePublicOfferLogo(row),
+            cashback: resolveOfferCashbackLabel(row),
+          };
+        })
+        .filter((brand) => brand !== null);
 
-    return { data };
+    const dataDesktop = toDisplay(desktopEntries);
+    const dataMobile = toDisplay(mobileEntries);
+    // `data` stays desktop-shaped for legacy clients / E2E pollers.
+    return { data: dataDesktop, dataDesktop, dataMobile };
   }
 
   async updateCoupon(body: UpdateCouponDto) {

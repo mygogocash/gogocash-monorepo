@@ -22,23 +22,30 @@ function normalizeTopBrandCashbackLabel(cashback: string): string {
   return cashback.trim().replace(/^up to\s+/i, "");
 }
 
+type TopBrandPayloadItem = {
+  _id?: string;
+  offer_id: number;
+  brand: string;
+  disabled?: boolean;
+  logo?: string;
+  logo_desktop?: string;
+  logo_mobile?: string;
+  logo_circle?: string;
+  cashback: string;
+  status?: string;
+  countries?: string;
+  is_global?: boolean;
+};
+
 /** Raw payload from GET /offer/top-brands. */
 export type TopBrandsPayload = {
-  data?: {
-    _id?: string;
-    offer_id: number;
-    brand: string;
-    disabled?: boolean;
-    logo?: string;
-    logo_desktop?: string;
-    logo_mobile?: string;
-    logo_circle?: string;
-    cashback: string;
-    status?: string;
-    countries?: string;
-    is_global?: boolean;
-  }[];
+  /** Legacy / desktop-compat list. */
+  data?: TopBrandPayloadItem[];
+  dataDesktop?: TopBrandPayloadItem[];
+  dataMobile?: TopBrandPayloadItem[];
 } | null;
+
+export type TopBrandDevice = "desktop" | "mobile";
 
 /** Home top-brand card (matches webTopBrandCards). */
 export type TopBrandCard = {
@@ -67,8 +74,12 @@ export function mapBackendTopBrands(
   payload: TopBrandsPayload,
   regionCode: RegionCode = DEFAULT_REGION,
   apiBaseUrl?: string,
+  device: TopBrandDevice = "desktop",
 ): TopBrandCard[] {
-  const items = payload?.data ?? [];
+  const items =
+    device === "mobile"
+      ? (payload?.dataMobile ?? payload?.data ?? [])
+      : (payload?.dataDesktop ?? payload?.data ?? []);
   return items
     .filter(isCustomerVisibleOffer)
     .filter(
@@ -119,9 +130,15 @@ export function resolveTopBrands(
   _catalogData?: unknown,
   regionCode: RegionCode = DEFAULT_REGION,
   apiBaseUrl?: string,
+  device: TopBrandDevice = "desktop",
 ): TopBrandCard[] {
   if (source === "backend") {
-    return mapBackendTopBrands(data as TopBrandsPayload, regionCode, apiBaseUrl);
+    return mapBackendTopBrands(
+      data as TopBrandsPayload,
+      regionCode,
+      apiBaseUrl,
+      device,
+    );
   }
   return fallback.filter((card) =>
     offerMatchesRegion(resolveFixtureBrandCountries(card.brand), regionCode),
