@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
+import { getConnectionToken, getModelToken } from '@nestjs/mongoose';
 import { HttpException } from '@nestjs/common';
 import { ConflictException } from '@nestjs/common';
 import { Types } from 'mongoose';
@@ -98,34 +98,77 @@ describe('AdminService', () => {
   };
   let policyMediaWrite: { execute: jest.Mock };
   let policyMediaRegistry: { touchAttachInSession: jest.Mock };
-  let adminActivity: { append: jest.Mock };
+  let adminActivity: { append: jest.Mock; appendRequired: jest.Mock };
+  let connection: {
+    startSession: jest.Mock;
+    collection: jest.Mock;
+  };
+  let session: {
+    withTransaction: jest.Mock;
+    endSession: jest.Mock;
+  };
 
   beforeEach(async () => {
     userAdminModel = {
       find: jest.fn(),
       findById: jest.fn(),
       findByIdAndUpdate: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+      findOneAndDelete: jest.fn(),
       countDocuments: jest.fn(),
     };
     withdrawModel = {
       find: jest.fn(),
-      findById: jest.fn().mockReturnValue(makeQuery({ status: 'pending' })),
+      findById: jest.fn().mockReturnValue(
+        makeQuery({
+          status: 'pending',
+          method: 'bank_transfer',
+          user_id: new Types.ObjectId(),
+          slip_file: 'stored-evidence',
+        }),
+      ),
       findByIdAndUpdate: jest.fn(),
       findOneAndUpdate: jest.fn(),
+      updateMany: jest
+        .fn()
+        .mockReturnValue(
+          makeQuery({ acknowledged: true, matchedCount: 0, modifiedCount: 0 }),
+        ),
       countDocuments: jest.fn(),
     };
     withdrawFeeCouponModel = {
-      updateOne: jest.fn().mockReturnValue(makeQuery({ acknowledged: true })),
+      updateOne: jest
+        .fn()
+        .mockReturnValue(
+          makeQuery({ acknowledged: true, matchedCount: 1, modifiedCount: 1 }),
+        ),
     };
     withdrawFeeCouponRedemptionModel = {
       findOne: jest.fn().mockReturnValue(makeQuery(null)),
       findOneAndDelete: jest.fn().mockReturnValue(makeQuery(null)),
       deleteOne: jest.fn().mockReturnValue(makeQuery({ deletedCount: 1 })),
     };
-    adminActivity = { append: jest.fn().mockResolvedValue(undefined) };
+    adminActivity = {
+      append: jest.fn().mockResolvedValue(undefined),
+      appendRequired: jest.fn().mockResolvedValue(undefined),
+    };
+    session = {
+      withTransaction: jest.fn(async (work: () => Promise<void>) => work()),
+      endSession: jest.fn().mockResolvedValue(undefined),
+    };
+    connection = {
+      startSession: jest.fn().mockResolvedValue(session),
+      collection: jest.fn().mockReturnValue({
+        findOneAndUpdate: jest.fn().mockResolvedValue({
+          _id: 'superadmin-roster',
+          sequence: 1,
+        }),
+      }),
+    };
     userModel = {
       findById: jest.fn(),
       findOne: jest.fn(),
+      findOneAndUpdate: jest.fn(),
       findByIdAndUpdate: jest.fn(),
     };
     feeRateModel = jest.fn() as any;
@@ -313,6 +356,7 @@ describe('AdminService', () => {
           useValue: policyMediaRegistry,
         },
         { provide: AdminActivityService, useValue: adminActivity },
+        { provide: getConnectionToken(), useValue: connection },
       ],
     }).compile();
 
@@ -323,7 +367,7 @@ describe('AdminService', () => {
     expect(service).toBeDefined();
   });
 
-  it('admin scaffold mutations > given request data > then they do not print payloads or ids to stdout', () => {
+  it('admin scaffold mutations > given request data > then they do not print payloads or ids to stdout', async () => {
     const logSpy = jest
       .spyOn(console, 'log')
       .mockImplementation(() => undefined);
@@ -333,7 +377,24 @@ describe('AdminService', () => {
         email: 'admin@example.com',
         password: 'secret',
       } as never);
-      service.remove(new Types.ObjectId().toHexString());
+      userAdminModel.findOneAndDelete.mockReturnValue(
+        makeQuery({
+          _id: new Types.ObjectId(),
+          email: 'old-admin@gogocash.co',
+          role: 'viewer',
+        }),
+      );
+      userAdminModel.findById.mockReturnValue(
+        makeQuery({
+          _id: new Types.ObjectId(),
+          email: 'old-admin@gogocash.co',
+          role: 'viewer',
+        }),
+      );
+      await service.remove(new Types.ObjectId().toHexString(), {
+        id: 'root-1',
+        label: 'Root Admin',
+      });
 
       expect(logSpy).not.toHaveBeenCalled();
     } finally {
@@ -390,54 +451,109 @@ describe('AdminService', () => {
     });
 
     it('findAll > given no search term > then it queries with an empty filter', async () => {
-      userAdminModel.find.mockReturnValue(makeQuery([]));
+      const findQuery = makeQuery([]);
+      userAdminModel.find.mockReturnValue(findQuery);
       userAdminModel.countDocuments.mockReturnValue(makeQuery(0));
 
       await service.findAll();
 
       expect(userAdminModel.find).toHaveBeenCalledWith({});
+      expect(findQuery.select).toHaveBeenCalledWith('-password');
     });
   });
 
   describe('updateRequestWithdraw', () => {
+    const bankWithdraw = (overrides: Record<string, unknown> = {}) => ({
+      _id: new Types.ObjectId(),
+      user_id: new Types.ObjectId(),
+      method: 'bank_transfer',
+      status: 'pending',
+      ...overrides,
+    });
+
     // The withdraw id arrives as a string from the request; it must be cast to an
     // ObjectId or the update silently matches nothing.
-    it('updateRequestWithdraw > given no slip file > then it updates status only and casts the id to ObjectId', async () => {
+    it('given stored payout evidence > approves the bank withdrawal and its companions atomically', async () => {
       const id = new Types.ObjectId().toString();
+      const ownerId = new Types.ObjectId();
       withdrawModel.findById.mockReturnValue(
-        makeQuery({ _id: id, status: 'pending' }),
+        makeQuery(
+          bankWithdraw({
+            _id: id,
+            user_id: ownerId,
+            slip_file: 'stored-evidence',
+          }),
+        ),
+      );
+      userModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: ownerId, wallet_frozen: false }),
       );
       withdrawModel.findOneAndUpdate.mockReturnValue(
-        makeQuery({ _id: id, status: 'APPROVED' }),
+        makeQuery(
+          bankWithdraw({ _id: id, user_id: ownerId, status: 'approved' }),
+        ),
+      );
+      withdrawModel.updateMany.mockReturnValue(
+        makeQuery({ acknowledged: true, matchedCount: 1, modifiedCount: 1 }),
       );
 
       await service.updateRequestWithdraw(
-        { id, status: 'APPROVED' },
+        { id, status: 'approved' },
         undefined as never,
+        { id: 'admin-1', label: 'Approver' },
       );
 
-      const [filter, update] = withdrawModel.findOneAndUpdate.mock.calls[0];
-      expect(filter._id).toBeInstanceOf(Types.ObjectId);
-      expect(filter._id.toString()).toBe(id);
-      expect(filter.status).toBe('pending');
-      expect(update).toEqual({ $set: { status: 'APPROVED' } });
+      const [arg0, arg1] = withdrawModel.findOneAndUpdate.mock.calls[0];
+      expect(arg0._id).toBeInstanceOf(Types.ObjectId);
+      expect(arg0._id.toString()).toBe(id);
+      expect(arg0.status).toBe('pending');
+      expect(arg1).toEqual({
+        $set: {
+          status: 'approved',
+          approved_by: 'admin-1',
+          approved_at: expect.any(Date),
+        },
+      });
+      expect(withdrawModel.updateMany).toHaveBeenCalledWith(
+        {
+          parent_withdraw_id: expect.any(Types.ObjectId),
+          method: 'bank_transfer',
+          status: 'pending',
+        },
+        { $set: { status: 'approved' } },
+        { session },
+      );
       expect(storedMediaService.upload).not.toHaveBeenCalled();
     });
 
-    it('updateRequestWithdraw > given a slip file > then it uploads to GCS and stores the public URL', async () => {
+    it('given fresh payout evidence > uploads it and approves the pending bank withdrawal', async () => {
       const id = new Types.ObjectId().toString();
-      storedMediaService.upload.mockResolvedValue(
-        'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png',
-      );
+      const ownerId = new Types.ObjectId();
+      const slipUrl =
+        'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png';
+      storedMediaService.upload.mockResolvedValue(slipUrl);
       withdrawModel.findById.mockReturnValue(
-        makeQuery({ _id: id, status: 'pending' }),
+        makeQuery(bankWithdraw({ _id: id, user_id: ownerId })),
+      );
+      userModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: ownerId, wallet_frozen: false }),
       );
       withdrawModel.findOneAndUpdate.mockReturnValue(
-        makeQuery({ _id: id, status: 'PAID' }),
+        makeQuery(
+          bankWithdraw({
+            _id: id,
+            user_id: ownerId,
+            status: 'approved',
+            slip_file: slipUrl,
+          }),
+        ),
       );
       const file = { originalname: 'slip.png' } as Express.Multer.File;
 
-      await service.updateRequestWithdraw({ id, status: 'PAID' }, file);
+      await service.updateRequestWithdraw({ id, status: 'approved' }, file, {
+        id: 'admin-1',
+        label: 'Approver',
+      });
 
       expect(storedMediaService.upload).toHaveBeenCalledWith(
         file,
@@ -445,38 +561,217 @@ describe('AdminService', () => {
       );
       expect(withdrawModel.findOneAndUpdate.mock.calls[0][1]).toEqual({
         $set: {
-          status: 'PAID',
-          slip_file:
-            'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png',
+          status: 'approved',
+          slip_file: slipUrl,
+          approved_by: 'admin-1',
+          approved_at: expect.any(Date),
         },
       });
+      expect(adminActivity.appendRequired).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_id: 'admin-1',
+          action: 'withdraw.slip_updated',
+        }),
+        session,
+      );
     });
 
-    it('updateRequestWithdraw > given missing withdraw > then throws NotFoundException', async () => {
+    it('given approval without payout evidence > rejects the transition', async () => {
       const id = new Types.ObjectId().toString();
-      withdrawModel.findById.mockReturnValue(makeQuery(null));
+      withdrawModel.findById.mockReturnValue(
+        makeQuery(bankWithdraw({ _id: id })),
+      );
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'approved' },
+          undefined as never,
+          { id: 'admin-1', label: 'Approver' },
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(userModel.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(withdrawModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('given a non-bank withdrawal > rejects use of the generic admin updater', async () => {
+      const id = new Types.ObjectId().toString();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({
+          _id: id,
+          user_id: new Types.ObjectId(),
+          method: 'metamask',
+          status: 'pending',
+        }),
+      );
 
       await expect(
         service.updateRequestWithdraw(
           { id, status: 'rejected' },
           undefined as never,
+          { id: 'admin-1', label: 'Approver' },
         ),
-      ).rejects.toThrow('Withdraw request not found');
+      ).rejects.toMatchObject({ status: 409 });
+
       expect(withdrawModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
-    it('updateRequestWithdraw > given pending coupon withdraw rejected > then restores inventory once', async () => {
+    it('given a frozen wallet > refuses approval before changing withdrawal state', async () => {
+      const id = new Types.ObjectId().toString();
+      const ownerId = new Types.ObjectId();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery(
+          bankWithdraw({
+            _id: id,
+            user_id: ownerId,
+            slip_file: 'stored-evidence',
+          }),
+        ),
+      );
+      userModel.findOneAndUpdate.mockReturnValue(makeQuery(null));
+      userModel.findById.mockReturnValue(
+        makeQuery({ _id: ownerId, wallet_frozen: true }),
+      );
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'approved' },
+          undefined as never,
+          { id: 'admin-1', label: 'Approver' },
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+
+      expect(withdrawModel.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(adminActivity.appendRequired).not.toHaveBeenCalled();
+    });
+
+    it('given immutable evidence already exists > rejects replacement and deletes only the unreferenced fresh upload', async () => {
+      const id = new Types.ObjectId().toString();
+      const freshSlip = 'https://media.example/new-slip.png';
+      const originalSlip = 'https://media.example/original-slip.png';
+      const existing = bankWithdraw({
+        _id: id,
+        slip_file: originalSlip,
+      });
+      storedMediaService.upload.mockResolvedValue(freshSlip);
+      withdrawModel.findById
+        .mockReturnValueOnce(makeQuery(existing))
+        .mockReturnValueOnce(makeQuery(existing));
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'pending' },
+          { originalname: 'replacement.png' } as Express.Multer.File,
+          { id: 'admin-1', label: 'Approver' },
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(freshSlip);
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        originalSlip,
+      );
+    });
+
+    it('given an uncommitted transaction error > deletes the provably unreferenced fresh upload', async () => {
+      const id = new Types.ObjectId().toString();
+      const freshSlip = 'https://media.example/uncommitted-slip.png';
+      const existing = bankWithdraw({ _id: id });
+      const failedUpdate = makeQuery(null);
+      failedUpdate.exec.mockRejectedValueOnce(new Error('transaction failed'));
+      storedMediaService.upload.mockResolvedValue(freshSlip);
+      withdrawModel.findById
+        .mockReturnValueOnce(makeQuery(existing))
+        .mockReturnValueOnce(makeQuery(existing));
+      withdrawModel.findOneAndUpdate.mockReturnValue(failedUpdate);
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'pending' },
+          { originalname: 'slip.png' } as Express.Multer.File,
+          { id: 'admin-1', label: 'Approver' },
+        ),
+      ).rejects.toThrow('transaction failed');
+
+      expect(storedMediaService.deleteStored).toHaveBeenCalledWith(freshSlip);
+    });
+
+    it('given Mongo commits before reporting an unknown result > reconciles to the authoritative record and preserves referenced evidence', async () => {
+      const id = new Types.ObjectId().toString();
+      const freshSlip = 'https://media.example/committed-slip.png';
+      const existing = bankWithdraw({ _id: id });
+      const committed = bankWithdraw({
+        ...existing,
+        status: 'pending',
+        slip_file: freshSlip,
+      });
+      storedMediaService.upload.mockResolvedValue(freshSlip);
+      withdrawModel.findById
+        .mockReturnValueOnce(makeQuery(existing))
+        .mockReturnValueOnce(makeQuery(committed));
+      withdrawModel.findOneAndUpdate.mockReturnValue(makeQuery(committed));
+      session.withTransaction.mockImplementationOnce(
+        async (work: () => Promise<void>) => {
+          await work();
+          throw Object.assign(new Error('commit result is unknown'), {
+            errorLabels: ['UnknownTransactionCommitResult'],
+          });
+        },
+      );
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'pending' },
+          { originalname: 'slip.png' } as Express.Multer.File,
+          { id: 'admin-1', label: 'Approver' },
+        ),
+      ).resolves.toEqual(committed);
+
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalledWith(
+        freshSlip,
+      );
+    });
+
+    it('given the authoritative post-error read fails > preserves evidence and reports an ambiguous outcome', async () => {
+      const id = new Types.ObjectId().toString();
+      const freshSlip = 'https://media.example/uncertain-slip.png';
+      const failedRead = makeQuery(null);
+      failedRead.exec.mockRejectedValueOnce(new Error('primary unavailable'));
+      storedMediaService.upload.mockResolvedValue(freshSlip);
+      withdrawModel.findById.mockReturnValue(failedRead);
+      session.withTransaction.mockRejectedValueOnce(
+        Object.assign(new Error('commit result is unknown'), {
+          errorLabels: ['UnknownTransactionCommitResult'],
+        }),
+      );
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'pending' },
+          { originalname: 'slip.png' } as Express.Multer.File,
+          { id: 'admin-1', label: 'Approver' },
+        ),
+      ).rejects.toMatchObject({
+        status: 503,
+        response: expect.objectContaining({
+          code: 'WITHDRAW_EVIDENCE_COMMIT_OUTCOME_UNKNOWN',
+        }),
+      });
+
+      expect(storedMediaService.deleteStored).not.toHaveBeenCalled();
+    });
+
+    it('given pending coupon withdraw rejected > restores inventory and releases companion reservations once', async () => {
       const id = new Types.ObjectId().toString();
       const couponId = new Types.ObjectId();
       const redemptionId = new Types.ObjectId();
       withdrawModel.findById.mockReturnValue(
-        makeQuery({
-          status: 'pending',
-          coupon_id: couponId,
-        }),
+        makeQuery(bankWithdraw({ _id: id, coupon_id: couponId })),
       );
       withdrawModel.findOneAndUpdate.mockReturnValue(
-        makeQuery({ _id: id, status: 'rejected' }),
+        makeQuery(bankWithdraw({ _id: id, status: 'rejected' })),
+      );
+      withdrawModel.updateMany.mockReturnValue(
+        makeQuery({ acknowledged: true, matchedCount: 1, modifiedCount: 1 }),
       );
       withdrawFeeCouponRedemptionModel.findOneAndDelete.mockReturnValue(
         makeQuery({
@@ -490,38 +785,43 @@ describe('AdminService', () => {
       await service.updateRequestWithdraw(
         { id, status: 'rejected' },
         undefined as never,
-        { id: 'admin-1', label: 'admin@gogocash.co' },
+        { id: 'admin-1', label: 'Approver' },
       );
 
-      expect(adminActivity.append).toHaveBeenCalledWith(
+      expect(adminActivity.appendRequired).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'withdraw.fee_coupon.restored',
-          actor_id: 'admin-1',
-          actor_label: 'admin@gogocash.co',
         }),
+        session,
       );
-      expect(adminActivity.append).toHaveBeenCalledWith(
+      expect(adminActivity.appendRequired).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'withdraw.status_changed',
-          actor_id: 'admin-1',
         }),
+        session,
       );
       expect(
         withdrawFeeCouponRedemptionModel.findOneAndDelete,
-      ).toHaveBeenCalledWith({
-        withdraw_id: expect.any(Types.ObjectId),
-      });
+      ).toHaveBeenCalled();
       expect(withdrawFeeCouponModel.updateOne).toHaveBeenCalledWith(
         { _id: couponId, quantity_used: { $gt: 0 } },
         { $inc: { quantity_used: -1 } },
+        { session },
+      );
+      expect(withdrawModel.updateMany).toHaveBeenCalledWith(
+        {
+          parent_withdraw_id: expect.any(Types.ObjectId),
+          method: 'bank_transfer',
+          status: 'pending',
+        },
+        { $set: { status: 'rejected' } },
+        { session },
       );
     });
 
     it('updateRequestWithdraw > given reject without coupon > then does not touch redemptions', async () => {
       const id = new Types.ObjectId().toString();
-      withdrawModel.findById.mockReturnValue(
-        makeQuery({ status: 'pending' }),
-      );
+      withdrawModel.findById.mockReturnValue(makeQuery(bankWithdraw()));
       withdrawModel.findOneAndUpdate.mockReturnValue(
         makeQuery({ _id: id, status: 'rejected' }),
       );
@@ -529,14 +829,16 @@ describe('AdminService', () => {
       await service.updateRequestWithdraw(
         { id, status: 'rejected' },
         undefined as never,
+        { id: 'admin-1', label: 'Approver' },
       );
 
       expect(
         withdrawFeeCouponRedemptionModel.findOneAndDelete,
       ).not.toHaveBeenCalled();
       expect(withdrawFeeCouponModel.updateOne).not.toHaveBeenCalled();
-      expect(adminActivity.append).toHaveBeenCalledWith(
+      expect(adminActivity.appendRequired).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'withdraw.status_changed' }),
+        session,
       );
     });
 
@@ -544,18 +846,12 @@ describe('AdminService', () => {
       const id = new Types.ObjectId().toString();
       const couponId = new Types.ObjectId();
       withdrawModel.findById.mockReturnValue(
-        makeQuery({
-          status: 'rejected',
-          coupon_id: couponId,
-        }),
+        makeQuery(bankWithdraw({ status: 'rejected', coupon_id: couponId })),
       );
-      withdrawModel.findOneAndUpdate.mockReturnValue(
-        makeQuery({ _id: id, status: 'rejected' }),
-      );
-
       await service.updateRequestWithdraw(
         { id, status: 'rejected' },
         undefined as never,
+        { id: 'admin-1', label: 'Approver' },
       );
 
       expect(
@@ -563,30 +859,350 @@ describe('AdminService', () => {
       ).not.toHaveBeenCalled();
       expect(withdrawFeeCouponModel.updateOne).not.toHaveBeenCalled();
     });
+  });
 
-    it('updateRequestWithdraw > given concurrent status claim loss > then skips restore and activity', async () => {
+  describe('withdraw status transaction invariants', () => {
+    const actor = { id: 'admin-7', label: 'Approver' };
+
+    it('given rejected coupon withdrawal > then it cannot be reopened to pending', async () => {
+      const id = new Types.ObjectId().toString();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({
+          _id: id,
+          status: 'rejected',
+          method: 'bank_transfer',
+          user_id: new Types.ObjectId(),
+          coupon_id: new Types.ObjectId(),
+        }),
+      );
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'pending' },
+          undefined as never,
+          actor,
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(withdrawModel.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(adminActivity.appendRequired).not.toHaveBeenCalled();
+    });
+
+    it('given a stale concurrent status write > then CAS fails without an audit event', async () => {
+      const id = new Types.ObjectId().toString();
+      const ownerId = new Types.ObjectId();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({
+          _id: id,
+          status: 'pending',
+          method: 'bank_transfer',
+          user_id: ownerId,
+          slip_file: 'stored-evidence',
+        }),
+      );
+      userModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: ownerId, wallet_frozen: false }),
+      );
+      withdrawModel.findOneAndUpdate.mockReturnValue(makeQuery(null));
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'approved' },
+          undefined as never,
+          actor,
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(adminActivity.appendRequired).not.toHaveBeenCalled();
+    });
+
+    it('given coupon restore update fails > then no success activity is appended before transaction commit', async () => {
+      const id = new Types.ObjectId().toString();
+      const couponId = new Types.ObjectId();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({
+          _id: id,
+          status: 'pending',
+          method: 'bank_transfer',
+          user_id: new Types.ObjectId(),
+          coupon_id: couponId,
+        }),
+      );
+      withdrawModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'rejected', coupon_id: couponId }),
+      );
+      withdrawFeeCouponRedemptionModel.findOneAndDelete.mockReturnValue(
+        makeQuery({
+          _id: new Types.ObjectId(),
+          coupon_id: couponId,
+          code_snapshot: 'SAVEFEE',
+        }),
+      );
+      withdrawFeeCouponModel.updateOne.mockReturnValue(
+        makeQuery({ matchedCount: 0, modifiedCount: 0 }),
+      );
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'rejected' },
+          undefined as never,
+          actor,
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(adminActivity.appendRequired).not.toHaveBeenCalled();
+    });
+
+    it('given redemption was already consumed > then inventory is not decremented again', async () => {
+      const id = new Types.ObjectId().toString();
+      const couponId = new Types.ObjectId();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({
+          _id: id,
+          status: 'pending',
+          method: 'bank_transfer',
+          user_id: new Types.ObjectId(),
+          coupon_id: couponId,
+        }),
+      );
+      withdrawModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'rejected', coupon_id: couponId }),
+      );
+      withdrawFeeCouponRedemptionModel.findOneAndDelete.mockReturnValue(
+        makeQuery(null),
+      );
+
+      await service.updateRequestWithdraw(
+        { id, status: 'rejected' },
+        undefined as never,
+        actor,
+      );
+
+      expect(withdrawFeeCouponModel.updateOne).not.toHaveBeenCalled();
+      expect(adminActivity.appendRequired).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_id: 'admin-7',
+          actor_label: 'Approver',
+          action: 'withdraw.status_changed',
+        }),
+        session,
+      );
+    });
+
+    it('given a transaction retry loses to another reject > then aborted-attempt audit state is discarded', async () => {
       const id = new Types.ObjectId().toString();
       const couponId = new Types.ObjectId();
       withdrawModel.findById
         .mockReturnValueOnce(
           makeQuery({
+            _id: id,
             status: 'pending',
+            method: 'bank_transfer',
+            user_id: new Types.ObjectId(),
             coupon_id: couponId,
           }),
         )
-        .mockReturnValueOnce(makeQuery({ _id: id, status: 'rejected' }));
-      withdrawModel.findOneAndUpdate.mockReturnValue(makeQuery(null));
-
-      const result = await service.updateRequestWithdraw(
-        { id, status: 'rejected' },
-        undefined as never,
+        .mockReturnValueOnce(
+          makeQuery({
+            _id: id,
+            status: 'rejected',
+            method: 'bank_transfer',
+            user_id: new Types.ObjectId(),
+            coupon_id: couponId,
+          }),
+        );
+      withdrawModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'rejected', coupon_id: couponId }),
+      );
+      withdrawFeeCouponRedemptionModel.findOneAndDelete.mockReturnValue(
+        makeQuery({
+          _id: new Types.ObjectId(),
+          coupon_id: couponId,
+          code_snapshot: 'SAVEFEE',
+        }),
+      );
+      session.withTransaction.mockImplementationOnce(
+        async (work: () => Promise<void>) => {
+          await work();
+          // Simulate Mongo retrying after this attempt aborts while a competing
+          // transaction commits the same terminal transition.
+          await work();
+        },
       );
 
-      expect(result).toEqual({ _id: id, status: 'rejected' });
-      expect(
-        withdrawFeeCouponRedemptionModel.findOneAndDelete,
-      ).not.toHaveBeenCalled();
+      await service.updateRequestWithdraw(
+        { id, status: 'rejected' },
+        undefined as never,
+        actor,
+      );
+
+      expect(withdrawFeeCouponModel.updateOne).toHaveBeenCalledTimes(1);
+      // The first simulated attempt invokes both transactional events; a real
+      // Mongo retry rolls them back together with the aborted attempt.
+      expect(adminActivity.appendRequired).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('live admin role mutation', () => {
+    it('refuses to demote the final superadmin', async () => {
+      const targetId = new Types.ObjectId().toString();
+      userAdminModel.findById.mockReturnValue(
+        makeQuery({ _id: targetId, role: 'superadmin' }),
+      );
+      userAdminModel.countDocuments.mockReturnValue(makeQuery(1));
+
+      await expect(
+        service.update(
+          targetId,
+          { role: 'support' },
+          { id: targetId, label: 'Root Admin' },
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(userAdminModel.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(adminActivity.appendRequired).not.toHaveBeenCalled();
+    });
+
+    it('refuses to delete the final superadmin', async () => {
+      const targetId = new Types.ObjectId().toString();
+      userAdminModel.findById.mockReturnValue(
+        makeQuery({ _id: targetId, role: 'super_admin' }),
+      );
+      userAdminModel.countDocuments.mockReturnValue(makeQuery(1));
+
+      await expect(
+        service.remove(targetId, { id: targetId, label: 'Root Admin' }),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(userAdminModel.findOneAndDelete).not.toHaveBeenCalled();
+      expect(adminActivity.appendRequired).not.toHaveBeenCalled();
+    });
+
+    it('updates only an allowlisted role and records the authenticated actor after success', async () => {
+      const targetId = new Types.ObjectId().toString();
+      userAdminModel.findById.mockReturnValue(
+        makeQuery({
+          _id: targetId,
+          role: 'viewer',
+          email: 'target@gogocash.co',
+        }),
+      );
+      userAdminModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({
+          _id: targetId,
+          role: 'support',
+          email: 'target@gogocash.co',
+        }),
+      );
+
+      await service.update(
+        targetId,
+        { role: 'support' },
+        { id: 'root-1', label: 'Root Admin' },
+      );
+
+      expect(userAdminModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'viewer' }),
+        { $set: { role: 'support' } },
+        { new: true, session },
+      );
+      expect(adminActivity.appendRequired).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_id: 'root-1',
+          actor_label: 'Root Admin',
+          action: 'admin_role.changed',
+        }),
+        session,
+      );
+    });
+
+    it('does not append activity when the target admin no longer matches', async () => {
+      const targetId = new Types.ObjectId().toString();
+      userAdminModel.findById.mockReturnValue(
+        makeQuery({ _id: targetId, role: 'viewer' }),
+      );
+      userAdminModel.findOneAndUpdate.mockReturnValue(makeQuery(null));
+
+      await expect(
+        service.update(
+          targetId,
+          { role: 'support' },
+          { id: 'root-1', label: 'Root Admin' },
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(adminActivity.appendRequired).not.toHaveBeenCalled();
+    });
+
+    it('aborts a role mutation when its transactional audit cannot be persisted', async () => {
+      const targetId = new Types.ObjectId().toString();
+      userAdminModel.findById.mockReturnValue(
+        makeQuery({ _id: targetId, role: 'viewer' }),
+      );
+      userAdminModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: targetId, role: 'support' }),
+      );
+      adminActivity.appendRequired.mockRejectedValue(
+        new Error('audit unavailable'),
+      );
+
+      await expect(
+        service.update(
+          targetId,
+          { role: 'support' },
+          { id: 'root-1', label: 'Root Admin' },
+        ),
+      ).rejects.toThrow('audit unavailable');
+
       expect(adminActivity.append).not.toHaveBeenCalled();
+      expect(session.withTransaction).toHaveBeenCalled();
+    });
+
+    it('deletes an existing admin and attributes the audit event to the caller', async () => {
+      const targetId = new Types.ObjectId().toString();
+      userAdminModel.findById.mockReturnValue(
+        makeQuery({
+          _id: targetId,
+          role: 'viewer',
+          email: 'target@gogocash.co',
+        }),
+      );
+      userAdminModel.findOneAndDelete.mockReturnValue(
+        makeQuery({
+          _id: targetId,
+          role: 'viewer',
+          email: 'target@gogocash.co',
+        }),
+      );
+
+      const result = await service.remove(targetId, {
+        id: 'root-1',
+        label: 'Root Admin',
+      });
+
+      expect(result).toEqual({ acknowledged: true, deletedCount: 1 });
+      expect(adminActivity.appendRequired).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_id: 'root-1',
+          actor_label: 'Root Admin',
+          action: 'admin_user.deleted',
+          entity_id: targetId,
+        }),
+        session,
+      );
+    });
+
+    it('does not append delete activity for a nonexistent admin', async () => {
+      userAdminModel.findById.mockReturnValue(makeQuery(null));
+
+      await expect(
+        service.remove(new Types.ObjectId().toString(), {
+          id: 'root-1',
+          label: 'Root Admin',
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+
+      expect(adminActivity.appendRequired).not.toHaveBeenCalled();
     });
   });
 

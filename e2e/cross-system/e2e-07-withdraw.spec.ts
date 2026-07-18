@@ -14,7 +14,11 @@ test.describe("E2E-07 withdraw request → admin approve", () => {
     request,
   }) => {
     const seed = loadE2eSeed();
-    const before = await getWithdrawCheck(request, seed.customerToken, seed.apiUrl);
+    const before = await getWithdrawCheck(
+      request,
+      seed.customerToken,
+      seed.apiUrl,
+    );
     const available = Number(before.netAmountTHB ?? 0);
     test.skip(available < 10, "Insufficient seeded balance for withdraw E2E");
 
@@ -23,19 +27,39 @@ test.describe("E2E-07 withdraw request → admin approve", () => {
       buildCustomerSession(seed.userId, seed.customerToken),
     );
     await page.goto(`${seed.appUrl}/withdraw`);
-    await expect(page.getByText(/withdraw/i).first()).toBeVisible({ timeout: 20_000 });
-
-    const withdrawRes = await request.post(`${seed.apiUrl}/withdraw/bank-transfer`, {
-      headers: { Authorization: `Bearer ${seed.customerToken}` },
-      data: { amount_net: 10, amount_total: 10, currency: "THB" },
+    await expect(page.getByText(/withdraw/i).first()).toBeVisible({
+      timeout: 20_000,
     });
+
+    const withdrawRes = await request.post(
+      `${seed.apiUrl}/withdraw/bank-transfer`,
+      {
+        headers: {
+          Authorization: `Bearer ${seed.customerToken}`,
+          "Idempotency-Key": `e2e-withdraw-${Date.now()}`,
+        },
+        data: {
+          account_name: "E2E Customer",
+          account_number: "0012345678",
+          amount_net: 10,
+          amount_total: 10,
+          bank_name: "KBANK",
+          currency: "THB",
+        },
+      },
+    );
     if (!withdrawRes.ok()) {
       throw new Error(
         `POST /withdraw/bank-transfer failed (${withdrawRes.status()}): ${await withdrawRes.text()}`,
       );
     }
 
-    const admin = await loginAdminViaApi(request, "admin@gogocash.co", "1234", seed.apiUrl);
+    const admin = await loginAdminViaApi(
+      request,
+      "admin@gogocash.co",
+      "1234",
+      seed.apiUrl,
+    );
     const queue = await request.get(`${seed.apiUrl}/admin/withdraw-all`, {
       headers: { Authorization: `Bearer ${admin.token}` },
     });
@@ -52,7 +76,11 @@ test.describe("E2E-07 withdraw request → admin approve", () => {
     });
     await adminPage.close();
 
-    const after = await getWithdrawCheck(request, seed.customerToken, seed.apiUrl);
+    const after = await getWithdrawCheck(
+      request,
+      seed.customerToken,
+      seed.apiUrl,
+    );
     expect(Number(after.netAmountTHB ?? 0)).toBeLessThan(available);
   });
 });

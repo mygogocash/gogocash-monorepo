@@ -1,14 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
   IsArray,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   Matches,
   Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -25,11 +29,20 @@ export class CreateWithdrawDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+  @Matches(/^0x[0-9a-fA-F]{64}$/, {
+    message: 'tx_hash must be a 0x-prefixed 64-char hex string',
+  })
   tx_hash?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @Matches(/^0x[0-9a-fA-F]{40}$/, {
+    message: 'address must be a valid EVM address',
+  })
   address?: string;
 
   @ApiProperty({ required: false })
@@ -50,6 +63,10 @@ export class CreateWithdrawDto {
   @ApiProperty({ required: false, type: [Number] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(10_000)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(Number.MAX_SAFE_INTEGER, { each: true })
   conversion_ids?: number[];
 
   @ApiProperty({ required: false })
@@ -75,6 +92,7 @@ export class CreateWithdrawDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(64)
   method?: string;
 
   @ApiProperty({ required: false, enum: ['THB', 'USD', 'USDT', 'USDC'] })
@@ -84,7 +102,8 @@ export class CreateWithdrawDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   chain?: number;
 
   @ApiProperty({ required: false, type: [String] })
@@ -177,6 +196,9 @@ export class MarkWithdrawPaidDto {
   })
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   @Matches(/^0x[0-9a-fA-F]{64}$/, {
     message: 'tx_hash must be a 0x-prefixed 64-char hex string',
   })
@@ -192,26 +214,40 @@ export class GETSignDTO {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
+  @Matches(/^0x[0-9a-fA-F]{40}$/, {
+    message: 'userAddress must be a valid EVM address',
+  })
   userAddress: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
+  @Matches(/^\d+(?:\.\d{1,18})?$/, {
+    message: 'totalCashbackAmount must be a positive decimal string',
+  })
   totalCashbackAmount: string;
 
   @ApiProperty({ type: [String] })
   @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(10_000)
   @IsString({ each: true })
+  @Matches(/^\d+$/, {
+    each: true,
+    message: 'conversionIdHashes must contain unsigned integer ids',
+  })
   conversionIdHashes: string[];
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
+  @Matches(/^\d+$/, { message: 'expireAt must be a Unix timestamp' })
   expireAt: string;
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   chain: number;
 }
 

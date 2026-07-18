@@ -61,7 +61,6 @@ export interface AdminUsersResponse {
 export interface DataAdminUsers {
   _id: string;
   username: string;
-  password: string;
   email: string;
   /** Role id — a built-in tier (`super_admin`…) or a custom role id. */
   role?: string;
@@ -69,6 +68,18 @@ export interface DataAdminUsers {
   createdAt: Date;
   updatedAt: Date;
   __v: number;
+}
+
+export interface AdminDeleteResponse {
+  acknowledged: true;
+  deletedCount: 1;
+}
+
+export interface AdminCreateInput {
+  username: string;
+  email: string;
+  password: string;
+  role?: string;
 }
 
 /** A role definition (built-in tier or custom) with its granted permissions. */

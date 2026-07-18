@@ -7,6 +7,10 @@ import {
   putWalletFreeze,
   putWalletUnfreeze,
 } from "@/lib/api/adminModulesApi";
+import {
+  clearConfirmedWalletAdjustmentCommand,
+  getOrCreatePendingWalletAdjustmentCommand,
+} from "@/lib/walletAdjustmentCommandStorage";
 import { isValidCashbackAddition } from "@/lib/walletAdjustment";
 import SecondaryButton from "@/components/ui/button/SecondaryButton";
 import Switch from "@/components/form/switch/Switch";
@@ -64,14 +68,31 @@ export default function UserWalletPanel({
     },
   });
   const addCashback = useMutation({
-    mutationFn: () =>
-      postWalletAdjust(userId, {
-        type: "credit",
+    mutationFn: async () => {
+      const effect = {
         amount: Number(adj.amount),
-        currency: "cashback",
-        reason: effectiveReason,
-        adminId: "admin",
-      }),
+        currency: "THB",
+        reason: effectiveReason.trim(),
+        type: "credit",
+      } as const;
+      // Persist before the request so a lost response or panel remount retries
+      // the exact server command instead of issuing a second wallet credit.
+      const command = await getOrCreatePendingWalletAdjustmentCommand(
+        userId,
+        effect,
+      );
+      const data = await postWalletAdjust(
+        userId,
+        {
+          ...effect,
+        },
+        command.key,
+      );
+      // A generic 2xx is not enough evidence to forget the retry key. The API
+      // must echo the same durable command and canonical effect binding.
+      clearConfirmedWalletAdjustmentCommand(command, data);
+      return data;
+    },
     onSuccess: () => {
       toast.success("Cashback added");
       setAdj({ amount: "", reason: "", otherReason: "" });
@@ -80,6 +101,8 @@ export default function UserWalletPanel({
       onClose?.();
     },
   });
+  const isSaving =
+    freeze.isPending || unfreeze.isPending || addCashback.isPending;
 
   if (!detailQ.data) {
     return <p className="text-sm text-gray-500">Loading…</p>;
@@ -94,6 +117,7 @@ export default function UserWalletPanel({
     !validCashback && (adj.amount.trim() !== "" || adj.reason !== "");
 
   const handleSave = async () => {
+    if (isSaving) return;
     if (cashbackPartial) {
       toast.error("Enter a positive amount and a reason, or clear the fields");
       return;
@@ -124,6 +148,7 @@ export default function UserWalletPanel({
           label="Freeze wallet"
           defaultChecked={frozen}
           activeLabelClassName="text-brand-500 dark:text-brand-400"
+          disabled={isSaving}
           onChange={setFreezeChecked}
         />
         <div className="mt-4 flex flex-wrap items-baseline gap-2">
@@ -136,12 +161,14 @@ export default function UserWalletPanel({
         </div>
         <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Input
+            disabled={isSaving}
             type="number"
             placeholder="Amount"
             value={adj.amount}
             onChange={(e) => setAdj({ ...adj, amount: e.target.value })}
           />
           <select
+            disabled={isSaving}
             className={`focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:ring-3 dark:border-gray-700 dark:bg-gray-900 ${
               adj.reason === ""
                 ? "text-gray-500 dark:text-gray-400"
@@ -159,6 +186,7 @@ export default function UserWalletPanel({
         {adj.reason === "Others" && (
           <Input
             className="mt-2"
+            disabled={isSaving}
             placeholder="Type the reason"
             value={adj.otherReason}
             onChange={(e) => setAdj({ ...adj, otherReason: e.target.value })}
@@ -166,6 +194,7 @@ export default function UserWalletPanel({
         )}
         <div className="mt-2 flex gap-2">
           <SecondaryButton
+            disabled={isSaving}
             onClick={() => {
               setAdj({ amount: "", reason: "", otherReason: "" });
               setFreezeChecked(null);
@@ -176,7 +205,7 @@ export default function UserWalletPanel({
           </SecondaryButton>
           <SecondaryButton
             variant="blue"
-            disabled={!(freezeChanged || validCashback)}
+            disabled={isSaving || !(freezeChanged || validCashback)}
             onClick={() => void handleSave()}
           >
             Save

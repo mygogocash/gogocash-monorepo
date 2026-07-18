@@ -331,10 +331,7 @@ export async function getSubscriptionStats() {
     ),
     activeSubscriptions: count(statusCounts.active),
     cancelledSubscriptions: count(statusCounts.cancelled),
-    activePlanValue: Math.max(
-      0,
-      numberOrDefault(payload.total_revenue, 0),
-    ),
+    activePlanValue: Math.max(0, numberOrDefault(payload.total_revenue, 0)),
   };
 }
 
@@ -558,10 +555,12 @@ export async function postWalletAdjust(
     amount: number;
     currency: WalletAdjustment["currency"];
     reason: string;
-    adminId: string;
   },
+  idempotencyKey: string,
 ) {
-  const { data } = await client.post(`/admin/wallets/${userId}/adjust`, body);
+  const { data } = await client.post(`/admin/wallets/${userId}/adjust`, body, {
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
   return data;
 }
 

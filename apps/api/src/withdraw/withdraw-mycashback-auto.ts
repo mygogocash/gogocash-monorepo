@@ -51,6 +51,7 @@ export function buildAutoMyCashbackWithdrawFields(
   },
   userId: Types.ObjectId,
   snapshot: MyCashbackWithdrawSnapshot,
+  parentWithdrawId?: Types.ObjectId,
 ) {
   const amount = resolveAutoMyCashbackWithdrawAmount(
     createWithdrawDto.currency,
@@ -69,7 +70,10 @@ export function buildAutoMyCashbackWithdrawFields(
     account_name: createWithdrawDto.account_name || '',
     bank_name: createWithdrawDto.bank_name || '',
     account_number: createWithdrawDto.account_number || '',
-    tx_hash: createWithdrawDto.tx_hash || '',
+    // Payout evidence belongs to the primary withdrawal. Copying it onto the
+    // accounting companion would collide with the global tx-hash uniqueness
+    // constraint and make one EVM transaction look like two payouts.
+    tx_hash: '',
     tx_hash_record: '',
     percent_fee: 0,
     amount_total: amount,
@@ -79,5 +83,6 @@ export function buildAutoMyCashbackWithdrawFields(
     rate: createWithdrawDto?.rate || 0,
     conversion_id: [] as number[],
     mycashback_id: resolveAutoMyCashbackWithdrawIds(snapshot),
+    ...(parentWithdrawId ? { parent_withdraw_id: parentWithdrawId } : {}),
   };
 }

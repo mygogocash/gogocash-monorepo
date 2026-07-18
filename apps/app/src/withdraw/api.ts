@@ -44,10 +44,19 @@ export type WithdrawFeePreviewResponse = {
   coupon?: { code: string; name: string; id?: string };
 };
 
-export type WithdrawBankTransferResponse = {
+export type WithdrawBankTransferRecord = {
   _id: string;
   status: string;
 };
+
+export type WithdrawBankTransferResponse =
+  | WithdrawBankTransferRecord
+  | {
+      message: string;
+      data: WithdrawBankTransferRecord;
+      status: "success";
+      reused: boolean;
+    };
 
 export type WithdrawBaseClient = {
   get<TResponse = unknown>(path: string): Promise<TResponse>;
@@ -74,10 +83,16 @@ export function createWithdrawApi(client: WithdrawBaseClient) {
       return client.get<WithdrawMethodRecord[]>("/withdraw/methods-list");
     },
     createMethod(body: CreateWithdrawMethodRequest) {
-      return client.post<CreateWithdrawMethodResponse>("/withdraw/methods", body);
+      return client.post<CreateWithdrawMethodResponse>(
+        "/withdraw/methods",
+        body,
+      );
     },
     updateMethod(id: string, body: Partial<CreateWithdrawMethodRequest>) {
-      return client.patch<CreateWithdrawMethodResponse>(`/withdraw/methods/${id}`, body);
+      return client.patch<CreateWithdrawMethodResponse>(
+        `/withdraw/methods/${id}`,
+        body,
+      );
     },
     previewFee(body: {
       amount: number;
@@ -94,7 +109,10 @@ export function createWithdrawApi(client: WithdrawBaseClient) {
           : {}),
       });
     },
-    async submitBankTransfer(request: WithdrawBankTransferRequest, idempotencyKey: string) {
+    async submitBankTransfer(
+      request: WithdrawBankTransferRequest,
+      idempotencyKey: string,
+    ) {
       if (!idempotencyKey) {
         throw new Error("submitBankTransfer requires an Idempotency-Key");
       }
@@ -103,7 +121,9 @@ export function createWithdrawApi(client: WithdrawBaseClient) {
       const accountNumber = request.accountNumber.trim();
       const bankName = request.bankName.trim();
       if (!accountName || !accountNumber || !bankName) {
-        throw new Error("submitBankTransfer requires account name, number, and bank");
+        throw new Error(
+          "submitBankTransfer requires account name, number, and bank",
+        );
       }
       if (!(request.amountNet > 0)) {
         throw new Error("submitBankTransfer requires a positive amount");

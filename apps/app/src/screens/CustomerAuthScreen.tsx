@@ -1578,7 +1578,7 @@ function SocialProviderButton({
 
   return (
     <MotionPressable
-      accessibilityLabel={provider.label}
+      accessibilityLabel={label}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
       disabled={disabled}

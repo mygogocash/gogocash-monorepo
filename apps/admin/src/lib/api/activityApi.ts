@@ -34,9 +34,11 @@ export type ActivityListParams = {
 
 export async function listAdminActivity(
   params: ActivityListParams = {},
+  signal?: AbortSignal,
 ): Promise<ActivityListResponse> {
   const { data } = await client.get<ActivityListResponse>("/admin/activity", {
     params,
+    signal,
   });
   return data;
 }

@@ -9,8 +9,8 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
+import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AuthAdminGuard } from '../jwt-auth-admin.guard';
 import { RolesGuard } from '../roles.guard';
 import { Roles } from '../roles.decorator';
@@ -19,6 +19,7 @@ import {
   CreateWithdrawFeeCouponDto,
   UpdateWithdrawFeeCouponDto,
 } from './dto/withdraw-fee-coupon.dto';
+import { requireAdminActor } from '../activity/admin-activity.actor';
 
 @ApiTags('Withdraw Fee Coupons')
 @Controller('admin/withdraw-fee-coupons')
@@ -43,29 +44,17 @@ export class WithdrawFeeCouponsController {
 
   @Post()
   @Roles('support')
-  create(@Req() req: Request, @Body() dto: CreateWithdrawFeeCouponDto) {
-    const admin = req['user'] as
-      | { sub?: string; email?: string; username?: string }
-      | undefined;
-    return this.service.create(dto, {
-      id: admin?.sub,
-      label: admin?.email || admin?.username,
-    });
+  create(@Body() dto: CreateWithdrawFeeCouponDto, @Req() req: Request) {
+    return this.service.create(dto, requireAdminActor(req));
   }
 
   @Patch(':id')
   @Roles('support')
   update(
-    @Req() req: Request,
     @Param('id') id: string,
     @Body() dto: UpdateWithdrawFeeCouponDto,
+    @Req() req: Request,
   ) {
-    const admin = req['user'] as
-      | { sub?: string; email?: string; username?: string }
-      | undefined;
-    return this.service.update(id, dto, {
-      id: admin?.sub,
-      label: admin?.email || admin?.username,
-    });
+    return this.service.update(id, dto, requireAdminActor(req));
   }
 }

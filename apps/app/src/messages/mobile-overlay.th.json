@@ -462,5 +462,10 @@
   "mobileTrackingStepTrackingAndConfirm": "ติดตามและยืนยัน",
   "mobileQuestProgressLoading": "กำลังโหลดความคืบหน้าภารกิจ…",
   "mobileQuestProgressLoadFailed": "ไม่สามารถโหลดความคืบหน้าภารกิจของคุณได้",
-  "mobileQuestTasksEmpty": "ขณะนี้ไม่มีภารกิจที่กำลังใช้งาน"
+  "mobileQuestTasksEmpty": "ขณะนี้ไม่มีภารกิจที่กำลังใช้งาน",
+  "mobileWithdrawCouponCodeRequired": "กรุณากรอกรหัสคูปอง",
+  "mobileWithdrawAmountRequiredForCoupon": "กรุณากรอกจำนวนเงินที่ต้องการถอนก่อน",
+  "mobileWithdrawValidAmountRequiredForCoupon": "กรุณากรอกจำนวนเงินถอนที่ถูกต้องก่อน",
+  "mobileWithdrawCouponAmountChanged": "จำนวนเงินเปลี่ยนแปลง กรุณาใช้รหัสคูปองอีกครั้ง",
+  "mobileWithdrawCouponMethodChanged": "วิธีถอนเงินเปลี่ยนแปลง กรุณาใช้รหัสคูปองอีกครั้ง"
 }

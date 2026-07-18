@@ -22,6 +22,8 @@ describe("can", () => {
     expect(can("viewer", "dashboard:view")).toBe(true);
     expect(can("viewer", "activity:view")).toBe(true);
     expect(can("viewer", "brands:manage")).toBe(false);
+    expect(can("viewer", "activity:manage")).toBe(false);
+    expect(can("viewer", "coupon:manage")).toBe(false);
   });
 
   it("no role can do nothing", () => {

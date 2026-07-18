@@ -32,7 +32,7 @@ export class Withdraw {
   @Prop({ required: true })
   method: string; // metamask, coinbase, bank etc.
 
-  @Prop()
+  @Prop({ lowercase: true, trim: true })
   tx_hash: string;
 
   @Prop()
@@ -53,8 +53,56 @@ export class Withdraw {
   @Prop({ required: false, ref: 'UserMyCashback', type: [Types.ObjectId] })
   mycashback_id: Types.ObjectId[];
 
+  /** Primary withdrawal that owns this internal MyCashback companion row. */
+  @Prop({ required: false, ref: 'Withdraw', type: Types.ObjectId })
+  parent_withdraw_id?: Types.ObjectId;
+
   @Prop({ required: false })
   rate: number;
+
+  /** Customer command identity for safe HTTP retry of bank withdrawals. */
+  @Prop({ required: false, trim: true, maxlength: 128 })
+  idempotency_key?: string;
+
+  /** Stable hash of the money effect bound to idempotency_key. */
+  @Prop({ required: false, trim: true, lowercase: true, maxlength: 64 })
+  idempotency_effect_hash?: string;
+
+  /** Durable state machine for the post-reservation chain-record outbox. */
+  @Prop({
+    required: false,
+    enum: ['reserved', 'processing', 'broadcast', 'recorded', 'failed'],
+  })
+  chain_record_state?:
+    'reserved' | 'processing' | 'broadcast' | 'recorded' | 'failed';
+
+  @Prop({ required: false, type: Number, min: 1 })
+  chain_record_chain_id?: number;
+
+  @Prop({ required: false, type: Date })
+  chain_record_lease_until?: Date;
+
+  @Prop({ required: false, trim: true, maxlength: 64 })
+  chain_record_lease_owner?: string;
+
+  @Prop({ required: false, type: Date })
+  chain_record_confirmed_at?: Date;
+
+  /** Transaction evidence captured immediately after broadcast, before mining. */
+  @Prop({
+    required: false,
+    lowercase: true,
+    trim: true,
+    maxlength: 66,
+    match: /^0x[0-9a-f]{64}$/,
+  })
+  chain_record_broadcast_hash?: string;
+
+  @Prop({ required: false, type: Date })
+  chain_record_broadcast_at?: Date;
+
+  @Prop({ required: false, type: Number, min: 0, default: 0 })
+  chain_record_attempts?: number;
 
   @Prop({ type: Boolean, default: false })
   flagged: boolean;
@@ -81,6 +129,53 @@ export class Withdraw {
    */
   @Prop({ type: String, required: false })
   chain: string;
+
+  /**
+   * Expiry of a spendable EIP-712 withdrawal authorization. Signature rows
+   * remain balance reservations until their post-expiry chain reconciliation
+   * proves that the authorization was unused.
+   */
+  @Prop({ type: Date, required: false })
+  authorization_expires_at?: Date;
+
+  @Prop({
+    type: String,
+    required: false,
+    enum: [
+      'issued',
+      'expired_unverified',
+      'submitted',
+      'executed_unclaimed',
+      'released',
+    ],
+  })
+  authorization_state?:
+    | 'issued'
+    | 'expired_unverified'
+    | 'submitted'
+    | 'executed_unclaimed'
+    | 'released';
+
+  @Prop({ type: String, required: false, lowercase: true, trim: true })
+  authorization_request_hash?: string;
+
+  @Prop({ type: String, required: false, trim: true })
+  authorization_signature?: string;
+
+  @Prop({ type: String, required: false, trim: true })
+  authorization_amount_atomic?: string;
+
+  @Prop({ type: String, required: false, lowercase: true, trim: true })
+  authorization_conversion_hash?: string;
+
+  @Prop({ type: Number, required: false, min: 1 })
+  authorization_chain_id?: number;
+
+  @Prop({ type: String, required: false, lowercase: true, trim: true })
+  authorization_contract?: string;
+
+  @Prop({ type: Boolean, required: false })
+  authorization_slot_active?: boolean;
 
   /** Admin user id who marked the manual request paid. */
   @Prop({ type: String, required: false })
@@ -125,6 +220,43 @@ export const WithdrawSchema = SchemaFactory.createForClass(Withdraw);
 
 /** Supports the admin "Pending manual" filter in O(log n). */
 WithdrawSchema.index({ withdraw_mode: 1, status: 1 });
+WithdrawSchema.index({ parent_withdraw_id: 1, status: 1 });
+WithdrawSchema.index({ chain_record_state: 1, chain_record_lease_until: 1 });
+WithdrawSchema.index({
+  user_id: 1,
+  method: 1,
+  status: 1,
+  authorization_expires_at: 1,
+});
+WithdrawSchema.index(
+  { user_id: 1 },
+  {
+    name: 'uniq_active_withdraw_authorization_per_user',
+    unique: true,
+    partialFilterExpression: { authorization_slot_active: true },
+  },
+);
+WithdrawSchema.index(
+  { user_id: 1, authorization_request_hash: 1 },
+  {
+    name: 'uniq_withdraw_authorization_request',
+    unique: true,
+    partialFilterExpression: {
+      authorization_request_hash: { $exists: true, $type: 'string', $gt: '' },
+    },
+  },
+);
+WithdrawSchema.index(
+  { chain_record_chain_id: 1, chain_record_broadcast_hash: 1 },
+  {
+    name: 'uniq_withdraw_chain_broadcast_hash',
+    unique: true,
+    partialFilterExpression: {
+      chain_record_chain_id: { $exists: true, $type: 'number' },
+      chain_record_broadcast_hash: { $exists: true, $type: 'string', $gt: '' },
+    },
+  },
+);
 
 /**
  * Enforces uniqueness of on-chain tx hashes **only when populated**. Legacy
@@ -134,9 +266,23 @@ WithdrawSchema.index({ withdraw_mode: 1, status: 1 });
 WithdrawSchema.index(
   { tx_hash: 1 },
   {
+    name: 'uniq_withdraw_tx_hash_ci',
     unique: true,
+    collation: { locale: 'en', strength: 2 },
     partialFilterExpression: {
       tx_hash: { $exists: true, $type: 'string', $gt: '' },
+    },
+  },
+);
+
+/** One durable bank-withdraw command per customer key. */
+WithdrawSchema.index(
+  { user_id: 1, idempotency_key: 1 },
+  {
+    name: 'uniq_withdraw_user_idempotency_key',
+    unique: true,
+    partialFilterExpression: {
+      idempotency_key: { $exists: true, $type: 'string', $gt: '' },
     },
   },
 );

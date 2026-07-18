@@ -2,11 +2,7 @@
  * Mock REST handlers for new admin feature modules (credit score, membership, etc.).
  * Routed from `handleMockApiRequest` when path starts with `admin/<feature>/...`.
  */
-import {
-  addManualCashbackConversion,
-  mockUsers,
-  setManualCashbackStatus,
-} from "@/app/api/mock/data";
+import { mockUsers, setManualCashbackStatus } from "@/app/api/mock/data";
 import { tierFromScore } from "@/lib/creditTier";
 import { sortMembers, type MemberSortKey } from "@/lib/memberSort";
 import type { MissingOrderStatus } from "@/types/adminModules";
@@ -789,9 +785,8 @@ export function tryMockAdminFeaturesRequest(
             .length,
           paused: subscriptions.filter((item) => item.status === "paused")
             .length,
-          cancelled: subscriptions.filter(
-            (item) => item.status === "cancelled",
-          ).length,
+          cancelled: subscriptions.filter((item) => item.status === "cancelled")
+            .length,
         },
         total_revenue: subscriptionPlans.reduce(
           (total, plan) => total + plan.price * plan.subscriberCount,
@@ -1080,39 +1075,26 @@ export function tryMockAdminFeaturesRequest(
         amount?: number;
         currency?: string;
         reason?: string;
-        adminId?: string;
       };
       const uid = path[2];
       const adj = {
         walletId: uid,
         type: (b.type === "debit" ? "debit" : "credit") as "credit" | "debit",
         amount: Number(b.amount ?? 0),
-        currency: String(b.currency || "cashback"),
+        currency: (b.currency === "USD" ? "USD" : "THB") as "THB" | "USD",
         reason: String(b.reason || ""),
-        adminId: String(b.adminId || "admin"),
+        adminId: "verified-admin",
         timestamp: new Date().toISOString(),
       };
       walletAdjustments[uid] = [...(walletAdjustments[uid] ?? []), adj];
-      const isCashbackRequest =
-        adj.type === "credit" && adj.currency === "cashback";
-      if (isCashbackRequest) {
-        // Pending approval — the balance is credited only when a super-admin
-        // approves the request (surfaced as a pending conversion).
-        addManualCashbackConversion(uid, adj.amount, adj.reason);
-      } else {
-        wallets = wallets.map((w) => {
-          if (w.userId !== uid) return w;
-          const mul = adj.type === "credit" ? 1 : -1;
-          if (adj.currency === "GGC")
-            return { ...w, ggcBalance: w.ggcBalance + mul * adj.amount };
-          if (adj.currency === "points")
-            return { ...w, pointsBalance: w.pointsBalance + mul * adj.amount };
-          return {
-            ...w,
-            cashbackBalance: w.cashbackBalance + mul * adj.amount,
-          };
-        });
-      }
+      wallets = wallets.map((w) => {
+        if (w.userId !== uid) return w;
+        const mul = adj.type === "credit" ? 1 : -1;
+        return {
+          ...w,
+          cashbackBalance: w.cashbackBalance + mul * adj.amount,
+        };
+      });
       return ok({ success: true, adjustment: adj });
     }
     if (m === "POST" && path[2] === "cashback-request" && path[3]) {

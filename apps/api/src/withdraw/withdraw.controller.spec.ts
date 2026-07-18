@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Logger } from '@nestjs/common';
+import { Logger, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -21,6 +21,8 @@ import {
 import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { RolesGuard } from 'src/admin/roles.guard';
+import { ROLES_KEY } from 'src/admin/roles.decorator';
 
 /**
  * The controller is a thin authorization/identity boundary in front of
@@ -142,6 +144,8 @@ describe('WithdrawController', () => {
       .useValue({ canActivate: () => true })
       .overrideGuard(AuthAdminGuard)
       .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
       .compile();
 
     controller = moduleRef.get<WithdrawController>(WithdrawController);
@@ -212,12 +216,20 @@ describe('WithdrawController', () => {
     // A withdrawal moves money: the body must be paired with the AUTHENTICATED
     // caller's id, never a body-supplied owner, to prevent withdrawing on
     // behalf of another account.
-    it('create > given a withdraw body and authed user > then service.create is called with (body, callerSub)', async () => {
+    it('create > given a withdraw body and command key > then service receives the authenticated owner and key', async () => {
       const body: CreateWithdrawDto = { amount_net: 50, currency: 'USDT' };
 
-      const result = await controller.create(reqWithUser('owner-1'), body);
+      const result = await controller.create(
+        reqWithUser('owner-1'),
+        body,
+        'onchain-command-1',
+      );
 
-      expect(service.create).toHaveBeenCalledWith(body, 'owner-1');
+      expect(service.create).toHaveBeenCalledWith(
+        body,
+        'owner-1',
+        'onchain-command-1',
+      );
       expect(result).toEqual({ _id: 'w1' });
     });
   });
@@ -225,19 +237,26 @@ describe('WithdrawController', () => {
   describe('approveWithdraw (admin, V-2b)', () => {
     it('approveWithdraw > given a withdraw id + admin > then service.approveWithdrawRequest is called with (id, adminSub)', () => {
       controller.approveWithdraw(reqWithUser('admin-9'), 'w-1');
-      expect(service.approveWithdrawRequest).toHaveBeenCalledWith(
-        'w-1',
-        'admin-9',
-      );
+      expect(service.approveWithdrawRequest).toHaveBeenCalledWith('w-1', {
+        id: 'admin-9',
+        label: 'admin-9',
+      });
     });
 
-    it('approveWithdraw > is protected by AuthAdminGuard', () => {
+    it('approveWithdraw > requires current approver authorization', () => {
       const guards =
         (Reflect.getMetadata(
           '__guards__',
           WithdrawController.prototype.approveWithdraw,
         ) as unknown[]) ?? [];
       expect(guards).toContain(AuthAdminGuard);
+      expect(guards).toContain(RolesGuard);
+      expect(
+        Reflect.getMetadata(
+          ROLES_KEY,
+          WithdrawController.prototype.approveWithdraw,
+        ),
+      ).toEqual(['approver']);
     });
   });
 
@@ -272,23 +291,31 @@ describe('WithdrawController', () => {
       expect(service.markWithdrawPaid).toHaveBeenCalledWith(
         'withdraw-1',
         body,
-        'admin-7',
+        { id: 'admin-7', label: 'admin-7' },
       );
     });
 
-    // Audit fields must never be silently empty: a missing sub is stamped as
-    // the literal 'unknown' rather than undefined, so the record stays
-    // queryable and the gap is visible.
-    it("markPaid > given no admin sub on the request > then it stamps 'unknown' as the admin id", () => {
+    it('markPaid > given no admin identity > then it fails closed', () => {
       const body: MarkWithdrawPaidDto = { tx_hash: '0x' + 'b'.repeat(64) };
 
-      controller.markPaid(reqWithUser(undefined), 'withdraw-1', body);
+      expect(() =>
+        controller.markPaid(reqWithUser(undefined), 'withdraw-1', body),
+      ).toThrow(UnauthorizedException);
+      expect(service.markWithdrawPaid).not.toHaveBeenCalled();
+    });
 
-      expect(service.markWithdrawPaid).toHaveBeenCalledWith(
-        'withdraw-1',
-        body,
-        'unknown',
+    it('markPaid > requires current approver authorization', () => {
+      const guards =
+        (Reflect.getMetadata(
+          '__guards__',
+          WithdrawController.prototype.markPaid,
+        ) as unknown[]) ?? [];
+      expect(guards).toEqual(
+        expect.arrayContaining([AuthAdminGuard, RolesGuard]),
       );
+      expect(
+        Reflect.getMetadata(ROLES_KEY, WithdrawController.prototype.markPaid),
+      ).toEqual(['approver']);
     });
   });
 
@@ -300,9 +327,17 @@ describe('WithdrawController', () => {
         currency: 'THB',
       };
 
-      await controller.createBankTransfer(reqWithUser('owner-1'), body);
+      await controller.createBankTransfer(
+        reqWithUser('owner-1'),
+        body,
+        'idem-1',
+      );
 
-      expect(service.createBankTransfer).toHaveBeenCalledWith(body, 'owner-1');
+      expect(service.createBankTransfer).toHaveBeenCalledWith(
+        body,
+        'owner-1',
+        'idem-1',
+      );
     });
   });
 
@@ -422,19 +457,34 @@ describe('WithdrawController', () => {
   });
 
   describe('signature', () => {
-    it('getSign > given a sign DTO > then it delegates the DTO unchanged to service.getSign', () => {
+    it('getSign > given a sign DTO > then it binds the request to the authenticated subject', () => {
       const dto: GETSignDTO = {
         userid: 'u1',
-        userAddress: '0xabc',
+        userAddress: '0x' + 'a'.repeat(40),
         totalCashbackAmount: '100',
-        conversionIdHashes: ['0xhash'],
-        expireAt: '2026-01-01',
+        conversionIdHashes: ['1'],
+        expireAt: String(Math.floor(Date.now() / 1000) + 300),
         chain: 42220,
       };
 
-      controller.getSign(dto);
+      controller.getSign(reqWithUser('u1'), dto);
 
-      expect(service.getSign).toHaveBeenCalledWith(dto);
+      expect(service.getSign).toHaveBeenCalledWith(dto, 'u1');
+    });
+
+    it('getSign > given no authenticated subject > then it forwards no fallback identity', () => {
+      const dto = {
+        userid: 'attacker-controlled',
+        userAddress: '0x' + 'a'.repeat(40),
+        totalCashbackAmount: '100',
+        conversionIdHashes: ['1'],
+        expireAt: String(Math.floor(Date.now() / 1000) + 300),
+        chain: 42220,
+      } as GETSignDTO;
+
+      controller.getSign(reqWithUser(undefined), dto);
+
+      expect(service.getSign).toHaveBeenCalledWith(dto, undefined);
     });
   });
 

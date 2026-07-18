@@ -84,7 +84,7 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("webAuthPage.privacyPolicyLabel");
     expect(authFile).toContain("webAuthPage.otp.changeNumber");
     expect(authFile).toContain("webAuthPage.otp.resend");
-    expect(authFile).toContain("accessibilityLabel={provider.label}");
+    expect(authFile).toContain("accessibilityLabel={label}");
   });
 
   it("auth social icons > given Next CI brand assets > then Expo uses SVG marks instead of placeholder letters", () => {
@@ -247,6 +247,8 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("styles.socialStackDesktop");
     expect(authFile).toContain("styles.socialButtonRow");
     expect(authFile).toContain("Continue with ${provider.label}");
+    // Row buttons expose the same Continue-with copy to assistive tech.
+    expect(authFile).toContain("accessibilityLabel={label}");
     expectStyleBlock(authFile, "tabletFrame", [
       "maxWidth: mobileShellLayout.tabletContentMaxWidth",
       'alignSelf: "center"',

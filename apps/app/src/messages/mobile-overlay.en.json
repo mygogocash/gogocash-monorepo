@@ -462,5 +462,10 @@
   "mobileTrackingStepTrackingAndConfirm": "Tracking and confirm",
   "mobileQuestProgressLoading": "Loading quest progress…",
   "mobileQuestProgressLoadFailed": "We couldn’t load your quest progress.",
-  "mobileQuestTasksEmpty": "No active quest tasks right now."
+  "mobileQuestTasksEmpty": "No active quest tasks right now.",
+  "mobileWithdrawCouponCodeRequired": "Enter a coupon code.",
+  "mobileWithdrawAmountRequiredForCoupon": "Enter a withdrawal amount first.",
+  "mobileWithdrawValidAmountRequiredForCoupon": "Enter a valid withdrawal amount first.",
+  "mobileWithdrawCouponAmountChanged": "Amount changed — re-apply your coupon code.",
+  "mobileWithdrawCouponMethodChanged": "Withdrawal method changed — re-apply your coupon code."
 }

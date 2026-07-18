@@ -32,30 +32,76 @@ import { useCustomerAccountResource } from "@mobile/account/customerAccountResou
 import { invalidateCustomerWalletQueries } from "@mobile/account/invalidateCustomerWalletQueries";
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
+import { getSharedSessionStore } from "@mobile/auth/sharedSessionStore";
 import { getMobileEnv } from "@mobile/config/env";
-import { createWithdrawApi } from "@mobile/withdraw/api";
+import {
+  createWithdrawApi,
+  type WithdrawFeePreviewResponse,
+} from "@mobile/withdraw/api";
 import {
   nextCouponApplyGeneration,
   shouldAcceptCouponPreview,
 } from "@mobile/withdraw/couponApplyGeneration";
 import { resolveWithdrawFeeAndMin } from "@mobile/withdraw/resolveWithdrawFeeAndMin";
 import { localWithdrawFeePreview } from "@mobile/withdraw/withdrawFeePreview";
-import { usePayoutMethods, type PayoutMethodDraft } from "@mobile/withdraw/usePayoutMethods";
+import {
+  clearPendingWithdrawCommand,
+  fingerprintWithdrawEffect,
+  readPendingWithdrawCommand,
+  resolveWithdrawCommandUserScope,
+  writePendingWithdrawCommand,
+} from "@mobile/withdraw/withdrawCommandStorage";
+import {
+  usePayoutMethods,
+  type PayoutMethodDraft,
+} from "@mobile/withdraw/usePayoutMethods";
 
 export { resolveWithdrawFeeAndMin } from "@mobile/withdraw/resolveWithdrawFeeAndMin";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { haptics } from "@mobile/lib/haptics";
 import { useCopy } from "@mobile/i18n/useCopy";
-import { toastErrorMessages, userErrorMessageFromUnknown } from "@mobile/i18n/toastMessages";
+import {
+  toastErrorMessages,
+  userErrorMessageFromUnknown,
+} from "@mobile/i18n/toastMessages";
 import { captureHandledException } from "@mobile/observability/client";
-import { mobileShellLayout, webWithdrawMethodPage } from "@mobile/design/webDesignParity";
+import {
+  mobileShellLayout,
+  webWithdrawMethodPage,
+} from "@mobile/design/webDesignParity";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, spacing, typography, shadows } from "@mobile/theme/tokens";
 
 type MoneyActionMode = "method" | "methodCreate" | "myCashback" | "withdraw";
+
+function isConfirmedWithdrawSubmission(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+
+  const response = value as Record<string, unknown>;
+  const nested = response.data;
+  if (nested && typeof nested === "object") {
+    const record = nested as Record<string, unknown>;
+    return (
+      response.status === "success" &&
+      typeof record._id === "string" &&
+      record._id.trim().length > 0 &&
+      typeof record.status === "string" &&
+      record.status.trim().length > 0
+    );
+  }
+
+  // Keep compatibility with older API adapters/tests that already unwrap the
+  // service envelope before returning the withdrawal record.
+  return (
+    typeof response._id === "string" &&
+    response._id.trim().length > 0 &&
+    typeof response.status === "string" &&
+    response.status.trim().length > 0
+  );
+}
 
 // Bug-hunt fixes (#1, #2): parse the withdrawal amount by stripping thousands separators and rejecting
 // junk — raw parseFloat turned "1,500.00" into 1 and "500abc" into 500. `evaluateWithdraw` is a pure
@@ -69,14 +115,15 @@ export function parseWithdrawAmount(input: string): number {
   return Number.parseFloat(cleaned);
 }
 
-export type WithdrawDecision = { ok: true; amount: number } | { ok: false; error: string | null };
+export type WithdrawDecision =
+  { ok: true; amount: number } | { ok: false; error: string | null };
 
 export function evaluateWithdraw(
   input: string,
   balance: number,
   hasMethod: boolean,
   alreadySubmitted: boolean,
-  min = 0
+  min = 0,
 ): WithdrawDecision {
   if (alreadySubmitted) {
     return { ok: false, error: null };
@@ -94,7 +141,10 @@ export function evaluateWithdraw(
     return { ok: false, error: "Insufficient available balance." };
   }
   if (!hasMethod) {
-    return { ok: false, error: "Select a payout method before confirming withdrawal." };
+    return {
+      ok: false,
+      error: "Select a payout method before confirming withdrawal.",
+    };
   }
   return { ok: true, amount };
 }
@@ -194,7 +244,10 @@ function MoneyActionSelect({
       >
         <Text
           numberOfLines={1}
-          style={[styles.selectValue, selected ? null : styles.selectPlaceholder]}
+          style={[
+            styles.selectValue,
+            selected ? null : styles.selectPlaceholder,
+          ]}
         >
           {selected ? selected.label : placeholder}
         </Text>
@@ -260,11 +313,19 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const [fixturesWithdrawn, setFixturesWithdrawn] = useState(0);
   const [withdrawing, setWithdrawing] = useState(false);
   const [couponInput, setCouponInput] = useState("");
-  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
-  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(
+    null,
+  );
+  const [appliedFeePreview, setAppliedFeePreview] =
+    useState<WithdrawFeePreviewResponse | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponApplying, setCouponApplying] = useState(false);
   const couponApplyGenerationRef = useRef(0);
+  const withdrawCommandRef = useRef<{
+    effectFingerprint: string;
+    key: string;
+    userScope: string;
+  } | null>(null);
   const walletResource = useCustomerAccountResource({
     fixtureData: { netAmountTHB: WITHDRAW_WALLET_FIXTURE_NET_AMOUNT_THB },
     resourceId: "wallet",
@@ -318,7 +379,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   // null when no valid positive amount is entered yet, so the row reads "—" instead of a
   // misleading "0.00 THB" on the empty form.
   const parsedWithdrawAmount = parseWithdrawAmount(withdrawAmount);
-  const feePreviewResult =
+  const localFeePreviewResult =
     Number.isNaN(parsedWithdrawAmount) || parsedWithdrawAmount <= 0
       ? null
       : localWithdrawFeePreview({
@@ -326,13 +387,21 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           availableBalance: balance,
           baseFee: withdrawFee,
           minWithdraw,
-          discount: couponDiscount,
         });
-  const feePreview =
-    feePreviewResult && !("ok" in feePreviewResult) ? feePreviewResult : null;
+  const localFeePreview =
+    localFeePreviewResult && !("ok" in localFeePreviewResult)
+      ? localFeePreviewResult
+      : null;
+  // Once a coupon is applied, its server preview is the complete, immutable quote shown to
+  // the customer. Recomputing from only `discount` can disagree with changed fees or balances.
+  const feePreview = appliedFeePreview ?? localFeePreview;
   const youWillReceive = feePreview?.you_will_receive ?? null;
   const remainingCashback = feePreview?.remaining_cashback ?? null;
   const displayFee = feePreview?.final_fee ?? withdrawFee;
+  const displayBaseFee = feePreview?.base_fee ?? withdrawFee;
+  const displayBalance = feePreview?.available_balance ?? balance;
+  const displayDiscount = feePreview?.discount ?? 0;
+  const effectiveMinWithdraw = appliedFeePreview?.min_withdraw ?? minWithdraw;
 
   // Prefill the form when editing an existing method. The mock fixture only carries bank methods and a
   // MASKED account number, so the account-number field shows the masked value until it is re-entered.
@@ -356,7 +425,8 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     if (createTab === "promptpay") {
       if (!ppCode.trim()) errs.push(tc("PromptPay phone/ID is required."));
       if (!ppThaiName.trim()) errs.push(tc("Thai owner name is required."));
-      if (!ppEnglishName.trim()) errs.push(tc("English owner name is required."));
+      if (!ppEnglishName.trim())
+        errs.push(tc("English owner name is required."));
 
       if (ppIdType === "phone" && ppCode.replace(/\D/g, "").length < 9) {
         errs.push(tc("PromptPay phone must be at least 9 digits."));
@@ -389,11 +459,16 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
         };
       }
     } else if (createTab === "crypto") {
-      if (!cryptoAddress.trim()) errs.push(tc("Crypto wallet address is required."));
+      if (!cryptoAddress.trim())
+        errs.push(tc("Crypto wallet address is required."));
 
       const ethRegex = /^0x[a-fA-F0-9]{40}$/;
       if (cryptoAddress.trim() && !ethRegex.test(cryptoAddress.trim())) {
-        errs.push(tc("Must be a valid EVM address (e.g. 0x followed by 40 hex characters)."));
+        errs.push(
+          tc(
+            "Must be a valid EVM address (e.g. 0x followed by 40 hex characters).",
+          ),
+        );
       }
 
       if (errs.length === 0) {
@@ -420,7 +495,11 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       try {
         await saveMethod(draft, isEditingMethod ? editMethodId : undefined);
         setSuccessMsg(
-          tc(isEditingMethod ? "Payout method updated successfully!" : "Payout method saved successfully!"),
+          tc(
+            isEditingMethod
+              ? "Payout method updated successfully!"
+              : "Payout method saved successfully!",
+          ),
         );
         setErrors([]);
 
@@ -437,8 +516,17 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
         }, 1000);
       } catch (error) {
         haptics.error();
-        captureHandledException(error, { surface: "CustomerMoneyActionScreen.saveMethod" });
-        setErrors([tc(userErrorMessageFromUnknown(error, toastErrorMessages.saveWithdrawalMethodFailed))]);
+        captureHandledException(error, {
+          surface: "CustomerMoneyActionScreen.saveMethod",
+        });
+        setErrors([
+          tc(
+            userErrorMessageFromUnknown(
+              error,
+              toastErrorMessages.saveWithdrawalMethodFailed,
+            ),
+          ),
+        ]);
       }
     })();
   };
@@ -469,8 +557,19 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       ) {
         return;
       }
+      const preview = localWithdrawFeePreview({
+        amount: parsedWithdrawAmount,
+        availableBalance: balance,
+        baseFee: withdrawFee,
+        minWithdraw,
+        discount: withdrawFee,
+      });
+      if ("ok" in preview) {
+        setCouponError(tc("Enter a valid withdrawal amount first."));
+        return;
+      }
       setAppliedCouponCode(code);
-      setCouponDiscount(withdrawFee);
+      setAppliedFeePreview({ ...preview, coupon: { code, name: code } });
       setCouponError(null);
       return;
     }
@@ -495,8 +594,10 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
         ) {
           return;
         }
-        setAppliedCouponCode(preview.coupon?.code ?? code);
-        setCouponDiscount(preview.discount);
+        const canonicalCode = preview.coupon?.code ?? code;
+        setAppliedCouponCode(canonicalCode);
+        setCouponInput(canonicalCode);
+        setAppliedFeePreview(preview);
         setCouponError(null);
       } catch (error) {
         if (
@@ -508,9 +609,14 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           return;
         }
         setAppliedCouponCode(null);
-        setCouponDiscount(0);
+        setAppliedFeePreview(null);
         setCouponError(
-          tc(userErrorMessageFromUnknown(error, "Could not apply coupon.")),
+          tc(
+            userErrorMessageFromUnknown(
+              error,
+              toastErrorMessages.requestFailed,
+            ),
+          ),
         );
       } finally {
         if (
@@ -526,8 +632,12 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   };
 
   const handleRemoveCoupon = () => {
+    couponApplyGenerationRef.current = nextCouponApplyGeneration(
+      couponApplyGenerationRef.current,
+    );
+    setCouponApplying(false);
     setAppliedCouponCode(null);
-    setCouponDiscount(0);
+    setAppliedFeePreview(null);
     setCouponInput("");
     setCouponError(null);
   };
@@ -540,20 +650,21 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     );
     setCouponApplying(false);
     if (!appliedCouponCode) {
+      setAppliedFeePreview(null);
       return;
     }
     setAppliedCouponCode(null);
-    setCouponDiscount(0);
+    setAppliedFeePreview(null);
     setCouponError(tc("Amount changed — re-apply your coupon code."));
   }, [withdrawAmount]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: only amount edits clear coupon
 
   const handleWithdraw = () => {
     const decision = evaluateWithdraw(
       withdrawAmount,
-      balance,
+      displayBalance,
       !!selectedMethod,
       !!successMsg,
-      minWithdraw
+      effectiveMinWithdraw,
     );
     if (!decision.ok) {
       // error === null means "already submitted" — silently ignore the repeat tap (no buzz).
@@ -562,7 +673,9 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
         haptics.error();
         // Interpolate the {min} placeholder AFTER translation so the localized copy shows the real
         // floor; a no-op for errors without the placeholder.
-        setErrors([tc(decision.error).replace("{min}", formatThb(minWithdraw))]);
+        setErrors([
+          tc(decision.error).replace("{min}", formatThb(effectiveMinWithdraw)),
+        ]);
       }
       return;
     }
@@ -574,12 +687,61 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       setWithdrawing(true);
       void (async () => {
         try {
+          const sessionStore = await getSharedSessionStore();
+          if (!sessionStore) {
+            throw new Error("No mobile session store is available.");
+          }
+          const activeSession = await sessionStore.getSession();
+          const userScope = resolveWithdrawCommandUserScope(activeSession);
           const client = await getSharedMobileApiClient(env.apiUrl);
           if (!client) {
             throw new Error("No mobile session store is available.");
           }
           const withdrawApi = createWithdrawApi(client);
-          await withdrawApi.submitBankTransfer(
+          const effect = JSON.stringify({
+            accountName: selectedMethod.accountName.trim(),
+            accountNumber: selectedMethod.accountNo.trim(),
+            amount: decision.amount,
+            bankName: selectedMethod.bankName.trim(),
+            couponCode: appliedCouponCode ?? null,
+          });
+          const effectFingerprint = fingerprintWithdrawEffect(effect);
+          const persistedCommand = await readPendingWithdrawCommand(
+            userScope,
+            effectFingerprint,
+          );
+          const inMemoryCommand = withdrawCommandRef.current;
+          const previousCommand =
+            inMemoryCommand?.effectFingerprint === effectFingerprint &&
+            inMemoryCommand.userScope === userScope
+              ? inMemoryCommand
+              : persistedCommand;
+          const candidateKey =
+            previousCommand?.effectFingerprint === effectFingerprint &&
+            previousCommand.userScope === userScope
+              ? previousCommand.key
+              : (globalThis.crypto?.randomUUID?.() ??
+                `${Date.now()}-${decision.amount}`);
+          const command = await writePendingWithdrawCommand({
+            effectFingerprint,
+            key: candidateKey,
+            userScope,
+          });
+          const idempotencyKey = command.key;
+          withdrawCommandRef.current = command;
+
+          // Avoid submitting a command prepared for account A if logout/login
+          // happened while persistent storage was being written.
+          const submitScope = resolveWithdrawCommandUserScope(
+            await sessionStore.getSession(),
+          );
+          if (submitScope !== userScope) {
+            throw new Error(
+              "The signed-in account changed before withdrawal submission.",
+            );
+          }
+
+          const confirmation = await withdrawApi.submitBankTransfer(
             {
               accountName: selectedMethod.accountName,
               accountNumber: selectedMethod.accountNo,
@@ -587,8 +749,19 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
               bankName: selectedMethod.bankName,
               couponCode: appliedCouponCode ?? undefined,
             },
-            globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${decision.amount}`,
+            idempotencyKey,
           );
+          if (!isConfirmedWithdrawSubmission(confirmation)) {
+            throw new Error(
+              "The withdrawal API returned an invalid confirmation.",
+            );
+          }
+          await clearPendingWithdrawCommand(
+            userScope,
+            effectFingerprint,
+            idempotencyKey,
+          );
+          withdrawCommandRef.current = null;
           haptics.success();
           setErrors([]);
           await invalidateCustomerWalletQueries(queryClient);
@@ -597,8 +770,17 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           );
         } catch (error) {
           haptics.error();
-          captureHandledException(error, { surface: "CustomerMoneyActionScreen.withdraw" });
-          setErrors([tc(userErrorMessageFromUnknown(error, toastErrorMessages.withdrawalFailed))]);
+          captureHandledException(error, {
+            surface: "CustomerMoneyActionScreen.withdraw",
+          });
+          setErrors([
+            tc(
+              userErrorMessageFromUnknown(
+                error,
+                toastErrorMessages.withdrawalFailed,
+              ),
+            ),
+          ]);
         } finally {
           setWithdrawing(false);
         }
@@ -611,7 +793,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     setErrors([]);
     setFixturesWithdrawn((current) => current + decision.amount);
     setSuccessMsg(
-      `Cashback withdrawal of ${decision.amount.toFixed(2)} THB to ${selectedMethod.bankName} submitted successfully!`
+      `Cashback withdrawal of ${decision.amount.toFixed(2)} THB to ${selectedMethod.bankName} submitted successfully!`,
     );
   };
 
@@ -628,11 +810,15 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
         title={tc(withdrawCopy.screenTitle)}
       >
         <View style={styles.sectionWrap}>
-          <Text style={styles.withdrawScreenTitle}>{tc(withdrawCopy.screenTitle)}</Text>
+          <Text style={styles.withdrawScreenTitle}>
+            {tc(withdrawCopy.screenTitle)}
+          </Text>
 
           <View style={styles.withdrawCard}>
             <View style={styles.withdrawHeaderRow}>
-              <Text style={styles.withdrawHeading}>{tc(withdrawCopy.cardHeading)}</Text>
+              <Text style={styles.withdrawHeading}>
+                {tc(withdrawCopy.cardHeading)}
+              </Text>
               <Pressable
                 accessibilityLabel={withdrawCopy.helpAria}
                 accessibilityRole="button"
@@ -657,7 +843,9 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
             <View style={styles.innerSection}>
               {/* Amount block — big centered input with the brand-green underline */}
               <View style={styles.amountBlock}>
-                <Text style={styles.amountLabel}>{tc(withdrawCopy.amountLabel)}</Text>
+                <Text style={styles.amountLabel}>
+                  {tc(withdrawCopy.amountLabel)}
+                </Text>
                 <View style={styles.amountInputWrap}>
                   <TextInput
                     inputMode="decimal"
@@ -670,19 +858,44 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                   />
                 </View>
                 <Text style={styles.availableCaption}>
-                  {tc(withdrawCopy.availableLabel)} : {formatThb(balance)} THB
+                  {tc(withdrawCopy.availableLabel)} :{" "}
+                  {formatThb(displayBalance)} THB
                 </Text>
               </View>
 
               {/* Withdrawal method + bank selectors */}
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>{tc(withdrawCopy.methodLabel)}</Text>
+                <Text style={styles.fieldLabel}>
+                  {tc(withdrawCopy.methodLabel)}
+                </Text>
                 {/* Single option today (Bank Transfer); the selector + `withdrawMethod` state are
                     the seam for adding Cryptocurrency later, matching the web method dropdown. */}
                 <MoneyActionSelect
                   accessibilityLabel={tc(withdrawCopy.methodLabel)}
-                  onSelect={setWithdrawMethod}
-                  options={[{ value: "bank_transfer", label: tc(withdrawCopy.bankTransfer) }]}
+                  onSelect={(method) => {
+                    if (method === withdrawMethod) return;
+                    couponApplyGenerationRef.current =
+                      nextCouponApplyGeneration(
+                        couponApplyGenerationRef.current,
+                      );
+                    setCouponApplying(false);
+                    if (appliedCouponCode) {
+                      setCouponError(
+                        tc(
+                          "Withdrawal method changed — re-apply your coupon code.",
+                        ),
+                      );
+                    }
+                    setAppliedCouponCode(null);
+                    setAppliedFeePreview(null);
+                    setWithdrawMethod(method);
+                  }}
+                  options={[
+                    {
+                      value: "bank_transfer",
+                      label: tc(withdrawCopy.bankTransfer),
+                    },
+                  ]}
                   placeholder={tc(withdrawCopy.bankTransfer)}
                   testID="withdraw-method-select"
                   value={withdrawMethod}
@@ -704,25 +917,33 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                 />
                 <View style={styles.minRow}>
                   <Text style={styles.minText}>
-                    {tc(withdrawCopy.minWithdrawLabel)}: {formatThb(minWithdraw)} THB
+                    {tc(withdrawCopy.minWithdrawLabel)}:{" "}
+                    {formatThb(effectiveMinWithdraw)} THB
                   </Text>
                   <Link asChild href="/method">
-                    <Pressable accessibilityRole="button" style={styles.manageButton}>
-                      <Text style={styles.manageButtonText}>{tc(withdrawCopy.manageMethod)}</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={styles.manageButton}
+                    >
+                      <Text style={styles.manageButtonText}>
+                        {tc(withdrawCopy.manageMethod)}
+                      </Text>
                     </Pressable>
                   </Link>
                 </View>
               </View>
 
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>{tc(withdrawCopy.couponLabel)}</Text>
+                <Text style={styles.fieldLabel}>
+                  {tc(withdrawCopy.couponLabel)}
+                </Text>
                 <View style={styles.minRow}>
                   <TextInput
                     autoCapitalize="characters"
-                    editable={!appliedCouponCode}
+                    editable={!appliedCouponCode && !couponApplying}
                     onChangeText={setCouponInput}
                     placeholder={tc(withdrawCopy.couponPlaceholder)}
-                    placeholderTextColor={colors.textMuted}
+                    placeholderTextColor={colors.muted}
                     style={[styles.amountInput, { flex: 1, marginBottom: 0 }]}
                     value={couponInput}
                   />
@@ -750,33 +971,49 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                   )}
                 </View>
                 {couponError ? (
-                  <Text style={[styles.minText, { color: colors.danger }]}>{couponError}</Text>
+                  <Text style={[styles.minText, { color: colors.danger }]}>
+                    {couponError}
+                  </Text>
                 ) : null}
                 {appliedCouponCode ? (
                   <Text style={styles.minText}>
-                    {appliedCouponCode} · −{formatThb(couponDiscount)} THB
+                    {appliedCouponCode} · −{formatThb(displayDiscount)} THB
                   </Text>
                 ) : null}
               </View>
 
               {/* Total Withdrawal Amount breakdown */}
               <View style={styles.totalsBlock}>
-                <Text style={styles.fieldLabel}>{tc(withdrawCopy.totalLabel)}</Text>
+                <Text style={styles.fieldLabel}>
+                  {tc(withdrawCopy.totalLabel)}
+                </Text>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalRowLabel}>{tc(withdrawCopy.activeBalanceLabel)}</Text>
-                  <Text style={styles.totalRowValue}>{formatThb(balance)} THB</Text>
+                  <Text style={styles.totalRowLabel}>
+                    {tc(withdrawCopy.activeBalanceLabel)}
+                  </Text>
+                  <Text style={styles.totalRowValue}>
+                    {formatThb(displayBalance)} THB
+                  </Text>
                 </View>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalRowLabel}>{tc(withdrawCopy.feeLabel)}</Text>
-                  {couponDiscount > 0 ? (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={styles.totalRowLabel}>
+                    {tc(withdrawCopy.feeLabel)}
+                  </Text>
+                  {displayDiscount > 0 ? (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
                       <Text
                         style={[
                           styles.totalRowValue,
                           { textDecorationLine: "line-through", opacity: 0.55 },
                         ]}
                       >
-                        {formatThb(withdrawFee)}
+                        {formatThb(displayBaseFee)}
                       </Text>
                       <Text style={styles.totalRowValue}>
                         {formatThb(displayFee)} THB
@@ -788,25 +1025,35 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                     </Text>
                   )}
                 </View>
-                {couponDiscount > 0 ? (
+                {displayDiscount > 0 ? (
                   <View style={styles.totalRow}>
                     <Text style={styles.totalRowLabel}>
                       {tc(withdrawCopy.couponDiscountLabel)}
                     </Text>
-                    <Text style={styles.totalRowValue}>−{formatThb(couponDiscount)} THB</Text>
+                    <Text style={styles.totalRowValue}>
+                      −{formatThb(displayDiscount)} THB
+                    </Text>
                   </View>
                 ) : null}
                 <View style={styles.totalDivider} />
                 <View style={styles.totalRow}>
-                  <Text style={styles.receiveLabel}>{tc(withdrawCopy.receiveLabel)}</Text>
+                  <Text style={styles.receiveLabel}>
+                    {tc(withdrawCopy.receiveLabel)}
+                  </Text>
                   <Text style={styles.receiveValue}>
-                    {youWillReceive === null ? "—" : `${formatThb(youWillReceive)} THB`}
+                    {youWillReceive === null
+                      ? "—"
+                      : `${formatThb(youWillReceive)} THB`}
                   </Text>
                 </View>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalRowLabel}>{tc(withdrawCopy.remainingLabel)}</Text>
+                  <Text style={styles.totalRowLabel}>
+                    {tc(withdrawCopy.remainingLabel)}
+                  </Text>
                   <Text style={styles.totalRowValue}>
-                    {remainingCashback === null ? "—" : `${formatThb(remainingCashback)} THB`}
+                    {remainingCashback === null
+                      ? "—"
+                      : `${formatThb(remainingCashback)} THB`}
                   </Text>
                 </View>
               </View>
@@ -836,17 +1083,27 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
             {/* Actions: Back to Wallet + Withdraw */}
             <View style={styles.withdrawActions}>
               <Link asChild href="/wallet">
-                <Pressable accessibilityRole="button" style={styles.withdrawSecondary}>
-                  <Text style={styles.withdrawSecondaryText}>{tc(withdrawCopy.backToWallet)}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.withdrawSecondary}
+                >
+                  <Text style={styles.withdrawSecondaryText}>
+                    {tc(withdrawCopy.backToWallet)}
+                  </Text>
                 </Pressable>
               </Link>
               <Pressable
                 accessibilityRole="button"
                 disabled={!!successMsg || withdrawing}
                 onPress={handleWithdraw}
-                style={[styles.withdrawPrimary, successMsg ? styles.primaryActionDisabled : null]}
+                style={[
+                  styles.withdrawPrimary,
+                  successMsg ? styles.primaryActionDisabled : null,
+                ]}
               >
-                <Text style={styles.withdrawPrimaryText}>{tc(withdrawCopy.withdrawCta)}</Text>
+                <Text style={styles.withdrawPrimaryText}>
+                  {tc(withdrawCopy.withdrawCta)}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -857,333 +1114,501 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
 
   const moneyActionBlocks = (
     <>
-          {/* 1. LIST PAYMENT METHODS */}
-          {mode === "method" ? (
-            <View style={styles.sectionWrap}>
-              <Text style={styles.infoTitle}>{tc("Payout Methods")}</Text>
+      {/* 1. LIST PAYMENT METHODS */}
+      {mode === "method" ? (
+        <View style={styles.sectionWrap}>
+          <Text style={styles.infoTitle}>{tc("Payout Methods")}</Text>
 
-              <View style={styles.methodListCard}>
-                {methods.map((item) => (
-                  <View key={item.id} style={styles.methodItemRow}>
-                    <View style={styles.methodIconBox}>
-                      {item.type === "promptpay" ? (
-                        <PhoneIcon color={colors.primaryDark} size={20} />
-                      ) : item.type === "bank" ? (
-                        <BankIcon color={colors.primaryDark} size={20} />
-                      ) : (
-                        <CryptoIcon color={colors.primaryDark} size={20} />
-                      )}
-                    </View>
-                    <View style={styles.methodDetails}>
-                      <Text style={styles.methodRowTitle}>{item.bankName}</Text>
-                      <Text style={styles.methodRowSub}>{item.accountNo}</Text>
-                    </View>
-                    {item.isDefault ? (
-                      <View style={styles.defaultPill}>
-                        <Text style={styles.defaultPillText}>{tc("Default")}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                ))}
-              </View>
-
-              <Link asChild href="/method/create">
-                <Pressable style={styles.primaryAction}>
-                  <PlusIcon color={colors.white} size={16} />
-                  <Text style={styles.primaryActionText}>{tc("Add Payout Method")}</Text>
-                </Pressable>
-              </Link>
-            </View>
-          ) : null}
-
-          {/* 2. CREATE PAYMENT METHOD */}
-          {mode === "methodCreate" ? (
-            <View style={styles.sectionWrap}>
-              <Text style={styles.infoTitle}>
-                {tc(isEditingMethod ? "Edit Withdrawal Method" : "Add Payout Method")}
-              </Text>
-
-              {/* Form tabs */}
-              <View style={styles.tabStrip}>
-                <Pressable
-                  onPress={() => {
-                    setCreateTab("bank");
-                    setFocusedField(null);
-                  }}
-                  style={[styles.tabPill, createTab === "bank" && styles.tabPillActive]}
-                >
-                  <BankIcon color={createTab === "bank" ? colors.primaryDark : colors.muted} size={16} />
-                  <Text style={[styles.tabText, createTab === "bank" && styles.tabTextActive]}>{tc("Bank")}</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    setCreateTab("promptpay");
-                    setFocusedField(null);
-                  }}
-                  style={[styles.tabPill, createTab === "promptpay" && styles.tabPillActive]}
-                >
-                  <PhoneIcon color={createTab === "promptpay" ? colors.primaryDark : colors.muted} size={16} />
-                  <Text style={[styles.tabText, createTab === "promptpay" && styles.tabTextActive]}>PromptPay</Text>
-                </Pressable>
-                {showCryptoPayoutTab ? (
-                  <Pressable
-                    onPress={() => {
-                      setCreateTab("crypto");
-                      setFocusedField(null);
-                    }}
-                    style={[styles.tabPill, createTab === "crypto" && styles.tabPillActive]}
-                  >
-                    <CryptoIcon color={createTab === "crypto" ? colors.primaryDark : colors.muted} size={16} />
-                    <Text style={[styles.tabText, createTab === "crypto" && styles.tabTextActive]}>{tc("Crypto")}</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-
-              {/* Notifications */}
-              {errors.length > 0 ? (
-                <View style={styles.errorBanner}>
-                  <AlertIcon color={colors.danger} size={18} />
-                  <View style={styles.errorContent}>
-                    {errors.map((e, idx) => (
-                      <Text key={idx} style={styles.errorText}>
-                        • {e}
-                      </Text>
-                    ))}
-                  </View>
+          <View style={styles.methodListCard}>
+            {methods.map((item) => (
+              <View key={item.id} style={styles.methodItemRow}>
+                <View style={styles.methodIconBox}>
+                  {item.type === "promptpay" ? (
+                    <PhoneIcon color={colors.primaryDark} size={20} />
+                  ) : item.type === "bank" ? (
+                    <BankIcon color={colors.primaryDark} size={20} />
+                  ) : (
+                    <CryptoIcon color={colors.primaryDark} size={20} />
+                  )}
                 </View>
-              ) : null}
-
-              {successMsg ? (
-                <View style={styles.successBanner}>
-                  <SuccessIcon color={colors.primaryDark} size={18} />
-                  <Text style={styles.successText}>{successMsg}</Text>
+                <View style={styles.methodDetails}>
+                  <Text style={styles.methodRowTitle}>{item.bankName}</Text>
+                  <Text style={styles.methodRowSub}>{item.accountNo}</Text>
                 </View>
-              ) : null}
-
-              {/* Tab Form Containers */}
-              <View style={styles.formCard}>
-                {createTab === "bank" ? (
-                  <View style={styles.formSection}>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{tc("Bank Name")}</Text>
-                      <View style={[styles.inputBox, focusedField === "bankName" ? styles.inputFocused : null]}>
-                        <TextInput
-                          onBlur={() => setFocusedField(null)}
-                          onChangeText={setBankName}
-                          onFocus={() => setFocusedField("bankName")}
-                          placeholder={tc("Select bank (e.g. SCB, Kasikorn)")}
-                          placeholderTextColor={colors.muted}
-                          style={styles.textInput}
-                          value={bankName}
-                        />
-                      </View>
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{tc("Account Number")}</Text>
-                      <View style={[styles.inputBox, focusedField === "bankAccountNo" ? styles.inputFocused : null]}>
-                        <TextInput
-                          keyboardType="numeric"
-                          onBlur={() => setFocusedField(null)}
-                          onChangeText={setBankAccountNo}
-                          onFocus={() => setFocusedField("bankAccountNo")}
-                          placeholder={tc("Account Number")}
-                          placeholderTextColor={colors.muted}
-                          style={styles.textInput}
-                          value={bankAccountNo}
-                        />
-                      </View>
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{tc("Account Owner Name")}</Text>
-                      <View style={[styles.inputBox, focusedField === "bankAccountName" ? styles.inputFocused : null]}>
-                        <TextInput
-                          onBlur={() => setFocusedField(null)}
-                          onChangeText={setBankAccountName}
-                          onFocus={() => setFocusedField("bankAccountName")}
-                          placeholder={tc("Full Name")}
-                          placeholderTextColor={colors.muted}
-                          style={styles.textInput}
-                          value={bankAccountName}
-                        />
-                      </View>
-                    </View>
-                    <View style={styles.defaultRow}>
-                      <Text style={styles.inputLabel}>{tc("Set as Default Method")}</Text>
-                      <Pressable
-                        onPress={() => setBankIsDefault(!bankIsDefault)}
-                        style={[styles.switchOuter, bankIsDefault && styles.switchOuterOn]}
-                      >
-                        <View style={[styles.switchInner, bankIsDefault && styles.switchInnerOn]} />
-                      </Pressable>
-                    </View>
-                  </View>
-                ) : null}
-
-                {createTab === "promptpay" ? (
-                  <View style={styles.formSection}>
-                    <View style={styles.idTypeRow}>
-                      <Pressable
-                        onPress={() => setPpIdType("phone")}
-                        style={[styles.idTypeBtn, ppIdType === "phone" && styles.idTypeBtnActive]}
-                      >
-                        <View style={[styles.radioOuter, ppIdType === "phone" && styles.radioOuterActive]}>
-                          {ppIdType === "phone" ? <View style={styles.radioInner} /> : null}
-                        </View>
-                        <Text style={[styles.idTypeBtnText, ppIdType === "phone" && styles.idTypeBtnTextActive]}>
-                          {tc("Phone ID")}
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => setPpIdType("citizen")}
-                        style={[styles.idTypeBtn, ppIdType === "citizen" && styles.idTypeBtnActive]}
-                      >
-                        <View style={[styles.radioOuter, ppIdType === "citizen" && styles.radioOuterActive]}>
-                          {ppIdType === "citizen" ? <View style={styles.radioInner} /> : null}
-                        </View>
-                        <Text style={[styles.idTypeBtnText, ppIdType === "citizen" && styles.idTypeBtnTextActive]}>
-                          {tc("Citizen ID")}
-                        </Text>
-                      </Pressable>
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{tc("PromptPay Code")}</Text>
-                      <View style={[styles.inputBox, focusedField === "ppCode" ? styles.inputFocused : null]}>
-                        <TextInput
-                          keyboardType="numeric"
-                          onBlur={() => setFocusedField(null)}
-                          onChangeText={setPpCode}
-                          onFocus={() => setFocusedField("ppCode")}
-                          placeholder={tc("Phone number or 13-digit ID")}
-                          placeholderTextColor={colors.muted}
-                          style={styles.textInput}
-                          value={ppCode}
-                        />
-                      </View>
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{tc("Owner Thai Name")}</Text>
-                      <View style={[styles.inputBox, focusedField === "ppThaiName" ? styles.inputFocused : null]}>
-                        <TextInput
-                          onBlur={() => setFocusedField(null)}
-                          onChangeText={setPpThaiName}
-                          onFocus={() => setFocusedField("ppThaiName")}
-                          placeholder={tc("ภาษาไทย")}
-                          placeholderTextColor={colors.muted}
-                          style={styles.textInput}
-                          value={ppThaiName}
-                        />
-                      </View>
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{tc("Owner English Name")}</Text>
-                      <View style={[styles.inputBox, focusedField === "ppEnglishName" ? styles.inputFocused : null]}>
-                        <TextInput
-                          onBlur={() => setFocusedField(null)}
-                          onChangeText={setPpEnglishName}
-                          onFocus={() => setFocusedField("ppEnglishName")}
-                          placeholder={tc("English Name")}
-                          placeholderTextColor={colors.muted}
-                          style={styles.textInput}
-                          value={ppEnglishName}
-                        />
-                      </View>
-                    </View>
-
-                    <View style={styles.defaultRow}>
-                      <Text style={styles.inputLabel}>{tc("Set as Default Method")}</Text>
-                      <Pressable
-                        onPress={() => setPpIsDefault(!ppIsDefault)}
-                        style={[styles.switchOuter, ppIsDefault && styles.switchOuterOn]}
-                      >
-                        <View style={[styles.switchInner, ppIsDefault && styles.switchInnerOn]} />
-                      </Pressable>
-                    </View>
-                  </View>
-                ) : null}
-
-                {createTab === "crypto" ? (
-                  <View style={styles.formSection}>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{tc("Crypto Wallet Address")}</Text>
-                      <View style={[styles.inputBox, focusedField === "cryptoAddress" ? styles.inputFocused : null]}>
-                        <TextInput
-                          onBlur={() => setFocusedField(null)}
-                          onChangeText={setCryptoAddress}
-                          onFocus={() => setFocusedField("cryptoAddress")}
-                          placeholder="0x..."
-                          placeholderTextColor={colors.muted}
-                          style={styles.textInput}
-                          value={cryptoAddress}
-                        />
-                      </View>
-                    </View>
-                    <View style={styles.defaultRow}>
-                      <Text style={styles.inputLabel}>{tc("Set as Default Method")}</Text>
-                      <Pressable
-                        onPress={() => setCryptoIsDefault(!cryptoIsDefault)}
-                        style={[styles.switchOuter, cryptoIsDefault && styles.switchOuterOn]}
-                      >
-                        <View style={[styles.switchInner, cryptoIsDefault && styles.switchInnerOn]} />
-                      </Pressable>
-                    </View>
+                {item.isDefault ? (
+                  <View style={styles.defaultPill}>
+                    <Text style={styles.defaultPillText}>{tc("Default")}</Text>
                   </View>
                 ) : null}
               </View>
+            ))}
+          </View>
 
-              <Pressable onPress={handleSaveMethod} style={styles.primaryAction}>
-                <SaveIcon color={colors.white} size={16} />
-                <Text style={styles.primaryActionText}>
-                  {tc(isEditingMethod ? "Update Payout Method" : "Save Payout Method")}
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          {/* 3. Withdraw (mode="withdraw") renders via the AccountPageShell early-return above. */}
-
-          {/* 4. MY CASHBACK VIEW */}
-          {mode === "myCashback" ? (
-            <View style={styles.sectionWrap}>
-              <View style={styles.hero}>
-                <Text style={styles.kicker}>{tc("Rewards")}</Text>
-                <Text style={styles.title}>{tc("My Cashback")}</Text>
-                <Text style={styles.body}>
-                  {tc("Track your reward collections, review pending validations, and proceed to withdrawal.")}
-                </Text>
-                <Link asChild href="/withdraw">
-                  <Pressable style={styles.primaryAction}>
-                    <Text style={styles.primaryActionText}>{tc("View Wallet Options")}</Text>
-                  </Pressable>
-                </Link>
-              </View>
-
-              <View style={styles.card}>
-                <View style={styles.row}>
-                  <Text style={styles.rowText}>{tc("Total Earning tracked")}</Text>
-                  <Text style={styles.rowValue}>3,504.60 THB</Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.rowText}>{tc("Pending validation")}</Text>
-                  <Text style={styles.rowValue}>633.60 THB</Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.rowText}>{tc("Available payout balance")}</Text>
-                  <Text style={styles.rowValue}>3,180.24 THB</Text>
-                </View>
-              </View>
-            </View>
-          ) : null}
-
-          <Link asChild href={mode === "methodCreate" ? "/method" : "/wallet"}>
-            <Pressable style={styles.secondaryAction}>
-              <Text style={styles.secondaryActionText}>
-                {mode === "methodCreate" ? tc("Back to methods") : tc("Back to wallet")}
+          <Link asChild href="/method/create">
+            <Pressable style={styles.primaryAction}>
+              <PlusIcon color={colors.white} size={16} />
+              <Text style={styles.primaryActionText}>
+                {tc("Add Payout Method")}
               </Text>
             </Pressable>
           </Link>
+        </View>
+      ) : null}
+
+      {/* 2. CREATE PAYMENT METHOD */}
+      {mode === "methodCreate" ? (
+        <View style={styles.sectionWrap}>
+          <Text style={styles.infoTitle}>
+            {tc(
+              isEditingMethod ? "Edit Withdrawal Method" : "Add Payout Method",
+            )}
+          </Text>
+
+          {/* Form tabs */}
+          <View style={styles.tabStrip}>
+            <Pressable
+              onPress={() => {
+                setCreateTab("bank");
+                setFocusedField(null);
+              }}
+              style={[
+                styles.tabPill,
+                createTab === "bank" && styles.tabPillActive,
+              ]}
+            >
+              <BankIcon
+                color={createTab === "bank" ? colors.primaryDark : colors.muted}
+                size={16}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  createTab === "bank" && styles.tabTextActive,
+                ]}
+              >
+                {tc("Bank")}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setCreateTab("promptpay");
+                setFocusedField(null);
+              }}
+              style={[
+                styles.tabPill,
+                createTab === "promptpay" && styles.tabPillActive,
+              ]}
+            >
+              <PhoneIcon
+                color={
+                  createTab === "promptpay" ? colors.primaryDark : colors.muted
+                }
+                size={16}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  createTab === "promptpay" && styles.tabTextActive,
+                ]}
+              >
+                PromptPay
+              </Text>
+            </Pressable>
+            {showCryptoPayoutTab ? (
+              <Pressable
+                onPress={() => {
+                  setCreateTab("crypto");
+                  setFocusedField(null);
+                }}
+                style={[
+                  styles.tabPill,
+                  createTab === "crypto" && styles.tabPillActive,
+                ]}
+              >
+                <CryptoIcon
+                  color={
+                    createTab === "crypto" ? colors.primaryDark : colors.muted
+                  }
+                  size={16}
+                />
+                <Text
+                  style={[
+                    styles.tabText,
+                    createTab === "crypto" && styles.tabTextActive,
+                  ]}
+                >
+                  {tc("Crypto")}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {/* Notifications */}
+          {errors.length > 0 ? (
+            <View style={styles.errorBanner}>
+              <AlertIcon color={colors.danger} size={18} />
+              <View style={styles.errorContent}>
+                {errors.map((e, idx) => (
+                  <Text key={idx} style={styles.errorText}>
+                    • {e}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {successMsg ? (
+            <View style={styles.successBanner}>
+              <SuccessIcon color={colors.primaryDark} size={18} />
+              <Text style={styles.successText}>{successMsg}</Text>
+            </View>
+          ) : null}
+
+          {/* Tab Form Containers */}
+          <View style={styles.formCard}>
+            {createTab === "bank" ? (
+              <View style={styles.formSection}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{tc("Bank Name")}</Text>
+                  <View
+                    style={[
+                      styles.inputBox,
+                      focusedField === "bankName" ? styles.inputFocused : null,
+                    ]}
+                  >
+                    <TextInput
+                      onBlur={() => setFocusedField(null)}
+                      onChangeText={setBankName}
+                      onFocus={() => setFocusedField("bankName")}
+                      placeholder={tc("Select bank (e.g. SCB, Kasikorn)")}
+                      placeholderTextColor={colors.muted}
+                      style={styles.textInput}
+                      value={bankName}
+                    />
+                  </View>
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{tc("Account Number")}</Text>
+                  <View
+                    style={[
+                      styles.inputBox,
+                      focusedField === "bankAccountNo"
+                        ? styles.inputFocused
+                        : null,
+                    ]}
+                  >
+                    <TextInput
+                      keyboardType="numeric"
+                      onBlur={() => setFocusedField(null)}
+                      onChangeText={setBankAccountNo}
+                      onFocus={() => setFocusedField("bankAccountNo")}
+                      placeholder={tc("Account Number")}
+                      placeholderTextColor={colors.muted}
+                      style={styles.textInput}
+                      value={bankAccountNo}
+                    />
+                  </View>
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    {tc("Account Owner Name")}
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputBox,
+                      focusedField === "bankAccountName"
+                        ? styles.inputFocused
+                        : null,
+                    ]}
+                  >
+                    <TextInput
+                      onBlur={() => setFocusedField(null)}
+                      onChangeText={setBankAccountName}
+                      onFocus={() => setFocusedField("bankAccountName")}
+                      placeholder={tc("Full Name")}
+                      placeholderTextColor={colors.muted}
+                      style={styles.textInput}
+                      value={bankAccountName}
+                    />
+                  </View>
+                </View>
+                <View style={styles.defaultRow}>
+                  <Text style={styles.inputLabel}>
+                    {tc("Set as Default Method")}
+                  </Text>
+                  <Pressable
+                    onPress={() => setBankIsDefault(!bankIsDefault)}
+                    style={[
+                      styles.switchOuter,
+                      bankIsDefault && styles.switchOuterOn,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.switchInner,
+                        bankIsDefault && styles.switchInnerOn,
+                      ]}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
+            {createTab === "promptpay" ? (
+              <View style={styles.formSection}>
+                <View style={styles.idTypeRow}>
+                  <Pressable
+                    onPress={() => setPpIdType("phone")}
+                    style={[
+                      styles.idTypeBtn,
+                      ppIdType === "phone" && styles.idTypeBtnActive,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.radioOuter,
+                        ppIdType === "phone" && styles.radioOuterActive,
+                      ]}
+                    >
+                      {ppIdType === "phone" ? (
+                        <View style={styles.radioInner} />
+                      ) : null}
+                    </View>
+                    <Text
+                      style={[
+                        styles.idTypeBtnText,
+                        ppIdType === "phone" && styles.idTypeBtnTextActive,
+                      ]}
+                    >
+                      {tc("Phone ID")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setPpIdType("citizen")}
+                    style={[
+                      styles.idTypeBtn,
+                      ppIdType === "citizen" && styles.idTypeBtnActive,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.radioOuter,
+                        ppIdType === "citizen" && styles.radioOuterActive,
+                      ]}
+                    >
+                      {ppIdType === "citizen" ? (
+                        <View style={styles.radioInner} />
+                      ) : null}
+                    </View>
+                    <Text
+                      style={[
+                        styles.idTypeBtnText,
+                        ppIdType === "citizen" && styles.idTypeBtnTextActive,
+                      ]}
+                    >
+                      {tc("Citizen ID")}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{tc("PromptPay Code")}</Text>
+                  <View
+                    style={[
+                      styles.inputBox,
+                      focusedField === "ppCode" ? styles.inputFocused : null,
+                    ]}
+                  >
+                    <TextInput
+                      keyboardType="numeric"
+                      onBlur={() => setFocusedField(null)}
+                      onChangeText={setPpCode}
+                      onFocus={() => setFocusedField("ppCode")}
+                      placeholder={tc("Phone number or 13-digit ID")}
+                      placeholderTextColor={colors.muted}
+                      style={styles.textInput}
+                      value={ppCode}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{tc("Owner Thai Name")}</Text>
+                  <View
+                    style={[
+                      styles.inputBox,
+                      focusedField === "ppThaiName"
+                        ? styles.inputFocused
+                        : null,
+                    ]}
+                  >
+                    <TextInput
+                      onBlur={() => setFocusedField(null)}
+                      onChangeText={setPpThaiName}
+                      onFocus={() => setFocusedField("ppThaiName")}
+                      placeholder={tc("ภาษาไทย")}
+                      placeholderTextColor={colors.muted}
+                      style={styles.textInput}
+                      value={ppThaiName}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    {tc("Owner English Name")}
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputBox,
+                      focusedField === "ppEnglishName"
+                        ? styles.inputFocused
+                        : null,
+                    ]}
+                  >
+                    <TextInput
+                      onBlur={() => setFocusedField(null)}
+                      onChangeText={setPpEnglishName}
+                      onFocus={() => setFocusedField("ppEnglishName")}
+                      placeholder={tc("English Name")}
+                      placeholderTextColor={colors.muted}
+                      style={styles.textInput}
+                      value={ppEnglishName}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.defaultRow}>
+                  <Text style={styles.inputLabel}>
+                    {tc("Set as Default Method")}
+                  </Text>
+                  <Pressable
+                    onPress={() => setPpIsDefault(!ppIsDefault)}
+                    style={[
+                      styles.switchOuter,
+                      ppIsDefault && styles.switchOuterOn,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.switchInner,
+                        ppIsDefault && styles.switchInnerOn,
+                      ]}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
+            {createTab === "crypto" ? (
+              <View style={styles.formSection}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    {tc("Crypto Wallet Address")}
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputBox,
+                      focusedField === "cryptoAddress"
+                        ? styles.inputFocused
+                        : null,
+                    ]}
+                  >
+                    <TextInput
+                      onBlur={() => setFocusedField(null)}
+                      onChangeText={setCryptoAddress}
+                      onFocus={() => setFocusedField("cryptoAddress")}
+                      placeholder="0x..."
+                      placeholderTextColor={colors.muted}
+                      style={styles.textInput}
+                      value={cryptoAddress}
+                    />
+                  </View>
+                </View>
+                <View style={styles.defaultRow}>
+                  <Text style={styles.inputLabel}>
+                    {tc("Set as Default Method")}
+                  </Text>
+                  <Pressable
+                    onPress={() => setCryptoIsDefault(!cryptoIsDefault)}
+                    style={[
+                      styles.switchOuter,
+                      cryptoIsDefault && styles.switchOuterOn,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.switchInner,
+                        cryptoIsDefault && styles.switchInnerOn,
+                      ]}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+          </View>
+
+          <Pressable onPress={handleSaveMethod} style={styles.primaryAction}>
+            <SaveIcon color={colors.white} size={16} />
+            <Text style={styles.primaryActionText}>
+              {tc(
+                isEditingMethod ? "Update Payout Method" : "Save Payout Method",
+              )}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {/* 3. Withdraw (mode="withdraw") renders via the AccountPageShell early-return above. */}
+
+      {/* 4. MY CASHBACK VIEW */}
+      {mode === "myCashback" ? (
+        <View style={styles.sectionWrap}>
+          <View style={styles.hero}>
+            <Text style={styles.kicker}>{tc("Rewards")}</Text>
+            <Text style={styles.title}>{tc("My Cashback")}</Text>
+            <Text style={styles.body}>
+              {tc(
+                "Track your reward collections, review pending validations, and proceed to withdrawal.",
+              )}
+            </Text>
+            <Link asChild href="/withdraw">
+              <Pressable style={styles.primaryAction}>
+                <Text style={styles.primaryActionText}>
+                  {tc("View Wallet Options")}
+                </Text>
+              </Pressable>
+            </Link>
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Text style={styles.rowText}>{tc("Total Earning tracked")}</Text>
+              <Text style={styles.rowValue}>3,504.60 THB</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.rowText}>{tc("Pending validation")}</Text>
+              <Text style={styles.rowValue}>633.60 THB</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.rowText}>
+                {tc("Available payout balance")}
+              </Text>
+              <Text style={styles.rowValue}>3,180.24 THB</Text>
+            </View>
+          </View>
+        </View>
+      ) : null}
+
+      <Link asChild href={mode === "methodCreate" ? "/method" : "/wallet"}>
+        <Pressable style={styles.secondaryAction}>
+          <Text style={styles.secondaryActionText}>
+            {mode === "methodCreate"
+              ? tc("Back to methods")
+              : tc("Back to wallet")}
+          </Text>
+        </Pressable>
+      </Link>
     </>
   );
 
@@ -1216,7 +1641,10 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           ]}
         >
           {moneyActionBlocks}
-          <CustomerDesktopFooterSlot innerPadding={spacing.md} style={styles.desktopFooter} />
+          <CustomerDesktopFooterSlot
+            innerPadding={spacing.md}
+            style={styles.desktopFooter}
+          />
         </KeyboardAwareScreen>
       </View>
     </View>
@@ -1225,595 +1653,594 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
 
 function createMoneyActionScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  // Desktop "Add/Edit Withdrawal Method" sub-page form column (web parity max-w-[720px]).
-  methodCreateDesktopWrap: {
-    gap: spacing.md,
-    maxWidth: 720,
-    width: "100%",
-  },
-  viewport: {
-    alignItems: "center",
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  phoneFrame: {
-    backgroundColor: colors.background,
-    flex: 1,
-    maxWidth: mobileShellLayout.contentMaxWidth,
-    width: "100%",
-  },
-  page: {
-    gap: spacing.homeStackGap,
-    paddingBottom: mobileShellLayout.bottomNavClearance,
-    paddingHorizontal: mobileShellLayout.contentHorizontalPadding,
-  },
-  desktopFooter: {
-    marginTop: 64,
-  },
-  hero: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.lg,
-  },
-  kicker: {
-    color: colors.primaryDark,
-    fontSize: typography.caption,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
-  title: {
-    color: colors.ink,
-    fontSize: typography.headline,
-    fontWeight: "700",
-  },
-  body: {
-    color: colors.muted,
-    fontSize: typography.body,
-    lineHeight: 22,
-  },
-  primaryAction: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radii.chip,
-    flexDirection: "row",
-    gap: 8,
-    minHeight: 48,
-    justifyContent: "center",
-  },
-  primaryActionDisabled: {
-    opacity: 0.5,
-  },
-  primaryActionText: {
-    color: colors.white,
-    fontSize: typography.body,
-    fontWeight: "700",
-  },
-  secondaryAction: {
-    alignItems: "center",
-    borderColor: colors.borderStrong,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    minHeight: 44,
-    justifyContent: "center",
-  },
-  secondaryActionText: {
-    color: colors.accent,
-    fontSize: typography.body,
-    fontWeight: "700",
-  },
-  sectionWrap: {
-    gap: spacing.md,
-  },
-  infoTitle: {
-    color: colors.accent,
-    fontSize: 26,
-    fontWeight: "700",
-  },
-  methodListCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    boxShadow: shadows.cardCss,
-  },
-  methodItemRow: {
-    alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    minHeight: 72,
-    paddingHorizontal: 16,
-  },
-  methodIconBox: {
-    alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderRadius: radii.sm,
-    height: 40,
-    justifyContent: "center",
-    width: 40,
-  },
-  methodDetails: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  methodRowTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  methodRowSub: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 12,
-  },
-  defaultPill: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radii.chip,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  defaultPillText: {
-    color: colors.primaryDark,
-    fontSize: 10,
-    fontWeight: "800",
-  },
-  tabStrip: {
-    backgroundColor: pickThemed(colors, "#EBF3FA", colors.card),
-    borderRadius: radii.lg,
-    flexDirection: "row",
-    gap: 4,
-    padding: 4,
-  },
-  tabPill: {
-    alignItems: "center",
-    borderRadius: radii.md,
-    flex: 1,
-    flexDirection: "row",
-    gap: 6,
-    height: 40,
-    justifyContent: "center",
-  },
-  tabPillActive: {
-    backgroundColor: colors.card,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-  },
-  tabText: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 13,
-  },
-  tabTextActive: {
-    color: colors.primaryDark,
-    fontWeight: "700",
-  },
-  formCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.md,
-    boxShadow: shadows.cardCss,
-  },
-  formSection: {
-    gap: spacing.md,
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  inputLabel: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  inputBox: {
-    alignItems: "center",
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    minHeight: 52,
-    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
-    overflow: "hidden",
-    paddingHorizontal: 16,
-  },
-  // Brand-green focus ring on the input wrapper (where the resting border lives).
-  inputFocused: {
-    borderColor: colors.primary,
-  },
-  textInput: {
-    color: colors.ink,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 14,
-    minHeight: 48,
-    // Web: suppress the orange OS-accent UA focus outline; focus is conveyed by the green border.
-    outlineColor: "transparent",
-    outlineWidth: 0,
-  },
-  defaultRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginVertical: 4,
-  },
-  switchOuter: {
-    backgroundColor: colors.border,
-    borderRadius: radii.chip,
-    height: 24,
-    padding: 2,
-    width: 44,
-  },
-  switchOuterOn: {
-    backgroundColor: colors.primary,
-  },
-  switchInner: {
-    backgroundColor: colors.card,
-    borderRadius: radii.chip,
-    height: 20,
-    width: 20,
-  },
-  switchInnerOn: {
-    transform: [{ translateX: 20 }],
-  },
-  idTypeRow: {
-    flexDirection: "row",
-    gap: 24,
-    marginVertical: 4,
-  },
-  idTypeBtn: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 8,
-    minHeight: 28,
-  },
-  idTypeBtnActive: {},
-  radioOuter: {
-    alignItems: "center",
-    borderColor: colors.border,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    height: 20,
-    justifyContent: "center",
-    width: 20,
-  },
-  radioOuterActive: {
-    borderColor: colors.primaryDark,
-  },
-  radioInner: {
-    backgroundColor: colors.primaryDark,
-    borderRadius: radii.chip,
-    height: 12,
-    width: 12,
-  },
-  idTypeBtnText: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 14,
-  },
-  idTypeBtnTextActive: {
-    color: colors.ink,
-    fontWeight: "600",
-  },
-  card: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  row: {
-    alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 52,
-    paddingHorizontal: spacing.md,
-  },
-  rowText: {
-    color: colors.ink,
-    fontSize: typography.body,
-    fontWeight: "600",
-  },
-  rowValue: {
-    color: colors.primaryDark,
-    fontSize: typography.body,
-    fontWeight: "800",
-  },
-  errorBanner: {
-    backgroundColor: "rgba(205,13,13,0.06)",
-    borderColor: "rgba(205,13,13,0.2)",
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    padding: spacing.md,
-  },
-  errorContent: {
-    flex: 1,
-    gap: 4,
-  },
-  errorText: {
-    color: colors.danger,
-    fontFamily: typography.family,
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  successBanner: {
-    alignItems: "center",
-    backgroundColor: "rgba(0,170,128,0.06)",
-    borderColor: "rgba(0,170,128,0.2)",
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    padding: spacing.md,
-  },
-  successText: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  // --- Withdraw (web Withdraw page parity) ---
-  withdrawScreenTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 28,
-    fontWeight: "600",
-  },
-  withdrawCard: {
-    backgroundColor: colors.card,
-    borderRadius: radii.lg,
-    gap: spacing.lg,
-    padding: spacing.lg,
-  },
-  withdrawHeaderRow: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: 8,
-  },
-  withdrawHeading: {
-    color: colors.ink,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 22,
-    fontWeight: "500",
-    lineHeight: 28,
-  },
-  helpButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 2,
-  },
-  helpPanel: {
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    gap: 6,
-    padding: spacing.md,
-  },
-  helpLine: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  innerSection: {
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 28,
-  },
-  amountBlock: {
-    alignItems: "center",
-    gap: 8,
-  },
-  amountLabel: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 18,
-    textAlign: "center",
-  },
-  amountInputWrap: {
-    alignSelf: "center",
-    borderBottomColor: colors.primary,
-    borderBottomWidth: 2,
-    maxWidth: 400,
-    width: "100%",
-  },
-  amountInput: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 44,
-    fontWeight: "600",
-    // Web: suppress the orange OS-accent UA focus outline; the green underline conveys focus.
-    outlineColor: "transparent",
-    outlineWidth: 0,
-    paddingVertical: 4,
-    textAlign: "center",
-    width: "100%",
-  },
-  availableCaption: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 15,
-    marginTop: 8,
-    textAlign: "center",
-  },
-  fieldBlock: {
-    gap: 12,
-  },
-  fieldLabel: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 17,
-    fontWeight: "600",
-  },
-  selectWrap: {
-    gap: 6,
-  },
-  selectBar: {
-    alignItems: "center",
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1.5,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 56,
-    // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
-    overflow: "hidden",
-    paddingHorizontal: 16,
-  },
-  selectBarError: {
-    borderColor: colors.danger,
-  },
-  selectValue: {
-    color: colors.ink,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 15,
-  },
-  selectPlaceholder: {
-    color: colors.muted,
-  },
-  selectMenu: {
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  selectOption: {
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    gap: 2,
-    justifyContent: "center",
-    minHeight: 52,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  selectOptionLabel: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  selectOptionSub: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 12,
-  },
-  minRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 12,
-    justifyContent: "space-between",
-  },
-  minText: {
-    color: colors.muted,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 13,
-  },
-  manageButton: {
-    alignItems: "center",
-    borderColor: colors.primary,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 36,
-    paddingHorizontal: 16,
-  },
-  manageButtonText: {
-    color: colors.primary,
-    fontFamily: typography.family,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  totalsBlock: {
-    gap: 12,
-  },
-  totalRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  totalRowLabel: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 15,
-  },
-  totalRowValue: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  totalDivider: {
-    backgroundColor: colors.border,
-    height: 1,
-    marginVertical: 4,
-  },
-  receiveLabel: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 15,
-  },
-  receiveValue: {
-    color: colors.primary,
-    fontFamily: typography.family,
-    fontSize: 26,
-    fontWeight: "700",
-  },
-  withdrawActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    justifyContent: "center",
-  },
-  withdrawSecondary: {
-    alignItems: "center",
-    borderColor: colors.muted,
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    flexGrow: 1,
-    justifyContent: "center",
-    minHeight: 52,
-    minWidth: 140,
-    paddingHorizontal: 24,
-  },
-  withdrawSecondaryText: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  withdrawPrimary: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radii.chip,
-    flexGrow: 1,
-    justifyContent: "center",
-    minHeight: 52,
-    minWidth: 160,
-    paddingHorizontal: 24,
-  },
-  withdrawPrimaryText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+    // Desktop "Add/Edit Withdrawal Method" sub-page form column (web parity max-w-[720px]).
+    methodCreateDesktopWrap: {
+      gap: spacing.md,
+      maxWidth: 720,
+      width: "100%",
+    },
+    viewport: {
+      alignItems: "center",
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+    phoneFrame: {
+      backgroundColor: colors.background,
+      flex: 1,
+      maxWidth: mobileShellLayout.contentMaxWidth,
+      width: "100%",
+    },
+    page: {
+      gap: spacing.homeStackGap,
+      paddingBottom: mobileShellLayout.bottomNavClearance,
+      paddingHorizontal: mobileShellLayout.contentHorizontalPadding,
+    },
+    desktopFooter: {
+      marginTop: 64,
+    },
+    hero: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      gap: spacing.md,
+      padding: spacing.lg,
+    },
+    kicker: {
+      color: colors.primaryDark,
+      fontSize: typography.caption,
+      fontWeight: "700",
+      textTransform: "uppercase",
+    },
+    title: {
+      color: colors.ink,
+      fontSize: typography.headline,
+      fontWeight: "700",
+    },
+    body: {
+      color: colors.muted,
+      fontSize: typography.body,
+      lineHeight: 22,
+    },
+    primaryAction: {
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      borderRadius: radii.chip,
+      flexDirection: "row",
+      gap: 8,
+      minHeight: 48,
+      justifyContent: "center",
+    },
+    primaryActionDisabled: {
+      opacity: 0.5,
+    },
+    primaryActionText: {
+      color: colors.white,
+      fontSize: typography.body,
+      fontWeight: "700",
+    },
+    secondaryAction: {
+      alignItems: "center",
+      borderColor: colors.borderStrong,
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      minHeight: 44,
+      justifyContent: "center",
+    },
+    secondaryActionText: {
+      color: colors.accent,
+      fontSize: typography.body,
+      fontWeight: "700",
+    },
+    sectionWrap: {
+      gap: spacing.md,
+    },
+    infoTitle: {
+      color: colors.accent,
+      fontSize: 26,
+      fontWeight: "700",
+    },
+    methodListCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      boxShadow: shadows.cardCss,
+    },
+    methodItemRow: {
+      alignItems: "center",
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flexDirection: "row",
+      minHeight: 72,
+      paddingHorizontal: 16,
+    },
+    methodIconBox: {
+      alignItems: "center",
+      backgroundColor: colors.primarySoft,
+      borderRadius: radii.sm,
+      height: 40,
+      justifyContent: "center",
+      width: 40,
+    },
+    methodDetails: {
+      flex: 1,
+      paddingHorizontal: 16,
+    },
+    methodRowTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "700",
+    },
+    methodRowSub: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 12,
+    },
+    defaultPill: {
+      backgroundColor: colors.primarySoft,
+      borderRadius: radii.chip,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+    defaultPillText: {
+      color: colors.primaryDark,
+      fontSize: 10,
+      fontWeight: "800",
+    },
+    tabStrip: {
+      backgroundColor: pickThemed(colors, "#EBF3FA", colors.card),
+      borderRadius: radii.lg,
+      flexDirection: "row",
+      gap: 4,
+      padding: 4,
+    },
+    tabPill: {
+      alignItems: "center",
+      borderRadius: radii.md,
+      flex: 1,
+      flexDirection: "row",
+      gap: 6,
+      height: 40,
+      justifyContent: "center",
+    },
+    tabPillActive: {
+      backgroundColor: colors.card,
+      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+    },
+    tabText: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 13,
+    },
+    tabTextActive: {
+      color: colors.primaryDark,
+      fontWeight: "700",
+    },
+    formCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      gap: spacing.md,
+      padding: spacing.md,
+      boxShadow: shadows.cardCss,
+    },
+    formSection: {
+      gap: spacing.md,
+    },
+    inputGroup: {
+      gap: 6,
+    },
+    inputLabel: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 13,
+      fontWeight: "700",
+    },
+    inputBox: {
+      alignItems: "center",
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 12,
+      minHeight: 52,
+      // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
+      overflow: "hidden",
+      paddingHorizontal: 16,
+    },
+    // Brand-green focus ring on the input wrapper (where the resting border lives).
+    inputFocused: {
+      borderColor: colors.primary,
+    },
+    textInput: {
+      color: colors.ink,
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: 14,
+      minHeight: 48,
+      // Web: suppress the orange OS-accent UA focus outline; focus is conveyed by the green border.
+      outlineColor: "transparent",
+      outlineWidth: 0,
+    },
+    defaultRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginVertical: 4,
+    },
+    switchOuter: {
+      backgroundColor: colors.border,
+      borderRadius: radii.chip,
+      height: 24,
+      padding: 2,
+      width: 44,
+    },
+    switchOuterOn: {
+      backgroundColor: colors.primary,
+    },
+    switchInner: {
+      backgroundColor: colors.card,
+      borderRadius: radii.chip,
+      height: 20,
+      width: 20,
+    },
+    switchInnerOn: {
+      transform: [{ translateX: 20 }],
+    },
+    idTypeRow: {
+      flexDirection: "row",
+      gap: 24,
+      marginVertical: 4,
+    },
+    idTypeBtn: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 8,
+      minHeight: 28,
+    },
+    idTypeBtnActive: {},
+    radioOuter: {
+      alignItems: "center",
+      borderColor: colors.border,
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      height: 20,
+      justifyContent: "center",
+      width: 20,
+    },
+    radioOuterActive: {
+      borderColor: colors.primaryDark,
+    },
+    radioInner: {
+      backgroundColor: colors.primaryDark,
+      borderRadius: radii.chip,
+      height: 12,
+      width: 12,
+    },
+    idTypeBtnText: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+    },
+    idTypeBtnTextActive: {
+      color: colors.ink,
+      fontWeight: "600",
+    },
+    card: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      overflow: "hidden",
+    },
+    row: {
+      alignItems: "center",
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      minHeight: 52,
+      paddingHorizontal: spacing.md,
+    },
+    rowText: {
+      color: colors.ink,
+      fontSize: typography.body,
+      fontWeight: "600",
+    },
+    rowValue: {
+      color: colors.primaryDark,
+      fontSize: typography.body,
+      fontWeight: "800",
+    },
+    errorBanner: {
+      backgroundColor: "rgba(205,13,13,0.06)",
+      borderColor: "rgba(205,13,13,0.2)",
+      borderRadius: radii.md,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 12,
+      padding: spacing.md,
+    },
+    errorContent: {
+      flex: 1,
+      gap: 4,
+    },
+    errorText: {
+      color: colors.danger,
+      fontFamily: typography.family,
+      fontSize: 13,
+      fontWeight: "500",
+    },
+    successBanner: {
+      alignItems: "center",
+      backgroundColor: "rgba(0,170,128,0.06)",
+      borderColor: "rgba(0,170,128,0.2)",
+      borderRadius: radii.md,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 12,
+      padding: spacing.md,
+    },
+    successText: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    // --- Withdraw (web Withdraw page parity) ---
+    withdrawScreenTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 28,
+      fontWeight: "600",
+    },
+    withdrawCard: {
+      backgroundColor: colors.card,
+      borderRadius: radii.lg,
+      gap: spacing.lg,
+      padding: spacing.lg,
+    },
+    withdrawHeaderRow: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: 8,
+    },
+    withdrawHeading: {
+      color: colors.ink,
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: 22,
+      fontWeight: "500",
+      lineHeight: 28,
+    },
+    helpButton: {
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 2,
+    },
+    helpPanel: {
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      gap: 6,
+      padding: spacing.md,
+    },
+    helpLine: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    innerSection: {
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      gap: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 28,
+    },
+    amountBlock: {
+      alignItems: "center",
+      gap: 8,
+    },
+    amountLabel: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 18,
+      textAlign: "center",
+    },
+    amountInputWrap: {
+      alignSelf: "center",
+      borderBottomColor: colors.primary,
+      borderBottomWidth: 2,
+      maxWidth: 400,
+      width: "100%",
+    },
+    amountInput: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 44,
+      fontWeight: "600",
+      // Web: suppress the orange OS-accent UA focus outline; the green underline conveys focus.
+      outlineColor: "transparent",
+      outlineWidth: 0,
+      paddingVertical: 4,
+      textAlign: "center",
+      width: "100%",
+    },
+    availableCaption: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 15,
+      marginTop: 8,
+      textAlign: "center",
+    },
+    fieldBlock: {
+      gap: 12,
+    },
+    fieldLabel: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 17,
+      fontWeight: "600",
+    },
+    selectWrap: {
+      gap: 6,
+    },
+    selectBar: {
+      alignItems: "center",
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderWidth: 1.5,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      minHeight: 56,
+      // Clip to the radius so the rounded corners don't rasterize "horns" under the focus layer.
+      overflow: "hidden",
+      paddingHorizontal: 16,
+    },
+    selectBarError: {
+      borderColor: colors.danger,
+    },
+    selectValue: {
+      color: colors.ink,
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: 15,
+    },
+    selectPlaceholder: {
+      color: colors.muted,
+    },
+    selectMenu: {
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      overflow: "hidden",
+    },
+    selectOption: {
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      gap: 2,
+      justifyContent: "center",
+      minHeight: 52,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    selectOptionLabel: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    selectOptionSub: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 12,
+    },
+    minRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 12,
+      justifyContent: "space-between",
+    },
+    minText: {
+      color: colors.muted,
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: 13,
+    },
+    manageButton: {
+      alignItems: "center",
+      borderColor: colors.primary,
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      justifyContent: "center",
+      minHeight: 36,
+      paddingHorizontal: 16,
+    },
+    manageButtonText: {
+      color: colors.primary,
+      fontFamily: typography.family,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    totalsBlock: {
+      gap: 12,
+    },
+    totalRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    totalRowLabel: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 15,
+    },
+    totalRowValue: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 18,
+      fontWeight: "600",
+    },
+    totalDivider: {
+      backgroundColor: colors.border,
+      height: 1,
+      marginVertical: 4,
+    },
+    receiveLabel: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 15,
+    },
+    receiveValue: {
+      color: colors.primary,
+      fontFamily: typography.family,
+      fontSize: 26,
+      fontWeight: "700",
+    },
+    withdrawActions: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 12,
+      justifyContent: "center",
+    },
+    withdrawSecondary: {
+      alignItems: "center",
+      borderColor: colors.muted,
+      borderRadius: radii.chip,
+      borderWidth: 1,
+      flexGrow: 1,
+      justifyContent: "center",
+      minHeight: 52,
+      minWidth: 140,
+      paddingHorizontal: 24,
+    },
+    withdrawSecondaryText: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 15,
+      fontWeight: "600",
+    },
+    withdrawPrimary: {
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      borderRadius: radii.chip,
+      flexGrow: 1,
+      justifyContent: "center",
+      minHeight: 52,
+      minWidth: 160,
+      paddingHorizontal: 24,
+    },
+    withdrawPrimaryText: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });
 }
-

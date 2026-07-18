@@ -3,13 +3,23 @@ import { HydratedDocument } from 'mongoose';
 
 export type WithdrawFeeCouponDocument = HydratedDocument<WithdrawFeeCoupon>;
 
-export const WITHDRAW_FEE_DISCOUNT_MODES = ['fixed', 'percent', 'waive'] as const;
+export const WITHDRAW_FEE_DISCOUNT_MODES = [
+  'fixed',
+  'percent',
+  'waive',
+] as const;
 export type WithdrawFeeDiscountMode =
   (typeof WITHDRAW_FEE_DISCOUNT_MODES)[number];
 
 @Schema({ collection: 'withdraw_fee_coupons', timestamps: true })
 export class WithdrawFeeCoupon {
-  @Prop({ required: true, unique: true, uppercase: true, trim: true, index: true })
+  @Prop({
+    required: true,
+    unique: true,
+    uppercase: true,
+    trim: true,
+    index: true,
+  })
   code!: string;
 
   @Prop({ required: true, trim: true })
@@ -47,7 +57,15 @@ export class WithdrawFeeCoupon {
   @Prop({ type: Boolean, default: false, index: true })
   disabled!: boolean;
 
-  @Prop({ type: Number, required: false, min: 0 })
+  @Prop({
+    type: Number,
+    required: false,
+    min: 1,
+    validate: {
+      validator: Number.isInteger,
+      message: 'quantity must be an integer',
+    },
+  })
   quantity?: number;
 
   @Prop({ type: Number, required: true, min: 0, default: 0 })
@@ -56,7 +74,16 @@ export class WithdrawFeeCoupon {
   @Prop({ type: Boolean, default: true })
   unlimited_quantity!: boolean;
 
-  @Prop({ type: Number, required: true, min: 1, default: 1 })
+  @Prop({
+    type: Number,
+    required: true,
+    min: 1,
+    default: 1,
+    validate: {
+      validator: Number.isInteger,
+      message: 'usage_per_user must be an integer',
+    },
+  })
   usage_per_user!: number;
 
   @Prop({ type: [String], default: ['bank_transfer'] })

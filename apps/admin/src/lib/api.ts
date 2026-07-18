@@ -7,6 +7,8 @@ import {
   AdminUsersQuery,
   AdminUsersResponse,
   DataAdminUsers,
+  AdminDeleteResponse,
+  AdminCreateInput,
   RoleDef,
   RolesResponse,
   RegularUser,
@@ -734,7 +736,7 @@ class ApiClient {
   }
 
   async createAdminUser(
-    userData: Omit<DataAdminUsers, "_id" | "createdAt" | "updatedAt" | "__v">,
+    userData: AdminCreateInput,
     token?: string,
   ): Promise<DataAdminUsers> {
     const headers: Record<string, string> = {};
@@ -762,7 +764,7 @@ class ApiClient {
     }
 
     return this.request<DataAdminUsers>(`/admin/${userId}`, {
-      method: "PUT",
+      method: "PATCH",
       headers,
       body: JSON.stringify(userData),
     });
@@ -771,13 +773,13 @@ class ApiClient {
   async deleteAdminUser(
     userId: string,
     token?: string,
-  ): Promise<{ message: string }> {
+  ): Promise<AdminDeleteResponse> {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    return this.request<{ message: string }>(`/admin/${userId}`, {
+    return this.request<AdminDeleteResponse>(`/admin/${userId}`, {
       method: "DELETE",
       headers,
     });

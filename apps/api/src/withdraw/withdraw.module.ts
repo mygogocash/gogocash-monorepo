@@ -41,6 +41,10 @@ import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { PointModule } from 'src/point/point.module';
 import { AdminActivityModule } from 'src/admin/activity/admin-activity.module';
+import {
+  WalletAdjustment,
+  WalletAdjustmentSchema,
+} from 'src/admin/wallets/schemas/wallet-adjustment.schema';
 
 @Module({
   imports: [
@@ -67,6 +71,7 @@ import { AdminActivityModule } from 'src/admin/activity/admin-activity.module';
         name: WithdrawFeeCouponRedemption.name,
         schema: WithdrawFeeCouponRedemptionSchema,
       },
+      { name: WalletAdjustment.name, schema: WalletAdjustmentSchema },
     ]),
   ],
   controllers: [WithdrawController],

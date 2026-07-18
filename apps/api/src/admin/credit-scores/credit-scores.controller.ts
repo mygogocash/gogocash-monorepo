@@ -19,6 +19,7 @@ import {
   UpdateCreditScoreConfigDto,
   OverrideCreditScoreDto,
 } from './dto/credit-score.dto';
+import { requireAdminActor } from '../activity/admin-activity.actor';
 
 @ApiTags('Admin Credit Scores')
 @Controller('admin/credit-scores')
@@ -40,8 +41,8 @@ export class CreditScoresController {
 
   @Roles('superadmin')
   @Put('config')
-  updateConfig(@Body() dto: UpdateCreditScoreConfigDto) {
-    return this.creditScoresService.updateConfig(dto);
+  updateConfig(@Body() dto: UpdateCreditScoreConfigDto, @Req() req: Request) {
+    return this.creditScoresService.updateConfig(dto, requireAdminActor(req));
   }
 
   @Get(':userId')
@@ -61,13 +62,11 @@ export class CreditScoresController {
     @Body() dto: OverrideCreditScoreDto,
     @Req() req: Request,
   ) {
-    const admin = req['user'] as any;
-    const adminId = admin?.sub ?? '';
     return this.creditScoresService.override(
       userId,
       dto.newScore,
       dto.reason,
-      adminId,
+      requireAdminActor(req),
     );
   }
 }

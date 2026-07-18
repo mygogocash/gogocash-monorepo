@@ -107,7 +107,10 @@ export interface Referral {
 // Missing Conversions contract lives in @gogocash/contracts (#19 P4-1);
 // re-exported here so existing "@/types/adminModules" import sites keep working.
 export { MISSING_ORDER_STATUSES } from "@gogocash/contracts";
-export type { MissingOrderClaim, MissingOrderStatus } from "@gogocash/contracts";
+export type {
+  MissingOrderClaim,
+  MissingOrderStatus,
+} from "@gogocash/contracts";
 
 export interface UserWallet {
   userId: string;
@@ -124,7 +127,7 @@ export interface WalletAdjustment {
   walletId: string;
   type: "credit" | "debit";
   amount: number;
-  currency: "GGC" | "cashback" | "points";
+  currency: "THB" | "USD";
   reason: string;
   adminId: string;
   timestamp: string;

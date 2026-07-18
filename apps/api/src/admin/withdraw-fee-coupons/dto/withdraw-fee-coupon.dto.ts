@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsDateString,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -69,6 +70,7 @@ export class CreateWithdrawFeeCouponDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
+  @IsInt()
   @Min(1)
   quantity?: number;
 
@@ -80,6 +82,7 @@ export class CreateWithdrawFeeCouponDto {
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
   @IsNumber()
+  @IsInt()
   @Min(1)
   @Max(1000)
   usage_per_user?: number;
@@ -146,6 +149,7 @@ export class UpdateWithdrawFeeCouponDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
+  @IsInt()
   @Min(1)
   quantity?: number;
 
@@ -157,6 +161,7 @@ export class UpdateWithdrawFeeCouponDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
+  @IsInt()
   @Min(1)
   @Max(1000)
   usage_per_user?: number;
