@@ -1,4 +1,5 @@
 {
+  "extends": "@gogocash/tsconfig/base.json",
   "compilerOptions": {
     "target": "ES2017",
     "lib": [
