@@ -18,10 +18,13 @@ import {
   getMembershipTiers,
   getMembershipUsers,
   getMissingOrders,
+  getWalletAdjustments,
+  getWalletDetail,
   getSubscriptionPlans,
   getSubscriptionStats,
   getSubscriptions,
   postMissingOrderNote,
+  postWalletAdjust,
   putMissingOrderReject,
   putMissingOrderAssign,
 } from "./adminModulesApi";
@@ -206,6 +209,47 @@ describe("adminModulesApi", () => {
     expect(mockClient.post).toHaveBeenCalledWith(
       "/admin/missing-orders/claim-1/notes",
       { text: "Requested provider confirmation" },
+    );
+  });
+
+  it("uses the real wallet detail and adjustment response contracts", async () => {
+    const wallet = { userId: "user-1", status: "active" };
+    const adjustment = { walletId: "user-1", amount: 25 };
+    mockClient.get.mockResolvedValueOnce({
+      data: { wallet, recentTransactions: [] },
+    });
+    mockClient.get.mockResolvedValueOnce({ data: { data: [adjustment] } });
+
+    await expect(getWalletDetail("user-1")).resolves.toEqual({
+      wallet,
+      recentTransactions: [],
+    });
+    await expect(getWalletAdjustments("user-1")).resolves.toEqual([adjustment]);
+  });
+
+  it("sends a durable wallet command key and only whitelisted adjustment fields", async () => {
+    mockClient.post.mockResolvedValueOnce({ data: { _id: "adjustment-1" } });
+
+    await postWalletAdjust(
+      "user-1",
+      {
+        type: "credit",
+        amount: 25,
+        currency: "THB",
+        reason: "Reward",
+      },
+      "idem-adjust-1",
+    );
+
+    expect(mockClient.post).toHaveBeenCalledWith(
+      "/admin/wallets/user-1/adjust",
+      {
+        type: "credit",
+        amount: 25,
+        currency: "THB",
+        reason: "Reward",
+      },
+      { headers: { "Idempotency-Key": "idem-adjust-1" } },
     );
   });
 

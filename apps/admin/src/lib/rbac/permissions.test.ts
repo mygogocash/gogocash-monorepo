@@ -20,7 +20,10 @@ describe("can", () => {
 
   it("viewer can only view", () => {
     expect(can("viewer", "dashboard:view")).toBe(true);
+    expect(can("viewer", "activity:view")).toBe(true);
     expect(can("viewer", "brands:manage")).toBe(false);
+    expect(can("viewer", "activity:manage")).toBe(false);
+    expect(can("viewer", "coupon:manage")).toBe(false);
   });
 
   it("no role can do nothing", () => {
@@ -41,6 +44,7 @@ describe("permissionForRoute", () => {
     expect(permissionForRoute("/admin-users")).toBe("adminUsers:view");
     expect(permissionForRoute("/withdraw/123")).toBe("withdraw:view");
     expect(permissionForRoute("/dashboard")).toBe("dashboard:view");
+    expect(permissionForRoute("/activity")).toBe("activity:view");
   });
 
   it("returns null for unmapped routes", () => {

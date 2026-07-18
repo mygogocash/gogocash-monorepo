@@ -7,6 +7,7 @@ import type { Role } from "./roles";
 
 export const RESOURCES = [
   "dashboard",
+  "activity",
   "users",
   "adminUsers",
   "brands",
@@ -88,6 +89,7 @@ const ROUTE_VIEW_PERMISSION: { prefix: string; permission: Permission }[] = [
   { prefix: "/reward", permission: "quest:view" },
   { prefix: "/points", permission: "quest:view" },
   { prefix: "/dashboard", permission: "dashboard:view" },
+  { prefix: "/activity", permission: "activity:view" },
 ];
 
 export function can(

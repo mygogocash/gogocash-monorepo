@@ -16,11 +16,8 @@ describe("LINE Login staging deployment config", () => {
     expect(dockerfile).toContain("EXPO_PUBLIC_LIFF_ID=$EXPO_PUBLIC_LIFF_ID");
   });
 
-  it.each([
-    ".github/workflows/deploy-app-web-staging.yml",
-    ".github/workflows/_build-push.yml",
-  ])("passes the staging GitHub variable through %s", (workflowPath) => {
-    const workflow = readRepoFile(workflowPath);
+  it("passes the staging GitHub variable through the retained GCP build path", () => {
+    const workflow = readRepoFile(".github/workflows/_build-push.yml");
 
     expect(workflow).toContain(
       "EXPO_PUBLIC_LIFF_ID: ${{ vars.EXPO_PUBLIC_LIFF_ID }}",
@@ -33,5 +30,13 @@ describe("LINE Login staging deployment config", () => {
     expect(envMatrix).toContain(
       "railway variable set 'EXPO_PUBLIC_LIFF_ID=2008237916-KY5oR5mW' --service '@gogocash/mobile' --environment staging",
     );
+    expect(envMatrix).toContain("docs/line-login-channel.md");
+  });
+
+  it("documents LINE Developing-channel publish steps for issue #382", () => {
+    const runbook = readRepoFile("docs/line-login-channel.md");
+    expect(runbook).toContain("developing status");
+    expect(runbook).toContain("2008237916");
+    expect(runbook).toContain("Published");
   });
 });

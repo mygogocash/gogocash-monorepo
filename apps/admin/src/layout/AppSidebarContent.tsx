@@ -49,6 +49,12 @@ export const navItems: NavItem[] = [
     permission: "dashboard:view",
   },
   {
+    icon: <ListIcon />,
+    name: "Platform Activity",
+    path: "/activity",
+    permission: "activity:view",
+  },
+  {
     icon: <GroupIcon />,
     name: "Users Management",
     subItems: [
@@ -132,6 +138,12 @@ export const navItems: NavItem[] = [
       {
         name: "Coupon History",
         path: "/coupon",
+        pro: false,
+        permission: "coupon:view",
+      },
+      {
+        name: "Withdraw Fee Coupons",
+        path: "/coupon/withdraw-fee",
         pro: false,
         permission: "coupon:view",
       },

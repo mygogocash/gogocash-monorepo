@@ -43,6 +43,8 @@ describe("CustomerMoneyActionScreen — withdraw web parity (form step)", () => 
     expect(screen.getByText("Active Balance")).toBeTruthy();
     expect(screen.getByText("Withdraw Fee")).toBeTruthy();
     expect(screen.getByText("You will receive")).toBeTruthy();
+    expect(screen.getByText("Remaining cashback")).toBeTruthy();
+    expect(screen.getByText("Fee coupon code")).toBeTruthy();
 
     // CTA is the web "Withdraw" (was "Confirm & Dispatch").
     expect(screen.getByRole("button", { name: "Withdraw" })).toBeTruthy();
@@ -56,12 +58,15 @@ describe("CustomerMoneyActionScreen — withdraw web parity (form step)", () => 
 
     // Withdraw fee is 20.00 → user receives 980.00 THB.
     expect(screen.getByText("980.00 THB")).toBeTruthy();
+    // Fixture balance 3180.24 − 1000 = 2180.24 remaining.
+    expect(screen.getByText("2,180.24 THB")).toBeTruthy();
   });
 
   it("withdraw form > given no amount entered > then 'You will receive' shows an em dash, not 0.00", () => {
     renderWithdrawScreen();
 
     // The empty form must not imply a 0.00 payout before anything is typed.
-    expect(screen.getByText("—")).toBeTruthy();
+    // Both "You will receive" and "Remaining cashback" show an em dash when empty.
+    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(1);
   });
 });

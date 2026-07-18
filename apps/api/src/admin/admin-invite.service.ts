@@ -4,9 +4,9 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
-import { Model } from 'mongoose';
+import { Connection, Model } from 'mongoose';
 import { createHash, randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
@@ -14,6 +14,8 @@ import { AdminToken } from './schemas/admin-token.schema';
 import { AdminInviteState } from './schemas/admin-invite-state.schema';
 import { EmailService } from 'src/email/email.service';
 import { adminEmailEquals, normalizeAdminEmail } from './normalize-admin-email';
+import { AdminActivityService } from './activity/admin-activity.service';
+import { AdminActor } from './activity/admin-activity.actor';
 
 const BCRYPT_ROUNDS = 10;
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -47,6 +49,8 @@ export class AdminInviteService {
     private readonly inviteStateModel: Model<AdminInviteState>,
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
+    private readonly adminActivity: AdminActivityService,
+    @InjectConnection() private readonly connection: Connection,
   ) {}
 
   private appUrl(): string {
@@ -134,6 +138,7 @@ export class AdminInviteService {
   async invite(
     email: string,
     role: string,
+    actor: AdminActor,
   ): Promise<{
     message: string;
     deliveryStatus: 'accepted';
@@ -238,6 +243,17 @@ export class AdminInviteService {
       }
     }
 
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: actor.id,
+      actor_label: actor.label,
+      action: 'admin_user.invited',
+      entity_type: 'admin_user',
+      entity_id: normalizedEmail,
+      summary: `Invited admin user ${normalizedEmail}`,
+      metadata: { email: normalizedEmail, role },
+    });
+
     return {
       message: 'Invitation accepted for delivery',
       deliveryStatus: 'accepted',
@@ -288,7 +304,7 @@ export class AdminInviteService {
 
     const username = input.username?.trim() || normalizedEmail.split('@')[0];
     const password = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
-    await this.userAdminModel.create({
+    const created = await this.userAdminModel.create({
       username,
       email: normalizedEmail,
       password,
@@ -297,6 +313,17 @@ export class AdminInviteService {
     await this.tokenModel
       .updateOne({ _id: rec._id }, { usedAt: new Date() })
       .exec();
+
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: String(created._id),
+      actor_label: normalizedEmail,
+      action: 'admin_user.accepted_invite',
+      entity_type: 'admin_user',
+      entity_id: String(created._id),
+      summary: `Activated admin user ${normalizedEmail}`,
+      metadata: { email: normalizedEmail, role: rec.role },
+    });
 
     return { message: 'Account created. You can now sign in.' };
   }
@@ -313,14 +340,15 @@ export class AdminInviteService {
       await this.tokenModel
         .deleteMany({
           purpose: 'reset',
-          email: normalizedEmail,
+          $or: [{ adminId: admin._id }, { email: normalizedEmail }],
         })
-        .collation({ locale: 'en', strength: 2 })
         .exec();
 
       await this.tokenModel.create({
         email: normalizedEmail,
         purpose: 'reset',
+        adminId: admin._id,
+        sessionVersion: admin.session_version ?? 0,
         role: null,
         tokenHash: this.hash(raw),
         expiresAt: new Date(Date.now() + RESET_TTL_MS),
@@ -368,32 +396,85 @@ export class AdminInviteService {
       throw new BadRequestException('Invalid or expired reset link');
     }
 
-    const rec = await this.tokenModel
-      .findOne({
-        tokenHash: this.hash(token),
-        purpose: 'reset',
-        usedAt: null,
-        expiresAt: { $gt: new Date() },
-      })
-      .exec();
+    const password = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+    const session = await this.connection.startSession();
+    let adminId: string | null = null;
 
-    if (!rec || !adminEmailEquals(rec.email, normalizedEmail)) {
-      throw new BadRequestException('Invalid or expired reset link');
+    try {
+      await session.withTransaction(async () => {
+        adminId = null;
+        const rec = await this.tokenModel
+          .findOneAndUpdate(
+            {
+              tokenHash: this.hash(token),
+              purpose: 'reset',
+              email: normalizedEmail,
+              usedAt: null,
+              expiresAt: { $gt: new Date() },
+            },
+            { $set: { usedAt: new Date() } },
+            { new: true, session },
+          )
+          .exec();
+
+        const tokenSessionVersion = rec?.sessionVersion;
+        if (
+          !rec?.adminId ||
+          !adminEmailEquals(rec.email, normalizedEmail) ||
+          typeof tokenSessionVersion !== 'number' ||
+          !Number.isSafeInteger(tokenSessionVersion) ||
+          tokenSessionVersion < 0
+        ) {
+          throw new BadRequestException('Invalid or expired reset link');
+        }
+
+        const versionFilter =
+          tokenSessionVersion === 0
+            ? {
+                $or: [
+                  { session_version: 0 },
+                  { session_version: { $exists: false } },
+                ],
+              }
+            : { session_version: tokenSessionVersion };
+        const result = await this.userAdminModel
+          .updateOne(
+            { _id: rec.adminId, ...versionFilter },
+            {
+              $set: { password },
+              $inc: { session_version: 1 },
+            },
+            { session },
+          )
+          .exec();
+
+        if (result.matchedCount !== 1) {
+          // Binding both identity and credential generation rejects a token
+          // after account recreation or another successful password reset.
+          throw new BadRequestException('Invalid or expired reset link');
+        }
+        adminId = String(rec.adminId);
+        await this.adminActivity.appendRequired(
+          {
+            actor_type: 'admin',
+            actor_id: adminId,
+            actor_label: normalizedEmail,
+            action: 'admin_user.password_reset',
+            entity_type: 'admin_user',
+            entity_id: adminId,
+            summary: `Reset password for admin user ${normalizedEmail}`,
+            metadata: { email: normalizedEmail },
+          },
+          session,
+        );
+      });
+    } finally {
+      await session.endSession();
     }
 
-    const admin = await this.userAdminModel
-      .findOne({ email: normalizedEmail })
-      .collation({ locale: 'en', strength: 2 })
-      .exec();
-    if (!admin) {
+    if (!adminId) {
       throw new BadRequestException('Invalid or expired reset link');
     }
-
-    admin.password = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
-    await admin.save();
-    await this.tokenModel
-      .updateOne({ _id: rec._id }, { usedAt: new Date() })
-      .exec();
 
     return { message: 'Password updated. You can now sign in.' };
   }

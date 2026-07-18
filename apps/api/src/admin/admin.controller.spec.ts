@@ -26,6 +26,14 @@ describe('AdminController', () => {
   let adminInviteService: Record<string, jest.Mock>;
 
   const RETURN = Symbol('service-return');
+  const adminRequest = (user?: Record<string, unknown>) =>
+    ({
+      user: {
+        sub: 'admin-root',
+        email: 'root@gogocash.co',
+        ...user,
+      },
+    }) as unknown as Request;
 
   beforeEach(() => {
     // Every service method returns the same sentinel so we can assert the
@@ -104,11 +112,15 @@ describe('AdminController', () => {
     // forward exactly the email + role the (already superadmin-gated) caller
     // supplied, not a reshaped or defaulted value.
     it('invite > given an email and role > then it forwards both to AdminInviteService.invite', () => {
-      controller.invite({ email: 'new@gogocash.co', role: 'support' } as never);
+      controller.invite(
+        { email: 'new@gogocash.co', role: 'support' } as never,
+        adminRequest(),
+      );
 
       expect(adminInviteService.invite).toHaveBeenCalledWith(
         'new@gogocash.co',
         'support',
+        { id: 'admin-root', label: 'root@gogocash.co' },
       );
     });
   });
@@ -191,9 +203,12 @@ describe('AdminController', () => {
   describe('register', () => {
     it('register > given a register dto > then it delegates to UserAdminService.register', () => {
       const dto = { email: 'x@gogocash.co' };
-      controller.register(dto as never);
+      controller.register(dto as never, adminRequest());
 
-      expect(userAdminService.register).toHaveBeenCalledWith(dto);
+      expect(userAdminService.register).toHaveBeenCalledWith(dto, {
+        id: 'admin-root',
+        label: 'root@gogocash.co',
+      });
     });
   });
 
@@ -294,19 +309,25 @@ describe('AdminController', () => {
   // ─── Admin record management ────────────────────────────────────────────
 
   describe('update', () => {
-    it('update > given id and dto > then it forwards (id, dto)', () => {
+    it('update > given id and dto > then it forwards the verified actor', () => {
       const dto = { role: 'viewer' };
-      controller.update('admin-9', dto as never);
+      controller.update('admin-9', dto as never, adminRequest());
 
-      expect(adminService.update).toHaveBeenCalledWith('admin-9', dto);
+      expect(adminService.update).toHaveBeenCalledWith('admin-9', dto, {
+        id: 'admin-root',
+        label: 'root@gogocash.co',
+      });
     });
   });
 
   describe('remove', () => {
-    it('remove > given an id > then it forwards the id', () => {
-      controller.remove('admin-9');
+    it('remove > given an id > then it forwards the verified actor', () => {
+      controller.remove('admin-9', adminRequest());
 
-      expect(adminService.remove).toHaveBeenCalledWith('admin-9');
+      expect(adminService.remove).toHaveBeenCalledWith('admin-9', {
+        id: 'admin-root',
+        label: 'root@gogocash.co',
+      });
     });
   });
 
@@ -876,14 +897,39 @@ describe('AdminController', () => {
       ).toHaveBeenCalledWith('conv-1');
     });
 
-    it('updateRequestWithdraw > given a file and dto > then it forwards (dto, file)', () => {
+    it('updateRequestWithdraw > given a file and dto > then it forwards the authenticated actor', () => {
       const file = { originalname: 'slip.png' } as Express.Multer.File;
       const dto = { status: 'approved', id: 'w-1' };
-      controller.updateRequestWithdraw(file, dto as never);
+      const req = {
+        user: {
+          sub: 'admin-7',
+          email: 'approver@gogocash.co',
+          username: 'Approver',
+        },
+      } as unknown as Request;
+      controller.updateRequestWithdraw(file, dto as never, req);
       expect(adminService.updateRequestWithdraw).toHaveBeenCalledWith(
         dto,
         file,
+        { id: 'admin-7', label: 'Approver' },
       );
+    });
+
+    it('update admin role > given an authenticated superadmin > then it forwards actor identity', () => {
+      const dto = { role: 'support' };
+      const req = {
+        user: {
+          sub: 'admin-root',
+          email: 'root@gogocash.co',
+        },
+      } as unknown as Request;
+
+      controller.update('admin-target', dto as never, req);
+
+      expect(adminService.update).toHaveBeenCalledWith('admin-target', dto, {
+        id: 'admin-root',
+        label: 'root@gogocash.co',
+      });
     });
 
     it('create > given a create dto > then it delegates to AdminService.create', () => {

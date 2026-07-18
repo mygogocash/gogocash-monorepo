@@ -1,23 +1,39 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   HttpException,
   Injectable,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import {
   ProductTypeDto,
+  ADMIN_ASSIGNABLE_ROLES,
   UpdateAdminDto,
   UpdateBannerHomeDto,
   UpdateSpecificPageBannerDto,
   UpdateFeeRateDto,
   UpdateRequestWithdrawDto,
 } from './dto/update-admin.dto';
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
-import { Model, Types } from 'mongoose';
-import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
+import { ClientSession, Connection, Model, Types } from 'mongoose';
+import {
+  Withdraw,
+  type WithdrawDocument,
+} from 'src/withdraw/schemas/withdraw.schema';
+import { WithdrawFeeCoupon } from 'src/withdraw/schemas/withdraw-fee-coupon.schema';
+import { WithdrawFeeCouponRedemption } from 'src/withdraw/schemas/withdraw-fee-coupon-redemption.schema';
+import {
+  isAllowedWithdrawStatusTransition,
+  shouldRestoreWithdrawFeeCoupon,
+  WITHDRAW_ADMIN_STATUSES,
+} from './restore-withdraw-fee-coupon';
+import { AdminActivityService } from './activity/admin-activity.service';
+import type { AdminActor } from './activity/admin-activity.actor';
 import { InvolveService } from 'src/involve/involve.service';
 import { User } from 'src/user/schemas/user.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
@@ -94,11 +110,25 @@ type AdminCategoryUpdateData = {
   banner?: Express.Multer.File;
 };
 
+const SUPERADMIN_ROLES = ['superadmin', 'super_admin'] as const;
+const ADMIN_SECURITY_LOCK_COLLECTION = 'admin_security_locks';
+const ADMIN_ROSTER_LOCK_ID = 'superadmin-roster';
+
+function isSuperadminRole(role: unknown): boolean {
+  return SUPERADMIN_ROLES.includes(
+    String(role ?? '') as (typeof SUPERADMIN_ROLES)[number],
+  );
+}
+
 @Injectable()
 export class AdminService {
   constructor(
     @InjectModel(UserAdmin.name) private userAdminModel: Model<UserAdmin>,
     @InjectModel(Withdraw.name) private withdrawModel: Model<Withdraw>,
+    @InjectModel(WithdrawFeeCoupon.name)
+    private withdrawFeeCouponModel: Model<WithdrawFeeCoupon>,
+    @InjectModel(WithdrawFeeCouponRedemption.name)
+    private withdrawFeeCouponRedemptionModel: Model<WithdrawFeeCouponRedemption>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
@@ -123,6 +153,8 @@ export class AdminService {
     private readonly policyMediaCleanup: PolicyMediaCleanupService,
     private readonly policyMediaWrite: PolicyMediaWriteService,
     private readonly policyMediaRegistry: PolicyMediaAssetRegistryService,
+    private readonly adminActivity: AdminActivityService,
+    @InjectConnection() private readonly connection: Connection,
   ) {}
 
   private async surfaceMediaCleanup<T>(
@@ -175,7 +207,12 @@ export class AdminService {
       : {};
 
     const [data, total] = await Promise.all([
-      this.userAdminModel.find(query).skip(skip).limit(limit).exec(),
+      this.userAdminModel
+        .find(query)
+        .select('-password')
+        .skip(skip)
+        .limit(limit)
+        .exec(),
       this.userAdminModel.countDocuments(query).exec(),
     ]);
 
@@ -193,60 +230,498 @@ export class AdminService {
   }
 
   findOne(id: string) {
-    return this.userAdminModel.findById(requireObjectId(id)).exec();
+    return this.userAdminModel
+      .findById(requireObjectId(id))
+      .select('-password')
+      .exec();
   }
 
-  update(id: string, _updateAdminDto: UpdateAdminDto) {
-    void _updateAdminDto;
-    return this.userAdminModel
-      .findByIdAndUpdate(requireObjectId(id), mongoSetUpdate({}))
-      .exec();
+  async update(id: string, updateAdminDto: UpdateAdminDto, actor: AdminActor) {
+    const adminId = requireObjectId(id, 'admin id');
+    const role = requireOneOf(
+      requireTrimmedString(updateAdminDto.role, 32, 'admin role'),
+      ADMIN_ASSIGNABLE_ROLES,
+      'admin role',
+    );
+    const actorId = requireTrimmedString(actor.id, 128, 'admin actor id');
+    const actorLabel = requireTrimmedString(
+      actor.label || actor.id,
+      320,
+      'admin actor label',
+    );
+    const { updated, changed } = await this.withAdminRosterLock(
+      async (session) => {
+        const previous = await this.userAdminModel
+          .findById(adminId)
+          .select('-password')
+          .session(session)
+          .exec();
+        if (!previous) {
+          throw new NotFoundException('Admin user not found.');
+        }
+        if (String(previous.role) === role) {
+          return { previous, updated: previous, changed: false };
+        }
+        if (isSuperadminRole(previous.role) && !isSuperadminRole(role)) {
+          await this.assertAnotherSuperadminExists(session);
+        }
+
+        const updated = await this.userAdminModel
+          .findOneAndUpdate(
+            { _id: adminId, role: previous.role },
+            mongoSetUpdate({ role }),
+            { new: true, session },
+          )
+          .select('-password')
+          .exec();
+        if (!updated) {
+          throw new ConflictException(
+            'The admin role changed while you were editing. Refresh and try again.',
+          );
+        }
+        await this.adminActivity.appendRequired(
+          {
+            actor_type: 'admin',
+            actor_id: actorId,
+            actor_label: actorLabel,
+            action: 'admin_role.changed',
+            entity_type: 'admin_user',
+            entity_id: String(updated._id),
+            summary: `Admin role ${previous.role} → ${updated.role}`,
+            metadata: {
+              email: updated.email,
+              previous_role: previous.role,
+              role: updated.role,
+            },
+          },
+          session,
+        );
+        return { previous, updated, changed: true };
+      },
+    );
+
+    if (!changed) return updated;
+    return updated;
   }
 
   async updateRequestWithdraw(
     updateRequestWithdrawDto: UpdateRequestWithdrawDto,
     file: Express.Multer.File,
+    actor: AdminActor,
   ) {
     const withdrawId = requireObjectId(
       updateRequestWithdrawDto.id,
       'withdraw id',
     );
+    const nextStatus = requireOneOf(
+      requireTrimmedString(
+        updateRequestWithdrawDto.status,
+        64,
+        'withdraw status',
+      ).toLowerCase(),
+      WITHDRAW_ADMIN_STATUSES,
+      'withdraw status',
+    );
+    const actorId = requireTrimmedString(actor.id, 128, 'admin actor id');
+    const actorLabel = requireTrimmedString(
+      actor.label || actor.id,
+      320,
+      'admin actor label',
+    );
+    let slipFile: string | undefined;
     if (file) {
-      const slipFile = await this.storedMediaService.upload(
+      slipFile = await this.storedMediaService.upload(
         file,
         MEDIA_FOLDER.WITHDRAW_SLIPS,
       );
-      return this.withdrawModel
-        .findByIdAndUpdate(
-          withdrawId,
-          mongoSetUpdate({
-            status: requireTrimmedString(
-              updateRequestWithdrawDto.status,
-              64,
-              'withdraw status',
-            ),
-            slip_file: slipFile,
-          }),
-        )
-        .exec();
     }
-    return this.withdrawModel
-      .findByIdAndUpdate(
-        withdrawId,
-        mongoSetUpdate({
-          status: requireTrimmedString(
-            updateRequestWithdrawDto.status,
-            64,
-            'withdraw status',
-          ),
-        }),
-      )
-      .exec();
+
+    let session: ClientSession | undefined;
+    let updated: WithdrawDocument | undefined;
+    let previousStatus: string | undefined;
+    let statusChanged = false;
+    let previousSlipFile: string | undefined;
+    let slipChanged = false;
+    let companionStatusChanges = 0;
+    let restoredCoupon: { couponId: string; code?: string | null } | undefined;
+    try {
+      session = await this.connection.startSession();
+      await session.withTransaction(async () => {
+        // Mongo may retry this callback after a transient conflict. Clear all
+        // attempt-local audit state so an aborted attempt cannot leak events.
+        updated = undefined;
+        previousStatus = undefined;
+        statusChanged = false;
+        previousSlipFile = undefined;
+        slipChanged = false;
+        companionStatusChanges = 0;
+        restoredCoupon = undefined;
+
+        const existing = await this.withdrawModel
+          .findById(withdrawId)
+          .session(session)
+          .exec();
+        if (!existing) {
+          throw new NotFoundException('Withdrawal request not found.');
+        }
+
+        if (existing.method !== 'bank_transfer') {
+          throw new ConflictException(
+            'This endpoint can update bank-transfer withdrawals only. Use the dedicated settlement action for other payout methods.',
+          );
+        }
+
+        previousStatus = String(existing.status).trim().toLowerCase();
+        if (existing.withdraw_mode === 'manual' && nextStatus === 'approved') {
+          throw new ConflictException(
+            'Manual withdrawals must be completed with mark-paid.',
+          );
+        }
+        previousSlipFile = existing.slip_file;
+        slipChanged = Boolean(slipFile && slipFile !== existing.slip_file);
+        if (slipChanged && existing.slip_file) {
+          throw new ConflictException(
+            'Payout evidence is immutable once attached. Use a dedicated correction workflow.',
+          );
+        }
+        if (!isAllowedWithdrawStatusTransition(previousStatus, nextStatus)) {
+          throw new ConflictException(
+            `Withdrawal status cannot change from ${previousStatus} to ${nextStatus}.`,
+          );
+        }
+        statusChanged = previousStatus !== nextStatus;
+
+        if (
+          statusChanged &&
+          nextStatus === 'approved' &&
+          !slipFile &&
+          !existing.slip_file
+        ) {
+          throw new ConflictException(
+            'Bank-transfer payout evidence is required before approval.',
+          );
+        }
+
+        if (statusChanged && nextStatus === 'approved') {
+          const payoutUser = await this.userModel
+            .findOneAndUpdate(
+              {
+                _id: existing.user_id,
+                wallet_frozen: { $ne: true },
+              },
+              { $inc: { withdraw_lock_seq: 1 } },
+              { new: true, session },
+            )
+            .exec();
+          if (!payoutUser) {
+            const currentUser = await this.userModel
+              .findById(existing.user_id)
+              .session(session)
+              .exec();
+            if (currentUser?.wallet_frozen) {
+              throw new ForbiddenException(
+                'This wallet is frozen. Unfreeze it before approving a payout.',
+              );
+            }
+            throw new NotFoundException('Withdrawal owner not found.');
+          }
+        }
+
+        if (!statusChanged && !slipFile) {
+          updated = existing;
+          return;
+        }
+
+        const withdrawCas: Record<string, unknown> = {
+          _id: withdrawId,
+          status: existing.status,
+        };
+        if (slipFile) {
+          if (existing.slip_file) {
+            withdrawCas.slip_file = existing.slip_file;
+          } else {
+            withdrawCas.$or = [
+              { slip_file: { $exists: false } },
+              { slip_file: null },
+              { slip_file: '' },
+            ];
+          }
+        }
+
+        const nextWithdraw = await this.withdrawModel
+          .findOneAndUpdate(
+            withdrawCas,
+            mongoSetUpdate({
+              status: nextStatus,
+              ...(slipFile ? { slip_file: slipFile } : {}),
+              ...(statusChanged && nextStatus === 'approved'
+                ? { approved_by: actorId, approved_at: new Date() }
+                : {}),
+            }),
+            { new: true, session },
+          )
+          .exec();
+        if (!nextWithdraw) {
+          throw new ConflictException(
+            'The withdrawal changed while you were editing. Refresh and try again.',
+          );
+        }
+        updated = nextWithdraw;
+
+        if (statusChanged) {
+          const companions = await this.withdrawModel
+            .updateMany(
+              {
+                parent_withdraw_id: withdrawId,
+                method: 'bank_transfer',
+                status: existing.status,
+              },
+              mongoSetUpdate({ status: nextStatus }),
+              { session },
+            )
+            .exec();
+          companionStatusChanges = companions.modifiedCount;
+        }
+
+        if (
+          shouldRestoreWithdrawFeeCoupon({
+            previousStatus,
+            nextStatus,
+            couponId: existing.coupon_id,
+          })
+        ) {
+          // findOneAndDelete is the idempotency claim: only the transaction that
+          // actually consumes the redemption may restore one inventory unit.
+          const redemption = await this.withdrawFeeCouponRedemptionModel
+            .findOneAndDelete({ withdraw_id: withdrawId }, { session })
+            .exec();
+          if (redemption) {
+            const inventory = await this.withdrawFeeCouponModel
+              .updateOne(
+                {
+                  _id: redemption.coupon_id,
+                  quantity_used: { $gt: 0 },
+                },
+                { $inc: { quantity_used: -1 } },
+                { session },
+              )
+              .exec();
+            if (inventory.modifiedCount !== 1) {
+              throw new ConflictException(
+                'Coupon inventory could not be restored safely.',
+              );
+            }
+            restoredCoupon = {
+              couponId: String(redemption.coupon_id),
+              code: redemption.code_snapshot,
+            };
+          }
+        }
+
+        if (restoredCoupon) {
+          await this.adminActivity.appendRequired(
+            {
+              actor_type: 'admin',
+              actor_id: actorId,
+              actor_label: actorLabel,
+              action: 'withdraw.fee_coupon.restored',
+              entity_type: 'withdraw',
+              entity_id: String(withdrawId),
+              summary: `Restored fee coupon ${restoredCoupon.code ?? ''} after withdraw reject`,
+              metadata: {
+                coupon_id: restoredCoupon.couponId,
+                code: restoredCoupon.code,
+                previous_status: previousStatus,
+                next_status: nextStatus,
+              },
+            },
+            session!,
+          );
+        }
+
+        if (slipChanged && slipFile) {
+          await this.adminActivity.appendRequired(
+            {
+              actor_type: 'admin',
+              actor_id: actorId,
+              actor_label: actorLabel,
+              action: 'withdraw.slip_updated',
+              entity_type: 'withdraw',
+              entity_id: String(withdrawId),
+              summary: 'Updated withdrawal payout evidence',
+              metadata: {
+                previous_slip_file: previousSlipFile,
+                slip_file: slipFile,
+                status: nextStatus,
+              },
+            },
+            session!,
+          );
+        }
+
+        if (statusChanged) {
+          await this.adminActivity.appendRequired(
+            {
+              actor_type: 'admin',
+              actor_id: actorId,
+              actor_label: actorLabel,
+              action: 'withdraw.status_changed',
+              entity_type: 'withdraw',
+              entity_id: String(withdrawId),
+              summary: `Withdraw status ${previousStatus ?? 'unknown'} → ${nextStatus}`,
+              metadata: {
+                from: previousStatus,
+                to: nextStatus,
+                coupon_code: updated?.coupon_code,
+                amount_net: updated?.amount_net,
+                companion_status_changes: companionStatusChanges,
+              },
+            },
+            session!,
+          );
+        }
+      });
+    } catch (error: unknown) {
+      if (!slipFile) throw error;
+
+      let authoritative: WithdrawDocument | null;
+      try {
+        authoritative = await this.withdrawModel
+          .findById(withdrawId)
+          .read('primary')
+          .exec();
+      } catch {
+        // The transaction may have committed even though the driver surfaced an
+        // error. Without a primary read we cannot prove that this object is
+        // unreferenced, so preserving payout evidence is the only safe action.
+        throw new ServiceUnavailableException({
+          statusCode: 503,
+          code: 'WITHDRAW_EVIDENCE_COMMIT_OUTCOME_UNKNOWN',
+          message:
+            'The withdrawal evidence update may have committed, but its outcome could not be confirmed. Do not retry or replace the evidence; contact support.',
+        });
+      }
+
+      if (authoritative?.slip_file === slipFile) {
+        // UnknownTransactionCommitResult can be reported after a successful
+        // commit. The unique fresh reference is authoritative proof that this
+        // request committed, so reconcile to the stored record and continue.
+        updated = authoritative;
+      } else {
+        try {
+          await this.storedMediaService.deleteStored(slipFile);
+        } catch {
+          throw new ServiceUnavailableException({
+            statusCode: 503,
+            code: 'WITHDRAW_EVIDENCE_CLEANUP_PENDING',
+            message:
+              'The withdrawal update failed and uploaded evidence cleanup is pending. Contact support before retrying.',
+          });
+        }
+        throw error;
+      }
+    } finally {
+      await session?.endSession();
+    }
+
+    return updated;
   }
 
-  remove(_id: string) {
-    void _id;
-    return null;
+  async remove(id: string, actor: AdminActor) {
+    const adminId = requireObjectId(id, 'admin id');
+    const actorId = requireTrimmedString(actor.id, 128, 'admin actor id');
+    const actorLabel = requireTrimmedString(
+      actor.label || actor.id,
+      320,
+      'admin actor label',
+    );
+    const deleted = await this.withAdminRosterLock(async (session) => {
+      const existing = await this.userAdminModel
+        .findById(adminId)
+        .select('-password')
+        .session(session)
+        .exec();
+      if (!existing) {
+        throw new NotFoundException('Admin user not found.');
+      }
+      if (isSuperadminRole(existing.role)) {
+        await this.assertAnotherSuperadminExists(session);
+      }
+      const deleted = await this.userAdminModel
+        .findOneAndDelete({ _id: adminId, role: existing.role }, { session })
+        .select('-password')
+        .exec();
+      if (!deleted) {
+        throw new ConflictException(
+          'The admin account changed while you were deleting it. Refresh and try again.',
+        );
+      }
+      await this.adminActivity.appendRequired(
+        {
+          actor_type: 'admin',
+          actor_id: actorId,
+          actor_label: actorLabel,
+          action: 'admin_user.deleted',
+          entity_type: 'admin_user',
+          entity_id: String(deleted._id),
+          summary: `Deleted admin user ${deleted.email || deleted.username}`,
+          metadata: {
+            email: deleted.email,
+            role: deleted.role,
+          },
+        },
+        session,
+      );
+      return deleted;
+    });
+    // Do not return the deleted document: it still contains the password hash.
+    return { acknowledged: true, deletedCount: 1 };
+  }
+
+  /** Serialize mutations that could otherwise concurrently remove every root. */
+  private async withAdminRosterLock<T>(
+    work: (session: ClientSession) => Promise<T>,
+  ): Promise<T> {
+    const session = await this.connection.startSession();
+    let result: T | undefined;
+    try {
+      await session.withTransaction(async () => {
+        // Reset on driver retries so an aborted attempt cannot leak a result.
+        result = undefined;
+        await this.connection
+          .collection<{ _id: string; sequence: number }>(
+            ADMIN_SECURITY_LOCK_COLLECTION,
+          )
+          .findOneAndUpdate(
+            { _id: ADMIN_ROSTER_LOCK_ID },
+            { $inc: { sequence: 1 } },
+            { upsert: true, session },
+          );
+        result = await work(session);
+      });
+    } finally {
+      await session.endSession();
+    }
+    if (result === undefined) {
+      throw new ServiceUnavailableException(
+        'Admin account mutation did not complete.',
+      );
+    }
+    return result;
+  }
+
+  private async assertAnotherSuperadminExists(
+    session: ClientSession,
+  ): Promise<void> {
+    const count = await this.userAdminModel
+      .countDocuments({ role: { $in: SUPERADMIN_ROLES } })
+      .session(session)
+      .exec();
+    if (count <= 1) {
+      throw new ConflictException(
+        'At least one superadmin account must remain active.',
+      );
+    }
   }
 
   async getWithdrawAll(page: number = 1, limit: number = 10, search?: string) {

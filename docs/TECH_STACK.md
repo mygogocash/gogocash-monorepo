@@ -188,9 +188,9 @@ CI/CD:
 - **Native staging scaffold:** manual `deploy-app-native-eas.yml` from `staging`, or a reusable OTA call from `ci-staging.yml` — one non-canceling shared EAS queue; exact paginated Actions run/attempt/aggregate+app-job/SHA proof and current staging-head check; four required Firebase values fail closed; build proof binds the SHA, `preview` profile, `staging` channel, internal distribution, and runtime; SDK 57 OTA preflights the exact channel mapping and requires one Android + one iOS record sharing one group/runtime; build/update only
 - **Alternative artifacts:** Cloud Build configs remain under `cloudbuild/`; they are not the primary Railway path (see `docs/gcp-cicd.md`)
 
-Legacy one-shot GCP workflows remain pending a separate PR-B retirement after
-authorized rollback proof: `deploy-api-staging.yml`,
-`deploy-admin-staging.yml`, and `deploy-app-web-staging.yml`.
+Legacy one-shot GCP workflows (`deploy-{api,admin,app-web}-staging.yml`) were
+retired (#52). GCP rollback remains via `build-staging.yml` +
+`release-staging.yml` only.
 
 ### 4.2 Local development
 

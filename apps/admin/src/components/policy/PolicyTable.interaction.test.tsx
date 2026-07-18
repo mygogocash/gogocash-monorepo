@@ -128,6 +128,20 @@ describe("PolicyTable interactions", () => {
     expect(apiMock.put).not.toHaveBeenCalled();
   });
 
+  it("#376 Category icon dropdown explains that the icon set is built-in", async () => {
+    const user = userEvent.setup();
+    renderTable();
+
+    await user.click(await screen.findByRole("button", { name: "Create New" }));
+
+    // There is intentionally no icon-management section: the options are a
+    // fixed set shipped with the admin app, so the dropdown must say so.
+    const iconSelect = screen.getByLabelText("Category icon");
+    expect(iconSelect.closest("label")).toHaveTextContent(
+      "Choose from the built-in icon set. New icons are added by engineering, not uploaded here.",
+    );
+  });
+
   it("#349 Create -> fill name/icon/terms/banner -> Close discards the draft so reopening starts fresh", async () => {
     const user = userEvent.setup();
     renderTable();
@@ -501,12 +515,26 @@ describe("PolicyTable interactions", () => {
     const retireDialog = screen.getByRole("dialog", {
       name: "Retire category?",
     });
+    // The copy must state what retire actually does server-side (#375):
+    // soft lifecycle state, nothing deleted, 30-day retention before a
+    // superadmin-only purge, name reserved, no undo from the admin panel,
+    // and the zero-references guard.
+    expect(retireDialog).toHaveTextContent("Nothing is deleted");
+    expect(retireDialog).toHaveTextContent("kept for 30 days");
     expect(retireDialog).toHaveTextContent(
-      "can only be retired when no offers reference it",
+      "only a superadmin can permanently purge",
     );
     expect(retireDialog).toHaveTextContent(
-      "disappear from active policy editing and category selection",
+      "cannot be undone from the admin panel",
     );
+    expect(retireDialog).toHaveTextContent("name stays reserved");
+    expect(retireDialog).toHaveTextContent(
+      "only retire a category that no offers use",
+    );
+    // The raw optimistic-concurrency token must be explained, not leaked
+    // as unexplained jargon.
+    expect(retireDialog.textContent).not.toContain("Current server revision");
+    expect(retireDialog).toHaveTextContent("Category version:");
     await user.click(
       within(retireDialog).getByRole("button", { name: "Cancel" }),
     );

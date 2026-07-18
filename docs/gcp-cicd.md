@@ -209,49 +209,31 @@ and
 [`set-cleanup-policies` reference](https://cloud.google.com/sdk/gcloud/reference/artifacts/repositories/set-cleanup-policies)
 before operator execution.
 
-## PR-B retirement gate
+## PR-B retirement (#52) — completed in repo
 
-Do not delete these one-shot legacy workflows in this hardening change:
+The one-shot legacy workflows are deleted:
 
-- `.github/workflows/deploy-api-staging.yml`
-- `.github/workflows/deploy-admin-staging.yml`
-- `.github/workflows/deploy-app-web-staging.yml`
+- ~~`.github/workflows/deploy-api-staging.yml`~~
+- ~~`.github/workflows/deploy-admin-staging.yml`~~
+- ~~`.github/workflows/deploy-app-web-staging.yml`~~
 
-Their deletion is a separate PR-B and remains blocked until an authorized
-operator proves the patched path with all of the following evidence:
+Day-to-day staging is Railway (`ci-staging.yml`). GCP rollback remains
+`build-staging.yml` + `release-staging.yml` only.
 
-- a hosted exact `ci-staging.yml` run and required-gate success for the exact
-  staging source SHA;
-- `build-staging.yml` successfully builds all three SHA-tagged images and
-  reports their digests;
-- `release-staging.yml` consumes those digests, releases them, and
-  health-checks every selected service;
-- a documented rollback rehearsal succeeds.
+**Post-merge operator cleanup (still required to close #52):**
 
-EAS build, OTA, and physical-device acceptance is an independent #35 gate. If
-it is unavailable, retain the EAS scaffold label and keep #35 open; it does not
-block PR-B after the GCP rollback proof above succeeds, and it must not retain
-the workflow locks needed by #61.
-
-After the GCP evidence is attached and PR-B is approved, execute retirement as
-one bounded operator change:
-
-1. Merge PR-B, then verify `deploy-api-staging.yml`,
-   `deploy-admin-staging.yml`, and `deploy-app-web-staging.yml` are absent from
-   the remote `gh workflow list --all` output.
+1. Verify the three deleted workflows are absent from
+   `gh workflow list --all --repo mygogocash/gogocash-monorepo`.
 2. Inventory both scopes with `gh variable list --repo
 mygogocash/gogocash-monorepo` and `gh variable list --env staging --repo
 mygogocash/gogocash-monorepo`.
 3. Delete only the repository-level `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER`, and
    `GCP_SERVICE_ACCOUNT` variables. Preserve the same three variables in the
    `staging` Environment because the retained build/release path uses them.
-4. Dispatch the retained `build-staging.yml` then `release-staging.yml` path
-   again from `main`, and attach its exact-SHA build, release, health, and
-   rollback evidence. A failed proof stops retirement cleanup and keeps #52
-   open.
+4. Optionally dispatch `build-staging.yml` then `release-staging.yml` from
+   `main` to re-prove the retained GCP rollback path.
 
-These are authorized operator mutations, not repository-validation commands.
-Do not run them while preparing PR-A.
+EAS build, OTA, and physical-device acceptance remains an independent #35 gate.
 
 Cloud Build configs under `cloudbuild/` remain repository artifacts, but they
 are not the primary Railway staging path and are not covered by this exact-SHA

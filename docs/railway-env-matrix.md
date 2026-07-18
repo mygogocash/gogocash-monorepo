@@ -106,6 +106,9 @@ railway variables --set 'EXPO_PUBLIC_API_URL=https://api-staging.gogocash.co' --
 railway variables --set 'EXPO_PUBLIC_APP_ENV=staging' --service app-web
 railway variables --set 'EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=backend' --service app-web
 railway variables --set 'EXPO_PUBLIC_FRONTEND_URL=https://app-staging.gogocash.co' --service app-web
+# LINE Login channel 2008237916 / LIFF 2008237916-KY5oR5mW — if still "Developing",
+# non-Tester users get 400 on access.line.me. Publish channel + LIFF for public QA:
+# docs/line-login-channel.md (#382)
 railway variable set 'EXPO_PUBLIC_LIFF_ID=2008237916-KY5oR5mW' --service '@gogocash/mobile' --environment staging
 railway variables --set 'EXPO_PUBLIC_FIREBASE_API_KEY=<SET_ME: public web key>' --service app-web
 railway variables --set 'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=<SET_ME>' --service app-web

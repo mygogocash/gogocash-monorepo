@@ -2,6 +2,8 @@ import { createHash } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { AdminInviteService } from './admin-invite.service';
 
+const actor = { id: 'admin-1', label: 'owner@gogocash.co' };
+
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
 function mockQuery<T>(value: T) {
@@ -15,11 +17,18 @@ function makeService(over: {
   token?: Partial<Record<string, jest.Mock>>;
   inviteState?: Partial<Record<string, jest.Mock>>;
   sendEmail?: jest.Mock;
+  append?: jest.Mock;
+  appendRequired?: jest.Mock;
+  connection?: Partial<Record<string, jest.Mock>>;
 }) {
   const sendEmail = over.sendEmail ?? jest.fn().mockResolvedValue(undefined);
+  const append = over.append ?? jest.fn().mockResolvedValue(undefined);
+  const appendRequired =
+    over.appendRequired ?? jest.fn().mockResolvedValue(undefined);
   const userAdminModel = {
     findOne: mockQuery(null),
     create: jest.fn().mockResolvedValue({ _id: 'a1' }),
+    updateOne: mockQuery({ matchedCount: 1, modifiedCount: 1 }),
     ...over.userAdmin,
   } as unknown as never;
   const tokenModel = {
@@ -27,6 +36,7 @@ function makeService(over: {
     deleteOne: mockQuery({}),
     create: jest.fn().mockResolvedValue({ _id: 't1' }),
     findOne: mockQuery(null),
+    findOneAndUpdate: mockQuery(null),
     updateOne: mockQuery({}),
     ...over.token,
   } as unknown as never;
@@ -45,12 +55,24 @@ function makeService(over: {
         ? 'https://admin-staging.gogocash.co'
         : undefined,
   } as unknown as never;
+  const session = {
+    withTransaction: jest.fn(async (operation: () => Promise<void>) =>
+      operation(),
+    ),
+    endSession: jest.fn().mockResolvedValue(undefined),
+  };
+  const connection = {
+    startSession: jest.fn().mockResolvedValue(session),
+    ...over.connection,
+  } as unknown as never;
   const service = new AdminInviteService(
     userAdminModel,
     tokenModel,
     inviteStateModel,
     sendEmailService(sendEmail),
     config,
+    { append, appendRequired } as never,
+    connection,
   );
   return {
     service,
@@ -58,6 +80,10 @@ function makeService(over: {
     userAdminModel,
     tokenModel,
     inviteStateModel,
+    append,
+    appendRequired,
+    connection,
+    session,
   };
 }
 
@@ -71,7 +97,7 @@ describe('AdminInviteService', () => {
       const { service, sendEmail, tokenModel, inviteStateModel } = makeService(
         {},
       );
-      const res = await service.invite('New@GoGoCash.co', 'editor');
+      const res = await service.invite('New@GoGoCash.co', 'editor', actor);
 
       const findOneAndUpdate = (
         inviteStateModel as unknown as { findOneAndUpdate: jest.Mock }
@@ -200,10 +226,14 @@ describe('AdminInviteService', () => {
         },
       });
 
-      const leaseOwnerRequest = service.invite('new@gogocash.co', 'editor');
+      const leaseOwnerRequest = service.invite(
+        'new@gogocash.co',
+        'editor',
+        actor,
+      );
       await sendStarted;
       const error = await service
-        .invite('new@gogocash.co', 'editor')
+        .invite('new@gogocash.co', 'editor', actor)
         .catch((caught: unknown) => caught);
 
       expect(error).toEqual(
@@ -231,9 +261,9 @@ describe('AdminInviteService', () => {
         sendEmail,
       });
 
-      await expect(service.invite('new@gogocash.co', 'editor')).rejects.toBe(
-        deliveryError,
-      );
+      await expect(
+        service.invite('new@gogocash.co', 'editor', actor),
+      ).rejects.toBe(deliveryError);
 
       expect(
         (tokenModel as unknown as { deleteOne: jest.Mock }).deleteOne,
@@ -261,15 +291,40 @@ describe('AdminInviteService', () => {
         },
       });
       await expect(
-        service.invite('dupe@gogocash.co', 'viewer'),
+        service.invite('dupe@gogocash.co', 'viewer', actor),
       ).rejects.toThrow();
+    });
+
+    it('records the verified inviter only after successful delivery and promotion', async () => {
+      const append = jest.fn().mockResolvedValue(undefined);
+      const { service, inviteStateModel } = makeService({ append });
+
+      await service.invite('new@gogocash.co', 'editor', actor);
+
+      expect(append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_type: 'admin',
+          actor_id: actor.id,
+          actor_label: actor.label,
+          action: 'admin_user.invited',
+          summary: expect.not.stringContaining(actor.id),
+        }),
+      );
+      const promote = (
+        inviteStateModel as unknown as { findOneAndUpdate: jest.Mock }
+      ).findOneAndUpdate;
+      expect(promote.mock.invocationCallOrder[1]).toBeLessThan(
+        append.mock.invocationCallOrder[0],
+      );
     });
   });
 
   describe('acceptInvite', () => {
     it('creates the admin with the invited role + hashed password and consumes the token', async () => {
       const raw = 'rawtoken123';
+      const append = jest.fn().mockResolvedValue(undefined);
       const { service, userAdminModel, tokenModel } = makeService({
+        append,
         token: {
           findOne: mockQuery({
             _id: 't1',
@@ -303,6 +358,14 @@ describe('AdminInviteService', () => {
       ).toHaveBeenCalled();
       expect(res).toEqual(
         expect.objectContaining({ message: expect.any(String) }),
+      );
+      expect(append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_type: 'admin',
+          actor_id: 'a1',
+          actor_label: 'new@gogocash.co',
+          action: 'admin_user.accepted_invite',
+        }),
       );
     });
 
@@ -456,15 +519,29 @@ describe('AdminInviteService', () => {
 
   describe('forgotPassword', () => {
     it('emails a reset link to an existing admin', async () => {
-      const { service, sendEmail } = makeService({
+      const { service, sendEmail, tokenModel } = makeService({
         userAdmin: {
-          findOne: mockQuery({ _id: 'a1', email: 'me@gogocash.co' }),
+          findOne: mockQuery({
+            _id: 'a1',
+            email: 'me@gogocash.co',
+            session_version: 4,
+          }),
         },
       });
       await service.forgotPassword('me@gogocash.co');
       const mail = sendEmail.mock.calls[0][0];
       expect(mail.to).toBe('me@gogocash.co');
       expect(`${mail.html} ${mail.text}`).toContain('/reset-password?token=');
+      expect(
+        (tokenModel as unknown as { create: jest.Mock }).create,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          adminId: 'a1',
+          sessionVersion: 4,
+          email: 'me@gogocash.co',
+          purpose: 'reset',
+        }),
+      );
     });
 
     it('does NOT email (but still returns generic success) for an unknown email', async () => {
@@ -491,21 +568,24 @@ describe('AdminInviteService', () => {
   });
 
   describe('resetPassword', () => {
-    it('sets a new hashed password for a valid token and consumes it', async () => {
+    const resetRecord = {
+      _id: 't1',
+      email: 'me@gogocash.co',
+      adminId: 'a1',
+      sessionVersion: 4,
+    };
+
+    it('claims the token and updates the bound account generation in one transaction', async () => {
       const raw = 'resetraw';
-      const save = jest.fn().mockResolvedValue(undefined);
-      const adminDoc: { password?: string; save: jest.Mock; email: string } = {
-        email: 'me@gogocash.co',
-        save,
-      } as never;
-      const { service, tokenModel } = makeService({
-        token: {
-          findOne: mockQuery({ _id: 't1', email: 'me@gogocash.co' }),
-        },
-        userAdmin: {
-          findOne: mockQuery(adminDoc),
-        },
-      });
+      const { service, tokenModel, userAdminModel, appendRequired, session } =
+        makeService({
+          token: {
+            findOneAndUpdate: mockQuery(resetRecord),
+          },
+          userAdmin: {
+            updateOne: mockQuery({ matchedCount: 1, modifiedCount: 1 }),
+          },
+        });
 
       await service.resetPassword({
         token: raw,
@@ -513,13 +593,170 @@ describe('AdminInviteService', () => {
         password: 'brandNewPass',
       });
 
+      const tokenClaim = (
+        tokenModel as unknown as { findOneAndUpdate: jest.Mock }
+      ).findOneAndUpdate.mock.calls[0];
+      expect(tokenClaim[0]).toEqual(
+        expect.objectContaining({
+          tokenHash: sha256(raw),
+          purpose: 'reset',
+          email: 'me@gogocash.co',
+          usedAt: null,
+        }),
+      );
+      expect(tokenClaim[1]).toEqual({
+        $set: { usedAt: expect.any(Date) },
+      });
+      expect(tokenClaim[2]).toEqual(
+        expect.objectContaining({ new: true, session }),
+      );
+
+      const adminUpdate = (
+        userAdminModel as unknown as { updateOne: jest.Mock }
+      ).updateOne.mock.calls[0];
+      expect(adminUpdate[0]).toEqual({ _id: 'a1', session_version: 4 });
+      expect(adminUpdate[1]).toEqual({
+        $set: { password: expect.any(String) },
+        $inc: { session_version: 1 },
+      });
       expect(
-        await bcrypt.compare('brandNewPass', adminDoc.password as string),
+        await bcrypt.compare('brandNewPass', adminUpdate[1].$set.password),
       ).toBe(true);
-      expect(save).toHaveBeenCalled();
+      expect(adminUpdate[2]).toEqual({ session });
+      expect(session.withTransaction).toHaveBeenCalledTimes(1);
+      expect(session.endSession).toHaveBeenCalledTimes(1);
+      expect(appendRequired).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor_type: 'admin',
+          actor_id: 'a1',
+          actor_label: 'me@gogocash.co',
+          action: 'admin_user.password_reset',
+        }),
+        session,
+      );
+    });
+
+    it('allows only one concurrent claimant to change the password', async () => {
+      const claim = jest
+        .fn()
+        .mockImplementationOnce(() => ({
+          exec: jest.fn().mockResolvedValue(resetRecord),
+        }))
+        .mockImplementationOnce(() => ({
+          exec: jest.fn().mockResolvedValue(null),
+        }));
+      const updateOne = mockQuery({ matchedCount: 1, modifiedCount: 1 });
+      const { service, userAdminModel } = makeService({
+        token: { findOneAndUpdate: claim },
+        userAdmin: { updateOne },
+      });
+      const input = {
+        token: 'one-use-token',
+        email: 'me@gogocash.co',
+        password: 'brandNewPass',
+      };
+
+      const attempts = await Promise.allSettled([
+        service.resetPassword(input),
+        service.resetPassword(input),
+      ]);
+
       expect(
-        (tokenModel as unknown as { updateOne: jest.Mock }).updateOne,
-      ).toHaveBeenCalled();
+        attempts.filter(({ status }) => status === 'fulfilled'),
+      ).toHaveLength(1);
+      const rejected = attempts.find(({ status }) => status === 'rejected');
+      expect(rejected).toEqual(
+        expect.objectContaining({
+          status: 'rejected',
+          reason: expect.objectContaining({
+            message: 'Invalid or expired reset link',
+          }),
+        }),
+      );
+
+      expect(
+        (userAdminModel as unknown as { updateOne: jest.Mock }).updateOne,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a reset token after the account credential generation changes', async () => {
+      const { service, appendRequired } = makeService({
+        token: { findOneAndUpdate: mockQuery(resetRecord) },
+        userAdmin: {
+          updateOne: mockQuery({ matchedCount: 0, modifiedCount: 0 }),
+        },
+      });
+
+      await expect(
+        service.resetPassword({
+          token: 'stale-generation-token',
+          email: 'me@gogocash.co',
+          password: 'brandNewPass',
+        }),
+      ).rejects.toThrow('Invalid or expired reset link');
+      expect(appendRequired).not.toHaveBeenCalled();
+    });
+
+    it('aborts reset when its transactional audit event cannot be persisted', async () => {
+      const appendRequired = jest
+        .fn()
+        .mockRejectedValue(new Error('audit unavailable'));
+      const { service, session } = makeService({
+        token: { findOneAndUpdate: mockQuery(resetRecord) },
+        userAdmin: {
+          updateOne: mockQuery({ matchedCount: 1, modifiedCount: 1 }),
+        },
+        appendRequired,
+      });
+
+      await expect(
+        service.resetPassword({
+          token: 'audited-reset-token',
+          email: 'me@gogocash.co',
+          password: 'brandNewPass',
+        }),
+      ).rejects.toThrow('audit unavailable');
+
+      expect(appendRequired).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'admin_user.password_reset' }),
+        session,
+      );
+      expect(session.endSession).toHaveBeenCalled();
+    });
+
+    it('binds a reset link to the original admin id, not a recreated mailbox', async () => {
+      const updateOne = mockQuery({ matchedCount: 0, modifiedCount: 0 });
+      const { service, userAdminModel } = makeService({
+        token: {
+          findOneAndUpdate: mockQuery({
+            ...resetRecord,
+            adminId: 'deleted-admin-id',
+            sessionVersion: 0,
+          }),
+        },
+        userAdmin: { updateOne },
+      });
+
+      await expect(
+        service.resetPassword({
+          token: 'old-account-token',
+          email: 'me@gogocash.co',
+          password: 'brandNewPass',
+        }),
+      ).rejects.toThrow('Invalid or expired reset link');
+      expect(
+        (userAdminModel as unknown as { updateOne: jest.Mock }).updateOne,
+      ).toHaveBeenCalledWith(
+        {
+          _id: 'deleted-admin-id',
+          $or: [
+            { session_version: 0 },
+            { session_version: { $exists: false } },
+          ],
+        },
+        expect.any(Object),
+        expect.any(Object),
+      );
     });
 
     it('rejects an invalid/expired reset token', async () => {

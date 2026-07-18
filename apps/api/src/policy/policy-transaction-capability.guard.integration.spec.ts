@@ -84,7 +84,15 @@ describe('Policy transaction capability guard — HTTP ordering', () => {
       ],
     })
       .overrideGuard(AuthAdminGuard)
-      .useValue({ canActivate: jest.fn(() => true) })
+      .useValue({
+        canActivate: jest.fn((context: ExecutionContext) => {
+          // Mirror the real guard: attach the decoded admin payload so the
+          // route's RolesGuard (support+, #377) authorises and the request
+          // reaches the capability guard under test.
+          context.switchToHttp().getRequest().user = { role: 'support' };
+          return true;
+        }),
+      })
       .overrideGuard(RateLimitGuard)
       .useValue({ canActivate: jest.fn(() => true) })
       .compile();

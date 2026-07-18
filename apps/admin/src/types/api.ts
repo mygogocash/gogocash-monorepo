@@ -61,7 +61,6 @@ export interface AdminUsersResponse {
 export interface DataAdminUsers {
   _id: string;
   username: string;
-  password: string;
   email: string;
   /** Role id — a built-in tier (`super_admin`…) or a custom role id. */
   role?: string;
@@ -69,6 +68,18 @@ export interface DataAdminUsers {
   createdAt: Date;
   updatedAt: Date;
   __v: number;
+}
+
+export interface AdminDeleteResponse {
+  acknowledged: true;
+  deletedCount: 1;
+}
+
+export interface AdminCreateInput {
+  username: string;
+  email: string;
+  password: string;
+  role?: string;
 }
 
 /** A role definition (built-in tier or custom) with its granted permissions. */
@@ -766,6 +777,11 @@ export interface DataWithdrawsList {
   chain?: string;
   paid_by?: string;
   paid_at?: string | Date;
+  /** Server-computed bank-transfer fee breakdown (optional on legacy rows). */
+  withdraw_fee_base?: number;
+  withdraw_fee_discount?: number;
+  withdraw_fee_final?: number;
+  coupon_code?: string;
 }
 
 export interface ResponseConversion {

@@ -117,6 +117,11 @@ export interface WithdrawList {
   amount_total: number;
   amount_net: number;
   percent_fee: number;
+  /** Server-computed bank-transfer fee breakdown (optional on legacy rows). */
+  withdraw_fee_base?: number;
+  withdraw_fee_discount?: number;
+  withdraw_fee_final?: number;
+  coupon_code?: string;
   status: Status;
   method: string;
   tx_hash: string;

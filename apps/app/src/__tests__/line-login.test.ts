@@ -9,6 +9,7 @@ import {
   getLineAuthUserMessage,
   hasLineAuthReturnParams,
   isLineLoginConfigured,
+  LINE_AUTH_DEFAULT_POST_LOGIN_PATH,
   LineAuthExchangeError,
   LineLoginRedirectStartedError,
   LineLoginSessionMissingError,
@@ -18,6 +19,10 @@ import {
   restoreLineAuthReturnHrefIfNeeded,
   resumeLineLogin,
 } from "@mobile/auth/lineLogin";
+
+const defaultPostLoginCallback = encodeURIComponent(
+  LINE_AUTH_DEFAULT_POST_LOGIN_PATH,
+);
 
 describe("lineLogin", () => {
   afterEach(() => {
@@ -60,14 +65,14 @@ describe("lineLogin", () => {
         "https://app-staging.gogocash.co/?code=abc&state=xyz&liffClientId=2008237916",
       ),
     ).toBe(
-      "https://app-staging.gogocash.co/auth/line-callback?code=abc&state=xyz&liffClientId=2008237916&callbackUrl=%2Fprofile",
+      `https://app-staging.gogocash.co/auth/line-callback?code=abc&state=xyz&liffClientId=2008237916&callbackUrl=${defaultPostLoginCallback}`,
     );
   });
 
   it("buildLineAuthCallbackHandoffUrl > given OAuth return already on callback route > then returns null", () => {
     expect(
       buildLineAuthCallbackHandoffUrl(
-        "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fprofile&code=abc&state=xyz",
+        `https://app-staging.gogocash.co/auth/line-callback?callbackUrl=${defaultPostLoginCallback}&code=abc&state=xyz`,
       ),
     ).toBeNull();
   });
@@ -75,7 +80,7 @@ describe("lineLogin", () => {
   it("buildLineAuthCallbackHandoffUrl > given plain app URL without provider return > then returns null", () => {
     expect(
       buildLineAuthCallbackHandoffUrl(
-        "https://app-staging.gogocash.co/login?callbackUrl=%2Fprofile",
+        `https://app-staging.gogocash.co/login?callbackUrl=${defaultPostLoginCallback}`,
       ),
     ).toBeNull();
   });
@@ -94,7 +99,7 @@ describe("lineLogin", () => {
     expect(redirectLineAuthReturnToCallbackRoute()).toBe(true);
     expect(storage.getItem("gogocash.line.auth.returnHref.v1")).toContain("code=abc");
     expect(locationReplace).toHaveBeenCalledWith(
-      "https://app-staging.gogocash.co/auth/line-callback?code=abc&state=xyz&callbackUrl=%2Fprofile",
+      `https://app-staging.gogocash.co/auth/line-callback?code=abc&state=xyz&callbackUrl=${defaultPostLoginCallback}`,
     );
   });
 
@@ -172,7 +177,7 @@ describe("lineLogin", () => {
       currentUrl.searchParams.set("callbackUrl", unsafeCallback);
 
       expect(buildLineLoginCallbackUrl(currentUrl.toString())).toBe(
-        "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fprofile",
+        `https://app-staging.gogocash.co/auth/line-callback?callbackUrl=${defaultPostLoginCallback}`,
       );
     },
   );

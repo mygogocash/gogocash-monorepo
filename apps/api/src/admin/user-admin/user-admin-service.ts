@@ -10,24 +10,27 @@ import { Model } from 'mongoose';
 import { UserAdmin } from './schemas/user-admin.schema';
 import { UpdateAdminDto } from '../dto/update-admin.dto';
 import * as bcrypt from 'bcrypt';
+import { AdminActivityService } from '../activity/admin-activity.service';
+import { AdminActor } from '../activity/admin-activity.actor';
 
 @Injectable()
 export class UserAdminService {
   constructor(
     @InjectModel('UserAdmin') private readonly userAdmin: Model<UserAdmin>,
     private readonly jwtService: JwtService,
+    private readonly adminActivity: AdminActivityService,
   ) {}
 
   async login(
     createUserAdminDto: LoginAdminDto,
-  ): Promise<UserAdmin & { token: string }> {
+  ): Promise<Omit<UserAdmin, 'password'> & { token: string }> {
+    // Match on email only: usernames are not unique (invite flow derives
+    // them from email local-parts), so a username lookup can resolve to the
+    // wrong account (#374). $eq + String() pin the filter to literal string
+    // equality so a crafted object payload can never become a Mongo operator.
     const user = await this.userAdmin
-      .findOne({
-        $or: [
-          { email: createUserAdminDto.email },
-          { username: createUserAdminDto.email },
-        ],
-      })
+      .findOne({ email: { $eq: String(createUserAdminDto.email) } })
+      .select('+password')
       .exec();
 
     if (!user) {
@@ -43,7 +46,6 @@ export class UserAdminService {
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
-    delete user.password;
     // Generate JWT token for authentication. Embed `role` so the RolesGuard
     // can authorise without a DB roundtrip; absent role means legacy admin
     // (treated as superadmin in roleHasAccess for backward compat).
@@ -52,27 +54,65 @@ export class UserAdminService {
       email: user.email,
       username: user.username,
       role: user.role,
+      session_version: user.session_version ?? 0,
     };
     const token = this.jwtService.sign(payload, {
       secret: process.env.JWT_ADMIN_SECRET,
     });
     return {
-      ...user.toObject(),
+      ...this.withoutPassword(user),
       token,
     };
   }
 
-  async register(createUserAdminDto: RegisterAdminDto): Promise<UserAdmin> {
+  async register(
+    createUserAdminDto: RegisterAdminDto,
+    actor: AdminActor,
+  ): Promise<Omit<UserAdmin, 'password'>> {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(
       createUserAdminDto.password,
       saltRounds,
     );
-    createUserAdminDto.password = hashedPassword;
-    return this.userAdmin.create(createUserAdminDto);
+    const created = await this.userAdmin.create({
+      ...createUserAdminDto,
+      password: hashedPassword,
+    });
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: actor.id,
+      actor_label: actor.label,
+      action: 'admin_user.created',
+      entity_type: 'admin_user',
+      entity_id: String(created._id),
+      summary: `Created admin user ${created.email || created.username}`,
+      metadata: {
+        email: created.email,
+        role: created.role,
+      },
+    });
+    return this.withoutPassword(created);
   }
-  async create(createUserAdminDto: CreateAdminDto): Promise<UserAdmin> {
-    return this.userAdmin.create(createUserAdminDto);
+  async create(
+    createUserAdminDto: CreateAdminDto,
+    actor: AdminActor,
+  ): Promise<Omit<UserAdmin, 'password'>> {
+    const created = await this.userAdmin.create(createUserAdminDto);
+    await this.adminActivity.append({
+      actor_type: 'admin',
+      actor_id: actor.id,
+      actor_label: actor.label,
+      action: 'admin_user.updated',
+      entity_type: 'admin_user',
+      entity_id: String(created._id),
+      summary: `Created admin user ${created.email || created.username}`,
+      metadata: {
+        email: created.email,
+        role: created.role,
+        change: 'created',
+      },
+    });
+    return this.withoutPassword(created);
   }
   async findAll(): Promise<UserAdmin[]> {
     return this.userAdmin.find().exec();
@@ -85,10 +125,29 @@ export class UserAdminService {
   async update(
     id: number,
     updateUserAdminDto: UpdateAdminDto,
+    actor: AdminActor,
   ): Promise<UserAdmin | null> {
-    return this.userAdmin
+    const previous = await this.userAdmin.findById(id).exec();
+    const updated = await this.userAdmin
       .findByIdAndUpdate(id, updateUserAdminDto, { new: true })
       .exec();
+    if (updated) {
+      await this.adminActivity.append({
+        actor_type: 'admin',
+        actor_id: actor.id,
+        actor_label: actor.label,
+        action: 'admin_user.updated',
+        entity_type: 'admin_user',
+        entity_id: String(updated._id),
+        summary: `Updated admin user ${updated.email || updated.username}`,
+        metadata: {
+          email: updated.email,
+          role: updated.role,
+          previous_role: previous?.role,
+        },
+      });
+    }
+    return updated;
   }
 
   async remove(id: number): Promise<any> {
@@ -97,5 +156,16 @@ export class UserAdminService {
 
   async findById(id: string): Promise<UserAdmin | null> {
     return this.userAdmin.findById(id).select('-password').exec();
+  }
+
+  private withoutPassword(
+    user: UserAdmin & { toObject?: () => Record<string, unknown> },
+  ): Omit<UserAdmin, 'password'> {
+    const value =
+      typeof user.toObject === 'function'
+        ? user.toObject()
+        : ({ ...user } as Record<string, unknown>);
+    const { password: _password, ...safe } = value;
+    return safe as Omit<UserAdmin, 'password'>;
   }
 }
