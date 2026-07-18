@@ -86,7 +86,12 @@ describe("CreateBrandForm policy behavior", () => {
     vi.clearAllMocks();
   });
 
-  it("adopts a delayed template, preserves an authored edit across refresh, and submits that exact text", async () => {
+  // 63 typed characters re-render the whole form per keystroke; with the
+  // default per-event macrotask delay this hit vitest's 5s cap on slow
+  // Cloud Build runners (build 99f519fb, 5085ms) while passing locally.
+  // delay: null removes the per-keystroke wait; the raised timeout is
+  // headroom for CI machines ~14x slower than a dev laptop.
+  it("adopts a delayed template, preserves an authored edit across refresh, and submits that exact text", { timeout: 15_000 }, async () => {
     const firstPolicy = deferred<unknown>();
     const refreshedPolicy = deferred<unknown>();
     let policyRequest = 0;
@@ -112,7 +117,7 @@ describe("CreateBrandForm policy behavior", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     renderForm(queryClient);
 
