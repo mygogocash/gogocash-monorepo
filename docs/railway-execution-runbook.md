@@ -61,24 +61,29 @@ See [railway-mongo-replica-set.md](railway-mongo-replica-set.md). Summary: stop 
 
 ### Quest membership-audience preflight (#353)
 
-- Keep `QUEST_TASK_V2_ENABLED=false` while deploying the membership schema,
-  fail-closed predicate, and atomic `changeTier` boundary update. Back up the
-  exact dev/staging database, then follow the guarded dry-run/apply/rerun
-  commands in `docs/quest-task-v2-rollout.md`.
+- Production only: keep `QUEST_TASK_V2_ENABLED=false` while deploying the
+  membership schema, fail-closed predicate, and atomic `changeTier` boundary
+  update, until the production preflight is executed. Back up the exact
+  production database, then follow the guarded dry-run/apply/rerun commands in
+  `docs/quest-task-v2-rollout.md`. (Dev and staging: COMPLETE 2026-07-18 —
+  `QUEST_TASK_V2_ENABLED=true` in both Railway envs; issue #353 closed with
+  acceptance evidence. See the status note below.)
 - The membership boundary apply requires a strict UTC rollout baseline no more
   than 15 minutes old, exact `--confirm-database`, `--backup-confirmed`, and
   `--confirm=APPLY_ISSUE_353_MEMBERSHIP_TIER_ASSIGNMENT_BOUNDARY`. It uses an
   absent-only CAS, never logs URI credentials, and refuses production-looking
   targets/hosts unless an approved operator adds `--allow-production`.
-- Do not enable membership audiences until both dev and staging evidence shows
-  `rerun.matched: 0`, `rerun.modified: 0`, `remaining_missing: 0`,
-  `remaining_malformed: 0`, and `ready_to_enable_task_v2: true`. The backfill
-  uses rollout time, not billing `start_date`; pre-baseline history is
-  intentionally ineligible.
+- Gate satisfied on dev and staging 2026-07-18 (`rerun.matched: 0`,
+  `rerun.modified: 0`, `remaining_missing: 0`, `remaining_malformed: 0`,
+  `ready_to_enable_task_v2: true`); membership audiences are enabled there.
+  For production, do not enable until production evidence shows the same
+  values. The backfill uses rollout time, not billing `start_date`;
+  pre-baseline history is intentionally ineligible.
 - Inventory every task-v2 quest whose audience is `membership_tiers` before
-  dev or staging activation. Each `tier_ids` entry must be a canonical
-  `MembershipTier._id` hex string; old name/slug or malformed values fail
-  closed at runtime and must be corrected before rollout.
+  production activation (completed for dev/staging as part of the 2026-07-18
+  rollout). Each `tier_ids` entry must be a canonical `MembershipTier._id`
+  hex string; old name/slug or malformed values fail closed at runtime and
+  must be corrected before rollout.
 - A tier must exist and be active when new quest economics are saved. Later
   global tier deactivation does not rewrite a frozen quest; runtime eligibility
   comes from the beneficiary's `Membership` record at the immutable event time.
@@ -92,6 +97,48 @@ See [railway-mongo-replica-set.md](railway-mongo-replica-set.md). Summary: stop 
   after event evaluation; disable task-v2 and leave the additive field in
   place. Use separately approved point-in-time recovery/reconciliation only for
   a genuine database incident.
+
+#### Status — task-v2 rollout COMPLETE on dev & staging (2026-07-18); production NOT yet enabled
+
+- `QUEST_TASK_V2_ENABLED=true` in Railway envs **dev** and **staging** since
+  2026-07-18 (production remains false). GitHub issue #353 closed 2026-07-18
+  with acceptance evidence.
+- Dev + staging Mongo are authenticated single-node replica sets (`rs0`;
+  mongo 8.0.4 dev / 8.3.4 staging); transactions commit. The conversion is
+  complete, not pending.
+- All 18 `QUEST_TASK_V2_REQUIRED_INDEXES` plus the canonical fence doc
+  `quest_source_config_fence` (`_id`/fence_key `task-v2-source-config-v1`,
+  revision 0) are in place on both envs.
+- Index migration executed on both envs: legacy `conversions.conversion_id_1`
+  was `unique: true`; the task-v2 contract requires it NON-unique, so it was
+  dropped and recreated non-unique. Identity uniqueness is now enforced by the
+  composite unique index `uniq_conversion_provider_identity` on (`source`,
+  `provider_account`, `provider_conversion_id`), partial-filtered to string
+  identity fields. Staging pre-check found 0 duplicate identity groups across
+  2907 string-identity conversions (all `source=involve`).
+- Legacy quest backfill + membership reconciliation were no-ops at rollout
+  time (0 quests, 0 memberships, 0 membership tiers, 0 legacy reward
+  manifests/resolution commands/social rewards on both envs).
+- Exact-once acceptance passed 7/7 on BOTH envs on 2026-07-18:
+  `friend_referral` (account_created) credited the referrer 100 pts;
+  `spend_target` (THB) credited the buyer 200 pts; `brand_purchase`
+  completed=true with 0 pts (progress-only by design); replaying the same
+  conversion `source_event_id` credited ZERO additional points.
+- **Known failure mode (watch for this in production):** if any required index
+  conflicts (e.g. `conversion_id_1` still unique), `createIndex` silently
+  no-ops against the same-name index,
+  `QuestTaskTransactionService.assertReady()` throws every tick, and the
+  outbox consumer's drain loop swallows the error — outbox rows sit
+  `status: pending`, `attempts: 0` with NO error logs.
+- **Outbox payload contract:** `affiliate_conversion` outbox payloads MUST
+  carry top-level `source` / `provider_account` / `provider_conversion_id` /
+  `occurred_at` (not only nested under `payload.current`), else
+  `canonicalConversionIdentity` throws "Conversion provider identity is
+  missing."
+- **Rollback:** set `QUEST_TASK_V2_ENABLED=false` (consumer no-ops instantly).
+  The added indexes are harmless while disabled, BUT `conversion_id_1` must
+  stay non-unique — `uniq_conversion_provider_identity` now carries the
+  identity-uniqueness guarantee.
 
 ## 4. Phase 3 — cron always-on, and Phase 4 — cutover & cleanup
 
@@ -170,7 +217,11 @@ Staging hostnames are registered on Railway but may still CNAME to `ghs.googleho
 | `admin-staging.gogocash.co` | `hs31ua3b.up.railway.app`                                               |
 | `app-staging.gogocash.co`   | `dwxmdvrr.up.railway.app` (Railway custom domain on `@gogocash/mobile`) |
 
-**Point API at external Atlas staging data:**
+**Point API at external Atlas staging data — HISTORICAL (pre replica-set
+conversion); do not repoint staging at Atlas.** Staging now runs on the
+authenticated single-node `rs0` replica set (mongo 8.3.4; conversion complete,
+transactions commit); the staging `MONGO_URI` must keep targeting it with
+`replicaSet=rs0`. Kept for the record only:
 
 ```bash
 railway variables --set 'MONGO_URI=<atlas-staging-uri>' --service gogocash-api

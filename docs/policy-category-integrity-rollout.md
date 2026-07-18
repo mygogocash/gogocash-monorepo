@@ -1,7 +1,22 @@
 # Policy category integrity rollout (#349 / #350)
 
-This is the executable Wave 2B release contract for dev first and staging from
-the exact same commit. It does not authorize production.
+This is the Wave 2B release contract. It has been executed on both dev and
+staging (migration applied with writers drained and an empty quarantine — see
+Execution status below) and remains the reference runbook for any future
+environment. It does not authorize production.
+
+## Execution status (as of 2026-07-18)
+
+- The policy/category integrity migration has been applied on BOTH dev and
+  staging: writers were drained during the maintenance window and the reviewed
+  quarantine was empty (quarantine=0).
+- Policy endpoints serve on both environments; the fail-closed behavior on
+  standalone topology no longer applies because both environments now report
+  replica-set topology.
+- Dev and staging Mongo were converted to authenticated single-node replica
+  sets (rs0; MongoDB 8.0.4 on dev, 8.3.4 on staging) with committing
+  transactions, satisfying the topology gate in section 1.
+- Production has not been migrated and remains unauthorized by this document.
 
 ## Non-negotiable safety contract
 
@@ -30,6 +45,10 @@ db.adminCommand({ hello: 1 });
 
 `setName` or `msg: "isdbgrid"`, plus `logicalSessionTimeoutMinutes`, is
 required. A standalone MongoDB deployment blocks migration and acceptance.
+(Status 2026-07-18: dev and staging now run authenticated single-node replica
+sets — rs0; MongoDB 8.0.4 dev / 8.3.4 staging — with committing transactions,
+so this gate passes on both; it remains a hard gate for any future environment,
+including production.)
 
 Take a restorable backup without printing its URI:
 

@@ -6,9 +6,34 @@ evidence that a user was unpaid.
 
 The commands below default to dry-run. Do not use them against a hosted database
 until a database backup, the reviewed evidence file, the change ticket, and a
-rollback owner are all recorded. This implementation was verified only against
-isolated local standalone MongoDB and replica-set test databases; no hosted
-apply was performed.
+rollback owner are all recorded. This implementation was originally verified
+against isolated local standalone MongoDB and replica-set test databases. On
+2026-07-18 the reconciliation was run against the hosted dev and staging
+Railway environments as part of the quest task-v2 rollout (GitHub issue #353)
+and was a no-op on both — see "Execution status" below. No hosted apply has
+been performed against production; the pre-apply requirements above still hold
+there.
+
+## Execution status
+
+- 2026-07-18 — dev and staging (Railway): run as part of the completed quest
+  task-v2 rollout (GitHub issue #353, closed with acceptance evidence). The
+  reconciliation was a no-op on both environments: 0 legacy quests,
+  0 memberships, 0 membership tiers, and 0 legacy reward manifests, resolution
+  commands, or social rewards. Both environments now run authenticated
+  single-node replica sets (rs0; Mongo 8.0.4 dev, 8.3.4 staging), so
+  multi-document transactions commit.
+- Purchase-identity note: `conversions.conversion_id_1` is now NON-unique on
+  dev and staging (task-v2 index migration; the legacy unique index was
+  dropped and recreated non-unique). Canonical provider-conversion uniqueness
+  is enforced by the partial composite unique index
+  `uniq_conversion_provider_identity` on (source, provider_account,
+  provider_conversion_id), and `conversion_id_1` must remain non-unique even
+  if `QUEST_TASK_V2_ENABLED` is rolled back to false. The staging pre-check
+  found 0 duplicate identity groups across 2907 string-identity conversions
+  (all source=involve).
+- Production: not yet run. The safety contract and pre-apply requirements in
+  this runbook apply unchanged.
 
 ## Safety contract
 

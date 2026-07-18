@@ -61,6 +61,20 @@ railway variables --set 'POSTHOG_KEY=<SET_ME: empty disables analytics>' --servi
 railway variables --set 'R2_ACCESS_KEY_ID=<SET_ME: Cloudflare R2 S3 API token access key>' --service gogocash-api
 railway variables --set 'R2_SECRET_ACCESS_KEY=<SET_ME: Cloudflare R2 S3 API token secret>' --service gogocash-api
 ```
+
+### Quest task-v2 flag (RUNTIME-LAZY)
+```bash
+railway variables --set 'QUEST_TASK_V2_ENABLED=true' --service gogocash-api
+```
+Status (2026-07-18): `true` on **dev** and **staging** since the completed quest
+task-v2 rollout (issue #353, exact-once acceptance passed 7/7 on both envs).
+**Not yet enabled on production.** Rollback: set `QUEST_TASK_V2_ENABLED=false` —
+the outbox consumer no-ops instantly. The added task-v2 indexes are harmless
+while disabled, but `conversions.conversion_id_1` must stay NON-unique: identity
+uniqueness is now enforced by the composite unique index
+`uniq_conversion_provider_identity` on
+(source, provider_account, provider_conversion_id).
+
 Optional / feature-gated (set only if used): `CORS_EXTRA_ORIGINS` (comma-separated exact-match
 origins merged into the API CORS allow-list at runtime — use for Railway preview hosts
 `*.up.railway.app` or new custom domains without a code deploy; no wildcards), e.g.

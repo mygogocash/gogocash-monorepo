@@ -12,9 +12,38 @@ Prerequisites:
 - run against one environment at a time; confirm dev/staging/production before
   proceeding
 
+## Rollout status (2026-07-18)
+
+`QUEST_TASK_V2_ENABLED=true` on Railway dev and staging since 2026-07-18;
+production is NOT yet enabled. Dev and staging Mongo are authenticated
+single-node replica sets (rs0; mongo 8.0.4 dev / 8.3.4 staging) and
+transactions commit.
+
+The provider-identity index migration below was executed on both envs:
+`conversions.conversion_id_1` (legacy `unique: true`) was dropped and recreated
+non-unique; identity uniqueness is now enforced by the composite unique index
+`uniq_conversion_provider_identity` on
+(source, provider_account, provider_conversion_id), partial-filtered to string
+identity fields. The staging pre-check found 0 duplicate identity groups across
+2907 string-identity conversions (all `source=involve`). All 18
+`QUEST_TASK_V2_REQUIRED_INDEXES` plus the canonical fence doc
+`quest_source_config_fence` (fence_key `task-v2-source-config-v1`, revision 0)
+are in place on both envs. Legacy quest backfill and membership reconciliation
+were no-ops at rollout time (0 quests, 0 memberships, 0 membership tiers, 0
+legacy reward manifests/resolution commands/social rewards on both envs).
+
+Exact-once acceptance passed 7/7 on both dev and staging on 2026-07-18:
+friend_referral (account_created) credited the referrer 100 pts; spend_target
+(THB) credited the buyer 200 pts; brand_purchase completed=true with 0 pts
+(progress-only by design); replaying the same conversion `source_event_id`
+credited zero additional points. GitHub issue #353 was closed 2026-07-18 with
+acceptance evidence.
+
 ## Required provider-identity index migration
 
-Before enabling task-v2 for the first time, keep
+Before enabling task-v2 for the first time in an environment (as of 2026-07-18
+this applies only to production — dev and staging have already completed this
+migration and run with `QUEST_TASK_V2_ENABLED=true`), keep
 `QUEST_TASK_V2_ENABLED=false`, pause conversion writers, and inspect the target
 database:
 
@@ -42,6 +71,21 @@ uniqueness, and partial filters before every source mutation. Resume writers
 only after the apply report shows `provider_index_ready: true`,
 `legacy_unique_index_present: false`, `task_v2_indexes_ready: true`, and
 `canonical_fence_ready: true`.
+
+### Known failure mode
+
+If any required index conflicts with an existing same-name index (e.g.
+`conversion_id_1` still unique), `createIndex` silently no-ops against the
+same-name index, `QuestTaskTransactionService.assertReady()` throws on every
+tick, and the outbox consumer's drain loop swallows the error — outbox rows
+sit at `status: pending` with `attempts: 0` and NO error logs. If pending
+counts do not drain and attempts stay at 0 with nothing in the logs, re-run
+the index migration dry run and check the report before investigating anything
+else. Related payload contract: `affiliate_conversion` outbox payloads must
+carry top-level `source` / `provider_account` / `provider_conversion_id` /
+`occurred_at` (not only nested under `payload.current`), otherwise
+`canonicalConversionIdentity` throws "Conversion provider identity is
+missing."
 
 ## Event repair
 
@@ -71,5 +115,10 @@ db.quest_event_ingestions.countDocuments({ status: "retryable" })
 
 Re-run the command after correcting a transient provider, FX, or topology
 failure. Do not delete source transitions, outbox rows, progress rows, or Point
-rows as rollback; disable `QUEST_TASK_V2_ENABLED` to stop new task-v2 work and
-preserve the immutable evidence for diagnosis.
+rows as rollback; disable `QUEST_TASK_V2_ENABLED` to stop new task-v2 work
+(the outbox consumer no-ops instantly) and preserve the immutable evidence for
+diagnosis. The added task-v2 indexes are harmless while the flag is disabled,
+but do NOT restore the legacy unique `conversion_id_1` index — identity
+uniqueness is now enforced by the composite unique index
+`uniq_conversion_provider_identity` on
+(source, provider_account, provider_conversion_id).

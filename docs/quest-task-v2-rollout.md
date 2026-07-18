@@ -1,12 +1,64 @@
 # Quest task-v2 rollout gate (#353)
 
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 Keep missing `reward_model` reads compatible as `legacy_v1`. Do not create a
 `task_v2` quest until the task engine flag is enabled and MongoDB reports
-replica-set transaction support.
+replica-set transaction support. As of 2026-07-18, dev and staging satisfy
+both conditions (`QUEST_TASK_V2_ENABLED=true`; authenticated single-node
+replica sets, transactions commit — see rollout status below). Production
+does not yet meet this gate and the flag stays off there.
+
+## Rollout status (2026-07-18)
+
+- Rollout complete on dev and staging; production NOT yet enabled.
+- `QUEST_TASK_V2_ENABLED=true` in Railway dev and staging since 2026-07-18.
+- Dev and staging Mongo are authenticated single-node replica sets (`rs0`;
+  Mongo 8.0.4 dev / 8.3.4 staging); transactions commit. Conversion complete.
+- All 18 `QUEST_TASK_V2_REQUIRED_INDEXES` plus the canonical fence doc
+  `quest_source_config_fence` (_id/fence_key `task-v2-source-config-v1`,
+  revision 0) are in place on both envs.
+- Index migration executed on both envs: legacy `conversions.conversion_id_1`
+  was unique and the task-v2 contract requires it NON-unique; it was dropped
+  and recreated non-unique. Identity uniqueness is now enforced by the
+  composite unique index `uniq_conversion_provider_identity` on
+  (source, provider_account, provider_conversion_id), partial-filtered to
+  string identity fields. Staging pre-check found 0 duplicate identity groups
+  across 2907 string-identity conversions (all source=involve).
+- Legacy quest backfill and membership reconciliation were no-ops (0 quests,
+  0 memberships, 0 membership tiers, 0 legacy reward manifests/resolution
+  commands/social rewards on both envs).
+- Exact-once acceptance passed 7/7 on dev and staging on 2026-07-18:
+  friend_referral (account_created) credited the referrer 100 pts;
+  spend_target (THB) credited the buyer 200 pts; brand_purchase reached
+  completed=true with 0 pts (progress-only by design); replaying the same
+  conversion source_event_id credited zero additional points.
+- GitHub issue #353 closed 2026-07-18 with acceptance evidence.
+- Rollback: set `QUEST_TASK_V2_ENABLED=false` (the consumer no-ops
+  instantly). The added indexes are harmless while disabled, but
+  `conversion_id_1` must stay non-unique — the composite index now carries
+  the identity-uniqueness guarantee.
+
+### Known failure mode: conflicting required index
+
+If any required index conflicts (e.g. `conversion_id_1` still unique),
+`createIndex` silently no-ops against the same-name index,
+`QuestTaskTransactionService.assertReady()` throws every tick, and the outbox
+consumer's drain loop swallows the error — outbox rows sit `status: pending`,
+`attempts: 0` with no error logs.
+
+### Outbox payload identity contract
+
+`affiliate_conversion` outbox payloads must carry top-level `source` /
+`provider_account` / `provider_conversion_id` / `occurred_at` (not only
+nested under `payload.current`), otherwise `canonicalConversionIdentity`
+throws "Conversion provider identity is missing."
 
 ## Legacy contract backfill
+
+> Status: executed as a no-op on dev and staging on 2026-07-18 (0 quests;
+> 0 legacy reward manifests, resolution commands, or social rewards on both
+> envs). The steps below remain the runbook for production.
 
 1. Back up the target database and count all quests.
 2. Capture the zero-write inventory:
@@ -69,10 +121,13 @@ notes, points, and offer identity. It skips existing task-v2 quests.
 
 ### Assignment-boundary backfill gate
 
-Keep `QUEST_TASK_V2_ENABLED=false` throughout this procedure. Deploy the schema,
-runtime predicate, and atomic `changeTier` update first so new rows cannot add
-to the missing-boundary inventory. Then perform this gate separately in dev and
-staging:
+Keep `QUEST_TASK_V2_ENABLED=false` throughout this procedure in any
+environment where the gate has not yet run (currently production). The gate
+completed on dev and staging on 2026-07-18 as a no-op (0 memberships,
+0 membership tiers); the flag is now `true` there. Deploy the schema, runtime
+predicate, and atomic `changeTier` update first so new rows cannot add to the
+missing-boundary inventory. Then perform this gate in production before
+enabling task-v2 there:
 
 1. Back up the exact target database and record the backup identifier.
 2. Capture one rollout baseline in strict UTC. It must not be in the future and
@@ -149,11 +204,15 @@ process only for a genuine database incident.
 
 ## Activation order
 
-After legacy payout reconciliation and Point partial-index preflight are clean,
-deploy missing-as-legacy plus assignment-boundary code with
-`QUEST_TASK_V2_ENABLED=false`; complete the legacy quest backfill; complete the
-dev and staging membership dry-run/apply/zero-rerun gates above; enable the
-keyed legacy scheduler; only then enable task-v2 on a replica set. A disabled
-flag or unsupported topology must return 503 before a task-v2 config mutation.
-Keep #353 open until the controlled staging quest, pre/post-boundary event
-replay, customer progress, and operational evidence are captured.
+This sequence was completed on dev and staging on 2026-07-18 (both backfills
+were no-ops; task-v2 is enabled on authenticated replica sets in both envs).
+It remains the activation order for production. After legacy payout
+reconciliation and Point partial-index preflight are clean, deploy
+missing-as-legacy plus assignment-boundary code with
+`QUEST_TASK_V2_ENABLED=false`; complete the legacy quest backfill; complete
+the membership dry-run/apply/zero-rerun gates above; enable the keyed legacy
+scheduler; only then enable task-v2 on a replica set. A disabled flag or
+unsupported topology must return 503 before a task-v2 config mutation.
+#353 was closed on 2026-07-18 with the acceptance evidence captured on the
+thread (7/7 exact-once acceptance on dev and staging, including a replayed
+conversion source_event_id crediting zero additional points).
