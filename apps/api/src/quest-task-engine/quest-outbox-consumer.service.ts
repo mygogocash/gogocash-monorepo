@@ -34,12 +34,19 @@ export class QuestOutboxConsumerService {
 
   @Interval('quest-task-v2-outbox', 1_000)
   async scheduledDrain(): Promise<void> {
+    console.log(
+      `[QV2DBG] tick enabled=${this.transactions.enabled} draining=${this.draining}`,
+    );
     if (!this.transactions.enabled || this.draining) return;
     this.draining = true;
     try {
       for (let processed = 0; processed < 20; processed += 1) {
         if (!(await this.drainOne())) break;
       }
+    } catch (error) {
+      console.log(
+        `[QV2DBG] scheduledDrain error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     } finally {
       this.draining = false;
     }
@@ -47,7 +54,15 @@ export class QuestOutboxConsumerService {
 
   async drainOne(now = new Date()): Promise<boolean> {
     if (!this.transactions.enabled) return false;
-    await this.transactions.assertReady();
+    try {
+      await this.transactions.assertReady();
+    } catch (error) {
+      console.log(
+        `[QV2DBG] assertReady THREW: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+    console.log('[QV2DBG] assertReady ok, attempting lease');
     const leaseToken = randomUUID();
     const leased = await this.outboxModel.findOneAndUpdate(
       {
