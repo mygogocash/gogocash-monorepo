@@ -30,5 +30,13 @@ describe("LINE Login staging deployment config", () => {
     expect(envMatrix).toContain(
       "railway variable set 'EXPO_PUBLIC_LIFF_ID=2008237916-KY5oR5mW' --service '@gogocash/mobile' --environment staging",
     );
+    expect(envMatrix).toContain("docs/line-login-channel.md");
+  });
+
+  it("documents LINE Developing-channel publish steps for issue #382", () => {
+    const runbook = readRepoFile("docs/line-login-channel.md");
+    expect(runbook).toContain("developing status");
+    expect(runbook).toContain("2008237916");
+    expect(runbook).toContain("Published");
   });
 });

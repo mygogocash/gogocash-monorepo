@@ -787,6 +787,19 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
             toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
             return;
           }
+          const { LINE_DEVELOPING_CHANNEL_WARNING, shouldWarnLineDevelopingChannel } =
+            await import("@mobile/auth/lineChannelStatus");
+          if (
+            shouldWarnLineDevelopingChannel({
+              appEnv: env.appEnv,
+              apiUrl: env.apiUrl,
+              frontendUrl: env.frontendUrl,
+            })
+          ) {
+            // LINE's Developing-channel 400 is shown on access.line.me before
+            // our callback — warn Testers/non-testers before the redirect.
+            toastCtx?.show(tc(LINE_DEVELOPING_CHANNEL_WARNING));
+          }
           const { accessToken, profile } = await requestLineLogin();
           const session = await exchangeLineAuth({
             accessToken,
