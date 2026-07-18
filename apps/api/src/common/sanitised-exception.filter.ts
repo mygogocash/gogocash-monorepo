@@ -17,7 +17,33 @@ import { Request, Response } from 'express';
  * library versions, query shapes, and sometimes internal IDs to attackers
  * probing endpoints. Clients now see a curated `{ statusCode, message }`
  * with a request id for support correlation.
+ *
+ * Structured passthrough: a small allowlist of APP-AUTHORED error codes may
+ * additionally surface a curated `code` plus a numbers-only `reference_counts`
+ * object, so deliberate domain errors (e.g. "category is referenced by N
+ * offers") can drive UI without reopening the generic leak surface. Every
+ * new code must be added here explicitly, and only numeric detail values pass.
  */
+
+/** App-authored error codes whose `code` may reach the client. */
+const ALLOWED_ERROR_CODES = new Set<string>(['POLICY_CATEGORY_REFERENCED']);
+
+/** Only a flat object whose values are all finite numbers is surfaced. */
+function safeReferenceCounts(
+  value: unknown,
+): Record<string, number> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return undefined;
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length === 0) return undefined;
+  const out: Record<string, number> = {};
+  for (const [key, raw] of entries) {
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
+    out[key] = raw;
+  }
+  return out;
+}
+
 @Catch()
 export class SanitisedExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(SanitisedExceptionFilter.name);
@@ -49,6 +75,22 @@ export class SanitisedExceptionFilter implements ExceptionFilter {
       return 'Internal server error';
     })();
 
+    // Curated structured passthrough for app-authored domain errors only.
+    const structured = (() => {
+      if (!(exception instanceof HttpException)) return {};
+      const body = exception.getResponse();
+      if (typeof body !== 'object' || body === null) return {};
+      const code = (body as { code?: unknown }).code;
+      if (typeof code !== 'string' || !ALLOWED_ERROR_CODES.has(code)) return {};
+      const referenceCounts = safeReferenceCounts(
+        (body as { reference_counts?: unknown }).reference_counts,
+      );
+      return {
+        code,
+        ...(referenceCounts ? { reference_counts: referenceCounts } : {}),
+      };
+    })();
+
     this.logger.error(
       `${request.method} ${request.url} → ${status}: ${
         exception instanceof Error ? exception.message : String(exception)
@@ -59,6 +101,7 @@ export class SanitisedExceptionFilter implements ExceptionFilter {
     response.status(status).json({
       statusCode: status,
       message: safeMessage,
+      ...structured,
       timestamp: new Date().toISOString(),
       path: request.url,
     });

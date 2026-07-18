@@ -128,6 +128,43 @@ describe("PolicyTable interactions", () => {
     expect(apiMock.put).not.toHaveBeenCalled();
   });
 
+  it("#349 Create -> fill name/icon/terms/banner -> Close discards the draft so reopening starts fresh", async () => {
+    const user = userEvent.setup();
+    renderTable();
+
+    // Fill an incomplete create draft across every field.
+    await user.click(await screen.findByRole("button", { name: "Create New" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Category name" }),
+      "Half-typed Draft",
+    );
+    await user.selectOptions(screen.getByLabelText("Category icon"), "food");
+    await user.type(
+      screen.getByRole("textbox", { name: /Content/ }),
+      "Draft terms not meant to survive",
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Policy banner text" }),
+      "Draft banner not meant to survive",
+    );
+
+    // Close must discard the incomplete draft, not just hide it.
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(apiMock.put).not.toHaveBeenCalled();
+
+    // Reopening Create starts fresh: no leaked name/icon/terms/banner.
+    await user.click(screen.getByRole("button", { name: "Create New" }));
+    expect(
+      screen.getByRole("textbox", { name: "Category name" }),
+    ).toHaveValue("");
+    expect(screen.getByLabelText("Category icon")).toHaveValue("default");
+    expect(screen.getByRole("textbox", { name: /Content/ })).toHaveValue("");
+    expect(
+      screen.getByRole("textbox", { name: "Policy banner text" }),
+    ).toHaveValue("");
+    expect(apiMock.put).not.toHaveBeenCalled();
+  });
+
   it("section Cancel restores only that section's snapshot", async () => {
     const user = userEvent.setup();
     renderTable();
