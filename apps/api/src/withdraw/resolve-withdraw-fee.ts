@@ -141,12 +141,15 @@ export function applyWithdrawFeeCouponDiscount(input: {
   if (now > coupon.end_at) {
     return { ok: false, reason: 'coupon_expired' };
   }
-  if (
-    !coupon.unlimited_quantity &&
-    typeof coupon.quantity === 'number' &&
-    coupon.quantity_used >= coupon.quantity
-  ) {
-    return { ok: false, reason: 'coupon_exhausted' };
+  if (!coupon.unlimited_quantity) {
+    // Limited coupons with a missing quantity are treated as exhausted — create
+    // paths require quantity, but stale/partial docs must not grant free uses.
+    if (
+      typeof coupon.quantity !== 'number' ||
+      coupon.quantity_used >= coupon.quantity
+    ) {
+      return { ok: false, reason: 'coupon_exhausted' };
+    }
   }
   if (input.userRedemptionCount >= coupon.usage_per_user) {
     return { ok: false, reason: 'coupon_user_limit' };

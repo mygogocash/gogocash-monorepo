@@ -2,6 +2,7 @@ import {
   BadRequestException,
   HttpException,
   Injectable,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -215,6 +216,7 @@ export class AdminService {
   async updateRequestWithdraw(
     updateRequestWithdrawDto: UpdateRequestWithdrawDto,
     file: Express.Multer.File,
+    actor?: { id?: string; label?: string },
   ) {
     const withdrawId = requireObjectId(
       updateRequestWithdrawDto.id,
@@ -226,47 +228,57 @@ export class AdminService {
       'withdraw status',
     );
     const existing = await this.withdrawModel.findById(withdrawId).exec();
+    if (!existing) {
+      throw new NotFoundException('Withdraw request not found');
+    }
 
-    let updated;
+    const previousStatus = existing.status;
+    const statusPayload: Record<string, unknown> = { status: nextStatus };
     if (file) {
-      const slipFile = await this.storedMediaService.upload(
+      statusPayload.slip_file = await this.storedMediaService.upload(
         file,
         MEDIA_FOLDER.WITHDRAW_SLIPS,
       );
-      updated = await this.withdrawModel
-        .findByIdAndUpdate(
-          withdrawId,
-          mongoSetUpdate({
-            status: nextStatus,
-            slip_file: slipFile,
-          }),
-        )
-        .exec();
-    } else {
-      updated = await this.withdrawModel
-        .findByIdAndUpdate(
-          withdrawId,
-          mongoSetUpdate({
-            status: nextStatus,
-          }),
-        )
-        .exec();
     }
 
-    const previousStatus = existing?.status;
+    // Claim the transition atomically so concurrent rejects cannot both restore.
+    const updated = await this.withdrawModel
+      .findOneAndUpdate(
+        { _id: withdrawId, status: previousStatus },
+        mongoSetUpdate(statusPayload),
+        { new: true },
+      )
+      .exec();
+    if (!updated) {
+      // Another admin won the race; re-read and no-op restore/activity.
+      return this.withdrawModel.findById(withdrawId).exec();
+    }
+
     if (
       shouldRestoreWithdrawFeeCoupon({
         previousStatus,
         nextStatus,
-        couponId: existing?.coupon_id,
+        couponId: existing.coupon_id,
       })
     ) {
+      // Atomic claim of the redemption row — only the winner decrements inventory.
       const redemption = await this.withdrawFeeCouponRedemptionModel
-        .findOne({ withdraw_id: withdrawId })
+        .findOneAndDelete({ withdraw_id: withdrawId })
         .exec();
-      if (redemption) {
+      if (redemption?.coupon_id) {
+        await this.withdrawFeeCouponModel
+          .updateOne(
+            {
+              _id: redemption.coupon_id,
+              quantity_used: { $gt: 0 },
+            },
+            { $inc: { quantity_used: -1 } },
+          )
+          .exec();
         await this.adminActivity.append({
           actor_type: 'admin',
+          actor_id: actor?.id,
+          actor_label: actor?.label,
           action: 'withdraw.fee_coupon.restored',
           entity_type: 'withdraw',
           entity_id: String(withdrawId),
@@ -278,24 +290,14 @@ export class AdminService {
             next_status: nextStatus,
           },
         });
-        await this.withdrawFeeCouponRedemptionModel
-          .deleteOne({ _id: redemption._id })
-          .exec();
-        await this.withdrawFeeCouponModel
-          .updateOne(
-            {
-              _id: redemption.coupon_id,
-              quantity_used: { $gt: 0 },
-            },
-            { $inc: { quantity_used: -1 } },
-          )
-          .exec();
       }
     }
 
     if (String(previousStatus ?? '') !== String(nextStatus)) {
       await this.adminActivity.append({
         actor_type: 'admin',
+        actor_id: actor?.id,
+        actor_label: actor?.label,
         action: 'withdraw.status_changed',
         entity_type: 'withdraw',
         entity_id: String(withdrawId),
@@ -303,8 +305,8 @@ export class AdminService {
         metadata: {
           from: previousStatus,
           to: nextStatus,
-          coupon_code: existing?.coupon_code,
-          amount_net: existing?.amount_net,
+          coupon_code: existing.coupon_code,
+          amount_net: existing.amount_net,
         },
       });
     }

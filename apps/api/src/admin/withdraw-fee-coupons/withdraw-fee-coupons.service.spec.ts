@@ -68,6 +68,29 @@ describe('WithdrawFeeCouponsService', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  it('list > given regex metacharacters in search > then escapes them in the filter', async () => {
+    const service = await buildService();
+    find.mockReturnValue({
+      sort: () => ({
+        skip: () => ({
+          limit: () => ({
+            lean: jest.fn().mockResolvedValue([]),
+          }),
+        }),
+      }),
+    });
+    countDocuments.mockResolvedValue(0);
+
+    await service.list({ search: 'SAVE.*' });
+
+    expect(find).toHaveBeenCalledWith({
+      $or: [
+        { code: { $regex: 'SAVE\\.\\*', $options: 'i' } },
+        { name: { $regex: 'SAVE\\.\\*', $options: 'i' } },
+      ],
+    });
+  });
+
   it('create > given waive mode > then persists with discount_value 0', async () => {
     const service = await buildService();
     create.mockResolvedValue({

@@ -14,7 +14,7 @@ export class AdminActivityController {
   constructor(private readonly activityService: AdminActivityService) {}
 
   @Get()
-  @Roles('support')
+  @Roles('viewer')
   list(
     @Query('page') page?: string,
     @Query('limit') limit?: string,

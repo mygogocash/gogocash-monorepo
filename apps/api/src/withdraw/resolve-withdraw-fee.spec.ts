@@ -163,6 +163,22 @@ describe('applyWithdrawFeeCouponDiscount', () => {
     expect(result).toEqual({ ok: false, reason: 'coupon_exhausted' });
   });
 
+  it('applyWithdrawFeeCouponDiscount > given limited coupon without quantity > then rejects as exhausted', () => {
+    const result = applyWithdrawFeeCouponDiscount({
+      baseFee: 20,
+      currency: 'THB',
+      method: 'bank_transfer',
+      coupon: coupon({
+        unlimited_quantity: false,
+        quantity: undefined,
+        quantity_used: 0,
+      }),
+      userRedemptionCount: 0,
+      now,
+    });
+    expect(result).toEqual({ ok: false, reason: 'coupon_exhausted' });
+  });
+
   it('applyWithdrawFeeCouponDiscount > given usage_per_user reached > then rejects', () => {
     const result = applyWithdrawFeeCouponDiscount({
       baseFee: 20,

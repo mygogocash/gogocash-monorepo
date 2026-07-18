@@ -11,6 +11,7 @@ import {
   WithdrawFeeDiscountMode,
 } from 'src/withdraw/schemas/withdraw-fee-coupon.schema';
 import { normalizeWithdrawFeeCouponCode } from 'src/withdraw/resolve-withdraw-fee';
+import { escapeRegexLiteral } from 'src/common/escape-regex';
 import {
   CreateWithdrawFeeCouponDto,
   UpdateWithdrawFeeCouponDto,
@@ -31,7 +32,7 @@ export class WithdrawFeeCouponsService {
     const skip = (page - 1) * limit;
     const filter: Record<string, unknown> = {};
     if (params.search?.trim()) {
-      const q = params.search.trim();
+      const q = escapeRegexLiteral(params.search.trim());
       filter.$or = [
         { code: { $regex: q, $options: 'i' } },
         { name: { $regex: q, $options: 'i' } },
@@ -49,7 +50,10 @@ export class WithdrawFeeCouponsService {
     return { data, total, page, limit };
   }
 
-  async create(dto: CreateWithdrawFeeCouponDto) {
+  async create(
+    dto: CreateWithdrawFeeCouponDto,
+    actor?: { id?: string; label?: string },
+  ) {
     this.assertDiscountValue(dto.discount_mode, dto.discount_value);
     const unlimited = dto.unlimited_quantity ?? true;
     this.assertQuantity(unlimited, dto.quantity);
@@ -83,6 +87,8 @@ export class WithdrawFeeCouponsService {
       const createdObj = created.toObject();
       await this.adminActivity.append({
         actor_type: 'admin',
+        actor_id: actor?.id,
+        actor_label: actor?.label,
         action: 'fee_coupon.created',
         entity_type: 'withdraw_fee_coupon',
         entity_id: String(createdObj._id),
@@ -107,7 +113,11 @@ export class WithdrawFeeCouponsService {
     }
   }
 
-  async update(id: string, dto: UpdateWithdrawFeeCouponDto) {
+  async update(
+    id: string,
+    dto: UpdateWithdrawFeeCouponDto,
+    actor?: { id?: string; label?: string },
+  ) {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid coupon id');
     }
@@ -169,6 +179,8 @@ export class WithdrawFeeCouponsService {
     const updated = existing.toObject();
     await this.adminActivity.append({
       actor_type: 'admin',
+      actor_id: actor?.id,
+      actor_label: actor?.label,
       action: 'fee_coupon.updated',
       entity_type: 'withdraw_fee_coupon',
       entity_id: String(existing._id),

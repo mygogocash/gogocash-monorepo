@@ -111,6 +111,7 @@ describe('AdminService', () => {
       find: jest.fn(),
       findById: jest.fn().mockReturnValue(makeQuery({ status: 'pending' })),
       findByIdAndUpdate: jest.fn(),
+      findOneAndUpdate: jest.fn(),
       countDocuments: jest.fn(),
     };
     withdrawFeeCouponModel = {
@@ -403,17 +404,23 @@ describe('AdminService', () => {
     // ObjectId or the update silently matches nothing.
     it('updateRequestWithdraw > given no slip file > then it updates status only and casts the id to ObjectId', async () => {
       const id = new Types.ObjectId().toString();
-      withdrawModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: id }));
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({ _id: id, status: 'pending' }),
+      );
+      withdrawModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'APPROVED' }),
+      );
 
       await service.updateRequestWithdraw(
         { id, status: 'APPROVED' },
         undefined as never,
       );
 
-      const [arg0, arg1] = withdrawModel.findByIdAndUpdate.mock.calls[0];
-      expect(arg0).toBeInstanceOf(Types.ObjectId);
-      expect(arg0.toString()).toBe(id);
-      expect(arg1).toEqual({ $set: { status: 'APPROVED' } });
+      const [filter, update] = withdrawModel.findOneAndUpdate.mock.calls[0];
+      expect(filter._id).toBeInstanceOf(Types.ObjectId);
+      expect(filter._id.toString()).toBe(id);
+      expect(filter.status).toBe('pending');
+      expect(update).toEqual({ $set: { status: 'APPROVED' } });
       expect(storedMediaService.upload).not.toHaveBeenCalled();
     });
 
@@ -422,7 +429,12 @@ describe('AdminService', () => {
       storedMediaService.upload.mockResolvedValue(
         'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png',
       );
-      withdrawModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: id }));
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({ _id: id, status: 'pending' }),
+      );
+      withdrawModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'PAID' }),
+      );
       const file = { originalname: 'slip.png' } as Express.Multer.File;
 
       await service.updateRequestWithdraw({ id, status: 'PAID' }, file);
@@ -431,13 +443,26 @@ describe('AdminService', () => {
         file,
         'withdraw-slips',
       );
-      expect(withdrawModel.findByIdAndUpdate.mock.calls[0][1]).toEqual({
+      expect(withdrawModel.findOneAndUpdate.mock.calls[0][1]).toEqual({
         $set: {
           status: 'PAID',
           slip_file:
             'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png',
         },
       });
+    });
+
+    it('updateRequestWithdraw > given missing withdraw > then throws NotFoundException', async () => {
+      const id = new Types.ObjectId().toString();
+      withdrawModel.findById.mockReturnValue(makeQuery(null));
+
+      await expect(
+        service.updateRequestWithdraw(
+          { id, status: 'rejected' },
+          undefined as never,
+        ),
+      ).rejects.toThrow('Withdraw request not found');
+      expect(withdrawModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
     it('updateRequestWithdraw > given pending coupon withdraw rejected > then restores inventory once', async () => {
@@ -450,10 +475,10 @@ describe('AdminService', () => {
           coupon_id: couponId,
         }),
       );
-      withdrawModel.findByIdAndUpdate.mockReturnValue(
+      withdrawModel.findOneAndUpdate.mockReturnValue(
         makeQuery({ _id: id, status: 'rejected' }),
       );
-      withdrawFeeCouponRedemptionModel.findOne.mockReturnValue(
+      withdrawFeeCouponRedemptionModel.findOneAndDelete.mockReturnValue(
         makeQuery({
           _id: redemptionId,
           coupon_id: couponId,
@@ -465,19 +490,27 @@ describe('AdminService', () => {
       await service.updateRequestWithdraw(
         { id, status: 'rejected' },
         undefined as never,
+        { id: 'admin-1', label: 'admin@gogocash.co' },
       );
 
       expect(adminActivity.append).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'withdraw.fee_coupon.restored',
+          actor_id: 'admin-1',
+          actor_label: 'admin@gogocash.co',
         }),
       );
       expect(adminActivity.append).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'withdraw.status_changed',
+          actor_id: 'admin-1',
         }),
       );
-      expect(withdrawFeeCouponRedemptionModel.deleteOne).toHaveBeenCalled();
+      expect(
+        withdrawFeeCouponRedemptionModel.findOneAndDelete,
+      ).toHaveBeenCalledWith({
+        withdraw_id: expect.any(Types.ObjectId),
+      });
       expect(withdrawFeeCouponModel.updateOne).toHaveBeenCalledWith(
         { _id: couponId, quantity_used: { $gt: 0 } },
         { $inc: { quantity_used: -1 } },
@@ -489,7 +522,7 @@ describe('AdminService', () => {
       withdrawModel.findById.mockReturnValue(
         makeQuery({ status: 'pending' }),
       );
-      withdrawModel.findByIdAndUpdate.mockReturnValue(
+      withdrawModel.findOneAndUpdate.mockReturnValue(
         makeQuery({ _id: id, status: 'rejected' }),
       );
 
@@ -498,7 +531,9 @@ describe('AdminService', () => {
         undefined as never,
       );
 
-      expect(withdrawFeeCouponRedemptionModel.findOne).not.toHaveBeenCalled();
+      expect(
+        withdrawFeeCouponRedemptionModel.findOneAndDelete,
+      ).not.toHaveBeenCalled();
       expect(withdrawFeeCouponModel.updateOne).not.toHaveBeenCalled();
       expect(adminActivity.append).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'withdraw.status_changed' }),
@@ -514,7 +549,7 @@ describe('AdminService', () => {
           coupon_id: couponId,
         }),
       );
-      withdrawModel.findByIdAndUpdate.mockReturnValue(
+      withdrawModel.findOneAndUpdate.mockReturnValue(
         makeQuery({ _id: id, status: 'rejected' }),
       );
 
@@ -523,8 +558,35 @@ describe('AdminService', () => {
         undefined as never,
       );
 
-      expect(withdrawFeeCouponRedemptionModel.findOne).not.toHaveBeenCalled();
+      expect(
+        withdrawFeeCouponRedemptionModel.findOneAndDelete,
+      ).not.toHaveBeenCalled();
       expect(withdrawFeeCouponModel.updateOne).not.toHaveBeenCalled();
+    });
+
+    it('updateRequestWithdraw > given concurrent status claim loss > then skips restore and activity', async () => {
+      const id = new Types.ObjectId().toString();
+      const couponId = new Types.ObjectId();
+      withdrawModel.findById
+        .mockReturnValueOnce(
+          makeQuery({
+            status: 'pending',
+            coupon_id: couponId,
+          }),
+        )
+        .mockReturnValueOnce(makeQuery({ _id: id, status: 'rejected' }));
+      withdrawModel.findOneAndUpdate.mockReturnValue(makeQuery(null));
+
+      const result = await service.updateRequestWithdraw(
+        { id, status: 'rejected' },
+        undefined as never,
+      );
+
+      expect(result).toEqual({ _id: id, status: 'rejected' });
+      expect(
+        withdrawFeeCouponRedemptionModel.findOneAndDelete,
+      ).not.toHaveBeenCalled();
+      expect(adminActivity.append).not.toHaveBeenCalled();
     });
   });
 

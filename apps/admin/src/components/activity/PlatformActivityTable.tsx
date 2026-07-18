@@ -31,7 +31,6 @@ const ENTITY_OPTIONS = [
   "withdraw_fee_coupon",
   "user",
   "admin_user",
-  "wallet",
 ];
 
 export default function PlatformActivityTable() {

@@ -514,10 +514,17 @@ export class AdminController {
   @Roles('approver')
   @Patch('update-request-withdraw')
   updateRequestWithdraw(
+    @Req() req: Request,
     @UploadedFile() file: Express.Multer.File,
     @Body() updateAdminDto: UpdateRequestWithdrawDto,
   ) {
-    return this.adminService.updateRequestWithdraw(updateAdminDto, file);
+    const admin = req['user'] as
+      | { sub?: string; email?: string; username?: string }
+      | undefined;
+    return this.adminService.updateRequestWithdraw(updateAdminDto, file, {
+      id: admin?.sub,
+      label: admin?.email || admin?.username,
+    });
   }
 
   // Admin-account management (change role / delete). Superadmin-only: these
