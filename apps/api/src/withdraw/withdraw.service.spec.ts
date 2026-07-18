@@ -12,6 +12,8 @@ import { RewardList } from './schemas/rewardList.schema';
 import { Quest } from 'src/point/schemas/quest.schema';
 import { WithdrawMethod } from './schemas/withdrawMethod.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
+import { WithdrawFeeCoupon } from './schemas/withdraw-fee-coupon.schema';
+import { WithdrawFeeCouponRedemption } from './schemas/withdraw-fee-coupon-redemption.schema';
 import { InvolveService } from 'src/involve/involve.service';
 import { PointService } from 'src/point/point.service';
 import { thaiBanks } from 'src/utils/helper';
@@ -56,6 +58,8 @@ interface Mocks {
   questModel: ModelMock;
   withdrawMethodModel: ModelMock;
   userMyCashbackModel: ModelMock;
+  withdrawFeeCouponModel: ModelMock;
+  withdrawFeeCouponRedemptionModel: ModelMock;
   involveService: { getConversionAll: jest.Mock };
   pointService: { getQuestRankListOfPoint: jest.Mock };
   legacyManifestCollection: { findOne: jest.Mock; updateOne: jest.Mock };
@@ -80,6 +84,8 @@ async function buildService(): Promise<Mocks> {
   };
   const withdrawMethodModel = makeModelMock();
   const userMyCashbackModel = makeModelMock();
+  const withdrawFeeCouponModel = makeModelMock();
+  const withdrawFeeCouponRedemptionModel = makeModelMock();
   const involveService = { getConversionAll: jest.fn() };
   const pointService = { getQuestRankListOfPoint: jest.fn() };
   // Fake mongoose connection: withTransaction just runs the callback (the real
@@ -111,6 +117,14 @@ async function buildService(): Promise<Mocks> {
         provide: getModelToken(UserMyCashback.name),
         useValue: userMyCashbackModel,
       },
+      {
+        provide: getModelToken(WithdrawFeeCoupon.name),
+        useValue: withdrawFeeCouponModel,
+      },
+      {
+        provide: getModelToken(WithdrawFeeCouponRedemption.name),
+        useValue: withdrawFeeCouponRedemptionModel,
+      },
       { provide: InvolveService, useValue: involveService },
       { provide: PointService, useValue: pointService },
       { provide: getConnectionToken(), useValue: connection },
@@ -128,6 +142,8 @@ async function buildService(): Promise<Mocks> {
     questModel,
     withdrawMethodModel,
     userMyCashbackModel,
+    withdrawFeeCouponModel,
+    withdrawFeeCouponRedemptionModel,
     involveService,
     pointService,
     legacyManifestCollection,
@@ -356,7 +372,12 @@ describe('WithdrawService', () => {
         exec: jest.fn().mockResolvedValue({
           minimum_withdraw_thb: 100,
           minimum_withdraw_usd: 5,
+          fee_withdraw_thb: 20,
+          fee_withdraw_usd: 1,
         }),
+      });
+      mocks.withdrawFeeCouponRedemptionModel.countDocuments.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(0),
       });
       jest
         .spyOn(mocks.service, 'checkWithdraw')

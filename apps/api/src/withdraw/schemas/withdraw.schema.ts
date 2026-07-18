@@ -99,6 +99,26 @@ export class Withdraw {
 
   @Prop({ type: Date, required: false })
   approved_at: Date;
+
+  /** Flat withdraw fee before coupon discount (server-computed). */
+  @Prop({ type: Number, required: false, min: 0 })
+  withdraw_fee_base?: number;
+
+  @Prop({ type: Number, required: false, min: 0 })
+  withdraw_fee_discount?: number;
+
+  @Prop({ type: Number, required: false, min: 0 })
+  withdraw_fee_final?: number;
+
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'WithdrawFeeCoupon',
+    required: false,
+  })
+  coupon_id?: Types.ObjectId;
+
+  @Prop({ type: String, required: false, uppercase: true, trim: true })
+  coupon_code?: string;
 }
 
 export const WithdrawSchema = SchemaFactory.createForClass(Withdraw);

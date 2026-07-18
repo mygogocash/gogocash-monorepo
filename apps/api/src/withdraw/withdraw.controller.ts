@@ -16,6 +16,7 @@ import {
   GETSignDTO,
   GetWithdrawTransactionsDTO,
   MarkWithdrawPaidDto,
+  PreviewWithdrawFeeDto,
   RequestCreateRewardList,
 } from './dto/create-withdraw.dto';
 import {
@@ -165,6 +166,20 @@ export class WithdrawController {
     const admin = req['user'] as { sub?: string } | undefined;
     const adminId = admin?.sub ?? 'unknown';
     return this.withdrawService.approveWithdrawRequest(id, adminId);
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiBody({ type: PreviewWithdrawFeeDto })
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Post('preview-fee')
+  previewWithdrawFee(
+    @Req() req: Request,
+    @Body() body: PreviewWithdrawFeeDto,
+  ) {
+    const user = req['user'] as { sub?: string };
+    const id = user?.sub;
+    return this.withdrawService.previewWithdrawFee(body, id as string);
   }
 
   @UseGuards(FirebaseAuthGuard)

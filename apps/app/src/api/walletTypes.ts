@@ -9,6 +9,12 @@ export type CheckWithdrawResponse = {
   netAmountTHB: number;
   totalPayoutTHB: number;
   totalPayoutUSD: number;
+  /** Flat THB withdraw fee from FeeRate (when present). */
+  feeAmountTHB?: number;
+  fee?: {
+    minimum_withdraw_thb?: number;
+    fee_withdraw_thb?: number;
+  };
 };
 
 function readWalletAmount(value: unknown): number | null {
@@ -43,11 +49,28 @@ export function normalizeCheckWithdrawResponse(payload: unknown): CheckWithdrawR
     return null;
   }
 
+  const feeAmountTHB = readWalletAmount(candidate.feeAmountTHB);
+  const feeRaw =
+    typeof candidate.fee === "object" && candidate.fee !== null
+      ? (candidate.fee as Record<string, unknown>)
+      : null;
+
   return {
     netAmount: readWalletAmount(candidate.netAmount) ?? netAmountTHB,
     netAmountTHB,
     totalPayoutTHB,
     totalPayoutUSD: readWalletAmount(candidate.totalPayoutUSD) ?? totalPayoutTHB,
+    ...(feeAmountTHB !== null ? { feeAmountTHB } : {}),
+    ...(feeRaw
+      ? {
+          fee: {
+            minimum_withdraw_thb:
+              readWalletAmount(feeRaw.minimum_withdraw_thb) ?? undefined,
+            fee_withdraw_thb:
+              readWalletAmount(feeRaw.fee_withdraw_thb) ?? undefined,
+          },
+        }
+      : {}),
   };
 }
 

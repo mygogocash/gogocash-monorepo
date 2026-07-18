@@ -135,6 +135,12 @@ export const navItems: NavItem[] = [
         pro: false,
         permission: "coupon:view",
       },
+      {
+        name: "Withdraw Fee Coupons",
+        path: "/coupon/withdraw-fee",
+        pro: false,
+        permission: "coupon:view",
+      },
     ],
   },
   {

@@ -11,8 +11,19 @@ import {
   GETSignDTO,
   GetWithdrawTransactionsDTO,
   MarkWithdrawPaidDto,
+  PreviewWithdrawFeeDto,
   RequestCreateRewardList,
 } from './dto/create-withdraw.dto';
+import {
+  WithdrawFeeCoupon,
+  type WithdrawFeeCouponDocument,
+} from './schemas/withdraw-fee-coupon.schema';
+import { WithdrawFeeCouponRedemption } from './schemas/withdraw-fee-coupon-redemption.schema';
+import {
+  normalizeWithdrawFeeCouponCode,
+  resolveWithdrawFeePreview,
+  type WithdrawFeeCouponLike,
+} from './resolve-withdraw-fee';
 import {
   CreateWithdrawMethod,
   UpdateWithdrawDto,
@@ -81,10 +92,118 @@ export class WithdrawService {
     private withdrawMethodModel: Model<WithdrawMethod>,
     @InjectModel(UserMyCashback.name)
     private userMyCashbackModel: Model<UserMyCashback>,
+    @InjectModel(WithdrawFeeCoupon.name)
+    private withdrawFeeCouponModel: Model<WithdrawFeeCoupon>,
+    @InjectModel(WithdrawFeeCouponRedemption.name)
+    private withdrawFeeCouponRedemptionModel: Model<WithdrawFeeCouponRedemption>,
     private readonly involveService: InvolveService,
     private readonly pointService: PointService,
     @InjectConnection() private readonly connection: Connection,
   ) {}
+
+  private toCouponLike(doc: WithdrawFeeCouponDocument): WithdrawFeeCouponLike {
+    return {
+      _id: String(doc._id),
+      code: doc.code,
+      name: doc.name,
+      discount_mode: doc.discount_mode,
+      discount_value: doc.discount_value,
+      currency: doc.currency,
+      disabled: doc.disabled,
+      start_at: doc.start_at,
+      end_at: doc.end_at,
+      quantity: doc.quantity,
+      quantity_used: doc.quantity_used,
+      unlimited_quantity: doc.unlimited_quantity,
+      usage_per_user: doc.usage_per_user,
+      applies_to: doc.applies_to,
+      min_withdraw_amount: doc.min_withdraw_amount,
+    };
+  }
+
+  private previewFailureMessage(reason: string): string {
+    switch (reason) {
+      case 'below_minimum':
+        return 'Amount is below the minimum withdrawal.';
+      case 'insufficient_balance':
+        return 'Insufficient cashback balance.';
+      case 'negative_receive':
+        return 'Withdrawal amount is too low after fees.';
+      case 'coupon_disabled':
+        return 'This coupon is disabled.';
+      case 'coupon_not_started':
+        return 'This coupon is not active yet.';
+      case 'coupon_expired':
+        return 'This coupon has expired.';
+      case 'coupon_exhausted':
+        return 'This coupon has no remaining uses.';
+      case 'coupon_user_limit':
+        return 'You have already used this coupon.';
+      case 'coupon_currency_mismatch':
+        return 'This coupon does not apply to the selected currency.';
+      case 'coupon_method_mismatch':
+        return 'This coupon does not apply to the selected withdrawal method.';
+      default:
+        return 'Unable to preview withdrawal fee.';
+    }
+  }
+
+  async previewWithdrawFee(dto: PreviewWithdrawFeeDto, userId: string) {
+    const fee = await this.feeRateModel.findOne().exec();
+    if (!fee) {
+      throw new HttpException(
+        {
+          message:
+            'Withdrawals are temporarily unavailable. Please try again later or contact support.',
+        },
+        400,
+      );
+    }
+
+    const currency = dto.currency || 'THB';
+    const method = dto.method || 'bank_transfer';
+    const balance = await this.checkWithdraw(userId);
+    const availableBalance =
+      currency === 'THB'
+        ? Number(balance.netAmountTHB || 0)
+        : Number(balance.netAmount || 0);
+
+    let coupon: WithdrawFeeCouponLike | null = null;
+    let userRedemptionCount = 0;
+    if (dto.coupon_code?.trim()) {
+      const code = normalizeWithdrawFeeCouponCode(dto.coupon_code);
+      const found = await this.withdrawFeeCouponModel.findOne({ code }).exec();
+      if (!found) {
+        throw new HttpException({ message: 'Coupon code not found.' }, 400);
+      }
+      coupon = this.toCouponLike(found);
+      userRedemptionCount = await this.withdrawFeeCouponRedemptionModel
+        .countDocuments({
+          coupon_id: found._id,
+          user_id: new Types.ObjectId(userId),
+        })
+        .exec();
+    }
+
+    const preview = resolveWithdrawFeePreview({
+      feeRate: fee,
+      amount: dto.amount,
+      availableBalance,
+      currency,
+      method,
+      coupon,
+      userRedemptionCount,
+    });
+
+    if (preview.ok === false) {
+      throw new HttpException(
+        { message: this.previewFailureMessage(preview.reason) },
+        400,
+      );
+    }
+    return preview;
+  }
+
   async getSign(msg: GETSignDTO): Promise<string> {
     // console.log('Generating EIP-712 signature for message:', msg);
     const chainId =
@@ -2049,27 +2168,82 @@ export class WithdrawService {
         400,
       );
     }
-    const feeRateMinimum =
-      createWithdrawDto.currency === 'THB'
-        ? fee.minimum_withdraw_thb
-        : fee.minimum_withdraw_usd;
-    if (createWithdrawDto.amount_net < feeRateMinimum) {
+
+    const currency = createWithdrawDto.currency || 'THB';
+    const amountNet = createWithdrawDto.amount_net || 0;
+    const balance = await this.checkWithdraw(id);
+    const availableBalance =
+      currency === 'THB'
+        ? Number(balance.netAmountTHB || 0)
+        : Number(balance.netAmount || 0);
+
+    let couponDoc: WithdrawFeeCouponDocument | null = null;
+    let userRedemptionCount = 0;
+    if (createWithdrawDto.coupon_code?.trim()) {
+      const code = normalizeWithdrawFeeCouponCode(createWithdrawDto.coupon_code);
+      couponDoc = await this.withdrawFeeCouponModel.findOne({ code }).exec();
+      if (!couponDoc) {
+        throw new HttpException({ message: 'Coupon code not found.' }, 400);
+      }
+      userRedemptionCount = await this.withdrawFeeCouponRedemptionModel
+        .countDocuments({
+          coupon_id: couponDoc._id,
+          user_id: new Types.ObjectId(id),
+        })
+        .exec();
+    }
+
+    const preview = resolveWithdrawFeePreview({
+      feeRate: fee,
+      amount: amountNet,
+      availableBalance,
+      currency,
+      method: 'bank_transfer',
+      coupon: couponDoc ? this.toCouponLike(couponDoc) : null,
+      userRedemptionCount,
+    });
+    if (preview.ok === false) {
       throw new HttpException(
-        {
-          message: `Minimum withdrawal amount for bank transfer is ${feeRateMinimum}.`,
-        },
+        { message: this.previewFailureMessage(preview.reason) },
         400,
       );
     }
+
     // V-2 + P1-TX: gate the balance AND persist the record inside a per-user
     // serialized transaction, so two concurrent bank-transfer requests can't
     // both pass the balance check and double-withdraw.
     const dt = await this.runSerializedWithdraw(id, async (session) => {
-      await this.assertWithinBalance(
-        id,
-        createWithdrawDto.amount_net,
-        createWithdrawDto.currency,
-      );
+      await this.assertWithinBalance(id, amountNet, currency);
+
+      if (couponDoc && !couponDoc.unlimited_quantity) {
+        const fresh = await this.withdrawFeeCouponModel
+          .findOneAndUpdate(
+            {
+              _id: couponDoc._id,
+              $expr: {
+                $lt: ['$quantity_used', { $ifNull: ['$quantity', 0] }],
+              },
+            },
+            { $inc: { quantity_used: 1 } },
+            { new: true, session },
+          )
+          .exec();
+        if (!fresh) {
+          throw new HttpException(
+            { message: 'This coupon has no remaining uses.' },
+            400,
+          );
+        }
+      } else if (couponDoc) {
+        await this.withdrawFeeCouponModel
+          .updateOne(
+            { _id: couponDoc._id },
+            { $inc: { quantity_used: 1 } },
+            { session },
+          )
+          .exec();
+      }
+
       const [record] = await this.withdrawModel.create(
         [
           {
@@ -2082,16 +2256,42 @@ export class WithdrawService {
             tx_hash: '',
             tx_hash_record: '',
             percent_fee: createWithdrawDto.percent_fee || 0,
-            amount_total: createWithdrawDto.amount_total || 0,
-            amount_net: createWithdrawDto.amount_net || 0,
+            amount_total: createWithdrawDto.amount_total ?? amountNet,
+            amount_net: amountNet,
             method: 'bank_transfer',
-            currency: createWithdrawDto.currency || '',
+            currency,
             conversion_id: createWithdrawDto.conversion_ids || [],
             mycashback_id: [],
+            withdraw_fee_base: preview.base_fee,
+            withdraw_fee_discount: preview.discount,
+            withdraw_fee_final: preview.final_fee,
+            ...(couponDoc
+              ? {
+                  coupon_id: couponDoc._id,
+                  coupon_code: normalizeWithdrawFeeCouponCode(couponDoc.code),
+                }
+              : {}),
           },
         ],
         { session },
       );
+
+      if (couponDoc) {
+        await this.withdrawFeeCouponRedemptionModel.create(
+          [
+            {
+              coupon_id: couponDoc._id,
+              user_id: new Types.ObjectId(user._id),
+              withdraw_id: record._id,
+              code_snapshot: normalizeWithdrawFeeCouponCode(couponDoc.code),
+              base_fee: preview.base_fee,
+              discount_amount: preview.discount,
+              final_fee: preview.final_fee,
+            },
+          ],
+          { session },
+        );
+      }
       return record;
     });
 

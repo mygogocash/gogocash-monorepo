@@ -29,6 +29,19 @@ export type WithdrawBankTransferRequest = {
   amountNet: number;
   bankName: string;
   currency?: "THB" | "USD";
+  couponCode?: string;
+};
+
+export type WithdrawFeePreviewResponse = {
+  available_balance: number;
+  min_withdraw: number;
+  base_fee: number;
+  discount: number;
+  final_fee: number;
+  you_will_receive: number;
+  remaining_cashback: number;
+  currency: string;
+  coupon?: { code: string; name: string; id?: string };
 };
 
 export type WithdrawBankTransferResponse = {
@@ -66,6 +79,21 @@ export function createWithdrawApi(client: WithdrawBaseClient) {
     updateMethod(id: string, body: Partial<CreateWithdrawMethodRequest>) {
       return client.patch<CreateWithdrawMethodResponse>(`/withdraw/methods/${id}`, body);
     },
+    previewFee(body: {
+      amount: number;
+      currency?: "THB" | "USD";
+      method?: string;
+      couponCode?: string;
+    }) {
+      return client.post<WithdrawFeePreviewResponse>("/withdraw/preview-fee", {
+        amount: body.amount,
+        currency: body.currency ?? "THB",
+        method: body.method ?? "bank_transfer",
+        ...(body.couponCode?.trim()
+          ? { coupon_code: body.couponCode.trim().toUpperCase() }
+          : {}),
+      });
+    },
     async submitBankTransfer(request: WithdrawBankTransferRequest, idempotencyKey: string) {
       if (!idempotencyKey) {
         throw new Error("submitBankTransfer requires an Idempotency-Key");
@@ -92,6 +120,9 @@ export function createWithdrawApi(client: WithdrawBaseClient) {
           conversion_ids: [],
           currency: request.currency ?? "THB",
           percent_fee: 0,
+          ...(request.couponCode?.trim()
+            ? { coupon_code: request.couponCode.trim().toUpperCase() }
+            : {}),
         },
         {
           "Idempotency-Key": idempotencyKey,

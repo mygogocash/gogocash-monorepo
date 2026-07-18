@@ -53,6 +53,16 @@ import { SearchController } from './search/search.controller';
 import { SearchService } from './search/search.service';
 import { CommissionManagementController } from './commission-management/commission-management.controller';
 import { CommissionManagementService } from './commission-management/commission-management.service';
+import { WithdrawFeeCouponsController } from './withdraw-fee-coupons/withdraw-fee-coupons.controller';
+import { WithdrawFeeCouponsService } from './withdraw-fee-coupons/withdraw-fee-coupons.service';
+import {
+  WithdrawFeeCoupon,
+  WithdrawFeeCouponSchema,
+} from 'src/withdraw/schemas/withdraw-fee-coupon.schema';
+import {
+  WithdrawFeeCouponRedemption,
+  WithdrawFeeCouponRedemptionSchema,
+} from 'src/withdraw/schemas/withdraw-fee-coupon-redemption.schema';
 
 import {
   UserAdmin,
@@ -228,6 +238,11 @@ import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
       { name: FeaturedSearchTerm.name, schema: FeaturedSearchTermSchema },
       { name: SearchBoostRule.name, schema: SearchBoostRuleSchema },
       { name: SearchBlacklist.name, schema: SearchBlacklistSchema },
+      { name: WithdrawFeeCoupon.name, schema: WithdrawFeeCouponSchema },
+      {
+        name: WithdrawFeeCouponRedemption.name,
+        schema: WithdrawFeeCouponRedemptionSchema,
+      },
     ]),
     JwtModule.register({
       secret: process.env.JWT_ADMIN_SECRET,
@@ -247,6 +262,7 @@ import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
     DiscoverController,
     SearchController,
     CommissionManagementController,
+    WithdrawFeeCouponsController,
   ],
   providers: [
     AdminService,
@@ -263,6 +279,7 @@ import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
     DiscoverService,
     SearchService,
     CommissionManagementService,
+    WithdrawFeeCouponsService,
     JwtService,
     UserService,
     JobService,

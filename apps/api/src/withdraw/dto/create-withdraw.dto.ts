@@ -98,6 +98,41 @@ export class CreateWithdrawDto {
   @IsNumber()
   @Min(0)
   rate?: number;
+
+  /** Optional marketing withdraw-fee coupon code (bank transfer MVP). */
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9]+$/, {
+    message: 'coupon_code must be alphanumeric',
+  })
+  coupon_code?: string;
+}
+
+export class PreviewWithdrawFeeDto {
+  @ApiProperty()
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(0)
+  @Max(100_000_000)
+  amount!: number;
+
+  @ApiProperty({ required: false, enum: ['THB', 'USD', 'USDT', 'USDC'] })
+  @IsOptional()
+  @IsIn(['THB', 'USD', 'USDT', 'USDC'])
+  currency?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  method?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9]+$/, {
+    message: 'coupon_code must be alphanumeric',
+  })
+  coupon_code?: string;
 }
 
 /**
