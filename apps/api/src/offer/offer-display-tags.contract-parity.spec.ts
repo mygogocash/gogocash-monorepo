@@ -57,7 +57,9 @@ describe('offer-display-tags contract parity', () => {
   it.each(corpus.map((value, index) => [index, value]))(
     'given corpus input #%s > then API and contracts normalizers agree',
     (_index, value) => {
-      expect(normalizeOfferDisplayTags(value)).toEqual(contractNormalize(value));
+      expect(normalizeOfferDisplayTags(value)).toEqual(
+        contractNormalize(value),
+      );
     },
   );
 
