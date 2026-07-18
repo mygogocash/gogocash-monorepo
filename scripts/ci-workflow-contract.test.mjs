@@ -465,7 +465,7 @@ const jobs = parseJobs(workflowSource);
 test("root exposes the dependency-free workflow contract", () => {
   assert.equal(
     packageJson.scripts?.["test:workflow-contracts"],
-    "node --test scripts/ci-workflow-contract.test.mjs",
+    "node --test scripts/ci-workflow-contract.test.mjs scripts/dependency-hygiene.test.mjs",
   );
 });
 
