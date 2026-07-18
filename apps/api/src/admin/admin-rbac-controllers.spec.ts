@@ -15,6 +15,7 @@ import { AdminController } from './admin.controller';
 import { PointController } from 'src/point/point.controller';
 import { OfferController } from 'src/offer/offer.controller';
 import { BrandController } from 'src/brand/brand.controller';
+import { PolicyController } from 'src/policy/policy.controller';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
 
 const GUARDS = '__guards__';
@@ -218,5 +219,17 @@ describe('Admin Phase-2 RBAC gap closures', () => {
     expect(
       rolesOnMethod(CommissionManagementController, 'updateDeeplink'),
     ).toContain('approver');
+  });
+
+  it('#377: policy authoring routes attach RolesGuard and require support+', () => {
+    // upsert and aggregate previously attached only AuthAdminGuard —
+    // without RolesGuard they fail open to ANY authenticated admin,
+    // including viewer, contradicting the viewer=read-only contract.
+    for (const method of ['upsert', 'aggregate']) {
+      expect(methodGuards(PolicyController, method)).toEqual(
+        expect.arrayContaining([AuthAdminGuard, RolesGuard]),
+      );
+      expect(rolesOnMethod(PolicyController, method)).toContain('support');
+    }
   });
 });

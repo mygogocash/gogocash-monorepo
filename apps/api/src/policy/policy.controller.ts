@@ -85,9 +85,11 @@ export class PolicyController {
   @Put('aggregate')
   @UseGuards(
     AuthAdminGuard,
+    RolesGuard,
     PolicyTransactionCapabilityGuard,
     CategoryIntegrityReadinessGuard,
   )
+  @Roles('support')
   @UseInterceptors(
     FileInterceptor('default_banner', {
       limits: { fileSize: 10 * 1024 * 1024 },
@@ -110,7 +112,8 @@ export class PolicyController {
   }
 
   @Put()
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('support')
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @ApiOperation({
@@ -129,7 +132,9 @@ export class PolicyController {
 
   @Post('category/:id/delete-content')
   @UseGuards(AuthAdminGuard, RolesGuard, CategoryIntegrityReadinessGuard)
-  @Roles('support')
+  // Approver+: hard-deletes every locale's policy content with no revision
+  // history (#377), matching the offer-delete tier.
+  @Roles('approver')
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @ApiOperation({
@@ -166,7 +171,9 @@ export class PolicyController {
 
   @Delete('category/:id')
   @UseGuards(AuthAdminGuard, RolesGuard)
-  @Roles('support')
+  // Same content deletion as delete-content, so the tier moves in lockstep
+  // (#377).
+  @Roles('approver')
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @ApiOperation({
