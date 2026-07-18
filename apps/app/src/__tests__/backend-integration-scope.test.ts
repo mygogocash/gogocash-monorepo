@@ -18,13 +18,14 @@ describe("backendIntegrationScope", () => {
     );
   });
 
-  it("resolveAuthSocialProviders > backend > keeps Facebook, Google, and LINE", () => {
+  it("resolveAuthSocialProviders > backend > keeps Google and LINE", () => {
     // Founder (2026-07-12): disable Apple, X, and Microsoft for launch.
     // Wallet/Telegram were already excluded on the same mechanism.
+    // Facebook hidden (2026-07-18) — failing Firebase OAuth on staging login.
     // LINE (#252) stays visible — backend already has /auth/line-login.
     expect(
       resolveAuthSocialProviders(webAuthPage.socialProviders, "backend").map((p) => p.id),
-    ).toEqual(["facebook", "google", "line"]);
+    ).toEqual(["google", "line"]);
   });
 
   it("resolveAuthSocialProviders > fixtures > keeps Connect Wallet for parity UI", () => {
