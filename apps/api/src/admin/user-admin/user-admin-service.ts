@@ -21,13 +21,11 @@ export class UserAdminService {
   async login(
     createUserAdminDto: LoginAdminDto,
   ): Promise<UserAdmin & { token: string }> {
+    // Match on email only: usernames are not unique (invite flow derives
+    // them from email local-parts), so a username lookup can resolve to the
+    // wrong account (#374).
     const user = await this.userAdmin
-      .findOne({
-        $or: [
-          { email: createUserAdminDto.email },
-          { username: createUserAdminDto.email },
-        ],
-      })
+      .findOne({ email: createUserAdminDto.email })
       .exec();
 
     if (!user) {

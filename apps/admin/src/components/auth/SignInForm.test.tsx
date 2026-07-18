@@ -63,10 +63,10 @@ describe("SignInForm", () => {
   it("given the admin sign-in page > then credentials fields are accessible and named", () => {
     render(<SignInForm />);
 
-    expect(screen.getByLabelText(/email \/ username/i)).toHaveAttribute(
-      "name",
-      "email",
-    );
+    expect(screen.getByLabelText(/^email/i)).toHaveAttribute("name", "email");
+    // The field only accepts email (type="email" + API @IsEmail), so the
+    // label must not promise username login (#374).
+    expect(screen.queryByLabelText(/username/i)).toBeNull();
     expect(screen.getByLabelText(/^password/i)).toHaveAttribute(
       "name",
       "password",
@@ -119,10 +119,7 @@ describe("SignInForm", () => {
 
     render(<SignInForm />);
 
-    await userEvent.type(
-      screen.getByLabelText(/email \/ username/i),
-      "admin@gogocash.co",
-    );
+    await userEvent.type(screen.getByLabelText(/^email/i), "admin@gogocash.co");
     await userEvent.type(screen.getByLabelText(/^password/i), "secret");
     await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
 
