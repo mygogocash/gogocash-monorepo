@@ -61,8 +61,8 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("authDesktopPageHorizontalPadding");
     expect(authFile).toContain("authHeroImage");
     expect(authFile).toContain("resolveAuthSocialProviders");
-    expect(authFile).toContain("authSocialProviders.slice(0, 4)");
-    expect(authFile).toContain("authSocialProviders.slice(4)");
+    expect(authFile).toContain("styles.socialStackDesktop");
+    expect(authFile).toContain('variant="row"');
     expect(authFile).toContain("PhoneOtpBoxes");
     expect(authFile).toContain("LineBrandIcon");
     expect(authFile).toContain("requestLineLogin");
@@ -233,7 +233,7 @@ describe("Expo auth design parity", () => {
     expectStyleBlock(authFile, "socialButtonMobile", ["height: 72", 'width: "48%"']);
   });
 
-  it("auth tablet parity > given the 768-1023 band > then Expo uses the centered tablet frame and desktop social rows", () => {
+  it("auth tablet parity > given the 768-1023 band > then Expo uses the centered tablet frame and desktop social stack", () => {
     const authFile = readMobileFile("src/screens/CustomerAuthScreen.tsx");
 
     expect(authFile).toContain("getDeviceClass");
@@ -244,6 +244,9 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("styles.cardStackedTablet");
     expect(authFile).toContain("usesDesktopSocialLayout");
     expect(authFile).toContain("usesFullWidthPrimaryAction");
+    expect(authFile).toContain("styles.socialStackDesktop");
+    expect(authFile).toContain("styles.socialButtonRow");
+    expect(authFile).toContain("Continue with ${provider.label}");
     expectStyleBlock(authFile, "tabletFrame", [
       "maxWidth: mobileShellLayout.tabletContentMaxWidth",
       'alignSelf: "center"',
@@ -252,5 +255,11 @@ describe("Expo auth design parity", () => {
       "paddingHorizontal: mobileShellLayout.tabletContentHorizontalPadding",
     ]);
     expectStyleBlock(authFile, "cardInnerTablet", ["paddingHorizontal: 32", "paddingTop: 28"]);
+    expectStyleBlock(authFile, "socialStackDesktop", ["gap: 10", 'width: "100%"']);
+    expectStyleBlock(authFile, "socialButtonRow", [
+      'flexDirection: "row"',
+      'width: "100%"',
+      "height: 52",
+    ]);
   });
 });
