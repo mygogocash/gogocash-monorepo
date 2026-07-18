@@ -501,12 +501,26 @@ describe("PolicyTable interactions", () => {
     const retireDialog = screen.getByRole("dialog", {
       name: "Retire category?",
     });
+    // The copy must state what retire actually does server-side (#375):
+    // soft lifecycle state, nothing deleted, 30-day retention before a
+    // superadmin-only purge, name reserved, no undo from the admin panel,
+    // and the zero-references guard.
+    expect(retireDialog).toHaveTextContent("Nothing is deleted");
+    expect(retireDialog).toHaveTextContent("kept for 30 days");
     expect(retireDialog).toHaveTextContent(
-      "can only be retired when no offers reference it",
+      "only a superadmin can permanently purge",
     );
     expect(retireDialog).toHaveTextContent(
-      "disappear from active policy editing and category selection",
+      "cannot be undone from the admin panel",
     );
+    expect(retireDialog).toHaveTextContent("name stays reserved");
+    expect(retireDialog).toHaveTextContent(
+      "only retire a category that no offers use",
+    );
+    // The raw optimistic-concurrency token must be explained, not leaked
+    // as unexplained jargon.
+    expect(retireDialog.textContent).not.toContain("Current server revision");
+    expect(retireDialog).toHaveTextContent("Category version:");
     await user.click(
       within(retireDialog).getByRole("button", { name: "Cancel" }),
     );

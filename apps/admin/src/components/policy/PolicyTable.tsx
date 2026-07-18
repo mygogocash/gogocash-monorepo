@@ -1863,13 +1863,24 @@ export default function PolicyTable() {
                 <>
                   <p>
                     Retiring <strong>{lifecycleDialog.category.name}</strong>{" "}
-                    makes it disappear from active policy editing and category
-                    selection.
+                    hides it from this Policy page, from category selection in
+                    offer editing, and from the app&apos;s category list. Its
+                    name stays reserved and cannot be reused for a new
+                    category.
+                  </p>
+                  {/* The 30-day window mirrors CATEGORY_RETENTION_MS in
+                      apps/api/src/policy/category-integrity.service.ts. */}
+                  <p>
+                    Nothing is deleted: the category and its policy content are
+                    kept for 30 days, after which only a superadmin can
+                    permanently purge them. Retiring cannot be undone from the
+                    admin panel.
                   </p>
                   <p>
-                    A category can only be retired when no offers reference it.
-                    The server checks every current reference before making this
-                    change.
+                    You can only retire a category that no offers use. The
+                    server re-checks every offer reference when you confirm; if
+                    any remain, the change is blocked and the references are
+                    shown here.
                   </p>
                 </>
               ) : (
@@ -1886,10 +1897,12 @@ export default function PolicyTable() {
                 </>
               )}
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Current server revision:{" "}
+                Category version:{" "}
                 {typeof lifecycleDialog.category.revision === "number"
                   ? lifecycleDialog.category.revision
-                  : "unavailable"}
+                  : "unavailable"}{" "}
+                — if this category changes before you confirm, you will be
+                asked to reload.
               </p>
             </div>
 
