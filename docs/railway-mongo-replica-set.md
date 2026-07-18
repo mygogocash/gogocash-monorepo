@@ -1,13 +1,40 @@
 # Railway MongoDB single-node replica-set runbook
 
-This runbook converts the GoGoCash dev or staging MongoDB service from a
-standalone server to an authenticated single-node replica set. It does not
-authorize production. Withdrawals, task-v2 accounting, and policy-integrity
-migrations use MongoDB transactions and must refuse standalone topology.
+This runbook documents the procedure used to convert a GoGoCash Railway
+MongoDB service from a standalone server to an authenticated single-node
+replica set. Dev and staging have both been converted and verified (see Status
+below); the procedure remains the reference for any future environment. It
+does not authorize production. Withdrawals, task-v2 accounting, and
+policy-integrity migrations use MongoDB transactions and must refuse
+standalone topology.
 
 This is a maintenance-window operation. Stop API ingress and every database
 writer, take a verified backup, and keep writers stopped until the transaction
 smoke tests and candidate API readiness checks pass.
+
+## Status (2026-07-18)
+
+Dev and staging are converted and verified: both run authenticated single-node
+replica sets (rs0; `mongo:8.0.4` on dev, `mongo:8.3.4` on staging) and MongoDB
+transactions commit. All 18 QUEST_TASK_V2_REQUIRED_INDEXES plus the canonical
+fence doc `quest_source_config_fence` (fence_key `task-v2-source-config-v1`,
+revision 0) are in place on both environments. The index migration has been
+executed on both: the legacy unique `conversions.conversion_id_1` was dropped
+and recreated non-unique, with identity uniqueness now enforced by the partial
+unique composite index `uniq_conversion_provider_identity` on (source,
+provider_account, provider_conversion_id); the staging pre-check found 0
+duplicate identity groups across 2907 string-identity conversions.
+`conversion_id_1` must remain non-unique even if `QUEST_TASK_V2_ENABLED` is
+later set false — the composite index now carries the uniqueness guarantee.
+The policy/category integrity migration has been applied on both environments
+(writers drained, quarantine=0) and policy endpoints serve. Production has not
+been converted and is not authorized by this runbook.
+
+Known failure mode from the rollout: if any required index conflicts with an
+existing same-name index (e.g. `conversion_id_1` still unique), `createIndex`
+silently no-ops, `QuestTaskTransactionService.assertReady()` throws every
+tick, and the outbox consumer's drain loop swallows the error — outbox rows
+sit `status: pending` with `attempts: 0` and no error logs.
 
 ## 1. Record the exact target before changing it
 
@@ -58,8 +85,9 @@ accepted as rollback evidence.
 ## 3. Pin the compatible MongoDB runtime
 
 Railway hosts using Linux kernel 6.19 or later can hit MongoDB SERVER-121912.
-Use a custom Docker service pinned to `mongo:8.0.4`, with its persistent volume
-mounted at `/data/db`. The MongoDB process must start with:
+Use a custom Docker service pinned to a known-good MongoDB 8.x image
+(currently `mongo:8.0.4` on dev and `mongo:8.3.4` on staging), with its
+persistent volume mounted at `/data/db`. The MongoDB process must start with:
 
 ```text
 GLIBC_TUNABLES=glibc.pthread.rseq=1
@@ -189,6 +217,8 @@ with `replicaSet=rs0`, redeploy the exact candidate SHA, and verify:
 
 Only then follow the writer-drain and apply contract in
 `docs/policy-category-integrity-rollout.md` and restore candidate-only traffic.
+(Already applied on dev and staging — writers drained, quarantine=0, policy
+endpoints serving; this step applies only to future environments.)
 
 ## 7. Moving data to a replacement Railway Mongo service
 
