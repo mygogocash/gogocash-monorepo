@@ -6,6 +6,7 @@ import {
   LINE_AUTH_DEFAULT_POST_LOGIN_PATH,
   LineAuthExchangeError,
   LineLoginSessionMissingError,
+  navigateAfterLineAuthSuccess,
   resumeLineLogin,
 } from "@mobile/auth/lineLogin";
 import {
@@ -97,7 +98,9 @@ export function CustomerLineAuthCallbackScreen() {
         }
         setState("success");
         void haptics.success();
-        replace(callbackPath as never);
+        navigateAfterLineAuthSuccess(callbackPath, (href) => {
+          replace(href as never);
+        });
       },
       (error: unknown) => {
         if (cancelled) {
