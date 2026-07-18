@@ -49,6 +49,21 @@ describe('WithdrawFeeCouponsService', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  it('create > given limited inventory without quantity > then rejects', async () => {
+    const service = await buildService();
+    await expect(
+      service.create({
+        code: 'LIMITED1',
+        name: 'Limited',
+        discount_mode: 'waive',
+        unlimited_quantity: false,
+        start_at: '2026-01-01T00:00:00.000Z',
+        end_at: '2026-12-31T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('create > given waive mode > then persists with discount_value 0', async () => {
     const service = await buildService();
     create.mockResolvedValue({

@@ -2171,55 +2171,62 @@ export class WithdrawService {
 
     const currency = createWithdrawDto.currency || 'THB';
     const amountNet = createWithdrawDto.amount_net || 0;
-    const balance = await this.checkWithdraw(id);
-    const availableBalance =
-      currency === 'THB'
-        ? Number(balance.netAmountTHB || 0)
-        : Number(balance.netAmount || 0);
+    const couponCodeRaw = createWithdrawDto.coupon_code?.trim();
 
-    let couponDoc: WithdrawFeeCouponDocument | null = null;
-    let userRedemptionCount = 0;
-    if (createWithdrawDto.coupon_code?.trim()) {
-      const code = normalizeWithdrawFeeCouponCode(createWithdrawDto.coupon_code);
-      couponDoc = await this.withdrawFeeCouponModel.findOne({ code }).exec();
-      if (!couponDoc) {
-        throw new HttpException({ message: 'Coupon code not found.' }, 400);
-      }
-      userRedemptionCount = await this.withdrawFeeCouponRedemptionModel
-        .countDocuments({
-          coupon_id: couponDoc._id,
-          user_id: new Types.ObjectId(id),
-        })
-        .exec();
-    }
-
-    const preview = resolveWithdrawFeePreview({
-      feeRate: fee,
-      amount: amountNet,
-      availableBalance,
-      currency,
-      method: 'bank_transfer',
-      coupon: couponDoc ? this.toCouponLike(couponDoc) : null,
-      userRedemptionCount,
-    });
-    if (preview.ok === false) {
-      throw new HttpException(
-        { message: this.previewFailureMessage(preview.reason) },
-        400,
-      );
-    }
-
-    // V-2 + P1-TX: gate the balance AND persist the record inside a per-user
-    // serialized transaction, so two concurrent bank-transfer requests can't
-    // both pass the balance check and double-withdraw.
+    // V-2 + P1-TX: balance gate, coupon eligibility, inventory, and writes all
+    // run inside the per-user serialized transaction so concurrent redeems cannot
+    // bypass usage_per_user / quantity checks with a stale pre-txn count.
     const dt = await this.runSerializedWithdraw(id, async (session) => {
       await this.assertWithinBalance(id, amountNet, currency);
+
+      const balance = await this.checkWithdraw(id);
+      const availableBalance =
+        currency === 'THB'
+          ? Number(balance.netAmountTHB || 0)
+          : Number(balance.netAmount || 0);
+
+      let couponDoc: WithdrawFeeCouponDocument | null = null;
+      let userRedemptionCount = 0;
+      if (couponCodeRaw) {
+        const code = normalizeWithdrawFeeCouponCode(couponCodeRaw);
+        couponDoc = await this.withdrawFeeCouponModel
+          .findOne({ code })
+          .session(session)
+          .exec();
+        if (!couponDoc) {
+          throw new HttpException({ message: 'Coupon code not found.' }, 400);
+        }
+        userRedemptionCount = await this.withdrawFeeCouponRedemptionModel
+          .countDocuments({
+            coupon_id: couponDoc._id,
+            user_id: new Types.ObjectId(id),
+          })
+          .session(session)
+          .exec();
+      }
+
+      const preview = resolveWithdrawFeePreview({
+        feeRate: fee,
+        amount: amountNet,
+        availableBalance,
+        currency,
+        method: 'bank_transfer',
+        coupon: couponDoc ? this.toCouponLike(couponDoc) : null,
+        userRedemptionCount,
+      });
+      if (preview.ok === false) {
+        throw new HttpException(
+          { message: this.previewFailureMessage(preview.reason) },
+          400,
+        );
+      }
 
       if (couponDoc && !couponDoc.unlimited_quantity) {
         const fresh = await this.withdrawFeeCouponModel
           .findOneAndUpdate(
             {
               _id: couponDoc._id,
+              disabled: { $ne: true },
               $expr: {
                 $lt: ['$quantity_used', { $ifNull: ['$quantity', 0] }],
               },
@@ -2235,13 +2242,16 @@ export class WithdrawService {
           );
         }
       } else if (couponDoc) {
-        await this.withdrawFeeCouponModel
-          .updateOne(
-            { _id: couponDoc._id },
+        const freshUnlimited = await this.withdrawFeeCouponModel
+          .findOneAndUpdate(
+            { _id: couponDoc._id, disabled: { $ne: true } },
             { $inc: { quantity_used: 1 } },
-            { session },
+            { new: true, session },
           )
           .exec();
+        if (!freshUnlimited) {
+          throw new HttpException({ message: 'This coupon is disabled.' }, 400);
+        }
       }
 
       const [record] = await this.withdrawModel.create(

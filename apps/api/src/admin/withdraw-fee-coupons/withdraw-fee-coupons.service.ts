@@ -49,6 +49,8 @@ export class WithdrawFeeCouponsService {
 
   async create(dto: CreateWithdrawFeeCouponDto) {
     this.assertDiscountValue(dto.discount_mode, dto.discount_value);
+    const unlimited = dto.unlimited_quantity ?? true;
+    this.assertQuantity(unlimited, dto.quantity);
     const code = normalizeWithdrawFeeCouponCode(dto.code);
     const startAt = new Date(dto.start_at);
     const endAt = new Date(dto.end_at);
@@ -67,9 +69,9 @@ export class WithdrawFeeCouponsService {
         start_at: startAt,
         end_at: endAt,
         disabled: dto.disabled ?? false,
-        quantity: dto.unlimited_quantity === false ? dto.quantity : undefined,
+        quantity: unlimited ? undefined : dto.quantity,
         quantity_used: 0,
-        unlimited_quantity: dto.unlimited_quantity ?? true,
+        unlimited_quantity: unlimited,
         usage_per_user: dto.usage_per_user ?? 1,
         applies_to: dto.applies_to?.length
           ? dto.applies_to
@@ -133,6 +135,13 @@ export class WithdrawFeeCouponsService {
       existing.unlimited_quantity = dto.unlimited_quantity;
     }
     if (dto.quantity !== undefined) existing.quantity = dto.quantity;
+    const nextUnlimited =
+      dto.unlimited_quantity !== undefined
+        ? dto.unlimited_quantity
+        : existing.unlimited_quantity;
+    const nextQuantity =
+      dto.quantity !== undefined ? dto.quantity : existing.quantity;
+    this.assertQuantity(nextUnlimited, nextQuantity);
     if (dto.usage_per_user !== undefined) {
       existing.usage_per_user = dto.usage_per_user;
     }
@@ -159,6 +168,20 @@ export class WithdrawFeeCouponsService {
     }
     if (mode === 'percent' && value > 100) {
       throw new BadRequestException('percent discount_value cannot exceed 100');
+    }
+  }
+
+  private assertQuantity(
+    unlimited: boolean,
+    quantity: number | undefined,
+  ): void {
+    if (unlimited) {
+      return;
+    }
+    if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity < 1) {
+      throw new BadRequestException(
+        'quantity is required when unlimited_quantity is false',
+      );
     }
   }
 }

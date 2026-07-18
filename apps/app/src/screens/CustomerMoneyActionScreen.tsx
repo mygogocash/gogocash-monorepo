@@ -512,6 +512,17 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     setCouponError(null);
   };
 
+  // Amount change invalidates a previously previewed coupon discount — force re-Apply
+  // so the summary cannot show a stale discount against a different amount.
+  useEffect(() => {
+    if (!appliedCouponCode) {
+      return;
+    }
+    setAppliedCouponCode(null);
+    setCouponDiscount(0);
+    setCouponError(tc("Amount changed — re-apply your coupon code."));
+  }, [withdrawAmount]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: only amount edits clear coupon
+
   const handleWithdraw = () => {
     const decision = evaluateWithdraw(
       withdrawAmount,
@@ -733,18 +744,25 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
                 </View>
                 <View style={styles.totalRow}>
                   <Text style={styles.totalRowLabel}>{tc(withdrawCopy.feeLabel)}</Text>
-                  <Text style={styles.totalRowValue}>
-                    {couponDiscount > 0 ? (
-                      <>
-                        <Text style={{ textDecorationLine: "line-through", opacity: 0.6 }}>
-                          {formatThb(withdrawFee)}
-                        </Text>{" "}
+                  {couponDiscount > 0 ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Text
+                        style={[
+                          styles.totalRowValue,
+                          { textDecorationLine: "line-through", opacity: 0.55 },
+                        ]}
+                      >
+                        {formatThb(withdrawFee)}
+                      </Text>
+                      <Text style={styles.totalRowValue}>
                         {formatThb(displayFee)} THB
-                      </>
-                    ) : (
-                      `${formatThb(displayFee)} THB`
-                    )}
-                  </Text>
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.totalRowValue}>
+                      {formatThb(displayFee)} THB
+                    </Text>
+                  )}
                 </View>
                 {couponDiscount > 0 ? (
                   <View style={styles.totalRow}>
