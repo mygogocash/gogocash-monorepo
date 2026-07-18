@@ -74,7 +74,8 @@ the variable form, set `RAILWAY_DOCKERFILE_PATH` per service instead
 ## 3. Variables & secrets
 
 Migrate values **from Google Secret Manager** — never paste secret values into commits/chat.
-Authoritative list: `.github/workflows/deploy-api-staging.yml` + `apps/*/.env.example`.
+Authoritative list: `apps/*/.env.example` + `docs/railway-env-matrix.md`
+(GCP rollback secrets map: `release-staging.yml` / `_deploy-cloudrun.yml`).
 
 **Shared (project, staging):** `NODE_ENV=production`, `WEB_APP_URL`, `ADMIN_APP_URL`,
 `API_BASE_URL`, `POSTHOG_HOST`, `POSTHOG_ENABLED`, `MAIL_FROM`, `R2_BUCKET`,

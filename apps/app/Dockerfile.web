@@ -1,9 +1,9 @@
 # Minimal static server for the Expo Web export → Cloud Run.
 #
 # BUILD CONTEXT = apps/app. The Expo Web export (`expo export --platform web`)
-# must already exist at apps/app/dist BEFORE this build runs — the CI workflow
-# (.github/workflows/deploy-app-web-staging.yml) runs the export step first,
-# then builds with:
+# must already exist at apps/app/dist BEFORE this build runs — the GCP rollback
+# build path (`.github/workflows/_build-push.yml` for app-web) runs the export
+# step first, then builds with:
 #   docker build -f apps/app/Dockerfile.web -t <image> apps/app
 #
 # Serves on Cloud Run's injected $PORT (default 8080). nginx:alpine's entrypoint

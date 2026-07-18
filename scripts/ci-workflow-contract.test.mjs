@@ -1043,12 +1043,12 @@ test("Cloud Run release requires the SHA tag to match the build-reported digest"
   assert.match(deployCloudRunSource, /service_url:\s+\$\{\{/);
 });
 
-test("PR-A retains every one-shot GCP rollback workflow until PR-B", () => {
+test("PR-B retires one-shot GCP staging deploy workflows", () => {
   for (const workflowPath of legacyGcpOneShotWorkflowPaths) {
     assert.equal(
       existsSync(workflowPath),
-      true,
-      `${workflowPath} must remain until the live rollback proof authorizes PR-B`,
+      false,
+      `${workflowPath} must stay deleted after PR-B retirement (#52)`,
     );
   }
 });

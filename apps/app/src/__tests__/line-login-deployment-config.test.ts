@@ -16,11 +16,8 @@ describe("LINE Login staging deployment config", () => {
     expect(dockerfile).toContain("EXPO_PUBLIC_LIFF_ID=$EXPO_PUBLIC_LIFF_ID");
   });
 
-  it.each([
-    ".github/workflows/deploy-app-web-staging.yml",
-    ".github/workflows/_build-push.yml",
-  ])("passes the staging GitHub variable through %s", (workflowPath) => {
-    const workflow = readRepoFile(workflowPath);
+  it("passes the staging GitHub variable through the retained GCP build path", () => {
+    const workflow = readRepoFile(".github/workflows/_build-push.yml");
 
     expect(workflow).toContain(
       "EXPO_PUBLIC_LIFF_ID: ${{ vars.EXPO_PUBLIC_LIFF_ID }}",
