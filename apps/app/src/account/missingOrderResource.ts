@@ -1,3 +1,4 @@
+import type { MissingOrderClaim } from "@gogocash/contracts";
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 import { ApiError } from "@mobile/api/client";
 
@@ -14,18 +15,21 @@ export type MissingOrderSubmission = {
   purchaseDate: string;
 };
 
-export type CustomerMissingOrderClaim = {
-  id: string;
-  merchantName: string;
-  orderId: string;
-  orderAmount: number;
-  currency: string;
-  purchaseDate: string;
-  remarks: string;
-  status: "pending" | "under_review" | "approved" | "rejected";
-  submittedDate: string;
-  resolvedAt: string | null;
-};
+// Customer-visible subset of the canonical claim contract (#19 P4-1): derived
+// via Pick so the fields cannot drift from @gogocash/contracts.
+export type CustomerMissingOrderClaim = Pick<
+  MissingOrderClaim,
+  | "id"
+  | "merchantName"
+  | "orderId"
+  | "orderAmount"
+  | "currency"
+  | "purchaseDate"
+  | "remarks"
+  | "status"
+  | "submittedDate"
+  | "resolvedAt"
+>;
 
 export type CustomerMissingOrderPage = {
   data: CustomerMissingOrderClaim[];
