@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -34,8 +34,15 @@ import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import { getMobileEnv } from "@mobile/config/env";
 import { createWithdrawApi } from "@mobile/withdraw/api";
+import {
+  nextCouponApplyGeneration,
+  shouldAcceptCouponPreview,
+} from "@mobile/withdraw/couponApplyGeneration";
+import { resolveWithdrawFeeAndMin } from "@mobile/withdraw/resolveWithdrawFeeAndMin";
 import { localWithdrawFeePreview } from "@mobile/withdraw/withdrawFeePreview";
 import { usePayoutMethods, type PayoutMethodDraft } from "@mobile/withdraw/usePayoutMethods";
+
+export { resolveWithdrawFeeAndMin } from "@mobile/withdraw/resolveWithdrawFeeAndMin";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { haptics } from "@mobile/lib/haptics";
@@ -92,31 +99,7 @@ export function evaluateWithdraw(
   return { ok: true, amount };
 }
 
-// Web Withdraw page parity (src/features/wallet/component/MyWalletWithdraw.tsx): the flat fee and
-// minimum the form validates against, plus the copy. Kept local to the screen (the shared
-// webDesignParity fixture is under active parallel edits) so this redesign stays self-contained.
-const FIXTURE_WITHDRAW_FEE = 20;
-const FIXTURE_MIN_WITHDRAW = 300;
 const WITHDRAW_WALLET_FIXTURE_NET_AMOUNT_THB = 3180.24;
-
-export function resolveWithdrawFeeAndMin(
-  accountDataSource: AccountDataSource,
-  walletData: unknown,
-): { fee: number; min: number } {
-  if (accountDataSource === "backend" && isCheckWithdrawResponse(walletData)) {
-    const fee =
-      walletData.feeAmountTHB ??
-      walletData.fee?.fee_withdraw_thb ??
-      FIXTURE_WITHDRAW_FEE;
-    const min =
-      walletData.fee?.minimum_withdraw_thb ?? FIXTURE_MIN_WITHDRAW;
-    return {
-      fee: Number.isFinite(fee) ? Number(fee) : FIXTURE_WITHDRAW_FEE,
-      min: Number.isFinite(min) ? Number(min) : FIXTURE_MIN_WITHDRAW,
-    };
-  }
-  return { fee: FIXTURE_WITHDRAW_FEE, min: FIXTURE_MIN_WITHDRAW };
-}
 
 /** Single source of truth for the withdraw form's available balance. */
 export function resolveWithdrawAvailableBalance(
@@ -281,6 +264,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponApplying, setCouponApplying] = useState(false);
+  const couponApplyGenerationRef = useRef(0);
   const walletResource = useCustomerAccountResource({
     fixtureData: { netAmountTHB: WITHDRAW_WALLET_FIXTURE_NET_AMOUNT_THB },
     resourceId: "wallet",
@@ -470,8 +454,21 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
       return;
     }
 
+    const startedGeneration = nextCouponApplyGeneration(
+      couponApplyGenerationRef.current,
+    );
+    couponApplyGenerationRef.current = startedGeneration;
+
     if (env.accountDataSource !== "backend") {
       // Fixtures: treat any code as a full fee waiver for demo.
+      if (
+        !shouldAcceptCouponPreview(
+          startedGeneration,
+          couponApplyGenerationRef.current,
+        )
+      ) {
+        return;
+      }
       setAppliedCouponCode(code);
       setCouponDiscount(withdrawFee);
       setCouponError(null);
@@ -490,17 +487,40 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           amount: parsedWithdrawAmount,
           couponCode: code,
         });
+        if (
+          !shouldAcceptCouponPreview(
+            startedGeneration,
+            couponApplyGenerationRef.current,
+          )
+        ) {
+          return;
+        }
         setAppliedCouponCode(preview.coupon?.code ?? code);
         setCouponDiscount(preview.discount);
         setCouponError(null);
       } catch (error) {
+        if (
+          !shouldAcceptCouponPreview(
+            startedGeneration,
+            couponApplyGenerationRef.current,
+          )
+        ) {
+          return;
+        }
         setAppliedCouponCode(null);
         setCouponDiscount(0);
         setCouponError(
           tc(userErrorMessageFromUnknown(error, "Could not apply coupon.")),
         );
       } finally {
-        setCouponApplying(false);
+        if (
+          shouldAcceptCouponPreview(
+            startedGeneration,
+            couponApplyGenerationRef.current,
+          )
+        ) {
+          setCouponApplying(false);
+        }
       }
     })();
   };
@@ -512,9 +532,13 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     setCouponError(null);
   };
 
-  // Amount change invalidates a previously previewed coupon discount — force re-Apply
-  // so the summary cannot show a stale discount against a different amount.
+  // Amount change invalidates applied + in-flight coupon previews — force re-Apply
+  // so a late preview for the old amount cannot stick after the user edits.
   useEffect(() => {
+    couponApplyGenerationRef.current = nextCouponApplyGeneration(
+      couponApplyGenerationRef.current,
+    );
+    setCouponApplying(false);
     if (!appliedCouponCode) {
       return;
     }

@@ -18,6 +18,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
 import { Model, Types } from 'mongoose';
 import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
+import { WithdrawFeeCoupon } from 'src/withdraw/schemas/withdraw-fee-coupon.schema';
+import { WithdrawFeeCouponRedemption } from 'src/withdraw/schemas/withdraw-fee-coupon-redemption.schema';
+import { shouldRestoreWithdrawFeeCoupon } from './restore-withdraw-fee-coupon';
 import { InvolveService } from 'src/involve/involve.service';
 import { User } from 'src/user/schemas/user.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
@@ -99,6 +102,10 @@ export class AdminService {
   constructor(
     @InjectModel(UserAdmin.name) private userAdminModel: Model<UserAdmin>,
     @InjectModel(Withdraw.name) private withdrawModel: Model<Withdraw>,
+    @InjectModel(WithdrawFeeCoupon.name)
+    private withdrawFeeCouponModel: Model<WithdrawFeeCoupon>,
+    @InjectModel(WithdrawFeeCouponRedemption.name)
+    private withdrawFeeCouponRedemptionModel: Model<WithdrawFeeCouponRedemption>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
@@ -211,37 +218,63 @@ export class AdminService {
       updateRequestWithdrawDto.id,
       'withdraw id',
     );
+    const nextStatus = requireTrimmedString(
+      updateRequestWithdrawDto.status,
+      64,
+      'withdraw status',
+    );
+    const existing = await this.withdrawModel.findById(withdrawId).exec();
+
+    let updated;
     if (file) {
       const slipFile = await this.storedMediaService.upload(
         file,
         MEDIA_FOLDER.WITHDRAW_SLIPS,
       );
-      return this.withdrawModel
+      updated = await this.withdrawModel
         .findByIdAndUpdate(
           withdrawId,
           mongoSetUpdate({
-            status: requireTrimmedString(
-              updateRequestWithdrawDto.status,
-              64,
-              'withdraw status',
-            ),
+            status: nextStatus,
             slip_file: slipFile,
           }),
         )
         .exec();
+    } else {
+      updated = await this.withdrawModel
+        .findByIdAndUpdate(
+          withdrawId,
+          mongoSetUpdate({
+            status: nextStatus,
+          }),
+        )
+        .exec();
     }
-    return this.withdrawModel
-      .findByIdAndUpdate(
-        withdrawId,
-        mongoSetUpdate({
-          status: requireTrimmedString(
-            updateRequestWithdrawDto.status,
-            64,
-            'withdraw status',
-          ),
-        }),
-      )
-      .exec();
+
+    if (
+      shouldRestoreWithdrawFeeCoupon({
+        previousStatus: existing?.status,
+        nextStatus,
+        couponId: existing?.coupon_id,
+      })
+    ) {
+      const redemption = await this.withdrawFeeCouponRedemptionModel
+        .findOneAndDelete({ withdraw_id: withdrawId })
+        .exec();
+      if (redemption?.coupon_id) {
+        await this.withdrawFeeCouponModel
+          .updateOne(
+            {
+              _id: redemption.coupon_id,
+              quantity_used: { $gt: 0 },
+            },
+            { $inc: { quantity_used: -1 } },
+          )
+          .exec();
+      }
+    }
+
+    return updated;
   }
 
   remove(_id: string) {

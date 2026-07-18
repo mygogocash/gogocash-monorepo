@@ -14,6 +14,9 @@ export type CheckWithdrawResponse = {
   fee?: {
     minimum_withdraw_thb?: number;
     fee_withdraw_thb?: number;
+    global_withdraw_fee?: number;
+    global_minimum_withdraw?: number;
+    global_withdraw_currency?: string;
   };
 };
 
@@ -68,6 +71,14 @@ export function normalizeCheckWithdrawResponse(payload: unknown): CheckWithdrawR
               readWalletAmount(feeRaw.minimum_withdraw_thb) ?? undefined,
             fee_withdraw_thb:
               readWalletAmount(feeRaw.fee_withdraw_thb) ?? undefined,
+            global_withdraw_fee:
+              readWalletAmount(feeRaw.global_withdraw_fee) ?? undefined,
+            global_minimum_withdraw:
+              readWalletAmount(feeRaw.global_minimum_withdraw) ?? undefined,
+            global_withdraw_currency:
+              typeof feeRaw.global_withdraw_currency === "string"
+                ? feeRaw.global_withdraw_currency
+                : undefined,
           },
         }
       : {}),

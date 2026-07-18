@@ -766,6 +766,11 @@ export interface DataWithdrawsList {
   chain?: string;
   paid_by?: string;
   paid_at?: string | Date;
+  /** Server-computed bank-transfer fee breakdown (optional on legacy rows). */
+  withdraw_fee_base?: number;
+  withdraw_fee_discount?: number;
+  withdraw_fee_final?: number;
+  coupon_code?: string;
 }
 
 export interface ResponseConversion {

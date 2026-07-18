@@ -6,6 +6,8 @@ import { Types } from 'mongoose';
 import { AdminService } from './admin.service';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
 import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
+import { WithdrawFeeCoupon } from 'src/withdraw/schemas/withdraw-fee-coupon.schema';
+import { WithdrawFeeCouponRedemption } from 'src/withdraw/schemas/withdraw-fee-coupon-redemption.schema';
 import { User } from 'src/user/schemas/user.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
 import { Offer } from 'src/offer/schemas/offer.schema';
@@ -56,6 +58,8 @@ describe('AdminService', () => {
   // Model + injected-service mocks, recreated per test for isolation.
   let userAdminModel: any;
   let withdrawModel: any;
+  let withdrawFeeCouponModel: any;
+  let withdrawFeeCouponRedemptionModel: any;
   let userModel: any;
   let feeRateModel: any;
   let offerModel: any;
@@ -103,8 +107,15 @@ describe('AdminService', () => {
     };
     withdrawModel = {
       find: jest.fn(),
+      findById: jest.fn().mockReturnValue(makeQuery({ status: 'pending' })),
       findByIdAndUpdate: jest.fn(),
       countDocuments: jest.fn(),
+    };
+    withdrawFeeCouponModel = {
+      updateOne: jest.fn().mockReturnValue(makeQuery({ acknowledged: true })),
+    };
+    withdrawFeeCouponRedemptionModel = {
+      findOneAndDelete: jest.fn().mockReturnValue(makeQuery(null)),
     };
     userModel = {
       findById: jest.fn(),
@@ -253,6 +264,14 @@ describe('AdminService', () => {
         AdminService,
         { provide: getModelToken(UserAdmin.name), useValue: userAdminModel },
         { provide: getModelToken(Withdraw.name), useValue: withdrawModel },
+        {
+          provide: getModelToken(WithdrawFeeCoupon.name),
+          useValue: withdrawFeeCouponModel,
+        },
+        {
+          provide: getModelToken(WithdrawFeeCouponRedemption.name),
+          useValue: withdrawFeeCouponRedemptionModel,
+        },
         { provide: getModelToken(User.name), useValue: userModel },
         { provide: getModelToken(FeeRate.name), useValue: feeRateModel },
         { provide: getModelToken(Offer.name), useValue: offerModel },
@@ -413,6 +432,82 @@ describe('AdminService', () => {
             'https://storage.googleapis.com/gogocash-catalog-staging/withdraw-slips/slip.png',
         },
       });
+    });
+
+    it('updateRequestWithdraw > given pending coupon withdraw rejected > then restores inventory once', async () => {
+      const id = new Types.ObjectId().toString();
+      const couponId = new Types.ObjectId();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({
+          status: 'pending',
+          coupon_id: couponId,
+        }),
+      );
+      withdrawModel.findByIdAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'rejected' }),
+      );
+      withdrawFeeCouponRedemptionModel.findOneAndDelete.mockReturnValue(
+        makeQuery({ coupon_id: couponId, withdraw_id: id }),
+      );
+
+      await service.updateRequestWithdraw(
+        { id, status: 'rejected' },
+        undefined as never,
+      );
+
+      expect(
+        withdrawFeeCouponRedemptionModel.findOneAndDelete,
+      ).toHaveBeenCalledWith({
+        withdraw_id: expect.any(Types.ObjectId),
+      });
+      expect(withdrawFeeCouponModel.updateOne).toHaveBeenCalledWith(
+        { _id: couponId, quantity_used: { $gt: 0 } },
+        { $inc: { quantity_used: -1 } },
+      );
+    });
+
+    it('updateRequestWithdraw > given reject without coupon > then does not touch redemptions', async () => {
+      const id = new Types.ObjectId().toString();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({ status: 'pending' }),
+      );
+      withdrawModel.findByIdAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'rejected' }),
+      );
+
+      await service.updateRequestWithdraw(
+        { id, status: 'rejected' },
+        undefined as never,
+      );
+
+      expect(
+        withdrawFeeCouponRedemptionModel.findOneAndDelete,
+      ).not.toHaveBeenCalled();
+      expect(withdrawFeeCouponModel.updateOne).not.toHaveBeenCalled();
+    });
+
+    it('updateRequestWithdraw > given already-rejected coupon withdraw > then does not double-restore', async () => {
+      const id = new Types.ObjectId().toString();
+      const couponId = new Types.ObjectId();
+      withdrawModel.findById.mockReturnValue(
+        makeQuery({
+          status: 'rejected',
+          coupon_id: couponId,
+        }),
+      );
+      withdrawModel.findByIdAndUpdate.mockReturnValue(
+        makeQuery({ _id: id, status: 'rejected' }),
+      );
+
+      await service.updateRequestWithdraw(
+        { id, status: 'rejected' },
+        undefined as never,
+      );
+
+      expect(
+        withdrawFeeCouponRedemptionModel.findOneAndDelete,
+      ).not.toHaveBeenCalled();
+      expect(withdrawFeeCouponModel.updateOne).not.toHaveBeenCalled();
     });
   });
 
