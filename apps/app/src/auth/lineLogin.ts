@@ -11,8 +11,13 @@ export type LineProfilePayload = {
   pictureUrl?: string;
 };
 
+type LiffInitConfig = {
+  liffId: string;
+  withLoginOnExternalBrowser?: boolean;
+};
+
 type LiffSdk = {
-  init: (config: { liffId: string }) => Promise<void>;
+  init: (config: LiffInitConfig) => Promise<void>;
   isLoggedIn: () => boolean;
   login: (config?: { redirectUri?: string }) => void;
   getAccessToken: () => string | null;
@@ -28,6 +33,18 @@ declare global {
 const LIFF_SDK_SCRIPT = "https://static.line-scdn.net/liff/edge/2/sdk.js";
 export const LINE_AUTH_CALLBACK_PATH = "/auth/line-callback";
 export const LINE_AUTH_DEFAULT_POST_LOGIN_PATH = "/link-mycashback";
+/** sessionStorage key for the Safari←LINE OAuth/LIFF return URL. */
+export const LINE_AUTH_RETURN_HREF_KEY = "gogocash.line.auth.returnHref.v1";
+
+const LINE_AUTH_RETURN_QUERY_KEYS = [
+  "code",
+  "state",
+  "liffClientId",
+  "liffRedirectUri",
+  "liff.state",
+  "error",
+  "error_description",
+] as const;
 
 export type LineAuthExchangeErrorKind =
   | "account-disabled"
@@ -113,6 +130,102 @@ export function buildLineLoginCallbackUrl(currentHref: string): string {
   return callbackUrl.toString();
 }
 
+/**
+ * True when the URL still carries LIFF/OAuth return markers that `liff.init()`
+ * needs. Expo Router can strip unknown search params before the callback
+ * effect runs, so we snapshot these early on the callback route.
+ */
+export function hasLineAuthReturnParams(href: string): boolean {
+  try {
+    const url = new URL(href);
+    if (
+      LINE_AUTH_RETURN_QUERY_KEYS.some((key) => url.searchParams.has(key))
+    ) {
+      return true;
+    }
+    const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
+    if (!hash) {
+      return false;
+    }
+    const hashParams = new URLSearchParams(hash);
+    return LINE_AUTH_RETURN_QUERY_KEYS.some((key) => hashParams.has(key));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Persist the provider return URL as soon as the callback bundle loads —
+ * before async LIFF SDK load / React effects can race Expo Router's URL cleanup.
+ */
+export function captureLineAuthReturnHref(
+  href = typeof window !== "undefined" ? window.location.href : "",
+): string | null {
+  if (!href || !hasLineAuthReturnParams(href)) {
+    return null;
+  }
+
+  if (typeof window !== "undefined") {
+    try {
+      window.sessionStorage?.setItem(LINE_AUTH_RETURN_HREF_KEY, href);
+    } catch {
+      // Private mode / blocked storage — restore will no-op; init may still work
+      // if the live URL still has the params.
+    }
+  }
+
+  return href;
+}
+
+/**
+ * If the SPA already cleaned OAuth/LIFF params from the address bar, put them
+ * back so `liff.init()` can finish the external-browser login.
+ */
+export function restoreLineAuthReturnHrefIfNeeded(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  if (hasLineAuthReturnParams(window.location.href)) {
+    return false;
+  }
+
+  let stored: string | null = null;
+  try {
+    stored = window.sessionStorage?.getItem(LINE_AUTH_RETURN_HREF_KEY) ?? null;
+  } catch {
+    return false;
+  }
+
+  if (!stored || !hasLineAuthReturnParams(stored)) {
+    return false;
+  }
+
+  try {
+    const storedUrl = new URL(stored);
+    const currentOrigin =
+      window.location.origin || new URL(window.location.href).origin;
+    if (storedUrl.origin !== currentOrigin) {
+      return false;
+    }
+    window.history.replaceState(null, "", stored);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearLineAuthReturnHref(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.sessionStorage?.removeItem(LINE_AUTH_RETURN_HREF_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 async function loadLiffSdk(): Promise<LiffSdk> {
   if (typeof window === "undefined") {
     throw new Error("LINE login currently supports Expo web only.");
@@ -173,6 +286,8 @@ export async function requestLineLogin(liffId = getLiffId()): Promise<{
   }
 
   const liff = await loadLiffSdk();
+  // Keep withLoginOnExternalBrowser off: automatic login uses the LIFF Endpoint
+  // URL and skips our `/auth/line-callback` handoff + sanitized callbackUrl.
   await liff.init({ liffId });
 
   if (!liff.isLoggedIn()) {
@@ -204,14 +319,45 @@ export async function resumeLineLogin(liffId = getLiffId()): Promise<{
     throw new LineLoginNotConfiguredError();
   }
 
+  // Snapshot again in case the module-load capture ran before the provider
+  // return params were present (BFCache / delayed redirect).
+  captureLineAuthReturnHref();
+  restoreLineAuthReturnHrefIfNeeded();
+
   const liff = await loadLiffSdk();
+  // Do NOT set withLoginOnExternalBrowser here — a missing session must fail
+  // closed instead of starting another login redirect loop.
   await liff.init({ liffId });
 
   if (!liff.isLoggedIn()) {
     throw new LineLoginSessionMissingError();
   }
 
+  clearLineAuthReturnHref();
   return readLineCredentials(liff);
+}
+
+/**
+ * After a GoGoCash session is persisted, force a same-origin document load so
+ * Safari re-reads localStorage synchronously (header + auth guard). Soft
+ * expo-router replaces can leave the shell painted as signed-out.
+ */
+export function navigateAfterLineAuthSuccess(
+  path: string,
+  replaceFn: (href: string) => void,
+): void {
+  const safePath = sanitizeCallbackPath(
+    path,
+    LINE_AUTH_DEFAULT_POST_LOGIN_PATH,
+  );
+
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    const target = new URL(safePath, window.location.origin);
+    window.location.replace(`${target.pathname}${target.search}${target.hash}`);
+    return;
+  }
+
+  replaceFn(safePath);
 }
 
 async function readLineCredentials(liff: LiffSdk): Promise<{
