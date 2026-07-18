@@ -6,6 +6,7 @@ import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 
 import { R2ObjectStorageService } from './r2-object-storage.service';
 import { ImageOptimizerService } from './image-optimizer.service';
+import { CdnCachePurgeService } from './cdn-cache-purge.service';
 import {
   isPrivateMediaFolder,
   MediaFolder,
@@ -61,6 +62,7 @@ export class StoredMediaService {
     private readonly r2ObjectStorage: R2ObjectStorageService,
     private readonly googleDriveService: GoogleDriveService,
     private readonly imageOptimizer: ImageOptimizerService,
+    private readonly cdnCachePurge: CdnCachePurgeService,
   ) {}
 
   async upload(
@@ -204,6 +206,11 @@ export class StoredMediaService {
         timeoutMs,
       },
     );
+    // The R2 origin object is now gone, but the public URL is cached at the
+    // Cloudflare edge with a 1-year max-age (correct for live content-addressed
+    // media). Purge the exact file URL so a deleted object stops being served.
+    // Best-effort and non-throwing: the authoritative delete already succeeded.
+    await this.cdnCachePurge.purgeUrls([asset.url]).catch(() => undefined);
   }
 
   async verifyCommandOwnedAbsentStrict(

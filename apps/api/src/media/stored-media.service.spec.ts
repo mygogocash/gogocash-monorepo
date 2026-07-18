@@ -4,6 +4,7 @@ import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 
 import { R2ObjectStorageService } from './r2-object-storage.service';
 import { ImageOptimizerService } from './image-optimizer.service';
+import { CdnCachePurgeService } from './cdn-cache-purge.service';
 import { MEDIA_FOLDER } from './media-folders.config';
 import { StoredMediaService } from './stored-media.service';
 import { buildCommandOwnedMediaObjectKey } from './stored-media.util';
@@ -26,6 +27,7 @@ describe('StoredMediaService', () => {
     getFileStream: jest.Mock;
   };
   let imageOptimizer: { optimizeUpload: jest.Mock };
+  let cdnCachePurge: { purgeUrls: jest.Mock };
 
   beforeEach(async () => {
     r2ObjectStorage = {
@@ -66,12 +68,17 @@ describe('StoredMediaService', () => {
       ),
     };
 
+    cdnCachePurge = {
+      purgeUrls: jest.fn().mockResolvedValue({ purged: true }),
+    };
+
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         StoredMediaService,
         { provide: R2ObjectStorageService, useValue: r2ObjectStorage },
         { provide: GoogleDriveService, useValue: googleDriveService },
         { provide: ImageOptimizerService, useValue: imageOptimizer },
+        { provide: CdnCachePurgeService, useValue: cdnCachePurge },
       ],
     }).compile();
 
@@ -229,6 +236,67 @@ describe('StoredMediaService', () => {
         MEDIA_FOLDER.CATEGORIES,
       ),
     ).rejects.toThrow('delete failed');
+  });
+
+  it('deleteCommandOwnedStrict > purges the public URL from the CDN after the origin delete (#340)', async () => {
+    const sha256 = 'a'.repeat(64);
+    const objectKey = buildCommandOwnedMediaObjectKey(
+      'categories',
+      'policy-save-1',
+      'attempt-a',
+      sha256,
+      'default.png',
+    );
+    const url = `https://media-staging.gogocash.co/${objectKey}`;
+    await service.deleteCommandOwnedStrict(
+      {
+        provider: 'r2',
+        ownership: 'command-owned',
+        owner_key: 'policy-save-1',
+        owner_attempt_token: 'attempt-a',
+        bucket: 'gogocash-catalog-staging',
+        object_key: objectKey,
+        url,
+        sha256,
+        original_name: 'default.png',
+      },
+      MEDIA_FOLDER.CATEGORIES,
+    );
+    expect(r2ObjectStorage.deleteObjectStrict).toHaveBeenCalledTimes(1);
+    expect(cdnCachePurge.purgeUrls).toHaveBeenCalledWith([url]);
+    // The origin delete must run before the cache purge.
+    expect(
+      r2ObjectStorage.deleteObjectStrict.mock.invocationCallOrder[0],
+    ).toBeLessThan(cdnCachePurge.purgeUrls.mock.invocationCallOrder[0]);
+  });
+
+  it('deleteCommandOwnedStrict > a CDN purge failure does not fail the authoritative delete (#340)', async () => {
+    cdnCachePurge.purgeUrls.mockRejectedValueOnce(new Error('cf down'));
+    const sha256 = 'a'.repeat(64);
+    const objectKey = buildCommandOwnedMediaObjectKey(
+      'categories',
+      'policy-save-1',
+      'attempt-a',
+      sha256,
+      'default.png',
+    );
+    await expect(
+      service.deleteCommandOwnedStrict(
+        {
+          provider: 'r2',
+          ownership: 'command-owned',
+          owner_key: 'policy-save-1',
+          owner_attempt_token: 'attempt-a',
+          bucket: 'gogocash-catalog-staging',
+          object_key: objectKey,
+          url: `https://media-staging.gogocash.co/${objectKey}`,
+          sha256,
+          original_name: 'default.png',
+        },
+        MEDIA_FOLDER.CATEGORIES,
+      ),
+    ).resolves.toBeUndefined();
+    expect(r2ObjectStorage.deleteObjectStrict).toHaveBeenCalledTimes(1);
   });
 
   it('verifyCommandOwnedAbsentStrict > validates provenance and requires exact HeadObject absence', async () => {
