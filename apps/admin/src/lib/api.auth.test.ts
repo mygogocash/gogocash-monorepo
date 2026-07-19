@@ -70,6 +70,59 @@ describe("apiClient auth headers", () => {
     expect(axiosMock.request).not.toHaveBeenCalled();
   });
 
+  it("given a 401 through the BFF > then it redirects to sign-in and throws the session-expired copy", async () => {
+    // Session-expiry recovery (beta QA 2026-07-19): a dead NextAuth session
+    // previously stranded users on dashboards full of error banners because
+    // apiClient — unlike the shared axios client — never redirected on 401.
+    const assign = vi
+      .spyOn(window.location, "assign")
+      .mockImplementation(() => {});
+    const { apiClient } = await import("./api");
+    axiosMock.isAxiosError.mockReturnValue(true);
+    axiosMock.request.mockRejectedValue({
+      response: { status: 401, data: {} },
+    });
+
+    await expect(apiClient.getOffers({ limit: 10, page: 1 })).rejects.toThrow(
+      "Your session has expired. Please sign in again.",
+    );
+    expect(assign).toHaveBeenCalledWith("/signin");
+  });
+
+  it("given a 401 while already on the sign-in page > then no redirect (reload-loop guard)", async () => {
+    window.history.pushState({}, "", "/signin");
+    const assign = vi
+      .spyOn(window.location, "assign")
+      .mockImplementation(() => {});
+    const { apiClient } = await import("./api");
+    axiosMock.isAxiosError.mockReturnValue(true);
+    axiosMock.request.mockRejectedValue({
+      response: { status: 401, data: {} },
+    });
+
+    await expect(apiClient.getOffers({ limit: 10, page: 1 })).rejects.toThrow(
+      "Your session has expired. Please sign in again.",
+    );
+    expect(assign).not.toHaveBeenCalled();
+    window.history.pushState({}, "", "/");
+  });
+
+  it("given a 403 > then NO sign-in redirect (real authorization denials stay on-page)", async () => {
+    const assign = vi
+      .spyOn(window.location, "assign")
+      .mockImplementation(() => {});
+    const { apiClient } = await import("./api");
+    axiosMock.isAxiosError.mockReturnValue(true);
+    axiosMock.request.mockRejectedValue({
+      response: { status: 403, data: {} },
+    });
+
+    await expect(apiClient.getOffers({ limit: 10, page: 1 })).rejects.toThrow(
+      /don't have permission/,
+    );
+    expect(assign).not.toHaveBeenCalled();
+  });
+
   it("given an HTTP error with no backend message > then throws status-aware copy, never 'HTTP Error 403'", async () => {
     const { apiClient } = await import("./api");
     axiosMock.isAxiosError.mockReturnValue(true);
