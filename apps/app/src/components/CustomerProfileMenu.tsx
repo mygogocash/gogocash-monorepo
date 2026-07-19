@@ -32,6 +32,7 @@ import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import { clearMobileAppSession, type MobileSession } from "@mobile/auth/session";
 import { webProfileWalletHeroSurface, webProfileWalletSummary } from "@mobile/design/webDesignParity";
 import { profileHubMenuItems } from "@mobile/design/webDesignParity";
+import { filterGoGoPassMenuItems } from "@mobile/config/featureFlags";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { ExternalLink as ExternalLinkIcon, LogOut as LogOutIcon } from "@mobile/theme/icons";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
@@ -267,7 +268,7 @@ export function CustomerProfileMenu({
       />
 
       <View style={styles.menuGroup}>
-        {profileHubMenuItems.map((item) => (
+        {filterGoGoPassMenuItems(profileHubMenuItems).map((item) => (
           <MenuRow
             external={"external" in item && item.external === true}
             href={item.href}

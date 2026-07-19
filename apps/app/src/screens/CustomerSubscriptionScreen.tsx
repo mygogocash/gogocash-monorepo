@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { Link, Redirect } from "expo-router";
 import {
   AlertCircle as AlertIcon,
   ArrowLeftRight as SwapIcon,
@@ -11,6 +11,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "r
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
+import { isGoGoPassEnabled } from "@mobile/config/featureFlags";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { mapSubscriptionStatus } from "@mobile/api/billingMapper";
 import { isCustomerSubscriptionStatus } from "@mobile/api/billingTypes";
@@ -86,6 +87,13 @@ export function CustomerSubscriptionScreen({ mode }: { mode: SubscriptionMode })
   const liveSubscription = isCustomerSubscriptionStatus(billingResource.data)
     ? mapSubscriptionStatus(billingResource.data)
     : null;
+
+  // GoGoPass rollout flag: this screen serves /pricing, /subscription and
+  // /billing — one guard makes all three unreachable when hidden. Sits below
+  // the hooks so the hook order stays unconditional.
+  if (!isGoGoPassEnabled()) {
+    return <Redirect href="/profile" />;
+  }
 
   if (billingResource.status !== "ready") {
     return (

@@ -5,6 +5,7 @@ import { resolveProfileDisplayName } from "@mobile/account/profileIdentity";
 import { resolveProfileCurrency } from "@mobile/account/resolveProfileWalletAmount";
 import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import type { MobileSession } from "@mobile/auth/session";
+import { isGoGoPassEnabled } from "@mobile/config/featureFlags";
 import { GoGoPassAvatar } from "@mobile/components/GoGoPassAvatar";
 import { GoGoPassMark } from "@mobile/components/GoGoPassMark";
 import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
@@ -55,7 +56,8 @@ export function CustomerProfileBar({ open, session }: { open?: boolean; session:
       ? session.avatar_url.trim()
       : null;
   const currency = resolveProfileCurrency(session.region);
-  const premium = isGoGoPassSubscriber(tier);
+  // GoGoPass rollout flag: hidden builds also drop the member-only name styling.
+  const premium = isGoGoPassEnabled() && isGoGoPassSubscriber(tier);
 
   return (
     <View style={[styles.panel, colors.isDark ? null : softPanelGradient]}>

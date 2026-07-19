@@ -64,6 +64,11 @@ describe("Play Store launch readiness", () => {
     expect(beta.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE).toBe("backend");
     expect(beta.env.SENTRY_DISABLE_AUTO_UPLOAD).toBe("true");
     expect(beta.env.EXPO_PUBLIC_ENABLE_GOTOTRACK).toBe("0");
+    // GoGoPass (membership/subscription) is hidden for the beta rollout. The
+    // flag is default-ON and ONLY the literal "0" hides (see
+    // src/config/featureFlags.ts) — so no other profile may pin it: unset env
+    // keeps today's behavior everywhere else.
+    expect(beta.env.EXPO_PUBLIC_ENABLE_GOGOPASS).toBe("0");
     // Distribution rides the existing closed-testing track until cutover.
     expect(easJson.submit.beta.android.track).toBe("GoGoCash Alpha");
   });

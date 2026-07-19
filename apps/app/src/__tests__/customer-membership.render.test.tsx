@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // CustomerMembershipScreen reaches expo-router (<Link>) and useCopy (both aliased to
 // stubs by vitest.render.config). It does NOT import Sentry/observability. Device locale
@@ -102,5 +102,27 @@ describe("CustomerMembershipScreen — Wave B foundations adopted (source signal
     expect(membershipSource).toContain("perksGridDesktop");
     expect(membershipSource).toContain("perkCardDesktop");
     expect(membershipSource).toContain("desktop={isDesktop}");
+  });
+});
+
+describe("CustomerMembershipScreen GoGoPass rollout flag (render)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('given EXPO_PUBLIC_ENABLE_GOGOPASS="0" > then the screen renders nothing (redirect guard)', () => {
+    // The guard returns <Redirect href="/profile" /> (null in the render harness'
+    // expo-router stub), so no membership content may reach the tree.
+    vi.stubEnv("EXPO_PUBLIC_ENABLE_GOGOPASS", "0");
+    render(createElement(CustomerMembershipScreen));
+    expect(screen.queryByText("Go premium for less than a coffee a week.")).toBeNull();
+    expect(screen.queryByText("Monthly")).toBeNull();
+    expect(screen.queryByText("Annual")).toBeNull();
+  });
+
+  it("given the flag unset > then the membership landing still renders (default unchanged)", () => {
+    delete process.env.EXPO_PUBLIC_ENABLE_GOGOPASS;
+    render(createElement(CustomerMembershipScreen));
+    expect(screen.getByText("Go premium for less than a coffee a week.")).toBeTruthy();
   });
 });
