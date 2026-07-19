@@ -278,7 +278,34 @@ describe('AdminController', () => {
     it('withdrawAll > given (limit, page, search) > then getWithdrawAll receives (page, limit, search)', () => {
       controller.withdrawAll(20 as never, 2 as never, 'term');
 
-      expect(adminService.getWithdrawAll).toHaveBeenCalledWith(2, 20, 'term');
+      expect(adminService.getWithdrawAll).toHaveBeenCalledWith(
+        2,
+        20,
+        'term',
+        undefined,
+        undefined,
+      );
+    });
+
+    // The admin UI's Status/Method dropdowns send `status`/`method` query
+    // params; without binding them here they are silently dropped and the
+    // filter appears to do nothing (#25).
+    it('withdrawAll > given status + method > then getWithdrawAll receives them', () => {
+      controller.withdrawAll(
+        20 as never,
+        2 as never,
+        'term',
+        'approved' as never,
+        'bank_transfer' as never,
+      );
+
+      expect(adminService.getWithdrawAll).toHaveBeenCalledWith(
+        2,
+        20,
+        'term',
+        'approved',
+        'bank_transfer',
+      );
     });
   });
 
