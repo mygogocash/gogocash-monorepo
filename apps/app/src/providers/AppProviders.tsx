@@ -5,6 +5,7 @@ import { PropsWithChildren, useEffect, useMemo } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { createSessionQueryCacheBridge } from "@mobile/account/sessionQueryCacheBridge";
+import { AnalyticsIdentityBridge } from "@mobile/analytics/AnalyticsIdentityBridge";
 import { RouteAnalyticsTracker } from "@mobile/analytics/RouteAnalyticsTracker";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
@@ -76,6 +77,7 @@ export function AppProviders({ children }: PropsWithChildren) {
     <>
       <DeepLinkReplay />
       <RouteAnalyticsTracker />
+      <AnalyticsIdentityBridge />
       <AccountResourceWarmup />
       <PublicCatalogRefetchOnFocus />
       <ToastProvider>
