@@ -10,6 +10,7 @@ export const AUTH_SCOPED_CUSTOMER_ACCOUNT_RESOURCE_IDS = [
   "profile",
   "referral",
   "wallet",
+  "walletTransactions",
 ] as const satisfies readonly CustomerAccountResourceId[];
 
 export function resolveCustomerAccountResourceSessionScope(

@@ -63,6 +63,10 @@ export function resolveCustomerAccountResourceEndpoint({
     return "/withdraw/check";
   }
 
+  if (resourceId === "walletTransactions") {
+    return "/withdraw/list-check";
+  }
+
   if (resourceId === "referral") {
     return "/point/referral-list";
   }
@@ -135,6 +139,10 @@ export function resolveCustomerAccountResourceRequest({
 
   if (resourceId === "wallet") {
     return { method: "POST", path: "/withdraw/check" };
+  }
+
+  if (resourceId === "walletTransactions") {
+    return { method: "POST", path: "/withdraw/list-check" };
   }
 
   return {
