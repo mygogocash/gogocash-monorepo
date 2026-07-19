@@ -49,6 +49,7 @@ import { motion } from "@mobile/theme/motion";
 
 import { createHomeScreenStyles } from "./home/customerHomeStyles";
 import { CustomerMobileBottomNav } from "./home/CustomerMobileBottomNav";
+import { isGoLinkEnabled } from "@mobile/config/featureFlags";
 import { DesktopGoLinkBanner } from "./home/DesktopGoLinkBanner";
 import { homeGoLinkShopNowRoute, homeIconStrokeWidth, webSearchInputFocusReset } from "./home/homeAssets";
 import { HomeHeroBanners } from "./home/HomeHeroBanners";
@@ -180,7 +181,7 @@ export function CustomerHomeScreen() {
       {webHomeSectionOrder.includes("banner") ? (
         <HomeHeroBanners homeLayout={homeLayout} />
       ) : null}
-      {homeLayout.isDesktop ? (
+      {homeLayout.isDesktop && isGoLinkEnabled() ? (
         <DesktopGoLinkBanner
           onOpenGuideline={() => setDesktopGoLinkGuidelineOpen(true)}
           onResultHref={setDesktopGoLinkResultHref}
