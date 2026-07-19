@@ -26,13 +26,27 @@ describe("posthog native config > env and dependencies", () => {
     expect(packageJson.dependencies?.["posthog-react-native"]).toBeTruthy();
   });
 
-  it("wires PostHogProvider when a key is configured", () => {
+  it("wires PostHogProvider through the crash-fenced client factory", () => {
     const appProviders = readMobileFile("src/providers/AppProviders.tsx");
     const observability = readMobileFile("src/observability/client.ts");
 
     expect(appProviders).toContain("PostHogProvider");
-    expect(appProviders).toContain("posthogConfig.posthogKey");
+    // The client must come from createPostHogClient (init failure degrades to
+    // the no-op client) — never from a raw apiKey prop, whose internal
+    // construction crash blanked beta web on 2026-07-19.
+    expect(appProviders).toContain("createPostHogClient(posthogConfig)");
+    expect(appProviders).not.toContain("apiKey={");
     expect(observability).toContain("posthogKey");
     expect(observability).toContain("posthogHost");
+  });
+
+  it("includes a posthog storage module so the real client can initialize on web", () => {
+    const packageJson = JSON.parse(readMobileFile("package.json")) as {
+      dependencies?: Record<string, string>;
+    };
+
+    expect(
+      packageJson.dependencies?.["@react-native-async-storage/async-storage"],
+    ).toBeTruthy();
   });
 });
