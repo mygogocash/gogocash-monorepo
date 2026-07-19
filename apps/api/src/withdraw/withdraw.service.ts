@@ -22,6 +22,7 @@ import {
   type WithdrawFeeCouponDocument,
 } from './schemas/withdraw-fee-coupon.schema';
 import { WithdrawFeeCouponRedemption } from './schemas/withdraw-fee-coupon-redemption.schema';
+import { assertWithdrawalsEnabled } from './withdraw-gate';
 import {
   normalizeWithdrawFeeCouponCode,
   resolveWithdrawFeePreview,
@@ -238,6 +239,7 @@ export class WithdrawService {
     msg: GETSignDTO,
     authenticatedUserId: string | undefined,
   ): Promise<string> {
+    assertWithdrawalsEnabled();
     if (
       !authenticatedUserId ||
       !isValidObjectId(authenticatedUserId) ||
@@ -2189,6 +2191,7 @@ export class WithdrawService {
     conversionIds: number[],
     onBroadcast?: (transactionHash: string) => Promise<void>,
   ): Promise<string> {
+    assertWithdrawalsEnabled();
     const abi = [
       {
         inputs: [

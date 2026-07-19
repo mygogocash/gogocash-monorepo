@@ -40,6 +40,9 @@ jest.mock('./firebase-admin.provider', () => ({
   // firebase-admin 14 is modular-only; the service now calls
   // getAdminAuth().verifyIdToken(...) instead of the removed admin.auth().
   getAdminAuth: jest.fn(() => ({ verifyIdToken: verifyIdTokenMock })),
+  // Cutover dual-project wrapper: same underlying verification mock, so
+  // existing token fixtures drive both the direct and wrapped paths.
+  verifyFirebaseIdToken: jest.fn((token: string) => verifyIdTokenMock(token)),
 }));
 
 import axios from 'axios';

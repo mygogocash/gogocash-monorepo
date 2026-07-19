@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { json, urlencoded } from 'express';
@@ -14,8 +14,12 @@ import {
   isCorsOriginAllowed,
 } from './common/cors-origins';
 import { GLOBAL_VALIDATION_PIPE_OPTIONS } from './common/validation-pipe.options';
+import { describeSchedulerOwnership } from './common/scheduler-ownership';
 
 async function bootstrap() {
+  // Single-owner audit line: which of the shared-DB singleton resources this
+  // instance holds (see scheduler-ownership.ts). Must stay one greppable line.
+  Logger.log(describeSchedulerOwnership(), 'Bootstrap');
   // rawBody preserves the unparsed buffer on request.rawBody for routes that
   // verify HMAC signatures (e.g. catalog webhooks).
   const app = await NestFactory.create(AppModule, {
