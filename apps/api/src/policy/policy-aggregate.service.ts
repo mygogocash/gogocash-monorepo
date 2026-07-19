@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Cron } from '@nestjs/schedule';
+import { isLegacyCronEnabled } from 'src/common/legacy-cron-gate';
 import { createHash, randomUUID } from 'node:crypto';
 import { ClientSession, Connection, Model, QueryFilter, Types } from 'mongoose';
 
@@ -460,6 +461,7 @@ export class PolicyAggregateService {
 
   @Cron('0 */10 * * * *')
   async retryPendingCleanupOnSchedule() {
+    if (!isLegacyCronEnabled()) return;
     try {
       const recovered = await this.recoverExpiredCommands();
       const deleted = await this.retryPendingCleanup();

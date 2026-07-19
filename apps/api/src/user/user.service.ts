@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { getAdminAuth } from 'src/auth/firebase-admin.provider';
+import { isLegacyCronEnabled } from 'src/common/legacy-cron-gate';
 import { CreateUserDto, UpdateCountryDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -284,6 +285,7 @@ export class UserService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async purgeDueAccountDeletionsCron() {
+    if (!isLegacyCronEnabled()) return;
     const purged = await this.purgeDueAccountDeletions(new Date());
     if (purged > 0) {
       this.deletionLogger.log(

@@ -87,6 +87,22 @@ describe('QuestOutboxConsumerService', () => {
     expect(mocks.ingestionModel.updateOne).toHaveBeenCalled();
   });
 
+  it('drains regardless of CRON_ENABLED — v2 jobs are governed only by QUEST_TASK_V2_ENABLED', async () => {
+    const originalCronEnabled = process.env.CRON_ENABLED;
+    process.env.CRON_ENABLED = 'false';
+    try {
+      const mocks = service();
+      mocks.outboxModel.findOneAndUpdate.mockResolvedValue(null as never);
+
+      await mocks.consumer.scheduledDrain();
+
+      expect(mocks.outboxModel.findOneAndUpdate).toHaveBeenCalled();
+    } finally {
+      if (originalCronEnabled === undefined) delete process.env.CRON_ENABLED;
+      else process.env.CRON_ENABLED = originalCronEnabled;
+    }
+  });
+
   it('does not claim source work while task-v2 is disabled', async () => {
     const mocks = service();
     mocks.transactions.enabled = false;

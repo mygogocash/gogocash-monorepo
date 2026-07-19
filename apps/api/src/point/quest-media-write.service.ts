@@ -11,6 +11,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { ClientSession, Model, Types } from 'mongoose';
 
+import { isLegacyCronEnabled } from 'src/common/legacy-cron-gate';
 import { readMulterUploadBuffer } from 'src/common/multer-upload-buffer';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import {
@@ -713,6 +714,7 @@ export class QuestMediaWriteService implements OnModuleInit {
 
   @Cron('45 */10 * * * *')
   async recoverExpiredCommands(): Promise<void> {
+    if (!isLegacyCronEnabled()) return;
     await this.ensureIndexReady();
     const commands = (await this.commandModel
       .find({
@@ -748,6 +750,7 @@ export class QuestMediaWriteService implements OnModuleInit {
 
   @Cron('15 */10 * * * *')
   async recoverCommittedReplacementCleanup(): Promise<void> {
+    if (!isLegacyCronEnabled()) return;
     await this.ensureIndexReady();
     const commands = (await this.commandModel
       .find({

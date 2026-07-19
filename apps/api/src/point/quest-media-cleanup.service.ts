@@ -9,6 +9,7 @@ import { Cron } from '@nestjs/schedule';
 import { createHash, randomUUID } from 'node:crypto';
 import { Model, Types } from 'mongoose';
 
+import { isLegacyCronEnabled } from 'src/common/legacy-cron-gate';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import {
   CommandOwnedStoredMediaAsset,
@@ -319,6 +320,7 @@ export class QuestMediaCleanupService implements OnModuleInit {
 
   @Cron('30 */10 * * * *')
   async retryPending(): Promise<void> {
+    if (!isLegacyCronEnabled()) return;
     const rows = (await this.cleanupModel
       .find({
         status: 'pending',

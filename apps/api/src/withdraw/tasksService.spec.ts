@@ -44,6 +44,64 @@ describe('Withdraw TasksService', () => {
     );
   });
 
+  describe('CRON_ENABLED legacy-cron gate (dual-stack beta safety)', () => {
+    const originalCronEnabled = process.env.CRON_ENABLED;
+
+    afterEach(() => {
+      if (originalCronEnabled === undefined) delete process.env.CRON_ENABLED;
+      else process.env.CRON_ENABLED = originalCronEnabled;
+    });
+
+    it('skips the 12h conversion sync when CRON_ENABLED=false', async () => {
+      process.env.CRON_ENABLED = 'false';
+      const jobService = { syncConversion: jest.fn() };
+      const service = new TasksService(
+        jobService as never,
+        {
+          adminAddRewardConversionForQuest: jest.fn(),
+        } as never,
+      );
+
+      await service.handleCron();
+
+      expect(jobService.syncConversion).not.toHaveBeenCalled();
+    });
+
+    it('skips the monthly rank payout when CRON_ENABLED=false', async () => {
+      process.env.CRON_ENABLED = 'false';
+      const withdrawService = {
+        adminAddRewardConversionForQuest: jest.fn(),
+      };
+      const service = new TasksService(
+        { syncConversion: jest.fn() } as never,
+        withdrawService as never,
+      );
+
+      await service.addConversionReward();
+
+      expect(
+        withdrawService.adminAddRewardConversionForQuest,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('runs the conversion sync when CRON_ENABLED is unset', async () => {
+      delete process.env.CRON_ENABLED;
+      const jobService = {
+        syncConversion: jest.fn().mockResolvedValue(undefined),
+      };
+      const service = new TasksService(
+        jobService as never,
+        {
+          adminAddRewardConversionForQuest: jest.fn(),
+        } as never,
+      );
+
+      await service.handleCron();
+
+      expect(jobService.syncConversion).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('coalesces overlapping in-process cron/manual calls onto one bounded run', async () => {
     let release!: () => void;
     const payout = new Promise<void>((resolve) => {
