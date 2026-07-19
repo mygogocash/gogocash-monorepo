@@ -286,6 +286,30 @@ describe('QuestMediaCleanupService', () => {
     expect(media.deleteCommandOwnedStrict).not.toHaveBeenCalled();
   });
 
+  it('retryPending > given CRON_ENABLED=false > then never scans pending cleanup rows', async () => {
+    const originalCronEnabled = process.env.CRON_ENABLED;
+    process.env.CRON_ENABLED = 'false';
+    try {
+      const cleanupModel = {
+        createIndexes: jest.fn().mockResolvedValue([]),
+        find: jest.fn().mockReturnValue(query([])),
+      };
+      const service = new QuestMediaCleanupService(
+        cleanupModel as never,
+        {} as never,
+        {} as never,
+        {} as never,
+      );
+
+      await service.retryPending();
+
+      expect(cleanupModel.find).not.toHaveBeenCalled();
+    } finally {
+      if (originalCronEnabled === undefined) delete process.env.CRON_ENABLED;
+      else process.env.CRON_ENABLED = originalCronEnabled;
+    }
+  });
+
   it('keeps an ambiguous-Put tombstone retryable until a delayed re-delete and strict absence proof', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-07-17T00:00:00.000Z'));
     try {

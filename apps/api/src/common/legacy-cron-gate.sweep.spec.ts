@@ -32,6 +32,70 @@ function activeScheduleSites(src: string): number {
     .length;
 }
 
+const COMMENT_LINE = /^\s*(\/\/|\/\*|\*)/;
+const ANY_DECORATOR = /^\s*@[A-Za-z_$]/;
+const METHOD_SIGNATURE_START = /^\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\(/;
+const GATE_STATEMENT = 'if (!isLegacyCronEnabled()) return;';
+
+function isSkippableLine(line: string): boolean {
+  return line.trim() === '' || COMMENT_LINE.test(line);
+}
+
+/** Advance past a decorator, tolerating multi-line args; returns the index after its closing line. */
+function skipDecorator(lines: string[], start: number): number {
+  let i = start;
+  while (i < lines.length && !lines[i].includes(')')) i += 1;
+  return i + 1;
+}
+
+/**
+ * Structural check: returns `methodName@line` (1-based line of the decorator)
+ * for every ACTIVE @Cron/@Interval/@Timeout site whose decorated method does
+ * NOT start with the exact gate statement `if (!isLegacyCronEnabled()) return;`.
+ * A gate mentioned only in a comment, or an inverted gate, is an offender.
+ */
+export function findUngatedScheduleSites(src: string): string[] {
+  const lines = src.split('\n');
+  const offenders: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (!ACTIVE_SCHEDULE_DECORATOR.test(lines[i])) {
+      i += 1;
+      continue;
+    }
+    const siteLine = i + 1;
+    i = skipDecorator(lines, i);
+    // Skip stacked decorators and comments up to the method signature start.
+    let methodName: string | undefined;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (isSkippableLine(line)) {
+        i += 1;
+        continue;
+      }
+      if (ANY_DECORATOR.test(line)) {
+        i = skipDecorator(lines, i);
+        continue;
+      }
+      methodName = METHOD_SIGNATURE_START.exec(line)?.[1];
+      break;
+    }
+    if (methodName === undefined) {
+      offenders.push(`unknown@${siteLine}`);
+      continue;
+    }
+    // Tolerate multi-line signatures: scan to the line opening the body.
+    while (i < lines.length && !lines[i].trimEnd().endsWith('{')) i += 1;
+    i += 1;
+    // The first statement of the decorated method must be exactly the gate.
+    while (i < lines.length && isSkippableLine(lines[i])) i += 1;
+    if (lines[i]?.trim() !== GATE_STATEMENT) {
+      offenders.push(`${methodName}@${siteLine}`);
+    }
+  }
+  return offenders;
+}
+
 const scheduledFiles = walk(SRC)
   .filter((f) => f.endsWith('.ts') && !f.endsWith('.spec.ts'))
   .map((f) => ({
@@ -45,16 +109,110 @@ describe('legacy-cron gate sweep (dual-stack scheduled-job ownership)', () => {
     expect(scheduledFiles.length).toBeGreaterThanOrEqual(11);
   });
 
-  it('every legacy scheduled handler gates via isLegacyCronEnabled()', () => {
+  it('every legacy scheduled handler opens with the isLegacyCronEnabled() gate', () => {
     const offenders = scheduledFiles
       .filter(({ rel }) => !rel.startsWith(V2_EXEMPT_PREFIX))
-      .filter(({ src }) => {
-        const gateCalls = (src.match(/isLegacyCronEnabled\(\)/g) ?? []).length;
-        const imported = src.includes("common/legacy-cron-gate'");
-        return !imported || gateCalls < activeScheduleSites(src);
-      })
-      .map(({ rel }) => rel);
+      .flatMap(({ rel, src }) =>
+        findUngatedScheduleSites(src).map((site) => `${rel}#${site}`),
+      );
     expect(offenders).toEqual([]);
+  });
+
+  describe('findUngatedScheduleSites parser', () => {
+    it('given a properly gated site > then reports no offender', () => {
+      const src = [
+        'class Svc {',
+        "  @Cron('0 0 * * *')",
+        '  async nightly() {',
+        '    if (!isLegacyCronEnabled()) return;',
+        '    await this.run();',
+        '  }',
+        '}',
+      ].join('\n');
+      expect(findUngatedScheduleSites(src)).toEqual([]);
+    });
+
+    it('given only a comment mentioning the gate > then flags the site', () => {
+      const src = [
+        'class Svc {',
+        "  @Cron('0 0 * * *')",
+        '  async nightly() {',
+        '    // TODO: wire isLegacyCronEnabled() here',
+        '    await this.run();',
+        '  }',
+        '}',
+      ].join('\n');
+      expect(findUngatedScheduleSites(src)).toEqual(['nightly@2']);
+    });
+
+    it('given an inverted gate > then flags the site', () => {
+      const src = [
+        'class Svc {',
+        "  @Cron('0 0 * * *')",
+        '  async nightly() {',
+        '    if (isLegacyCronEnabled()) return;',
+        '    await this.run();',
+        '  }',
+        '}',
+      ].join('\n');
+      expect(findUngatedScheduleSites(src)).toEqual(['nightly@2']);
+    });
+
+    it('given a commented-out decorator > then ignores the site', () => {
+      const src = [
+        'class Svc {',
+        "  // @Cron('0 0 * * *')",
+        '  async nightly() {',
+        '    await this.run();',
+        '  }',
+        '}',
+      ].join('\n');
+      expect(findUngatedScheduleSites(src)).toEqual([]);
+    });
+
+    it('given one gated and one ungated site > then flags exactly the ungated one', () => {
+      const src = [
+        'class Svc {',
+        "  @Cron('0 0 * * *')",
+        '  async gatedJob() {',
+        '    if (!isLegacyCronEnabled()) return;',
+        '    await this.a();',
+        '  }',
+        '',
+        '  @Interval(60000)',
+        '  async ungatedJob() {',
+        '    await this.b();',
+        '  }',
+        '}',
+      ].join('\n');
+      expect(findUngatedScheduleSites(src)).toEqual(['ungatedJob@8']);
+    });
+
+    it('given multi-line decorator args and signatures > then still resolves the gate', () => {
+      const src = [
+        'class Svc {',
+        "  @Cron('0 0 * * *', {",
+        "    name: 'gated-job',",
+        '  })',
+        '  async gatedJob(',
+        '    context: JobContext,',
+        '  ): Promise<void> {',
+        '    if (!isLegacyCronEnabled()) return;',
+        '    await this.a(context);',
+        '  }',
+        '',
+        '  @Timeout(5_000, {',
+        "    name: 'ungated-job',",
+        '  })',
+        '  async ungatedJob(',
+        '    context: JobContext,',
+        '  ): Promise<void> {',
+        '    await this.b(context);',
+        '  }',
+        '}',
+      ].join('\n');
+      expect(findUngatedScheduleSites(src)).toEqual(['ungatedJob@12']);
+    });
   });
 
   it('quest task-v2 jobs stay exempt from the legacy gate', () => {
