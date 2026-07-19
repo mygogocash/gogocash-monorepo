@@ -1,18 +1,32 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   HttpException,
   Injectable,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   CreateManualWithdrawRequestDto,
   CreateWithdrawDto,
   GETSignDTO,
   GetWithdrawTransactionsDTO,
   MarkWithdrawPaidDto,
+  PreviewWithdrawFeeDto,
   RequestCreateRewardList,
 } from './dto/create-withdraw.dto';
+import {
+  WithdrawFeeCoupon,
+  type WithdrawFeeCouponDocument,
+} from './schemas/withdraw-fee-coupon.schema';
+import { WithdrawFeeCouponRedemption } from './schemas/withdraw-fee-coupon-redemption.schema';
+import {
+  normalizeWithdrawFeeCouponCode,
+  resolveWithdrawFeePreview,
+  type WithdrawFeeCouponLike,
+} from './resolve-withdraw-fee';
 import {
   CreateWithdrawMethod,
   UpdateWithdrawDto,
@@ -28,7 +42,7 @@ import {
   Types,
 } from 'mongoose';
 import { InvolveService } from 'src/involve/involve.service';
-import { Withdraw } from './schemas/withdraw.schema';
+import { Withdraw, type WithdrawDocument } from './schemas/withdraw.schema';
 import { FeeRate } from './schemas/feeRate.schema';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { WithdrawMethod } from './schemas/withdrawMethod.schema';
@@ -37,6 +51,9 @@ import { escapeRegexLiteral } from 'src/common/escape-regex';
 import { buildAutoMyCashbackWithdrawFields } from './withdraw-mycashback-auto';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Conversion } from './schemas/conversion.schema';
+import { AdminActivityService } from 'src/admin/activity/admin-activity.service';
+import type { AdminActor } from 'src/admin/activity/admin-activity.actor';
+import { WalletAdjustment } from 'src/admin/wallets/schemas/wallet-adjustment.schema';
 import { RewardList } from './schemas/rewardList.schema';
 import { PointService } from 'src/point/point.service';
 import { Quest } from 'src/point/schemas/quest.schema';
@@ -51,6 +68,7 @@ import {
   mongoFilter,
   mongoSetUpdate,
   requireObjectId,
+  requireOneOf,
   requireTrimmedString,
 } from 'src/common/mongo-query';
 import {
@@ -64,6 +82,26 @@ import {
   legacyRewardManifestKey,
   LegacyRewardManifest,
 } from 'src/tasks/legacy-reward-manifest';
+import { requireCanonicalEvmTransactionHash } from './evm-transaction-hash';
+import {
+  ChainRecordRejectedError,
+  configuredWithdrawChainIds,
+  requireSuccessfulChainRecord,
+  requireSuccessfulExactChainReceipt,
+  resolveWithdrawChainConfig,
+} from './withdraw-chain';
+
+const MAX_UINT256 = (1n << 256n) - 1n;
+const CHAIN_RECORD_LEASE_MS = 10 * 60 * 1000;
+const SIGNATURE_RESERVATION_METHOD = 'on_chain_signature';
+const SIGNATURE_RECONCILIATION_GRACE_MS = 10 * 60 * 1000;
+
+function canonicalUint256(value: unknown): string | null {
+  const raw = String(value ?? '').trim();
+  if (!/^\d+$/.test(raw)) return null;
+  const parsed = BigInt(raw);
+  return parsed <= MAX_UINT256 ? parsed.toString() : null;
+}
 
 @Injectable()
 export class WithdrawService {
@@ -81,43 +119,205 @@ export class WithdrawService {
     private withdrawMethodModel: Model<WithdrawMethod>,
     @InjectModel(UserMyCashback.name)
     private userMyCashbackModel: Model<UserMyCashback>,
+    @InjectModel(WithdrawFeeCoupon.name)
+    private withdrawFeeCouponModel: Model<WithdrawFeeCoupon>,
+    @InjectModel(WithdrawFeeCouponRedemption.name)
+    private withdrawFeeCouponRedemptionModel: Model<WithdrawFeeCouponRedemption>,
+    @InjectModel(WalletAdjustment.name)
+    private walletAdjustmentModel: Model<WalletAdjustment>,
     private readonly involveService: InvolveService,
     private readonly pointService: PointService,
     @InjectConnection() private readonly connection: Connection,
+    private readonly adminActivity: AdminActivityService,
   ) {}
-  async getSign(msg: GETSignDTO): Promise<string> {
-    // console.log('Generating EIP-712 signature for message:', msg);
-    const chainId =
-      msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
-        ? Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
-        : msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
-          ? Number(process.env.CHAIN_ID_WITHDRAW_BNB)
-          : msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_SONIC)
-            ? Number(process.env.CHAIN_ID_WITHDRAW_SONIC)
-            : Number(process.env.CHAIN_ID_WITHDRAW_CELO);
 
-    const contract =
-      msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
-        ? process.env.CONTRACT_WITHDRAW_ADDRESS_POLYGON!
-        : msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
-          ? process.env.CONTRACT_WITHDRAW_ADDRESS_BNB!
-          : msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_SONIC)
-            ? process.env.CONTRACT_WITHDRAW_ADDRESS_SONIC!
-            : process.env.CONTRACT_WITHDRAW_ADDRESS_CELO!;
-    // console.log(msg.chain, Number(process.env.CHAIN_ID_WITHDRAW_BNB));
-    // console.log(msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_BNB));
+  private toCouponLike(doc: WithdrawFeeCouponDocument): WithdrawFeeCouponLike {
+    return {
+      _id: String(doc._id),
+      code: doc.code,
+      name: doc.name,
+      discount_mode: doc.discount_mode,
+      discount_value: doc.discount_value,
+      currency: doc.currency,
+      disabled: doc.disabled,
+      start_at: doc.start_at,
+      end_at: doc.end_at,
+      quantity: doc.quantity,
+      quantity_used: doc.quantity_used,
+      unlimited_quantity: doc.unlimited_quantity,
+      usage_per_user: doc.usage_per_user,
+      applies_to: doc.applies_to,
+      min_withdraw_amount: doc.min_withdraw_amount,
+    };
+  }
 
-    // console.log('Using contract address for signing:', contract);
-    // console.log('Using chainId address for signing:', chainId);
+  private previewFailureMessage(reason: string): string {
+    switch (reason) {
+      case 'below_minimum':
+        return 'Amount is below the minimum withdrawal.';
+      case 'insufficient_balance':
+        return 'Insufficient cashback balance.';
+      case 'negative_receive':
+        return 'Withdrawal amount is too low after fees.';
+      case 'coupon_disabled':
+        return 'This coupon is disabled.';
+      case 'coupon_not_started':
+        return 'This coupon is not active yet.';
+      case 'coupon_expired':
+        return 'This coupon has expired.';
+      case 'coupon_exhausted':
+        return 'This coupon has no remaining uses.';
+      case 'coupon_user_limit':
+        return 'You have already used this coupon.';
+      case 'coupon_currency_mismatch':
+        return 'This coupon does not apply to the selected currency.';
+      case 'coupon_method_mismatch':
+        return 'This coupon does not apply to the selected withdrawal method.';
+      default:
+        return 'Unable to preview withdrawal fee.';
+    }
+  }
 
+  async previewWithdrawFee(dto: PreviewWithdrawFeeDto, userId: string) {
+    const fee = await this.feeRateModel.findOne().exec();
+    if (!fee) {
+      throw new HttpException(
+        {
+          message:
+            'Withdrawals are temporarily unavailable. Please try again later or contact support.',
+        },
+        400,
+      );
+    }
+
+    const currency = dto.currency || 'THB';
+    const method = dto.method || 'bank_transfer';
+    const balance = await this.checkWithdraw(userId);
+    const availableBalance =
+      currency === 'THB'
+        ? Number(balance.netAmountTHB || 0)
+        : Number(balance.netAmount || 0);
+
+    let coupon: WithdrawFeeCouponLike | null = null;
+    let userRedemptionCount = 0;
+    if (dto.coupon_code?.trim()) {
+      const code = normalizeWithdrawFeeCouponCode(dto.coupon_code);
+      const found = await this.withdrawFeeCouponModel.findOne({ code }).exec();
+      if (!found) {
+        throw new HttpException({ message: 'Coupon code not found.' }, 400);
+      }
+      coupon = this.toCouponLike(found);
+      userRedemptionCount = await this.withdrawFeeCouponRedemptionModel
+        .countDocuments({
+          coupon_id: found._id,
+          user_id: new Types.ObjectId(userId),
+        })
+        .exec();
+    }
+
+    const preview = resolveWithdrawFeePreview({
+      feeRate: fee,
+      amount: dto.amount,
+      availableBalance,
+      currency,
+      method,
+      coupon,
+      userRedemptionCount,
+    });
+
+    if (preview.ok === false) {
+      throw new HttpException(
+        { message: this.previewFailureMessage(preview.reason) },
+        400,
+      );
+    }
+    return preview;
+  }
+
+  async getSign(
+    msg: GETSignDTO,
+    authenticatedUserId: string | undefined,
+  ): Promise<string> {
+    if (
+      !authenticatedUserId ||
+      !isValidObjectId(authenticatedUserId) ||
+      msg.userid !== authenticatedUserId
+    ) {
+      throw new ForbiddenException(
+        'Withdrawal authorizations can only be issued for the signed-in user.',
+      );
+    }
+
+    const user = await this.userModel.findById(authenticatedUserId);
+    if (!user) {
+      throw new UnauthorizedException({ message: 'User not found' });
+    }
+    if (user.wallet_frozen) {
+      throw new ForbiddenException({
+        message: 'Your wallet is frozen. Contact support before withdrawing.',
+      });
+    }
+    if (
+      !user.address ||
+      !ethers.isAddress(user.address) ||
+      !ethers.isAddress(msg.userAddress) ||
+      ethers.getAddress(user.address) !== ethers.getAddress(msg.userAddress)
+    ) {
+      throw new ForbiddenException(
+        'The payout address does not match the wallet linked to this account.',
+      );
+    }
+
+    const chain = resolveWithdrawChainConfig(msg.chain);
+    const expireAt = BigInt(msg.expireAt);
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    // Only reject far-future expiry here. The moving 30s minimum applies to newly
+    // issued promises below; exact lost-response retries may reuse a durable
+    // signature with fewer than 30 seconds remaining until its stored expiry.
+    if (expireAt > now + 10n * 60n) {
+      throw new BadRequestException(
+        'Withdrawal authorization expiry must be 30 seconds to 10 minutes from now.',
+      );
+    }
+
+    const requestedConversionIds = [
+      ...new Set(msg.conversionIdHashes.map((id) => BigInt(id).toString())),
+    ].sort((left, right) => (BigInt(left) < BigInt(right) ? -1 : 1));
+    let requestedAmount: bigint;
+    try {
+      requestedAmount = ethers.parseUnits(
+        msg.totalCashbackAmount,
+        chain.decimal,
+      );
+    } catch {
+      throw new BadRequestException('Invalid withdrawal amount.');
+    }
+    if (requestedAmount <= 0n) {
+      throw new BadRequestException('Invalid withdrawal amount.');
+    }
+
+    // Validate signing configuration before committing a reservation. A crash
+    // after commit is still safe: an exact retry reuses the durable command.
+    const wallet = new ethers.Wallet(process.env.PRIVATE_KEY_WITHDRAW);
+    const normalizedAddress = ethers.getAddress(user.address);
+    const authorizationEffectHash = createHash('sha256')
+      .update(
+        JSON.stringify({
+          address: normalizedAddress.toLowerCase(),
+          amount: requestedAmount.toString(),
+          chain: chain.chainId,
+          conversion_ids: requestedConversionIds,
+          expire_at: expireAt.toString(),
+        }),
+      )
+      .digest('hex');
+    const authorizationKey = `signature:${authorizationEffectHash}`;
     const domain = {
       name: 'CashbackLedger',
       version: '1',
-      chainId: chainId,
-      verifyingContract: contract,
+      chainId: chain.chainId,
+      verifyingContract: chain.contract,
     };
-
-    // ---------- 2) Batch Withdraw ----------
     const types = {
       WithdrawAuthBatch: [
         { name: 'userid', type: 'string' },
@@ -127,35 +327,355 @@ export class WithdrawService {
         { name: 'conversionIdsHash', type: 'bytes32' },
       ],
     };
-
-    let rolling = ethers.ZeroHash;
-    for (const id of msg.conversionIdHashes) {
-      rolling = keccak256(
-        solidityPacked(['bytes32', 'uint256'], [rolling, id]),
-      );
-    }
-
-    const decimal =
-      msg.chain === Number(process.env.CHAIN_ID_WITHDRAW_BNB) ? 18 : 6;
-    const conversionIdsHash = rolling;
-    const value = {
-      userid: msg.userid,
-      userAddress: msg.userAddress,
-      amount: ethers.parseUnits(msg.totalCashbackAmount, decimal).toString(),
-      expireAt: BigInt(msg.expireAt),
-      conversionIdsHash: conversionIdsHash,
+    const signAuthorization = async (
+      conversionIds: string[],
+      amount: bigint,
+    ) => {
+      let conversionIdsHash = ethers.ZeroHash;
+      for (const conversionId of conversionIds) {
+        conversionIdsHash = keccak256(
+          solidityPacked(
+            ['bytes32', 'uint256'],
+            [conversionIdsHash, conversionId],
+          ),
+        );
+      }
+      const signature = await wallet.signTypedData(domain, types, {
+        userid: authenticatedUserId,
+        userAddress: normalizedAddress,
+        amount: amount.toString(),
+        expireAt,
+        conversionIdsHash,
+      });
+      return { conversionIdsHash, signature };
     };
 
-    // console.log('value:', value);
-    const wallet = new ethers.Wallet(process.env.PRIVATE_KEY_WITHDRAW);
-    const signature = await wallet.signTypedData(domain, types, value);
-    // console.log('EIP-712 Signature:', signature);
-    return signature;
+    // An expired signature cannot simply disappear: it may have been mined.
+    // Reconcile it against chain state before making another spendable promise.
+    await this.reconcileExpiredSignatureReservations(authenticatedUserId);
+
+    const reservation = await this.runSerializedWithdraw(
+      authenticatedUserId,
+      async (session, lockedUser) => {
+        if (
+          !lockedUser.address ||
+          !ethers.isAddress(lockedUser.address) ||
+          ethers.getAddress(lockedUser.address) !== normalizedAddress
+        ) {
+          throw new ConflictException(
+            'The linked payout address changed while authorization was being prepared.',
+          );
+        }
+        const existingCommand = await this.withdrawModel
+          .findOne({
+            user_id: new Types.ObjectId(authenticatedUserId),
+            idempotency_key: authorizationKey,
+          })
+          .session(session)
+          .exec();
+        if (existingCommand) {
+          const storedExpiryMs =
+            existingCommand.authorization_expires_at instanceof Date
+              ? existingCommand.authorization_expires_at.getTime()
+              : new Date(
+                  String(existingCommand.authorization_expires_at ?? ''),
+                ).getTime();
+          if (
+            existingCommand.idempotency_effect_hash !==
+              authorizationEffectHash ||
+            existingCommand.method !== SIGNATURE_RESERVATION_METHOD ||
+            existingCommand.status !== 'pending' ||
+            existingCommand.authorization_state !== 'issued' ||
+            existingCommand.authorization_slot_active !== true ||
+            !existingCommand.authorization_signature ||
+            !Number.isFinite(storedExpiryMs) ||
+            Math.floor(storedExpiryMs / 1000) !== Number(expireAt) ||
+            storedExpiryMs <= Date.now()
+          ) {
+            throw new ConflictException(
+              'This withdrawal authorization is no longer reusable.',
+            );
+          }
+          return {
+            record: existingCommand,
+            signature: existingCommand.authorization_signature,
+          };
+        }
+
+        // The moving minimum protects only a newly issued spendable promise.
+        // Exact lost-response retries above reuse their durable signature until
+        // its stored expiry, even when fewer than 30 seconds remain.
+        const lockedNow = BigInt(Math.floor(Date.now() / 1000));
+        if (expireAt < lockedNow + 30n) {
+          throw new BadRequestException(
+            'Withdrawal authorization expiry must be 30 seconds to 10 minutes from now.',
+          );
+        }
+
+        const activeAuthorization = await this.withdrawModel
+          .findOne({
+            user_id: new Types.ObjectId(authenticatedUserId),
+            authorization_slot_active: true,
+          })
+          .session(session)
+          .exec();
+        if (activeAuthorization) {
+          throw new ConflictException(
+            'A withdrawal authorization is already active for this account.',
+          );
+        }
+
+        // Derive the promise from the same authoritative ledger used by bank,
+        // manual, and server-recorded withdrawals while holding their shared
+        // per-user serialization lock.
+        const entitlement = await this.checkWithdraw(authenticatedUserId);
+        const chainIds = configuredWithdrawChainIds();
+        const [withdrawnByChain, reservedWithdrawals] = await Promise.all([
+          Promise.all(
+            chainIds.map((chainId) =>
+              this.getConversionIdsWithdrawedByUserId(
+                authenticatedUserId,
+                chainId,
+                true,
+              ),
+            ),
+          ),
+          this.withdrawModel
+            .find({
+              user_id: new Types.ObjectId(authenticatedUserId),
+              status: { $in: ['pending', 'approved', 'paid'] },
+              conversion_id: { $ne: [] },
+            })
+            .select('conversion_id')
+            .lean(),
+        ]);
+        const unavailableConversionIds = new Set([
+          ...withdrawnByChain.flat(),
+          ...reservedWithdrawals.flatMap((withdrawal) =>
+            (withdrawal.conversion_id ?? [])
+              .map(canonicalUint256)
+              .filter((id): id is string => id !== null),
+          ),
+        ]);
+        const serverConversionIds = [
+          ...new Set(
+            entitlement.data
+              .map((conversion) => canonicalUint256(conversion.conversion_id))
+              .filter((id): id is string => id !== null)
+              .filter((id) => !unavailableConversionIds.has(id)),
+          ),
+        ].sort((left, right) => (BigInt(left) < BigInt(right) ? -1 : 1));
+        if (
+          serverConversionIds.length === 0 ||
+          serverConversionIds.length !== msg.conversionIdHashes.length ||
+          serverConversionIds.length !== requestedConversionIds.length ||
+          serverConversionIds.some(
+            (conversionId, index) =>
+              conversionId !== requestedConversionIds[index],
+          )
+        ) {
+          throw new ConflictException(
+            'The requested conversions no longer match your available cashback.',
+          );
+        }
+
+        const authoritativeAmount = String(entitlement.netAmount);
+        let serverAmount: bigint;
+        try {
+          serverAmount = ethers.parseUnits(authoritativeAmount, chain.decimal);
+        } catch {
+          throw new BadRequestException('Invalid withdrawal amount.');
+        }
+        if (serverAmount <= 0n || requestedAmount !== serverAmount) {
+          throw new ConflictException(
+            'The requested amount no longer matches your available cashback.',
+          );
+        }
+        const numericConversionIds = serverConversionIds.map(Number);
+        if (
+          numericConversionIds.some(
+            (conversionId) => !Number.isSafeInteger(conversionId),
+          )
+        ) {
+          throw new BadRequestException(
+            'A conversion id is too large for this withdrawal ledger.',
+          );
+        }
+
+        const amount = Number(authoritativeAmount);
+        const { conversionIdsHash, signature } = await signAuthorization(
+          serverConversionIds,
+          serverAmount,
+        );
+        const [record] = await this.withdrawModel.create(
+          [
+            {
+              user_id: new Types.ObjectId(authenticatedUserId),
+              status: 'pending',
+              address: normalizedAddress,
+              tx_hash: '',
+              tx_hash_record: '',
+              percent_fee: 0,
+              amount_total: amount,
+              amount_net: amount,
+              method: SIGNATURE_RESERVATION_METHOD,
+              currency: 'USD',
+              conversion_id: numericConversionIds,
+              mycashback_id: [],
+              chain: String(chain.chainId),
+              idempotency_key: authorizationKey,
+              idempotency_effect_hash: authorizationEffectHash,
+              chain_record_state: 'reserved',
+              authorization_expires_at: new Date(Number(expireAt) * 1000),
+              authorization_state: 'issued',
+              authorization_request_hash: authorizationEffectHash,
+              authorization_signature: signature,
+              authorization_amount_atomic: serverAmount.toString(),
+              authorization_conversion_hash: conversionIdsHash,
+              authorization_chain_id: chain.chainId,
+              authorization_contract: chain.contract.toLowerCase(),
+              authorization_slot_active: true,
+            },
+          ],
+          { session },
+        );
+        return { record, signature };
+      },
+    );
+    return reservation.signature;
+  }
+
+  /**
+   * Releases an expired EIP-712 reservation only after the signature is no
+   * longer executable plus a conservative chain-finality grace period, and a
+   * fail-closed chain read verifies whether its conversions were recorded. A
+   * fully recorded batch becomes approved. Absence or a partial batch remains
+   * reserved for manual review: without the contract source in this repository,
+   * absence is not strong enough evidence that no payout occurred.
+   */
+  async reconcileExpiredSignatureReservations(userId: string): Promise<void> {
+    if (!isValidObjectId(userId)) return;
+    const cutoff = new Date(Date.now() - SIGNATURE_RECONCILIATION_GRACE_MS);
+    const expired = await this.withdrawModel
+      .find({
+        user_id: new Types.ObjectId(userId),
+        method: SIGNATURE_RESERVATION_METHOD,
+        status: 'pending',
+        authorization_expires_at: { $lte: cutoff },
+      })
+      .lean();
+    if (expired.length === 0) return;
+
+    const chainIds = [
+      ...new Set(
+        expired
+          .map((record) => Number(record.chain))
+          .filter((chainId) => {
+            try {
+              resolveWithdrawChainConfig(chainId);
+              return true;
+            } catch {
+              return false;
+            }
+          }),
+      ),
+    ];
+    if (chainIds.length === 0 || chainIds.length > expired.length) {
+      throw new HttpException(
+        {
+          message:
+            'An expired withdrawal authorization requires manual chain review.',
+        },
+        503,
+      );
+    }
+    const chainState = new Map<number, Set<string>>();
+    await Promise.all(
+      chainIds.map(async (chainId) => {
+        chainState.set(
+          chainId,
+          new Set(
+            await this.getConversionIdsWithdrawedByUserId(
+              userId,
+              chainId,
+              true,
+            ),
+          ),
+        );
+      }),
+    );
+
+    let unresolvedOutcome = false;
+    await this.runSerializedWithdraw(userId, async (session) => {
+      for (const record of expired) {
+        const conversionIds = (record.conversion_id ?? [])
+          .map(canonicalUint256)
+          .filter((id): id is string => id !== null);
+        const recorded = chainState.get(Number(record.chain));
+        if (!recorded || conversionIds.length === 0) {
+          unresolvedOutcome = true;
+          continue;
+        }
+        const recordedCount = conversionIds.filter((conversionId) =>
+          recorded.has(conversionId),
+        ).length;
+        const filter = {
+          _id: record._id,
+          user_id: new Types.ObjectId(userId),
+          method: SIGNATURE_RESERVATION_METHOD,
+          status: 'pending',
+          authorization_slot_active: true,
+          authorization_expires_at: { $lte: cutoff },
+        };
+        if (recordedCount === conversionIds.length) {
+          unresolvedOutcome = true;
+          await this.withdrawModel.findOneAndUpdate(
+            filter,
+            {
+              $set: {
+                authorization_state: 'executed_unclaimed',
+                chain_record_confirmed_at: new Date(),
+                flagged: true,
+                flag_reason: 'signature_executed_unclaimed',
+              },
+            },
+            { session },
+          );
+        } else {
+          unresolvedOutcome = true;
+          await this.withdrawModel.findOneAndUpdate(
+            filter,
+            {
+              $set: {
+                authorization_state: 'expired_unverified',
+                flagged: true,
+                flag_reason:
+                  recordedCount === 0
+                    ? 'signature_expired_chain_unconfirmed'
+                    : 'signature_partial_chain_state',
+              },
+            },
+            { session },
+          );
+        }
+      }
+    });
+
+    if (unresolvedOutcome) {
+      throw new HttpException(
+        {
+          message:
+            'An expired withdrawal authorization requires manual chain review.',
+        },
+        503,
+      );
+    }
   }
 
   async getConversionIdsWithdrawedByUserId(
     userId: string,
     chainId: number,
+    failClosed = false,
   ): Promise<string[]> {
     try {
       const abi = [
@@ -167,40 +687,40 @@ export class WithdrawService {
           type: 'function',
         },
       ];
-      const rpc =
-        chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
-          ? process.env.RPC_URL_POLYGON
-          : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
-            ? process.env.RPC_URL_BNB
-            : chainId === Number(process.env.CHAIN_ID_WITHDRAW_CELO)
-              ? process.env.RPC_URL_CELO
-              : process.env.RPC_URL_SONIC;
-      const contractAddress =
-        chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
-          ? process.env.CONTRACT_WITHDRAW_ADDRESS_POLYGON!
-          : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
-            ? process.env.CONTRACT_WITHDRAW_ADDRESS_BNB!
-            : chainId === Number(process.env.CHAIN_ID_WITHDRAW_CELO)
-              ? process.env.CONTRACT_WITHDRAW_ADDRESS_CELO!
-              : process.env.CONTRACT_WITHDRAW_ADDRESS_SONIC!;
+      const chain = resolveWithdrawChainConfig(chainId);
 
       // console.log('Using contract address:', contractAddress);
       // console.log('Using contract address:', rpc);
 
-      const provider = new ethers.JsonRpcProvider(rpc);
+      const provider = new ethers.JsonRpcProvider(chain.rpc);
       // const provider = new ethers.JsonRpcProvider(process.env.RPC_URL_POLYGON);
-      const contract = new ethers.Contract(contractAddress!, abi, provider);
+      const contract = new ethers.Contract(chain.contract, abi, provider);
       const conversionIds = await contract.getConversionIdsByUserId(userId);
+      // Preserve uint256 precision and one runtime type. Number(id) both loses
+      // large ids and made the downstream string lookup fail open.
       const conversionIdsStringArray: string[] = conversionIds.map((id) =>
-        Number(id),
+        id.toString(),
       );
       return conversionIdsStringArray;
     } catch (error) {
-      console.log('Error getting conversion IDs by user ID:', error);
+      this.logger.error(
+        `Unable to read on-chain conversion ids for chain ${chainId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      if (failClosed) {
+        throw new HttpException(
+          {
+            message:
+              'Withdrawal authorization is temporarily unavailable while chain state is being verified.',
+          },
+          503,
+        );
+      }
       return [];
     }
   }
-  async checkWithdraw2(id: string) {
+  async checkWithdraw2(id: string, requireChainState = false) {
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
     });
@@ -226,24 +746,28 @@ export class WithdrawService {
       await this.getConversionIdsWithdrawedByUserId(
         user._id.toString(),
         Number(process.env.CHAIN_ID_WITHDRAW_POLYGON),
+        requireChainState,
       );
 
     const conversionIdsWithdrawedBNB =
       await this.getConversionIdsWithdrawedByUserId(
         user._id.toString(),
         Number(process.env.CHAIN_ID_WITHDRAW_BNB),
+        requireChainState,
       );
 
     const conversionIdsWithdrawedSonic =
       await this.getConversionIdsWithdrawedByUserId(
         user._id.toString(),
         Number(process.env.CHAIN_ID_WITHDRAW_SONIC),
+        requireChainState,
       );
 
     const conversionIdsWithdrawedCelo =
       await this.getConversionIdsWithdrawedByUserId(
         user._id.toString(),
         Number(process.env.CHAIN_ID_WITHDRAW_CELO),
+        requireChainState,
       );
     // console.log('conversionIdsWithdrawed:', conversionIdsWithdrawed);
     const conversionIdsWithdrawed = [
@@ -271,12 +795,13 @@ export class WithdrawService {
     //   conversions.data.nextPage = nextConversions.data.nextPage;
     // }
     const allConversions = await this.conversionModel
-      .find({
-        conversion_status: 'approved',
-      })
+      .find(buildApprovedUserConversionsFilter(user._id))
       .lean();
     const withdrawList = await this.withdrawModel
-      .find({ user_id: new Types.ObjectId(user._id) })
+      .find({
+        user_id: new Types.ObjectId(user._id),
+        status: { $in: ['pending', 'approved', 'paid'] },
+      })
       .lean();
 
     const withdrawnConversionIds = withdrawList.flatMap(
@@ -286,7 +811,6 @@ export class WithdrawService {
 
     const approvedList = allConversions.filter(
       (item) =>
-        item.aff_sub1?.includes(`user_id:${user._id.toString()}`) &&
         !withdrawnConversionIds.includes(item.conversion_id) &&
         !conversionIdsWithdrawed.includes(item.conversion_id?.toString()),
     );
@@ -419,21 +943,26 @@ export class WithdrawService {
       );
     }
 
-    const [allConversions, withdrawList] = await Promise.all([
-      this.conversionModel
-        .find(buildApprovedUserConversionsFilter(user._id))
-        .lean(),
-      this.withdrawModel
-        .find({
-          user_id: new Types.ObjectId(user._id),
-          mycashback_id: [],
-          // 'paid' MUST stay in the deduction set: once markWithdrawPaid flips a
-          // withdrawal to 'paid', dropping it here re-credits the balance and
-          // allows a second withdrawal of the same funds (double-withdraw).
-          status: { $in: ['pending', 'approved', 'paid'] },
-        })
-        .lean(),
-    ]);
+    const [allConversions, withdrawList, walletAdjustments] = await Promise.all(
+      [
+        this.conversionModel
+          .find(buildApprovedUserConversionsFilter(user._id))
+          .lean(),
+        this.withdrawModel
+          .find({
+            user_id: new Types.ObjectId(user._id),
+            mycashback_id: [],
+            // 'paid' MUST stay in the deduction set: once markWithdrawPaid flips a
+            // withdrawal to 'paid', dropping it here re-credits the balance and
+            // allows a second withdrawal of the same funds (double-withdraw).
+            status: { $in: ['pending', 'approved', 'paid'] },
+          })
+          .lean(),
+        this.walletAdjustmentModel
+          .find({ user_id: new Types.ObjectId(user._id) })
+          .lean(),
+      ],
+    );
 
     const payoutConversionGroupCurrency = allConversions.reduce(
       (acc, item) => {
@@ -578,12 +1107,47 @@ export class WithdrawService {
       0,
     );
 
+    // Administrative credits/debits are a real ledger, not display-only
+    // annotations. Convert each signed entry into both authoritative balance
+    // currencies so every withdrawal gate observes the same result.
+    const adjustmentAmounts = walletAdjustments.map((adjustment) => {
+      const amount = Number(adjustment.amount ?? 0);
+      const sign =
+        adjustment.type === 'credit' ? 1 : adjustment.type === 'debit' ? -1 : 0;
+      return {
+        amount: Number.isFinite(amount) && amount > 0 ? sign * amount : 0,
+        currency: String(adjustment.currency || 'USD').toUpperCase(),
+      };
+    });
+    const adjustmentInUSD = await Promise.all(
+      adjustmentAmounts.map(async ({ amount, currency }) => {
+        if (currency === 'USD' || currency === 'USDT' || currency === 'USDC') {
+          return amount;
+        }
+        return (await this.convertCurrencyUsd(currency, amount)).usdAmount || 0;
+      }),
+    );
+    const adjustmentInTHB = await Promise.all(
+      adjustmentAmounts.map(async ({ amount, currency }) => {
+        if (currency === 'THB') return amount;
+        return (await this.convertCurrencyThb(currency, amount)).amount || 0;
+      }),
+    );
+    const walletAdjustmentUSD = adjustmentInUSD.reduce(
+      (sum, amount) => sum + amount,
+      0,
+    );
+    const walletAdjustmentTHB = adjustmentInTHB.reduce(
+      (sum, amount) => sum + amount,
+      0,
+    );
+
     const totalPayoutUSD = isNaN(_totalPayoutUSD)
       ? 0
-      : _totalPayoutUSD - _sumWithdrawInUSD;
+      : _totalPayoutUSD - _sumWithdrawInUSD + walletAdjustmentUSD;
     const totalPayoutTHB = isNaN(_totalPayoutTHB)
       ? 0
-      : _totalPayoutTHB - _sumWithdrawInTHB;
+      : _totalPayoutTHB - _sumWithdrawInTHB + walletAdjustmentTHB;
 
     const MCBCashback = await this.checkWithdrawMyCashback(id, user);
 
@@ -634,6 +1198,8 @@ export class WithdrawService {
       // payoutTotalCutFeeTHB,
       totalPayoutTHB,
       totalPayoutUSD,
+      walletAdjustmentTHB,
+      walletAdjustmentUSD,
       netAmountTHB,
       netAmount,
       feeAmountTHB: fee.fee_withdraw_thb,
@@ -1621,6 +2187,7 @@ export class WithdrawService {
     userId: string,
     chainId: number,
     conversionIds: number[],
+    onBroadcast?: (transactionHash: string) => Promise<void>,
   ): Promise<string> {
     const abi = [
       {
@@ -1638,33 +2205,68 @@ export class WithdrawService {
         type: 'function',
       },
     ];
-    const rpc =
-      chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
-        ? process.env.RPC_URL_POLYGON
-        : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
-          ? process.env.RPC_URL_BNB
-          : process.env.RPC_URL_SONIC;
-    const contractAddress =
-      chainId === Number(process.env.CHAIN_ID_WITHDRAW_POLYGON)
-        ? process.env.CONTRACT_WITHDRAW_ADDRESS_POLYGON!
-        : chainId === Number(process.env.CHAIN_ID_WITHDRAW_BNB)
-          ? process.env.CONTRACT_WITHDRAW_ADDRESS_BNB!
-          : process.env.CONTRACT_WITHDRAW_ADDRESS_SONIC!;
+    const chain = resolveWithdrawChainConfig(chainId);
 
     // console.log('Using contract address:', contractAddress);
     // console.log('Using contract address:', rpc);
 
-    const provider = new ethers.JsonRpcProvider(rpc);
+    const provider = new ethers.JsonRpcProvider(chain.rpc);
     // const provider = new ethers.JsonRpcProvider(process.env.RPC_URL_POLYGON);
     const wallet = new ethers.Wallet(
       process.env.PRIVATE_KEY_WITHDRAW,
       provider,
     );
-    const contract = new ethers.Contract(contractAddress!, abi, wallet);
-    const receipt = await contract.recordConversionId(userId, conversionIds);
-    // console.log('receipt:', receipt);
+    const contract = new ethers.Contract(chain.contract, abi, wallet);
+    const submission = await contract.recordConversionId(userId, conversionIds);
+    const broadcastHash = requireCanonicalEvmTransactionHash(submission.hash);
+    await onBroadcast?.(broadcastHash);
+    return requireSuccessfulChainRecord(submission);
+  }
 
-    return receipt.hash;
+  async getChainRecordReceiptState(
+    chainId: number,
+    transactionHash: string,
+  ): Promise<'pending' | 'recorded' | 'rejected'> {
+    const chain = resolveWithdrawChainConfig(chainId);
+    const hash = requireCanonicalEvmTransactionHash(transactionHash);
+    let receipt: Awaited<
+      ReturnType<ethers.JsonRpcProvider['getTransactionReceipt']>
+    >;
+    try {
+      receipt = await new ethers.JsonRpcProvider(
+        chain.rpc,
+      ).getTransactionReceipt(hash);
+    } catch {
+      throw new HttpException(
+        {
+          message:
+            'The chain-record transaction is still being verified. Your balance remains reserved.',
+        },
+        503,
+      );
+    }
+    if (!receipt) return 'pending';
+    if (
+      requireCanonicalEvmTransactionHash(receipt.hash) !==
+      requireCanonicalEvmTransactionHash(hash)
+    ) {
+      throw new HttpException(
+        {
+          message:
+            'The chain-record receipt did not match the submitted transaction. Your balance remains reserved.',
+        },
+        503,
+      );
+    }
+    if (Number(receipt.status) === 1) return 'recorded';
+    if (Number(receipt.status) === 0) return 'rejected';
+    throw new HttpException(
+      {
+        message:
+          'The chain-record transaction returned an unknown receipt state. Your balance remains reserved.',
+      },
+      503,
+    );
   }
   /**
    * Server-side balance gate shared by the on-chain `create` and `bank-transfer`
@@ -1679,7 +2281,7 @@ export class WithdrawService {
     userId: string,
     amount: number | undefined,
     currency: string | undefined,
-  ): Promise<void> {
+  ) {
     const balance = await this.checkWithdraw(userId);
     const available =
       currency === 'THB'
@@ -1698,77 +2300,480 @@ export class WithdrawService {
         400,
       );
     }
+    return balance;
   }
 
-  async create(createWithdrawDto: CreateWithdrawDto, id: string) {
+  async create(
+    createWithdrawDto: CreateWithdrawDto,
+    id: string,
+    idempotencyKeyRaw?: string,
+  ) {
+    const chainId = Number(createWithdrawDto.chain);
+    const chain = resolveWithdrawChainConfig(chainId);
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
     });
     if (!user) {
       throw new UnauthorizedException({ message: 'User not found' });
     }
+    const amountNet = Number(createWithdrawDto.amount_net ?? 0);
+    const transactionHash = createWithdrawDto.tx_hash
+      ? requireCanonicalEvmTransactionHash(createWithdrawDto.tx_hash)
+      : '';
+    const suppliedIdempotencyKey = idempotencyKeyRaw?.trim();
+    // Legacy web3 callers already carry stable transaction evidence. Preserve
+    // that compatibility while requiring a durable command key for the newer
+    // reserve-before-chain path when no tx hash exists.
+    const idempotencyKey = suppliedIdempotencyKey
+      ? requireTrimmedString(
+          suppliedIdempotencyKey,
+          128,
+          'Idempotency-Key header',
+        )
+      : transactionHash
+        ? `tx:${transactionHash}`
+        : null;
+    if (!idempotencyKey) {
+      throw new BadRequestException(
+        'Idempotency-Key header is required for an on-chain withdrawal.',
+      );
+    }
+    if (!/^[A-Za-z0-9._:-]+$/.test(idempotencyKey)) {
+      throw new BadRequestException(
+        'The Idempotency-Key header you provided is not valid.',
+      );
+    }
+    const normalizedConversionIds = [
+      ...new Set(createWithdrawDto.conversion_ids ?? []),
+    ].sort((left, right) => left - right);
+    if (normalizedConversionIds.length === 0) {
+      throw new BadRequestException(
+        'At least one conversion id is required for an on-chain withdrawal.',
+      );
+    }
+    const method = requireTrimmedString(
+      createWithdrawDto.method || 'on_chain',
+      64,
+      'withdraw method',
+    ).toLowerCase();
+    if (method === 'bank_transfer' || method === 'minipay_manual') {
+      throw new BadRequestException(
+        'This withdrawal method is not valid for the on-chain endpoint.',
+      );
+    }
+    const idempotencyEffectHash = createHash('sha256')
+      .update(
+        JSON.stringify({
+          address: String(createWithdrawDto.address ?? '')
+            .trim()
+            .toLowerCase(),
+          amount_net: amountNet,
+          chain: chainId,
+          conversion_ids: normalizedConversionIds,
+          currency: String(createWithdrawDto.currency ?? '').toUpperCase(),
+          method,
+          tx_hash: transactionHash,
+        }),
+      )
+      .digest('hex');
+
     // P1-TX + #41: reserve balance in a per-user serialized transaction BEFORE
     // any on-chain call. Two concurrent on-chain withdraw requests contend on
     // withdraw_lock_seq; the loser retries and re-evaluates balance against the
     // now-committed pending record from the winner — closing the TOCTOU where
     // both pass assertWithinBalance then both call createRecordOnChain.
-    const dt = await this.runSerializedWithdraw(id, async (session) => {
-      await this.assertWithinBalance(
-        id,
-        createWithdrawDto.amount_net,
-        createWithdrawDto.currency,
-      );
-      const [record] = await this.withdrawModel.create(
-        [
-          {
+    const reservation = await this.runSerializedWithdraw(
+      id,
+      async (session) => {
+        const existingCommand = await this.withdrawModel
+          .findOne({
             user_id: new Types.ObjectId(user._id),
-            // V-2b: always 'pending'. The server no longer self-approves from a
-            // client-supplied tx_hash — an admin confirms on-chain settlement via
-            // approveWithdrawRequest. Balance is already reserved either way:
-            // checkWithdraw counts 'pending' against available, same as 'approved'.
-            status: 'pending',
-            address: createWithdrawDto.address || '',
-            account_name: createWithdrawDto.account_name || '',
-            bank_name: createWithdrawDto.bank_name || '',
-            account_number: createWithdrawDto.account_number || '',
-            tx_hash: createWithdrawDto.tx_hash || '',
-            tx_hash_record: '',
-            percent_fee: createWithdrawDto.percent_fee || 0,
-            amount_total: createWithdrawDto.amount_net || 0,
-            amount_net: createWithdrawDto.amount_net || 0,
-            method: createWithdrawDto.method || 'on_chain',
-            currency: createWithdrawDto.currency || '',
-            conversion_id: createWithdrawDto.conversion_ids || [],
-            rate: createWithdrawDto?.rate || 0,
-            mycashback_id: [],
-          },
-        ],
-        { session },
-      );
-      return record;
-    });
+            idempotency_key: idempotencyKey,
+          })
+          .session(session)
+          .exec();
+        if (existingCommand) {
+          if (
+            existingCommand.idempotency_effect_hash !== idempotencyEffectHash
+          ) {
+            throw new ConflictException(
+              'This Idempotency-Key is already bound to a different withdrawal.',
+            );
+          }
+          return {
+            record: existingCommand,
+            autoRecordId: undefined,
+            replayed: true,
+          };
+        }
 
-    try {
-      const hash_record = await this.createRecordOnChain(
-        user._id.toString(),
-        createWithdrawDto.chain,
-        createWithdrawDto.conversion_ids || [],
-      );
-      await this.withdrawModel.findByIdAndUpdate(dt._id, {
-        $set: { tx_hash_record: hash_record || '' },
-      });
-    } catch (error) {
-      this.logger.error(
-        `Withdrawal on-chain record failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-      await this.withdrawModel.findByIdAndUpdate(dt._id, {
-        $set: {
-          status: 'rejected',
-          flag_reason: 'on_chain_record_failed',
+        const activeAuthorization = await this.withdrawModel
+          .findOne({
+            user_id: new Types.ObjectId(user._id),
+            authorization_slot_active: true,
+            authorization_state: {
+              $in: ['issued', 'expired_unverified', 'executed_unclaimed'],
+            },
+            status: 'pending',
+          })
+          .session(session)
+          .exec();
+        if (activeAuthorization) {
+          if (!transactionHash) {
+            throw new ConflictException(
+              'A signed withdrawal must include its on-chain transaction hash.',
+            );
+          }
+          let submittedAmountAtomic: bigint;
+          try {
+            submittedAmountAtomic = ethers.parseUnits(
+              String(amountNet),
+              chain.decimal,
+            );
+          } catch {
+            throw new BadRequestException('Invalid withdrawal amount.');
+          }
+          const authorizationConversionIds = (
+            activeAuthorization.conversion_id ?? []
+          )
+            .map(canonicalUint256)
+            .filter((conversionId): conversionId is string =>
+              Boolean(conversionId),
+            )
+            .sort((left, right) => (BigInt(left) < BigInt(right) ? -1 : 1));
+          const submittedConversionIds = normalizedConversionIds.map(String);
+          const submittedAddress = createWithdrawDto.address
+            ? ethers.getAddress(createWithdrawDto.address)
+            : ethers.getAddress(activeAuthorization.address);
+          if (
+            activeAuthorization.authorization_chain_id !== chainId ||
+            String(activeAuthorization.authorization_contract).toLowerCase() !==
+              chain.contract.toLowerCase() ||
+            String(activeAuthorization.authorization_amount_atomic) !==
+              submittedAmountAtomic.toString() ||
+            ethers.getAddress(activeAuthorization.address) !==
+              submittedAddress ||
+            authorizationConversionIds.length !==
+              submittedConversionIds.length ||
+            authorizationConversionIds.some(
+              (conversionId, index) =>
+                conversionId !== submittedConversionIds[index],
+            )
+          ) {
+            throw new ConflictException(
+              'The submitted withdrawal does not match the active signed authorization.',
+            );
+          }
+          const reusedEvidence = await this.withdrawModel
+            .findOne({
+              _id: { $ne: activeAuthorization._id },
+              tx_hash: { $regex: `^${transactionHash}$`, $options: 'i' },
+            })
+            .session(session)
+            .exec();
+          if (reusedEvidence) {
+            throw new ConflictException(
+              'This tx_hash is already recorded on another withdrawal',
+            );
+          }
+          const alreadyRecorded =
+            activeAuthorization.authorization_state === 'executed_unclaimed';
+          const submittedCurrency = String(
+            createWithdrawDto.currency || 'USD',
+          ).toUpperCase();
+          if (!['USD', 'USDT', 'USDC'].includes(submittedCurrency)) {
+            throw new ConflictException(
+              'The submitted currency does not match the signed USD authorization.',
+            );
+          }
+          const promoted = await this.withdrawModel.findOneAndUpdate(
+            {
+              _id: activeAuthorization._id,
+              user_id: new Types.ObjectId(user._id),
+              authorization_slot_active: true,
+              authorization_state: activeAuthorization.authorization_state,
+              status: 'pending',
+            },
+            {
+              $set: {
+                address: submittedAddress,
+                amount_total: amountNet,
+                amount_net: amountNet,
+                method,
+                currency: submittedCurrency,
+                tx_hash: transactionHash,
+                idempotency_key: idempotencyKey,
+                idempotency_effect_hash: idempotencyEffectHash,
+                authorization_state: 'submitted',
+                authorization_slot_active: false,
+                chain_record_state: alreadyRecorded ? 'recorded' : 'reserved',
+                chain_record_chain_id: chainId,
+                chain_record_attempts: 0,
+                ...(alreadyRecorded
+                  ? { chain_record_confirmed_at: new Date() }
+                  : {}),
+              },
+              $unset: {
+                chain_record_lease_until: 1,
+                chain_record_lease_owner: 1,
+              },
+            },
+            { new: true, session },
+          );
+          if (!promoted) {
+            throw new ConflictException(
+              'The signed withdrawal changed before it could be submitted.',
+            );
+          }
+          const myCashback = await this.checkWithdrawMyCashback(id);
+          const autoFields = buildAutoMyCashbackWithdrawFields(
+            {
+              ...createWithdrawDto,
+              amount_total: amountNet,
+              method,
+              tx_hash: transactionHash,
+            },
+            new Types.ObjectId(user._id),
+            myCashback,
+            promoted._id,
+          );
+          const [autoRecord] = autoFields
+            ? await this.withdrawModel.create([autoFields], { session })
+            : [undefined];
+          return {
+            record: promoted,
+            autoRecordId: autoRecord?._id,
+            replayed: false,
+          };
+        }
+        const balance = await this.assertWithinBalance(
+          id,
+          amountNet,
+          createWithdrawDto.currency,
+        );
+        const eligibleConversionIds = new Set(
+          (balance.data ?? [])
+            .map((conversion) => canonicalUint256(conversion.conversion_id))
+            .filter((conversionId): conversionId is string =>
+              Boolean(conversionId),
+            ),
+        );
+        if (
+          normalizedConversionIds.some(
+            (conversionId) => !eligibleConversionIds.has(String(conversionId)),
+          )
+        ) {
+          throw new ConflictException(
+            'One or more conversions are not available to this account.',
+          );
+        }
+        const reservedConversions = await this.withdrawModel
+          .findOne({
+            user_id: new Types.ObjectId(user._id),
+            status: { $in: ['pending', 'approved', 'paid'] },
+            conversion_id: { $in: normalizedConversionIds },
+          })
+          .session(session)
+          .exec();
+        if (reservedConversions) {
+          throw new ConflictException(
+            'One or more conversions are already reserved by another withdrawal.',
+          );
+        }
+        if (transactionHash) {
+          const reusedEvidence = await this.withdrawModel
+            .findOne({
+              tx_hash: { $regex: `^${transactionHash}$`, $options: 'i' },
+            })
+            .session(session)
+            .exec();
+          if (reusedEvidence) {
+            throw new ConflictException(
+              'This tx_hash is already recorded on another withdrawal',
+            );
+          }
+        }
+        const [record] = await this.withdrawModel.create(
+          [
+            {
+              user_id: new Types.ObjectId(user._id),
+              // V-2b: always 'pending'. The server no longer self-approves from a
+              // client-supplied tx_hash — an admin confirms on-chain settlement via
+              // approveWithdrawRequest. Balance is already reserved either way:
+              // checkWithdraw counts 'pending' against available, same as 'approved'.
+              status: 'pending',
+              address: createWithdrawDto.address || '',
+              account_name: createWithdrawDto.account_name || '',
+              bank_name: createWithdrawDto.bank_name || '',
+              account_number: createWithdrawDto.account_number || '',
+              tx_hash: transactionHash,
+              tx_hash_record: '',
+              percent_fee: createWithdrawDto.percent_fee || 0,
+              amount_total: amountNet,
+              amount_net: amountNet,
+              method,
+              currency: createWithdrawDto.currency || '',
+              conversion_id: normalizedConversionIds,
+              rate: createWithdrawDto?.rate || 0,
+              mycashback_id: [],
+              idempotency_key: idempotencyKey,
+              idempotency_effect_hash: idempotencyEffectHash,
+              // `reserved` proves no external submission owner has claimed the
+              // command yet. Only this state may transition into a broadcast.
+              chain_record_state: 'reserved',
+              chain_record_chain_id: chainId,
+              chain_record_attempts: 0,
+            },
+          ],
+          { session },
+        );
+        const myCashback = await this.checkWithdrawMyCashback(id);
+        const autoFields = buildAutoMyCashbackWithdrawFields(
+          {
+            ...createWithdrawDto,
+            amount_total: amountNet,
+            method,
+            tx_hash: transactionHash,
+          },
+          new Types.ObjectId(user._id),
+          myCashback,
+          record._id,
+        );
+        const [autoRecord] = autoFields
+          ? await this.withdrawModel.create([autoFields], { session })
+          : [undefined];
+        return { record, autoRecordId: autoRecord?._id, replayed: false };
+      },
+    );
+    const dt = reservation.record;
+
+    const completedResponse = (record: WithdrawDocument, reused: boolean) => ({
+      message: 'Withdraw request created',
+      data: record,
+      status: 'success',
+      reused,
+    });
+    const processingResponse = (record: WithdrawDocument) => ({
+      message: 'Withdraw request is still processing',
+      data: record,
+      status: 'processing',
+      reused: true,
+    });
+    if (dt.status === 'rejected' || dt.chain_record_state === 'failed') {
+      throw new HttpException(
+        {
+          message:
+            'This withdrawal command previously failed. Start a new withdrawal to retry.',
         },
-      });
+        409,
+      );
+    }
+    if (dt.tx_hash_record || dt.chain_record_state === 'recorded') {
+      return completedResponse(dt, reservation.replayed);
+    }
+
+    const markChainRecordConfirmed = async (
+      record: WithdrawDocument,
+      confirmedHash?: string,
+    ) =>
+      this.withdrawModel.findOneAndUpdate(
+        {
+          _id: record._id,
+          status: 'pending',
+          idempotency_key: idempotencyKey,
+          chain_record_state: { $ne: 'failed' },
+        },
+        {
+          $set: {
+            ...(confirmedHash ? { tx_hash_record: confirmedHash } : {}),
+            chain_record_state: 'recorded',
+            chain_record_confirmed_at: new Date(),
+          },
+          $unset: {
+            chain_record_lease_until: 1,
+            chain_record_lease_owner: 1,
+          },
+        },
+        { new: true },
+      );
+
+    const throwDefinitiveChainFailure = async (
+      record: WithdrawDocument,
+    ): Promise<never> => {
+      if (String(record.tx_hash ?? '').trim()) {
+        await this.withdrawModel.findOneAndUpdate(
+          {
+            _id: record._id,
+            status: 'pending',
+            tx_hash: String(record.tx_hash),
+            chain_record_state: { $in: ['processing', 'broadcast'] },
+          },
+          {
+            $set: {
+              chain_record_state: 'failed',
+              flagged: true,
+              flag_reason: 'chain_record_failed_after_external_submission',
+            },
+            $unset: {
+              chain_record_lease_until: 1,
+              chain_record_lease_owner: 1,
+            },
+          },
+          { new: true },
+        );
+        throw new HttpException(
+          {
+            message:
+              'The payout evidence is preserved, but its chain record failed. The balance remains reserved for manual review.',
+          },
+          502,
+        );
+      }
+      const rollbackSession = await this.connection.startSession();
+      let rolledBack = false;
+      try {
+        await rollbackSession.withTransaction(async () => {
+          const primary = await this.withdrawModel.findOneAndUpdate(
+            {
+              _id: record._id,
+              status: 'pending',
+              tx_hash_record: { $in: ['', null] },
+              chain_record_state: { $in: ['processing', 'broadcast'] },
+            },
+            {
+              $set: {
+                status: 'rejected',
+                chain_record_state: 'failed',
+                flag_reason: 'on_chain_record_failed',
+              },
+              $unset: {
+                chain_record_lease_until: 1,
+                chain_record_lease_owner: 1,
+              },
+            },
+            { new: true, session: rollbackSession },
+          );
+          if (!primary) return;
+          await this.withdrawModel.updateMany(
+            { parent_withdraw_id: record._id, status: 'pending' },
+            {
+              $set: {
+                status: 'rejected',
+                flag_reason: 'on_chain_record_failed',
+              },
+            },
+            { session: rollbackSession },
+          );
+          rolledBack = true;
+        });
+      } finally {
+        await rollbackSession.endSession();
+      }
+      if (!rolledBack) {
+        throw new ConflictException(
+          'The withdrawal outcome changed while chain recording failed. It has been left reserved for manual review.',
+        );
+      }
       throw new HttpException(
         {
           message:
@@ -1776,18 +2781,220 @@ export class WithdrawService {
         },
         502,
       );
+    };
+
+    let workRecord = dt;
+    let leaseOwner: string | null = null;
+    if (reservation.replayed && dt.chain_record_state !== 'reserved') {
+      const now = new Date();
+      const leaseUntil = dt.chain_record_lease_until
+        ? new Date(dt.chain_record_lease_until)
+        : null;
+      if (
+        dt.chain_record_state === 'processing' &&
+        leaseUntil &&
+        leaseUntil > now
+      ) {
+        return processingResponse(dt);
+      }
+
+      if (dt.chain_record_broadcast_hash) {
+        const receiptState = await this.getChainRecordReceiptState(
+          chainId,
+          dt.chain_record_broadcast_hash,
+        );
+        if (receiptState === 'rejected') {
+          return throwDefinitiveChainFailure(dt);
+        }
+        if (receiptState === 'recorded') {
+          const reconciled = await markChainRecordConfirmed(
+            dt,
+            dt.chain_record_broadcast_hash,
+          );
+          if (reconciled) return completedResponse(reconciled, true);
+        }
+      }
+
+      // Positive contract state can recover a process that died immediately
+      // after broadcast. Negative state is UNKNOWN: lease expiry is never
+      // permission to send a second blockchain transaction.
+      const onChainIds = new Set(
+        await this.getConversionIdsWithdrawedByUserId(id, chainId, true),
+      );
+      if (
+        normalizedConversionIds.every((conversionId) =>
+          onChainIds.has(String(conversionId)),
+        )
+      ) {
+        const reconciled = await markChainRecordConfirmed(
+          dt,
+          dt.chain_record_broadcast_hash,
+        );
+        if (reconciled) return completedResponse(reconciled, true);
+      }
+
+      const pending = await this.withdrawModel.findOneAndUpdate(
+        {
+          _id: dt._id,
+          status: 'pending',
+          idempotency_key: idempotencyKey,
+          chain_record_state: { $in: ['processing', 'broadcast'] },
+        },
+        {
+          $set: {
+            flagged: true,
+            flag_reason: dt.chain_record_broadcast_hash
+              ? 'chain_record_receipt_pending'
+              : 'chain_record_broadcast_unknown',
+            chain_record_lease_until: new Date(
+              Date.now() + CHAIN_RECORD_LEASE_MS,
+            ),
+          },
+        },
+        { new: true },
+      );
+      return processingResponse(pending ?? dt);
     }
 
-    const MCBCashback = await this.checkWithdrawMyCashback(id);
-    const autoMyCashbackWithdraw = buildAutoMyCashbackWithdrawFields(
-      createWithdrawDto,
-      new Types.ObjectId(user._id),
-      MCBCashback,
+    // Only a never-claimed `reserved` command may acquire a submission owner.
+    // A stale `processing` lease is deliberately not reclaimable.
+    leaseOwner = randomUUID();
+    const claimed = await this.withdrawModel.findOneAndUpdate(
+      {
+        _id: dt._id,
+        status: 'pending',
+        idempotency_key: idempotencyKey,
+        chain_record_state: 'reserved',
+      },
+      {
+        $set: {
+          chain_record_state: 'processing',
+          chain_record_chain_id: chainId,
+          chain_record_lease_owner: leaseOwner,
+          chain_record_lease_until: new Date(
+            Date.now() + CHAIN_RECORD_LEASE_MS,
+          ),
+        },
+        $inc: { chain_record_attempts: 1 },
+      },
+      { new: true },
     );
-    if (autoMyCashbackWithdraw) {
-      await this.withdrawModel.create(autoMyCashbackWithdraw);
+    if (!claimed) {
+      const current = await this.withdrawModel.findById(dt._id);
+      if (
+        current?.tx_hash_record ||
+        current?.chain_record_state === 'recorded'
+      ) {
+        return completedResponse(current, true);
+      }
+      if (
+        current?.status === 'rejected' ||
+        current?.chain_record_state === 'failed'
+      ) {
+        throw new ConflictException(
+          'This withdrawal command previously failed.',
+        );
+      }
+      return processingResponse(current ?? dt);
     }
-    return { message: 'Withdraw request created', data: dt, status: 'success' };
+    workRecord = claimed;
+
+    let hashRecord: string;
+    try {
+      hashRecord = await this.createRecordOnChain(
+        user._id.toString(),
+        chainId,
+        normalizedConversionIds,
+        async (broadcastHash) => {
+          const broadcast = await this.withdrawModel.findOneAndUpdate(
+            {
+              _id: workRecord._id,
+              status: 'pending',
+              chain_record_state: 'processing',
+              chain_record_lease_owner: leaseOwner,
+            },
+            {
+              $set: {
+                chain_record_state: 'broadcast',
+                chain_record_chain_id: chainId,
+                chain_record_broadcast_hash: broadcastHash,
+                chain_record_broadcast_at: new Date(),
+              },
+              $unset: {
+                chain_record_lease_until: 1,
+                chain_record_lease_owner: 1,
+              },
+            },
+            { new: true },
+          );
+          if (!broadcast) {
+            const current = await this.withdrawModel.findById(workRecord._id);
+            if (current?.chain_record_state === 'recorded') return;
+            if (
+              current?.status === 'rejected' ||
+              current?.chain_record_state === 'failed'
+            ) {
+              throw new ChainRecordRejectedError(
+                'The chain-record transaction was rejected during reconciliation.',
+              );
+            }
+            throw new ConflictException(
+              'The chain transaction was submitted, but its evidence could not be attached. The balance remains reserved for reconciliation.',
+            );
+          }
+          workRecord = broadcast;
+        },
+      );
+    } catch (error) {
+      this.logger.error(
+        `Withdrawal on-chain record failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      if (!(error instanceof ChainRecordRejectedError)) {
+        throw new HttpException(
+          {
+            message:
+              'The chain-record outcome is still being verified. Your balance remains reserved; retry this same request shortly.',
+          },
+          503,
+        );
+      }
+      return throwDefinitiveChainFailure(workRecord);
+    }
+    const evidenced = await this.withdrawModel.findOneAndUpdate(
+      {
+        _id: workRecord._id,
+        status: 'pending',
+        tx_hash_record: { $in: ['', null] },
+        chain_record_state: { $in: ['processing', 'broadcast'] },
+      },
+      {
+        $set: {
+          tx_hash_record: hashRecord,
+          chain_record_state: 'recorded',
+          chain_record_confirmed_at: new Date(),
+        },
+        $unset: {
+          chain_record_lease_until: 1,
+          chain_record_lease_owner: 1,
+        },
+      },
+      { new: true },
+    );
+    if (!evidenced) {
+      const current = await this.withdrawModel.findById(workRecord._id);
+      if (
+        current?.tx_hash_record ||
+        current?.chain_record_state === 'recorded'
+      ) {
+        return completedResponse(current, true);
+      }
+      throw new ConflictException(
+        'The withdrawal changed before chain evidence could be attached. It requires manual review.',
+      );
+    }
+    return completedResponse(evidenced, reservation.replayed);
   }
 
   /**
@@ -1817,43 +3024,56 @@ export class WithdrawService {
         400,
       );
     }
-
-    // Hard balance gate: USDT and USDC are both $1-pegged, so compare the
-    // request to the user's available USD payout. `checkWithdraw` already
-    // reconciles against pending+approved withdrawals so we don't
-    // double-count outstanding requests.
-    const balance = await this.checkWithdraw(userId);
-    const availableUsd = Number(balance?.netAmount ?? 0);
-    if (!Number.isFinite(availableUsd) || dto.amount > availableUsd + 1e-6) {
-      throw new HttpException(
-        {
-          message: `Requested amount exceeds available balance (${availableUsd.toFixed(2)} USD)`,
-        },
-        400,
-      );
-    }
+    await this.reconcileExpiredSignatureReservations(userId);
 
     try {
-      const record = await this.withdrawModel.create({
-        user_id: user._id,
-        status: 'pending',
-        address: dto.address,
-        account_name: user.username || '',
-        bank_name: '',
-        account_number: '',
-        tx_hash: '',
-        tx_hash_record: '',
-        percent_fee: 0,
-        amount_total: dto.amount,
-        amount_net: dto.amount,
-        method: 'minipay_manual',
-        currency: dto.currency,
-        chain: 'CELO',
-        conversion_id: [],
-        mycashback_id: [],
-        rate: 0,
-        withdraw_mode: 'manual',
-      });
+      const record = await this.runSerializedWithdraw(
+        userId,
+        async (session) => {
+          // USDT/USDC are $1-pegged. This read occurs only after acquiring the
+          // shared user lock, so every withdrawal mode sees prior reservations.
+          const balance = await this.checkWithdraw(userId);
+          const availableUsd = Number(balance?.netAmount ?? 0);
+          if (
+            !Number.isFinite(availableUsd) ||
+            dto.amount > availableUsd + 1e-6
+          ) {
+            throw new HttpException(
+              {
+                message: `Requested amount exceeds available balance (${availableUsd.toFixed(2)} USD)`,
+              },
+              400,
+            );
+          }
+
+          const [created] = await this.withdrawModel.create(
+            [
+              {
+                user_id: user._id,
+                status: 'pending',
+                address: dto.address,
+                account_name: user.username || '',
+                bank_name: '',
+                account_number: '',
+                tx_hash: '',
+                tx_hash_record: '',
+                percent_fee: 0,
+                amount_total: dto.amount,
+                amount_net: dto.amount,
+                method: 'minipay_manual',
+                currency: dto.currency,
+                chain: 'CELO',
+                conversion_id: [],
+                mycashback_id: [],
+                rate: 0,
+                withdraw_mode: 'manual',
+              },
+            ],
+            { session },
+          );
+          return created;
+        },
+      );
       return { success: true, data: record };
     } catch (err: unknown) {
       // Duplicate-key error from the partial unique index on
@@ -1877,6 +3097,134 @@ export class WithdrawService {
     }
   }
 
+  /** Read-only payout receipt validation; this never broadcasts a transaction. */
+  async requireSuccessfulPayoutReceipt(
+    chainId: number,
+    transactionHash: string,
+    expectedTarget?: string,
+  ) {
+    const chain = resolveWithdrawChainConfig(chainId);
+    return requireSuccessfulExactChainReceipt({
+      expectedChainId: chain.chainId,
+      expectedTarget,
+      provider: new ethers.JsonRpcProvider(chain.rpc),
+      transactionHash,
+    });
+  }
+
+  /**
+   * The repository owns the withdrawal-contract address, expected recipient,
+   * and expected amount, but it does not contain the deployed payout function
+   * ABI or settlement event semantics. We can therefore prove a successful
+   * call reached the exact configured contract, but cannot prove that call paid
+   * this record rather than invoking another successful function (including
+   * recordConversionId). Keep the reservation until those semantics exist.
+   */
+  async assertAutoPayoutEvidence(record: WithdrawDocument): Promise<void> {
+    const transactionHash = String(record.tx_hash ?? '').trim();
+    if (!transactionHash) {
+      throw new ConflictException(
+        'A customer payout transaction hash is required. The server recordConversionId receipt is not payout settlement evidence.',
+      );
+    }
+    if (
+      !record.address ||
+      !ethers.isAddress(record.address) ||
+      !Number.isFinite(Number(record.amount_net)) ||
+      Number(record.amount_net) <= 0
+    ) {
+      throw new HttpException(
+        {
+          message:
+            'The expected payout recipient or amount is incomplete. The balance remains reserved for manual review.',
+        },
+        503,
+      );
+    }
+
+    const chainId = Number(
+      record.authorization_chain_id ??
+        record.chain_record_chain_id ??
+        record.chain,
+    );
+    let chain;
+    try {
+      chain = resolveWithdrawChainConfig(chainId);
+    } catch {
+      throw new HttpException(
+        {
+          message:
+            'The payout chain configuration cannot be verified. The balance remains reserved for manual review.',
+        },
+        503,
+      );
+    }
+    const expectedContract = String(
+      record.authorization_contract || chain.contract,
+    ).trim();
+    if (
+      !ethers.isAddress(expectedContract) ||
+      ethers.getAddress(expectedContract) !== ethers.getAddress(chain.contract)
+    ) {
+      throw new HttpException(
+        {
+          message:
+            'The stored payout contract does not match the configured withdrawal contract. The balance remains reserved for manual review.',
+        },
+        503,
+      );
+    }
+
+    await this.requireSuccessfulPayoutReceipt(
+      chain.chainId,
+      transactionHash,
+      expectedContract,
+    );
+    throw new HttpException(
+      {
+        message:
+          'The payout receipt is successful and targets the configured contract, but this service cannot safely bind it to the expected recipient and amount because the deployed payout ABI or settlement event contract is not present in this repository. The balance remains reserved for manual review.',
+      },
+      503,
+    );
+  }
+
+  /**
+   * MiniPay payouts are external USDT/USDC transfers. The repository has the
+   * expected Celo recipient and amount but no authoritative stablecoin contract
+   * addresses or sender identity, so a successful receipt alone is ambiguous.
+   */
+  async assertManualPayoutEvidence(
+    record: WithdrawDocument,
+    transactionHash: string,
+  ): Promise<void> {
+    if (
+      String(record.chain ?? '').toUpperCase() !== 'CELO' ||
+      !['USDT', 'USDC'].includes(String(record.currency ?? '').toUpperCase()) ||
+      !record.address ||
+      !ethers.isAddress(record.address) ||
+      !Number.isFinite(Number(record.amount_net)) ||
+      Number(record.amount_net) <= 0
+    ) {
+      throw new HttpException(
+        {
+          message:
+            'The expected Celo stablecoin payout details are incomplete. The balance remains reserved for manual review.',
+        },
+        503,
+      );
+    }
+    const celoChainId = Number(process.env.CHAIN_ID_WITHDRAW_CELO);
+    await this.requireSuccessfulPayoutReceipt(celoChainId, transactionHash);
+    throw new HttpException(
+      {
+        message:
+          'The Celo receipt is successful, but this service cannot safely bind it to the expected stablecoin contract, recipient, and amount because authoritative USDT/USDC contract configuration is not present in this repository. The withdrawal remains pending for manual review.',
+      },
+      503,
+    );
+  }
+
   /**
    * Admin action: record that the MiniPay manual payout has been sent on-chain.
    * Idempotent — if the record is already paid, returns it unchanged rather
@@ -1885,48 +3233,97 @@ export class WithdrawService {
   async markWithdrawPaid(
     withdrawId: string,
     dto: MarkWithdrawPaidDto,
-    adminId: string,
+    actor: AdminActor,
   ) {
     if (!Types.ObjectId.isValid(withdrawId)) {
       throw new HttpException({ message: 'Invalid withdraw id' }, 400);
     }
-    const existing = await this.withdrawModel.findById(withdrawId);
-    if (!existing) {
+    const withdrawObjectId = new Types.ObjectId(withdrawId);
+    const canonicalTxHash = requireCanonicalEvmTransactionHash(dto.tx_hash);
+    const before = await this.withdrawModel.findById(withdrawObjectId);
+    if (!before) {
       throw new HttpException({ message: 'Withdraw not found' }, 404);
     }
-    if (existing.withdraw_mode !== 'manual') {
+    if (before.withdraw_mode !== 'manual') {
       throw new HttpException(
         { message: 'Only manual withdrawals can be marked paid' },
         400,
       );
     }
-    // Idempotent on already-paid; hard block on any other terminal state so a
-    // rejected/approved row cannot be silently flipped back to paid.
-    if (existing.status === 'paid') {
-      return { success: true, data: existing };
+    if (
+      before.status === 'paid' &&
+      String(before.tx_hash ?? '').toLowerCase() === canonicalTxHash
+    ) {
+      return { success: true, data: before };
     }
-    if (existing.status !== 'pending') {
+    if (before.status !== 'pending') {
       throw new HttpException(
         {
-          message: `This withdrawal can only be marked paid while it is pending (it is currently ${existing.status}).`,
+          message:
+            before.status === 'paid'
+              ? 'This withdrawal was already paid with different payout evidence.'
+              : `This withdrawal can only be marked paid while it is pending (it is currently ${before.status}).`,
         },
         409,
       );
     }
+    await this.assertManualPayoutEvidence(before, canonicalTxHash);
+
+    let updated: WithdrawDocument | null;
     try {
-      const updated = await this.withdrawModel.findByIdAndUpdate(
-        withdrawId,
-        {
-          $set: {
-            status: 'paid',
-            tx_hash: dto.tx_hash,
-            paid_by: adminId,
-            paid_at: new Date(),
-          },
+      updated = await this.runSerializedWithdraw(
+        String(before.user_id),
+        async (session) => {
+          const reusedEvidence = await this.withdrawModel
+            .findOne({
+              _id: { $ne: withdrawObjectId },
+              tx_hash: { $regex: `^${canonicalTxHash}$`, $options: 'i' },
+            })
+            .session(session)
+            .exec();
+          if (reusedEvidence) {
+            throw new ConflictException(
+              'This tx_hash is already recorded on another withdrawal',
+            );
+          }
+          const paid = await this.withdrawModel.findOneAndUpdate(
+            {
+              _id: withdrawObjectId,
+              user_id: before.user_id,
+              status: 'pending',
+              withdraw_mode: 'manual',
+            },
+            {
+              $set: {
+                status: 'paid',
+                tx_hash: canonicalTxHash,
+                paid_by: actor.id,
+                paid_at: new Date(),
+              },
+            },
+            { new: true, session },
+          );
+          if (!paid) return null;
+          await this.adminActivity.appendRequired(
+            {
+              actor_type: 'admin',
+              actor_id: actor.id,
+              actor_label: actor.label,
+              action: 'withdraw.marked_paid',
+              entity_type: 'withdraw',
+              entity_id: withdrawId,
+              summary: 'Marked manual withdrawal paid',
+              metadata: {
+                tx_hash: canonicalTxHash,
+                amount_net: paid.amount_net,
+                currency: paid.currency,
+              },
+            },
+            session,
+          );
+          return paid;
         },
-        { new: true },
       );
-      return { success: true, data: updated };
     } catch (err: unknown) {
       if (
         err &&
@@ -1941,6 +3338,32 @@ export class WithdrawService {
       }
       throw err;
     }
+
+    if (updated) {
+      return { success: true, data: updated };
+    }
+
+    // The CAS did not win. Re-read only to classify the authoritative state;
+    // never issue a second mutation from this branch.
+    const existing = await this.withdrawModel.findById(withdrawObjectId);
+    if (!existing) {
+      throw new HttpException({ message: 'Withdraw not found' }, 404);
+    }
+    if (
+      existing.status === 'paid' &&
+      String(existing.tx_hash ?? '').toLowerCase() === canonicalTxHash
+    ) {
+      return { success: true, data: existing };
+    }
+    throw new HttpException(
+      {
+        message:
+          existing.status === 'paid'
+            ? 'This withdrawal was already paid with different payout evidence.'
+            : `This withdrawal can only be marked paid while it is pending (it is currently ${existing.status}).`,
+      },
+      409,
+    );
   }
 
   /**
@@ -1949,37 +3372,122 @@ export class WithdrawService {
    * 'approved' self-promotion. Idempotent on already-approved; refuses any other
    * terminal state so a paid/rejected row cannot be flipped back to approved.
    */
-  async approveWithdrawRequest(withdrawId: string, adminId: string) {
+  async approveWithdrawRequest(withdrawId: string, actor: AdminActor) {
     if (!isValidObjectId(withdrawId)) {
       throw new HttpException({ message: 'Invalid withdraw id' }, 400);
     }
-    const existing = await this.withdrawModel.findById(withdrawId);
-    if (!existing) {
+    const withdrawObjectId = new Types.ObjectId(withdrawId);
+    const before = await this.withdrawModel.findById(withdrawObjectId);
+    if (!before) {
       throw new HttpException({ message: 'Withdraw not found' }, 404);
     }
-    if (existing.status === 'approved') {
-      return { success: true, data: existing };
+    if (before.withdraw_mode === 'manual') {
+      throw new HttpException(
+        { message: 'Manual withdrawals must be completed with mark-paid.' },
+        409,
+      );
     }
-    if (existing.status !== 'pending') {
+    if (before.method === 'bank_transfer') {
       throw new HttpException(
         {
-          message: `Only pending withdrawals can be approved (current: ${existing.status})`,
+          message:
+            'Bank transfers must be approved through the evidence-verified admin workflow.',
         },
         409,
       );
     }
-    const updated = await this.withdrawModel.findByIdAndUpdate(
-      withdrawId,
-      {
-        $set: {
-          status: 'approved',
-          approved_by: adminId,
-          approved_at: new Date(),
+    if (before.status === 'approved') {
+      await this.withdrawModel.updateMany(
+        { parent_withdraw_id: withdrawObjectId, status: 'pending' },
+        { $set: { status: 'approved' } },
+      );
+      return { success: true, data: before };
+    }
+    if (before.status !== 'pending') {
+      throw new HttpException(
+        {
+          message: `Only pending withdrawals can be approved (current: ${before.status})`,
         },
+        409,
+      );
+    }
+    await this.assertAutoPayoutEvidence(before);
+    const payoutTxHash = requireCanonicalEvmTransactionHash(before.tx_hash);
+    const approval = await this.runSerializedWithdraw(
+      String(before.user_id),
+      async (session) => {
+        const primary = await this.withdrawModel.findOneAndUpdate(
+          {
+            _id: withdrawObjectId,
+            user_id: before.user_id,
+            status: 'pending',
+            withdraw_mode: { $ne: 'manual' },
+            tx_hash: payoutTxHash,
+          },
+          {
+            $set: {
+              status: 'approved',
+              approved_by: actor.id,
+              approved_at: new Date(),
+            },
+          },
+          { new: true, session },
+        );
+        if (!primary) return { companionCount: 0, primary: null };
+        const companions = await this.withdrawModel.updateMany(
+          { parent_withdraw_id: withdrawObjectId, status: 'pending' },
+          { $set: { status: 'approved' } },
+          { session },
+        );
+        const companionCount = Number(companions.modifiedCount ?? 0);
+        await this.adminActivity.appendRequired(
+          {
+            actor_type: 'admin',
+            actor_id: actor.id,
+            actor_label: actor.label,
+            action: 'withdraw.approved',
+            entity_type: 'withdraw',
+            entity_id: withdrawId,
+            summary: 'Approved withdrawal payout',
+            metadata: {
+              amount_net: primary.amount_net,
+              currency: primary.currency,
+              method: primary.method,
+              companion_status_changes: companionCount,
+            },
+          },
+          session,
+        );
+        return {
+          companionCount,
+          primary,
+        };
       },
-      { new: true },
     );
-    return { success: true, data: updated };
+    const updated = approval.primary;
+    if (updated) {
+      return { success: true, data: updated };
+    }
+
+    const existing = await this.withdrawModel.findById(withdrawObjectId);
+    if (!existing) {
+      throw new HttpException({ message: 'Withdraw not found' }, 404);
+    }
+    if (existing.withdraw_mode === 'manual') {
+      throw new HttpException(
+        { message: 'Manual withdrawals must be completed with mark-paid.' },
+        409,
+      );
+    }
+    if (existing.status === 'approved') {
+      return { success: true, data: existing };
+    }
+    throw new HttpException(
+      {
+        message: `Only pending withdrawals can be approved (current: ${existing.status})`,
+      },
+      409,
+    );
   }
 
   /**
@@ -1993,21 +3501,33 @@ export class WithdrawService {
    */
   private async runSerializedWithdraw<T>(
     userId: string,
-    work: (session: ClientSession) => Promise<T>,
+    work: (session: ClientSession, lockedUser: User) => Promise<T>,
   ): Promise<T> {
     const session = await this.connection.startSession();
     try {
       let result: T | undefined;
       await session.withTransaction(async () => {
-        result = await work(session);
+        const userObjectId = new Types.ObjectId(userId);
         const user = await this.userModel.findOneAndUpdate(
-          { _id: new Types.ObjectId(userId) },
+          { _id: userObjectId, wallet_frozen: { $ne: true } },
           { $inc: { withdraw_lock_seq: 1 } },
           { session },
         );
         if (!user) {
+          const existing = await this.userModel.findOne(
+            { _id: userObjectId },
+            { _id: 1, wallet_frozen: 1 },
+            { session },
+          );
+          if (existing) {
+            throw new ForbiddenException({
+              message:
+                'Your wallet is frozen. Contact support before withdrawing.',
+            });
+          }
           throw new UnauthorizedException({ message: 'User not found' });
         }
+        result = await work(session, user);
       });
       return result as T;
     } finally {
@@ -2015,7 +3535,11 @@ export class WithdrawService {
     }
   }
 
-  async createBankTransfer(createWithdrawDto: CreateWithdrawDto, id: string) {
+  async createBankTransfer(
+    createWithdrawDto: CreateWithdrawDto,
+    id: string,
+    idempotencyKeyRaw?: string,
+  ) {
     // console.log(createWithdrawDto);
     const user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
@@ -2038,73 +3562,301 @@ export class WithdrawService {
     //     ...chek,
     //   })
     //   .lean();
-    const fee = await this.feeRateModel.findOne().exec();
-    if (!fee) {
-      this.logger.error('Withdrawal blocked: no FeeRate document configured.');
-      throw new HttpException(
-        {
-          message:
-            'Withdrawals are temporarily unavailable. Please try again later or contact support.',
-        },
-        400,
+    // New clients persist a command key. Older installed clients are reconciled
+    // by effect inside the same per-user serialized transaction for a bounded
+    // retry window, so a lost response does not create a second payout.
+    const suppliedIdempotencyKey = idempotencyKeyRaw?.trim()
+      ? requireTrimmedString(idempotencyKeyRaw, 128, 'Idempotency-Key header')
+      : null;
+    const idempotencyKey = suppliedIdempotencyKey ?? `legacy:${randomUUID()}`;
+    if (!/^[A-Za-z0-9._:-]+$/.test(idempotencyKey)) {
+      throw new BadRequestException(
+        'The Idempotency-Key header you provided is not valid.',
       );
     }
-    const feeRateMinimum =
-      createWithdrawDto.currency === 'THB'
-        ? fee.minimum_withdraw_thb
-        : fee.minimum_withdraw_usd;
-    if (createWithdrawDto.amount_net < feeRateMinimum) {
-      throw new HttpException(
-        {
-          message: `Minimum withdrawal amount for bank transfer is ${feeRateMinimum}.`,
-        },
-        400,
-      );
-    }
-    // V-2 + P1-TX: gate the balance AND persist the record inside a per-user
-    // serialized transaction, so two concurrent bank-transfer requests can't
-    // both pass the balance check and double-withdraw.
-    const dt = await this.runSerializedWithdraw(id, async (session) => {
-      await this.assertWithinBalance(
-        id,
-        createWithdrawDto.amount_net,
-        createWithdrawDto.currency,
-      );
+    const currency = requireOneOf(
+      String(createWithdrawDto.currency || 'THB')
+        .trim()
+        .toUpperCase(),
+      ['THB', 'USD'] as const,
+      'withdraw currency',
+    );
+    const amountNet = Number(createWithdrawDto.amount_net ?? 0);
+    const accountName = requireTrimmedString(
+      createWithdrawDto.account_name,
+      160,
+      'account name',
+    );
+    const accountNumber = requireTrimmedString(
+      createWithdrawDto.account_number,
+      64,
+      'account number',
+    );
+    const bankName = requireTrimmedString(
+      createWithdrawDto.bank_name,
+      160,
+      'bank name',
+    );
+    const couponCodeRaw = createWithdrawDto.coupon_code?.trim();
+    const couponCode = couponCodeRaw
+      ? normalizeWithdrawFeeCouponCode(couponCodeRaw)
+      : null;
+    const idempotencyEffectHash = createHash('sha256')
+      .update(
+        JSON.stringify({
+          account_name: accountName,
+          account_number: accountNumber,
+          amount_net: amountNet,
+          bank_name: bankName,
+          coupon_code: couponCode,
+          currency,
+        }),
+      )
+      .digest('hex');
+    await this.reconcileExpiredSignatureReservations(id);
+
+    // V-2 + P1-TX: balance gate, coupon eligibility, inventory, and writes all
+    // run inside the per-user serialized transaction so concurrent redeems cannot
+    // bypass usage_per_user / quantity checks with a stale pre-txn count.
+    const command = await this.runSerializedWithdraw(id, async (session) => {
+      const existingCommand = await this.withdrawModel
+        .findOne(
+          suppliedIdempotencyKey
+            ? {
+                user_id: new Types.ObjectId(user._id),
+                idempotency_key: suppliedIdempotencyKey,
+              }
+            : {
+                user_id: new Types.ObjectId(user._id),
+                idempotency_key: /^legacy:/,
+                idempotency_effect_hash: idempotencyEffectHash,
+                status: { $ne: 'rejected' },
+                createdAt: {
+                  $gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+                },
+              },
+        )
+        .session(session)
+        .exec();
+      if (existingCommand) {
+        if (existingCommand.idempotency_effect_hash !== idempotencyEffectHash) {
+          throw new ConflictException(
+            'This Idempotency-Key is already bound to a different withdrawal.',
+          );
+        }
+        return { record: existingCommand, replayed: true };
+      }
+
+      const fee = await this.feeRateModel.findOne().exec();
+      if (!fee) {
+        this.logger.error(
+          'Withdrawal blocked: no FeeRate document configured.',
+        );
+        throw new HttpException(
+          {
+            message:
+              'Withdrawals are temporarily unavailable. Please try again later or contact support.',
+          },
+          400,
+        );
+      }
+
+      await this.assertWithinBalance(id, amountNet, currency);
+
+      const balance = await this.checkWithdraw(id);
+      const availableBalance =
+        currency === 'THB'
+          ? Number(balance.netAmountTHB || 0)
+          : Number(balance.netAmount || 0);
+
+      let couponDoc: WithdrawFeeCouponDocument | null = null;
+      let userRedemptionCount = 0;
+      if (couponCodeRaw) {
+        couponDoc = await this.withdrawFeeCouponModel
+          .findOne({ code: couponCode })
+          .session(session)
+          .exec();
+        if (!couponDoc) {
+          throw new HttpException({ message: 'Coupon code not found.' }, 400);
+        }
+        userRedemptionCount = await this.withdrawFeeCouponRedemptionModel
+          .countDocuments({
+            coupon_id: couponDoc._id,
+            user_id: new Types.ObjectId(id),
+          })
+          .session(session)
+          .exec();
+      }
+
+      const preview = resolveWithdrawFeePreview({
+        feeRate: fee,
+        amount: amountNet,
+        availableBalance,
+        currency,
+        method: 'bank_transfer',
+        coupon: couponDoc ? this.toCouponLike(couponDoc) : null,
+        userRedemptionCount,
+      });
+      if (preview.ok === false) {
+        throw new HttpException(
+          { message: this.previewFailureMessage(preview.reason) },
+          400,
+        );
+      }
+
+      if (couponDoc && !couponDoc.unlimited_quantity) {
+        const fresh = await this.withdrawFeeCouponModel
+          .findOneAndUpdate(
+            {
+              _id: couponDoc._id,
+              disabled: { $ne: true },
+              $expr: {
+                $lt: ['$quantity_used', { $ifNull: ['$quantity', 0] }],
+              },
+            },
+            { $inc: { quantity_used: 1 } },
+            { new: true, session },
+          )
+          .exec();
+        if (!fresh) {
+          throw new HttpException(
+            { message: 'This coupon has no remaining uses.' },
+            400,
+          );
+        }
+      } else if (couponDoc) {
+        const freshUnlimited = await this.withdrawFeeCouponModel
+          .findOneAndUpdate(
+            { _id: couponDoc._id, disabled: { $ne: true } },
+            { $inc: { quantity_used: 1 } },
+            { new: true, session },
+          )
+          .exec();
+        if (!freshUnlimited) {
+          throw new HttpException({ message: 'This coupon is disabled.' }, 400);
+        }
+      }
+
       const [record] = await this.withdrawModel.create(
         [
           {
             user_id: new Types.ObjectId(user._id),
             status: 'pending',
             address: '',
-            account_name: createWithdrawDto.account_name || '',
-            bank_name: createWithdrawDto.bank_name || '',
-            account_number: createWithdrawDto.account_number || '',
+            account_name: accountName,
+            bank_name: bankName,
+            account_number: accountNumber,
             tx_hash: '',
             tx_hash_record: '',
-            percent_fee: createWithdrawDto.percent_fee || 0,
-            amount_total: createWithdrawDto.amount_total || 0,
-            amount_net: createWithdrawDto.amount_net || 0,
+            percent_fee: 0,
+            // amount_total reserves balance in checkWithdraw(), so it must be
+            // derived from the amount the server just validated. Trusting the
+            // body here lets amount_net=500 + amount_total=0 reserve nothing.
+            amount_total: amountNet,
+            amount_net: amountNet,
             method: 'bank_transfer',
-            currency: createWithdrawDto.currency || '',
+            currency,
             conversion_id: createWithdrawDto.conversion_ids || [],
             mycashback_id: [],
+            idempotency_key: idempotencyKey,
+            idempotency_effect_hash: idempotencyEffectHash,
+            withdraw_fee_base: preview.base_fee,
+            withdraw_fee_discount: preview.discount,
+            withdraw_fee_final: preview.final_fee,
+            ...(couponDoc
+              ? {
+                  coupon_id: couponDoc._id,
+                  coupon_code: normalizeWithdrawFeeCouponCode(couponDoc.code),
+                }
+              : {}),
           },
         ],
         { session },
       );
-      return record;
-    });
 
-    const MCBCashback = await this.checkWithdrawMyCashback(id);
-    const autoMyCashbackWithdraw = buildAutoMyCashbackWithdrawFields(
-      createWithdrawDto,
-      new Types.ObjectId(user._id),
-      MCBCashback,
-    );
-    if (autoMyCashbackWithdraw) {
-      await this.withdrawModel.create(autoMyCashbackWithdraw);
-    }
-    return { message: 'Withdraw request created', data: dt, status: 'success' };
+      if (couponDoc) {
+        await this.withdrawFeeCouponRedemptionModel.create(
+          [
+            {
+              coupon_id: couponDoc._id,
+              user_id: new Types.ObjectId(user._id),
+              withdraw_id: record._id,
+              code_snapshot: normalizeWithdrawFeeCouponCode(couponDoc.code),
+              base_fee: preview.base_fee,
+              discount_amount: preview.discount,
+              final_fee: preview.final_fee,
+            },
+          ],
+          { session },
+        );
+      }
+      const myCashback = await this.checkWithdrawMyCashback(id);
+      const autoFields = buildAutoMyCashbackWithdrawFields(
+        {
+          ...createWithdrawDto,
+          amount_total: amountNet,
+          method: 'bank_transfer',
+        },
+        new Types.ObjectId(user._id),
+        myCashback,
+        record._id,
+      );
+      if (autoFields) {
+        await this.withdrawModel.create([autoFields], { session });
+      }
+
+      const actorLabel = user.username || user.email || String(user._id);
+      await this.adminActivity.appendRequired(
+        {
+          actor_type: 'customer',
+          actor_id: String(user._id),
+          actor_label: actorLabel,
+          action: 'withdraw.created',
+          entity_type: 'withdraw',
+          entity_id: String(record._id),
+          summary: `Bank transfer withdraw ${amountNet} ${currency}`,
+          metadata: {
+            amount_net: amountNet,
+            currency,
+            method: 'bank_transfer',
+            coupon_code: couponCodeRaw
+              ? normalizeWithdrawFeeCouponCode(couponCodeRaw)
+              : undefined,
+            withdraw_fee_final: record.withdraw_fee_final,
+          },
+        },
+        session,
+      );
+      if (couponDoc) {
+        await this.adminActivity.appendRequired(
+          {
+            actor_type: 'customer',
+            actor_id: String(user._id),
+            actor_label: actorLabel,
+            action: 'withdraw.fee_coupon.redeemed',
+            entity_type: 'withdraw_fee_coupon',
+            entity_id: String(couponDoc._id),
+            summary: `Redeemed fee coupon ${normalizeWithdrawFeeCouponCode(couponDoc.code)}`,
+            metadata: {
+              withdraw_id: String(record._id),
+              discount: record.withdraw_fee_discount,
+              final_fee: record.withdraw_fee_final,
+            },
+          },
+          session,
+        );
+      }
+
+      return { record, replayed: false };
+    });
+    const dt = command.record;
+
+    return {
+      message: 'Withdraw request created',
+      data: dt,
+      status: 'success',
+      reused: command.replayed,
+    };
   }
 
   async findAll(params: GetWithdrawTransactionsDTO, id: string) {

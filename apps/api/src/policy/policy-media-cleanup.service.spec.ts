@@ -433,4 +433,21 @@ describe('PolicyMediaCleanupService', () => {
       asset: expect.objectContaining({ object_key: ASSET.object_key }),
     });
   });
+  it('retryPendingLegacyReplacementsOnSchedule > given CRON_ENABLED=false > then never retries fenced deletions', async () => {
+    const originalCronEnabled = process.env.CRON_ENABLED;
+    process.env.CRON_ENABLED = 'false';
+    try {
+      const harness = makeHarness();
+      const retry = jest
+        .spyOn(harness.service, 'retryPendingLegacyReplacements')
+        .mockResolvedValue({ deleted: 0, pending: 0 });
+
+      await harness.service.retryPendingLegacyReplacementsOnSchedule();
+
+      expect(retry).not.toHaveBeenCalled();
+    } finally {
+      if (originalCronEnabled === undefined) delete process.env.CRON_ENABLED;
+      else process.env.CRON_ENABLED = originalCronEnabled;
+    }
+  });
 });

@@ -11,6 +11,7 @@ import request, { type Response } from 'supertest';
 import { TelegramAuthDto, FirebaseIdTokenDto } from '../auth/dto/auth.dto';
 import { DiscoverReorderDto } from '../admin/discover/discover.dto';
 import { CreateWithdrawDto } from '../withdraw/dto/create-withdraw.dto';
+import { WalletAdjustDto } from '../admin/wallets/dto/wallet.dto';
 import { GLOBAL_VALIDATION_PIPE_OPTIONS } from './validation-pipe.options';
 
 /**
@@ -40,6 +41,11 @@ class PipeTestController {
 
   @Post('discover-reorder')
   discoverReorder(@Body() dto: DiscoverReorderDto) {
+    return { ok: true, dto };
+  }
+
+  @Post('wallet-adjust')
+  walletAdjust(@Body() dto: WalletAdjustDto) {
     return { ok: true, dto };
   }
 }
@@ -111,6 +117,39 @@ describe('global ValidationPipe wiring (#46 whitelist)', () => {
         .send({ amount_net: 10, currency: 'USD', evil: true }),
       400,
     ));
+
+  it('accepts a canonical wallet adjustment and trims its reason', () =>
+    request(app.getHttpServer())
+      .post('/pipe-test/wallet-adjust')
+      .send({ type: 'credit', amount: 25, currency: 'thb', reason: ' Reward ' })
+      .expect(201)
+      .expect(({ body }) => {
+        expect(body.dto).toEqual({
+          type: 'credit',
+          amount: 25,
+          currency: 'THB',
+          reason: 'Reward',
+        });
+      }));
+
+  it.each([
+    { type: 'credit', amount: 0, currency: 'THB', reason: 'Reward' },
+    { type: 'credit', amount: -1, currency: 'THB', reason: 'Reward' },
+    { type: 'credit', amount: 25, currency: 'BTC', reason: 'Reward' },
+    { type: 'credit', amount: 25, currency: 'THB', reason: '   ' },
+    {
+      type: 'credit',
+      amount: 25,
+      currency: 'THB',
+      reason: 'Reward',
+      adminId: 'spoofed-admin',
+    },
+  ])('rejects unsafe wallet adjustment body %j', (body) =>
+    expectStatus(
+      request(app.getHttpServer()).post('/pipe-test/wallet-adjust').send(body),
+      400,
+    ),
+  );
 
   it('accepts a valid TelegramAuthDto body', () =>
     request(app.getHttpServer())

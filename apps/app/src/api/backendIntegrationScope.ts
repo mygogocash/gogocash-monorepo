@@ -24,14 +24,16 @@ export function isWeb3ExcludedFromMobileBackend(source: AccountDataSource): bool
 
 // Providers hidden from the real (backend) app. wallet/telegram have no
 // backend integration; apple/x/microsoft are disabled for launch (founder,
-// 2026-07-12) — their sign-in seams stay intact, so re-enabling one is just
-// removing its id here. Fixtures mode keeps the full parity list.
+// 2026-07-12) and facebook (2026-07-18) — their sign-in seams stay intact, so
+// re-enabling one is just removing its id here. Fixtures mode keeps the full
+// parity list.
 const BACKEND_HIDDEN_PROVIDER_IDS = new Set([
   "wallet",
   "telegram",
   "apple",
   "x",
   "microsoft",
+  "facebook",
 ]);
 
 export function resolveAuthSocialProviders<T extends { id: string }>(

@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
 export type UserAdminDocument = HydratedDocument<UserAdmin>;
+export const USER_ADMIN_COLLECTION = 'useradmins';
 
 /**
  * RBAC roles for admin panel users. Order matters: stronger roles include
@@ -51,16 +52,24 @@ export function roleHasAccess(
   return (ROLE_RANK[a] ?? -1) >= ROLE_RANK[req];
 }
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, collection: USER_ADMIN_COLLECTION })
 export class UserAdmin {
   @Prop({ required: true })
   username: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, select: false })
   password: string;
 
   @Prop({ required: true, unique: true })
   email: string;
+
+  /**
+   * Monotonic credential generation. It is copied into admin JWTs and reset
+   * tokens so changing a password revokes every previously issued credential.
+   * Missing values on legacy documents deliberately map to generation zero.
+   */
+  @Prop({ type: Number, required: true, default: 0, min: 0 })
+  session_version: number;
 
   // Accept both the API role vocabulary (viewer/support/approver/superadmin)
   // and the admin-UI vocabulary (super_admin/admin/editor/viewer) that invited

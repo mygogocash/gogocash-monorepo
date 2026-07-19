@@ -75,6 +75,18 @@ uniqueness is now enforced by the composite unique index
 `uniq_conversion_provider_identity` on
 (source, provider_account, provider_conversion_id).
 
+### Legacy cron gate (RUNTIME-LAZY)
+```bash
+railway variables --set 'CRON_ENABLED=false' --service gogocash-api
+```
+Gates every LEGACY in-process scheduled job (conversion sync, point awards, monthly
+payout, account-deletion purge, media recovery). Only the literal string `false`
+disables — any other value (or unset) leaves the jobs running. Use it to single-own
+scheduled jobs when two API stacks share one database: exactly one stack keeps the
+default (enabled), the other sets `CRON_ENABLED=false`. Quest task-v2 jobs are
+governed solely by `QUEST_TASK_V2_ENABLED` (above) and ignore this gate; the
+`legacy-cron-gate.sweep` spec enforces both sides of that split.
+
 Optional / feature-gated (set only if used): `CORS_EXTRA_ORIGINS` (comma-separated exact-match
 origins merged into the API CORS allow-list at runtime — use for Railway preview hosts
 `*.up.railway.app` or new custom domains without a code deploy; no wildcards), e.g.

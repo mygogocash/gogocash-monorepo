@@ -324,8 +324,6 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     !authOperationBusy;
   const canSubmitOtp = !authOperationBusy;
   const dividerText = webAuthPage.socialDividerByMode[mode];
-  const primarySocialProviders = authSocialProviders.slice(0, 4);
-  const secondarySocialProviders = authSocialProviders.slice(4);
   const resendCountdownLabel = formatOtpCountdown(resendSecondsRemaining);
   const sendCooldownLabel = formatOtpCountdown(sendCooldownSeconds);
   const maskedPhone = activePhoneOtpSnapshot?.maskedDestination ?? selectedCountry.dialCode;
@@ -1447,27 +1445,16 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                     <View style={styles.dividerLine} />
                   </View>
                   {usesDesktopSocialLayout ? (
-                    <View style={styles.socialRows}>
-                      <View style={styles.socialRow}>
-                        {primarySocialProviders.map((provider) => (
-                          <SocialProviderButton
-                            disabled={socialSignInDisabled}
-                            onPress={() => handleSocialSignIn(provider)}
-                            provider={provider}
-                            key={provider.id}
-                          />
-                        ))}
-                      </View>
-                      <View style={styles.socialRowSecondary}>
-                        {secondarySocialProviders.map((provider) => (
-                          <SocialProviderButton
-                            disabled={socialSignInDisabled}
-                            onPress={() => handleSocialSignIn(provider)}
-                            provider={provider}
-                            key={provider.id}
-                          />
-                        ))}
-                      </View>
+                    <View style={styles.socialStackDesktop}>
+                      {authSocialProviders.map((provider) => (
+                        <SocialProviderButton
+                          disabled={socialSignInDisabled}
+                          key={provider.id}
+                          onPress={() => handleSocialSignIn(provider)}
+                          provider={provider}
+                          variant="row"
+                        />
+                      ))}
                     </View>
                   ) : (
                     <View style={styles.socialGridMobile}>
@@ -1475,9 +1462,10 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         <SocialProviderButton
                           disabled={socialSignInDisabled}
                           isMobile
+                          key={provider.id}
                           onPress={() => handleSocialSignIn(provider)}
                           provider={provider}
-                          key={provider.id}
+                          variant="tile"
                         />
                       ))}
                     </View>
@@ -1581,14 +1569,18 @@ function SocialProviderButton({
   isMobile = false,
   onPress,
   provider,
+  variant = "tile",
 }: {
   disabled?: boolean;
   isMobile?: boolean;
   onPress: () => void;
   provider: SocialProvider;
+  variant?: "tile" | "row";
 }) {
   const styles = useThemedStyles(createAuthScreenStyles);
   const [hovered, setHovered] = useState(false);
+  const isRow = variant === "row";
+  const label = isRow ? `Continue with ${provider.label}` : provider.label;
 
   const handlePress = () => {
     if (disabled) {
@@ -1599,7 +1591,7 @@ function SocialProviderButton({
 
   return (
     <MotionPressable
-      accessibilityLabel={provider.label}
+      accessibilityLabel={label}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
       disabled={disabled}
@@ -1610,14 +1602,18 @@ function SocialProviderButton({
       style={[
         styles.socialButton,
         webSocialButtonRestStyle,
+        isRow ? styles.socialButtonRow : null,
         isMobile ? styles.socialButtonMobile : null,
         hovered ? styles.socialButtonHovered : null,
         disabled ? styles.socialButtonDisabled : null,
       ]}
     >
       <SocialProviderIcon provider={provider} />
-      <Text numberOfLines={1} style={styles.socialLabel}>
-        {provider.label}
+      <Text
+        numberOfLines={1}
+        style={[styles.socialLabel, isRow ? styles.socialLabelRow : null]}
+      >
+        {label}
       </Text>
     </MotionPressable>
   );
@@ -2344,22 +2340,9 @@ function createAuthScreenStyles(colors: ThemeColors) {
     fontWeight: "600",
     letterSpacing: 0.66,
   },
-  socialRows: {
-    alignItems: "center",
-    gap: 8,
+  socialStackDesktop: {
+    gap: 10,
     width: "100%",
-  },
-  socialRow: {
-    flexDirection: "row",
-    gap: 16,
-    justifyContent: "center",
-    width: "100%",
-  },
-  socialRowSecondary: {
-    flexDirection: "row",
-    gap: 16,
-    justifyContent: "center",
-    width: "75%",
   },
   socialGridMobile: {
     flexDirection: "row",
@@ -2381,6 +2364,15 @@ function createAuthScreenStyles(colors: ThemeColors) {
     paddingHorizontal: 10,
     width: 112,
   },
+  socialButtonRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    height: 52,
+    justifyContent: "flex-start",
+    paddingHorizontal: 18,
+    width: "100%",
+  },
   socialButtonHovered: {
     borderColor: "#56D4AA",
   },
@@ -2399,6 +2391,15 @@ function createAuthScreenStyles(colors: ThemeColors) {
     lineHeight: 12.5,
     textAlign: "center",
     width: "100%",
+  },
+  socialLabelRow: {
+    color: colors.ink,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 20,
+    textAlign: "left",
+    width: undefined,
   },
   modeLink: {
     alignItems: "center",

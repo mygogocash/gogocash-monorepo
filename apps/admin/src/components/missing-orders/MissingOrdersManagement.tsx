@@ -264,31 +264,80 @@ export default function MissingOrdersManagement() {
             />
           ) : detailQ.data ? (
             <div className="max-w-2xl space-y-4">
+              {/* #380 — Frame 1: User info */}
               <div className="rounded-2xl border border-gray-200 bg-white p-5 text-sm text-gray-800 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  User info
+                </h3>
+                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <dt className="text-xs text-gray-500 dark:text-gray-400">
-                      Registered email
+                      Username
                     </dt>
-                    <dd className="mt-0.5 break-all">{detailQ.data.email}</dd>
+                    <dd className="mt-0.5 font-medium text-gray-900 dark:text-gray-100">
+                      {detailQ.data.userName}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-gray-500 dark:text-gray-400">
-                      Registered phone
+                      User ID
                     </dt>
-                    <dd className="mt-0.5">{detailQ.data.phone}</dd>
+                    <dd className="mt-0.5 flex items-center font-mono text-xs">
+                      <span className="break-all">{detailQ.data.userId}</span>
+                      <CopyButton
+                        value={detailQ.data.userId}
+                        title="Copy user ID"
+                      />
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-gray-500 dark:text-gray-400">
-                      Store / brand
+                      Email
                     </dt>
-                    <dd className="mt-0.5">{detailQ.data.merchantName}</dd>
+                    <dd className="mt-0.5 break-all">
+                      {detailQ.data.email?.trim()
+                        ? detailQ.data.email
+                        : "Not provided"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-gray-500 dark:text-gray-400">
+                      Phone no.
+                    </dt>
+                    <dd className="mt-0.5">
+                      {detailQ.data.phone?.trim()
+                        ? detailQ.data.phone
+                        : "Not provided"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              {/* #380 — Frame 2: Order info */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 text-sm text-gray-800 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Order info
+                </h3>
+                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div>
+                    <dt className="text-xs text-gray-500 dark:text-gray-400">
+                      Brand
+                    </dt>
+                    <dd className="mt-0.5 font-medium text-gray-900 dark:text-gray-100">
+                      {detailQ.data.merchantName}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-gray-500 dark:text-gray-400">
                       Order ID
                     </dt>
-                    <dd className="mt-0.5 font-mono">{detailQ.data.orderId}</dd>
+                    <dd className="mt-0.5 flex items-center font-mono">
+                      <span>{detailQ.data.orderId}</span>
+                      <CopyButton
+                        value={detailQ.data.orderId}
+                        title="Copy order ID"
+                      />
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-gray-500 dark:text-gray-400">
@@ -300,20 +349,10 @@ export default function MissingOrdersManagement() {
                   </div>
                   <div>
                     <dt className="text-xs text-gray-500 dark:text-gray-400">
-                      Sale amount
+                      Amount
                     </dt>
                     <dd className="mt-0.5 tabular-nums">
                       {formatMoney(detailQ.data.orderAmount)}
-                    </dd>
-                  </div>
-                  <div className="col-span-2">
-                    <dt className="text-xs text-gray-500 dark:text-gray-400">
-                      Remarks
-                    </dt>
-                    <dd className="mt-0.5">
-                      {detailQ.data.remarks?.trim()
-                        ? detailQ.data.remarks
-                        : "—"}
                     </dd>
                   </div>
                   <div className="col-span-2">
@@ -338,6 +377,16 @@ export default function MissingOrdersManagement() {
                           No proof attached.
                         </span>
                       )}
+                    </dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-xs text-gray-500 dark:text-gray-400">
+                      Note
+                    </dt>
+                    <dd className="mt-0.5">
+                      {detailQ.data.remarks?.trim()
+                        ? detailQ.data.remarks
+                        : "—"}
                     </dd>
                   </div>
                   <div className="col-span-2">
@@ -382,6 +431,7 @@ export default function MissingOrdersManagement() {
                 </dl>
               </div>
 
+              {/* #380 — Frame 3: Adding note (unchanged controls) */}
               <div className="rounded-2xl border border-gray-200 bg-white p-5 text-sm text-gray-800 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-200">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex flex-wrap gap-2">
@@ -477,13 +527,10 @@ export default function MissingOrdersManagement() {
                   <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        ID
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
                         User
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Merchant
+                        Brand
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
                         Amount
@@ -502,27 +549,16 @@ export default function MissingOrdersManagement() {
                         key={c.id}
                         className="text-gray-800 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800"
                       >
-                        <td className="px-4 py-3 font-mono text-xs whitespace-nowrap sm:px-6 sm:py-4">
-                          {c.id}
-                        </td>
                         <td className="px-4 py-3 whitespace-nowrap sm:px-6 sm:py-4">
                           <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             {c.userName}
                           </div>
                           <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                            <span>{c.email ?? "Not provided"}</span>
-                            {c.email ? (
-                              <CopyButton value={c.email} title="Copy email" />
-                            ) : null}
-                          </div>
-                          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                            <span>{c.phone ?? "Not provided"}</span>
-                            {c.phone ? (
-                              <CopyButton
-                                value={c.phone}
-                                title="Copy phone number"
-                              />
-                            ) : null}
+                            <span className="font-mono">{c.userId}</span>
+                            <CopyButton
+                              value={c.userId}
+                              title="Copy user ID"
+                            />
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap sm:px-6 sm:py-4">

@@ -8,6 +8,16 @@
 // This stays a strict EXACT-match allow-list: no wildcards, no suffix/substring
 // matching. Empty CORS_EXTRA_ORIGINS reproduces the prior behavior exactly.
 
+/** Browser request headers explicitly accepted by the API preflight. */
+export const API_CORS_ALLOWED_HEADERS = [
+  'Authorization',
+  'Content-Type',
+  'Idempotency-Key',
+  'X-PostHog-Distinct-Id',
+  'X-PostHog-Anonymous-Id',
+  'X-App-Locale',
+] as const;
+
 /** Parse a comma-separated origins env value into trimmed, non-empty exact origins. */
 export function parseExtraOrigins(raw: string | undefined | null): string[] {
   return (raw ?? '')

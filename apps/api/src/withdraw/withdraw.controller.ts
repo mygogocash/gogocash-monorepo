@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Headers,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -16,6 +17,7 @@ import {
   GETSignDTO,
   GetWithdrawTransactionsDTO,
   MarkWithdrawPaidDto,
+  PreviewWithdrawFeeDto,
   RequestCreateRewardList,
 } from './dto/create-withdraw.dto';
 import {
@@ -27,6 +29,9 @@ import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 // import { extractAnalyticsContext } from 'src/analytics/analytics-context';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { RolesGuard } from 'src/admin/roles.guard';
+import { Roles } from 'src/admin/roles.decorator';
+import { requireAdminActor } from 'src/admin/activity/admin-activity.actor';
 import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
 @Controller('withdraw')
 export class WithdrawController {
@@ -37,8 +42,9 @@ export class WithdrawController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('signature')
-  getSign(@Body() createWithdrawDto: GETSignDTO) {
-    return this.withdrawService.getSign(createWithdrawDto);
+  getSign(@Req() req: Request, @Body() createWithdrawDto: GETSignDTO) {
+    const user = req['user'] as { sub?: string } | undefined;
+    return this.withdrawService.getSign(createWithdrawDto, user?.sub);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -105,13 +111,17 @@ export class WithdrawController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post()
-  create(@Req() req: Request, @Body() createWithdrawDto: CreateWithdrawDto) {
+  create(
+    @Req() req: Request,
+    @Body() createWithdrawDto: CreateWithdrawDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
     const user = req['user'] as any;
     const id = user?.sub;
     // const analyticsContext = extractAnalyticsContext(req, {
     //   userId: id,
     // });
-    return this.withdrawService.create(createWithdrawDto, id);
+    return this.withdrawService.create(createWithdrawDto, id, idempotencyKey);
   }
 
   /**
@@ -137,7 +147,8 @@ export class WithdrawController {
    * Admin action: mark a manual withdraw request as paid. Takes the on-chain
    * tx hash of the admin-side payout and stamps `paid_by` + `paid_at`.
    */
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('approver')
   @ApiBody({ type: MarkWithdrawPaidDto })
   @ApiSecurity('access-token')
   @ApiBearerAuth()
@@ -147,9 +158,11 @@ export class WithdrawController {
     @Param('id') id: string,
     @Body() body: MarkWithdrawPaidDto,
   ) {
-    const admin = req['user'] as { sub?: string } | undefined;
-    const adminId = admin?.sub ?? 'unknown';
-    return this.withdrawService.markWithdrawPaid(id, body, adminId);
+    return this.withdrawService.markWithdrawPaid(
+      id,
+      body,
+      requireAdminActor(req),
+    );
   }
 
   /**
@@ -157,14 +170,27 @@ export class WithdrawController {
    * settlement). Replaces the removed client-tx_hash -> 'approved' self-promotion
    * in POST /withdraw.
    */
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('approver')
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @Patch(':id/approve')
   approveWithdraw(@Req() req: Request, @Param('id') id: string) {
-    const admin = req['user'] as { sub?: string } | undefined;
-    const adminId = admin?.sub ?? 'unknown';
-    return this.withdrawService.approveWithdrawRequest(id, adminId);
+    return this.withdrawService.approveWithdrawRequest(
+      id,
+      requireAdminActor(req),
+    );
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiBody({ type: PreviewWithdrawFeeDto })
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Post('preview-fee')
+  previewWithdrawFee(@Req() req: Request, @Body() body: PreviewWithdrawFeeDto) {
+    const user = req['user'] as { sub?: string };
+    const id = user?.sub;
+    return this.withdrawService.previewWithdrawFee(body, id as string);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -175,13 +201,18 @@ export class WithdrawController {
   createBankTransfer(
     @Req() req: Request,
     @Body() createWithdrawDto: CreateWithdrawDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
   ) {
     const user = req['user'] as any;
     const id = user?.sub;
     // const analyticsContext = extractAnalyticsContext(req, {
     //   userId: id,
     // });
-    return this.withdrawService.createBankTransfer(createWithdrawDto, id);
+    return this.withdrawService.createBankTransfer(
+      createWithdrawDto,
+      id,
+      idempotencyKey,
+    );
   }
 
   @UseGuards(FirebaseAuthGuard)

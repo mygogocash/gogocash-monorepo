@@ -24,6 +24,26 @@ describe("mapBackendTopBrands", () => {
     expect(mapBackendTopBrands(null)).toEqual([]);
   });
 
+  it("#378 > given divergent device lists > then picks the list for the active device", () => {
+    const payload: TopBrandsPayload = {
+      data: [{ offer_id: 1, brand: "DesktopOnly", cashback: "1%", _id: "d1" }],
+      dataDesktop: [
+        { offer_id: 1, brand: "DesktopOnly", cashback: "1%", _id: "d1" },
+      ],
+      dataMobile: [
+        { offer_id: 2, brand: "MobileOnly", cashback: "2%", _id: "m1" },
+      ],
+    };
+    expect(
+      mapBackendTopBrands(payload, "TH", undefined, "mobile").map((b) => b.brand),
+    ).toEqual(["MobileOnly"]);
+    expect(
+      mapBackendTopBrands(payload, "TH", undefined, "desktop").map(
+        (b) => b.brand,
+      ),
+    ).toEqual(["DesktopOnly"]);
+  });
+
   it("given admin logo_desktop without resolved logo field > then maps logoUri through the image transform", () => {
     const payload: TopBrandsPayload = {
       data: [

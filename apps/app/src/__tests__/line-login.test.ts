@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  buildLineAuthCallbackHandoffUrl,
   buildLineLoginCallbackUrl,
   captureLineAuthReturnHref,
   exchangeLineAuth,
@@ -8,14 +9,20 @@ import {
   getLineAuthUserMessage,
   hasLineAuthReturnParams,
   isLineLoginConfigured,
+  LINE_AUTH_DEFAULT_POST_LOGIN_PATH,
   LineAuthExchangeError,
   LineLoginRedirectStartedError,
   LineLoginSessionMissingError,
   navigateAfterLineAuthSuccess,
+  redirectLineAuthReturnToCallbackRoute,
   requestLineLogin,
   restoreLineAuthReturnHrefIfNeeded,
   resumeLineLogin,
 } from "@mobile/auth/lineLogin";
+
+const defaultPostLoginCallback = encodeURIComponent(
+  LINE_AUTH_DEFAULT_POST_LOGIN_PATH,
+);
 
 describe("lineLogin", () => {
   afterEach(() => {
@@ -50,6 +57,50 @@ describe("lineLogin", () => {
 
     expect(captureLineAuthReturnHref()).toBe(returnHref);
     expect(storage.getItem("gogocash.line.auth.returnHref.v1")).toBe(returnHref);
+  });
+
+  it("buildLineAuthCallbackHandoffUrl > given LIFF OAuth return on Endpoint URL > then routes to line-callback with params", () => {
+    expect(
+      buildLineAuthCallbackHandoffUrl(
+        "https://app-staging.gogocash.co/?code=abc&state=xyz&liffClientId=2008237916",
+      ),
+    ).toBe(
+      `https://app-staging.gogocash.co/auth/line-callback?code=abc&state=xyz&liffClientId=2008237916&callbackUrl=${defaultPostLoginCallback}`,
+    );
+  });
+
+  it("buildLineAuthCallbackHandoffUrl > given OAuth return already on callback route > then returns null", () => {
+    expect(
+      buildLineAuthCallbackHandoffUrl(
+        `https://app-staging.gogocash.co/auth/line-callback?callbackUrl=${defaultPostLoginCallback}&code=abc&state=xyz`,
+      ),
+    ).toBeNull();
+  });
+
+  it("buildLineAuthCallbackHandoffUrl > given plain app URL without provider return > then returns null", () => {
+    expect(
+      buildLineAuthCallbackHandoffUrl(
+        `https://app-staging.gogocash.co/login?callbackUrl=${defaultPostLoginCallback}`,
+      ),
+    ).toBeNull();
+  });
+
+  it("redirectLineAuthReturnToCallbackRoute > web > hard-replaces Endpoint OAuth return onto the callback route", () => {
+    const storage = createMemoryStorage();
+    const locationReplace = vi.fn();
+    vi.stubGlobal("window", {
+      location: {
+        href: "https://app-staging.gogocash.co/?code=abc&state=xyz",
+        replace: locationReplace,
+      },
+      sessionStorage: storage,
+    });
+
+    expect(redirectLineAuthReturnToCallbackRoute()).toBe(true);
+    expect(storage.getItem("gogocash.line.auth.returnHref.v1")).toContain("code=abc");
+    expect(locationReplace).toHaveBeenCalledWith(
+      `https://app-staging.gogocash.co/auth/line-callback?code=abc&state=xyz&callbackUrl=${defaultPostLoginCallback}`,
+    );
   });
 
   it("restoreLineAuthReturnHrefIfNeeded > restores stripped OAuth params before LIFF init", () => {
@@ -99,6 +150,21 @@ describe("lineLogin", () => {
     expect(callbackUrl).not.toContain("token");
   });
 
+  it("buildLineLoginCallbackUrl > uses EXPO_PUBLIC_FRONTEND_URL origin so LIFF redirectUri matches Endpoint URL", () => {
+    vi.stubEnv("EXPO_PUBLIC_FRONTEND_URL", "https://app-staging.gogocash.co");
+
+    // staging.gogocash.co is an alias host — LIFF Endpoint is app-staging, so a
+    // same-origin callback on the alias fails LINE's redirectUri prefix check
+    // and never establishes a GoGoCash session on the canonical host.
+    expect(
+      buildLineLoginCallbackUrl(
+        "https://staging.gogocash.co/login?callbackUrl=%2Fprofile",
+      ),
+    ).toBe(
+      "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Fprofile",
+    );
+  });
+
   it.each([
     "https://evil.example/steal",
     "//evil.example/steal",
@@ -111,7 +177,7 @@ describe("lineLogin", () => {
       currentUrl.searchParams.set("callbackUrl", unsafeCallback);
 
       expect(buildLineLoginCallbackUrl(currentUrl.toString())).toBe(
-        "https://app-staging.gogocash.co/auth/line-callback?callbackUrl=%2Flink-mycashback",
+        `https://app-staging.gogocash.co/auth/line-callback?callbackUrl=${defaultPostLoginCallback}`,
       );
     },
   );

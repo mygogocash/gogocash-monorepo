@@ -9,6 +9,7 @@ import { Cron } from '@nestjs/schedule';
 import { createHash, randomUUID } from 'node:crypto';
 import { ClientSession, Connection, Model, Types } from 'mongoose';
 
+import { isLegacyCronEnabled } from 'src/common/legacy-cron-gate';
 import { MediaFolder } from 'src/media/media-folders.config';
 import {
   CommandOwnedStoredMediaAsset,
@@ -299,6 +300,7 @@ export class PolicyMediaWriteService {
 
   @Cron('45 */10 * * * *')
   async recoverExpiredCommandsOnSchedule() {
+    if (!isLegacyCronEnabled()) return;
     try {
       const recovered = await this.recoverExpiredCommands();
       if (recovered > 0) {

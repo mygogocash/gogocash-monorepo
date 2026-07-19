@@ -7,6 +7,8 @@ import {
   AdminUsersQuery,
   AdminUsersResponse,
   DataAdminUsers,
+  AdminDeleteResponse,
+  AdminCreateInput,
   RoleDef,
   RolesResponse,
   RegularUser,
@@ -21,6 +23,7 @@ import {
   OffersResponse,
   TopBrandConfigEntry,
   TopBrandsAdminResponse,
+  SaveTopBrandsPayload,
   SaveTopBrandsResponse,
   WithdrawQuery,
   ResponseWithdraws,
@@ -734,7 +737,7 @@ class ApiClient {
   }
 
   async createAdminUser(
-    userData: Omit<DataAdminUsers, "_id" | "createdAt" | "updatedAt" | "__v">,
+    userData: AdminCreateInput,
     token?: string,
   ): Promise<DataAdminUsers> {
     const headers: Record<string, string> = {};
@@ -762,7 +765,7 @@ class ApiClient {
     }
 
     return this.request<DataAdminUsers>(`/admin/${userId}`, {
-      method: "PUT",
+      method: "PATCH",
       headers,
       body: JSON.stringify(userData),
     });
@@ -771,13 +774,13 @@ class ApiClient {
   async deleteAdminUser(
     userId: string,
     token?: string,
-  ): Promise<{ message: string }> {
+  ): Promise<AdminDeleteResponse> {
     const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    return this.request<{ message: string }>(`/admin/${userId}`, {
+    return this.request<AdminDeleteResponse>(`/admin/${userId}`, {
       method: "DELETE",
       headers,
     });
@@ -1021,11 +1024,18 @@ class ApiClient {
   }
 
   async saveTopBrands(
-    brands: TopBrandConfigEntry[],
+    payload: SaveTopBrandsPayload | TopBrandConfigEntry[],
   ): Promise<SaveTopBrandsResponse> {
+    const body = Array.isArray(payload)
+      ? { brands: payload }
+      : {
+          brandsDesktop: payload.brandsDesktop,
+          brandsMobile: payload.brandsMobile,
+          brands: payload.brandsDesktop,
+        };
     return this.request<SaveTopBrandsResponse>("/admin/top-brands", {
       method: "PUT",
-      body: JSON.stringify({ brands }),
+      body: JSON.stringify(body),
     });
   }
 

@@ -29,15 +29,29 @@ import {
   SocialRewardSchema,
 } from 'src/point/schemas/social-reward.schema';
 import { RewardList, RewardListSchema } from './schemas/rewardList.schema';
+import {
+  WithdrawFeeCoupon,
+  WithdrawFeeCouponSchema,
+} from './schemas/withdraw-fee-coupon.schema';
+import {
+  WithdrawFeeCouponRedemption,
+  WithdrawFeeCouponRedemptionSchema,
+} from './schemas/withdraw-fee-coupon-redemption.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { PointModule } from 'src/point/point.module';
+import { AdminActivityModule } from 'src/admin/activity/admin-activity.module';
+import {
+  WalletAdjustment,
+  WalletAdjustmentSchema,
+} from 'src/admin/wallets/schemas/wallet-adjustment.schema';
 
 @Module({
   imports: [
     CacheModule.register(),
     PointModule,
     InvolveModule,
+    AdminActivityModule,
     MongooseModule.forFeature([
       { name: Offer.name, schema: OfferSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
@@ -52,6 +66,12 @@ import { PointModule } from 'src/point/point.module';
       { name: Point.name, schema: PointSchema },
       { name: SocialReward.name, schema: SocialRewardSchema },
       { name: RewardList.name, schema: RewardListSchema },
+      { name: WithdrawFeeCoupon.name, schema: WithdrawFeeCouponSchema },
+      {
+        name: WithdrawFeeCouponRedemption.name,
+        schema: WithdrawFeeCouponRedemptionSchema,
+      },
+      { name: WalletAdjustment.name, schema: WalletAdjustmentSchema },
     ]),
   ],
   controllers: [WithdrawController],

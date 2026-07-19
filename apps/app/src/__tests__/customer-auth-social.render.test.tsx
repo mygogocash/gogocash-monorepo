@@ -169,30 +169,6 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
     expect(exchangeFirebaseIdToken).not.toHaveBeenCalled();
   });
 
-  it("native Facebook > given configured provider > uses the native OAuth seam and exchanges the token", async () => {
-    platformState.OS = "android";
-    signInWithNativeOAuth.mockResolvedValue({ idToken: "native-facebook-id-token" });
-
-    renderLogin();
-    fireEvent.click(screen.getByRole("button", { name: "Facebook" }));
-
-    await waitFor(() => {
-      expect(signInWithNativeOAuth).toHaveBeenCalledWith("facebook");
-    });
-    expect(signInWithSocialProvider).not.toHaveBeenCalled();
-    await waitFor(() => {
-      expect(exchangeFirebaseIdToken).toHaveBeenCalledWith({
-        apiUrl: "https://api.dev.gogocash.co",
-        country: "TH",
-        idToken: "native-facebook-id-token",
-        intent: "login",
-      });
-    });
-    await waitFor(() => {
-      expect(readStoredSession()?.access_token).toBe("backend-access-token");
-    });
-  });
-
   it("disabled providers > Apple is not rendered in backend mode", () => {
     // Founder (2026-07-12): Apple/X/Microsoft disabled for launch. The apple
     // native OAuth seam stays covered by native-oauth-signin.test.ts for when
@@ -203,36 +179,13 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
     expect(screen.queryByRole("button", { name: "Apple" })).toBeNull();
   });
 
-  it("native Facebook > given not configured > shows Coming soon toast", async () => {
+  it("disabled providers > Facebook is not rendered in backend mode", () => {
+    // Facebook hidden (2026-07-18): Firebase OAuth fails on staging login.
+    // Native Facebook OAuth seam stays covered by native-oauth-signin.test.ts.
     platformState.OS = "android";
-    signInWithNativeOAuth.mockRejectedValue(new NativeOAuthNotConfiguredError());
 
     renderLogin();
-    fireEvent.click(screen.getByRole("button", { name: "Facebook" }));
-
-    await waitFor(() => {
-      expect(signInWithNativeOAuth).toHaveBeenCalled();
-    });
-    await waitFor(() => {
-      expect(screen.getByText("Coming soon")).toBeTruthy();
-    });
-    expect(exchangeFirebaseIdToken).not.toHaveBeenCalled();
-  });
-
-  it("native Facebook > given the user cancels the hosted flow > stays silent", async () => {
-    platformState.OS = "android";
-    const cancel = new Error("cancelled") as Error & { code?: string };
-    cancel.code = "auth/web-context-canceled";
-    signInWithNativeOAuth.mockRejectedValue(cancel);
-
-    renderLogin();
-    fireEvent.click(screen.getByRole("button", { name: "Facebook" }));
-
-    await waitFor(() => {
-      expect(signInWithNativeOAuth).toHaveBeenCalled();
-    });
-    expect(exchangeFirebaseIdToken).not.toHaveBeenCalled();
-    expect(screen.queryByText("Could not complete your request. Please try again.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Facebook" })).toBeNull();
   });
 
   it("disabled providers > Microsoft and X are not rendered in backend mode", () => {

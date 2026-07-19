@@ -64,6 +64,37 @@
     <noscript>
       You need to enable JavaScript to run this app.
     </noscript>
+    <!-- Capture LIFF/OAuth return params before the Expo SPA can strip them,
+         and bounce Endpoint-URL returns onto /auth/line-callback. -->
+    <script>
+      (function () {
+        try {
+          var href = location.href;
+          if (
+            !/[?&#](code|state|liffClientId|liffRedirectUri|liffState|error)=/.test(
+              href
+            )
+          ) {
+            return;
+          }
+          sessionStorage.setItem("gogocash.line.auth.returnHref.v1", href);
+          var path = location.pathname.replace(/\/+$/, "") || "/";
+          if (path === "/auth/line-callback") {
+            return;
+          }
+          var next = new URL("/auth/line-callback", location.origin);
+          var current = new URL(href);
+          current.searchParams.forEach(function (value, key) {
+            next.searchParams.set(key, value);
+          });
+          next.hash = current.hash;
+          if (!next.searchParams.get("callbackUrl")) {
+            next.searchParams.set("callbackUrl", "/profile");
+          }
+          location.replace(next.pathname + next.search + next.hash);
+        } catch (e) {}
+      })();
+    </script>
     <div id="root"></div>
   </body>
 </html>

@@ -4,6 +4,7 @@ import { Cron } from '@nestjs/schedule';
 import { createHash } from 'node:crypto';
 import { ClientSession, Model, Types } from 'mongoose';
 
+import { isLegacyCronEnabled } from 'src/common/legacy-cron-gate';
 import { MEDIA_FOLDER, MediaFolder } from 'src/media/media-folders.config';
 import {
   CommandOwnedStoredMediaAsset,
@@ -429,6 +430,7 @@ export class PolicyMediaCleanupService {
 
   @Cron('30 */10 * * * *')
   async retryPendingLegacyReplacementsOnSchedule() {
+    if (!isLegacyCronEnabled()) return;
     try {
       const result = await this.retryPendingLegacyReplacements();
       if (result.deleted > 0) {

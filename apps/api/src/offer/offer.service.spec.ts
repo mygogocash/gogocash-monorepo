@@ -993,7 +993,13 @@ describe('OfferService', () => {
       });
       expect(topBrandConfigModel.updateOne).toHaveBeenCalledWith(
         {},
-        { $pull: { brands: { offerId: id } } },
+        {
+          $pull: {
+            brands: { offerId: id },
+            brandsDesktop: { offerId: id },
+            brandsMobile: { offerId: id },
+          },
+        },
       );
       expect(searchBoostModel.deleteMany).toHaveBeenCalledWith({
         offer_id: id,
@@ -1039,7 +1045,13 @@ describe('OfferService', () => {
       );
       expect(topBrandConfigModel.updateOne).toHaveBeenCalledWith(
         {},
-        { $pull: { brands: { offerId: id } } },
+        {
+          $pull: {
+            brands: { offerId: id },
+            brandsDesktop: { offerId: id },
+            brandsMobile: { offerId: id },
+          },
+        },
         { session: { id: 'integrity-session' } },
       );
       expect(searchBoostModel.deleteMany).toHaveBeenCalledWith(
@@ -2143,6 +2155,8 @@ describe('OfferService', () => {
 
       await expect(service.getDisplayTopBrands()).resolves.toEqual({
         data: [],
+        dataDesktop: [],
+        dataMobile: [],
       });
       expect(offerModel.find).not.toHaveBeenCalled();
     });
@@ -2183,24 +2197,67 @@ describe('OfferService', () => {
         disabled: { $ne: true },
         status: { $nin: ['pending_review', 'rejected'] },
       });
+      const expected = [
+        {
+          _id: 'id2',
+          offer_id: 2,
+          brand: 'Bravo',
+          logo: 'b.png',
+          cashback: '10%',
+        },
+        {
+          _id: 'id1',
+          offer_id: 1,
+          brand: 'Alpha',
+          logo: 'a.png',
+          cashback: '12.5%',
+        },
+      ];
       expect(result).toEqual({
-        data: [
-          {
-            _id: 'id2',
-            offer_id: 2,
-            brand: 'Bravo',
-            logo: 'b.png',
-            cashback: '10%',
-          },
+        data: expected,
+        dataDesktop: expected,
+        dataMobile: expected,
+      });
+    });
+
+    it('getDisplayTopBrands > given divergent device orders > then returns independent desktop and mobile lists', async () => {
+      topBrandConfigModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          brands: [{ offerId: 'id1', cashback: '' }],
+          brandsDesktop: [
+            { offerId: 'id1', cashback: '' },
+            { offerId: 'id2', cashback: '' },
+          ],
+          brandsMobile: [
+            { offerId: 'id2', cashback: '' },
+            { offerId: 'id1', cashback: '' },
+          ],
+        }),
+      });
+      offerModel.find.mockReturnValue(
+        makeQuery([
           {
             _id: 'id1',
             offer_id: 1,
-            brand: 'Alpha',
+            offer_name: 'Alpha',
             logo: 'a.png',
-            cashback: '12.5%',
+            commission_store: 5,
           },
-        ],
-      });
+          {
+            _id: 'id2',
+            offer_id: 2,
+            offer_name: 'Bravo',
+            logo: 'b.png',
+            commission_store: 10,
+          },
+        ]),
+      );
+
+      const result = await service.getDisplayTopBrands();
+
+      expect(result.dataDesktop.map((row) => row._id)).toEqual(['id1', 'id2']);
+      expect(result.dataMobile.map((row) => row._id)).toEqual(['id2', 'id1']);
+      expect(result.data).toEqual(result.dataDesktop);
     });
 
     it('getDisplayTopBrands > given stale saved cashback > then uses the live offer rate', async () => {
@@ -2221,16 +2278,19 @@ describe('OfferService', () => {
         ]),
       );
 
+      const expected = [
+        {
+          _id: 'id1',
+          offer_id: 1,
+          brand: 'Lazada',
+          logo: 'a.png',
+          cashback: '2.02%',
+        },
+      ];
       await expect(service.getDisplayTopBrands()).resolves.toEqual({
-        data: [
-          {
-            _id: 'id1',
-            offer_id: 1,
-            brand: 'Lazada',
-            logo: 'a.png',
-            cashback: '2.02%',
-          },
-        ],
+        data: expected,
+        dataDesktop: expected,
+        dataMobile: expected,
       });
     });
 

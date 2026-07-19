@@ -549,13 +549,55 @@ function mockWithdrawDetailForUser(userId: string) {
 /** Admin-set app tracking link per offer (commission management). */
 const commissionAppDeeplinkByOfferId = new Map<string, string>();
 
-/** Homepage top-brand rail: ordered offer `_id`s + cashback labels (mock; in-memory). */
-let topBrandHomepageBrands: TopBrandConfigEntry[] = [
+/** Homepage top-brand rails (mock; in-memory). Dual lists for #378 Phase 2. */
+const DEFAULT_TOP_BRANDS: TopBrandConfigEntry[] = [
   { offerId: "o1", cashback: "Up to 12%" },
   { offerId: "o2", cashback: "Up to 10%" },
   { offerId: "o3", cashback: "Travel deals" },
   { offerId: "o5", cashback: "Limited time" },
 ];
+let topBrandHomepageBrandsDesktop: TopBrandConfigEntry[] = DEFAULT_TOP_BRANDS.map(
+  (entry) => ({ ...entry }),
+);
+let topBrandHomepageBrandsMobile: TopBrandConfigEntry[] = DEFAULT_TOP_BRANDS.map(
+  (entry) => ({ ...entry }),
+);
+
+function normalizeMockTopBrands(raw: unknown): TopBrandConfigEntry[] {
+  const brands = Array.isArray(raw)
+    ? raw.map((entry) => ({
+        cashback: "",
+        offerId: String(
+          (entry as { offerId?: unknown }).offerId ?? "",
+        ).trim(),
+      }))
+    : [];
+  const seen = new Set<string>();
+  const next: TopBrandConfigEntry[] = [];
+  for (const entry of brands) {
+    if (
+      !entry.offerId ||
+      !mockOffers.some((o) => o._id === entry.offerId) ||
+      seen.has(entry.offerId)
+    ) {
+      continue;
+    }
+    seen.add(entry.offerId);
+    next.push({ offerId: entry.offerId, cashback: "" });
+    if (next.length >= MAX_TOP_BRANDS) break;
+  }
+  return next;
+}
+
+function liveMockTopBrands(entries: TopBrandConfigEntry[]) {
+  return entries.map((entry) => {
+    const offer = mockOffers.find((row) => row._id === entry.offerId);
+    return {
+      offerId: entry.offerId,
+      cashback: resolveTopBrandCashbackLabel(offer, ""),
+    };
+  });
+}
 
 function allocateNewOfferIds(): {
   _id: string;
@@ -661,18 +703,25 @@ function handleMockGET(
   }
 
   if (joined === "admin/top-brands") {
-    const items = topBrandHomepageBrands
-      .map((entry) => mockOffers.find((o) => o._id === entry.offerId))
+    const orderDesktop = topBrandHomepageBrandsDesktop.map(
+      (entry) => entry.offerId,
+    );
+    const orderMobile = topBrandHomepageBrandsMobile.map(
+      (entry) => entry.offerId,
+    );
+    const unionIds = [...new Set([...orderDesktop, ...orderMobile])];
+    const items = unionIds
+      .map((id) => mockOffers.find((o) => o._id === id))
       .filter((o) => o != null);
+    const brandsDesktop = liveMockTopBrands(topBrandHomepageBrandsDesktop);
+    const brandsMobile = liveMockTopBrands(topBrandHomepageBrandsMobile);
     return ok({
-      order: topBrandHomepageBrands.map((entry) => entry.offerId),
-      brands: topBrandHomepageBrands.map((entry) => {
-        const offer = mockOffers.find((row) => row._id === entry.offerId);
-        return {
-          offerId: entry.offerId,
-          cashback: resolveTopBrandCashbackLabel(offer, ""),
-        };
-      }),
+      order: orderDesktop,
+      orderDesktop,
+      orderMobile,
+      brands: brandsDesktop,
+      brandsDesktop,
+      brandsMobile,
       items,
       maxBrands: MAX_TOP_BRANDS,
     });
@@ -2114,39 +2163,42 @@ async function handleMockPUT(
   }
 
   if (joined === "admin/top-brands") {
-    const raw = b?.brands;
-    const brands = Array.isArray(raw)
-      ? raw.map((entry) => ({
-          cashback: String(
-            (entry as { cashback?: unknown }).cashback ?? "",
-          ).trim(),
-          offerId: String(
-            (entry as { offerId?: unknown }).offerId ?? "",
-          ).trim(),
-        }))
-      : [];
-    if (brands.length > MAX_TOP_BRANDS) {
+    const hasDeviceLists =
+      b?.brandsDesktop !== undefined || b?.brandsMobile !== undefined;
+    if (
+      (Array.isArray(b?.brandsDesktop) &&
+        b.brandsDesktop.length > MAX_TOP_BRANDS) ||
+      (Array.isArray(b?.brandsMobile) &&
+        b.brandsMobile.length > MAX_TOP_BRANDS) ||
+      (Array.isArray(b?.brands) && b.brands.length > MAX_TOP_BRANDS)
+    ) {
       return jsonErr(400, {
         message: `Top brands is limited to ${MAX_TOP_BRANDS} offers.`,
       });
     }
-    const seen = new Set<string>();
-    const next: TopBrandConfigEntry[] = [];
-    for (const entry of brands) {
-      if (
-        !entry.offerId ||
-        !mockOffers.some((o) => o._id === entry.offerId) ||
-        seen.has(entry.offerId)
-      ) {
-        continue;
-      }
-      seen.add(entry.offerId);
-      next.push({ offerId: entry.offerId, cashback: "" });
+    if (hasDeviceLists) {
+      const nextDesktop = normalizeMockTopBrands(
+        b?.brandsDesktop ?? b?.brands,
+      );
+      const nextMobile = normalizeMockTopBrands(b?.brandsMobile ?? b?.brands);
+      topBrandHomepageBrandsDesktop = nextDesktop;
+      topBrandHomepageBrandsMobile = nextMobile;
+      return ok({
+        success: true,
+        brands: nextDesktop.map((entry) => ({ ...entry })),
+        brandsDesktop: nextDesktop.map((entry) => ({ ...entry })),
+        brandsMobile: nextMobile.map((entry) => ({ ...entry })),
+        message: "Top brand homepage config saved (mock).",
+      });
     }
-    topBrandHomepageBrands = next;
+    const next = normalizeMockTopBrands(b?.brands);
+    topBrandHomepageBrandsDesktop = next;
+    topBrandHomepageBrandsMobile = next.map((entry) => ({ ...entry }));
     return ok({
       success: true,
       brands: next.map((entry) => ({ ...entry })),
+      brandsDesktop: next.map((entry) => ({ ...entry })),
+      brandsMobile: next.map((entry) => ({ ...entry })),
       message: "Top brand homepage config saved (mock).",
     });
   }
@@ -2643,9 +2695,14 @@ function handleMockDELETE(path: string[], joined: string): MockApiResult {
       return jsonErr(404, { message: "Offer not found" });
     }
     mockOffers.splice(idx, 1);
-    for (let i = topBrandHomepageBrands.length - 1; i >= 0; i -= 1) {
-      if (topBrandHomepageBrands[i].offerId === id) {
-        topBrandHomepageBrands.splice(i, 1);
+    for (let i = topBrandHomepageBrandsDesktop.length - 1; i >= 0; i -= 1) {
+      if (topBrandHomepageBrandsDesktop[i].offerId === id) {
+        topBrandHomepageBrandsDesktop.splice(i, 1);
+      }
+    }
+    for (let i = topBrandHomepageBrandsMobile.length - 1; i >= 0; i -= 1) {
+      if (topBrandHomepageBrandsMobile[i].offerId === id) {
+        topBrandHomepageBrandsMobile.splice(i, 1);
       }
     }
     return ok({ message: "Offer deleted successfully" });

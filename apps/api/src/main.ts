@@ -8,7 +8,11 @@ import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as path from 'path';
 import { SanitisedExceptionFilter } from './common/sanitised-exception.filter';
-import { buildCorsAllowSet, isCorsOriginAllowed } from './common/cors-origins';
+import {
+  API_CORS_ALLOWED_HEADERS,
+  buildCorsAllowSet,
+  isCorsOriginAllowed,
+} from './common/cors-origins';
 import { GLOBAL_VALIDATION_PIPE_OPTIONS } from './common/validation-pipe.options';
 
 async function bootstrap() {
@@ -103,13 +107,7 @@ async function bootstrap() {
       callback(null, isCorsOriginAllowed(corsAllowSet, origin)),
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-    allowedHeaders: [
-      'Authorization',
-      'Content-Type',
-      'X-PostHog-Distinct-Id',
-      'X-PostHog-Anonymous-Id',
-      'X-App-Locale',
-    ],
+    allowedHeaders: API_CORS_ALLOWED_HEADERS,
   });
   const config = new DocumentBuilder()
     .setTitle('GoGoCash API')

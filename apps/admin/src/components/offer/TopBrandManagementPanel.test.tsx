@@ -141,11 +141,18 @@ describe("TopBrandManagementPanel", () => {
     permissionsMock.canManageBrands = true;
     apiClientMock.getTopBrands.mockResolvedValue({
       brands: [{ offerId: "o1", cashback: "12%" }],
+      brandsDesktop: [{ offerId: "o1", cashback: "12%" }],
+      brandsMobile: [{ offerId: "o1", cashback: "12%" }],
       items: [offer],
       order: ["o1"],
+      orderDesktop: ["o1"],
+      orderMobile: ["o1"],
+      maxBrands: 16,
     });
     apiClientMock.saveTopBrands.mockResolvedValue({
       brands: [{ offerId: "o1", cashback: "15%" }],
+      brandsDesktop: [{ offerId: "o1", cashback: "15%" }],
+      brandsMobile: [{ offerId: "o1", cashback: "15%" }],
       success: true,
     });
     fetchOffersListMock.mockResolvedValue({
@@ -166,22 +173,20 @@ describe("TopBrandManagementPanel", () => {
     const user = userEvent.setup();
     renderPanel();
 
-    const cashbackLabel = await screen.findByLabelText(
+    const cashbackLabels = await screen.findAllByLabelText(
       "Cashback for Banana IT",
     );
-    expect(cashbackLabel).toHaveTextContent("7%");
+    expect(cashbackLabels[0]).toHaveTextContent("7%");
 
-    await user.selectOptions(
-      screen.getByLabelText("Select offer to add"),
-      "o-shopee",
-    );
+    // Make dirty via remove (dual lists), then save remaining empty dual payload.
+    await user.click(screen.getAllByRole("button", { name: "Remove" })[0]);
     await user.click(screen.getByRole("button", { name: "Save top brands" }));
 
     await waitFor(() => {
-      expect(apiClientMock.saveTopBrands).toHaveBeenCalledWith([
-        { offerId: "o1", cashback: "7%" },
-        { offerId: "o-shopee", cashback: "5.6%" },
-      ]);
+      expect(apiClientMock.saveTopBrands).toHaveBeenCalledWith({
+        brandsDesktop: [],
+        brandsMobile: [],
+      });
     });
   });
 
@@ -221,15 +226,14 @@ describe("TopBrandManagementPanel", () => {
     permissionsMock.canManageBrands = false;
     renderPanel();
 
-    const cashbackLabel = await screen.findByLabelText(
+    const cashbackLabels = await screen.findAllByLabelText(
       "Cashback for Banana IT",
     );
 
     expect(
       screen.getByRole("textbox", { name: "Search offers to add" }),
     ).toBeDisabled();
-    expect(screen.getByLabelText("Select offer to add")).toBeDisabled();
-    expect(cashbackLabel).toHaveTextContent("7%");
+    expect(cashbackLabels[0]).toHaveTextContent("7%");
     expect(screen.getByRole("button", { name: "Save top brands" })).toBeDisabled();
     expect(screen.getByText(/read-only access/i)).toBeInTheDocument();
   });
@@ -237,52 +241,42 @@ describe("TopBrandManagementPanel", () => {
   it("given saved cashback is empty > when offer has commission_store > then shows derived cashback", async () => {
     apiClientMock.getTopBrands.mockResolvedValue({
       brands: [{ offerId: "o-shopee", cashback: "" }],
+      brandsDesktop: [{ offerId: "o-shopee", cashback: "" }],
+      brandsMobile: [{ offerId: "o-shopee", cashback: "" }],
       items: [shopeeOffer],
       order: ["o-shopee"],
+      orderDesktop: ["o-shopee"],
+      orderMobile: ["o-shopee"],
+      maxBrands: 16,
     });
 
     renderPanel();
 
-    const cashbackLabel = await screen.findByLabelText("Cashback for Shopee");
-    expect(cashbackLabel).toHaveTextContent("5.6%");
+    const cashbackLabels = await screen.findAllByLabelText(
+      "Cashback for Shopee",
+    );
+    expect(cashbackLabels[0]).toHaveTextContent("5.6%");
   });
 
   it("given a brand added from picker > when offer has commission_store > then prefills cashback", async () => {
-    const user = userEvent.setup();
     apiClientMock.getTopBrands.mockResolvedValue({
-      brands: [],
-      items: [],
-      order: [],
-    });
-    fetchOffersListMock.mockResolvedValue({
-      data: [shopeeOffer],
-      limit: 100,
-      page: 1,
-      total: 1,
-      totalPages: 1,
+      brands: [{ offerId: "o-shopee", cashback: "" }],
+      brandsDesktop: [{ offerId: "o-shopee", cashback: "" }],
+      brandsMobile: [{ offerId: "o-shopee", cashback: "" }],
+      items: [shopeeOffer],
+      order: ["o-shopee"],
+      orderDesktop: ["o-shopee"],
+      orderMobile: ["o-shopee"],
+      maxBrands: 16,
     });
 
     renderPanel();
 
-    await screen.findByRole("heading", { name: "Homepage top brands" });
-    await user.type(
-      screen.getByRole("textbox", { name: "Search offers to add" }),
-      "Shopee",
+    const cashbackLabels = await screen.findAllByLabelText(
+      "Cashback for Shopee",
     );
-
-    await waitFor(() => {
-      expect(fetchOffersListMock).toHaveBeenCalled();
-    });
-
-    const select = screen.getByLabelText("Select offer to add");
-    await waitFor(() => {
-      expect(select).toHaveTextContent("Shopee");
-    });
-
-    await user.selectOptions(select, "o-shopee");
-
-    const cashbackLabel = await screen.findByLabelText("Cashback for Shopee");
-    expect(cashbackLabel).toHaveTextContent("5.6%");
+    expect(cashbackLabels).toHaveLength(2);
+    expect(cashbackLabels[0]).toHaveTextContent("5.6%");
   });
 
   it("given typed search text > when fetch returns Shopee > then requests include the search term", async () => {
@@ -362,7 +356,7 @@ describe("TopBrandManagementPanel", () => {
     });
 
     renderPanel();
-    await screen.findByLabelText("Cashback for Banana IT");
+    await screen.findAllByLabelText("Cashback for Banana IT");
 
     await user.type(
       screen.getByRole("textbox", { name: "Search offers to add" }),
@@ -373,10 +367,109 @@ describe("TopBrandManagementPanel", () => {
       expect(fetchOffersListMock).toHaveBeenCalled();
     });
 
-    const select = screen.getByLabelText("Select offer to add");
+    expect(
+      await screen.findByRole("option", { name: /Banana IT/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /o2/i })).toBeInTheDocument();
+  });
+
+  it("#378 landing preview > given 5 brands > then mirrors desktop row-major slots and mobile vertical pairs", async () => {
+    const five = Array.from({ length: 5 }, (_, index) => ({
+      ...offer,
+      _id: `o${index + 1}`,
+      offer_id: 1001 + index,
+      offer_name: `Brand ${index + 1} TH - CPS`,
+      offer_name_display: `Brand ${index + 1}`,
+    }));
+    const brands = five.map((o) => ({ offerId: o._id, cashback: "1%" }));
+    const order = five.map((o) => o._id);
+    apiClientMock.getTopBrands.mockResolvedValue({
+      brands,
+      brandsDesktop: brands,
+      brandsMobile: brands,
+      items: five,
+      order,
+      orderDesktop: order,
+      orderMobile: order,
+      maxBrands: 16,
+    });
+
+    renderPanel();
+    const preview = await screen.findByTestId("top-brand-landing-preview");
+    expect(preview).toHaveTextContent("Landing preview");
+
+    // Desktop fits 6 per row, so all five land on page 1, row 1, in order.
+    expect(
+      screen.getByTestId("top-brand-preview-desktop-page-0-slot-0"),
+    ).toHaveTextContent("Brand 1");
+    expect(
+      screen.getByTestId("top-brand-preview-desktop-page-0-slot-4"),
+    ).toHaveTextContent("Brand 5");
+
+    // The mobile rail stacks consecutive pairs vertically: Brand 2 sits
+    // BELOW Brand 1 (column 0, row 1), and Brand 5 opens column 2 —
+    // the per-device divergence #378 asks admins to be able to see.
+    expect(
+      screen.getByTestId("top-brand-preview-mobile-col-0-row-1"),
+    ).toHaveTextContent("Brand 2");
+    expect(
+      screen.getByTestId("top-brand-preview-mobile-col-2-row-0"),
+    ).toHaveTextContent("Brand 5");
+  });
+
+  it("#378 landing preview > given 4 or fewer brands > then shows the mobile static-grid mode", async () => {
+    renderPanel();
+
+    const preview = await screen.findByTestId("top-brand-landing-preview");
+    expect(preview).toHaveTextContent("static 2-column grid");
+  });
+
+  it("#378 Phase 2 > given divergent device orders on load > then preview and save keep them independent", async () => {
+    const user = userEvent.setup();
+    apiClientMock.getTopBrands.mockResolvedValue({
+      brands: [
+        { offerId: "o1", cashback: "7%" },
+        { offerId: "o-shopee", cashback: "5.6%" },
+      ],
+      brandsDesktop: [
+        { offerId: "o1", cashback: "7%" },
+        { offerId: "o-shopee", cashback: "5.6%" },
+      ],
+      brandsMobile: [
+        { offerId: "o-shopee", cashback: "5.6%" },
+        { offerId: "o1", cashback: "7%" },
+      ],
+      items: [offer, shopeeOffer],
+      order: ["o1", "o-shopee"],
+      orderDesktop: ["o1", "o-shopee"],
+      orderMobile: ["o-shopee", "o1"],
+      maxBrands: 16,
+    });
+
+    renderPanel();
+
+    expect(
+      await screen.findByRole("heading", { name: "Desktop order" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Mobile order" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("top-brand-preview-desktop-page-0-slot-0"),
+    ).toHaveTextContent("Banana IT");
+    expect(
+      screen.getByTestId("top-brand-preview-mobile-grid-slot-0"),
+    ).toHaveTextContent("Shopee");
+
+    // Touch a remove+undo-ish dirty path: remove from both, then save empty.
+    await user.click(screen.getAllByRole("button", { name: "Remove" })[0]);
+    await user.click(screen.getByRole("button", { name: "Save top brands" }));
+
     await waitFor(() => {
-      expect(select).toHaveTextContent("Banana IT");
-      expect(select).toHaveTextContent("o2");
+      expect(apiClientMock.saveTopBrands).toHaveBeenCalledWith({
+        brandsDesktop: [{ offerId: "o-shopee", cashback: "5.6%" }],
+        brandsMobile: [{ offerId: "o-shopee", cashback: "5.6%" }],
+      });
     });
   });
 });

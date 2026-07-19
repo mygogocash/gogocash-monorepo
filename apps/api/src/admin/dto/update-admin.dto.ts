@@ -27,8 +27,29 @@ import {
   MAX_CUSTOM_TERMS_LENGTH,
   MAX_NOTE_TO_USER_LENGTH,
 } from 'src/offer/offer-text-limits';
+import {
+  WITHDRAW_ADMIN_STATUSES,
+  type WithdrawAdminStatus,
+} from '../restore-withdraw-fee-coupon';
 
-export class UpdateAdminDto extends PartialType(CreateAdminDto) {}
+export const ADMIN_ASSIGNABLE_ROLES = [
+  'viewer',
+  'support',
+  'approver',
+  'superadmin',
+  'super_admin',
+  'admin',
+  'editor',
+] as const;
+
+export type AdminAssignableRole = (typeof ADMIN_ASSIGNABLE_ROLES)[number];
+
+export class UpdateAdminDto extends PartialType(CreateAdminDto) {
+  @ApiPropertyOptional({ enum: ADMIN_ASSIGNABLE_ROLES })
+  @IsOptional()
+  @IsIn(ADMIN_ASSIGNABLE_ROLES)
+  role?: AdminAssignableRole;
+}
 
 export const FEE_MAX_CAP_MODES = ['percent', 'fixed'] as const;
 
@@ -196,10 +217,10 @@ export class UpdateFeeRateDto {
 }
 
 export class UpdateRequestWithdrawDto {
-  @ApiProperty()
+  @ApiProperty({ enum: WITHDRAW_ADMIN_STATUSES })
   @IsNotEmpty()
-  @IsString()
-  status: string;
+  @IsIn(WITHDRAW_ADMIN_STATUSES)
+  status: WithdrawAdminStatus;
 
   @ApiProperty()
   @IsNotEmpty()
@@ -538,12 +559,35 @@ export class TopBrandConfigEntryDto {
 }
 
 export class SaveTopBrandsDto {
-  @ApiProperty({ type: [TopBrandConfigEntryDto] })
+  /**
+   * Legacy single-list payload. When device lists are omitted, this value is
+   * written to brands + brandsDesktop + brandsMobile.
+   */
+  @ApiProperty({ type: [TopBrandConfigEntryDto], required: false })
+  @IsOptional()
   @IsArray()
   @ArrayMaxSize(MAX_TOP_BRANDS)
   @ValidateNested({ each: true })
   @Type(() => TopBrandConfigEntryDto)
-  brands: TopBrandConfigEntryDto[];
+  brands?: TopBrandConfigEntryDto[];
+
+  /** #378 Phase 2 — desktop homepage order. */
+  @ApiProperty({ type: [TopBrandConfigEntryDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_TOP_BRANDS)
+  @ValidateNested({ each: true })
+  @Type(() => TopBrandConfigEntryDto)
+  brandsDesktop?: TopBrandConfigEntryDto[];
+
+  /** #378 Phase 2 — mobile homepage order. */
+  @ApiProperty({ type: [TopBrandConfigEntryDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_TOP_BRANDS)
+  @ValidateNested({ each: true })
+  @Type(() => TopBrandConfigEntryDto)
+  brandsMobile?: TopBrandConfigEntryDto[];
 }
 
 export class GetConversionInWithdrawDto {

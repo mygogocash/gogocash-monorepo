@@ -165,6 +165,23 @@ describe('UserService account deletion', () => {
     expect(purged).toBe(0);
   });
 
+  it('purgeDueAccountDeletionsCron > given CRON_ENABLED=false > then never starts the purge', async () => {
+    const originalCronEnabled = process.env.CRON_ENABLED;
+    process.env.CRON_ENABLED = 'false';
+    try {
+      const purge = jest
+        .spyOn(service, 'purgeDueAccountDeletions')
+        .mockResolvedValue(0);
+
+      await service.purgeDueAccountDeletionsCron();
+
+      expect(purge).not.toHaveBeenCalled();
+    } finally {
+      if (originalCronEnabled === undefined) delete process.env.CRON_ENABLED;
+      else process.env.CRON_ENABLED = originalCronEnabled;
+    }
+  });
+
   it('purgeDueAccountDeletions > given an already-deleted Firebase user > then still anonymizes', async () => {
     const dueUser = {
       _id: new Types.ObjectId(),
