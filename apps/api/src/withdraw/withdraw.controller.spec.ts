@@ -6,6 +6,7 @@ import { validate } from 'class-validator';
 import type { Request } from 'express';
 import { WithdrawController } from './withdraw.controller';
 import { WithdrawService } from './withdraw.service';
+import { AnalyticsService } from 'src/analytics/analytics.service';
 import {
   CreateManualWithdrawRequestDto,
   CreateWithdrawDto,
@@ -67,6 +68,9 @@ function makeService(): jest.Mocked<Partial<WithdrawService>> {
 function reqWithUser(sub: string | undefined): Request {
   return {
     user: sub === undefined ? undefined : { sub },
+    // Real Express requests always carry a headers object; analytics context
+    // extraction reads it, so the fixture must model that.
+    headers: {},
   } as unknown as Request;
 }
 
@@ -131,12 +135,17 @@ describe('CreateWithdrawMethod account-number boundary', () => {
 describe('WithdrawController', () => {
   let controller: WithdrawController;
   let service: jest.Mocked<Partial<WithdrawService>>;
+  let analytics: { capture: jest.Mock };
 
   beforeEach(async () => {
     service = makeService();
+    analytics = { capture: jest.fn().mockResolvedValue(undefined) };
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [WithdrawController],
-      providers: [{ provide: WithdrawService, useValue: service }],
+      providers: [
+        { provide: WithdrawService, useValue: service },
+        { provide: AnalyticsService, useValue: analytics },
+      ],
     })
       // Guards carry real Mongoose/JWT dependencies; we test controller
       // delegation logic, not the guards themselves, so stub them to allow.
@@ -153,6 +162,107 @@ describe('WithdrawController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  describe('withdraw_requested analytics (PDPA-safe funnel)', () => {
+    const withdrawDto = () =>
+      plainToInstance(CreateWithdrawDto, {
+        amount_total: 750,
+        method: 'bank',
+        currency: 'THB',
+        account_no: '0012345678',
+        account_name: 'QA Shopper',
+        bank_name: 'KBANK',
+      });
+
+    it('captures withdraw_requested with method + amount band after a successful create', async () => {
+      await controller.create(reqWithUser('user-self'), withdrawDto());
+
+      expect(analytics.capture).toHaveBeenCalledWith(
+        'withdraw_requested',
+        expect.objectContaining({ userId: 'user-self' }),
+        expect.objectContaining({
+          method: 'bank',
+          amount_band: '500-1000',
+          currency: 'THB',
+        }),
+      );
+    });
+
+    it('never leaks bank/account/wallet PII into the event properties', async () => {
+      await controller.create(reqWithUser('user-self'), withdrawDto());
+
+      const props = analytics.capture.mock.calls[0]?.[2] ?? {};
+      for (const banned of [
+        'account_no',
+        'account_number',
+        'account_name',
+        'bank_name',
+        'address',
+      ]) {
+        expect(props).not.toHaveProperty(banned);
+      }
+    });
+
+    it('does not capture when the underlying create fails', async () => {
+      (service.create as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+
+      await expect(
+        controller.create(reqWithUser('user-self'), withdrawDto()),
+      ).rejects.toThrow('boom');
+      expect(analytics.capture).not.toHaveBeenCalled();
+    });
+
+    it('captures withdraw_requested (method bank_transfer) after a successful bank transfer', async () => {
+      const dto = plainToInstance(CreateWithdrawDto, {
+        amount_total: 250,
+        currency: 'THB',
+        account_no: '0012345678',
+        account_name: 'QA Shopper',
+        bank_name: 'KBANK',
+      });
+
+      await controller.createBankTransfer(
+        reqWithUser('user-self'),
+        dto,
+        'idem-1',
+      );
+
+      expect(analytics.capture).toHaveBeenCalledWith(
+        'withdraw_requested',
+        expect.objectContaining({ userId: 'user-self' }),
+        expect.objectContaining({
+          method: 'bank_transfer',
+          amount_band: '100-500',
+          currency: 'THB',
+        }),
+      );
+      const props = analytics.capture.mock.calls[0]?.[2] ?? {};
+      for (const banned of [
+        'account_no',
+        'account_number',
+        'account_name',
+        'bank_name',
+        'address',
+      ]) {
+        expect(props).not.toHaveProperty(banned);
+      }
+    });
+
+    it('does not capture when the underlying bank transfer fails', async () => {
+      (service.createBankTransfer as jest.Mock).mockRejectedValueOnce(
+        new Error('boom'),
+      );
+
+      await expect(
+        controller.createBankTransfer(
+          reqWithUser('user-self'),
+          withdrawDto(),
+          'idem-1',
+        ),
+      ).rejects.toThrow('boom');
+      expect(analytics.capture).not.toHaveBeenCalled();
+    });
   });
 
   describe('checkWithdraw (self-service)', () => {

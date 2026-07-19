@@ -28,6 +28,8 @@ import {
   type PayoutMethodTab,
 } from "@mobile/api/backendIntegrationScope";
 import { isCheckWithdrawResponse } from "@mobile/api/walletTypes";
+import { trackCashbackWithdrawSuccess } from "@mobile/analytics/events";
+import { useAnalytics } from "@mobile/analytics/useAnalytics";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { invalidateCustomerWalletQueries } from "@mobile/account/invalidateCustomerWalletQueries";
 import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
@@ -294,6 +296,7 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const env = getMobileEnv();
   const queryClient = useQueryClient();
+  const analytics = useAnalytics();
   const payoutMethodTabs = useMemo(
     () => resolvePayoutMethodTabs(env.accountDataSource),
     [env.accountDataSource],
@@ -765,6 +768,14 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
           haptics.success();
           setErrors([]);
           await invalidateCustomerWalletQueries(queryClient);
+          // A confirmed cashback withdrawal is a key conversion. value/currency/
+          // method only — never the account number (PII).
+          trackCashbackWithdrawSuccess(analytics, {
+            amount: decision.amount,
+            currency: "THB",
+            method: withdrawMethod,
+            source: "withdraw",
+          });
           setSuccessMsg(
             `Cashback withdrawal of ${decision.amount.toFixed(2)} THB to ${selectedMethod.bankName} submitted successfully!`,
           );
@@ -792,6 +803,12 @@ export function CustomerMoneyActionScreen({ mode }: { mode: MoneyActionMode }) {
     haptics.success();
     setErrors([]);
     setFixturesWithdrawn((current) => current + decision.amount);
+    trackCashbackWithdrawSuccess(analytics, {
+      amount: decision.amount,
+      currency: "THB",
+      method: withdrawMethod,
+      source: "withdraw",
+    });
     setSuccessMsg(
       `Cashback withdrawal of ${decision.amount.toFixed(2)} THB to ${selectedMethod.bankName} submitted successfully!`,
     );

@@ -27,7 +27,9 @@ import {
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
-// import { extractAnalyticsContext } from 'src/analytics/analytics-context';
+import { extractAnalyticsContext } from 'src/analytics/analytics-context';
+import { AnalyticsService } from 'src/analytics/analytics.service';
+import { amountBand } from 'src/analytics/amount-band';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { RolesGuard } from 'src/admin/roles.guard';
 import { Roles } from 'src/admin/roles.decorator';
@@ -35,7 +37,10 @@ import { requireAdminActor } from 'src/admin/activity/admin-activity.actor';
 import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
 @Controller('withdraw')
 export class WithdrawController {
-  constructor(private readonly withdrawService: WithdrawService) {}
+  constructor(
+    private readonly withdrawService: WithdrawService,
+    private readonly analytics: AnalyticsService,
+  ) {}
 
   @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: GETSignDTO })
@@ -118,10 +123,35 @@ export class WithdrawController {
   ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    // const analyticsContext = extractAnalyticsContext(req, {
-    //   userId: id,
-    // });
-    return this.withdrawService.create(createWithdrawDto, id, idempotencyKey);
+    return this.captureWithdrawRequested(
+      req,
+      id,
+      createWithdrawDto,
+      this.withdrawService.create(createWithdrawDto, id, idempotencyKey),
+    );
+  }
+
+  /**
+   * PDPA-safe withdraw funnel event. Fires `withdraw_requested` only AFTER the
+   * underlying create resolves (a rejected create never emits a success event),
+   * and carries only the method type + coarse amount band + currency — never
+   * the bank/account/wallet details on the DTO.
+   */
+  private async captureWithdrawRequested<T>(
+    req: Request,
+    userId: string | undefined,
+    dto: CreateWithdrawDto,
+    work: Promise<T>,
+    methodFallback?: string,
+  ): Promise<T> {
+    const result = await work;
+    const ctx = extractAnalyticsContext(req, { userId });
+    void this.analytics.capture('withdraw_requested', ctx, {
+      method: dto.method ?? methodFallback,
+      amount_band: amountBand(dto.amount_total ?? dto.amount_net),
+      currency: dto.currency,
+    });
+    return result;
   }
 
   /**
@@ -205,13 +235,16 @@ export class WithdrawController {
   ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    // const analyticsContext = extractAnalyticsContext(req, {
-    //   userId: id,
-    // });
-    return this.withdrawService.createBankTransfer(
-      createWithdrawDto,
+    return this.captureWithdrawRequested(
+      req,
       id,
-      idempotencyKey,
+      createWithdrawDto,
+      this.withdrawService.createBankTransfer(
+        createWithdrawDto,
+        id,
+        idempotencyKey,
+      ),
+      'bank_transfer',
     );
   }
 
