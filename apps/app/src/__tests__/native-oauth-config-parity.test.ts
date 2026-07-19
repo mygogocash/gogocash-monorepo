@@ -30,7 +30,7 @@ describe("native oauth config parity", () => {
     );
   });
 
-  it("eas.json closedtest and preview builds carry the Google web client id", () => {
+  it("eas.json closedtest, preview, and beta builds carry the Google web client id", () => {
     // eas.json's schema REJECTS empty-string env values ("is not allowed to be
     // empty" — it broke the staging OTA publish), so the dormant
     // EXPO_PUBLIC_NATIVE_OAUTH_PROVIDERS flag must stay ABSENT here until it
@@ -39,7 +39,7 @@ describe("native oauth config parity", () => {
     const easJson = JSON.parse(readAppFile("eas.json")) as {
       build: Record<string, { env?: Record<string, string> }>;
     };
-    for (const profile of ["closedtest", "preview"] as const) {
+    for (const profile of ["closedtest", "preview", "beta"] as const) {
       const env = easJson.build[profile]?.env ?? {};
       expect(env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID).toBeTruthy();
       for (const value of Object.values(env)) {
