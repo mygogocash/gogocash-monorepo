@@ -279,7 +279,6 @@ export class WalletsService {
     let adjustment:
       | Awaited<ReturnType<Model<WalletAdjustment>['create']>>[number]
       | undefined;
-    let replayed = false;
     try {
       await session.withTransaction(async () => {
         // Use the same per-user serialization point as withdrawal creation.
@@ -312,7 +311,6 @@ export class WalletsService {
             );
           }
           adjustment = existingCommand;
-          replayed = true;
           return;
         }
 

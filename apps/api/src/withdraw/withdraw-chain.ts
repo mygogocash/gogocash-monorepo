@@ -16,6 +16,19 @@ export type WithdrawChainConfig = {
 
 export class ChainRecordRejectedError extends BadGatewayException {}
 export class ChainRecordOutcomeUnknownError extends ServiceUnavailableException {}
+export class PayoutEvidenceRejectedError extends BadGatewayException {}
+export class PayoutEvidenceOutcomeUnknownError extends ServiceUnavailableException {}
+
+export type ExactChainReceipt = {
+  hash?: string;
+  status?: number | bigint | null;
+  to?: string | null;
+};
+
+type ExactChainReceiptProvider = {
+  getNetwork(): Promise<{ chainId: number | bigint }>;
+  getTransactionReceipt(hash: string): Promise<ExactChainReceipt | null>;
+};
 
 type WithdrawChainEnv = NodeJS.ProcessEnv;
 
@@ -117,4 +130,96 @@ export async function requireSuccessfulChainRecord(submission: {
     );
   }
   return hash;
+}
+
+/**
+ * Reads payout evidence from the configured chain itself. A transaction hash
+ * is not settlement proof until the RPC identifies the expected chain and
+ * returns the matching successful receipt. When the payout contract is known,
+ * the receipt must target that exact contract as well.
+ */
+export async function requireSuccessfulExactChainReceipt(input: {
+  expectedChainId: number;
+  expectedTarget?: string;
+  provider: ExactChainReceiptProvider;
+  transactionHash: string;
+}): Promise<ExactChainReceipt> {
+  const transactionHash = String(input.transactionHash).trim().toLowerCase();
+  if (!EVM_TRANSACTION_HASH_PATTERN.test(transactionHash)) {
+    throw new PayoutEvidenceOutcomeUnknownError(
+      'The payout transaction hash is invalid. The balance remains reserved for manual review.',
+    );
+  }
+
+  let network: Awaited<ReturnType<ExactChainReceiptProvider['getNetwork']>>;
+  try {
+    network = await input.provider.getNetwork();
+  } catch {
+    throw new PayoutEvidenceOutcomeUnknownError(
+      'The payout chain could not be verified. The balance remains reserved for manual review.',
+    );
+  }
+  const reportedChainId = Number(network.chainId);
+  if (
+    !Number.isSafeInteger(reportedChainId) ||
+    reportedChainId !== input.expectedChainId
+  ) {
+    throw new PayoutEvidenceOutcomeUnknownError(
+      'The payout RPC did not report the expected chain. The balance remains reserved for manual review.',
+    );
+  }
+
+  let receipt: ExactChainReceipt | null;
+  try {
+    receipt = await input.provider.getTransactionReceipt(transactionHash);
+  } catch {
+    throw new PayoutEvidenceOutcomeUnknownError(
+      'The payout receipt could not be verified. The balance remains reserved for manual review.',
+    );
+  }
+  if (!receipt) {
+    throw new PayoutEvidenceOutcomeUnknownError(
+      'The payout transaction has no mined receipt yet. The balance remains reserved for manual review.',
+    );
+  }
+
+  const receiptHash = String(receipt.hash ?? '').toLowerCase();
+  if (
+    !EVM_TRANSACTION_HASH_PATTERN.test(receiptHash) ||
+    receiptHash !== transactionHash
+  ) {
+    throw new PayoutEvidenceOutcomeUnknownError(
+      'The payout receipt did not match the submitted transaction. The balance remains reserved for manual review.',
+    );
+  }
+  if (receipt.status === 0 || receipt.status === 0n) {
+    throw new PayoutEvidenceRejectedError(
+      'The payout transaction failed on-chain. The withdrawal remains pending for manual review.',
+    );
+  }
+  if (Number(receipt.status) !== 1) {
+    throw new PayoutEvidenceOutcomeUnknownError(
+      'The payout receipt returned an unknown status. The balance remains reserved for manual review.',
+    );
+  }
+
+  if (input.expectedTarget) {
+    // ethers.isAddress rejects a leading "0X"; normalize before validation.
+    const expectedTarget = String(input.expectedTarget).trim().toLowerCase();
+    const receiptTarget = String(receipt.to ?? '')
+      .trim()
+      .toLowerCase();
+    if (
+      !isAddress(expectedTarget) ||
+      !receiptTarget ||
+      !isAddress(receiptTarget) ||
+      receiptTarget !== expectedTarget
+    ) {
+      throw new PayoutEvidenceRejectedError(
+        'The payout transaction did not target the expected withdrawal contract. The withdrawal remains pending for manual review.',
+      );
+    }
+  }
+
+  return receipt;
 }

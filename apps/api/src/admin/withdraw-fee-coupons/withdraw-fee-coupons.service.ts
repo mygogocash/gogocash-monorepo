@@ -107,7 +107,7 @@ export class WithdrawFeeCouponsService {
       await session.withTransaction(async () => {
         const created = await this.couponModel.create([payload], { session });
         const doc = Array.isArray(created) ? created[0] : created;
-        createdObj = doc.toObject();
+        createdObj = doc.toObject() as unknown as Record<string, unknown>;
         await this.adminActivity.appendRequired(
           {
             actor_type: 'admin',
@@ -142,11 +142,7 @@ export class WithdrawFeeCouponsService {
     }
   }
 
-  async update(
-    id: string,
-    dto: UpdateWithdrawFeeCouponDto,
-    actor: AdminActor,
-  ) {
+  async update(id: string, dto: UpdateWithdrawFeeCouponDto, actor: AdminActor) {
     this.assertCanMutateCoupons(actor);
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid coupon id');
@@ -228,7 +224,7 @@ export class WithdrawFeeCouponsService {
         }
 
         await existing.save({ session });
-        updated = existing.toObject();
+        updated = existing.toObject() as unknown as Record<string, unknown>;
         await this.adminActivity.appendRequired(
           {
             actor_type: 'admin',

@@ -638,7 +638,7 @@ export class AdminService {
       320,
       'admin actor label',
     );
-    const deleted = await this.withAdminRosterLock(async (session) => {
+    await this.withAdminRosterLock(async (session) => {
       const existing = await this.userAdminModel
         .findById(adminId)
         .select('-password')
@@ -1536,7 +1536,7 @@ export class AdminService {
     const userMobile = await this.userModel
       .findOne({ mobile: normalizedMobile })
       .lean();
-    if (userMobile && userMobile._id.toString() !== userId.toString()) {
+    if (userMobile?._id && String(userMobile._id) !== String(userId)) {
       throw new HttpException({ message: 'Mobile number already in use' }, 400);
     }
     return this.userModel
@@ -1949,9 +1949,7 @@ export class AdminService {
       | null
       | undefined,
   ) {
-    const body = Array.isArray(input)
-      ? { brands: input }
-      : (input ?? {});
+    const body = Array.isArray(input) ? { brands: input } : (input ?? {});
     const hasDeviceLists =
       body.brandsDesktop !== undefined || body.brandsMobile !== undefined;
 

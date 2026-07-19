@@ -87,6 +87,7 @@ import {
   ChainRecordRejectedError,
   configuredWithdrawChainIds,
   requireSuccessfulChainRecord,
+  requireSuccessfulExactChainReceipt,
   resolveWithdrawChainConfig,
 } from './withdraw-chain';
 
@@ -270,7 +271,10 @@ export class WithdrawService {
     const chain = resolveWithdrawChainConfig(msg.chain);
     const expireAt = BigInt(msg.expireAt);
     const now = BigInt(Math.floor(Date.now() / 1000));
-    if (expireAt < now + 30n || expireAt > now + 10n * 60n) {
+    // Only reject far-future expiry here. The moving 30s minimum applies to newly
+    // issued promises below; exact lost-response retries may reuse a durable
+    // signature with fewer than 30 seconds remaining until its stored expiry.
+    if (expireAt > now + 10n * 60n) {
       throw new BadRequestException(
         'Withdrawal authorization expiry must be 30 seconds to 10 minutes from now.',
       );
@@ -370,6 +374,12 @@ export class WithdrawService {
           .session(session)
           .exec();
         if (existingCommand) {
+          const storedExpiryMs =
+            existingCommand.authorization_expires_at instanceof Date
+              ? existingCommand.authorization_expires_at.getTime()
+              : new Date(
+                  String(existingCommand.authorization_expires_at ?? ''),
+                ).getTime();
           if (
             existingCommand.idempotency_effect_hash !==
               authorizationEffectHash ||
@@ -377,7 +387,10 @@ export class WithdrawService {
             existingCommand.status !== 'pending' ||
             existingCommand.authorization_state !== 'issued' ||
             existingCommand.authorization_slot_active !== true ||
-            !existingCommand.authorization_signature
+            !existingCommand.authorization_signature ||
+            !Number.isFinite(storedExpiryMs) ||
+            Math.floor(storedExpiryMs / 1000) !== Number(expireAt) ||
+            storedExpiryMs <= Date.now()
           ) {
             throw new ConflictException(
               'This withdrawal authorization is no longer reusable.',
@@ -387,6 +400,16 @@ export class WithdrawService {
             record: existingCommand,
             signature: existingCommand.authorization_signature,
           };
+        }
+
+        // The moving minimum protects only a newly issued spendable promise.
+        // Exact lost-response retries above reuse their durable signature until
+        // its stored expiry, even when fewer than 30 seconds remain.
+        const lockedNow = BigInt(Math.floor(Date.now() / 1000));
+        if (expireAt < lockedNow + 30n) {
+          throw new BadRequestException(
+            'Withdrawal authorization expiry must be 30 seconds to 10 minutes from now.',
+          );
         }
 
         const activeAuthorization = await this.withdrawModel
@@ -3074,6 +3097,134 @@ export class WithdrawService {
     }
   }
 
+  /** Read-only payout receipt validation; this never broadcasts a transaction. */
+  async requireSuccessfulPayoutReceipt(
+    chainId: number,
+    transactionHash: string,
+    expectedTarget?: string,
+  ) {
+    const chain = resolveWithdrawChainConfig(chainId);
+    return requireSuccessfulExactChainReceipt({
+      expectedChainId: chain.chainId,
+      expectedTarget,
+      provider: new ethers.JsonRpcProvider(chain.rpc),
+      transactionHash,
+    });
+  }
+
+  /**
+   * The repository owns the withdrawal-contract address, expected recipient,
+   * and expected amount, but it does not contain the deployed payout function
+   * ABI or settlement event semantics. We can therefore prove a successful
+   * call reached the exact configured contract, but cannot prove that call paid
+   * this record rather than invoking another successful function (including
+   * recordConversionId). Keep the reservation until those semantics exist.
+   */
+  async assertAutoPayoutEvidence(record: WithdrawDocument): Promise<void> {
+    const transactionHash = String(record.tx_hash ?? '').trim();
+    if (!transactionHash) {
+      throw new ConflictException(
+        'A customer payout transaction hash is required. The server recordConversionId receipt is not payout settlement evidence.',
+      );
+    }
+    if (
+      !record.address ||
+      !ethers.isAddress(record.address) ||
+      !Number.isFinite(Number(record.amount_net)) ||
+      Number(record.amount_net) <= 0
+    ) {
+      throw new HttpException(
+        {
+          message:
+            'The expected payout recipient or amount is incomplete. The balance remains reserved for manual review.',
+        },
+        503,
+      );
+    }
+
+    const chainId = Number(
+      record.authorization_chain_id ??
+        record.chain_record_chain_id ??
+        record.chain,
+    );
+    let chain;
+    try {
+      chain = resolveWithdrawChainConfig(chainId);
+    } catch {
+      throw new HttpException(
+        {
+          message:
+            'The payout chain configuration cannot be verified. The balance remains reserved for manual review.',
+        },
+        503,
+      );
+    }
+    const expectedContract = String(
+      record.authorization_contract || chain.contract,
+    ).trim();
+    if (
+      !ethers.isAddress(expectedContract) ||
+      ethers.getAddress(expectedContract) !== ethers.getAddress(chain.contract)
+    ) {
+      throw new HttpException(
+        {
+          message:
+            'The stored payout contract does not match the configured withdrawal contract. The balance remains reserved for manual review.',
+        },
+        503,
+      );
+    }
+
+    await this.requireSuccessfulPayoutReceipt(
+      chain.chainId,
+      transactionHash,
+      expectedContract,
+    );
+    throw new HttpException(
+      {
+        message:
+          'The payout receipt is successful and targets the configured contract, but this service cannot safely bind it to the expected recipient and amount because the deployed payout ABI or settlement event contract is not present in this repository. The balance remains reserved for manual review.',
+      },
+      503,
+    );
+  }
+
+  /**
+   * MiniPay payouts are external USDT/USDC transfers. The repository has the
+   * expected Celo recipient and amount but no authoritative stablecoin contract
+   * addresses or sender identity, so a successful receipt alone is ambiguous.
+   */
+  async assertManualPayoutEvidence(
+    record: WithdrawDocument,
+    transactionHash: string,
+  ): Promise<void> {
+    if (
+      String(record.chain ?? '').toUpperCase() !== 'CELO' ||
+      !['USDT', 'USDC'].includes(String(record.currency ?? '').toUpperCase()) ||
+      !record.address ||
+      !ethers.isAddress(record.address) ||
+      !Number.isFinite(Number(record.amount_net)) ||
+      Number(record.amount_net) <= 0
+    ) {
+      throw new HttpException(
+        {
+          message:
+            'The expected Celo stablecoin payout details are incomplete. The balance remains reserved for manual review.',
+        },
+        503,
+      );
+    }
+    const celoChainId = Number(process.env.CHAIN_ID_WITHDRAW_CELO);
+    await this.requireSuccessfulPayoutReceipt(celoChainId, transactionHash);
+    throw new HttpException(
+      {
+        message:
+          'The Celo receipt is successful, but this service cannot safely bind it to the expected stablecoin contract, recipient, and amount because authoritative USDT/USDC contract configuration is not present in this repository. The withdrawal remains pending for manual review.',
+      },
+      503,
+    );
+  }
+
   /**
    * Admin action: record that the MiniPay manual payout has been sent on-chain.
    * Idempotent — if the record is already paid, returns it unchanged rather
@@ -3116,6 +3267,7 @@ export class WithdrawService {
         409,
       );
     }
+    await this.assertManualPayoutEvidence(before, canonicalTxHash);
 
     let updated: WithdrawDocument | null;
     try {
@@ -3134,7 +3286,7 @@ export class WithdrawService {
               'This tx_hash is already recorded on another withdrawal',
             );
           }
-          return this.withdrawModel.findOneAndUpdate(
+          const paid = await this.withdrawModel.findOneAndUpdate(
             {
               _id: withdrawObjectId,
               user_id: before.user_id,
@@ -3151,6 +3303,25 @@ export class WithdrawService {
             },
             { new: true, session },
           );
+          if (!paid) return null;
+          await this.adminActivity.appendRequired(
+            {
+              actor_type: 'admin',
+              actor_id: actor.id,
+              actor_label: actor.label,
+              action: 'withdraw.marked_paid',
+              entity_type: 'withdraw',
+              entity_id: withdrawId,
+              summary: 'Marked manual withdrawal paid',
+              metadata: {
+                tx_hash: canonicalTxHash,
+                amount_net: paid.amount_net,
+                currency: paid.currency,
+              },
+            },
+            session,
+          );
+          return paid;
         },
       );
     } catch (err: unknown) {
@@ -3169,20 +3340,6 @@ export class WithdrawService {
     }
 
     if (updated) {
-      await this.adminActivity.append({
-        actor_type: 'admin',
-        actor_id: actor.id,
-        actor_label: actor.label,
-        action: 'withdraw.marked_paid',
-        entity_type: 'withdraw',
-        entity_id: withdrawId,
-        summary: 'Marked manual withdrawal paid',
-        metadata: {
-          tx_hash: canonicalTxHash,
-          amount_net: updated.amount_net,
-          currency: updated.currency,
-        },
-      });
       return { success: true, data: updated };
     }
 
@@ -3254,18 +3411,8 @@ export class WithdrawService {
         409,
       );
     }
-    if (
-      !String(before.tx_hash_record ?? '').trim() &&
-      before.chain_record_state !== 'recorded'
-    ) {
-      throw new HttpException(
-        {
-          message:
-            'Chain-record evidence must be attached before this withdrawal can be approved.',
-        },
-        409,
-      );
-    }
+    await this.assertAutoPayoutEvidence(before);
+    const payoutTxHash = requireCanonicalEvmTransactionHash(before.tx_hash);
     const approval = await this.runSerializedWithdraw(
       String(before.user_id),
       async (session) => {
@@ -3275,9 +3422,7 @@ export class WithdrawService {
             user_id: before.user_id,
             status: 'pending',
             withdraw_mode: { $ne: 'manual' },
-            ...(before.chain_record_state === 'recorded'
-              ? { chain_record_state: 'recorded' }
-              : { tx_hash_record: String(before.tx_hash_record) }),
+            tx_hash: payoutTxHash,
           },
           {
             $set: {
@@ -3294,29 +3439,33 @@ export class WithdrawService {
           { $set: { status: 'approved' } },
           { session },
         );
+        const companionCount = Number(companions.modifiedCount ?? 0);
+        await this.adminActivity.appendRequired(
+          {
+            actor_type: 'admin',
+            actor_id: actor.id,
+            actor_label: actor.label,
+            action: 'withdraw.approved',
+            entity_type: 'withdraw',
+            entity_id: withdrawId,
+            summary: 'Approved withdrawal payout',
+            metadata: {
+              amount_net: primary.amount_net,
+              currency: primary.currency,
+              method: primary.method,
+              companion_status_changes: companionCount,
+            },
+          },
+          session,
+        );
         return {
-          companionCount: Number(companions.modifiedCount ?? 0),
+          companionCount,
           primary,
         };
       },
     );
     const updated = approval.primary;
     if (updated) {
-      await this.adminActivity.append({
-        actor_type: 'admin',
-        actor_id: actor.id,
-        actor_label: actor.label,
-        action: 'withdraw.approved',
-        entity_type: 'withdraw',
-        entity_id: withdrawId,
-        summary: 'Approved withdrawal payout',
-        metadata: {
-          amount_net: updated.amount_net,
-          currency: updated.currency,
-          method: updated.method,
-          companion_status_changes: approval.companionCount,
-        },
-      });
       return { success: true, data: updated };
     }
 
@@ -3656,8 +3805,7 @@ export class WithdrawService {
         await this.withdrawModel.create([autoFields], { session });
       }
 
-      const actorLabel =
-        user.username || user.email || String(user._id);
+      const actorLabel = user.username || user.email || String(user._id);
       await this.adminActivity.appendRequired(
         {
           actor_type: 'customer',
