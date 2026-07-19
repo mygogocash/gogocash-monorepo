@@ -156,6 +156,32 @@ describe("filterOutgoingRequestHeaders", () => {
     );
     expect(outgoing.get("Accept")).toBe("application/json");
   });
+
+  it("given Cloudflare edge headers on the inbound request > then strips them from the upstream request", () => {
+    // When the admin domain is Cloudflare-proxied, the inbound request carries
+    // cf-* headers. Forwarding them to a Cloudflare-proxied upstream makes
+    // Cloudflare reject the request as header spoofing (error 1000, a
+    // message-less 403) — CF-Connecting-IP alone is enough to trigger it.
+    const incoming = new Headers({
+      Accept: "application/json",
+      "CF-Connecting-IP": "184.22.25.10",
+      "CF-Ray": "a1da780ec86af8dc-SIN",
+      "CF-Visitor": '{"scheme":"https"}',
+      "CF-IPCountry": "TH",
+      "CDN-Loop": "cloudflare; loops=1",
+      "True-Client-IP": "184.22.25.10",
+    });
+
+    const outgoing = filterOutgoingRequestHeaders(incoming);
+
+    expect(outgoing.get("CF-Connecting-IP")).toBeNull();
+    expect(outgoing.get("CF-Ray")).toBeNull();
+    expect(outgoing.get("CF-Visitor")).toBeNull();
+    expect(outgoing.get("CF-IPCountry")).toBeNull();
+    expect(outgoing.get("CDN-Loop")).toBeNull();
+    expect(outgoing.get("True-Client-IP")).toBeNull();
+    expect(outgoing.get("Accept")).toBe("application/json");
+  });
 });
 
 describe("assertProxyBodyWithinLimit", () => {
