@@ -1,0 +1,98 @@
+# Sync GitHub staging Environment Firebase + staging identity vars into the
+# Expo EAS `preview` environment without printing secret values.
+#
+# Usage:
+#   gh workflow run sync-eas-preview-env.yml --ref staging
+#
+# Required secrets:
+#   - EXPO_TOKEN (repo)
+#   - EXPO_PUBLIC_FIREBASE_* (Environment: staging)
+name: Sync EAS preview env from GitHub staging
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: sync-eas-preview-env
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync EAS preview environment
+    runs-on: ubuntu-latest
+    environment: staging
+    defaults:
+      run:
+        working-directory: apps/app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install (root, workspace-aware)
+        working-directory: .
+        run: npm ci
+
+      - name: Set up EAS / Expo
+        uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # v9
+        with:
+          eas-version: "21.0.1"
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Upsert EAS preview variables
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+        run: |
+          set -euo pipefail
+          upsert() {
+            local name="$1"
+            local value="$2"
+            local visibility="$3"
+            if [ -z "${value}" ]; then
+              echo "::error::${name} is blank; refusing to sync."
+              exit 1
+            fi
+            # Prefer create; on conflict force-overwrite without printing value.
+            if ! eas env:create preview \
+              --name "${name}" \
+              --value "${value}" \
+              --visibility "${visibility}" \
+              --type string \
+              --non-interactive >/dev/null 2>&1; then
+              eas env:create preview \
+                --name "${name}" \
+                --value "${value}" \
+                --visibility "${visibility}" \
+                --type string \
+                --force \
+                --non-interactive >/dev/null
+            fi
+            echo "synced ${name} (visibility=${visibility})"
+          }
+
+          upsert EXPO_PUBLIC_FIREBASE_API_KEY "${EXPO_PUBLIC_FIREBASE_API_KEY}" sensitive
+          upsert EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN "${EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN}" sensitive
+          upsert EXPO_PUBLIC_FIREBASE_PROJECT_ID "${EXPO_PUBLIC_FIREBASE_PROJECT_ID}" sensitive
+          upsert EXPO_PUBLIC_FIREBASE_APP_ID "${EXPO_PUBLIC_FIREBASE_APP_ID}" sensitive
+
+          # Fixed staging identity expected by eas-preview-env-proof.mjs
+          upsert EXPO_PUBLIC_EAS_PROJECT_ID "0039c25f-f88e-491d-8da9-85b8d6e66558" plaintext
+          upsert EXPO_PUBLIC_API_URL "https://api-staging.gogocash.co" plaintext
+          upsert EXPO_PUBLIC_APP_ENV "staging" plaintext
+          upsert EXPO_PUBLIC_ACCOUNT_DATA_SOURCE "backend" plaintext
+          upsert EXPO_PUBLIC_FRONTEND_URL "https://app-staging.gogocash.co" plaintext
+
+          echo "EAS preview environment sync complete (values not logged)."
