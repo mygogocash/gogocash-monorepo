@@ -282,4 +282,15 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     // Empty-state copy stays in source for the filtered-to-zero case.
     expect(walletSource).toContain("webWalletEmptyState.title");
   });
+
+  it("wires the transaction list to REAL backend data (list-check), mock only as fixtures fallback", () => {
+    // Backend mode must render the customer's actual earnings + withdrawals, not
+    // the demo rows. The screen fetches the walletTransactions resource and maps
+    // the /withdraw/list-check payload; WALLET_TX_ROWS is now only the fixtureData.
+    expect(walletSource).toContain('resourceId: "walletTransactions"');
+    expect(walletSource).toContain("mapListCheckToWalletTxRows");
+    // The transactions list consumes mapped rows via a prop (not the module-level mock).
+    expect(walletSource).toContain("rows={txRows}");
+    expect(walletSource).toContain("fixtureData: WALLET_TX_ROWS");
+  });
 });

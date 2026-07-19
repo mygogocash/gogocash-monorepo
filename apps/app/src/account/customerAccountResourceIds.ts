@@ -14,7 +14,8 @@ export type CustomerAccountResourceId =
   | "productDiscoveryBanner"
   | "referral"
   | "topBrand"
-  | "wallet";
+  | "wallet"
+  | "walletTransactions";
 
 /** Public, no-auth resources whose live admin config should load even in fixtures mode. */
 export const PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS = [
