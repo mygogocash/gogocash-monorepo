@@ -1,4 +1,6 @@
 import { View } from "react-native";
+
+import { isGoGoPassEnabled } from "@mobile/config/featureFlags";
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 
 // Compact icon-only premium indicator — parity with the web `PremiumMark`
@@ -23,7 +25,8 @@ export function GoGoPassMark({
   size?: number;
   marginLeft?: number;
 }) {
-  const style = tier ? TIER_STYLES[tier] : undefined;
+  // GoGoPass rollout flag: hidden builds render no mark for any tier.
+  const style = isGoGoPassEnabled() && tier ? TIER_STYLES[tier] : undefined;
   if (!style) {
     return null;
   }

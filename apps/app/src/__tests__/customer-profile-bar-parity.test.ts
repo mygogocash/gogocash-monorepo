@@ -90,6 +90,18 @@ describe("Expo ProfileBar pixel parity", () => {
   });
 });
 
+describe("Expo profile bar GoGoPass rollout flag", () => {
+  const profileBar = readSource("src/components/CustomerProfileBar.tsx");
+
+  it("profile bar > given EXPO_PUBLIC_ENABLE_GOGOPASS=0 > then premium name styling is gated with the marks", () => {
+    // The gold mark + ring hide centrally inside GoGoPassMark/GoGoPassAvatar, but
+    // the member-only name treatment (semibold ink vs. grey) is styled here — it
+    // must follow the same flag or hidden builds still visually rank members.
+    expect(profileBar).toContain("isGoGoPassEnabled()");
+    expect(profileBar).toMatch(/premium = isGoGoPassEnabled\(\) && isGoGoPassSubscriber\(tier\)/);
+  });
+});
+
 describe("Expo profile bar hover affordance", () => {
   const nav = readSource("src/components/CustomerProfileNav.tsx");
 

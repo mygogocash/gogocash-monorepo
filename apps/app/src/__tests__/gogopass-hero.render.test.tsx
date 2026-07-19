@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
@@ -80,5 +80,30 @@ describe("AccountWalletHeroCard GoGoPass treatment (render)", () => {
 
   it("mounts the gold ring + badge without throwing", () => {
     expect(() => renderHero()).not.toThrow();
+  });
+});
+
+describe("AccountWalletHeroCard GoGoPass rollout flag (render)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('given EXPO_PUBLIC_ENABLE_GOGOPASS="0" > then a gogopass tier renders a plain avatar and no badge', () => {
+    vi.stubEnv("EXPO_PUBLIC_ENABLE_GOGOPASS", "0");
+    renderHero(); // default props include tier: "gogopass"
+    // GoGoPassAvatar's premium wrapper carries accessibilityLabel "GoGoPass member";
+    // GoGoPassBadge carries "GOGOPASS member". Neither may render when hidden.
+    expect(screen.queryByLabelText("GoGoPass member")).toBeNull();
+    expect(screen.queryByLabelText("GOGOPASS member")).toBeNull();
+    expect(screen.queryByText("GOGOPASS")).toBeNull();
+    // The card itself still renders (plain variant), it is only de-branded.
+    expect(screen.getByText("Demo User")).toBeTruthy();
+  });
+
+  it("given the flag unset > then the gogopass tier still renders the ring + badge (default unchanged)", () => {
+    delete process.env.EXPO_PUBLIC_ENABLE_GOGOPASS;
+    renderHero();
+    expect(screen.getByLabelText("GoGoPass member")).toBeTruthy();
+    expect(screen.getByLabelText("GOGOPASS member")).toBeTruthy();
   });
 });
