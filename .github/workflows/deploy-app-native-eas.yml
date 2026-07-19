@@ -158,6 +158,12 @@ jobs:
           eas-version: "21.0.1"
           token: ${{ secrets.EXPO_TOKEN }}
 
+      # `eas env:exec` loads app.config / config plugins; workspace deps must
+      # exist first or Expo fails resolving `expo-build-properties`.
+      - name: Install (root, workspace-aware)
+        working-directory: .
+        run: npm ci
+
       - name: Verify EAS preview environment
         env:
           EXPECTED_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
@@ -184,10 +190,6 @@ jobs:
             -u EXPECTED_FIREBASE_PROJECT_ID \
             -u EXPECTED_FIREBASE_APP_ID \
             eas env:exec "$EAS_ENVIRONMENT" "node \"$GITHUB_WORKSPACE/scripts/deployment/eas-preview-env-proof.mjs\" \"$expectations_file\"" --non-interactive
-
-      - name: Install (root, workspace-aware)
-        working-directory: .
-        run: npm ci
 
       # This runs only after the job owns the shared EAS queue. Requiring the
       # exact commit to still be staging HEAD prevents a slower older run from
