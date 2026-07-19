@@ -78,9 +78,7 @@ describe('WithdrawFeeCouponsService', () => {
     end_at: '2026-12-31T00:00:00.000Z',
   });
 
-  function mockCreatedCoupon(
-    overrides: Partial<WithdrawFeeCoupon> = {},
-  ): void {
+  function mockCreatedCoupon(overrides: Partial<WithdrawFeeCoupon> = {}): void {
     const value = {
       _id: new Types.ObjectId(),
       code: 'SAVE10',

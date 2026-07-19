@@ -49,10 +49,7 @@ export type ListActivityQuery = {
 };
 
 /** Payout evidence / media refs must not ship to the activity list UI. */
-const REDACTED_METADATA_KEYS = new Set([
-  'slip_file',
-  'previous_slip_file',
-]);
+const REDACTED_METADATA_KEYS = new Set(['slip_file', 'previous_slip_file']);
 
 @Injectable()
 export class AdminActivityService {

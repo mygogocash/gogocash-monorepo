@@ -15,9 +15,8 @@ function collectDynamicProviderTokens(mod: unknown): unknown[] {
     if (!entry || typeof entry !== 'object' || !('providers' in entry)) {
       continue;
     }
-    const providers = (
-      entry as { providers?: Array<{ provide?: unknown }> }
-    ).providers;
+    const providers = (entry as { providers?: Array<{ provide?: unknown }> })
+      .providers;
     for (const provider of providers ?? []) {
       if (provider?.provide !== undefined) {
         tokens.push(provider.provide);
@@ -31,12 +30,10 @@ describe('TasksModule', () => {
   it('owns every mongoose/activity dependency WithdrawService needs to boot', () => {
     const providers =
       (Reflect.getMetadata(MODULE_METADATA.PROVIDERS, TasksModule) as
-        | unknown[]
-        | undefined) ?? [];
+        unknown[] | undefined) ?? [];
     const imports =
       (Reflect.getMetadata(MODULE_METADATA.IMPORTS, TasksModule) as
-        | unknown[]
-        | undefined) ?? [];
+        unknown[] | undefined) ?? [];
     const modelTokens = collectDynamicProviderTokens(TasksModule);
 
     expect(providers).toContain(WithdrawService);
