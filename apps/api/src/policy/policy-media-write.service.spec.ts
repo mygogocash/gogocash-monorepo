@@ -497,4 +497,21 @@ describe('PolicyMediaWriteService', () => {
     });
     expect(harness.cleanup.compensateMediaWriteCommand).not.toHaveBeenCalled();
   });
+  it('recoverExpiredCommandsOnSchedule > given CRON_ENABLED=false > then never starts command recovery', async () => {
+    const originalCronEnabled = process.env.CRON_ENABLED;
+    process.env.CRON_ENABLED = 'false';
+    try {
+      const harness = makeHarness();
+      const recover = jest
+        .spyOn(harness.service, 'recoverExpiredCommands')
+        .mockResolvedValue(0);
+
+      await harness.service.recoverExpiredCommandsOnSchedule();
+
+      expect(recover).not.toHaveBeenCalled();
+    } finally {
+      if (originalCronEnabled === undefined) delete process.env.CRON_ENABLED;
+      else process.env.CRON_ENABLED = originalCronEnabled;
+    }
+  });
 });

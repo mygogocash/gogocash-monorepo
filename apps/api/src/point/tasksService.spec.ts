@@ -44,6 +44,37 @@ describe('Point TasksService legacy purchase writer', () => {
     service = new TasksService(pointService as never, conversionModel as never);
   });
 
+  describe('scheduledHandleCron CRON_ENABLED gate', () => {
+    const originalCronEnabled = process.env.CRON_ENABLED;
+
+    afterEach(() => {
+      if (originalCronEnabled === undefined) delete process.env.CRON_ENABLED;
+      else process.env.CRON_ENABLED = originalCronEnabled;
+    });
+
+    it('given CRON_ENABLED=false > then skips the legacy point-award pass', async () => {
+      process.env.CRON_ENABLED = 'false';
+      const handleCron = jest
+        .spyOn(service, 'handleCron')
+        .mockResolvedValue(undefined);
+
+      await service.scheduledHandleCron();
+
+      expect(handleCron).not.toHaveBeenCalled();
+    });
+
+    it('given CRON_ENABLED unset > then delegates to handleCron once', async () => {
+      delete process.env.CRON_ENABLED;
+      const handleCron = jest
+        .spyOn(service, 'handleCron')
+        .mockResolvedValue(undefined);
+
+      await service.scheduledHandleCron();
+
+      expect(handleCron).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('queries only approved unmarked conversions and waits for every write', async () => {
     await service.handleCron();
 

@@ -511,6 +511,35 @@ describe('QuestMediaWriteService', () => {
     expect(commandModel.createIndexes).toHaveBeenCalledTimes(1);
   });
 
+  describe('CRON_ENABLED legacy cron gate', () => {
+    const originalCronEnabled = process.env.CRON_ENABLED;
+
+    afterEach(() => {
+      if (originalCronEnabled === undefined) delete process.env.CRON_ENABLED;
+      else process.env.CRON_ENABLED = originalCronEnabled;
+    });
+
+    it('recoverExpiredCommands > given CRON_ENABLED=false > then never touches indexes or commands', async () => {
+      process.env.CRON_ENABLED = 'false';
+      commandModel.find.mockReturnValue(query([]));
+
+      await service.recoverExpiredCommands();
+
+      expect(commandModel.createIndexes).not.toHaveBeenCalled();
+      expect(commandModel.find).not.toHaveBeenCalled();
+    });
+
+    it('recoverCommittedReplacementCleanup > given CRON_ENABLED=false > then never touches indexes or commands', async () => {
+      process.env.CRON_ENABLED = 'false';
+      commandModel.find.mockReturnValue(query([]));
+
+      await service.recoverCommittedReplacementCleanup();
+
+      expect(commandModel.createIndexes).not.toHaveBeenCalled();
+      expect(commandModel.find).not.toHaveBeenCalled();
+    });
+  });
+
   it('recovers replacement cleanup that could not be journaled after commit', async () => {
     const questId = new Types.ObjectId();
     const command = {

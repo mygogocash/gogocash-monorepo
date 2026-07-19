@@ -1221,6 +1221,28 @@ describe('PolicyAggregateService', () => {
     );
   });
 
+  it('retryPendingCleanupOnSchedule > given CRON_ENABLED=false > then skips recovery and cleanup retry', async () => {
+    const originalCronEnabled = process.env.CRON_ENABLED;
+    process.env.CRON_ENABLED = 'false';
+    try {
+      const h = makeHarness();
+      const recover = jest
+        .spyOn(h.service, 'recoverExpiredCommands')
+        .mockResolvedValue(0);
+      const retry = jest
+        .spyOn(h.service, 'retryPendingCleanup')
+        .mockResolvedValue(0);
+
+      await h.service.retryPendingCleanupOnSchedule();
+
+      expect(recover).not.toHaveBeenCalled();
+      expect(retry).not.toHaveBeenCalled();
+    } finally {
+      if (originalCronEnabled === undefined) delete process.env.CRON_ENABLED;
+      else process.env.CRON_ENABLED = originalCronEnabled;
+    }
+  });
+
   it('defines one exact unique cleanup fence per request, payload, attempt, reason, and object', () => {
     expect(PolicyMediaCleanupSchema.indexes()).toContainEqual([
       {
