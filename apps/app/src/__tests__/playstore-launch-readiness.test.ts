@@ -46,6 +46,28 @@ describe("Play Store launch readiness", () => {
     expect(ct.env.EXPO_PUBLIC_ENABLE_GOTOTRACK).toBe("0");
   });
 
+  it("beta profile > given the Railway beta rollout > then it builds a store AAB on the beta channel against api-beta", () => {
+    // Railway beta (2026-07): store-distributed build so existing users can
+    // exercise the new stack at beta.gogocash.co before the canonical
+    // app/api.gogocash.co cutover. Same store-safe surface as closedtest
+    // (GoGoTrack OFF, no Sentry upload); its own OTA channel so beta JS
+    // updates never reach staging-channel testers. APP_ENV stays "staging"
+    // while the beta stack runs staging-grade creds — flips to "production"
+    // together with the real-credential swap.
+    const beta = easJson.build.beta;
+    expect(beta.channel).toBe("beta");
+    expect(beta.distribution).toBeUndefined(); // AAB, store-uploadable
+    expect(beta.autoIncrement).toBe(true);
+    expect(beta.env.EXPO_PUBLIC_API_URL).toBe("https://api-beta.gogocash.co");
+    expect(beta.env.EXPO_PUBLIC_FRONTEND_URL).toBe("https://beta.gogocash.co");
+    expect(beta.env.EXPO_PUBLIC_APP_ENV).toBe("staging");
+    expect(beta.env.EXPO_PUBLIC_ACCOUNT_DATA_SOURCE).toBe("backend");
+    expect(beta.env.SENTRY_DISABLE_AUTO_UPLOAD).toBe("true");
+    expect(beta.env.EXPO_PUBLIC_ENABLE_GOTOTRACK).toBe("0");
+    // Distribution rides the existing closed-testing track until cutover.
+    expect(easJson.submit.beta.android.track).toBe("GoGoCash Alpha");
+  });
+
   it("android app links > given app.gogocash.co URLs > then autoVerify intent filters exist", () => {
     expect(appConfig).toContain("intentFilters");
     expect(appConfig).toContain("autoVerify: true");
