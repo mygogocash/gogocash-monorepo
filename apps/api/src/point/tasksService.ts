@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { isLegacyCronEnabled } from 'src/common/legacy-cron-gate';
 import { PointService } from './point.service';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { InjectModel } from '@nestjs/mongoose';
@@ -20,6 +21,13 @@ export class TasksService {
   // @Cron(CronExpression.EVERY_MINUTE)
   // @Cron('0 31 0 7 * *')
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async scheduledHandleCron() {
+    if (!isLegacyCronEnabled()) return;
+    await this.handleCron();
+  }
+
+  // Also invoked manually via GET /point/save-points (superadmin) — keep the
+  // CRON_ENABLED gate on the scheduled wrapper only.
   async handleCron() {
     // Conversion points are awarded from conversions already ingested into the
     // local store (the network pull lives in withdraw/cronjob/job.service.ts).

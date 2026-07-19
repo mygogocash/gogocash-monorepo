@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { isLegacyCronEnabled } from 'src/common/legacy-cron-gate';
 import { OfferService } from './offer.service';
 import { AffiliateProviderRegistry } from 'src/affiliate/affiliate-provider.registry';
 import { syncEnabledAffiliateProviders } from 'src/affiliate/affiliate-sync.util';
@@ -28,6 +29,7 @@ export class TasksService {
   // @Cron(CronExpression.EVERY_30_SECONDS)
   @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_NOON)
   async handleCron() {
+    if (!isLegacyCronEnabled()) return;
     this.logger.debug(
       'Called when the current time is 12:00 PM on the 1st day of the month',
     );

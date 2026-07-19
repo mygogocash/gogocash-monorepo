@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { isLegacyCronEnabled } from 'src/common/legacy-cron-gate';
 import { JobService } from './cronjob/job.service';
 import { WithdrawService } from './withdraw.service';
 
@@ -15,6 +16,7 @@ export class TasksService {
   // @Cron(CronExpression.EVERY_MINUTE)
   @Cron(CronExpression.EVERY_12_HOURS)
   async handleCron() {
+    if (!isLegacyCronEnabled()) return;
     this.logger.debug('Called when the current time is every 12 hours');
     await this.jobService.syncConversion();
   }
@@ -30,6 +32,7 @@ export class TasksService {
   // @Cron(CronExpression.EVERY_MINUTE)
   @Cron('0 1 0 7 * *')
   async addConversionReward() {
+    if (!isLegacyCronEnabled()) return;
     this.logger.debug(
       'Called when the current time is 1:00 AM on the 7th day of every month',
     );
