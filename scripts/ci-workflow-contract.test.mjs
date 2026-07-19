@@ -1213,6 +1213,9 @@ test("native EAS scaffold is staging-only and verifies CI for the exact SHA", ()
 
 test("native EAS build and OTA verify the effective preview environment before mutation", () => {
   const setupIndex = easDeploySource.indexOf("- name: Set up EAS / Expo");
+  const installIndex = easDeploySource.indexOf(
+    "- name: Install (root, workspace-aware)",
+  );
   const previewProofIndex = easDeploySource.indexOf(
     'eas env:exec "$EAS_ENVIRONMENT"',
   );
@@ -1220,10 +1223,11 @@ test("native EAS build and OTA verify the effective preview environment before m
   const updateIndex = easDeploySource.indexOf("- name: EAS Update (OTA)");
   assert.ok(
     setupIndex >= 0 &&
-      setupIndex < previewProofIndex &&
+      installIndex > setupIndex &&
+      installIndex < previewProofIndex &&
       previewProofIndex < buildIndex &&
       previewProofIndex < updateIndex,
-    "the authenticated EAS preview-environment proof must run before build or OTA",
+    "npm ci must precede eas env:exec so config plugins resolve; preview proof must still run before build or OTA",
   );
   assert.match(
     easDeploySource,
