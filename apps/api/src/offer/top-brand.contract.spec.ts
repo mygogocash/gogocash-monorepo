@@ -70,13 +70,12 @@ describe('top brand contract', () => {
       brandsDesktop: [{ offerId: 'd1' }, { offerId: 'd2' }],
       brandsMobile: [{ offerId: 'm1' }],
     };
-    expect(resolveDeviceBrandEntries(config, 'desktop').map((e) => e.offerId)).toEqual([
-      'd1',
-      'd2',
-    ]);
-    expect(resolveDeviceBrandEntries(config, 'mobile').map((e) => e.offerId)).toEqual([
-      'm1',
-    ]);
+    expect(
+      resolveDeviceBrandEntries(config, 'desktop').map((e) => e.offerId),
+    ).toEqual(['d1', 'd2']);
+    expect(
+      resolveDeviceBrandEntries(config, 'mobile').map((e) => e.offerId),
+    ).toEqual(['m1']);
   });
 
   it('#378 resolveDeviceBrandEntries > given empty device list > does not fall back to legacy brands', () => {

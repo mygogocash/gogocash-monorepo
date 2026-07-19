@@ -31,7 +31,12 @@ import { AdminActivityService } from './activity/admin-activity.service';
 
 /** A chainable Mongoose query stub whose terminal `.exec()` resolves to `value`. */
 function makeQuery<T>(value: T) {
-  const query: Record<string, jest.Mock> = {};
+  const query: Record<string, jest.Mock> & {
+    then?: (
+      onfulfilled?: ((value: T) => unknown) | null,
+      onrejected?: ((reason: unknown) => unknown) | null,
+    ) => Promise<unknown>;
+  } = {};
   for (const method of [
     'find',
     'findById',
@@ -49,7 +54,11 @@ function makeQuery<T>(value: T) {
     query[method] = jest.fn().mockReturnValue(query);
   }
   query.exec = jest.fn().mockResolvedValue(value);
+  // lean() stays chainable (e.g. .lean().exec()) and thenable so
+  // `await model.findOne().lean()` resolves to the document.
   query.lean = jest.fn().mockReturnValue(query);
+  query.then = (onfulfilled, onrejected) =>
+    Promise.resolve(value).then(onfulfilled, onrejected);
   return query;
 }
 
@@ -3184,7 +3193,10 @@ describe('AdminService', () => {
       ];
       const brandsMobile = [{ offerId: 'm1', cashback: 'z' }];
 
-      const result = await service.saveTopBrands({ brandsDesktop, brandsMobile });
+      const result = await service.saveTopBrands({
+        brandsDesktop,
+        brandsMobile,
+      });
 
       const persistedDesktop = [
         { offerId: 'd1', cashback: '' },

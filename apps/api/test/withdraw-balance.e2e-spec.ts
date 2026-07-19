@@ -108,7 +108,12 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
         { provide: PointService, useValue: {} },
         {
           provide: AdminActivityService,
-          useValue: { append: jest.fn().mockResolvedValue(undefined) },
+          useValue: {
+            append: jest.fn().mockResolvedValue(undefined),
+            // Bank-transfer create audits inside the serialized txn via
+            // appendRequired; a missing mock aborts both racers as TypeError.
+            appendRequired: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();
@@ -310,6 +315,13 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
       const rejected = results.filter((r) => r.status === 'rejected');
       expect(fulfilled).toHaveLength(1); // exactly one wins
       expect(rejected).toHaveLength(1); // the other is refused (over balance)
+      // Loser must be a balance/validation refusal — not a harness TypeError
+      // (e.g. missing adminActivity.appendRequired) that aborts both racers.
+      const loser = rejected[0] as PromiseRejectedResult;
+      expect(loser.reason).toBeInstanceOf(Error);
+      expect(String((loser.reason as Error).message)).not.toMatch(
+        /is not a function/i,
+      );
 
       const count = await withdrawModel.countDocuments({
         user_id: new Types.ObjectId(userId),

@@ -8,8 +8,8 @@ import { WithdrawFeeCouponsController } from './withdraw-fee-coupons.controller'
 import { WithdrawFeeCouponsService } from './withdraw-fee-coupons.service';
 
 const GUARDS_METADATA = '__guards__';
-const controllerPrototype = WithdrawFeeCouponsController.prototype as unknown as
-  Record<string, unknown>;
+const controllerPrototype =
+  WithdrawFeeCouponsController.prototype as unknown as Record<string, unknown>;
 
 function rolesOf(method: string): string[] {
   return (
@@ -34,9 +34,11 @@ describe('WithdrawFeeCouponsController RBAC wiring', () => {
   });
 
   it.each(['create', 'update'])(
-    'requires approver-or-higher metadata for %s',
+    'requires support-or-higher metadata for %s',
     (method) => {
-      expect(rolesOf(method)).toEqual(['approver']);
+      // Controller gate is support+; privilege escalation (approver+) is enforced
+      // inside WithdrawFeeCouponsService for waive/unlimited coupons.
+      expect(rolesOf(method)).toEqual(['support']);
     },
   );
 

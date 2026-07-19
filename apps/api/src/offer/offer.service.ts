@@ -1420,9 +1420,7 @@ export class OfferService implements OnApplicationBootstrap {
       offers.map((offer) => [String(offer._id), offer]),
     );
 
-    const toDisplay = (
-      entries: { offerId: string; cashback: string }[],
-    ) =>
+    const toDisplay = (entries: { offerId: string; cashback: string }[]) =>
       entries
         .map((entry) => {
           const offer = offerById.get(entry.offerId);
