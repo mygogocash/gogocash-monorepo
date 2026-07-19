@@ -35,6 +35,10 @@ import {
 import type { Permission } from "@/lib/rbac";
 import { friendlyStatusMessage } from "@/lib/getApiErrorMessage";
 import {
+  SIGN_IN_PATH,
+  shouldRedirectToSignInOn401,
+} from "@/lib/axios/sessionRedirect";
+import {
   resolveAdminApiBaseURL,
   resolveAdminRuntimeApiUrl,
 } from "@/lib/backendProxy";
@@ -497,6 +501,21 @@ class ApiClient {
       return response.data;
     } catch (error) {
       if (axios.default.isAxiosError(error) && error.response) {
+        // Session-expiry recovery: a 401 through the BFF means the NextAuth
+        // session is gone — send the browser back to sign-in (same behavior
+        // as the shared axios client) instead of stranding the user among
+        // inline error banners. The mapped error is still thrown for callers.
+        if (
+          typeof window !== "undefined" &&
+          shouldRedirectToSignInOn401({
+            status: error.response.status,
+            realApi: this.isRealApi,
+            isBrowser: true,
+            pathname: window.location.pathname,
+          })
+        ) {
+          window.location.assign(SIGN_IN_PATH);
+        }
         // Prefer the backend's own message (RolesGuard etc.); otherwise use
         // plain, status-aware copy — never a raw "HTTP Error 403".
         const message =

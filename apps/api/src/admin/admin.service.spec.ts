@@ -1252,6 +1252,28 @@ describe('AdminService', () => {
       expect(pipeline[limitIdx].$limit).toBe(5);
     });
 
+    // Pins the default path the controller relies on: with no pagination args
+    // the pipeline must carry finite $skip/$limit (page 1, limit 10). Mongo
+    // rejects { $skip: NaN } with a 500 — the controller must never let a
+    // non-numeric page/limit defeat these defaults.
+    it('getConversionAll > given no pagination args > then $skip/$limit are finite defaults', async () => {
+      feeRateModel.findOne.mockReturnValue(
+        makeQuery({ system: 10, max_cap: 100 }),
+      );
+      conversionModel.aggregate.mockReturnValue(makeQuery([]));
+      conversionModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.getConversionAll();
+
+      const pipeline = conversionModel.aggregate.mock.calls[0][0];
+      const skip = pipeline.find((s: any) => s.$skip !== undefined).$skip;
+      const limit = pipeline.find((s: any) => s.$limit !== undefined).$limit;
+      expect(skip).toBe(0);
+      expect(limit).toBe(10);
+      expect(Number.isFinite(skip)).toBe(true);
+      expect(Number.isFinite(limit)).toBe(true);
+    });
+
     it('getConversionAll > given a conversion_id search key > then it filters by exact conversion_id', async () => {
       feeRateModel.findOne.mockReturnValue(makeQuery({ system: 10 }));
       conversionModel.aggregate.mockReturnValue(makeQuery([]));

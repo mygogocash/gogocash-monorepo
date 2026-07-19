@@ -478,8 +478,11 @@ export class AdminController {
     @Query('key') key?: string,
   ) {
     return this.adminService.getConversionAll(
-      Number(page),
-      Number(limit),
+      // NaN-guard: Number(undefined) is NaN, which defeats the service's
+      // default params and reaches the aggregation as { $skip: NaN } (Mongo
+      // 500). Same fallback pattern as findAll above.
+      Number(page) || 1,
+      Number(limit) || 10,
       search,
       key,
       status,

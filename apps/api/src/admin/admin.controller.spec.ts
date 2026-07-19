@@ -253,6 +253,22 @@ describe('AdminController', () => {
         'approved',
       );
     });
+
+    // Regression (beta 2026-07-19): absent page/limit became Number(undefined)
+    // === NaN, which DEFEATS the service's default parameters and reaches the
+    // aggregation as { $skip: NaN } → Mongo 500. Absent params must resolve to
+    // the same defaults the service declares (page 1, limit 10).
+    it('getConversionAll > given no query params > then the service receives numeric defaults, never NaN', () => {
+      controller.getConversionAll();
+
+      expect(adminService.getConversionAll).toHaveBeenCalledWith(
+        1,
+        10,
+        undefined,
+        undefined,
+        undefined,
+      );
+    });
   });
 
   describe('withdrawAll', () => {
