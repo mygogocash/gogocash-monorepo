@@ -13,6 +13,7 @@ import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { queueProtectedBottomNavWhileSessionHydrates } from "@mobile/auth/protectedBottomNavPress";
 import { mobileShellLayout, webMobileBottomNavItems } from "@mobile/design/webDesignParity";
+import { filterHiddenBottomNavItems } from "@mobile/config/featureFlags";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { CustomerGoLinkScreen } from "@mobile/screens/CustomerGoLinkScreen";
@@ -97,7 +98,7 @@ export function CustomerMobileBottomNav({
           },
         ]}
       >
-        {webMobileBottomNavItems.map((item) => {
+        {filterHiddenBottomNavItems(webMobileBottomNavItems).map((item) => {
           const active = getBottomNavRouteId(item.href) === activeRouteId;
           const emphasized = "emphasized" in item && item.emphasized;
 

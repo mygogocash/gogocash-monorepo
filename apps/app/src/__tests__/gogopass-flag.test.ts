@@ -91,13 +91,13 @@ describe("GoGoPass hidden surfaces (wiring)", () => {
     // All three consumers of profileHubMenuItems must share the ONE filter so a
     // surface can't be missed when the flag flips.
     expect(readMobileFile("src/components/CustomerProfileMenu.tsx")).toContain(
-      "filterGoGoPassMenuItems(profileHubMenuItems)"
+      "filterHiddenProfileMenuItems(profileHubMenuItems)"
     );
     expect(readMobileFile("src/screens/CustomerProfileScreen.tsx")).toContain(
-      "filterGoGoPassMenuItems(profileHubMenuItems)"
+      "filterHiddenProfileMenuItems(profileHubMenuItems)"
     );
     expect(readMobileFile("src/components/AccountPageShell.tsx")).toContain(
-      "filterGoGoPassMenuItems(profileHubMenuItems)"
+      "filterHiddenProfileMenuItems(profileHubMenuItems)"
     );
   });
 

@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import { Globe as GlobeIcon, Search as SearchIcon } from "@mobile/theme/icons";
 import { CustomerLocaleRegionSheet } from "@mobile/components/CustomerLocaleRegionSheet";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { isGoLinkEnabled } from "@mobile/config/featureFlags";
 import { webLocaleRegionPanel } from "@mobile/design/webDesignParity";
 import { useRegion } from "@mobile/i18n/LocaleProvider";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -89,11 +90,13 @@ export function MobileTabletHomeHeader({
 
       <DetectedRegionBanner onChangePress={() => setRegionSheetOpen(true)} />
 
-      <MobileTabletGoLinkBannerCollapse
-        isCovered={isGoLinkCovered}
-        onOpenGuideline={onOpenGoLinkGuideline}
-        onResultHref={onGoLinkResultHref}
-      />
+      {isGoLinkEnabled() ? (
+        <MobileTabletGoLinkBannerCollapse
+          isCovered={isGoLinkCovered}
+          onOpenGuideline={onOpenGoLinkGuideline}
+          onResultHref={onGoLinkResultHref}
+        />
+      ) : null}
 
       <View style={styles.mobileTabletHeaderShortcutDock}>
         <BrowseShortcuts />

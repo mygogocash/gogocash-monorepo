@@ -59,7 +59,8 @@
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "729804769570-jlg4fpajbbvur587dcv9qpocfhn6aots.apps.googleusercontent.com",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_ENABLE_GOTOTRACK": "0",
-        "EXPO_PUBLIC_ENABLE_GOGOPASS": "0"
+        "EXPO_PUBLIC_ENABLE_GOGOPASS": "0",
+        "EXPO_PUBLIC_ENABLE_GOLINK": "0"
       }
     },
     "production": {

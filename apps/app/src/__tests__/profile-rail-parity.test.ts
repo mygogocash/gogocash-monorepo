@@ -29,7 +29,7 @@ describe("desktop profile rail parity", () => {
     // Rows flow through the shared GoGoPass rollout filter (default-on: it only
     // drops the /membership row when EXPO_PUBLIC_ENABLE_GOGOPASS="0" — see
     // gogopass-flag.test.ts), so the full-menu pin targets the filtered map.
-    expect(shell).toContain("filterGoGoPassMenuItems(profileHubMenuItems).map");
+    expect(shell).toContain("filterHiddenProfileMenuItems(profileHubMenuItems).map");
     expect(shell).not.toContain("profileHubMenuItems.slice(0, 9)");
     expect(shell).toContain("profileHubSubNavItems.map");
     expect(shell).not.toContain("profileHubGoGoTrackSubNavItems");
