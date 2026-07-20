@@ -42,6 +42,7 @@ import {
   UpdateOfferAdminDto,
   UpdateRequestWithdrawDto,
   UpdateUserDto,
+  ListMyCashbackUsersDto,
 } from './dto/update-admin.dto';
 import { UserAdminService } from './user-admin/user-admin-service';
 import { AdminInviteService } from './admin-invite.service';
@@ -729,6 +730,16 @@ export class AdminController {
   @Get('get-mycashback-user/:id')
   viewMyCahsback(@Param('id') id: string) {
     return this.adminService.getMyCashBackUser(id);
+  }
+
+  // Admin MyCashBack users table (apps/admin MyCashbackUsersTable).
+  // Authenticated read for any admin role — mirrors mock/list contract.
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: ListMyCashbackUsersDto })
+  @Post('list-mycashback-users')
+  listMyCashbackUsers(@Body() body: ListMyCashbackUsersDto) {
+    return this.adminService.listMyCashbackUsers(body ?? {});
   }
 
   @UseInterceptors(

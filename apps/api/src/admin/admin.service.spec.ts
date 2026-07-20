@@ -3537,6 +3537,82 @@ describe('AdminService', () => {
     });
   });
 
+  describe('listMyCashbackUsers', () => {
+    beforeEach(() => {
+      userMyCashbackModel.find = jest.fn();
+      userMyCashbackModel.countDocuments = jest.fn();
+    });
+
+    it('listMyCashbackUsers > given defaults > then it pages with limit 12 and newest sort', async () => {
+      const findQuery = makeQuery([{ _id: 'mcb-1' }]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(1));
+
+      const result = await service.listMyCashbackUsers();
+
+      expect(userMyCashbackModel.find).toHaveBeenCalledWith({});
+      expect(findQuery.select).toHaveBeenCalledWith(
+        '-withdrawalPassword -buyerToken',
+      );
+      expect(findQuery.sort).toHaveBeenCalledWith({ createdAt: -1 });
+      expect(findQuery.skip).toHaveBeenCalledWith(0);
+      expect(findQuery.limit).toHaveBeenCalledWith(12);
+      expect(result).toEqual({
+        status: 'success',
+        data: [{ _id: 'mcb-1' }],
+        pagination: { page: 1, limit: 12, total: 1, totalPages: 1 },
+      });
+    });
+
+    it('listMyCashbackUsers > given search + banned status + name sort > then it builds the filter and sort', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.listMyCashbackUsers({
+        page: 2,
+        limit: 20,
+        search: 'a.*',
+        sort: 'name',
+        status: 'banned',
+      });
+
+      expect(userMyCashbackModel.find).toHaveBeenCalledWith({
+        banned: true,
+        $or: [
+          { email: { $regex: 'a\\.\\*', $options: 'i' } },
+          { phoneNumber: { $regex: 'a\\.\\*', $options: 'i' } },
+          { buyerId: { $regex: 'a\\.\\*', $options: 'i' } },
+          { firstName: { $regex: 'a\\.\\*', $options: 'i' } },
+          { lastName: { $regex: 'a\\.\\*', $options: 'i' } },
+        ],
+      });
+      expect(findQuery.sort).toHaveBeenCalledWith({
+        firstName: 1,
+        lastName: 1,
+        email: 1,
+      });
+      expect(findQuery.skip).toHaveBeenCalledWith(20);
+      expect(findQuery.limit).toHaveBeenCalledWith(20);
+    });
+
+    it('listMyCashbackUsers > given active status and balance sort > then it filters non-banned and sorts by primary balance', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.listMyCashbackUsers({
+        status: 'active',
+        sort: 'balance',
+      });
+
+      expect(userMyCashbackModel.find).toHaveBeenCalledWith({
+        banned: { $ne: true },
+      });
+      expect(findQuery.sort).toHaveBeenCalledWith({ 'balance.0.amount': -1 });
+    });
+  });
+
   describe('updateConversionDataByConversionId', () => {
     it('updateConversionDataByConversionId > given a conversion id > then it delegates to the job service', async () => {
       jobService.syncConversionByConversionId.mockResolvedValue({ ok: true });
