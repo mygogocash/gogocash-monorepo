@@ -5,7 +5,11 @@ import {
   SHOP_BANNER_IMAGE_WIDTH,
 } from "@mobile/api/optimizedImageUrl";
 import { getMobileEnv } from "@mobile/config/env";
-import { formatMerchantCashback } from "@mobile/api/offerCashbackFormat";
+import {
+  formatMerchantCashback,
+  formatPercentValue,
+  type ProductTypeCashbackRow,
+} from "@mobile/api/offerCashbackFormat";
 import {
   resolvePublicOfferLogo,
   resolveShopPageBannerUri,
@@ -27,6 +31,30 @@ type ProductRate = {
   rate: string;
 };
 
+/** #465 — map non-tagline product_type rows into the shop detail rate list. */
+export function mapProductTypeRates(
+  productType: readonly ProductTypeCashbackRow[] | null | undefined,
+  fallback: ProductRate,
+): ProductRate[] {
+  if (!Array.isArray(productType) || productType.length === 0) {
+    return [fallback];
+  }
+  const rows: ProductRate[] = [];
+  for (const row of productType) {
+    if (!row || typeof row !== "object") continue;
+    if (row.is_tagline === true) continue;
+    if (row.pay_in === "cash") continue;
+    const name =
+      typeof (row as { name?: unknown }).name === "string"
+        ? String((row as { name?: string }).name).trim()
+        : "";
+    const rate = formatPercentValue(row.commission_info);
+    if (!name || !rate) continue;
+    rows.push({ name, rate });
+  }
+  return rows.length > 0 ? rows : [fallback];
+}
+
 type LiveShopDetailFields = {
   bannerUri?: string;
   customTerms?: string;
@@ -41,6 +69,8 @@ type LiveShopDetailFields = {
   noteToUser?: string;
   policyCategoryId?: string;
   productRates: ProductRate[];
+  /** #472 — admin Extra Cashback tag toggle (`offer_display_tags.extra_cashback_tag`). */
+  showExtraCashbackTag: boolean;
   trackingPeriod: readonly TrackingPeriodStep[];
 };
 
@@ -189,7 +219,11 @@ export function mapMerchantOfferToShopDetail<
       offer.policy_category_id?.trim() === "custom"
         ? undefined
         : offer.policy_category_id?.trim() || undefined,
-    productRates: [{ name: brand, rate: cashback }],
+    productRates: mapProductTypeRates(offer.product_type as ProductTypeCashbackRow[] | undefined, {
+      name: brand,
+      rate: cashback,
+    }),
+    showExtraCashbackTag: offer.offer_display_tags?.extra_cashback_tag === true,
     // Admin/partner-configured windows when the API sends them; otherwise the
     // fixture's default 30/30 steps.
     trackingPeriod:

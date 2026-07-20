@@ -109,6 +109,8 @@ type ShopDetail = Omit<
   noteToUser?: string;
   offerId?: number;
   policyCategoryId?: string;
+  /** Live offers set this from `extra_cashback_tag`; fixtures omit (treated as on). */
+  showExtraCashbackTag?: boolean;
   trackingPeriod: readonly TrackingPeriodStep[];
   trackingUrl?: string;
 };
@@ -659,13 +661,15 @@ function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
             <Text style={styles.tagText}>{shop.category}</Text>
           </MotionPressable>
         </Link>
-        <View style={styles.extraTag}>
-          <Text style={styles.fireIcon}>🔥</Text>
-          <Text style={styles.tagText}>
-            {tc("Extra Cashback")}{" "}
-            <Text style={styles.tagStrong}>{shop.extraCashback}</Text>
-          </Text>
-        </View>
+        {shop.showExtraCashbackTag === true ? (
+          <View style={styles.extraTag} testID="shop-detail-extra-cashback-tag">
+            <Text style={styles.fireIcon}>🔥</Text>
+            <Text style={styles.tagText}>
+              {tc("Extra Cashback")}{" "}
+              <Text style={styles.tagStrong}>{shop.extraCashback}</Text>
+            </Text>
+          </View>
+        ) : null}
       </View>
       <View style={styles.rateDetails}>
         <Text style={styles.disclaimer}>{tc(shop.disclaimer)}</Text>
@@ -867,15 +871,21 @@ function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
         />
       </View>
       <Text style={styles.termsSectionTitle}>{tc(terms.exclusionsTitle)}</Text>
-      <View style={styles.termsList}>
-        {terms.bullets.map((bullet) => (
-          <View key={bullet} style={styles.termBulletRow}>
-            {/* #426 — muted legal markers, not tip-style green dots */}
-            <Text style={styles.termBulletDot}>•</Text>
-            <Text style={styles.termBulletText}>{bullet}</Text>
-          </View>
-        ))}
-      </View>
+      {terms.body ? (
+        <Text style={styles.termBulletText} testID="shop-detail-terms-body">
+          {terms.body}
+        </Text>
+      ) : (
+        <View style={styles.termsList}>
+          {terms.bullets.map((bullet) => (
+            <View key={bullet} style={styles.termBulletRow}>
+              {/* #426 — muted legal markers, not tip-style green dots */}
+              <Text style={styles.termBulletDot}>•</Text>
+              <Text style={styles.termBulletText}>{bullet}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }

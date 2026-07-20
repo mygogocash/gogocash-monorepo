@@ -33,11 +33,17 @@ export function isDesktopSelfChromePathname(pathname: string) {
   });
 }
 
-/** #436 — category detail already has a page-scoped search; hide the header one. */
+/**
+ * #436 / #463 — category + All Brands already have a page-scoped search;
+ * hide the global header search so users are not bounced to homepage search.
+ */
 export function shouldHideDesktopHeaderSearch(pathname: string) {
   const normalizedPathname = normalizeDesktopPathname(pathname);
   return (
-    normalizedPathname === "/category" || normalizedPathname.startsWith("/category/")
+    normalizedPathname === "/category" ||
+    normalizedPathname.startsWith("/category/") ||
+    normalizedPathname === "/brand" ||
+    normalizedPathname.startsWith("/brand/")
   );
 }
 

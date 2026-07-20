@@ -298,6 +298,27 @@ describe("mapMerchantOfferToShopDetail", () => {
 
     expect(shop.cashback).toBe("6%");
     expect(shop.extraCashback).toBe("6%");
+    // #465 — list rows, not a single synthetic headline.
+    expect(shop.productRates).toEqual([
+      { name: "Fashion", rate: "2.5%" },
+      { name: "Beauty", rate: "6%" },
+    ]);
+  });
+
+  it("given extra_cashback_tag off > then showExtraCashbackTag is false (#472)", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        offer_display_tags: {
+          brand_category_enabled: true,
+          brand_category_label: "Electronics",
+          extra_cashback_tag: false,
+        },
+      },
+      fixtureShop,
+    );
+
+    expect(shop.showExtraCashbackTag).toBe(false);
   });
 
   it("given commission_store 0 with product_type rates > then uses the highest product rate", () => {
