@@ -43,6 +43,31 @@ describe('top-brand-membership (#475)', () => {
     );
   });
 
+  it('syncOfferTopBrandMembership > given full list > then rejects enable instead of silent skip', async () => {
+    const full = Array.from({ length: 16 }, (_, i) => ({
+      offerId: `id-${i}`,
+      cashback: '',
+    }));
+    const updateOne = jest.fn();
+    const findOne = jest.fn().mockReturnValue({
+      lean: () => ({
+        exec: () =>
+          Promise.resolve({
+            brandsDesktop: full,
+            brandsMobile: full,
+          }),
+      }),
+    });
+    await expect(
+      syncOfferTopBrandMembership(
+        { updateOne, findOne } as never,
+        'new-offer',
+        true,
+      ),
+    ).rejects.toThrow(/limited to 16/);
+    expect(updateOne).not.toHaveBeenCalled();
+  });
+
   it('syncOfferTopBrandMembership > given disabled > then pulls from all lists', async () => {
     const updateOne = jest.fn().mockResolvedValue({ acknowledged: true });
     await syncOfferTopBrandMembership(
@@ -62,20 +87,22 @@ describe('top-brand-membership (#475)', () => {
     );
   });
 
-  it('mirrorTopBrandExtraStoreFlags > given members > then sets flags both ways', async () => {
+  it('mirrorTopBrandExtraStoreFlags > given members > then sets flags both ways with ObjectIds', async () => {
     const exec = jest.fn().mockResolvedValue({});
     const updateMany = jest.fn().mockReturnValue({ exec });
-    await mirrorTopBrandExtraStoreFlags({ updateMany }, ['a', 'b']);
-    expect(updateMany).toHaveBeenNthCalledWith(
-      1,
-      { _id: { $in: ['a', 'b'] } },
-      { $set: { extra_store: true } },
-    );
-    expect(updateMany).toHaveBeenNthCalledWith(
-      2,
-      { extra_store: true, _id: { $nin: ['a', 'b'] } },
-      { $set: { extra_store: false } },
-    );
+    const a = '507f1f77bcf86cd799439011';
+    const b = '507f1f77bcf86cd799439012';
+    await mirrorTopBrandExtraStoreFlags({ updateMany }, [a, b]);
+    const firstFilter = updateMany.mock.calls[0][0] as {
+      _id: { $in: { toHexString: () => string }[] };
+    };
+    expect(firstFilter._id.$in.map((id) => id.toHexString())).toEqual([a, b]);
+    expect(updateMany.mock.calls[0][1]).toEqual({
+      $set: { extra_store: true },
+    });
+    expect(updateMany.mock.calls[1][1]).toEqual({
+      $set: { extra_store: false },
+    });
   });
 
   it('topBrandMemberIds > unions desktop and mobile', () => {

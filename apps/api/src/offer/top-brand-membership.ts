@@ -1,4 +1,5 @@
-import { Model } from 'mongoose';
+import { BadRequestException } from '@nestjs/common';
+import { Model, Types } from 'mongoose';
 import {
   MAX_TOP_BRANDS,
   normalizeTopBrandEntries,
@@ -8,10 +9,18 @@ import {
 
 type TopBrandConfigDoc = TopBrandConfigLike & { _id?: unknown };
 
+function toObjectIds(ids: readonly string[]): Types.ObjectId[] {
+  return ids
+    .map((id) => String(id ?? '').trim())
+    .filter((id) => Types.ObjectId.isValid(id))
+    .map((id) => new Types.ObjectId(id));
+}
+
 /**
  * Keep curated Top brands config in sync with the offer Top Brand (`extra_store`)
- * toggle (#475). Appends to both device lists when enabled (respecting max);
- * pulls from all three arrays when disabled.
+ * toggle (#475). Appends to both device lists when enabled; pulls from all three
+ * arrays when disabled. Throws when the curated list is full so the Brand Info
+ * toggle cannot silently diverge from the Top brands page.
  */
 export async function syncOfferTopBrandMembership(
   topBrandConfigModel: Model<TopBrandConfigDoc>,
@@ -38,26 +47,24 @@ export async function syncOfferTopBrandMembership(
   const config = await topBrandConfigModel.findOne().lean().exec();
   const desktop = resolveDeviceBrandEntries(config, 'desktop');
   const mobile = resolveDeviceBrandEntries(config, 'mobile');
-  const entry = { offerId: id, cashback: '' };
-  const nextDesktop = desktop.some((row) => row.offerId === id)
-    ? desktop
-    : desktop.length >= MAX_TOP_BRANDS
-      ? desktop
-      : [...desktop, entry];
-  const nextMobile = mobile.some((row) => row.offerId === id)
-    ? mobile
-    : mobile.length >= MAX_TOP_BRANDS
-      ? mobile
-      : [...mobile, entry];
+  const alreadyDesktop = desktop.some((row) => row.offerId === id);
+  const alreadyMobile = mobile.some((row) => row.offerId === id);
+  if (alreadyDesktop && alreadyMobile) return;
 
-  if (
-    nextDesktop.length === desktop.length &&
-    nextMobile.length === mobile.length &&
-    desktop.some((row) => row.offerId === id) &&
-    mobile.some((row) => row.offerId === id)
-  ) {
-    return;
+  const entry = { offerId: id, cashback: '' };
+  if (!alreadyDesktop && desktop.length >= MAX_TOP_BRANDS) {
+    throw new BadRequestException(
+      `Top brands is limited to ${MAX_TOP_BRANDS} offers. Remove one from Top brands setup before enabling Top Brand.`,
+    );
   }
+  if (!alreadyMobile && mobile.length >= MAX_TOP_BRANDS) {
+    throw new BadRequestException(
+      `Top brands is limited to ${MAX_TOP_BRANDS} offers. Remove one from Top brands setup before enabling Top Brand.`,
+    );
+  }
+
+  const nextDesktop = alreadyDesktop ? desktop : [...desktop, entry];
+  const nextMobile = alreadyMobile ? mobile : [...mobile, entry];
 
   await topBrandConfigModel.updateOne(
     {},
@@ -85,26 +92,23 @@ export async function mirrorTopBrandExtraStoreFlags(
   },
   memberOfferIds: readonly string[],
 ): Promise<void> {
-  const ids = [
-    ...new Set(
-      memberOfferIds.map((id) => String(id ?? '').trim()).filter(Boolean),
-    ),
-  ];
+  const objectIds = toObjectIds([
+    ...new Set(memberOfferIds.map((id) => String(id ?? '').trim())),
+  ]);
 
-  if (ids.length === 0) {
-    await offerModel.updateMany(
-      { extra_store: true },
-      { $set: { extra_store: false } },
-    ).exec();
+  if (objectIds.length === 0) {
+    await offerModel
+      .updateMany({ extra_store: true }, { $set: { extra_store: false } })
+      .exec();
     return;
   }
 
   await offerModel
-    .updateMany({ _id: { $in: ids } }, { $set: { extra_store: true } })
+    .updateMany({ _id: { $in: objectIds } }, { $set: { extra_store: true } })
     .exec();
   await offerModel
     .updateMany(
-      { extra_store: true, _id: { $nin: ids } },
+      { extra_store: true, _id: { $nin: objectIds } },
       { $set: { extra_store: false } },
     )
     .exec();
