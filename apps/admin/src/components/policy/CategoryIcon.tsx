@@ -23,30 +23,38 @@ export const CATEGORY_ICON_KEYS = [
 
 export type CategoryIconKey = (typeof CATEGORY_ICON_KEYS)[number];
 
-/** Human labels for the visual icon gallery (Policy Management). */
+/**
+ * Human labels for the visual icon gallery (Policy Management).
+ * Exhaustive against CATEGORY_ICON_KEYS so a new key cannot ship without a label.
+ */
+const CATEGORY_ICON_LABELS = {
+  shopping: "Shopping",
+  travel: "Travel",
+  food: "Food",
+  finance: "Finance",
+  entertainment: "Entertainment",
+  electronics: "Electronics",
+  fashion: "Fashion",
+  beauty: "Beauty",
+  health: "Health",
+  home: "Home",
+  education: "Education",
+  gift: "Gifting",
+  sports: "Sports",
+  pets: "Pets",
+  baby: "Baby",
+  auto: "Auto",
+  services: "Services",
+  default: "Default",
+} as const satisfies Record<CategoryIconKey, string>;
+
 export const CATEGORY_ICON_OPTIONS: ReadonlyArray<{
   key: CategoryIconKey;
   label: string;
-}> = [
-  { key: "shopping", label: "Shopping" },
-  { key: "travel", label: "Travel" },
-  { key: "food", label: "Food" },
-  { key: "finance", label: "Finance" },
-  { key: "entertainment", label: "Entertainment" },
-  { key: "electronics", label: "Electronics" },
-  { key: "fashion", label: "Fashion" },
-  { key: "beauty", label: "Beauty" },
-  { key: "health", label: "Health" },
-  { key: "home", label: "Home" },
-  { key: "education", label: "Education" },
-  { key: "gift", label: "Gifting" },
-  { key: "sports", label: "Sports" },
-  { key: "pets", label: "Pets" },
-  { key: "baby", label: "Baby" },
-  { key: "auto", label: "Auto" },
-  { key: "services", label: "Services" },
-  { key: "default", label: "Default" },
-];
+}> = CATEGORY_ICON_KEYS.map((key) => ({
+  key,
+  label: CATEGORY_ICON_LABELS[key],
+}));
 
 export function resolveCategoryIconKey(
   persisted: unknown,
@@ -57,12 +65,23 @@ export function resolveCategoryIconKey(
     : categoryIconKey(name);
 }
 
+/** Match `token` as a whole word (avoids "automobile"→mobile, "facebook"→book). */
+function hasToken(haystack: string, token: string): boolean {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:[^a-z0-9]|$)`).test(haystack);
+}
+
+function hasAnyToken(haystack: string, tokens: readonly string[]): boolean {
+  return tokens.some((token) => hasToken(haystack, token));
+}
+
 /**
  * Map a category name to a related icon by keyword (case-insensitive). Falls
  * back to a generic tag for anything unrecognised so every row gets an icon.
  */
 export function categoryIconKey(name: string): CategoryIconKey {
   const n = (name || "").toLowerCase();
+
   if (n.includes("shop")) return "shopping";
   if (n.includes("travel") || n.includes("flight") || n.includes("hotel"))
     return "travel";
@@ -87,22 +106,36 @@ export function categoryIconKey(name: string): CategoryIconKey {
     n.includes("game")
   )
     return "entertainment";
+
+  // Auto before electronics — "automobile" must not match bare "mobile".
+  if (
+    n.includes("automobile") ||
+    n.includes("automotive") ||
+    n.includes("vehicle") ||
+    hasAnyToken(n, ["auto", "car", "cars", "motor", "motors"])
+  )
+    return "auto";
+
   if (
     n.includes("electronic") ||
     n.includes("gadget") ||
     n.includes("tech") ||
-    n.includes("phone") ||
-    n.includes("mobile") ||
     n.includes("computer") ||
-    n.includes("laptop")
+    n.includes("laptop") ||
+    n.includes("camera") ||
+    n.includes("smartphone") ||
+    n.includes("cellphone") ||
+    n.includes("mobile phone") ||
+    hasAnyToken(n, ["phone", "phones"])
   )
     return "electronics";
+
   if (
     n.includes("fashion") ||
     n.includes("cloth") ||
     n.includes("apparel") ||
     n.includes("shoe") ||
-    n.includes("wear")
+    hasToken(n, "wear")
   )
     return "fashion";
   if (
@@ -133,9 +166,9 @@ export function categoryIconKey(name: string): CategoryIconKey {
     n.includes("educat") ||
     n.includes("course") ||
     n.includes("learn") ||
-    n.includes("book") ||
     n.includes("school") ||
-    n.includes("tuition")
+    n.includes("tuition") ||
+    hasAnyToken(n, ["book", "books"])
   )
     return "education";
   if (
@@ -152,28 +185,20 @@ export function categoryIconKey(name: string): CategoryIconKey {
     n.includes("outdoor")
   )
     return "sports";
-  if (n.includes("pet") || n.includes("animal") || n.includes("vet"))
+  // Whole-word "pet"/"pets" — avoid "carpet" / "competition".
+  if (hasAnyToken(n, ["pet", "pets", "animal", "animals", "vet"]))
     return "pets";
   if (
     n.includes("baby") ||
     n.includes("kids") ||
-    n.includes("kid ") ||
-    n.includes("child") ||
     n.includes("infant") ||
-    n.includes("maternity")
+    n.includes("maternity") ||
+    hasAnyToken(n, ["kid", "child", "children"])
   )
     return "baby";
   if (
-    n.includes("auto") ||
-    n.includes("car ") ||
-    n.includes("cars") ||
-    n.includes("vehicle") ||
-    n.includes("motor")
-  )
-    return "auto";
-  if (
     n.includes("service") ||
-    n.includes("digital") ||
+    n.includes("digital service") ||
     n.includes("recharge") ||
     n.includes("top-up") ||
     n.includes("topup") ||

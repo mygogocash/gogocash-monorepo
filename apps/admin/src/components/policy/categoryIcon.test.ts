@@ -41,6 +41,21 @@ describe("categoryIconKey", () => {
     expect(categoryIconKey("Top-up / Recharge")).toBe("services");
   });
 
+  it("avoids substring false positives across expanded keys", () => {
+    // "mobile" inside "automobile" must not win over auto.
+    expect(categoryIconKey("Automobile")).toBe("auto");
+    expect(categoryIconKey("Automobile Parts")).toBe("auto");
+    // "pet" inside "carpet" / "competition" must not win.
+    expect(categoryIconKey("Carpet Cleaners")).toBe("default");
+    expect(categoryIconKey("Competition")).toBe("default");
+    // "book" inside "facebook" / "booking" must not win.
+    expect(categoryIconKey("Facebook Ads")).toBe("default");
+    expect(categoryIconKey("Booking")).toBe("default");
+    // Bare "digital" alone is not enough; cameras are electronics.
+    expect(categoryIconKey("Digital Camera")).toBe("electronics");
+    expect(categoryIconKey("Digital")).toBe("default");
+  });
+
   it("falls back to default for unknown / empty names", () => {
     expect(categoryIconKey("Miscellaneous")).toBe("default");
     expect(categoryIconKey("")).toBe("default");

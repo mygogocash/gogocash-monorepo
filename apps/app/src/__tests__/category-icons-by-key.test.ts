@@ -45,21 +45,18 @@ describe("categoryIcons > icon_key parity with admin Policy Management", () => {
     expect(keyCount).toBe(18);
   });
 
-  it("maps every allow-listed key in categoryIconsByKey", () => {
+  it("maps every allow-listed key in categoryIconsByKey with distinct glyphs", () => {
     expect(categoryIconsSource).toContain(
       "export const categoryIconsByKey: Record<CategoryIconKey, IconComponent>",
     );
-    for (const key of [
-      "gift",
-      "sports",
-      "pets",
-      "baby",
-      "auto",
-      "services",
-      "default",
-    ]) {
-      expect(categoryIconsSource).toMatch(new RegExp(`${key}:\\s*\\w+`));
-    }
+    expect(categoryIconsSource).toMatch(/gift:\s*Gift/);
+    expect(categoryIconsSource).toMatch(/pets:\s*PawPrint/);
+    expect(categoryIconsSource).toMatch(/baby:\s*Baby/);
+    expect(categoryIconsSource).toMatch(/auto:\s*Car/);
+    // Baby must not reuse the Gift glyph.
+    expect(categoryIconsSource).not.toMatch(/baby:\s*Gift/);
+    expect(categoryIconsSource).not.toMatch(/pets:\s*Heart/);
+    expect(categoryIconsSource).not.toMatch(/auto:\s*ShoppingCart/);
   });
 
   it("getCategoryIcon prefers resolveCategoryIconKey over the label map", () => {

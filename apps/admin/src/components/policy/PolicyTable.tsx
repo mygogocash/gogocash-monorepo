@@ -1316,13 +1316,17 @@ export default function PolicyTable() {
                   : "Edit the terms & conditions and the category banner for this category. Optional admin translation is stored with the policy."}
               </p>
               <div className="mt-3 max-w-2xl">
-                <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+                <p
+                  id="category-icon-label"
+                  className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-300"
+                >
                   Category icon
                 </p>
                 <CategoryIconPicker
                   value={iconKey}
                   onChange={setIconKey}
                   disabled={saving}
+                  labelledBy="category-icon-label"
                   categoryName={nameDraft || selectedCategory?.name || ""}
                 />
               </div>

@@ -26,16 +26,28 @@ describe("CategoryIconPicker — visual gallery", () => {
     expect(pickerSource).toContain("Selected preview");
   });
 
+  it("supports keyboard radiogroup navigation and focus styles", () => {
+    expect(pickerSource).toContain("tabIndex={checked ? 0 : -1}");
+    expect(pickerSource).toContain("ArrowRight");
+    expect(pickerSource).toContain("ArrowLeft");
+    expect(pickerSource).toContain("focus-visible:ring-2");
+    expect(pickerSource).toContain("aria-labelledby");
+  });
+
   it("PolicyTable uses CategoryIconPicker instead of a bare text select", () => {
     expect(tableSource).toContain("CategoryIconPicker");
-    expect(tableSource).not.toContain('aria-label="Category icon"');
+    expect(tableSource).toContain('labelledBy="category-icon-label"');
+    expect(tableSource).toContain('id="category-icon-label"');
     expect(tableSource).not.toMatch(
       /<select[\s\S]*Category icon[\s\S]*CATEGORY_ICON_KEYS/,
     );
   });
 
-  it("exposes human labels for every built-in key", () => {
+  it("derives gallery options from the exhaustive key→label map", () => {
     expect(iconSource).toContain("CATEGORY_ICON_OPTIONS");
-    expect(iconSource).toContain("label:");
+    expect(iconSource).toContain(
+      "as const satisfies Record<CategoryIconKey, string>",
+    );
+    expect(iconSource).toContain("CATEGORY_ICON_KEYS.map");
   });
 });
