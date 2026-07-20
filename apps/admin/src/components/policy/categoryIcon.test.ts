@@ -32,6 +32,13 @@ describe("categoryIconKey", () => {
     expect(categoryIconKey("Home & Living")).toBe("home");
     expect(categoryIconKey("Furniture")).toBe("home");
     expect(categoryIconKey("Education & Courses")).toBe("education");
+    expect(categoryIconKey("Gifting & Crafts")).toBe("gift");
+    expect(categoryIconKey("Sports & Fitness")).toBe("sports");
+    expect(categoryIconKey("Pet Supplies")).toBe("pets");
+    expect(categoryIconKey("Baby & Kids")).toBe("baby");
+    expect(categoryIconKey("Auto Parts")).toBe("auto");
+    expect(categoryIconKey("Digital Services")).toBe("services");
+    expect(categoryIconKey("Top-up / Recharge")).toBe("services");
   });
 
   it("falls back to default for unknown / empty names", () => {
@@ -44,6 +51,7 @@ describe("categoryIconKey", () => {
     expect(resolveCategoryIconKey("electronics", "Shopping")).toBe(
       "electronics",
     );
+    expect(resolveCategoryIconKey("gift", "Shopping")).toBe("gift");
     expect(resolveCategoryIconKey("<script>", "Shopping")).toBe("shopping");
     expect(CATEGORY_ICON_KEYS).toEqual([
       "shopping",
@@ -57,6 +65,12 @@ describe("categoryIconKey", () => {
       "health",
       "home",
       "education",
+      "gift",
+      "sports",
+      "pets",
+      "baby",
+      "auto",
+      "services",
       "default",
     ]);
   });

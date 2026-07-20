@@ -41,6 +41,27 @@ const CATEGORY_ID = "507f1f77bcf86cd799439011";
 let category: Record<string, unknown>;
 let policies: Array<Record<string, unknown>>;
 
+const ICON_LABEL: Record<string, string> = {
+  food: "Food",
+  shopping: "Shopping",
+  default: "Default",
+  travel: "Travel",
+};
+
+async function selectCategoryIcon(
+  user: ReturnType<typeof userEvent.setup>,
+  key: keyof typeof ICON_LABEL,
+) {
+  await user.click(screen.getByRole("radio", { name: ICON_LABEL[key] }));
+}
+
+function expectCategoryIconSelected(key: keyof typeof ICON_LABEL) {
+  expect(screen.getByRole("radio", { name: ICON_LABEL[key] })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+}
+
 function resetFixtures() {
   category = {
     _id: CATEGORY_ID,
@@ -128,18 +149,20 @@ describe("PolicyTable interactions", () => {
     expect(apiMock.put).not.toHaveBeenCalled();
   });
 
-  it("#376 Category icon dropdown explains that the icon set is built-in", async () => {
+  it("#376 Category icon gallery explains that the icon set is built-in", async () => {
     const user = userEvent.setup();
     renderTable();
 
     await user.click(await screen.findByRole("button", { name: "Create New" }));
 
-    // There is intentionally no icon-management section: the options are a
-    // fixed set shipped with the admin app, so the dropdown must say so.
-    const iconSelect = screen.getByLabelText("Category icon");
-    expect(iconSelect.closest("label")).toHaveTextContent(
-      "Choose from the built-in icon set. New icons are added by engineering, not uploaded here.",
-    );
+    // Visual gallery (not a text-only select): built-in set with live preview.
+    expect(screen.getByRole("radiogroup", { name: "Category icon" })).toBeInTheDocument();
+    expect(screen.getByText("Selected preview")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Choose from the built-in icon set/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Food" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Gifting" })).toBeInTheDocument();
   });
 
   it("#349 Create -> fill name/icon/terms/banner -> Close discards the draft so reopening starts fresh", async () => {
@@ -152,7 +175,7 @@ describe("PolicyTable interactions", () => {
       screen.getByRole("textbox", { name: "Category name" }),
       "Half-typed Draft",
     );
-    await user.selectOptions(screen.getByLabelText("Category icon"), "food");
+    await selectCategoryIcon(user, "food");
     await user.type(
       screen.getByRole("textbox", { name: /Content/ }),
       "Draft terms not meant to survive",
@@ -171,7 +194,7 @@ describe("PolicyTable interactions", () => {
     expect(
       screen.getByRole("textbox", { name: "Category name" }),
     ).toHaveValue("");
-    expect(screen.getByLabelText("Category icon")).toHaveValue("default");
+    expectCategoryIconSelected("default");
     expect(screen.getByRole("textbox", { name: /Content/ })).toHaveValue("");
     expect(
       screen.getByRole("textbox", { name: "Policy banner text" }),
@@ -222,7 +245,7 @@ describe("PolicyTable interactions", () => {
     await user.click(await screen.findByRole("button", { name: "Create New" }));
     const name = screen.getByRole("textbox", { name: "Category name" });
     await user.type(name, "New Travel Category");
-    await user.selectOptions(screen.getByLabelText("Category icon"), "food");
+    await selectCategoryIcon(user, "food");
 
     const terms = screen.getByRole("textbox", { name: /Content/ });
     const banner = screen.getByRole("textbox", {
@@ -241,7 +264,7 @@ describe("PolicyTable interactions", () => {
     ).toBeInTheDocument();
     expect(banner).toHaveValue("Banner draft persists");
     expect(name).toHaveValue("New Travel Category");
-    expect(screen.getByLabelText("Category icon")).toHaveValue("food");
+    expectCategoryIconSelected("food");
 
     await user.click(
       screen.getByRole("button", { name: "Edit terms & conditions" }),
@@ -283,10 +306,7 @@ describe("PolicyTable interactions", () => {
     await user.click(await screen.findByRole("button", { name: "Create New" }));
     const name = screen.getByRole("textbox", { name: "Category name" });
     await user.type(name, "New Shopping Category");
-    await user.selectOptions(
-      screen.getByLabelText("Category icon"),
-      "shopping",
-    );
+    await selectCategoryIcon(user, "shopping");
 
     const terms = screen.getByRole("textbox", { name: /Content/ });
     const banner = screen.getByRole("textbox", {
@@ -316,7 +336,7 @@ describe("PolicyTable interactions", () => {
     ).not.toBeInTheDocument();
     expect(terms).toHaveValue("Terms draft persists");
     expect(name).toHaveValue("New Shopping Category");
-    expect(screen.getByLabelText("Category icon")).toHaveValue("shopping");
+    expectCategoryIconSelected("shopping");
 
     await user.click(screen.getByRole("button", { name: "Edit banner text" }));
     const restoredBanner = screen.getByRole("textbox", {
@@ -458,12 +478,12 @@ describe("PolicyTable interactions", () => {
     const view = renderTable();
     await openExisting(user);
 
-    await user.selectOptions(screen.getByLabelText("Category icon"), "food");
+    await selectCategoryIcon(user, "food");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
     await waitFor(() => expect(apiMock.put).toHaveBeenCalledTimes(1));
     const form = apiMock.put.mock.calls[0][1] as FormData;
     expect(form.get("icon_key")).toBe("food");
-    expect(screen.getByLabelText("Category icon")).toHaveValue("food");
+    expectCategoryIconSelected("food");
 
     await user.click(screen.getByRole("button", { name: "Close" }));
     const row = await screen.findByRole("row", {

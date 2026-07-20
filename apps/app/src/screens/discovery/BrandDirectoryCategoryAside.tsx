@@ -13,12 +13,15 @@ import { createDiscoveryScreenStyles } from "./customerDiscoveryStyles";
 export function BrandDirectoryCategoryAside({
   activeCategory,
   categories = webBrandDirectory.categories,
+  categoryIconKeys,
   isDesktop,
   onSelectCategory,
   width,
 }: {
   activeCategory: string;
   categories?: readonly string[];
+  /** Optional admin/API icon_key by category name (Phase C). */
+  categoryIconKeys?: Readonly<Record<string, string>>;
   isDesktop: boolean;
   onSelectCategory: (category: string) => void;
   width: number;
@@ -53,7 +56,10 @@ export function BrandDirectoryCategoryAside({
       >
         {categories.map((category) => {
           const active = activeCategory === category;
-          const CategoryIcon = getCategoryIcon(category);
+          const CategoryIcon = getCategoryIcon(
+            category,
+            categoryIconKeys?.[category],
+          );
 
           return (
             <MotionPressable

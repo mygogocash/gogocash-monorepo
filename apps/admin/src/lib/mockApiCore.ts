@@ -2048,6 +2048,8 @@ async function handleMockPUT(
         message: "request_key, category_name, and policy are required",
       });
     }
+    // Keep in sync with apps/admin/.../CategoryIcon.tsx CATEGORY_ICON_KEYS
+    // and apps/api/.../category.schema.ts.
     if (
       ![
         "shopping",
@@ -2055,6 +2057,18 @@ async function handleMockPUT(
         "food",
         "finance",
         "entertainment",
+        "electronics",
+        "fashion",
+        "beauty",
+        "health",
+        "home",
+        "education",
+        "gift",
+        "sports",
+        "pets",
+        "baby",
+        "auto",
+        "services",
         "default",
       ].includes(iconKey)
     ) {

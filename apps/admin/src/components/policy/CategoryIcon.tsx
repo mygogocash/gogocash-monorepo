@@ -12,10 +12,41 @@ export const CATEGORY_ICON_KEYS = [
   "health",
   "home",
   "education",
+  "gift",
+  "sports",
+  "pets",
+  "baby",
+  "auto",
+  "services",
   "default",
 ] as const;
 
 export type CategoryIconKey = (typeof CATEGORY_ICON_KEYS)[number];
+
+/** Human labels for the visual icon gallery (Policy Management). */
+export const CATEGORY_ICON_OPTIONS: ReadonlyArray<{
+  key: CategoryIconKey;
+  label: string;
+}> = [
+  { key: "shopping", label: "Shopping" },
+  { key: "travel", label: "Travel" },
+  { key: "food", label: "Food" },
+  { key: "finance", label: "Finance" },
+  { key: "entertainment", label: "Entertainment" },
+  { key: "electronics", label: "Electronics" },
+  { key: "fashion", label: "Fashion" },
+  { key: "beauty", label: "Beauty" },
+  { key: "health", label: "Health" },
+  { key: "home", label: "Home" },
+  { key: "education", label: "Education" },
+  { key: "gift", label: "Gifting" },
+  { key: "sports", label: "Sports" },
+  { key: "pets", label: "Pets" },
+  { key: "baby", label: "Baby" },
+  { key: "auto", label: "Auto" },
+  { key: "services", label: "Services" },
+  { key: "default", label: "Default" },
+];
 
 export function resolveCategoryIconKey(
   persisted: unknown,
@@ -107,6 +138,48 @@ export function categoryIconKey(name: string): CategoryIconKey {
     n.includes("tuition")
   )
     return "education";
+  if (
+    n.includes("gift") ||
+    n.includes("craft") ||
+    n.includes("souvenir") ||
+    n.includes("present")
+  )
+    return "gift";
+  if (
+    n.includes("sport") ||
+    n.includes("fitness") ||
+    n.includes("gym") ||
+    n.includes("outdoor")
+  )
+    return "sports";
+  if (n.includes("pet") || n.includes("animal") || n.includes("vet"))
+    return "pets";
+  if (
+    n.includes("baby") ||
+    n.includes("kids") ||
+    n.includes("kid ") ||
+    n.includes("child") ||
+    n.includes("infant") ||
+    n.includes("maternity")
+  )
+    return "baby";
+  if (
+    n.includes("auto") ||
+    n.includes("car ") ||
+    n.includes("cars") ||
+    n.includes("vehicle") ||
+    n.includes("motor")
+  )
+    return "auto";
+  if (
+    n.includes("service") ||
+    n.includes("digital") ||
+    n.includes("recharge") ||
+    n.includes("top-up") ||
+    n.includes("topup") ||
+    n.includes("utility")
+  )
+    return "services";
   return "default";
 }
 
@@ -183,6 +256,52 @@ const PATHS: Record<CategoryIconKey, React.ReactNode> = {
       <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
       <path d="M22 10v6" />
       <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
+    </>
+  ),
+  gift: (
+    <>
+      <rect x="3" y="8" width="18" height="4" rx="1" />
+      <path d="M12 8v13" />
+      <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+      <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" />
+    </>
+  ),
+  sports: (
+    <>
+      <path d="M6.3 14.7 11 10.1a3.5 3.5 0 0 1 5 0l.7.7" />
+      <path d="m19.4 15.4-2.1-2.1" />
+      <circle cx="17.5" cy="17.5" r="3.5" />
+      <path d="m5.8 11.5 2.9-2.9" />
+      <circle cx="5.5" cy="5.5" r="2.5" />
+    </>
+  ),
+  pets: (
+    <>
+      <circle cx="11" cy="4" r="2" />
+      <circle cx="18" cy="8" r="2" />
+      <circle cx="20" cy="16" r="2" />
+      <path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z" />
+    </>
+  ),
+  baby: (
+    <>
+      <path d="M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5" />
+      <path d="M15 12h.01" />
+      <path d="M19.38 6.813A9 9 0 0 1 20.8 10.2a2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1" />
+      <path d="M9 12h.01" />
+    </>
+  ),
+  auto: (
+    <>
+      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+      <circle cx="7" cy="17" r="2" />
+      <path d="M9 17h6" />
+      <circle cx="17" cy="17" r="2" />
+    </>
+  ),
+  services: (
+    <>
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
     </>
   ),
   default: (

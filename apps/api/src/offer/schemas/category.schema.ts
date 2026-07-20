@@ -19,6 +19,12 @@ export const CATEGORY_ICON_KEYS = [
   'health',
   'home',
   'education',
+  'gift',
+  'sports',
+  'pets',
+  'baby',
+  'auto',
+  'services',
   'default',
 ] as const;
 export type CategoryIconKey = (typeof CATEGORY_ICON_KEYS)[number];

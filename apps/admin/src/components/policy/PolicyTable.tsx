@@ -18,10 +18,10 @@ import PrimaryButton from "@/components/ui/button/PrimaryButton";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { PencilIcon } from "@/icons";
 import CategoryIcon, {
-  CATEGORY_ICON_KEYS,
   resolveCategoryIconKey,
   type CategoryIconKey,
 } from "./CategoryIcon";
+import CategoryIconPicker from "./CategoryIconPicker";
 import { isDirty } from "@/lib/isDirty";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import {
@@ -1315,28 +1315,17 @@ export default function PolicyTable() {
                   ? "Enter a unique category name. Nothing is saved until you save the full draft."
                   : "Edit the terms & conditions and the category banner for this category. Optional admin translation is stored with the policy."}
               </p>
-              <label className="mt-3 block max-w-xs text-xs font-medium text-gray-600 dark:text-gray-300">
-                Category icon
-                <select
-                  aria-label="Category icon"
+              <div className="mt-3 max-w-2xl">
+                <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+                  Category icon
+                </p>
+                <CategoryIconPicker
                   value={iconKey}
-                  onChange={(event) =>
-                    setIconKey(event.target.value as CategoryIconKey)
-                  }
+                  onChange={setIconKey}
                   disabled={saving}
-                  className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                >
-                  {CATEGORY_ICON_KEYS.map((value) => (
-                    <option key={value} value={value}>
-                      {value.charAt(0).toUpperCase() + value.slice(1)}
-                    </option>
-                  ))}
-                </select>
-                <span className="mt-1 block text-[11px] font-normal text-gray-500 dark:text-gray-400">
-                  Choose from the built-in icon set. New icons are added by
-                  engineering, not uploaded here.
-                </span>
-              </label>
+                  categoryName={nameDraft || selectedCategory?.name || ""}
+                />
+              </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
               <button

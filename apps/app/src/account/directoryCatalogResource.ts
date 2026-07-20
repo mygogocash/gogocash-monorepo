@@ -160,17 +160,56 @@ export function getFixtureShopDirectoryResults(args: {
   return filterDirectoryStoresByRegion(getShopDirectoryResults(args), regionCode);
 }
 
-export type CategoryListPayload = {
-  data?: { _id?: string; name?: string }[];
+export type CategoryListItem = {
+  _id?: string;
+  name?: string;
+  /** Admin/API built-in key from Policy Management (`CATEGORY_ICON_KEYS`). */
+  icon_key?: string;
 };
 
-export function mapBackendCategoryList(payload: CategoryListPayload | null | undefined): string[] {
-  const names =
-    payload?.data
-      ?.map((item) => item.name?.trim())
-      .filter((name): name is string => Boolean(name)) ?? [];
+export type CategoryListPayload = {
+  data?: CategoryListItem[];
+};
+
+/**
+ * `GET /offer/get-category/list` returns a bare array of category docs.
+ * Some callers historically wrap as `{ data: [...] }` — accept both.
+ */
+export function normalizeCategoryListItems(
+  payload: CategoryListPayload | CategoryListItem[] | null | undefined,
+): CategoryListItem[] {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  return Array.isArray(payload?.data) ? payload.data : [];
+}
+
+export function mapBackendCategoryList(
+  payload: CategoryListPayload | CategoryListItem[] | null | undefined,
+): string[] {
+  const names = normalizeCategoryListItems(payload)
+    .map((item) => item.name?.trim())
+    .filter((name): name is string => Boolean(name));
 
   return ["All", ...names];
+}
+
+/** name → icon_key for categories that have an admin-chosen key. */
+export function mapBackendCategoryIconKeys(
+  payload: CategoryListPayload | CategoryListItem[] | null | undefined,
+): Readonly<Record<string, string>> {
+  const map: Record<string, string> = {};
+
+  for (const item of normalizeCategoryListItems(payload)) {
+    const name = item.name?.trim();
+    const iconKey = item.icon_key?.trim();
+    if (name && iconKey) {
+      map[name] = iconKey;
+    }
+  }
+
+  return map;
 }
 
 export function resolveCategoryList(
@@ -178,8 +217,24 @@ export function resolveCategoryList(
   data: unknown,
   fallback: readonly string[],
 ): readonly string[] {
-  if (source === "backend" && data && typeof data === "object" && "data" in data) {
-    return mapBackendCategoryList(data as CategoryListPayload);
+  if (source === "backend" && data != null && typeof data === "object") {
+    if (Array.isArray(data) || "data" in data) {
+      return mapBackendCategoryList(data as CategoryListPayload | CategoryListItem[]);
+    }
+  }
+
+  return fallback;
+}
+
+export function resolveCategoryIconKeys(
+  source: AccountDataSource,
+  data: unknown,
+  fallback: Readonly<Record<string, string>> = {},
+): Readonly<Record<string, string>> {
+  if (source === "backend" && data != null && typeof data === "object") {
+    if (Array.isArray(data) || "data" in data) {
+      return mapBackendCategoryIconKeys(data as CategoryListPayload | CategoryListItem[]);
+    }
   }
 
   return fallback;
@@ -208,10 +263,12 @@ export function resolveCategoryDirectoryCards(
   data: unknown,
   fallback: readonly CategoryDirectoryCard[],
 ): readonly CategoryDirectoryCard[] {
-  if (source === "backend" && data && typeof data === "object" && "data" in data) {
-    return mapBackendCategoryDirectoryCards(
-      mapBackendCategoryList(data as CategoryListPayload),
-    );
+  if (source === "backend" && data != null && typeof data === "object") {
+    if (Array.isArray(data) || "data" in data) {
+      return mapBackendCategoryDirectoryCards(
+        mapBackendCategoryList(data as CategoryListPayload | CategoryListItem[]),
+      );
+    }
   }
 
   return fallback;
