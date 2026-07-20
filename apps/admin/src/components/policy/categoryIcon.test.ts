@@ -21,13 +21,29 @@ describe("categoryIconKey", () => {
     expect(categoryIconKey("Movies & Music")).toBe("entertainment");
   });
 
+  it("maps the expanded category icons by keyword", () => {
+    expect(categoryIconKey("Electronics & Gadgets")).toBe("electronics");
+    expect(categoryIconKey("Mobile Phones")).toBe("electronics");
+    expect(categoryIconKey("Fashion & Apparel")).toBe("fashion");
+    expect(categoryIconKey("Shoes & Clothing")).toBe("fashion");
+    expect(categoryIconKey("Beauty & Cosmetics")).toBe("beauty");
+    expect(categoryIconKey("Skincare")).toBe("beauty");
+    expect(categoryIconKey("Health & Pharmacy")).toBe("health");
+    expect(categoryIconKey("Home & Living")).toBe("home");
+    expect(categoryIconKey("Furniture")).toBe("home");
+    expect(categoryIconKey("Education & Courses")).toBe("education");
+  });
+
   it("falls back to default for unknown / empty names", () => {
-    expect(categoryIconKey("Electronics")).toBe("default");
+    expect(categoryIconKey("Miscellaneous")).toBe("default");
     expect(categoryIconKey("")).toBe("default");
   });
 
   it("prefers a persisted allow-listed icon and rejects untrusted values", () => {
     expect(resolveCategoryIconKey("finance", "Shopping")).toBe("finance");
+    expect(resolveCategoryIconKey("electronics", "Shopping")).toBe(
+      "electronics",
+    );
     expect(resolveCategoryIconKey("<script>", "Shopping")).toBe("shopping");
     expect(CATEGORY_ICON_KEYS).toEqual([
       "shopping",
@@ -35,6 +51,12 @@ describe("categoryIconKey", () => {
       "food",
       "finance",
       "entertainment",
+      "electronics",
+      "fashion",
+      "beauty",
+      "health",
+      "home",
+      "education",
       "default",
     ]);
   });

@@ -87,4 +87,15 @@ describe('AggregatePolicyCommandDto validation', () => {
     expect(response.body.body.request_key).toBe(valid.request_key);
     expect(response.body.body.policy).toBe(valid.policy);
   });
+
+  // Expanded built-in icon set (#28): keys added to CATEGORY_ICON_KEYS must be
+  // accepted by the DTO allow-list, else the admin can't save them.
+  it.each(['electronics', 'fashion', 'beauty', 'health', 'home', 'education'])(
+    'accepts the expanded icon key %s',
+    async (iconKey) => {
+      const response = await put({ ...valid, icon_key: iconKey });
+      expect(response.status).toBe(200);
+      expect(response.body.body.icon_key).toBe(iconKey);
+    },
+  );
 });

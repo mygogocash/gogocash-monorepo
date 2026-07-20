@@ -55,6 +55,61 @@ describe('UserAdminService activity provenance', () => {
   });
 });
 
+describe('UserAdminService remember-me session length', () => {
+  const PASSWORD = 'secret-pass';
+  const buildLoginService = async () => {
+    const password = await bcrypt.hash(PASSWORD, 4);
+    const admin = {
+      _id: '507f1f77bcf86cd799439011',
+      email: 'owner@gogocash.co',
+      username: 'owner',
+      password,
+      role: 'superadmin',
+      session_version: 0,
+      toObject: () => ({
+        _id: '507f1f77bcf86cd799439011',
+        email: 'owner@gogocash.co',
+        username: 'owner',
+        role: 'superadmin',
+        session_version: 0,
+      }),
+    };
+    const exec = jest.fn().mockResolvedValue(admin);
+    const findOne = jest
+      .fn()
+      .mockReturnValue({ select: jest.fn().mockReturnValue({ exec }) });
+    const sign = jest.fn().mockReturnValue('signed-token');
+    const service = new UserAdminService(
+      { findOne } as never,
+      { sign } as never,
+      { append: jest.fn() } as never,
+    );
+    return { service, sign };
+  };
+
+  it('login > given rememberMe true > then signs a 30-day token', async () => {
+    const { service, sign } = await buildLoginService();
+    await service.login({
+      email: 'owner@gogocash.co',
+      password: PASSWORD,
+      rememberMe: true,
+    });
+    expect(sign).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ expiresIn: '30d' }),
+    );
+  });
+
+  it('login > given rememberMe false/absent > then signs a 7-day token', async () => {
+    const { service, sign } = await buildLoginService();
+    await service.login({ email: 'owner@gogocash.co', password: PASSWORD });
+    expect(sign).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ expiresIn: '7d' }),
+    );
+  });
+});
+
 describe('UserAdminService credential generations', () => {
   it('embeds the current session version and never returns the password hash', async () => {
     const password = await bcrypt.hash('secret-pass', 4);

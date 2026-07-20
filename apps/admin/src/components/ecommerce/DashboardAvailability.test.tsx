@@ -134,11 +134,11 @@ const fixture: DashboardInsightsResponse = {
     ]),
   ) as DashboardInsightsResponse["statistics"],
   quests: {
-    totalQuests: 0,
-    liveNow: 0,
-    scheduled: 0,
-    ended: 0,
-    overlappingSelectedRange: 0,
+    totalQuests: 11,
+    liveNow: 4,
+    scheduled: 2,
+    ended: 5,
+    overlappingSelectedRange: 6,
     totalParticipantsInOverlapping: 0,
     rows: [],
     engagement: {
@@ -229,13 +229,15 @@ describe("dashboard unavailable analytics", () => {
     expect(screen.queryByText("Missing admin max cap")).toBeNull();
   });
 
-  it("shows quest summary and click card as unavailable and omits click chart series", () => {
+  it("shows the live quest count and the click card as unavailable and omits click chart series", () => {
     queryState.value = { data: fixture, isLoading: false, isError: false };
     const { rerender } = render(<ExecutiveSummary range="30d" />);
 
-    expect(
-      screen.getByText("Quests live").parentElement?.textContent,
-    ).toContain("Unavailable");
+    // Live quest count is a campaign-schedule fact and is always shown; only
+    // the engagement/attribution analytics stay gated (deep section).
+    const questsCard = screen.getByText("Quests live").parentElement;
+    expect(questsCard?.textContent).toContain("4");
+    expect(questsCard?.textContent).not.toContain("Unavailable");
 
     rerender(<StatisticsChart insightRange="30d" />);
     expect(screen.getByText("Clicks").parentElement?.textContent).toContain(
