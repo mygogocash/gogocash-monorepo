@@ -103,7 +103,10 @@ const PINS: Record<string, Pin> = {
       '"An error occurred while setting up the request"',
     ],
   },
-  "app/api/backend/[...path]/route.ts": {
+  // Upstream misconfig copy lives in the shared proxy helper (route.ts only
+  // delegates). Pin the helper so a future move doesn't drop the user-facing
+  // message or leak the raw env diagnostic to clients.
+  "lib/backendProxy.ts": {
     present: [
       "This service is temporarily unavailable. Please try again later, or contact an administrator if it continues.",
       // Diagnostic detail is preserved server-side for ops, not shown to clients.
