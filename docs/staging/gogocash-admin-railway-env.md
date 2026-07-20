@@ -38,10 +38,15 @@ railway variables --service gogocash-admin \
 | Variable | Required value | Notes |
 |----------|----------------|-------|
 | `NEXT_PUBLIC_API_URL` | `https://api-staging.gogocash.co` | Build-time — baked into Next bundle |
+| `API_URL` | `http://gogocash-api.railway.internal:8080` | Runtime BFF upstream — **private** Railway DNS (not `*.up.railway.app`) |
 | `NEXTAUTH_URL` | `https://admin-staging.gogocash.co` | Exact public HTTPS, **no trailing slash** |
 | `NEXTAUTH_SECRET` | `openssl rand -base64 32` | Runtime; without it every route redirects to `/signin` |
 
 **Do not set** on Railway: `ALLOW_MOCK_ADMIN_PASSWORD`, `BUILD_FOR_FIREBASE`, `NEXT_PUBLIC_FIREBASE_STATIC` (forces static export; breaks API routes).
+
+Production (beta) uses the same private `API_URL`, with
+`NEXT_PUBLIC_API_URL=https://api-beta.gogocash.co` and
+`NEXTAUTH_URL=https://admin-beta.gogocash.co`. See #407 follow-up (2026-07-20).
 
 Full matrix: [`docs/railway-env-matrix.md`](../railway-env-matrix.md#gogocash-admin)
 
