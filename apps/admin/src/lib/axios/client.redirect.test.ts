@@ -39,4 +39,13 @@ describe("shouldRedirectToSignInOn401", () => {
       shouldRedirectToSignInOn401({ ...base, pathname: "/signin" }),
     ).toBe(false);
   });
+
+  it("given a resource-not-found 401 body > then does not redirect (not session expiry)", () => {
+    expect(
+      shouldRedirectToSignInOn401({
+        ...base,
+        data: { message: "User not found" },
+      }),
+    ).toBe(false);
+  });
 });
