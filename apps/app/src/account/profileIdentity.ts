@@ -62,3 +62,29 @@ export function resolveProfileMaskedId(session: MobileSession | null): string {
   }
   return isBackendMode() ? "" : webProfileWalletSummary.maskedId;
 }
+
+/** Design-parity fixtures for Personal Information Link Email / Phone (fixtures mode only). */
+export const FIXTURE_PROFILE_EMAIL = "mock.user@gogocash.test";
+export const FIXTURE_PROFILE_PHONE = "+66123456789";
+
+/**
+ * Issue #411: Link Email painted fixture `mock.user@gogocash.test` on live sessions.
+ * Backend mode reads `session.email`; fixtures mode keeps design-parity mocks.
+ */
+export function resolveProfileEmail(session: MobileSession | null): string {
+  if (!isBackendMode()) {
+    return FIXTURE_PROFILE_EMAIL;
+  }
+  return str(session?.email) ?? "";
+}
+
+/**
+ * Issue #411: Link Phone painted fixture `+66123456789` on live sessions.
+ * Backend mode reads `session.mobile`; fixtures mode keeps design-parity mocks.
+ */
+export function resolveProfilePhone(session: MobileSession | null): string {
+  if (!isBackendMode()) {
+    return FIXTURE_PROFILE_PHONE;
+  }
+  return str(session?.mobile) ?? "";
+}

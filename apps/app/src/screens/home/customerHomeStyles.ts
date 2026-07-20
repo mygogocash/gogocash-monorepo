@@ -893,14 +893,14 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     minWidth: 0,
   },
   sectionTitle: {
-    color: pickThemed(colors, "#103522", colors.accent),
+    color: pickThemed(colors, "#103522", colors.primary),
     fontFamily: typography.family,
     fontSize: 18,
     fontWeight: typography.sectionTitleWeight,
     lineHeight: 24,
   },
   sectionTitleSmall: {
-    color: pickThemed(colors, "#103522", colors.accent),
+    color: pickThemed(colors, "#103522", colors.primary),
     flexShrink: 1,
     fontFamily: typography.family,
     fontSize: 18,

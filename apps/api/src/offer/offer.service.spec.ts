@@ -1286,6 +1286,30 @@ describe('OfferService', () => {
       );
     });
 
+    it('createAdminOffer > given manual tracking period FormData > then persists mode, days, flow_type, and subtitles', async () => {
+      await service.createAdminOffer({
+        brand_name: 'Tracking Period Brand',
+        affiliate_tracking_link: 'https://track.example/tracking-period',
+        tracking_period_mode: 'manual',
+        tracking_days: '21',
+        confirm_days: '45',
+        flow_type: 'two_step',
+        tracking_subtitle: '  after the return window closes  ',
+        confirm_subtitle: '  once partner validates  ',
+      });
+
+      expect(offerModel.create.mock.calls[0][0][0]).toEqual(
+        expect.objectContaining({
+          tracking_period_mode: 'manual',
+          tracking_days: 21,
+          confirm_days: 45,
+          flow_type: 'two_step',
+          tracking_subtitle: 'after the return window closes',
+          confirm_subtitle: 'once partner validates',
+        }),
+      );
+    });
+
     it.each([
       ['custom_terms', 'x'.repeat(50_001)],
       ['note_to_user', 'x'.repeat(2_001)],

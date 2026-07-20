@@ -42,6 +42,14 @@ import {
   type OfferDisplayTags,
   type OfferProductTypeEntry,
 } from "@/types/api";
+import {
+  DEFAULT_FLOW_TYPE,
+  formatTrackingDays,
+  isValidTrackingDayCount,
+  MAX_TRACKING_PERIOD_DAYS,
+  MIN_TRACKING_PERIOD_DAYS,
+  resolveTrackingPeriodPreview,
+} from "@/lib/offerTrackingPeriod";
 
 function useObjectPreviewUrl(file: File | null) {
   const url = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
@@ -110,6 +118,7 @@ const CREATE_BRAND_JUMP_LINKS = [
   { id: "create-brand-section-offer-copy", label: "Offer copy" },
   { id: "create-brand-section-merch", label: "Tags & feed" },
   { id: "create-brand-section-policy", label: "Policy" },
+  { id: "create-brand-section-tracking-period", label: "Cashback tracking period" },
   { id: "create-brand-section-media", label: "Media" },
   { id: "create-brand-section-internal", label: "Internal" },
 ] as const;
@@ -146,6 +155,12 @@ const CREATE_BRAND_INITIAL_SNAPSHOT = {
   policyCategoryId: "",
   templateTerms: "",
   customTerms: "",
+  trackingPeriodMode: "auto" as "auto" | "manual",
+  trackingDays: null as number | null,
+  confirmDays: null as number | null,
+  flowType: DEFAULT_FLOW_TYPE as "three_step" | "two_step",
+  trackingSubtitle: null as string | null,
+  confirmSubtitle: null as string | null,
   hasLogo: false,
   hasBanner: false,
 };
@@ -205,6 +220,16 @@ export default function CreateBrandForm() {
   const [templateTerms, setTemplateTerms] = useState("");
   const [templateTermsTouched, setTemplateTermsTouched] = useState(false);
   const [customTerms, setCustomTerms] = useState("");
+  const [trackingPeriodMode, setTrackingPeriodMode] = useState<
+    "auto" | "manual"
+  >("auto");
+  const [trackingDays, setTrackingDays] = useState<number | null>(null);
+  const [confirmDays, setConfirmDays] = useState<number | null>(null);
+  const [flowType, setFlowType] = useState<"three_step" | "two_step">(
+    DEFAULT_FLOW_TYPE,
+  );
+  const [trackingSubtitle, setTrackingSubtitle] = useState<string | null>(null);
+  const [confirmSubtitle, setConfirmSubtitle] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // When true, after a successful save the form keeps the brand-level fields (name, logos,
   // description, availability) but clears the country / tracking inputs so the admin can
@@ -272,6 +297,12 @@ export default function CreateBrandForm() {
           policyCategoryId,
           templateTerms,
           customTerms,
+          trackingPeriodMode,
+          trackingDays,
+          confirmDays,
+          flowType,
+          trackingSubtitle,
+          confirmSubtitle,
           hasLogo: logoFile != null,
           hasBanner: bannerFile != null,
         },
@@ -303,6 +334,12 @@ export default function CreateBrandForm() {
       policyCategoryId,
       templateTerms,
       customTerms,
+      trackingPeriodMode,
+      trackingDays,
+      confirmDays,
+      flowType,
+      trackingSubtitle,
+      confirmSubtitle,
       logoFile,
       bannerFile,
     ],
@@ -527,6 +564,24 @@ export default function CreateBrandForm() {
     if (app) formData.append("app_deeplink", app);
     if (logoFile) formData.append("logo_desktop", logoFile);
     if (bannerFile) formData.append("banner", bannerFile);
+
+    formData.append("tracking_period_mode", trackingPeriodMode);
+    if (trackingPeriodMode === "manual") {
+      if (
+        !isValidTrackingDayCount(trackingDays ?? undefined) ||
+        !isValidTrackingDayCount(confirmDays ?? undefined)
+      ) {
+        toast.error(
+          `Enter whole day counts between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS} for both windows.`,
+        );
+        return;
+      }
+      formData.append("tracking_days", String(trackingDays));
+      formData.append("confirm_days", String(confirmDays));
+    }
+    formData.append("flow_type", flowType);
+    formData.append("tracking_subtitle", trackingSubtitle ?? "");
+    formData.append("confirm_subtitle", confirmSubtitle ?? "");
 
     setSubmitting(true);
     try {
@@ -1538,6 +1593,203 @@ export default function CreateBrandForm() {
               />
             </div>
           )}
+        </section>
+
+        <section
+          id="create-brand-section-tracking-period"
+          className={`space-y-4 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40 ${SCROLL_CLASS}`}
+        >
+          <div>
+            <h2 className="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+              Cashback tracking period
+            </h2>
+            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+              The Purchase → Tracking → Confirm steps customers see on this
+              brand&apos;s shop page.{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                Auto
+              </span>{" "}
+              follows the affiliate partner&apos;s validation terms;{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                Manual
+              </span>{" "}
+              sets the windows for this brand.
+            </p>
+          </div>
+
+          {(() => {
+            const preview = resolveTrackingPeriodPreview({
+              tracking_period_mode: trackingPeriodMode,
+              tracking_days: trackingDays,
+              confirm_days: confirmDays,
+              flow_type: flowType,
+              tracking_subtitle: trackingSubtitle,
+              confirm_subtitle: confirmSubtitle,
+            });
+            const sourceLabel =
+              preview.source === "manual"
+                ? "Manual — set for this brand"
+                : preview.source === "partner"
+                  ? "Auto — from partner validation terms"
+                  : "Auto — platform default (no partner terms on file)";
+            return (
+              <>
+                <dl className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                      Purchase
+                    </dt>
+                    <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                      with GoGoCash
+                    </dd>
+                  </div>
+                  {preview.flow_type === "two_step" ? (
+                    <div>
+                      <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                        Tracking and confirm
+                      </dt>
+                      <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                        {formatTrackingDays(preview.confirm_days)}
+                      </dd>
+                      <dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {preview.confirm_subtitle}
+                      </dd>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                          Tracking
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                          {formatTrackingDays(preview.tracking_days)}
+                        </dd>
+                        <dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          {preview.tracking_subtitle}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                          Confirm
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                          {formatTrackingDays(preview.confirm_days)}
+                        </dd>
+                        <dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          {preview.confirm_subtitle}
+                        </dd>
+                      </div>
+                    </>
+                  )}
+                </dl>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {sourceLabel}
+                </p>
+              </>
+            );
+          })()}
+
+          <div className="space-y-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+            <div className="flex flex-wrap gap-4">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                <input
+                  type="radio"
+                  name="create-brand-tracking-period-mode"
+                  className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+                  checked={trackingPeriodMode === "auto"}
+                  onChange={() => setTrackingPeriodMode("auto")}
+                />
+                Auto — fetch from affiliate partner
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                <input
+                  type="radio"
+                  name="create-brand-tracking-period-mode"
+                  className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+                  checked={trackingPeriodMode === "manual"}
+                  onChange={() => setTrackingPeriodMode("manual")}
+                />
+                Manual
+              </label>
+            </div>
+            <Switch
+              label="Combined 2-step flow (Tracking and confirm)"
+              checked={flowType === "two_step"}
+              onChange={(checked) =>
+                setFlowType(checked ? "two_step" : "three_step")
+              }
+            />
+            {trackingPeriodMode === "manual" && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Tracking window (days)
+                  </label>
+                  <input
+                    type="number"
+                    min={MIN_TRACKING_PERIOD_DAYS}
+                    max={MAX_TRACKING_PERIOD_DAYS}
+                    value={trackingDays ?? ""}
+                    onChange={(e) =>
+                      setTrackingDays(
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
+                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Confirm window (days)
+                  </label>
+                  <input
+                    type="number"
+                    min={MIN_TRACKING_PERIOD_DAYS}
+                    max={MAX_TRACKING_PERIOD_DAYS}
+                    value={confirmDays ?? ""}
+                    onChange={(e) =>
+                      setConfirmDays(
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
+                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Tracking subtitle
+                </label>
+                <input
+                  type="text"
+                  maxLength={200}
+                  placeholder="from the following month"
+                  value={trackingSubtitle ?? ""}
+                  onChange={(e) =>
+                    setTrackingSubtitle(e.target.value || null)
+                  }
+                  className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Confirm subtitle
+                </label>
+                <input
+                  type="text"
+                  maxLength={200}
+                  placeholder="after validation"
+                  value={confirmSubtitle ?? ""}
+                  onChange={(e) =>
+                    setConfirmSubtitle(e.target.value || null)
+                  }
+                  className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                />
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* Logos & media — same structure as FormOffer `offer-section-media` */}

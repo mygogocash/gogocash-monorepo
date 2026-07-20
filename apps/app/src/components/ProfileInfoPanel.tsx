@@ -10,6 +10,10 @@ import {
 } from "@mobile/theme/icons";
 import { Link } from "expo-router";
 
+import {
+  resolveProfileEmail,
+  resolveProfilePhone,
+} from "@mobile/account/profileIdentity";
 import { resolveProfileCashbackBreakdownRows } from "@mobile/account/resolveProfileWalletAmount";
 import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import { BirthDateField } from "@mobile/components/BirthDateField";
@@ -68,8 +72,8 @@ export function ProfileInfoPanel({ session }: { session: MobileSession }) {
   const [zip, setZip] = useState("");
   const [gender] = useState("");
   const [birthdate, setBirthdate] = useState("");
-  const [email] = useState("mock.user@gogocash.test");
-  const [phone] = useState("+66123456789");
+  const [email] = useState(() => resolveProfileEmail(session));
+  const [phone] = useState(() => resolveProfilePhone(session));
   const [errors, setErrors] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
 
