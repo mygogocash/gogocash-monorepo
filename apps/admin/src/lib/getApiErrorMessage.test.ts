@@ -132,6 +132,22 @@ describe("getApiErrorMessage", () => {
     expect(getApiErrorMessage(new Error("kaboom"))).toBe("kaboom");
   });
 
+  it("appends Nest reason from flat apiClient ApiError (#407)", () => {
+    const apiError = Object.assign(
+      new Error(
+        "Policy aggregate saves require MongoDB replica set or mongos transaction support.",
+      ),
+      {
+        status: 503,
+        code: "POLICY_TRANSACTIONS_UNSUPPORTED",
+        reason: "MongoDB is not a replica set or mongos",
+      },
+    );
+    expect(getApiErrorMessage(apiError)).toBe(
+      "Policy aggregate saves require MongoDB replica set or mongos transaction support. (MongoDB is not a replica set or mongos)",
+    );
+  });
+
   it("joins validation message arrays from the interceptor-rejected shape", () => {
     expect(
       getApiErrorMessage({
