@@ -18,6 +18,8 @@ export type MerchantOfferResponse = {
   offer_id?: number;
   merchant_id?: number;
   commission_store?: number | string;
+  /** Per-product cashback rows (`Offer.product_type`) — headline fallback (#428). */
+  product_type?: Array<Record<string, unknown>>;
   commissions?: MerchantCommission[];
   custom_terms?: string;
   logo?: string;

@@ -5,6 +5,7 @@ import {
   SHOP_BANNER_IMAGE_WIDTH,
 } from "@mobile/api/optimizedImageUrl";
 import { getMobileEnv } from "@mobile/config/env";
+import { formatMerchantCashback } from "@mobile/api/offerCashbackFormat";
 import {
   resolvePublicOfferLogo,
   resolveShopPageBannerUri,
@@ -116,21 +117,6 @@ export function buildTrackingPeriodSteps(
   ];
 }
 
-function formatCashback(offer: MerchantOfferResponse): string | null {
-  const store = offer.commission_store;
-  if (typeof store === "number" && Number.isFinite(store)) {
-    return `${store}%`;
-  }
-  if (typeof store === "string" && store.trim()) {
-    return store.includes("%") ? store.trim() : `${store.trim()}%`;
-  }
-  const commission = offer.commissions?.[0]?.Commission?.trim();
-  if (commission) {
-    return commission.includes("%") ? commission : `${commission}%`;
-  }
-  return null;
-}
-
 function initialsFromBrand(brand: string): string {
   const parts = brand
     .replace(/&/g, " ")
@@ -174,7 +160,7 @@ export function mapMerchantOfferToShopDetail<
     offer.offer_name_display?.trim() || offer.offer_name?.trim() || fixtureShop.brand;
   // Never fall back to fixture cashback on a live offer — that leaks Grocery Galaxy
   // rates (e.g. 26.5%) onto merchants whose commission fields are empty.
-  const cashback = formatCashback(offer) ?? "—";
+  const cashback = formatMerchantCashback(offer) ?? "—";
   const apiBaseUrl = getMobileEnv().apiUrl;
 
   return {
