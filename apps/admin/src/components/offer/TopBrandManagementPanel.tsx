@@ -18,6 +18,7 @@ import {
   partitionOffersByIdPresence,
   syncAutocompleteSearchInput,
 } from "@/lib/offerAutocompleteUi";
+import { isActiveGoGoCashOffer } from "@/lib/isActiveGoGoCashOffer";
 import { resolveTopBrandCashbackLabel } from "@/lib/offerDeeplink";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import Button from "@/components/ui/button/Button";
@@ -138,28 +139,64 @@ export default function TopBrandManagementPanel() {
     }
     return m;
   }, [data?.items, offersPick?.data]);
-  const localBrandsDesktop = useMemo(
+  // #479 — drop known-disabled / pending / rejected offers from the curated
+  // lists so Landing preview and Save never keep them as Top brands.
+  const orderDesktop = useMemo(
     () =>
-      localOrderDesktop.map((offerId) => ({
-        offerId,
-        cashback: resolveTopBrandCashbackLabel(offerById.get(offerId), ""),
-      })),
+      localOrderDesktop.filter((id) => {
+        const offer = offerById.get(id);
+        return !offer || isActiveGoGoCashOffer(offer);
+      }),
     [localOrderDesktop, offerById],
   );
-  const localBrandsMobile = useMemo(
+  const orderMobile = useMemo(
     () =>
-      localOrderMobile.map((offerId) => ({
+      localOrderMobile.filter((id) => {
+        const offer = offerById.get(id);
+        return !offer || isActiveGoGoCashOffer(offer);
+      }),
+    [localOrderMobile, offerById],
+  );
+  const orderUnique = useMemo(
+    () => [...new Set([...orderDesktop, ...orderMobile])],
+    [orderDesktop, orderMobile],
+  );
+  const disabledListedIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const id of localOrder) {
+      const offer = offerById.get(id);
+      if (offer && !isActiveGoGoCashOffer(offer)) ids.add(id);
+    }
+    return [...ids];
+  }, [localOrder, offerById]);
+
+  const brandsDesktop = useMemo(
+    () =>
+      orderDesktop.map((offerId) => ({
         offerId,
         cashback: resolveTopBrandCashbackLabel(offerById.get(offerId), ""),
       })),
-    [localOrderMobile, offerById],
+    [orderDesktop, offerById],
+  );
+  const brandsMobile = useMemo(
+    () =>
+      orderMobile.map((offerId) => ({
+        offerId,
+        cashback: resolveTopBrandCashbackLabel(offerById.get(offerId), ""),
+      })),
+    [orderMobile, offerById],
   );
 
-  const listedOfferIds = useMemo(() => new Set(localOrder), [localOrder]);
+  const listedOfferIds = useMemo(() => new Set(orderUnique), [orderUnique]);
+
+  const eligiblePickerOffers = useMemo(
+    () => (offersPick?.data ?? []).filter(isActiveGoGoCashOffer),
+    [offersPick?.data],
+  );
 
   const { available: pickerOptions, hidden: hiddenPickerMatches } = useMemo(
-    () => partitionOffersByIdPresence(offersPick?.data ?? [], listedOfferIds),
-    [listedOfferIds, offersPick?.data],
+    () => partitionOffersByIdPresence(eligiblePickerOffers, listedOfferIds),
+    [eligiblePickerOffers, listedOfferIds],
   );
 
   const pickerNoOptionsText = useMemo(() => {
@@ -179,14 +216,15 @@ export default function TopBrandManagementPanel() {
   ]);
 
   const dirty =
-    !ordersEqual(localOrderDesktop, serverOrderDesktop) ||
-    !ordersEqual(localOrderMobile, serverOrderMobile);
+    !ordersEqual(orderDesktop, serverOrderDesktop) ||
+    !ordersEqual(orderMobile, serverOrderMobile) ||
+    disabledListedIds.length > 0;
 
   const saveMutation = useMutation({
     mutationFn: () =>
       apiClient.saveTopBrands({
-        brandsDesktop: localBrandsDesktop,
-        brandsMobile: localBrandsMobile,
+        brandsDesktop,
+        brandsMobile,
       }),
     onSuccess: () => {
       setDraftOrderDesktop(null);
@@ -194,9 +232,12 @@ export default function TopBrandManagementPanel() {
       void queryClient.invalidateQueries({ queryKey: TOP_BRANDS_QUERY_KEY });
       toast.success("Top brands saved.");
     },
-    onError: () => {
+    onError: (err) => {
       toast.error(
-        "Couldn't save the top brands. Please try again, or contact an administrator if it continues.",
+        getApiErrorMessage(
+          err,
+          "Couldn't save the top brands. Please try again, or contact an administrator if it continues.",
+        ),
       );
     },
   });
@@ -217,6 +258,11 @@ export default function TopBrandManagementPanel() {
     (offer: Offer) => {
       const id = offer._id.trim();
       if (!id) return;
+      // #479 — disabled / non-active offers cannot become Top brands.
+      if (!isActiveGoGoCashOffer(offer)) {
+        toast.error("Disabled offers cannot be added as top brands.");
+        return;
+      }
       let blocked = false;
       setDraftOrderDesktop((d) => {
         const prev = d ?? serverOrderDesktop;
@@ -309,6 +355,22 @@ export default function TopBrandManagementPanel() {
           IDs that do not exist in the catalog.
         </p>
       )}
+      {disabledListedIds.length > 0 ? (
+        <p
+          role="status"
+          className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100"
+        >
+          Disabled offers are excluded from Top brands and will be removed on
+          Save:{" "}
+          {disabledListedIds
+            .map((id) => {
+              const offer = offerById.get(id);
+              return offer ? offerLabel(offer) : id;
+            })
+            .join(", ")}
+          .
+        </p>
+      ) : null}
 
       <div className="mt-6 border-t border-gray-200 pt-6 dark:border-gray-700">
         <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
@@ -317,21 +379,19 @@ export default function TopBrandManagementPanel() {
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           Click to browse recent offers or type to search by brand name, country,
           lookup slug, offer id, or Mongo id. Offers already in the list below
-          are hidden.
+          are hidden. Disabled offers are not selectable.
         </p>
         <div className="mt-3">
           <Autocomplete
             id="top-brand-add"
-            disabled={!canManageBrands || localOrder.length >= maxBrands}
+            disabled={!canManageBrands || orderUnique.length >= maxBrands}
             options={pickerOptions}
             value={null}
             inputValue={pickerSearch}
             loading={offersPickLoading}
             openOnFocus
             filterOptions={(items) => items}
-            getOptionLabel={(offer) =>
-              `${offerPickerLabel(offer)}${offer.disabled ? " (disabled)" : ""}`
-            }
+            getOptionLabel={(offer) => offerPickerLabel(offer)}
             getOptionKey={(offer) => offer._id}
             isOptionEqualToValue={(left, right) => left._id === right._id}
             noOptionsText={pickerNoOptionsText}
@@ -355,7 +415,6 @@ export default function TopBrandManagementPanel() {
                     <span className="truncate">{offerLabel(offer)}</span>
                     <span className="truncate text-xs text-gray-500">
                       {offerPickerLabel(offer)}
-                      {offer.disabled ? " (disabled)" : ""}
                     </span>
                   </div>
                 </li>
@@ -372,9 +431,8 @@ export default function TopBrandManagementPanel() {
           />
         </div>
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Top brands selected: {localOrder.length} unique / {maxBrands} per
-          device (desktop {localOrderDesktop.length}, mobile{" "}
-          {localOrderMobile.length})
+          Top brands selected: {orderUnique.length} unique / {maxBrands} per
+          device (desktop {orderDesktop.length}, mobile {orderMobile.length})
         </p>
         {hiddenPickerMatches.length > 0 && pickerSearch.trim() ? (
           <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
@@ -395,8 +453,8 @@ export default function TopBrandManagementPanel() {
       </div>
 
       <TopBrandLandingPreview
-        orderDesktop={localOrderDesktop}
-        orderMobile={localOrderMobile}
+        orderDesktop={orderDesktop}
+        orderMobile={orderMobile}
         canEdit={canManageBrands}
         onReorder={handlePreviewReorder}
         onRemove={removeOffer}

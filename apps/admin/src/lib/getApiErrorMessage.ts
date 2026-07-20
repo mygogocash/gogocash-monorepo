@@ -78,6 +78,16 @@ function messageFromBody(body: StructuredApiErrorBody | undefined): string | nul
  * objects (not `Error` instances), so their top-level `message` must be read directly or every
  * failure collapses to the fallback.
  */
+const MULTIPART_TRUNCATED =
+  "Upload was cut off before it finished (often a file over the admin proxy limit). Use a PNG/JPG/WebP under 32 MB, or compress the image, then try again.";
+
+function rewriteTransportMessage(message: string): string {
+  if (/Multipart:\s*Unexpected end of form/i.test(message)) {
+    return MULTIPART_TRUNCATED;
+  }
+  return message;
+}
+
 export function getApiErrorMessage(
   error: unknown,
   fallback = GENERIC_ERROR_MESSAGE,
@@ -87,12 +97,12 @@ export function getApiErrorMessage(
       error as { response?: { data?: StructuredApiErrorBody } }
     ).response;
     const fromBody = messageFromBody(res?.data);
-    if (fromBody) return fromBody;
+    if (fromBody) return rewriteTransportMessage(fromBody);
   }
   if (error && typeof error === "object" && "data" in error) {
     const data = (error as { data?: StructuredApiErrorBody }).data;
     const fromBody = messageFromBody(data);
-    if (fromBody) return fromBody;
+    if (fromBody) return rewriteTransportMessage(fromBody);
   }
   // Flat `ApiError` / apiClient Error ({ message, status, errors, code?, reason? }).
   // apiClient throws Error instances with extra fields; older callers may throw
@@ -119,11 +129,13 @@ export function getApiErrorMessage(
         fieldErrors.length > 0
           ? `${flat.message.trim()}: ${fieldErrors.join("; ")}`
           : flat.message.trim();
-      return withOptionalReason(base, {
-        message: flat.message,
-        code: flat.code,
-        reason: flat.reason,
-      });
+      return rewriteTransportMessage(
+        withOptionalReason(base, {
+          message: flat.message,
+          code: flat.code,
+          reason: flat.reason,
+        }),
+      );
     }
   }
   return fallback;

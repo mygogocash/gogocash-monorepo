@@ -1090,7 +1090,53 @@ export class AdminService {
     if (updateData.extra_store === false) {
       await syncOfferTopBrandMembership(this.topBrandConfigModel, id, false);
     }
+    // #479 — disabling an offer pulls it out of curated Top brands.
+    if (updateData.disabled === true) {
+      await syncOfferTopBrandMembership(this.topBrandConfigModel, id, false);
+    }
     return updated;
+  }
+
+  /** #479 — Top brands may only reference active (non-disabled) offers. */
+  private async assertTopBrandOffersEligible(
+    offerIds: readonly string[],
+  ): Promise<void> {
+    const unique = [
+      ...new Set(
+        offerIds.map((id) => String(id ?? '').trim()).filter((id) => id.length > 0),
+      ),
+    ];
+    if (unique.length === 0) return;
+
+    const offers = await this.offerModel
+      .find({ _id: { $in: unique } })
+      .select('_id disabled status')
+      .lean()
+      .exec();
+    const byId = new Map(
+      (offers ?? []).map((offer) => [String(offer._id), offer]),
+    );
+    const bad: string[] = [];
+    for (const id of unique) {
+      const offer = byId.get(id);
+      if (!offer || offer.disabled === true) {
+        bad.push(id);
+        continue;
+      }
+      const status = String(
+        (offer as { status?: unknown }).status ?? '',
+      )
+        .trim()
+        .toLowerCase();
+      if (status === 'pending_review' || status === 'rejected') {
+        bad.push(id);
+      }
+    }
+    if (bad.length > 0) {
+      throw new BadRequestException(
+        `Disabled or missing offers cannot be top brands: ${bad.join(', ')}`,
+      );
+    }
   }
 
   private async updateOfferLegacy(
@@ -2261,6 +2307,9 @@ export class AdminService {
       const brandsMobile = normalizeTopBrandEntries(
         body.brandsMobile ?? body.brands,
       );
+      await this.assertTopBrandOffersEligible(
+        topBrandMemberIds(brandsDesktop, brandsMobile),
+      );
       await this.topBrandConfigModel.updateOne(
         {},
         {
@@ -2290,6 +2339,9 @@ export class AdminService {
         `Top brands is limited to ${MAX_TOP_BRANDS} offers.`,
       );
     }
+    await this.assertTopBrandOffersEligible(
+      topBrandMemberIds(normalizedBrands, normalizedBrands),
+    );
 
     await this.topBrandConfigModel.updateOne(
       {},

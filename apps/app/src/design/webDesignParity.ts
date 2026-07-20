@@ -1158,14 +1158,14 @@ export const webBrowseShortcuts = [
   { id: "categories", label: "Categories", href: "/category", icon: "education" },
 ] as const;
 
+// #483 — one icon system + one text size for every desktop header nav item.
 export const webDesktopHeaderNavItems = [
   {
     id: "top-brands",
     label: "Top Brands",
     href: "/",
-    icon: "none",
+    icon: "fire",
     active: true,
-    showFire: true,
   },
   {
     id: "all-brands",
@@ -1173,7 +1173,6 @@ export const webDesktopHeaderNavItems = [
     href: "/brand",
     icon: "shop",
     active: false,
-    showFire: false,
   },
   {
     id: "all-shops",
@@ -1181,7 +1180,6 @@ export const webDesktopHeaderNavItems = [
     href: "/shops",
     icon: "shops",
     active: false,
-    showFire: false,
   },
   {
     id: "product-discovery",
@@ -1189,8 +1187,6 @@ export const webDesktopHeaderNavItems = [
     href: "/discover",
     icon: "promotion",
     active: false,
-    showFire: false,
-    menuTypography: "lead",
   },
   {
     id: "travel",
@@ -1198,7 +1194,6 @@ export const webDesktopHeaderNavItems = [
     href: "/category/Travel",
     icon: "travel",
     active: false,
-    showFire: false,
   },
   {
     id: "electronics",
@@ -1206,8 +1201,6 @@ export const webDesktopHeaderNavItems = [
     href: "/category/Electronics",
     icon: "electronics",
     active: false,
-    showFire: false,
-    menuTypography: "lead",
   },
   {
     id: "health-beauty",
@@ -1215,8 +1208,6 @@ export const webDesktopHeaderNavItems = [
     href: "/category/Health%20%26%20Beauty",
     icon: "health",
     active: false,
-    showFire: false,
-    menuTypography: "lead",
   },
 ] as const;
 
