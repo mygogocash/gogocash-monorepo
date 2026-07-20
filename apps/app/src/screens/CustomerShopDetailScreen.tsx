@@ -15,6 +15,7 @@ import {
 import {
   Image,
   Linking,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -109,7 +110,7 @@ type ShopDetail = Omit<
   noteToUser?: string;
   offerId?: number;
   policyCategoryId?: string;
-  /** Live offers set this from `extra_cashback_tag`; fixtures omit (treated as on). */
+  /** Live offers set this from `extra_cashback_tag`; only `true` shows the badge (#472). */
   showExtraCashbackTag?: boolean;
   trackingPeriod: readonly TrackingPeriodStep[];
   trackingUrl?: string;
@@ -872,7 +873,7 @@ function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
       </View>
       <Text style={styles.termsSectionTitle}>{tc(terms.exclusionsTitle)}</Text>
       {terms.body ? (
-        <Text style={styles.termBulletText} testID="shop-detail-terms-body">
+        <Text style={styles.termsFreeformBody} testID="shop-detail-terms-body">
           {terms.body}
         </Text>
       ) : (
@@ -1493,6 +1494,17 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
       fontSize: 14,
       fontWeight: typography.bodyWeight,
       lineHeight: 22,
+    },
+    // #466 — preserve admin newlines in freeform custom T&Cs (esp. web).
+    termsFreeformBody: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: typography.bodyWeight,
+      lineHeight: 22,
+      ...(Platform.OS === "web"
+        ? ({ whiteSpace: "pre-wrap" } as object)
+        : null),
     },
     relatedSection: {
       gap: 18,
