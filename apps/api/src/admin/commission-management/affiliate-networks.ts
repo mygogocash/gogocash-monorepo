@@ -64,9 +64,13 @@ export function listAffiliateNetworks(): AffiliateNetworkDto[] {
         : n.id === 'optimise'
           ? Boolean(process.env.OPTIMISE_API_KEY?.trim())
           : n.id === 'accesstrade'
-            ? // Connected flag only: the numeric tail of the Accesstrade datafeed
-              // API link, used until the Accesstrade provider itself lands.
-              Boolean(process.env.ACCESSTRADE_API_KEY?.trim())
+            ? // Matches AccesstradeAffiliateProvider.isEnabled — the provider
+              // authenticates via the username+password provisioning flow, so
+              // "connected" tracks those, not the legacy ACCESSTRADE_API_KEY.
+              Boolean(
+                process.env.ACCESSTRADE_USERNAME?.trim() &&
+                  process.env.ACCESSTRADE_PASSWORD?.trim(),
+              )
             : false,
   }));
 }
