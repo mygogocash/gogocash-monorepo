@@ -1340,11 +1340,19 @@ export class OfferService implements OnApplicationBootstrap {
       (created as { _id?: unknown } | null | undefined)?._id ?? '',
     );
     if (createdId && wantsTopBrand) {
-      await syncOfferTopBrandMembership(
-        this.topBrandConfigModel,
-        createdId,
-        true,
-      );
+      try {
+        await syncOfferTopBrandMembership(
+          this.topBrandConfigModel,
+          createdId,
+          true,
+        );
+      } catch (error) {
+        // Keep Brand Info toggle aligned when the curated list is full.
+        await this.offerModel
+          .findByIdAndUpdate(createdId, { $set: { extra_store: false } })
+          .exec();
+        throw error;
+      }
     }
     return created;
   }
