@@ -83,14 +83,16 @@ describe("DashboardWithdrawSummary", () => {
     });
     expect(pendingBanner).toHaveAttribute("href", "/withdraw?status=pending");
 
+    // Accessible name comes from visible card copy (count + total), not a
+    // truncated aria-label that hid the request totals from SR users.
     expect(
-      screen.getByRole("link", { name: /view pending withdrawals/i }),
+      screen.getByRole("link", { name: /pending\s+12 requests/i }),
     ).toHaveAttribute("href", "/withdraw?status=pending");
     expect(
-      screen.getByRole("link", { name: /view approved withdrawals/i }),
+      screen.getByRole("link", { name: /approved\s+\d+ requests/i }),
     ).toHaveAttribute("href", "/withdraw?status=approved");
     expect(
-      screen.getByRole("link", { name: /view rejected withdrawals/i }),
+      screen.getByRole("link", { name: /rejected\s+\d+ requests/i }),
     ).toHaveAttribute("href", "/withdraw?status=rejected");
 
     expect(screen.getByRole("link", { name: /view all/i })).toHaveAttribute(

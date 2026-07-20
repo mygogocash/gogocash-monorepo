@@ -126,7 +126,10 @@ export function DashboardWithdrawSummary() {
               </span>
             ) : null}
           </span>
-          <ArrowRightIcon className="text-warning-600 dark:text-warning-400 size-5 shrink-0" />
+          <ArrowRightIcon
+            aria-hidden
+            className="text-warning-600 dark:text-warning-400 size-5 shrink-0"
+          />
         </Link>
       )}
 
@@ -145,7 +148,7 @@ export function DashboardWithdrawSummary() {
             className="text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 inline-flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 ease-out"
           >
             View all
-            <ArrowRightIcon className="size-4" />
+            <ArrowRightIcon aria-hidden className="size-4" />
           </Link>
         </div>
 
@@ -154,8 +157,7 @@ export function DashboardWithdrawSummary() {
             <Link
               key={row.status}
               href={withdrawListHref(row.status)}
-              aria-label={`View ${row.label.toLowerCase()} withdrawals`}
-              className={`rounded-xl border border-gray-100 p-4 transition-all duration-200 ease-out hover:shadow-sm dark:border-gray-800 ${row.bg}`}
+              className={`rounded-xl border border-gray-100 p-4 transition-all duration-200 ease-out hover:shadow-sm focus-visible:ring-brand-500/40 focus-visible:ring-2 focus-visible:outline-none dark:border-gray-800 ${row.bg}`}
             >
               <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                 {row.label}
