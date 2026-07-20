@@ -1286,6 +1286,54 @@ describe('OfferService', () => {
       );
     });
 
+    it('createAdminOffer > given manual tracking period FormData > then persists mode, days, flow_type, and subtitles', async () => {
+      await service.createAdminOffer({
+        brand_name: 'Tracking Period Brand',
+        affiliate_tracking_link: 'https://track.example/tracking-period',
+        tracking_period_mode: 'manual',
+        tracking_days: '21',
+        confirm_days: '45',
+        flow_type: 'two_step',
+        tracking_subtitle: '  after the return window closes  ',
+        confirm_subtitle: '  once partner validates  ',
+      });
+
+      expect(offerModel.create.mock.calls[0][0][0]).toEqual(
+        expect.objectContaining({
+          tracking_period_mode: 'manual',
+          tracking_days: 21,
+          confirm_days: 45,
+          flow_type: 'two_step',
+          tracking_subtitle: 'after the return window closes',
+          confirm_subtitle: 'once partner validates',
+        }),
+      );
+    });
+
+    // The admin UPDATE path (coerceOptionalDayCount) rejects an out-of-range or
+    // non-integer day count with 400. Create silently dropped it and persisted
+    // mode:'manual' with no days, so the offer fell back to defaults and the
+    // admin was told the save succeeded with numbers they never chose.
+    it.each([
+      ['tracking_days', '0'],
+      ['tracking_days', '400'],
+      ['confirm_days', 'abc'],
+      ['confirm_days', '2.5'],
+    ])(
+      'createAdminOffer > given manual mode with invalid %s=%s > then rejects instead of silently defaulting',
+      async (field, value) => {
+        await expect(
+          service.createAdminOffer({
+            brand_name: 'Tracking Period Brand',
+            affiliate_tracking_link: 'https://track.example/tp',
+            tracking_period_mode: 'manual',
+            [field]: value,
+          }),
+        ).rejects.toThrow(/whole number of days/i);
+        expect(offerModel.create).not.toHaveBeenCalled();
+      },
+    );
+
     it.each([
       ['custom_terms', 'x'.repeat(50_001)],
       ['note_to_user', 'x'.repeat(2_001)],

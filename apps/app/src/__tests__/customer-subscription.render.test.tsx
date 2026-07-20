@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // CustomerSubscriptionScreen reaches i18n/LocaleProvider indirectly via the shared
 // CustomerAccountResourceState (-> CustomerRouteState) on the non-ready path, and the
@@ -140,5 +140,28 @@ describe("CustomerSubscriptionScreen — Wave B (B5) foundations adopted (source
     // target with the SwapIcon); add hitSlop on the MotionPressable/Pressable.
     expect(subscriptionSource).toContain("hitSlop=");
     expect(subscriptionSource).toMatch(/hitSlop=[\s\S]*?style=\{styles\.secondaryAction\}/);
+  });
+});
+
+describe("CustomerSubscriptionScreen GoGoPass rollout flag (render)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('given EXPO_PUBLIC_ENABLE_GOGOPASS="0" > then every mode renders nothing (redirect guard)', () => {
+    // One guard in the shared screen covers /pricing, /subscription AND /billing.
+    vi.stubEnv("EXPO_PUBLIC_ENABLE_GOGOPASS", "0");
+    renderScreen("pricing");
+    expect(screen.queryByText("Unlock GoGoPass")).toBeNull();
+    renderScreen("subscription");
+    expect(screen.queryByText("No active subscription")).toBeNull();
+    renderScreen("billing");
+    expect(screen.queryByText("Status: No active subscription")).toBeNull();
+  });
+
+  it("given the flag unset > then the pricing hero still renders (default unchanged)", () => {
+    delete process.env.EXPO_PUBLIC_ENABLE_GOGOPASS;
+    renderScreen("pricing");
+    expect(screen.getByText("Unlock GoGoPass")).toBeTruthy();
   });
 });

@@ -34,6 +34,8 @@ import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { QuestCoinIcon } from "@mobile/components/QuestCoinIcon";
 import { ExploreOtherShopsSection } from "@mobile/screens/ExploreOtherShopsSection";
+import { trackQuestStarted } from "@mobile/analytics/events";
+import { useAnalytics } from "@mobile/analytics/useAnalytics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import type { QuestTaskRow } from "@mobile/quest/questTaskResource";
@@ -218,6 +220,7 @@ function QuestTaskPanel() {
 function QuestTaskListRow({ task }: { task: QuestTaskRow }) {
   const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
+  const analytics = useAnalytics();
   const content = (
     <>
       <TaskLogo task={task} />
@@ -250,7 +253,13 @@ function QuestTaskListRow({ task }: { task: QuestTaskRow }) {
 
   if (task.href) {
     return (
-      <Link asChild href={task.href as never}>
+      // Starting a quest task = tapping through to its merchant; fire quest_started
+      // on the Link (composed before navigation, mirroring the promotion wiring).
+      <Link
+        asChild
+        href={task.href as never}
+        onPress={() => trackQuestStarted(analytics, { source: "quest_tasks" })}
+      >
         <MotionPressable
           accessibilityRole="link"
           pressScale={0.98}

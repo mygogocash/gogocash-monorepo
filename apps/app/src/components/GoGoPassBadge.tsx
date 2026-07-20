@@ -1,12 +1,14 @@
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
+import { isGoGoPassEnabled } from "@mobile/config/featureFlags";
 import { isGoGoPassSubscriber } from "@mobile/lib/membershipTier";
 import { typography } from "@mobile/theme/tokens";
 
 // "GOGOPASS" gold pill shown next to the member name. Renders null unless subscribed.
 export function GoGoPassBadge({ tier }: { tier?: string }) {
-  if (!isGoGoPassSubscriber(tier)) {
+  // GoGoPass rollout flag: hidden builds render no badge for any tier.
+  if (!isGoGoPassEnabled() || !isGoGoPassSubscriber(tier)) {
     return null;
   }
   const label = tier === "gogopass-pro" ? "GOGOPASS PRO" : "GOGOPASS";

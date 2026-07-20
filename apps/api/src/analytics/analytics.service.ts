@@ -94,6 +94,10 @@ export class AnalyticsService implements OnModuleDestroy {
         event,
         properties: compactValue({
           ...properties,
+          env:
+            process.env.RAILWAY_ENVIRONMENT_NAME ||
+            process.env.NODE_ENV ||
+            'unknown',
           locale: context.locale,
           region: context.region,
           platform: context.platform,

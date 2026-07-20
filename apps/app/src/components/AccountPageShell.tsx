@@ -39,6 +39,7 @@ import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { CustomerGoLinkScreen } from "@mobile/screens/CustomerGoLinkScreen";
+import { filterHiddenProfileMenuItems } from "@mobile/config/featureFlags";
 import {
   getAccountShellFrameMetrics,
   getDesktopShellOffset,
@@ -237,7 +238,7 @@ function DesktopProfileRail() {
 
   return (
     <View style={styles.desktopRail}>
-      {profileHubMenuItems.map((item) => {
+      {filterHiddenProfileMenuItems(profileHubMenuItems).map((item) => {
         const isExternal = "external" in item && item.external === true;
         const active = isProfileMenuItemActive(item, pathname);
         const label = tc(item.label);

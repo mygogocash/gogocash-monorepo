@@ -1,4 +1,8 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { ethers } from 'ethers';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -237,6 +241,57 @@ describe('WithdrawService', () => {
 
   it('should be defined', () => {
     expect(mocks.service).toBeDefined();
+  });
+
+  describe('withdrawals kill-switch (WITHDRAWALS_ENABLED)', () => {
+    const originalFlag = process.env.WITHDRAWALS_ENABLED;
+
+    afterEach(() => {
+      if (originalFlag === undefined) delete process.env.WITHDRAWALS_ENABLED;
+      else process.env.WITHDRAWALS_ENABLED = originalFlag;
+    });
+
+    const signDto = () => ({
+      userid: VALID_USER_ID,
+      userAddress: VALID_ADDRESS,
+      totalCashbackAmount: '12.500000',
+      conversionIdHashes: ['9', '7'],
+      expireAt: String(Math.floor(Date.now() / 1000) + 300),
+      chain: 137,
+    });
+
+    it('getSign > given WITHDRAWALS_ENABLED=false > then 503s before any user or ledger work', async () => {
+      process.env.WITHDRAWALS_ENABLED = 'false';
+
+      await expect(
+        mocks.service.getSign(signDto(), VALID_USER_ID),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+      expect(mocks.userModel.findById).not.toHaveBeenCalled();
+      expect(mocks.withdrawModel.create).not.toHaveBeenCalled();
+    });
+
+    it('createRecordOnChain > given WITHDRAWALS_ENABLED=false > then 503s before touching the chain', async () => {
+      process.env.WITHDRAWALS_ENABLED = 'false';
+
+      await expect(
+        mocks.service.createRecordOnChain(VALID_USER_ID, 137, [9, 7]),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    });
+
+    it('getSign > given the flag is unset > then proceeds past the gate (default enabled)', async () => {
+      delete process.env.WITHDRAWALS_ENABLED;
+
+      // Mismatched caller identity: reaching ForbiddenException proves the
+      // request travelled PAST the kill-switch into the real authorization
+      // boundary rather than being 503'd.
+      await expect(
+        mocks.service.getSign(
+          { ...signDto(), userid: new Types.ObjectId().toString() },
+          VALID_USER_ID,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
   });
 
   describe('getSign authorization boundary', () => {

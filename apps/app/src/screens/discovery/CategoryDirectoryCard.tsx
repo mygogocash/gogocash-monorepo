@@ -4,6 +4,8 @@ import { ArrowRight as ArrowRightIcon } from "@mobile/theme/icons";
 import homeBannerImage from "../../../assets/home-banner.png";
 import { webCategoryDirectory } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { trackCategorySelect } from "@mobile/analytics/events";
+import { useAnalytics } from "@mobile/analytics/useAnalytics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -28,10 +30,22 @@ export function CategoryDirectoryCard({
   const styles = useThemedStyles(createDiscoveryScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const analytics = useAnalytics();
   const imageSource = categoryDirectoryImageAssets[category.imageAsset] ?? homeBannerImage;
 
   return (
-    <Link asChild href={category.href as never}>
+    // Fire merchant_category_select on the Link (composed before navigation, same
+    // as HeroBannerLink's select_promotion) — a category tap is a real intent signal.
+    <Link
+      asChild
+      href={category.href as never}
+      onPress={() =>
+        trackCategorySelect(analytics, {
+          categoryName: category.title,
+          source: "category_directory",
+        })
+      }
+    >
       <MotionPressable
         accessibilityLabel={`${category.title} ${webCategoryDirectory.cardCta}`}
         accessibilityRole="link"

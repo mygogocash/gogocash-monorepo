@@ -278,3 +278,25 @@ describe("account deletion (Play policy)", () => {
     expect(settingsSource).not.toContain("this build has no backend wired here");
   });
 });
+
+describe("CustomerAccountSettingsScreen GoGoPass rollout flag (render)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('given EXPO_PUBLIC_ENABLE_GOGOPASS="0" > then the Stripe subscription card hides, other sections stay', () => {
+    vi.stubEnv("EXPO_PUBLIC_ENABLE_GOGOPASS", "0");
+    renderScreen();
+    expect(screen.queryByText("Your Subscription")).toBeNull();
+    expect(screen.queryByText("Open Stripe Subscription")).toBeNull();
+    // Neighbouring sections are untouched.
+    expect(screen.getByText("Receive Notifications about Updates")).toBeTruthy();
+    expect(screen.getByText("Join our Community")).toBeTruthy();
+  });
+
+  it("given the flag unset > then the subscription card still renders (default unchanged)", () => {
+    delete process.env.EXPO_PUBLIC_ENABLE_GOGOPASS;
+    renderScreen();
+    expect(screen.getByText("Your Subscription")).toBeTruthy();
+  });
+});

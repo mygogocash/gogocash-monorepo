@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // CustomerProfileScreen pulls in AccountPageShell -> CustomerDesktopHeader ->
 // CustomerLocaleRegionControl -> i18n/LocaleProvider, which reaches expo-localization
@@ -152,5 +152,26 @@ describe("CustomerProfileScreen — responsive desktop panel (render)", () => {
 
     expect(screen.getByText("Invite your Friends")).toBeTruthy();
     expect(screen.queryByText("Linked My Cashback")).toBeNull();
+  });
+});
+
+describe("CustomerProfileScreen GoGoPass rollout flag (render)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('hub > given EXPO_PUBLIC_ENABLE_GOGOPASS="0" > then the GoGoPass menu row is gone but neighbours stay', () => {
+    vi.stubEnv("EXPO_PUBLIC_ENABLE_GOGOPASS", "0");
+    renderScreen();
+    expect(screen.queryByText("GoGoPass")).toBeNull();
+    // The rows around the filtered item must be untouched (no over-filtering).
+    expect(screen.getByText("GoGoTrack")).toBeTruthy();
+    expect(screen.getByText("Missing Orders")).toBeTruthy();
+  });
+
+  it("hub > given the flag unset > then the GoGoPass row still renders (default unchanged)", () => {
+    delete process.env.EXPO_PUBLIC_ENABLE_GOGOPASS;
+    renderScreen();
+    expect(screen.getByText("GoGoPass")).toBeTruthy();
   });
 });

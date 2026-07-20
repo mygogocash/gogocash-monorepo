@@ -24,7 +24,7 @@ import { ethers } from 'ethers';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Point, PointDocument } from 'src/point/schemas/point.schema';
-import { getAdminAuth } from './firebase-admin.provider';
+import { getAdminAuth, verifyFirebaseIdToken } from './firebase-admin.provider';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { SiweNonce, SiweNonceDocument } from './schemas/siwe-nonce.schema';
@@ -77,7 +77,7 @@ export class AuthService {
       ReturnType<ReturnType<typeof getAdminAuth>['verifyIdToken']>
     >;
     try {
-      data = await getAdminAuth().verifyIdToken(token);
+      data = await verifyFirebaseIdToken(token);
     } catch (error: any) {
       this.logger.warn(
         `Firebase sign-in verification failed: ${error?.message ?? 'unknown error'}`,
@@ -465,7 +465,7 @@ export class AuthService {
       ReturnType<ReturnType<typeof getAdminAuth>['verifyIdToken']>
     >;
     try {
-      decoded = await getAdminAuth().verifyIdToken(token);
+      decoded = await verifyFirebaseIdToken(token);
     } catch (error: any) {
       this.logger.warn(
         `Phone verification token failed: ${error?.message ?? 'unknown error'}`,

@@ -3,12 +3,30 @@ import { HydratedDocument } from 'mongoose';
 
 export type CategoryDocument = HydratedDocument<Category>;
 
+// Keep this list in sync with:
+// - apps/admin/src/components/policy/CategoryIcon.tsx (CATEGORY_ICON_KEYS + PATHS)
+// - apps/app/src/theme/categoryIcons.ts (CATEGORY_ICON_KEYS + categoryIconsByKey)
+// Drift is blocked by apps/admin/.../CategoryIcon.sync.test.ts.
+// A key here that admin can't render would show the default icon; a key the
+// admin offers that is missing here is rejected on save.
 export const CATEGORY_ICON_KEYS = [
   'shopping',
   'travel',
   'food',
   'finance',
   'entertainment',
+  'electronics',
+  'fashion',
+  'beauty',
+  'health',
+  'home',
+  'education',
+  'gift',
+  'sports',
+  'pets',
+  'baby',
+  'auto',
+  'services',
   'default',
 ] as const;
 export type CategoryIconKey = (typeof CATEGORY_ICON_KEYS)[number];

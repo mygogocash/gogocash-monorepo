@@ -17,10 +17,7 @@ import {
   ValidationPipe,
   Res,
 } from '@nestjs/common';
-import {
-  MAX_TRACKING_PERIOD_DAYS,
-  MIN_TRACKING_PERIOD_DAYS,
-} from 'src/offer/tracking-period.util';
+import { coerceOptionalDayCount } from 'src/offer/tracking-period.util';
 import { Request, Response } from 'express';
 import { coerceOptionalPolicyCategoryId } from './policy-category-id';
 import { AdminService } from './admin.service';
@@ -96,34 +93,6 @@ function coerceOptionalNumber(value: unknown): number | undefined {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
-}
-
-/**
- * Tracking-period day counts: absent stays undefined (partial saves must not
- * touch the field), but a present-and-invalid value REJECTS rather than being
- * silently dropped — an admin who typed a number must not see it vanish.
- */
-function coerceOptionalDayCount(
-  value: unknown,
-  label: string,
-): number | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (typeof value === 'string') {
-    const normalized = value.trim();
-    if (!normalized || normalized === 'undefined') return undefined;
-    value = Number(normalized);
-  }
-  if (
-    typeof value !== 'number' ||
-    !Number.isInteger(value) ||
-    value < MIN_TRACKING_PERIOD_DAYS ||
-    value > MAX_TRACKING_PERIOD_DAYS
-  ) {
-    throw new BadRequestException(
-      `Invalid ${label}: expected a whole number of days between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS}`,
-    );
-  }
-  return value;
 }
 
 /**
@@ -461,9 +430,17 @@ export class AdminController {
     @Query('limit') limit?: number,
     @Query('page') page?: number,
     @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('method') method?: string,
   ) {
     // return this.adminService.findAll(page, limit, search);
-    return this.adminService.getWithdrawAll(page, limit, search);
+    return this.adminService.getWithdrawAll(
+      page,
+      limit,
+      search,
+      status,
+      method,
+    );
   }
 
   @UseGuards(AuthAdminGuard)
@@ -478,8 +455,11 @@ export class AdminController {
     @Query('key') key?: string,
   ) {
     return this.adminService.getConversionAll(
-      Number(page),
-      Number(limit),
+      // NaN-guard: Number(undefined) is NaN, which defeats the service's
+      // default params and reaches the aggregation as { $skip: NaN } (Mongo
+      // 500). Same fallback pattern as findAll above.
+      Number(page) || 1,
+      Number(limit) || 10,
       search,
       key,
       status,

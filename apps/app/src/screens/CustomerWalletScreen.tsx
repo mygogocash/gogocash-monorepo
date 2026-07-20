@@ -30,6 +30,11 @@ import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountRes
 import { WalletSkeleton } from "@mobile/components/Skeleton";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { mapCheckWithdrawToWalletMetrics, type WalletMetricView } from "@mobile/api/walletMapper";
+import {
+  mapListCheckToWalletTxRows,
+  type WalletTxRow,
+  type WalletTxStatus,
+} from "@mobile/api/walletTransactions";
 import { isCheckWithdrawResponse, isWalletResourceBlocking } from "@mobile/api/walletTypes";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -59,6 +64,16 @@ export function CustomerWalletScreen() {
     fixtureData: webWalletCashbackSummary,
     resourceId: "wallet",
   });
+  // Transaction feed: real earnings + withdrawals from POST /withdraw/list-check
+  // in backend mode; the WALLET_TX_ROWS fixture only in fixtures mode (the
+  // resource returns fixtureData verbatim when it doesn't fetch).
+  const txResource = useCustomerAccountResource({
+    fixtureData: WALLET_TX_ROWS,
+    resourceId: "walletTransactions",
+  });
+  const txRows: readonly WalletTxRow[] = Array.isArray(txResource.data)
+    ? (txResource.data as readonly WalletTxRow[])
+    : mapListCheckToWalletTxRows(txResource.data);
   // Money rule: live amounts are backend-derived or zero — the fixture's demo
   // balances must never render as real money. Fixtures mode rejects the guard
   // and stays byte-identical.
@@ -103,7 +118,13 @@ export function CustomerWalletScreen() {
       {isDesktop ? null : <WalletHeader />}
       <WalletSupportBanner compact={!isDesktop} />
       <WalletCashbackSummary compact={!isDesktop} liveMetrics={liveMetrics} />
-      <WalletTransactions onRefresh={walletResource.retry} />
+      <WalletTransactions
+        rows={txRows}
+        onRefresh={() => {
+          walletResource.retry();
+          txResource.retry();
+        }}
+      />
     </AccountPageShell>
   );
 }
@@ -113,23 +134,11 @@ export function CustomerWalletScreen() {
 // refetch (walletResource.retry) — the affordance + wiring is the deliverable. The
 // RefreshControl label reuses the existing catalog string `walletTransactionsLoading`
 // ("Loading transactions…" -> Thai via reverse-lookup), so no new copy is introduced.
-// Mock transaction rows (local — the shared webWalletPage fixture ships none and is parallel-owned).
+// Fixtures-mode transaction rows (fixtures/mock builds only — in backend mode
+// the list comes from POST /withdraw/list-check via mapListCheckToWalletTxRows).
+// WalletTxKind/WalletTxStatus/WalletTxRow now live in @mobile/api/walletTransactions.
 // Covers every case: earning + withdraw × success / pending / failed, spread across dates so the
 // Date Range filter is demonstrable. Tabs 0/1/2 = All / Earning / Withdraw (webWalletTransactionTabs order).
-type WalletTxKind = "earn" | "withdraw";
-type WalletTxStatus = "success" | "pending" | "failed";
-type WalletTxRow = {
-  id: string;
-  ts: number;
-  dateLabel: string;
-  brand: string;
-  info: string;
-  kind: WalletTxKind;
-  amount: string;
-  currency: string;
-  status: WalletTxStatus;
-  statusLabel: string;
-};
 
 const WALLET_TX_DAY_MS = 86400000;
 const WALLET_TX_BASE_TS = 1774656000000; // ~Mar 28, 2026 — anchor for the Date Range presets.
@@ -146,8 +155,13 @@ const WALLET_TX_ROWS: readonly WalletTxRow[] = [
   { id: "tx-9", ts: WALLET_TX_BASE_TS - 59 * WALLET_TX_DAY_MS, dateLabel: "Jan 28, 2026", brand: "Quick Cart", info: "Awaiting store confirmation", kind: "earn", amount: "+15.00", currency: "THB", status: "pending", statusLabel: "Pending" },
 ] as const;
 
-const WALLET_TX_MAX_TS = Math.max(...WALLET_TX_ROWS.map((row) => row.ts));
-function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
+function WalletTransactions({
+  rows: allRows,
+  onRefresh,
+}: {
+  rows: readonly WalletTxRow[];
+  onRefresh: () => void;
+}) {
   const styles = useThemedStyles(createWalletScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
@@ -157,12 +171,15 @@ function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
   const [dateDays, setDateDays] = useState<number>(0);
   const [openFilter, setOpenFilter] = useState<"date" | "status" | null>(null);
 
+  // Date-window anchor: newest row (live data) rather than the mock's fixed base.
+  const maxTs = allRows.length ? Math.max(...allRows.map((row) => row.ts)) : Date.now();
+
   // Tab → kind, plus the Search / Status / Date Range filters (web parity: substring + status + day window).
-  const rows = WALLET_TX_ROWS.filter((row) => {
+  const rows = allRows.filter((row) => {
     if (activeTab === 1 && row.kind !== "earn") return false;
     if (activeTab === 2 && row.kind !== "withdraw") return false;
     if (statusFilter !== "all" && row.status !== statusFilter) return false;
-    if (dateDays > 0 && row.ts < WALLET_TX_MAX_TS - dateDays * WALLET_TX_DAY_MS) return false;
+    if (dateDays > 0 && row.ts < maxTs - dateDays * WALLET_TX_DAY_MS) return false;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       const blob = `${row.brand} ${row.info} ${row.statusLabel} ${row.amount} ${row.currency}`.toLowerCase();

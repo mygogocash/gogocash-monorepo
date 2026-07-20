@@ -6,6 +6,8 @@ import {
   type SendErrorKind,
 } from "@mobile/auth/authSendErrorKind";
 import { emailAuthErrorCopy, type EmailAuthErrorKind } from "@mobile/auth/emailAuthErrorKind";
+import { trackCompleteRegistration } from "@mobile/analytics/events";
+import { useAnalytics } from "@mobile/analytics/useAnalytics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { Check, ChevronDown as ChevronDownIcon } from "@mobile/theme/icons";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -171,6 +173,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const analytics = useAnalytics();
   const { callbackUrl: callbackUrlParam } = useLocalSearchParams<{ callbackUrl?: string | string[] }>();
   const postLoginPath = useMemo(() => resolvePostLoginPath(callbackUrlParam), [callbackUrlParam]);
   const toastCtx = useContext(ToastContext);
@@ -594,6 +597,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
 
           step = "persist";
           await persistMobileSession(session);
+          trackRegistrationIfNewUser(session);
           clearVerifiedPhoneAttempt();
           haptics.success();
           markIntroModalPending();
@@ -704,10 +708,25 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     setResendSecondsRemaining(otpResendDurationSeconds);
   };
 
+  // Fire complete_registration only when the backend says this session created a
+  // new account (is_new_user), so ordinary sign-ins never inflate the registration
+  // conversion. Provider/flow only — never email/phone/name. Fires at the auth
+  // moment (fresh response), not from persisted state, so a cold start can't re-fire.
+  const trackRegistrationIfNewUser = (session: MobileSession) => {
+    if (session.is_new_user !== true) {
+      return;
+    }
+    trackCompleteRegistration(analytics, {
+      authProvider: typeof session.provider === "string" ? session.provider : undefined,
+      source: typeof session.auth_flow === "string" ? session.auth_flow : undefined,
+    });
+  };
+
   const completeSocialSession = async (session: MobileSession) => {
     haptics.success();
     markIntroModalPending();
     await persistMobileSession(session);
+    trackRegistrationIfNewUser(session);
     router.replace(postLoginPath as never);
   };
 
@@ -2341,6 +2360,7 @@ function createAuthScreenStyles(colors: ThemeColors) {
     letterSpacing: 0.66,
   },
   socialStackDesktop: {
+    flexDirection: "row",
     gap: 10,
     width: "100%",
   },
@@ -2366,12 +2386,13 @@ function createAuthScreenStyles(colors: ThemeColors) {
   },
   socialButtonRow: {
     alignItems: "center",
+    flex: 1,
     flexDirection: "row",
     gap: 12,
     height: 52,
     justifyContent: "flex-start",
     paddingHorizontal: 18,
-    width: "100%",
+    width: undefined,
   },
   socialButtonHovered: {
     borderColor: "#56D4AA",
@@ -2396,7 +2417,7 @@ function createAuthScreenStyles(colors: ThemeColors) {
     color: colors.ink,
     flex: 1,
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "400",
     lineHeight: 20,
     textAlign: "left",
     width: undefined,

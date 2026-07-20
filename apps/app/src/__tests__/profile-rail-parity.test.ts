@@ -26,7 +26,10 @@ describe("desktop profile rail parity", () => {
     const shell = readMobileFile("src/components/AccountPageShell.tsx");
 
     // Full menu (no 9-item cap) + Profile accordion sub-nav + active-by-route helpers.
-    expect(shell).toContain("profileHubMenuItems.map");
+    // Rows flow through the shared GoGoPass rollout filter (default-on: it only
+    // drops the /membership row when EXPO_PUBLIC_ENABLE_GOGOPASS="0" — see
+    // gogopass-flag.test.ts), so the full-menu pin targets the filtered map.
+    expect(shell).toContain("filterHiddenProfileMenuItems(profileHubMenuItems).map");
     expect(shell).not.toContain("profileHubMenuItems.slice(0, 9)");
     expect(shell).toContain("profileHubSubNavItems.map");
     expect(shell).not.toContain("profileHubGoGoTrackSubNavItems");

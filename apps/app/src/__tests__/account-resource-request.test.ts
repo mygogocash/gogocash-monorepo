@@ -28,6 +28,13 @@ describe("resolveCustomerAccountResourceRequest", () => {
     });
   });
 
+  it("walletTransactions > then describes the transaction feed: POST /withdraw/list-check", () => {
+    expect(resolveCustomerAccountResourceRequest({ resourceId: "walletTransactions" })).toEqual({
+      method: "POST",
+      path: "/withdraw/list-check",
+    });
+  });
+
   it("brandCatalog > then requests a modest first page for faster home paint", () => {
     expect(resolveCustomerAccountResourceRequest({ resourceId: "brandCatalog" })).toEqual({
       method: "GET",

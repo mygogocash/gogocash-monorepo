@@ -9,9 +9,13 @@ vi.mock("@mobile/config/env", () => ({
 }));
 
 import {
+  FIXTURE_PROFILE_EMAIL,
+  FIXTURE_PROFILE_PHONE,
   resolveProfileDisplayName,
+  resolveProfileEmail,
   resolveProfileLastUpdated,
   resolveProfileMaskedId,
+  resolveProfilePhone,
   resolveProfileUserId,
 } from "@mobile/account/profileIdentity";
 
@@ -93,5 +97,50 @@ describe("profileIdentity > resolveProfileMaskedId", () => {
   it("given fixtures mode > then keeps the fixture masked id", () => {
     accountDataSource.current = "fixtures";
     expect(resolveProfileMaskedId({})).toBe(webProfileWalletSummary.maskedId);
+  });
+});
+
+// Issue #411: Personal Information painted fixture email/phone on live backend sessions.
+describe("profileIdentity > resolveProfileEmail", () => {
+  beforeEach(() => {
+    accountDataSource.current = "backend";
+  });
+
+  it("given backend mode with session.email > then shows the real email, never the fixture", () => {
+    expect(resolveProfileEmail({ email: "jan.phatsar@gmail.com" })).toBe("jan.phatsar@gmail.com");
+    expect(resolveProfileEmail({ email: "jan.phatsar@gmail.com" })).not.toBe(FIXTURE_PROFILE_EMAIL);
+  });
+
+  it("given backend mode without session.email > then returns empty (placeholder), not the fixture", () => {
+    expect(resolveProfileEmail({})).toBe("");
+    expect(resolveProfileEmail(null)).toBe("");
+    expect(resolveProfileEmail({})).not.toBe(FIXTURE_PROFILE_EMAIL);
+  });
+
+  it("given fixtures mode > then keeps the design-parity fixture email", () => {
+    accountDataSource.current = "fixtures";
+    expect(resolveProfileEmail({})).toBe(FIXTURE_PROFILE_EMAIL);
+  });
+});
+
+describe("profileIdentity > resolveProfilePhone", () => {
+  beforeEach(() => {
+    accountDataSource.current = "backend";
+  });
+
+  it("given backend mode with session.mobile > then shows the real phone, never the fixture", () => {
+    expect(resolveProfilePhone({ mobile: "+66812345678" })).toBe("+66812345678");
+    expect(resolveProfilePhone({ mobile: "+66812345678" })).not.toBe(FIXTURE_PROFILE_PHONE);
+  });
+
+  it("given backend mode without session.mobile > then returns empty (placeholder), not the fixture", () => {
+    expect(resolveProfilePhone({})).toBe("");
+    expect(resolveProfilePhone(null)).toBe("");
+    expect(resolveProfilePhone({})).not.toBe(FIXTURE_PROFILE_PHONE);
+  });
+
+  it("given fixtures mode > then keeps the design-parity fixture phone", () => {
+    accountDataSource.current = "fixtures";
+    expect(resolveProfilePhone({})).toBe(FIXTURE_PROFILE_PHONE);
   });
 });

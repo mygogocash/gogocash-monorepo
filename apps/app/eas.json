@@ -47,6 +47,22 @@
         "EXPO_PUBLIC_ENABLE_GOTOTRACK": "0"
       }
     },
+    "beta": {
+      "autoIncrement": true,
+      "channel": "beta",
+      "env": {
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "0039c25f-f88e-491d-8da9-85b8d6e66558",
+        "EXPO_PUBLIC_API_URL": "https://api-beta.gogocash.co",
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "backend",
+        "EXPO_PUBLIC_FRONTEND_URL": "https://beta.gogocash.co",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "729804769570-jlg4fpajbbvur587dcv9qpocfhn6aots.apps.googleusercontent.com",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_ENABLE_GOTOTRACK": "0",
+        "EXPO_PUBLIC_ENABLE_GOGOPASS": "0",
+        "EXPO_PUBLIC_ENABLE_GOLINK": "0"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "channel": "production",
@@ -68,6 +84,13 @@
       }
     },
     "closedtest": {
+      "android": {
+        "track": "GoGoCash Alpha",
+        "releaseStatus": "completed"
+      }
+    },
+    "beta": {
+      "ios": {},
       "android": {
         "track": "GoGoCash Alpha",
         "releaseStatus": "completed"

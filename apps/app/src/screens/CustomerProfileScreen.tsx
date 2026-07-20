@@ -28,6 +28,7 @@ import { useMobileLogout } from "@mobile/auth/useMobileLogout";
 import { mapUserProfileToWalletSummary } from "@mobile/api/profileMapper";
 import { isProfileResourceBlocking, isUserProfileResponse } from "@mobile/api/profileTypes";
 import { readMembershipTier } from "@mobile/lib/membershipTier";
+import { filterHiddenProfileMenuItems } from "@mobile/config/featureFlags";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { copyToClipboard } from "@mobile/lib/clipboard";
 import {
@@ -128,7 +129,7 @@ export function CustomerProfileScreen() {
             </View>
           ) : null}
           <View style={styles.profileNavGroup}>
-            {profileHubMenuItems
+            {filterHiddenProfileMenuItems(profileHubMenuItems)
               .filter((item) => item.label !== "Profile")
               .map((item) =>
                 item.label === "Invite your Friends" ? (

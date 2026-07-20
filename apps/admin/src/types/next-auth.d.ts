@@ -18,6 +18,7 @@ declare module "next-auth" {
     accessToken?: string;
     apiRole?: string;
     role?: string;
+    rememberMe?: boolean;
   }
 }
 
@@ -27,5 +28,6 @@ declare module "next-auth/jwt" {
     accessToken?: string;
     apiRole?: string;
     role?: string;
+    rememberMe?: boolean;
   }
 }

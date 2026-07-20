@@ -152,6 +152,75 @@ describe('AuthController', () => {
     });
   });
 
+  describe('analytics person properties > PDPA-safe $set allowlist', () => {
+    const capturedSetFor = (eventName: string) => {
+      const call = analytics.capture.mock.calls.find(
+        ([event]) => event === eventName,
+      );
+      expect(call).toBeDefined();
+      return call![2].$set;
+    };
+
+    it('POST /auth/log-in > $set drops email, keeps username, adds allowlisted person props', async () => {
+      authService.signInFirebase.mockResolvedValue({
+        token: 'jwt',
+        user: {
+          _id: 'user-1',
+          email: 'member@gogocash.co',
+          provider: 'google',
+          username: 'member',
+        },
+      });
+
+      await request(app.getHttpServer())
+        .post('/auth/log-in')
+        .set('Authorization', 'Bearer firebase-token')
+        .set('x-app-locale', 'th')
+        .send({ country: 'TH' });
+
+      const set = capturedSetFor('user_login');
+      expect(set).not.toHaveProperty('email');
+      expect(set).toHaveProperty('username', 'member');
+      expect(set).toEqual({
+        username: 'member',
+        signup_method: 'google',
+        locale: 'th',
+        region: 'TH',
+        platform: 'api',
+      });
+    });
+
+    it('POST /auth/register > $set drops email, keeps username, adds allowlisted person props', async () => {
+      authService.signInFirebase.mockResolvedValue({
+        auth_flow: 'register',
+        is_new_user: true,
+        token: 'jwt',
+        user: {
+          _id: 'user-2',
+          email: 'newbie@gogocash.co',
+          provider: 'phone',
+          username: 'newbie',
+        },
+      });
+
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .set('Authorization', 'Bearer firebase-token')
+        .send({ country: 'TH' });
+
+      const set = capturedSetFor('user_registered');
+      expect(set).not.toHaveProperty('email');
+      expect(set).toHaveProperty('username', 'newbie');
+      expect(set).toEqual({
+        username: 'newbie',
+        signup_method: 'phone',
+        locale: 'en',
+        region: 'TH',
+        platform: 'api',
+      });
+    });
+  });
+
   describe('POST /auth/email/request-otp > given a NoSQL operator object as email', () => {
     it('then it is rejected with 400 before any OtpService call', async () => {
       const res = await request(app.getHttpServer())

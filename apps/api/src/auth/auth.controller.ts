@@ -111,14 +111,20 @@ export class AuthController {
         region: body.country,
       });
 
+      // PDPA: person-property allowlist — email is dropped entirely (the Mongo
+      // user id is already the distinct_id / join key, so email is analytically
+      // redundant). Only non-PII profile attributes are $set.
       void this.analytics.capture('user_login', analyticsCtx, {
         method: 'firebase',
         provider: user.user.provider || 'unknown',
         is_new_user: user.is_new_user || false,
         pathname: body.pathname,
         $set: {
-          email: user.user.email,
           username: user.user.username,
+          signup_method: user.user.provider || 'unknown',
+          locale: analyticsCtx.locale,
+          region: analyticsCtx.region,
+          platform: 'api',
         },
       });
     }
@@ -158,14 +164,20 @@ export class AuthController {
 
       const eventName =
         user.auth_flow === 'register' ? 'user_registered' : 'user_login';
+      // PDPA: person-property allowlist — email is dropped entirely (the Mongo
+      // user id is already the distinct_id / join key, so email is analytically
+      // redundant). Only non-PII profile attributes are $set.
       void this.analytics.capture(eventName, analyticsCtx, {
         method: 'firebase',
         provider: user.user.provider || 'unknown',
         pathname: body.pathname,
         referral_id: body.referral_id,
         $set: {
-          email: user.user.email,
           username: user.user.username,
+          signup_method: user.user.provider || 'unknown',
+          locale: analyticsCtx.locale,
+          region: analyticsCtx.region,
+          platform: 'api',
         },
       });
     }

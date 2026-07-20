@@ -22,6 +22,18 @@ const HOP_BY_HOP_HEADERS = new Set([
   "content-length",
 ]);
 
+/**
+ * Edge-owned headers (Cloudflare stamps these on the inbound leg when the
+ * admin domain is proxied). A Cloudflare-proxied upstream rejects external
+ * requests that already carry CF-Connecting-IP as header spoofing — error
+ * 1000, a message-less 403 (verified 2026-07-19 against api-beta).
+ */
+const EDGE_OWNED_HEADERS = new Set(["cdn-loop", "true-client-ip"]);
+
+function isEdgeOwnedHeader(lowerName: string): boolean {
+  return lowerName.startsWith("cf-") || EDGE_OWNED_HEADERS.has(lowerName);
+}
+
 export function resolveUpstreamBaseUrl(): string | null {
   return (
     normalizeAdminApiUrl(process.env.API_URL) ??
@@ -55,12 +67,13 @@ export function buildUpstreamUrl(
   return `${upstreamBase}/${path}${query}`;
 }
 
-/** Strip hop-by-hop headers, cookies, and any client Authorization. */
+/** Strip hop-by-hop, edge-owned (cf-*), cookie, and client Authorization headers. */
 export function filterOutgoingRequestHeaders(incoming: Headers): Headers {
   const outgoing = new Headers();
   incoming.forEach((value, key) => {
     const lower = key.toLowerCase();
     if (HOP_BY_HOP_HEADERS.has(lower)) return;
+    if (isEdgeOwnedHeader(lower)) return;
     if (lower === "authorization") return;
     if (lower === "cookie") return;
     outgoing.set(key, value);

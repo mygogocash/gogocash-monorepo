@@ -19,6 +19,7 @@ import {
 } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { isGoGoPassEnabled } from "@mobile/config/featureFlags";
 import { AppearanceSection } from "@mobile/components/AppearanceSection";
 import { LanguageRegionSection } from "@mobile/components/LanguageRegionSection";
 import { LineAppIcon } from "@mobile/components/LineAppIcon";
@@ -87,7 +88,9 @@ export function CustomerAccountSettingsScreen() {
       <View style={styles.content}>
         <LanguageRegionSection />
         <AppearanceSection />
-        <SubscriptionSection />
+        {/* GoGoPass rollout flag: the Stripe subscription card is a GoGoPass
+            surface — hidden builds drop it, neighbouring sections stay. */}
+        {isGoGoPassEnabled() ? <SubscriptionSection /> : null}
         <NotificationSection />
         <CommunitySection />
         <PdpaDataRightsSection />

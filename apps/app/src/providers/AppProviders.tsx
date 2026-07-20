@@ -1,10 +1,15 @@
 import { useFonts } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { type PostHog, PostHogProvider } from "posthog-react-native";
+import { PostHogProvider } from "posthog-react-native";
 import { PropsWithChildren, useEffect, useMemo } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { createSessionQueryCacheBridge } from "@mobile/account/sessionQueryCacheBridge";
+import { AnalyticsIdentityBridge } from "@mobile/analytics/AnalyticsIdentityBridge";
+import {
+  createPostHogClient,
+  noOpPostHogClient,
+} from "@mobile/analytics/createPostHogClient";
 import { RouteAnalyticsTracker } from "@mobile/analytics/RouteAnalyticsTracker";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
@@ -21,24 +26,6 @@ import { PrivacyScreenGuard } from "@mobile/security/PrivacyScreenGuard";
 import { gogoCashRuntimeFonts } from "@mobile/theme/appFonts";
 import { ThemeProvider } from "@mobile/theme/ThemeProvider";
 import { useOtaUpdateOnLaunch } from "@mobile/updates/useOtaUpdateOnLaunch";
-
-// A no-op PostHog client used when no posthogKey is configured (local/web dev).
-// We mount <PostHogProvider> in BOTH cases so usePostHog() always resolves a
-// client from context; otherwise posthog-react-native console.error()s
-// "usePostHog was called without a PostHog client..." once per caller, which
-// surfaces as a dev error overlay. The provider only calls debug() on the client
-// when autocapture is disabled, so a minimal stub is sufficient — capture/
-// identify/reset are present so any consumer no-ops cleanly.
-const noOpPostHogClient = {
-  capture: () => undefined,
-  identify: () => undefined,
-  reset: () => undefined,
-  screen: () => undefined,
-  debug: () => undefined,
-  flush: () => undefined,
-  optIn: () => undefined,
-  optOut: () => undefined,
-} as unknown as PostHog;
 
 // Subscribe at module scope — the earliest JS moment — so a deep link that
 // arrives while the bootstrap gate below still withholds the router Stack is
@@ -59,6 +46,12 @@ export function AppProviders({ children }: PropsWithChildren) {
     []
   );
   const posthogConfig = useMemo(() => getObservabilityConfig(), []);
+  // Fenced construction: analytics init failure degrades to the no-op client
+  // instead of crashing boot (see createPostHogClient for the incident note).
+  const posthogClient = useMemo(
+    () => createPostHogClient(posthogConfig),
+    [posthogConfig],
+  );
   const fontsReady = fontsLoaded || Boolean(fontError);
   const appReady = fontsReady && sessionReady;
 
@@ -76,6 +69,7 @@ export function AppProviders({ children }: PropsWithChildren) {
     <>
       <DeepLinkReplay />
       <RouteAnalyticsTracker />
+      <AnalyticsIdentityBridge />
       <AccountResourceWarmup />
       <PublicCatalogRefetchOnFocus />
       <ToastProvider>
@@ -118,11 +112,6 @@ export function AppProviders({ children }: PropsWithChildren) {
   }
 
   return (
-    <PostHogProvider
-      apiKey={posthogConfig.posthogKey}
-      options={{ host: posthogConfig.posthogHost || undefined }}
-    >
-      {appTree}
-    </PostHogProvider>
+    <PostHogProvider client={posthogClient}>{appTree}</PostHogProvider>
   );
 }

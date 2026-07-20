@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 
+import { isGoGoPassEnabled } from "@mobile/config/featureFlags";
 import { motion } from "@mobile/theme/motion";
 import { useThemeColors } from "@mobile/theme/ThemeProvider";
 
@@ -27,7 +28,8 @@ export function GoGoPassAvatar({
 }) {
   const spin = useRef(new Animated.Value(0)).current;
   const colors = useThemeColors();
-  const premium = isPremiumTier(tier);
+  // GoGoPass rollout flag: hidden builds always take the plain-avatar branch.
+  const premium = isGoGoPassEnabled() && isPremiumTier(tier);
 
   useEffect(() => {
     if (!premium) {

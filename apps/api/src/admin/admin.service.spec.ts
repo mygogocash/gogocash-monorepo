@@ -471,6 +471,59 @@ describe('AdminService', () => {
     });
   });
 
+  describe('getWithdrawAll', () => {
+    // The admin withdraw table's Status/Method dropdowns must actually filter
+    // the result set. Before #25 these params were dropped and every status
+    // returned the full list, so the filter looked broken.
+    it('getWithdrawAll > given status and method > then it filters the query by both (exact match)', async () => {
+      const findQuery = makeQuery([]);
+      withdrawModel.find.mockReturnValue(findQuery);
+      withdrawModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.getWithdrawAll(
+        1,
+        10,
+        undefined,
+        'approved',
+        'bank_transfer',
+      );
+
+      expect(withdrawModel.find).toHaveBeenCalledWith({
+        status: 'approved',
+        method: 'bank_transfer',
+      });
+    });
+
+    // A status filter and a free-text search should intersect (AND), not
+    // replace each other — status pins the bucket, search narrows within it.
+    it('getWithdrawAll > given a status filter plus a search term > then both narrow the query', async () => {
+      const findQuery = makeQuery([]);
+      withdrawModel.find.mockReturnValue(findQuery);
+      withdrawModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.getWithdrawAll(1, 10, 'abc', 'pending');
+
+      expect(withdrawModel.find).toHaveBeenCalledWith({
+        status: 'pending',
+        $or: [
+          { method: { $regex: 'abc', $options: 'i' } },
+          { status: { $regex: 'abc', $options: 'i' } },
+          { address: { $regex: 'abc', $options: 'i' } },
+        ],
+      });
+    });
+
+    it('getWithdrawAll > given no filters > then it queries with an empty filter', async () => {
+      const findQuery = makeQuery([]);
+      withdrawModel.find.mockReturnValue(findQuery);
+      withdrawModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.getWithdrawAll();
+
+      expect(withdrawModel.find).toHaveBeenCalledWith({});
+    });
+  });
+
   describe('updateRequestWithdraw', () => {
     const bankWithdraw = (overrides: Record<string, unknown> = {}) => ({
       _id: new Types.ObjectId(),
@@ -1250,6 +1303,28 @@ describe('AdminService', () => {
       expect(sortIdx).toBeLessThan(skipIdx);
       expect(pipeline[skipIdx].$skip).toBe(5); // (page 2 - 1) * limit 5
       expect(pipeline[limitIdx].$limit).toBe(5);
+    });
+
+    // Pins the default path the controller relies on: with no pagination args
+    // the pipeline must carry finite $skip/$limit (page 1, limit 10). Mongo
+    // rejects { $skip: NaN } with a 500 — the controller must never let a
+    // non-numeric page/limit defeat these defaults.
+    it('getConversionAll > given no pagination args > then $skip/$limit are finite defaults', async () => {
+      feeRateModel.findOne.mockReturnValue(
+        makeQuery({ system: 10, max_cap: 100 }),
+      );
+      conversionModel.aggregate.mockReturnValue(makeQuery([]));
+      conversionModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.getConversionAll();
+
+      const pipeline = conversionModel.aggregate.mock.calls[0][0];
+      const skip = pipeline.find((s: any) => s.$skip !== undefined).$skip;
+      const limit = pipeline.find((s: any) => s.$limit !== undefined).$limit;
+      expect(skip).toBe(0);
+      expect(limit).toBe(10);
+      expect(Number.isFinite(skip)).toBe(true);
+      expect(Number.isFinite(limit)).toBe(true);
     });
 
     it('getConversionAll > given a conversion_id search key > then it filters by exact conversion_id', async () => {
