@@ -94,31 +94,36 @@ export function getApiErrorMessage(
     const fromBody = messageFromBody(data);
     if (fromBody) return fromBody;
   }
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-  // Flat `ApiError` ({ message, status, errors }) thrown by apiClient — a plain
-  // object, not an Error, with no response/data wrapper. Read its top-level
-  // message directly (and append any field-level validation errors) so callers
-  // surface the real reason instead of collapsing to the generic fallback.
+  // Flat `ApiError` / apiClient Error ({ message, status, errors, code?, reason? }).
+  // apiClient throws Error instances with extra fields; older callers may throw
+  // plain objects. Read top-level message (+ field errors) and append Nest
+  // `reason` for POLICY_* gates (#407) before collapsing to the fallback.
   if (error && typeof error === "object" && "message" in error) {
-    const { message, errors } = error as {
+    const flat = error as {
       message?: unknown;
       errors?: Record<string, string[]>;
+      code?: unknown;
+      reason?: unknown;
     };
-    if (typeof message === "string" && message.trim()) {
+    if (typeof flat.message === "string" && flat.message.trim()) {
       const fieldErrors =
-        errors && typeof errors === "object"
-          ? Object.values(errors)
+        flat.errors && typeof flat.errors === "object"
+          ? Object.values(flat.errors)
               .flat()
               .filter(
                 (e): e is string =>
                   typeof e === "string" && e.trim().length > 0,
               )
           : [];
-      return fieldErrors.length > 0
-        ? `${message.trim()}: ${fieldErrors.join("; ")}`
-        : message.trim();
+      const base =
+        fieldErrors.length > 0
+          ? `${flat.message.trim()}: ${fieldErrors.join("; ")}`
+          : flat.message.trim();
+      return withOptionalReason(base, {
+        message: flat.message,
+        code: flat.code,
+        reason: flat.reason,
+      });
     }
   }
   return fallback;
