@@ -6,6 +6,7 @@ import { validate } from 'class-validator';
 import type { Request } from 'express';
 import { WithdrawController } from './withdraw.controller';
 import { WithdrawService } from './withdraw.service';
+import { UserContactOtpService } from './user-contact-otp.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import {
   CreateManualWithdrawRequestDto,
@@ -145,6 +146,14 @@ describe('WithdrawController', () => {
       providers: [
         { provide: WithdrawService, useValue: service },
         { provide: AnalyticsService, useValue: analytics },
+        {
+          provide: UserContactOtpService,
+          useValue: {
+            sendOtp: jest.fn(),
+            verifyOtp: jest.fn(),
+            updateWithdrawUser: jest.fn(),
+          },
+        },
       ],
     })
       // Guards carry real Mongoose/JWT dependencies; we test controller

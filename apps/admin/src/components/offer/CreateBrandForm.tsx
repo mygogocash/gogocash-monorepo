@@ -1810,14 +1810,14 @@ export default function CreateBrandForm() {
             Logos &amp; media
           </h4>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Upload one square logo and one wide banner. Each asset is reused by
-            desktop, mobile, and legacy customer surfaces.
+            Upload a square logo for product/brand cards and a wide banner for
+            the brand page hero.
           </p>
 
           <div>
             <FieldLabel
               label="Brand logo"
-              description="Square (1:1) image used anywhere the brand logo appears."
+              description="Square (1:1) — shown on product/brand cards across the app."
             />
             <Input
               id="create-brand-logo"
@@ -1840,7 +1840,7 @@ export default function CreateBrandForm() {
           <div>
             <FieldLabel
               label="Brand banner"
-              description="Wide (16:9) hero image used on the brand page."
+              description="Wide hero — shown as the banner on the brand/shop detail page."
             />
             <Input
               id="create-brand-banner"

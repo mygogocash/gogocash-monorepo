@@ -3023,9 +3023,11 @@ export const webShopDetailGroceryGalaxy = {
     ],
   },
   terms: {
-    eyebrow: "💡",
-    title: "Cashback Tips",
-    subtitle: "Terms and exclusions",
+    // #426 — legal/policy card (left rail). Keep "Cashback Tips" for the
+    // separate guidance panel only.
+    eyebrow: "📋",
+    title: "Terms & Conditions",
+    subtitle: "Rules and exclusions",
     exclusionsTitle: "Exclusions",
     bullets: [
       "You will not earn cashback if you visit the merchant directly instead of using GoGoCash.",
