@@ -286,9 +286,12 @@ const WithdrawDetail = () => {
   });
 
   const myCashbackUser = useMemo(() => {
-    if (!Array.isArray(myCashbackRows) || myCashbackRows.length === 0)
-      return null;
-    return myCashbackRows[0] as MyCashbackResponse;
+    // API/mock contract is an array; tolerate a single object from older builds.
+    if (!myCashbackRows) return null;
+    if (Array.isArray(myCashbackRows)) {
+      return (myCashbackRows[0] as MyCashbackResponse | undefined) ?? null;
+    }
+    return myCashbackRows as MyCashbackResponse;
   }, [myCashbackRows]);
 
   const column = useMemo<GridColDef[]>(

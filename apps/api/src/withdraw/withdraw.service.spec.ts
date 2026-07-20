@@ -1,5 +1,6 @@
 import {
   ForbiddenException,
+  NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -2700,12 +2701,15 @@ describe('WithdrawService', () => {
   // checkWithdrawMyCashback — the "no MyCashback record" zero-balance path.
   // ---------------------------------------------------------------------------
   describe('checkWithdrawMyCashback', () => {
-    it('checkWithdrawMyCashback > given an unknown user > then throws UnauthorizedException', async () => {
+    it('checkWithdrawMyCashback > given an unknown user > then throws NotFoundException (not 401)', async () => {
       mocks.userModel.findOne.mockResolvedValue(null);
+      mocks.userMyCashbackModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue(null),
+      });
 
       await expect(
         mocks.service.checkWithdrawMyCashback(VALID_USER_ID),
-      ).rejects.toBeInstanceOf(UnauthorizedException);
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('checkWithdrawMyCashback > given a phone-OTP user with no email and no MyCashback rows > then returns an all-zero balance (no $regex undefined crash)', async () => {
@@ -2715,6 +2719,9 @@ describe('WithdrawService', () => {
         _id: new Types.ObjectId(VALID_USER_ID),
         mobile: '+66812345678',
         email: undefined,
+      });
+      mocks.userMyCashbackModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue(null),
       });
       mocks.userMyCashbackModel.find.mockReturnValue({
         lean: jest.fn().mockResolvedValue([]),
@@ -3248,6 +3255,50 @@ describe('WithdrawService', () => {
         expect.any(Object),
         { upsert: true },
       );
+    });
+  });
+
+  describe('listCheckWithdrawNew MyCashback-only admin subject', () => {
+    it('listCheckWithdrawNew > given a MyCashback id with no linked User > then returns an empty shell (not 401)', async () => {
+      const mcbId = new Types.ObjectId().toString();
+      mocks.userModel.findOne
+        .mockResolvedValueOnce(null)
+        .mockReturnValueOnce(queryResult(null));
+      mocks.userMyCashbackModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          _id: new Types.ObjectId(mcbId),
+          email: 'mcb@example.com',
+          phoneNumber: '0811111111',
+          firstName: 'A',
+          lastName: 'B',
+        }),
+      });
+      mocks.feeRateModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ max_cap: 5, system: 30 }),
+      });
+
+      const result = await mocks.service.listCheckWithdrawNew(mcbId);
+
+      expect(result).toMatchObject({
+        myCashbackOnly: true,
+        withdrawList: [],
+        allConversions: [],
+        user: {
+          email: 'mcb@example.com',
+          mobile: '0811111111',
+        },
+      });
+    });
+
+    it('listCheckWithdrawNew > given an unknown id > then throws NotFoundException (not 401)', async () => {
+      mocks.userModel.findOne.mockResolvedValue(null);
+      mocks.userMyCashbackModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(
+        mocks.service.listCheckWithdrawNew(VALID_USER_ID),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
