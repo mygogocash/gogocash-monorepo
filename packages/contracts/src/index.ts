@@ -9,3 +9,10 @@ export type {
   MissingOrderNote,
   MissingOrderStatus,
 } from "./missing-order";
+export {
+  CATEGORY_ICON_KEYS,
+  CATEGORY_ICON_LABELS,
+  CATEGORY_ICON_OPTIONS,
+  isCategoryIconKey,
+} from "./category-icon-keys";
+export type { CategoryIconKey } from "./category-icon-keys";

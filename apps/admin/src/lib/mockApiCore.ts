@@ -38,6 +38,7 @@ import {
   buildSuggestedAppDeeplink,
   resolveTopBrandCashbackLabel,
 } from "@/lib/offerDeeplink";
+import { CATEGORY_ICON_KEYS } from "@/components/policy/CategoryIcon";
 import {
   normalizeOfferDisplayTags,
   normalizeOfferProductTypes,
@@ -2048,16 +2049,9 @@ async function handleMockPUT(
         message: "request_key, category_name, and policy are required",
       });
     }
-    if (
-      ![
-        "shopping",
-        "travel",
-        "food",
-        "finance",
-        "entertainment",
-        "default",
-      ].includes(iconKey)
-    ) {
+    // Single admin allow-list — keep API category.schema.ts + app categoryIcons
+    // in sync (enforced by CategoryIcon.sync.test.ts).
+    if (!(CATEGORY_ICON_KEYS as readonly string[]).includes(iconKey)) {
       return jsonErr(400, { message: "icon_key is invalid" });
     }
     let policy: Record<string, unknown>;

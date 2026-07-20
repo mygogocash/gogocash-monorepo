@@ -167,15 +167,16 @@ describe("Brand directory parity", () => {
     );
   });
 
-  // Regression guard: directory category asides render a per-category icon via
-  // getCategoryIcon (web shows a distinct glyph per category), not a single
-  // uniform SlidersHorizontal filter glyph on every row.
-  it("category aside icons > given directory category rows > then each uses getCategoryIcon, not a uniform filter glyph", () => {
+  // Regression guard: directory category asides render a per-category glyph via
+  // CategoryGlyph (built-in icon_key / custom image), not a single uniform
+  // SlidersHorizontal filter glyph on every row.
+  it("category aside icons > given directory category rows > then each uses CategoryGlyph, not a uniform filter glyph", () => {
     const screenSource = readDiscoverySources(mobileRoot);
 
-    expect(screenSource).toContain('from "@mobile/theme/categoryIcons"');
-    const lookups = screenSource.match(/getCategoryIcon\(/g) ?? [];
-    expect(lookups.length).toBeGreaterThanOrEqual(3);
+    expect(screenSource).toContain('from "@mobile/components/CategoryGlyph"');
+    const lookups = screenSource.match(/<CategoryGlyph[\s\S]*?\/>/g) ?? [];
+    expect(lookups.length).toBeGreaterThanOrEqual(2);
+    expect(screenSource).toContain("categoryIconKeys");
     expect(screenSource).not.toContain("SlidersIcon");
   });
 });

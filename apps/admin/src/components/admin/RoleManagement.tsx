@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/hooks/useApi";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -9,20 +9,17 @@ import { Modal } from "@/components/ui/modal";
 import { devError } from "@/lib/devConsole";
 import { isDirty } from "@/lib/isDirty";
 import {
-  ALL_PERMISSIONS,
-  RESOURCES,
+  PERMISSION_CATEGORIES,
+  PERMISSION_CATEGORY_LABELS,
+  RISK_BADGE_CLASSES,
+  ROLE_TEMPLATES,
+  applyPermissionToggle,
+  permissionsGroupedByCategory,
   roleBadgeClass,
   type Permission,
+  type RoleTemplate,
 } from "@/lib/rbac";
 import type { RoleDef } from "@/types/api";
-
-const resourceLabel = (r: string) =>
-  r.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
-
-const PERMISSION_GROUPS = RESOURCES.map((r) => ({
-  resource: r as string,
-  permissions: ALL_PERMISSIONS.filter((p) => p.startsWith(`${r}:`)),
-}));
 
 const SUPER_ADMIN = "super_admin";
 
@@ -34,6 +31,8 @@ export default function RoleManagement() {
 
   const { data, isLoading } = useRolesQuery();
   const roles = data?.data ?? [];
+
+  const permissionGroups = useMemo(() => permissionsGroupedByCategory(), []);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<RoleDef | null>(null);
@@ -83,13 +82,13 @@ export default function RoleManagement() {
     clearError();
     setFormOpen(true);
   }
-  function togglePerm(p: Permission) {
-    setPerms((prev) => {
-      const next = new Set(prev);
-      if (next.has(p)) next.delete(p);
-      else next.add(p);
-      return next;
-    });
+  function togglePerm(p: Permission, enabled: boolean) {
+    setPerms((prev) => applyPermissionToggle(prev, p, enabled));
+  }
+  function applyTemplate(template: RoleTemplate) {
+    setLabel(template.label);
+    setDescription(template.description);
+    setPerms(new Set(template.permissions));
   }
 
   async function submit() {
@@ -236,7 +235,7 @@ export default function RoleManagement() {
       <Modal
         isOpen={formOpen}
         onClose={() => !submitting && setFormOpen(false)}
-        className="max-w-2xl p-6"
+        className="max-w-3xl p-6"
       >
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
           {editing ? `Edit role: ${editing.label}` : "Create role"}
@@ -265,44 +264,114 @@ export default function RoleManagement() {
                 value={description}
                 disabled={submitting}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional"
+                placeholder="Optional — shown on the role card"
                 className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               />
             </label>
           </div>
 
+          {!editing && (
+            <div>
+              <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Start from a template
+              </span>
+              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                Plug-and-play presets. You can still tick or untick permissions
+                after applying.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {ROLE_TEMPLATES.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => applyTemplate(template)}
+                    title={template.description}
+                    className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    {template.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div>
-            <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Permissions
             </span>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {PERMISSION_GROUPS.map((group) => (
-                <div
-                  key={group.resource}
-                  className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
-                >
-                  <p className="mb-2 text-xs font-semibold tracking-wide text-gray-600 uppercase dark:text-gray-300">
-                    {resourceLabel(group.resource)}
-                  </p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                    {group.permissions.map((p) => (
-                      <label
-                        key={p}
-                        className="inline-flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={perms.has(p)}
-                          disabled={submitting}
-                          onChange={() => togglePerm(p)}
-                          className="text-brand-500 focus:ring-brand-500 size-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800"
-                        />
-                        {p.split(":")[1]}
-                      </label>
-                    ))}
+            <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+              {
+                "View = see the section · Manage = create or edit · Approve / Refund = money moves. Managing a section also turns on View."
+              }
+            </p>
+            <div className="space-y-4">
+              {PERMISSION_CATEGORIES.map((category) => {
+                const items = permissionGroups[category];
+                if (!items?.length) return null;
+                return (
+                  <div
+                    key={category}
+                    className="rounded-xl border border-gray-200 p-3 dark:border-gray-700"
+                  >
+                    <p className="mb-3 text-xs font-semibold tracking-wide text-gray-600 uppercase dark:text-gray-300">
+                      {PERMISSION_CATEGORY_LABELS[category]}
+                    </p>
+                    <ul className="space-y-3">
+                      {items.map((meta) => {
+                        const checked = perms.has(meta.id);
+                        return (
+                          <li key={meta.id}>
+                            <label className="flex cursor-pointer items-start gap-3">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                disabled={submitting}
+                                onChange={(e) =>
+                                  togglePerm(meta.id, e.target.checked)
+                                }
+                                className="text-brand-500 focus:ring-brand-500 mt-0.5 size-4 shrink-0 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="flex flex-wrap items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                    {meta.label}
+                                  </span>
+                                  <span
+                                    className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${RISK_BADGE_CLASSES[meta.risk]}`}
+                                  >
+                                    {meta.risk}
+                                  </span>
+                                  {meta.status !== "enforced" ? (
+                                    <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500">
+                                      {meta.status === "catalog_only"
+                                        ? "limited wiring"
+                                        : "partially enforced"}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <span className="mt-0.5 block text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                                  {meta.description}
+                                </span>
+                                {meta.includes?.length ? (
+                                  <span className="mt-1 block text-[11px] text-gray-400 dark:text-gray-500">
+                                    Includes: {meta.includes.join(" · ")}
+                                  </span>
+                                ) : null}
+                                {meta.routes.length > 0 ? (
+                                  <span className="mt-0.5 block font-mono text-[10px] text-gray-400 dark:text-gray-500">
+                                    {meta.routes.join(", ")}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
