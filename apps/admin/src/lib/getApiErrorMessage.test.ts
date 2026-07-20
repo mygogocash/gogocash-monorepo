@@ -163,4 +163,15 @@ describe("getApiErrorMessage", () => {
     expect(getApiErrorMessage({ message: "   " }, "fallback")).toBe("fallback");
     expect(getApiErrorMessage({ message: 42 }, "fallback")).toBe("fallback");
   });
+
+  it("#487 maps Multipart: Unexpected end of form to an actionable upload message", () => {
+    expect(
+      getApiErrorMessage({
+        response: { data: { message: "Multipart: Unexpected end of form" } },
+      }),
+    ).toMatch(/under 32 MB/i);
+    expect(
+      getApiErrorMessage(new Error("Multipart: Unexpected end of form")),
+    ).toMatch(/compress the image/i);
+  });
 });

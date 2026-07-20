@@ -25,7 +25,7 @@ function parseBound(
 
 export function isUpsizeActiveNow(
   offer: UpsizeWindowFields,
-  nowMs: number,
+  nowMs: number = Date.now(),
 ): boolean {
   const hasUpsize = Boolean(
     offer.upsize_start_date ||

@@ -90,10 +90,13 @@ describe("Expo home design parity", () => {
     expect(lineFabFile).toContain("lineOfficialFabImage");
     expect(lineFabFile).toContain("webLineOfficialFab.href");
     expect(desktopHeaderFile).toContain("questHeaderImage");
-    expect(desktopHeaderFile).toContain("menuFireImage");
+    // #483 — Top Brands uses Phosphor Fire at 16px like other nav icons.
+    expect(desktopHeaderFile).toContain("fire: Fire");
+    expect(desktopHeaderFile).toContain("size={16}");
+    expect(desktopHeaderFile).not.toContain("menuFireImage");
+    expect(desktopHeaderFile).not.toContain("desktopCategoryNavItemLead");
     expect(homeFile).toContain("StyleSheet.flatten([");
     expect(desktopHeaderFile).toContain("styles.desktopCategoryNavItem");
-    expect(desktopHeaderFile).toContain("styles.desktopCategoryNavItemLead");
     // Desktop home renders a full-bleed header inside the `homeLayout.isDesktop`
     // branch so the header bar spans the full viewport (content stays capped at 1440).
     expect(homeFile).toContain("if (homeLayout.isDesktop) {");

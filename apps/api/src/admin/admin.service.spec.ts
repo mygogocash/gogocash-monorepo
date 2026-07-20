@@ -3282,6 +3282,16 @@ describe('AdminService', () => {
   describe('saveTopBrands', () => {
     // Only ordered identities are persisted. Customer cashback is read from the
     // live offer so stale or forged labels cannot reach the homepage.
+    beforeEach(() => {
+      // #479 — eligibility lookup defaults to active offers for every requested id.
+      offerModel.find.mockImplementation((filter: { _id?: { $in?: unknown[] } }) => {
+        const ids = (filter?._id?.$in ?? []).map(String);
+        return makeQuery(
+          ids.map((id) => ({ _id: id, disabled: false, status: 'approved' })),
+        );
+      });
+    });
+
     it('saveTopBrands > given curated brand entries > then it upserts identities without editable cashback', async () => {
       topBrandConfigModel.updateOne.mockResolvedValue({ acknowledged: true });
       const brands = [
@@ -3334,6 +3344,17 @@ describe('AdminService', () => {
             cashback: '',
           })),
         ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(topBrandConfigModel.updateOne).not.toHaveBeenCalled();
+    });
+
+    it('#479 saveTopBrands > given a disabled offer id > then rejects before persistence', async () => {
+      offerModel.find.mockReturnValue(
+        makeQuery([{ _id: 'offer-1', disabled: true, status: 'approved' }]),
+      );
+
+      await expect(
+        service.saveTopBrands([{ offerId: 'offer-1', cashback: '' }]),
       ).rejects.toMatchObject({ status: 400 });
       expect(topBrandConfigModel.updateOne).not.toHaveBeenCalled();
     });

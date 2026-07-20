@@ -2197,6 +2197,37 @@ async function handleMockPUT(
         message: `Top brands is limited to ${MAX_TOP_BRANDS} offers.`,
       });
     }
+    // #479 — mirror API: refuse disabled / missing offers instead of silently
+    // persisting them in mock mode.
+    const rawEntries = [
+      ...(Array.isArray(b?.brandsDesktop) ? b.brandsDesktop : []),
+      ...(Array.isArray(b?.brandsMobile) ? b.brandsMobile : []),
+      ...(Array.isArray(b?.brands) ? b.brands : []),
+    ];
+    const badIds = [
+      ...new Set(
+        rawEntries
+          .map((entry) =>
+            String((entry as { offerId?: unknown }).offerId ?? "").trim(),
+          )
+          .filter(Boolean)
+          .filter((offerId) => {
+            const offer = mockOffers.find((row) => row._id === offerId) as
+              | { disabled?: boolean; status?: string }
+              | undefined;
+            if (!offer || offer.disabled === true) return true;
+            const status = String(offer.status ?? "")
+              .trim()
+              .toLowerCase();
+            return status === "pending_review" || status === "rejected";
+          }),
+      ),
+    ];
+    if (badIds.length > 0) {
+      return jsonErr(400, {
+        message: `Disabled or missing offers cannot be top brands: ${badIds.join(", ")}`,
+      });
+    }
     if (hasDeviceLists) {
       const nextDesktop = normalizeMockTopBrands(
         b?.brandsDesktop ?? b?.brands,

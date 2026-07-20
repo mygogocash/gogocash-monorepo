@@ -278,6 +278,57 @@ describe("TopBrandManagementPanel", () => {
     ).toHaveLength(2);
   });
 
+  it("#479 excludes disabled offers from preview and save payload", async () => {
+    const user = userEvent.setup();
+    const disabledShopee = { ...shopeeOffer, disabled: true };
+    apiClientMock.getTopBrands.mockResolvedValue({
+      brands: [
+        { offerId: "o1", cashback: "" },
+        { offerId: "o-shopee", cashback: "" },
+      ],
+      brandsDesktop: [
+        { offerId: "o1", cashback: "" },
+        { offerId: "o-shopee", cashback: "" },
+      ],
+      brandsMobile: [
+        { offerId: "o1", cashback: "" },
+        { offerId: "o-shopee", cashback: "" },
+      ],
+      items: [offer, disabledShopee],
+      order: ["o1", "o-shopee"],
+      orderDesktop: ["o1", "o-shopee"],
+      orderMobile: ["o1", "o-shopee"],
+      maxBrands: 16,
+    });
+    fetchOffersListMock.mockResolvedValue({
+      data: [offer, disabledShopee],
+      limit: 80,
+      page: 1,
+      total: 2,
+      totalPages: 1,
+    });
+
+    renderPanel();
+
+    expect(
+      await screen.findByTestId("top-brand-landing-preview"),
+    ).toHaveTextContent("Banana IT");
+    expect(screen.getByTestId("top-brand-landing-preview")).not.toHaveTextContent(
+      "Shopee",
+    );
+    expect(
+      screen.getByText(/Disabled offers are excluded from Top brands/i),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save top brands" }));
+    await waitFor(() => {
+      expect(apiClientMock.saveTopBrands).toHaveBeenCalledWith({
+        brandsDesktop: [{ offerId: "o1", cashback: expect.any(String) }],
+        brandsMobile: [{ offerId: "o1", cashback: expect.any(String) }],
+      });
+    });
+  });
+
   it("given typed search text > when fetch returns Shopee > then requests include the search term", async () => {
     const user = userEvent.setup();
     apiClientMock.getTopBrands.mockResolvedValue({
