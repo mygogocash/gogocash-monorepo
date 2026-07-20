@@ -14,6 +14,7 @@ import { devApiError } from "@/lib/devConsole";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { isDirty } from "@/lib/isDirty";
 import { multipartPostConfig } from "@/lib/multipartFormHeaders";
+import { MAX_ADMIN_UPLOAD_BYTES } from "@/lib/uploadLimits";
 import Switch from "../form/switch/Switch";
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { buildBannerSlotFormData } from "./bannerFormPayload";
@@ -145,9 +146,8 @@ const FormUpdate = ({
       e.target.value = "";
       return;
     }
-    // #487 — align with admin BFF / Next proxy body limit (32 MiB).
-    const maxBytes = 32 * 1024 * 1024;
-    if (file && file.size > maxBytes) {
+    // #487 — align with admin BFF / Next proxy body limit.
+    if (file && file.size > MAX_ADMIN_UPLOAD_BYTES) {
       toast.error(
         "That image is too large (over 32 MB). Compress it or export a smaller PNG/JPG/WebP, then try again.",
       );

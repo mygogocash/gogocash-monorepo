@@ -139,13 +139,13 @@ export default function TopBrandManagementPanel() {
     }
     return m;
   }, [data?.items, offersPick?.data]);
-  // #479 — drop known-disabled / pending / rejected offers from the curated
-  // lists so Landing preview and Save never keep them as Top brands.
+  // #479 — only known active offers stay in curated lists / preview / Save.
+  // Unknown IDs surface via the stale-id banner and are dropped here.
   const orderDesktop = useMemo(
     () =>
       localOrderDesktop.filter((id) => {
         const offer = offerById.get(id);
-        return !offer || isActiveGoGoCashOffer(offer);
+        return offer != null && isActiveGoGoCashOffer(offer);
       }),
     [localOrderDesktop, offerById],
   );
@@ -153,7 +153,7 @@ export default function TopBrandManagementPanel() {
     () =>
       localOrderMobile.filter((id) => {
         const offer = offerById.get(id);
-        return !offer || isActiveGoGoCashOffer(offer);
+        return offer != null && isActiveGoGoCashOffer(offer);
       }),
     [localOrderMobile, offerById],
   );
