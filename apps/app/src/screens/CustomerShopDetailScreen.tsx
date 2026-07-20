@@ -544,69 +544,33 @@ function ShopHeroSummaryCard({
 }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
-  const router = useRouter();
   const tc = useCopy();
   const { isAuthed, ready: authReady } = useAuthGuardSession();
   const { isFavorite, toggleFavorite } = useFavoriteBrands();
   const favorited = isFavorite(shop.id);
-  const [logoFailed, setLogoFailed] = useState(false);
-  useEffect(() => {
-    setLogoFailed(false);
-  }, [shop.logoUri]);
+  // #432 — Favorite is unavailable when logged out (hide, don't tease login).
+  const showFavorite = authReady && isAuthed;
   const handleToggleFavorite = () => {
-    if (!authReady) {
-      return;
-    }
-    if (!isAuthed) {
-      router.push(buildLoginRedirectWithCallback(`/shop/${shop.id}`) as never);
+    if (!showFavorite) {
       return;
     }
     toggleFavorite(shop.id);
   };
-  const brandTitle = (
-    <Text
-      numberOfLines={isDesktop ? 1 : 2}
-      style={[
-        styles.summaryTitle,
-        isDesktop ? null : styles.summaryTitleMobile,
-      ]}
-      testID="shop-detail-brand-name"
-    >
-      {shop.brand}
-    </Text>
-  );
-  const brandLogo =
-    shop.logoUri && !logoFailed ? (
-      <ExpoImage
-        accessibilityLabel={`${shop.brand} logo`}
-        cachePolicy="memory-disk"
-        contentFit="contain"
-        onError={() => setLogoFailed(true)}
-        recyclingKey={shop.logoUri}
-        source={{ uri: shop.logoUri }}
-        style={styles.summaryLogoImage}
-        testID="shop-detail-brand-logo"
-      />
-    ) : (
-      <View
-        style={styles.summaryLogoFallback}
-        testID="shop-detail-brand-logo-fallback"
-      >
-        <Text style={styles.summaryLogoFallbackText}>{shop.logoText}</Text>
-      </View>
-    );
-  // Mobile drops the logo circle — the banner directly above already carries
-  // the brand, so the pill keeps the room for the name (design feedback
-  // 2026-07-10). Desktop keeps logo + name.
-  const brandIdentity = isDesktop ? (
+  // #427 — banner already represents the brand on this page; do not show the
+  // 1:1 logo chip before the name (cards still use the square logo).
+  const brandIdentity = (
     <View style={styles.summaryTitleWrap}>
-      <View style={styles.summaryIdentityRow}>
-        {brandLogo}
-        {brandTitle}
-      </View>
+      <Text
+        numberOfLines={isDesktop ? 1 : 2}
+        style={[
+          styles.summaryTitle,
+          isDesktop ? null : styles.summaryTitleMobile,
+        ]}
+        testID="shop-detail-brand-name"
+      >
+        {shop.brand}
+      </Text>
     </View>
-  ) : (
-    <View style={styles.summaryTitleWrap}>{brandTitle}</View>
   );
   const favoriteButton = (
     <MotionPressable
@@ -657,13 +621,13 @@ function ShopHeroSummaryCard({
       {isDesktop ? (
         <>
           {brandIdentity}
-          {favoriteButton}
+          {showFavorite ? favoriteButton : null}
           {shopNowButton}
         </>
       ) : (
         <View style={styles.summaryMobileRow}>
           {brandIdentity}
-          {favoriteButton}
+          {showFavorite ? favoriteButton : null}
           {shopNowButton}
         </View>
       )}
@@ -889,7 +853,7 @@ function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
   const { colors } = useTheme();
   const tc = useCopy();
   return (
-    <View style={styles.termsPanel}>
+    <View style={styles.termsPanel} testID="shop-detail-terms-panel">
       <View style={styles.termsHeader}>
         <Text style={styles.termsEmoji}>{terms.eyebrow}</Text>
         <View style={styles.termsTitleWrap}>
@@ -897,7 +861,7 @@ function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
           <Text style={styles.termsSubtitle}>{tc(terms.subtitle)}</Text>
         </View>
         <InfoIcon
-          color={colors.primaryDark}
+          color={colors.muted}
           size={20}
           strokeWidth={typography.iconStrokeWidth}
         />
@@ -906,6 +870,7 @@ function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
       <View style={styles.termsList}>
         {terms.bullets.map((bullet) => (
           <View key={bullet} style={styles.termBulletRow}>
+            {/* #426 — muted legal markers, not tip-style green dots */}
             <Text style={styles.termBulletDot}>•</Text>
             <Text style={styles.termBulletText}>{bullet}</Text>
           </View>
@@ -926,6 +891,8 @@ function ShopExploreRelated({ excludeShopId }: { excludeShopId: string }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const tc = useCopy();
   const { region } = useLocale();
+  const { isAuthed, ready: authReady } = useAuthGuardSession();
+  const showFavoriteHeart = authReady && isAuthed;
   const catalogResource = useCustomerAccountResource<
     OfferListResponse,
     OfferListResponse
@@ -966,7 +933,7 @@ function ShopExploreRelated({ excludeShopId }: { excludeShopId: string }) {
             key={store.id}
             logoUri={store.logoUri}
             logoVisualHeight={relatedCardMetrics.logoVisualHeight}
-            showFavoriteHeart
+            showFavoriteHeart={showFavoriteHeart}
             size="S"
             tint={store.tint}
           />
@@ -1111,37 +1078,6 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
       justifyContent: "center",
       minHeight: 48,
       minWidth: 0,
-    },
-    summaryIdentityRow: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: 12,
-      width: "100%",
-    },
-    summaryLogoImage: {
-      backgroundColor: colors.card,
-      borderColor: colors.border,
-      borderRadius: 24,
-      borderWidth: 1,
-      flexShrink: 0,
-      height: 48,
-      width: 48,
-    },
-    summaryLogoFallback: {
-      alignItems: "center",
-      backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),
-      borderRadius: 24,
-      flexShrink: 0,
-      height: 48,
-      justifyContent: "center",
-      width: 48,
-    },
-    summaryLogoFallbackText: {
-      color: colors.primaryDark,
-      fontFamily: typography.family,
-      fontSize: 16,
-      fontWeight: "700",
-      lineHeight: 20,
     },
     summaryTitleMobile: {
       fontSize: 17,
@@ -1535,9 +1471,9 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
       gap: 8,
     },
     termBulletDot: {
-      color: colors.primaryDark,
+      color: colors.muted,
       fontFamily: typography.family,
-      fontSize: 18,
+      fontSize: 16,
       lineHeight: 22,
     },
     termBulletText: {

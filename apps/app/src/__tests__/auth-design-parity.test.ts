@@ -176,6 +176,11 @@ describe("Expo auth design parity", () => {
       'fontWeight: "500"',
       "lineHeight: 12.5",
     ]);
+    expectStyleBlock(authFile, "socialLabelRow", [
+      "fontSize: 15",
+      'fontWeight: "400"',
+      "lineHeight: 20",
+    ]);
     expectStyleBlock(authFile, "privacyLink", [
       'pickThemed(colors, "#3E3E3E", colors.link)',
       "fontSize: 13",
@@ -257,10 +262,14 @@ describe("Expo auth design parity", () => {
       "paddingHorizontal: mobileShellLayout.tabletContentHorizontalPadding",
     ]);
     expectStyleBlock(authFile, "cardInnerTablet", ["paddingHorizontal: 32", "paddingTop: 28"]);
-    expectStyleBlock(authFile, "socialStackDesktop", ["gap: 10", 'width: "100%"']);
-    expectStyleBlock(authFile, "socialButtonRow", [
+    expectStyleBlock(authFile, "socialStackDesktop", [
       'flexDirection: "row"',
+      "gap: 10",
       'width: "100%"',
+    ]);
+    expectStyleBlock(authFile, "socialButtonRow", [
+      "flex: 1",
+      'flexDirection: "row"',
       "height: 52",
     ]);
   });

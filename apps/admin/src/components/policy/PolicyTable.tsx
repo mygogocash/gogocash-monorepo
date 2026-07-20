@@ -18,10 +18,10 @@ import PrimaryButton from "@/components/ui/button/PrimaryButton";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { PencilIcon } from "@/icons";
 import CategoryIcon, {
-  CATEGORY_ICON_KEYS,
   resolveCategoryIconKey,
   type CategoryIconKey,
 } from "./CategoryIcon";
+import CategoryIconPicker from "./CategoryIconPicker";
 import { isDirty } from "@/lib/isDirty";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import {
@@ -456,6 +456,13 @@ export default function PolicyTable() {
     name: string;
   } | null>(null);
   const defaultFileRef = useRef<HTMLInputElement>(null);
+  // Optional custom category icon (stored as category.image via update-category
+  // after the aggregate save — aggregate remains the single policy command).
+  const [customIconUpload, setCustomIconUpload] = useState<{
+    file: File;
+    url: string;
+    name: string;
+  } | null>(null);
 
   // Object URLs only exist for local preview. The selected File stays in the
   // draft and is uploaded by the same editor-level Save as the text blocks.
@@ -463,6 +470,10 @@ export default function PolicyTable() {
     if (!defaultUpload) return undefined;
     return () => URL.revokeObjectURL(defaultUpload.url);
   }, [defaultUpload]);
+  useEffect(() => {
+    if (!customIconUpload) return undefined;
+    return () => URL.revokeObjectURL(customIconUpload.url);
+  }, [customIconUpload]);
 
   // Snapshot of the editable fields `handleSave` sends, captured the moment a
   // category modal opens (i.e. AFTER the loaded policy populates state). Drives
@@ -576,7 +587,8 @@ export default function PolicyTable() {
     categoryDirty ||
     termsDirty ||
     bannerDirty ||
-    defaultUpload !== null;
+    defaultUpload !== null ||
+    customIconUpload !== null;
   const defaultBannerSrc = defaultUpload?.url
     ? defaultUpload.url
     : selectedCategory?.banner
@@ -699,6 +711,7 @@ export default function PolicyTable() {
         .sort((a, b) => b[1].length - a[1].length);
       setActiveLocale(populated[0]?.[0] ?? parsed.primary_locale ?? "th");
       setDefaultUpload(null);
+      setCustomIconUpload(null);
       // Empty blocks are creation work, so expose their editors immediately.
       // Populated blocks stay in review mode until the admin explicitly edits.
       setEditingTerms(!hasTerms);
@@ -749,6 +762,7 @@ export default function PolicyTable() {
     setBannerTranslations({});
     setBannerActiveLocale("th");
     setDefaultUpload(null);
+    setCustomIconUpload(null);
     setEditingTerms(false);
     setEditingBanner(false);
     termsEditSnapshot.current = emptyTermsEditSnapshot();
@@ -905,10 +919,41 @@ export default function PolicyTable() {
         category?: ResCategoryList;
         data?: { category?: ResCategoryList };
       };
-      const savedCategory =
+      let savedCategory =
         responseBody.data?.category ?? responseBody.category;
       if (!savedCategory?._id) {
         throw new Error("Policy save completed without category data.");
+      }
+      // Custom icon image reuses the legacy category image endpoint so the
+      // aggregate command stays a single-file (banner) write. Icon-only
+      // updates never replace policy text.
+      if (customIconUpload?.file) {
+        const iconForm = new FormData();
+        iconForm.append("image", customIconUpload.file);
+        const iconResponse = await client.patch(
+          `/admin/update-category/${savedCategory._id}`,
+          iconForm,
+          { headers: { "Content-Type": "multipart/form-data" } },
+        );
+        const iconBody = iconResponse.data as {
+          category?: ResCategoryList;
+          data?: ResCategoryList | { category?: ResCategoryList };
+        };
+        const updated =
+          iconBody.category ??
+          (iconBody.data &&
+          typeof iconBody.data === "object" &&
+          "category" in iconBody.data
+            ? iconBody.data.category
+            : undefined) ??
+          (iconBody.data &&
+          typeof iconBody.data === "object" &&
+          "_id" in iconBody.data
+            ? (iconBody.data as ResCategoryList)
+            : undefined);
+        if (updated?._id) {
+          savedCategory = { ...savedCategory, ...updated };
+        }
       }
       // The key belongs to this one committed command. Failed attempts retain
       // it for retry; a later save, even with identical-looking input, must
@@ -953,11 +998,14 @@ export default function PolicyTable() {
       setEditingTerms(false);
       setEditingBanner(false);
       setEditingName(false);
+      const savedCustomIcon = Boolean(customIconUpload);
+      const savedDefaultBanner = Boolean(defaultUpload);
       setDefaultUpload(null);
+      setCustomIconUpload(null);
       if (defaultFileRef.current) defaultFileRef.current.value = "";
       toast.success(
-        defaultUpload
-          ? "Policy and default banner saved."
+        savedCustomIcon || savedDefaultBanner
+          ? "Policy and category media saved."
           : "Policy changes saved.",
       );
     } catch (err: unknown) {
@@ -1315,28 +1363,35 @@ export default function PolicyTable() {
                   ? "Enter a unique category name. Nothing is saved until you save the full draft."
                   : "Edit the terms & conditions and the category banner for this category. Optional admin translation is stored with the policy."}
               </p>
-              <label className="mt-3 block max-w-xs text-xs font-medium text-gray-600 dark:text-gray-300">
-                Category icon
-                <select
-                  aria-label="Category icon"
-                  value={iconKey}
-                  onChange={(event) =>
-                    setIconKey(event.target.value as CategoryIconKey)
-                  }
-                  disabled={saving}
-                  className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              <div className="mt-3 max-w-2xl">
+                <p
+                  id="category-icon-label"
+                  className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-300"
                 >
-                  {CATEGORY_ICON_KEYS.map((value) => (
-                    <option key={value} value={value}>
-                      {value.charAt(0).toUpperCase() + value.slice(1)}
-                    </option>
-                  ))}
-                </select>
-                <span className="mt-1 block text-[11px] font-normal text-gray-500 dark:text-gray-400">
-                  Choose from the built-in icon set. New icons are added by
-                  engineering, not uploaded here.
-                </span>
-              </label>
+                  Category icon
+                </p>
+                <CategoryIconPicker
+                  value={iconKey}
+                  onChange={setIconKey}
+                  disabled={saving}
+                  labelledBy="category-icon-label"
+                  categoryName={nameDraft || selectedCategory?.name || ""}
+                  customIconUrl={pathImage(selectedCategory?.image) || null}
+                  customIconPreviewUrl={customIconUpload?.url ?? null}
+                  customIconFileName={customIconUpload?.name ?? null}
+                  onCustomIconChange={(file) => {
+                    if (!file) {
+                      setCustomIconUpload(null);
+                      return;
+                    }
+                    setCustomIconUpload({
+                      file,
+                      url: URL.createObjectURL(file),
+                      name: file.name,
+                    });
+                  }}
+                />
+              </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
               <button

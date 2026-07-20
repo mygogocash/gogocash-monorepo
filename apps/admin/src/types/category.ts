@@ -1,11 +1,12 @@
+import type { CategoryIconKey } from "@/components/policy/CategoryIcon";
+
 export interface ResCategoryList {
   _id: string;
   name: string;
   image?: string;
   /** Wide hero / header image for this category (optional). */
   banner?: string;
-  icon_key?:
-    "shopping" | "travel" | "food" | "finance" | "entertainment" | "default";
+  icon_key?: CategoryIconKey;
   name_normalized?: string;
   lifecycle_status?: "active" | "retired" | "purging";
   revision?: number;

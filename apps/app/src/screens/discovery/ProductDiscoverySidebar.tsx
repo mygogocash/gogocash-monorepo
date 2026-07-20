@@ -1,21 +1,24 @@
 import { Text, View } from "react-native";
-import { getCategoryIcon } from "@mobile/theme/categoryIcons";
+import { CategoryGlyph } from "@mobile/components/CategoryGlyph";
 import { webProductDiscovery } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
-import { typography } from "@mobile/theme/tokens";
 
 import { createDiscoveryScreenStyles } from "./customerDiscoveryStyles";
 
 export function ProductDiscoverySidebar({
   activeCategory,
+  categoryIconImages,
+  categoryIconKeys,
   onSelectCategory,
   width,
 }: {
   activeCategory: string;
+  categoryIconImages?: Readonly<Record<string, string>>;
+  categoryIconKeys?: Readonly<Record<string, string>>;
   onSelectCategory: (category: string) => void;
   width: number;
 }) {
@@ -31,7 +34,6 @@ export function ProductDiscoverySidebar({
       <View style={styles.productDiscoverySidebarList}>
         {webProductDiscovery.categories.map((category) => {
           const active = activeCategory === category.value;
-          const CategoryIcon = getCategoryIcon(category.label);
 
           return (
             <MotionPressable
@@ -45,10 +47,12 @@ export function ProductDiscoverySidebar({
               ]}
             >
               <View style={styles.productDiscoverySidebarIconCell}>
-                <CategoryIcon
+                <CategoryGlyph
+                  category={category.label}
                   color={active ? colors.white : colors.accent}
+                  iconKey={categoryIconKeys?.[category.label]}
+                  imageUrl={categoryIconImages?.[category.label]}
                   size={18}
-                  strokeWidth={typography.iconStrokeWidth}
                 />
               </View>
               <Text

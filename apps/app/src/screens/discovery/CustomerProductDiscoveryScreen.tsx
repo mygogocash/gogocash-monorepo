@@ -9,12 +9,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "@mobile/theme/icons";
+import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { useSpecificPageBanner } from "@mobile/account/specificPageBannerResource";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
-import { filterDirectoryStoresByRegion } from "@mobile/account/directoryCatalogResource";
+import {
+  filterDirectoryStoresByRegion,
+  resolveCategoryIconImages,
+  resolveCategoryIconKeys,
+} from "@mobile/account/directoryCatalogResource";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { haptics } from "@mobile/lib/haptics";
@@ -78,6 +83,18 @@ export function CustomerProductDiscoveryScreen() {
     viewportWidth: width,
   });
   const specificPageBanner = useSpecificPageBanner("discover", webProductDiscovery.promo);
+  const categoryResource = useCustomerAccountResource({
+    fixtureData: webProductDiscovery.categories.map((category) => category.label),
+    resourceId: "categoryList",
+  });
+  const directoryCategoryIconKeys = resolveCategoryIconKeys(
+    categoryResource.source,
+    categoryResource.data,
+  );
+  const directoryCategoryIconImages = resolveCategoryIconImages(
+    categoryResource.source,
+    categoryResource.data,
+  );
   const productResults = useMemo(
     () =>
       filterDirectoryStoresByRegion(
@@ -193,6 +210,8 @@ export function CustomerProductDiscoveryScreen() {
         {homeLayout.isDesktop ? (
           <ProductDiscoverySidebar
             activeCategory={selectedCategory}
+            categoryIconImages={directoryCategoryIconImages}
+            categoryIconKeys={directoryCategoryIconKeys}
             onSelectCategory={updateCategory}
             width={sidebarWidth}
           />

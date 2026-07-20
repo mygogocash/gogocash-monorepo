@@ -41,6 +41,7 @@ import {
 } from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { parseOfferDisplayTagsField } from './offer-display-tags.util';
+import { parseProductTypeRowsField } from './product-type.util';
 import { resolvePublicOfferLogo } from './offer-logo.util';
 import { Quest, QuestTask } from 'src/point/schemas/quest.schema';
 import { effectiveQuestRewardModel } from 'src/point/quest-task.contract';
@@ -50,10 +51,14 @@ import { SearchBlacklist } from 'src/admin/search/schemas/blacklist.schema';
 import { escapeRegexLiteral } from 'src/common/escape-regex';
 import { countryFilterRegex } from 'src/utils/country';
 import { requireObjectId, mongoSetUpdate } from 'src/common/mongo-query';
-import { resolveTrackingPeriod } from './tracking-period.util';
+import {
+  coerceOptionalDayCount,
+  resolveTrackingPeriod,
+} from './tracking-period.util';
 import {
   MAX_CUSTOM_TERMS_LENGTH,
   MAX_NOTE_TO_USER_LENGTH,
+  MAX_TRACKING_SUBTITLE_LENGTH,
 } from './offer-text-limits';
 import { rankOffersWithSearchRules } from './search-ranking';
 import { normalizeSearchRuleKeywords } from 'src/admin/search/search-rule.contract';
@@ -245,6 +250,52 @@ function parseOptionalNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+/**
+ * Optional cashback-tracking-period fields on Create Brand. Absent keys are
+ * omitted so schema defaults apply; present valid values are persisted.
+ */
+function parseTrackingPeriodCreateFields(
+  body: Record<string, any>,
+): Record<string, unknown> {
+  const fields: Record<string, unknown> = {};
+  const mode = body.tracking_period_mode;
+  if (mode === 'auto' || mode === 'manual') {
+    fields.tracking_period_mode = mode;
+  }
+  if (mode === 'manual') {
+    // Same validator the admin update path uses: absent means "use the default",
+    // but a supplied-yet-invalid value is a 400 rather than a silent fallback.
+    const trackingDays = coerceOptionalDayCount(
+      body.tracking_days,
+      'tracking_days',
+    );
+    const confirmDays = coerceOptionalDayCount(
+      body.confirm_days,
+      'confirm_days',
+    );
+    if (trackingDays !== undefined) fields.tracking_days = trackingDays;
+    if (confirmDays !== undefined) fields.confirm_days = confirmDays;
+  }
+  if (body.flow_type === 'two_step' || body.flow_type === 'three_step') {
+    fields.flow_type = body.flow_type;
+  }
+  if (typeof body.tracking_subtitle === 'string') {
+    fields.tracking_subtitle = parseBoundedOptionalText(
+      body.tracking_subtitle,
+      'tracking_subtitle',
+      MAX_TRACKING_SUBTITLE_LENGTH,
+    );
+  }
+  if (typeof body.confirm_subtitle === 'string') {
+    fields.confirm_subtitle = parseBoundedOptionalText(
+      body.confirm_subtitle,
+      'confirm_subtitle',
+      MAX_TRACKING_SUBTITLE_LENGTH,
+    );
+  }
+  return fields;
 }
 
 const COUPON_OPTIONAL_STRING_FIELDS = [
@@ -512,14 +563,7 @@ function offerUploadIdentity(file: Express.Multer.File | undefined) {
 }
 
 function parseProductTypeRows(value: unknown): any[] {
-  if (Array.isArray(value)) return value;
-  if (typeof value !== 'string' || !value.trim()) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return parseProductTypeRowsField(value) ?? [];
 }
 
 @Injectable()
@@ -950,6 +994,7 @@ export class OfferService implements OnApplicationBootstrap {
       'note_to_user',
       MAX_NOTE_TO_USER_LENGTH,
     );
+    const trackingPeriodFields = parseTrackingPeriodCreateFields(body);
 
     return this.categoryIntegrity.withNormalWrite({
       legacy: async () => {
@@ -1047,6 +1092,7 @@ export class OfferService implements OnApplicationBootstrap {
               : undefined,
           custom_terms: customTerms,
           note_to_user: noteToUser,
+          ...trackingPeriodFields,
         });
       },
       enforced: async () => {
@@ -1137,6 +1183,7 @@ export class OfferService implements OnApplicationBootstrap {
           ),
           custom_terms: customTerms,
           note_to_user: noteToUser,
+          ...trackingPeriodFields,
         };
         const persist = async (
           assets: PolicyMediaWriteAssets,

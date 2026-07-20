@@ -80,6 +80,7 @@ import {
   type PolicyMediaWriteAssets,
 } from 'src/policy/policy-media-write.service';
 import { PolicyMediaAssetRegistryService } from 'src/policy/policy-media-asset-registry.service';
+import { requireProductTypeRowsField } from 'src/offer/product-type.util';
 
 type AdminOfferUpdateData = {
   logo_desktop?: Express.Multer.File;
@@ -95,7 +96,12 @@ type AdminOfferUpdateData = {
   max_cap?: number;
   extra_store?: boolean;
   tracking_link?: string;
-  product_type: ProductTypeDto[];
+  /** Present only when the admin PATCH included product_type(s). */
+  product_type?:
+    | ProductTypeDto[]
+    | Array<Record<string, unknown>>
+    | string;
+  all_product_types?: boolean;
   tracking_period_mode?: 'auto' | 'manual';
   tracking_days?: number;
   confirm_days?: number;
@@ -106,6 +112,16 @@ type AdminOfferUpdateData = {
   custom_terms?: string;
   note_to_user?: string;
 };
+
+/** Persist product_type rows; string input is validated (400 on bad JSON). */
+function coerceProductTypeForPersist(
+  value: AdminOfferUpdateData['product_type'],
+): Array<Record<string, unknown>> | ProductTypeDto[] {
+  if (typeof value === 'string') {
+    return requireProductTypeRowsField(value, 'product_type') ?? [];
+  }
+  return (value ?? []) as Array<Record<string, unknown>> | ProductTypeDto[];
+}
 
 type AdminCategoryUpdateData = {
   name?: string;
@@ -727,17 +743,27 @@ export class AdminService {
     }
   }
 
-  async getWithdrawAll(page: number = 1, limit: number = 10, search?: string) {
+  async getWithdrawAll(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    status?: string,
+    method?: string,
+  ) {
     const skip = (page - 1) * limit;
-    const query = search
-      ? {
-          $or: [
-            { method: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-            { status: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-            { address: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-          ],
-        }
-      : {};
+    // Status/method are exact-match filters (from the admin table dropdowns);
+    // search is a free-text regex that narrows *within* the selected filters.
+    // Both compose as an implicit AND on the same query object.
+    const query: Record<string, unknown> = {};
+    if (status) query.status = status;
+    if (method) query.method = method;
+    if (search) {
+      query.$or = [
+        { method: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+        { status: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+        { address: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+      ];
+    }
 
     const [data, total] = await Promise.all([
       this.withdrawModel
@@ -1059,10 +1085,13 @@ export class AdminService {
           max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
           extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
           tracking_link: trackingLink,
-          product_type:
-            typeof updateData.product_type === 'string'
-              ? JSON.parse(updateData.product_type)
-              : updateData.product_type,
+          // Partial updates (brand info, T&C, …) must not wipe product rows.
+          ...(updateData.product_type !== undefined
+            ? { product_type: coerceProductTypeForPersist(updateData.product_type) }
+            : {}),
+          ...(updateData.all_product_types !== undefined
+            ? { all_product_types: updateData.all_product_types }
+            : {}),
           ...(updateData.tracking_period_mode !== undefined
             ? { tracking_period_mode: updateData.tracking_period_mode }
             : {}),
@@ -1153,10 +1182,12 @@ export class AdminService {
         max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
         extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
         tracking_link: trackingLink,
-        product_type:
-          typeof updateData.product_type === 'string'
-            ? JSON.parse(updateData.product_type)
-            : updateData.product_type,
+        ...(updateData.product_type !== undefined
+          ? { product_type: coerceProductTypeForPersist(updateData.product_type) }
+          : {}),
+        ...(updateData.all_product_types !== undefined
+          ? { all_product_types: updateData.all_product_types }
+          : {}),
         ...(updateData.tracking_period_mode !== undefined
           ? { tracking_period_mode: updateData.tracking_period_mode }
           : {}),

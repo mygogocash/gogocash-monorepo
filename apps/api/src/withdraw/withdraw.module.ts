@@ -5,7 +5,13 @@ import { JwtService } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CacheModule } from '@nestjs/cache-manager';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
+import { EmailModule } from 'src/email/email.module';
 import { InvolveModule } from 'src/involve/involve.module';
+import {
+  UserContactOtp,
+  UserContactOtpSchema,
+} from './schemas/user-contact-otp.schema';
+import { UserContactOtpService } from './user-contact-otp.service';
 import { Offer, OfferSchema } from 'src/offer/schemas/offer.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import { Withdraw, WithdrawSchema } from './schemas/withdraw.schema';
@@ -52,10 +58,12 @@ import {
     PointModule,
     InvolveModule,
     AdminActivityModule,
+    EmailModule,
     MongooseModule.forFeature([
       { name: Offer.name, schema: OfferSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
       { name: User.name, schema: UserSchema },
+      { name: UserContactOtp.name, schema: UserContactOtpSchema },
       { name: Withdraw.name, schema: WithdrawSchema },
       { name: FeeRate.name, schema: FeeRateSchema },
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
@@ -77,6 +85,7 @@ import {
   controllers: [WithdrawController],
   providers: [
     WithdrawService,
+    UserContactOtpService,
     JwtService,
     TasksService,
     JobService,

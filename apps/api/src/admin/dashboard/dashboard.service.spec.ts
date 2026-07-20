@@ -1,4 +1,8 @@
-import { DashboardService } from './dashboard.service';
+import {
+  DashboardService,
+  buildQuestCountsPipeline,
+  questCountsFromFacet,
+} from './dashboard.service';
 
 describe('DashboardService response contract', () => {
   const userModel = {
@@ -14,17 +18,23 @@ describe('DashboardService response contract', () => {
     aggregate: jest.fn(),
     countDocuments: jest.fn(),
   };
+  const questModel = {
+    aggregate: jest.fn(),
+  };
 
   let service: DashboardService;
 
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-07-18T12:00:00.000Z'));
     jest.clearAllMocks();
+    // Default: no quest campaigns. Individual tests override with a facet.
+    questModel.aggregate.mockResolvedValue([{}]);
     service = new DashboardService(
       userModel as never,
       myCashbackModel as never,
       conversionModel as never,
       withdrawModel as never,
+      questModel as never,
     );
   });
 
@@ -155,6 +165,17 @@ describe('DashboardService response contract', () => {
       { _id: 'rejected', count: 1, totalAmount: 50 },
     ]);
     withdrawModel.countDocuments.mockResolvedValueOnce(1);
+    // Quest campaign schedule counts: 4 live now, 2 scheduled, 5 ended,
+    // 6 overlapping the selected window, 11 total.
+    questModel.aggregate.mockResolvedValueOnce([
+      {
+        total: [{ n: 11 }],
+        live: [{ n: 4 }],
+        scheduled: [{ n: 2 }],
+        ended: [{ n: 5 }],
+        overlapping: [{ n: 6 }],
+      },
+    ]);
 
     const result = await service.getInsights('30d');
 
@@ -165,6 +186,8 @@ describe('DashboardService response contract', () => {
       availability: {
         clicks: { available: false, reason: expect.any(String) },
         commissionHealth: { available: false, reason: expect.any(String) },
+        // Engagement/attribution analytics stay unavailable — only schedule
+        // counts are wired. This gates the deep quest analytics section.
         quests: { available: false, reason: expect.any(String) },
       },
       kpis: {
@@ -241,7 +264,11 @@ describe('DashboardService response contract', () => {
       description: 'Daily conversion activity for the selected 30d range',
     });
     expect(result.quests).toMatchObject({
-      totalQuests: 0,
+      totalQuests: 11,
+      liveNow: 4,
+      scheduled: 2,
+      ended: 5,
+      overlappingSelectedRange: 6,
       rows: [],
       timeline: [],
       leaderboardPreview: null,
@@ -680,5 +707,77 @@ describe('DashboardService response contract', () => {
     expect(result.alerts).toEqual([]);
     expect(result.statistics.month.categories).toEqual([]);
     expect(result.quests.rows).toEqual([]);
+  });
+});
+
+describe('buildQuestCountsPipeline', () => {
+  const now = new Date('2026-07-18T12:00:00.000Z');
+  const from = new Date('2026-06-18T12:00:00.000Z');
+  const to = new Date('2026-07-18T12:00:00.000Z');
+
+  // Live/scheduled/ended must match the admin's deriveQuestStatus, which keys
+  // purely off the start/end window (start <= now <= end === live).
+  it('matches live campaigns as start<=now<=end', () => {
+    const [{ $facet }] = buildQuestCountsPipeline(now, from, to);
+
+    expect($facet.live[0].$match).toEqual({
+      start_date: { $lte: now },
+      end_date: { $gte: now },
+    });
+  });
+
+  it('matches scheduled as start>now and ended as end<now', () => {
+    const [{ $facet }] = buildQuestCountsPipeline(now, from, to);
+
+    expect($facet.scheduled[0].$match).toEqual({ start_date: { $gt: now } });
+    expect($facet.ended[0].$match).toEqual({ end_date: { $lt: now } });
+  });
+
+  it('matches window-overlap as start<=to and end>=from', () => {
+    const [{ $facet }] = buildQuestCountsPipeline(now, from, to);
+
+    expect($facet.overlapping[0].$match).toEqual({
+      start_date: { $lte: to },
+      end_date: { $gte: from },
+    });
+  });
+});
+
+describe('questCountsFromFacet', () => {
+  it('reads counts from a populated facet', () => {
+    expect(
+      questCountsFromFacet([
+        {
+          total: [{ n: 11 }],
+          live: [{ n: 4 }],
+          scheduled: [{ n: 2 }],
+          ended: [{ n: 5 }],
+          overlapping: [{ n: 6 }],
+        },
+      ]),
+    ).toEqual({
+      totalQuests: 11,
+      liveNow: 4,
+      scheduled: 2,
+      ended: 5,
+      overlappingSelectedRange: 6,
+    });
+  });
+
+  it('defaults every count to 0 when the facet is empty or missing buckets', () => {
+    expect(questCountsFromFacet([{}])).toEqual({
+      totalQuests: 0,
+      liveNow: 0,
+      scheduled: 0,
+      ended: 0,
+      overlappingSelectedRange: 0,
+    });
+    expect(questCountsFromFacet([])).toEqual({
+      totalQuests: 0,
+      liveNow: 0,
+      scheduled: 0,
+      ended: 0,
+      overlappingSelectedRange: 0,
+    });
   });
 });
