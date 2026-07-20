@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "expo-router";
 import { Search as SearchIcon } from "@mobile/theme/icons";
-import { getCategoryIcon } from "@mobile/theme/categoryIcons";
+import { CategoryGlyph } from "@mobile/components/CategoryGlyph";
 import {
   ScrollView,
   StyleSheet,
@@ -15,7 +15,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
-import { resolveCategoryExploreStores } from "@mobile/account/directoryCatalogResource";
+import {
+  resolveCategoryExploreStores,
+  resolveCategoryIconImages,
+  resolveCategoryIconKeys,
+} from "@mobile/account/directoryCatalogResource";
 import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import { BrandCard } from "@mobile/components/BrandCard";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
@@ -134,6 +138,18 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
     fixtureData: { data: [], limit: 80, page: 1, total: 0, totalPages: 0 },
     resourceId: "brandCatalog",
   });
+  const categoryResource = useCustomerAccountResource({
+    fixtureData: webCategoryExploreHealthBeauty.categories,
+    resourceId: "categoryList",
+  });
+  const categoryIconKeys = resolveCategoryIconKeys(
+    categoryResource.source,
+    categoryResource.data,
+  );
+  const categoryIconImages = resolveCategoryIconImages(
+    categoryResource.source,
+    categoryResource.data,
+  );
   const stores = useMemo(
     () =>
       resolveCategoryExploreStores({
@@ -173,7 +189,12 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
       </View>
 
       <View style={[styles.categoryLayout, isDesktop ? styles.categoryLayoutDesktop : null]}>
-        <CategoryAside activeCategory={category} isDesktop={isDesktop} />
+        <CategoryAside
+          activeCategory={category}
+          categoryIconImages={categoryIconImages}
+          categoryIconKeys={categoryIconKeys}
+          isDesktop={isDesktop}
+        />
 
         <View
           style={[
@@ -344,9 +365,13 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
 
 function CategoryAside({
   activeCategory,
+  categoryIconImages,
+  categoryIconKeys,
   isDesktop,
 }: {
   activeCategory: string;
+  categoryIconImages?: Readonly<Record<string, string>>;
+  categoryIconKeys?: Readonly<Record<string, string>>;
   isDesktop: boolean;
 }) {
   const styles = useThemedStyles(createCategoryDetailScreenStyles);
@@ -369,6 +394,8 @@ function CategoryAside({
           <CategoryNavItem
             active={category === activeCategory}
             category={category}
+            iconImageUrl={categoryIconImages?.[category]}
+            iconKey={categoryIconKeys?.[category]}
             isDesktop={isDesktop}
             key={category}
           />
@@ -382,16 +409,19 @@ function CategoryAside({
 function CategoryNavItem({
   active,
   category,
+  iconImageUrl,
+  iconKey,
   isDesktop,
 }: {
   active: boolean;
   category: string;
+  iconImageUrl?: string;
+  iconKey?: string;
   isDesktop: boolean;
 }) {
   const styles = useThemedStyles(createCategoryDetailScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
-  const Icon = getCategoryIcon(category);
   const iconColor = active ? colors.white : colors.accent;
 
   return (
@@ -407,7 +437,13 @@ function CategoryNavItem({
         ])}
       >
         <View style={styles.categoryIconCell}>
-          <Icon color={iconColor} size={isDesktop ? 22 : 20} strokeWidth={typography.iconStrokeWidth} />
+          <CategoryGlyph
+            category={category}
+            color={iconColor}
+            iconKey={iconKey}
+            imageUrl={iconImageUrl}
+            size={isDesktop ? 22 : 20}
+          />
         </View>
         <Text
           numberOfLines={1}

@@ -17,6 +17,7 @@ const apiMock = vi.hoisted(() => ({
   fetcher: vi.fn(),
   post: vi.fn(),
   put: vi.fn(),
+  patch: vi.fn(),
 }));
 const toastMock = vi.hoisted(() => ({
   error: vi.fn(),
@@ -24,7 +25,7 @@ const toastMock = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/axios/client", () => ({
-  default: { post: apiMock.post, put: apiMock.put },
+  default: { post: apiMock.post, put: apiMock.put, patch: apiMock.patch },
   fetcher: apiMock.fetcher,
 }));
 
@@ -46,6 +47,8 @@ const ICON_LABEL: Record<string, string> = {
   shopping: "Shopping",
   default: "Default",
   travel: "Travel",
+  pets: "Pets",
+  electronics: "Electronics",
 };
 
 async function selectCategoryIcon(
@@ -159,10 +162,106 @@ describe("PolicyTable interactions", () => {
     expect(screen.getByRole("radiogroup", { name: "Category icon" })).toBeInTheDocument();
     expect(screen.getByText("Selected preview")).toBeInTheDocument();
     expect(
-      screen.getByText(/Choose from the built-in icon set/i),
+      screen.getByText(/Choose a built-in icon or upload a custom image/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Food" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Gifting" })).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Custom category icon file"),
+    ).toBeInTheDocument();
+  });
+
+  it("Create -> select expanded Pets icon -> Save persists icon_key=pets", async () => {
+    const user = userEvent.setup();
+    apiMock.put.mockImplementationOnce(
+      async (_path: string, body: FormData) => ({
+        data: {
+          category: {
+            _id: "507f1f77bcf86cd799439077",
+            name: String(body.get("category_name")),
+            icon_key: String(body.get("icon_key")),
+            lifecycle_status: "active",
+          },
+        },
+      }),
+    );
+    renderTable();
+
+    await user.click(await screen.findByRole("button", { name: "Create New" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Category name" }),
+      "Pet Supplies",
+    );
+    await selectCategoryIcon(user, "pets");
+    await user.type(
+      screen.getByRole("textbox", { name: /Content/ }),
+      "Pets terms",
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Policy banner text" }),
+      "Pets banner",
+    );
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(apiMock.put).toHaveBeenCalledTimes(1));
+    const [path, form] = apiMock.put.mock.calls[0] as [string, FormData];
+    expect(path).toBe("/policy/aggregate");
+    expect(form.get("icon_key")).toBe("pets");
+  });
+
+  it("Create -> upload custom icon -> Save patches update-category with image", async () => {
+    const user = userEvent.setup();
+    apiMock.put.mockImplementationOnce(
+      async (_path: string, body: FormData) => ({
+        data: {
+          category: {
+            _id: "507f1f77bcf86cd799439088",
+            name: String(body.get("category_name")),
+            icon_key: String(body.get("icon_key")),
+            lifecycle_status: "active",
+          },
+        },
+      }),
+    );
+    apiMock.patch.mockResolvedValueOnce({
+      data: {
+        _id: "507f1f77bcf86cd799439088",
+        name: "Custom Icon Cat",
+        image: "https://cdn.example/custom.png",
+        icon_key: "default",
+      },
+    });
+    renderTable();
+
+    await user.click(await screen.findByRole("button", { name: "Create New" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Category name" }),
+      "Custom Icon Cat",
+    );
+    await user.upload(
+      screen.getByLabelText("Custom category icon file"),
+      new File(["icon"], "custom.png", { type: "image/png" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: /Content/ }),
+      "Custom icon terms",
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Policy banner text" }),
+      "Custom icon banner",
+    );
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(apiMock.put).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMock.patch).toHaveBeenCalledTimes(1));
+    const [patchPath, patchForm] = apiMock.patch.mock.calls[0] as [
+      string,
+      FormData,
+    ];
+    expect(patchPath).toBe(
+      "/admin/update-category/507f1f77bcf86cd799439088",
+    );
+    expect(patchForm.get("image")).toBeInstanceOf(File);
   });
 
   it("#349 Create -> fill name/icon/terms/banner -> Close discards the draft so reopening starts fresh", async () => {

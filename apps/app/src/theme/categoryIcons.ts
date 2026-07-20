@@ -1,10 +1,11 @@
-// Single source of truth for category → glyph mapping (web + native).
-// Mirrors the web ShopExploreMenuTapIcon per-category icons using the shared
-// phosphor icon adapter, so directory asides and category screens render a
-// distinct icon per category instead of a generic filter glyph.
-//
-// Phase C: also accept admin/API `icon_key` (Policy Management built-in set) so
-// when callers pass a key, customer chrome matches the admin-chosen icon.
+// Category → glyph mapping (web + native).
+// Built-in allow-list lives in @gogocash/contracts; this module maps keys and
+// labels to Phosphor glyphs for customer chrome.
+import {
+  CATEGORY_ICON_KEYS,
+  isCategoryIconKey,
+  type CategoryIconKey,
+} from "@gogocash/contracts";
 import {
   Baby,
   BookOpen,
@@ -30,29 +31,7 @@ import {
   Utensils,
 } from "@mobile/theme/icons";
 
-/** Keep in sync with admin CategoryIcon.tsx + API category.schema.ts. */
-export const CATEGORY_ICON_KEYS = [
-  "shopping",
-  "travel",
-  "food",
-  "finance",
-  "entertainment",
-  "electronics",
-  "fashion",
-  "beauty",
-  "health",
-  "home",
-  "education",
-  "gift",
-  "sports",
-  "pets",
-  "baby",
-  "auto",
-  "services",
-  "default",
-] as const;
-
-export type CategoryIconKey = (typeof CATEGORY_ICON_KEYS)[number];
+export { CATEGORY_ICON_KEYS, type CategoryIconKey } from "@gogocash/contracts";
 
 /** Admin/API icon_key → Phosphor glyph. */
 export const categoryIconsByKey: Record<CategoryIconKey, IconComponent> = {
@@ -97,10 +76,7 @@ export const categoryIcons: Record<string, IconComponent> = {
 export function resolveCategoryIconKey(
   iconKey: unknown,
 ): CategoryIconKey | null {
-  return typeof iconKey === "string" &&
-    (CATEGORY_ICON_KEYS as readonly string[]).includes(iconKey)
-    ? (iconKey as CategoryIconKey)
-    : null;
+  return isCategoryIconKey(iconKey) ? iconKey : null;
 }
 
 /**

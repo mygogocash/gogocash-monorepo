@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   filterDirectoryStores,
+  mapBackendCategoryIconImages,
   mapBackendCategoryIconKeys,
   mapBackendCategoryList,
   mapCatalogBrandsToDirectoryStores,
+  resolveCategoryIconImages,
   resolveCategoryIconKeys,
   resolveCategoryList,
   resolveLiveDirectoryStores,
@@ -107,6 +109,17 @@ describe("directoryCatalogResource", () => {
     });
   });
 
+  it("mapBackendCategoryIconImages > keeps uploaded image URLs by name", () => {
+    expect(
+      mapBackendCategoryIconImages([
+        { name: "Travel", image: "https://cdn.example/travel.png" },
+        { name: "Pets", icon_key: "pets" },
+      ]),
+    ).toEqual({
+      Travel: "https://cdn.example/travel.png",
+    });
+  });
+
   it("resolveCategoryList / resolveCategoryIconKeys > backend bare array > uses live docs", () => {
     const payload = [
       { name: "Travel", icon_key: "travel" },
@@ -123,5 +136,29 @@ describe("directoryCatalogResource", () => {
       Pets: "pets",
     });
     expect(resolveCategoryIconKeys("fixture", payload)).toEqual({});
+    expect(
+      resolveCategoryIconImages("backend", [
+        { name: "Travel", image: "https://cdn.example/t.png" },
+      ]),
+    ).toEqual({ Travel: "https://cdn.example/t.png" });
+  });
+});
+
+describe("CategoryGlyph wiring", () => {
+  it("directory asides prefer CategoryGlyph with icon keys and images", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const shop = readFileSync(
+      resolve(__dirname, "../screens/discovery/ShopDirectoryCategoryAside.tsx"),
+      "utf8",
+    );
+    const brand = readFileSync(
+      resolve(__dirname, "../screens/discovery/BrandDirectoryCategoryAside.tsx"),
+      "utf8",
+    );
+    expect(shop).toContain("categoryIconKeys?.[category]");
+    expect(shop).toContain("categoryIconImages?.[category]");
+    expect(brand).toContain("categoryIconKeys?.[category]");
+    expect(brand).toContain("categoryIconImages?.[category]");
   });
 });

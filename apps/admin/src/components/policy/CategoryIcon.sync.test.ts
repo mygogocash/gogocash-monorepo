@@ -3,6 +3,10 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+import {
+  CATEGORY_ICON_KEYS as contractKeys,
+  CATEGORY_ICON_OPTIONS as contractOptions,
+} from "@gogocash/contracts";
 
 import {
   CATEGORY_ICON_KEYS,
@@ -26,10 +30,9 @@ function extractStringArrayLiteral(source: string, exportName: string): string[]
 }
 
 describe("CATEGORY_ICON_KEYS cross-package sync", () => {
-  it("admin OPTIONS covers every allow-listed key exactly once", () => {
-    expect(CATEGORY_ICON_OPTIONS.map((option) => option.key)).toEqual([
-      ...CATEGORY_ICON_KEYS,
-    ]);
+  it("admin re-exports the contracts allow-list and options", () => {
+    expect([...CATEGORY_ICON_KEYS]).toEqual([...contractKeys]);
+    expect(CATEGORY_ICON_OPTIONS).toEqual(contractOptions);
   });
 
   it("matches API category.schema.ts allow-list", () => {
@@ -42,14 +45,15 @@ describe("CATEGORY_ICON_KEYS cross-package sync", () => {
     ]);
   });
 
-  it("matches customer app categoryIcons.ts allow-list", () => {
+  it("customer app re-exports contracts keys", () => {
     const appSource = readFileSync(
       resolve(repoRoot, "apps/app/src/theme/categoryIcons.ts"),
       "utf8",
     );
-    expect(extractStringArrayLiteral(appSource, "CATEGORY_ICON_KEYS")).toEqual([
-      ...CATEGORY_ICON_KEYS,
-    ]);
+    expect(appSource).toContain('from "@gogocash/contracts"');
+    expect(appSource).toContain(
+      "export { CATEGORY_ICON_KEYS, type CategoryIconKey } from \"@gogocash/contracts\"",
+    );
   });
 
   it("mockApiCore imports CATEGORY_ICON_KEYS instead of re-listing keys", () => {

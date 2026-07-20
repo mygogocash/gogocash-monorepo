@@ -15,6 +15,7 @@ import { useDirectoryOfferSearch } from "@mobile/account/useDirectoryOfferSearch
 import {
   filterDirectoryStores,
   getFixtureBrandDirectoryResults,
+  resolveCategoryIconImages,
   resolveCategoryIconKeys,
   resolveCategoryList,
   resolveLiveDirectoryStores,
@@ -93,6 +94,10 @@ export function CustomerBrandDirectoryScreen() {
     webBrandDirectory.categories
   );
   const directoryCategoryIconKeys = resolveCategoryIconKeys(
+    categoryResource.source,
+    categoryResource.data,
+  );
+  const directoryCategoryIconImages = resolveCategoryIconImages(
     categoryResource.source,
     categoryResource.data,
   );
@@ -240,6 +245,7 @@ export function CustomerBrandDirectoryScreen() {
         <BrandDirectoryCategoryAside
           activeCategory={selectedCategory}
           categories={directoryCategories}
+          categoryIconImages={directoryCategoryIconImages}
           categoryIconKeys={directoryCategoryIconKeys}
           isDesktop={homeLayout.isDesktop}
           onSelectCategory={updateCategory}

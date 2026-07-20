@@ -24,10 +24,12 @@ describe("CategoryIconPicker — visual gallery", () => {
     expect(pickerSource).toContain("<CategoryIcon");
     expect(pickerSource).toContain("CATEGORY_ICON_OPTIONS");
     expect(pickerSource).toContain("Selected preview");
+    expect(pickerSource).toContain("Custom icon image (optional)");
+    expect(pickerSource).toContain('aria-label="Custom category icon file"');
   });
 
   it("supports keyboard radiogroup navigation and focus styles", () => {
-    expect(pickerSource).toContain("tabIndex={checked ? 0 : -1}");
+    expect(pickerSource).toContain("tabIndex={focusable ? 0 : -1}");
     expect(pickerSource).toContain("ArrowRight");
     expect(pickerSource).toContain("ArrowLeft");
     expect(pickerSource).toContain("focus-visible:ring-2");
@@ -43,11 +45,9 @@ describe("CategoryIconPicker — visual gallery", () => {
     );
   });
 
-  it("derives gallery options from the exhaustive key→label map", () => {
+  it("re-exports gallery options from the shared contracts package", () => {
+    expect(iconSource).toContain('from "@gogocash/contracts"');
     expect(iconSource).toContain("CATEGORY_ICON_OPTIONS");
-    expect(iconSource).toContain(
-      "as const satisfies Record<CategoryIconKey, string>",
-    );
-    expect(iconSource).toContain("CATEGORY_ICON_KEYS.map");
+    expect(iconSource).toContain("CATEGORY_ICON_KEYS");
   });
 });

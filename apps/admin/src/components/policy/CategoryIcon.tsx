@@ -1,68 +1,22 @@
 import React from "react";
+import {
+  CATEGORY_ICON_KEYS,
+  CATEGORY_ICON_OPTIONS,
+  isCategoryIconKey,
+  type CategoryIconKey,
+} from "@gogocash/contracts";
 
-export const CATEGORY_ICON_KEYS = [
-  "shopping",
-  "travel",
-  "food",
-  "finance",
-  "entertainment",
-  "electronics",
-  "fashion",
-  "beauty",
-  "health",
-  "home",
-  "education",
-  "gift",
-  "sports",
-  "pets",
-  "baby",
-  "auto",
-  "services",
-  "default",
-] as const;
-
-export type CategoryIconKey = (typeof CATEGORY_ICON_KEYS)[number];
-
-/**
- * Human labels for the visual icon gallery (Policy Management).
- * Exhaustive against CATEGORY_ICON_KEYS so a new key cannot ship without a label.
- */
-const CATEGORY_ICON_LABELS = {
-  shopping: "Shopping",
-  travel: "Travel",
-  food: "Food",
-  finance: "Finance",
-  entertainment: "Entertainment",
-  electronics: "Electronics",
-  fashion: "Fashion",
-  beauty: "Beauty",
-  health: "Health",
-  home: "Home",
-  education: "Education",
-  gift: "Gifting",
-  sports: "Sports",
-  pets: "Pets",
-  baby: "Baby",
-  auto: "Auto",
-  services: "Services",
-  default: "Default",
-} as const satisfies Record<CategoryIconKey, string>;
-
-export const CATEGORY_ICON_OPTIONS: ReadonlyArray<{
-  key: CategoryIconKey;
-  label: string;
-}> = CATEGORY_ICON_KEYS.map((key) => ({
-  key,
-  label: CATEGORY_ICON_LABELS[key],
-}));
+export {
+  CATEGORY_ICON_KEYS,
+  CATEGORY_ICON_OPTIONS,
+  type CategoryIconKey,
+} from "@gogocash/contracts";
 
 export function resolveCategoryIconKey(
   persisted: unknown,
   name: string,
 ): CategoryIconKey {
-  return CATEGORY_ICON_KEYS.includes(persisted as CategoryIconKey)
-    ? (persisted as CategoryIconKey)
-    : categoryIconKey(name);
+  return isCategoryIconKey(persisted) ? persisted : categoryIconKey(name);
 }
 
 /** Match `token` as a whole word (avoids "automobile"→mobile, "facebook"→book). */

@@ -165,6 +165,8 @@ export type CategoryListItem = {
   name?: string;
   /** Admin/API built-in key from Policy Management (`CATEGORY_ICON_KEYS`). */
   icon_key?: string;
+  /** Optional custom uploaded icon (category.image). */
+  image?: string;
 };
 
 export type CategoryListPayload = {
@@ -212,6 +214,23 @@ export function mapBackendCategoryIconKeys(
   return map;
 }
 
+/** name → custom image URL for categories that have an uploaded icon. */
+export function mapBackendCategoryIconImages(
+  payload: CategoryListPayload | CategoryListItem[] | null | undefined,
+): Readonly<Record<string, string>> {
+  const map: Record<string, string> = {};
+
+  for (const item of normalizeCategoryListItems(payload)) {
+    const name = item.name?.trim();
+    const image = item.image?.trim();
+    if (name && image) {
+      map[name] = image;
+    }
+  }
+
+  return map;
+}
+
 export function resolveCategoryList(
   source: AccountDataSource,
   data: unknown,
@@ -234,6 +253,22 @@ export function resolveCategoryIconKeys(
   if (source === "backend" && data != null && typeof data === "object") {
     if (Array.isArray(data) || "data" in data) {
       return mapBackendCategoryIconKeys(data as CategoryListPayload | CategoryListItem[]);
+    }
+  }
+
+  return fallback;
+}
+
+export function resolveCategoryIconImages(
+  source: AccountDataSource,
+  data: unknown,
+  fallback: Readonly<Record<string, string>> = {},
+): Readonly<Record<string, string>> {
+  if (source === "backend" && data != null && typeof data === "object") {
+    if (Array.isArray(data) || "data" in data) {
+      return mapBackendCategoryIconImages(
+        data as CategoryListPayload | CategoryListItem[],
+      );
     }
   }
 

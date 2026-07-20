@@ -13,36 +13,11 @@ const categoryIconsSource = readFileSync(
 );
 
 describe("categoryIcons > icon_key parity with admin Policy Management", () => {
-  it("exports the expanded 18-key admin/API allow-list", () => {
-    for (const key of [
-      "shopping",
-      "travel",
-      "food",
-      "finance",
-      "entertainment",
-      "electronics",
-      "fashion",
-      "beauty",
-      "health",
-      "home",
-      "education",
-      "gift",
-      "sports",
-      "pets",
-      "baby",
-      "auto",
-      "services",
-      "default",
-    ]) {
-      expect(categoryIconsSource).toContain(`"${key}"`);
-    }
-
-    const keysBlock = categoryIconsSource.match(
-      /export const CATEGORY_ICON_KEYS = \[([\s\S]*?)\] as const/,
-    )?.[1];
-    expect(keysBlock).toBeTruthy();
-    const keyCount = (keysBlock?.match(/"/g) ?? []).length / 2;
-    expect(keyCount).toBe(18);
+  it("re-exports the contracts allow-list", () => {
+    expect(categoryIconsSource).toContain('from "@gogocash/contracts"');
+    expect(categoryIconsSource).toContain(
+      'export { CATEGORY_ICON_KEYS, type CategoryIconKey } from "@gogocash/contracts"',
+    );
   });
 
   it("maps every allow-listed key in categoryIconsByKey with distinct glyphs", () => {
