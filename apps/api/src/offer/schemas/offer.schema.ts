@@ -176,6 +176,14 @@ export class Offer {
   product_type: { [key: string]: string }[];
 
   /**
+   * When true, admin treats this offer as covering all product lines (single
+   * commission). When false, `product_type` rows are the source of truth for
+   * the Cashback Management table. Optional for legacy documents.
+   */
+  @Prop({ required: false })
+  all_product_types?: boolean;
+
+  /**
    * Affiliate network of origin. `'involve'` default keeps every pre-existing
    * document valid without a backfill migration.
    */

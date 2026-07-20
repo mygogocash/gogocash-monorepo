@@ -140,13 +140,13 @@ export function ExecutiveSummary({
       href: "/users/mycashback",
     },
     {
+      // Live/scheduled/ended are derived from campaign schedules and are always
+      // known, so this card is never "Unavailable". Deeper quest engagement /
+      // attribution analytics remain gated separately (see the quest analytics
+      // section, which keys off availability.quests).
       label: "Quests live",
-      sublabel: insights.availability.quests.available
-        ? `${insights.quests.overlappingSelectedRange} in window · ${insights.quests.engagement.pointsIssuedInOverlapping.toLocaleString()} pts`
-        : insights.availability.quests.reason,
-      value: insights.availability.quests.available
-        ? String(insights.quests.liveNow)
-        : "Unavailable",
+      sublabel: `${insights.quests.scheduled} scheduled · ${insights.quests.ended} ended`,
+      value: String(insights.quests.liveNow),
       icon: (
         <TrophyIcon className="size-6 text-amber-600 dark:text-amber-400" />
       ),

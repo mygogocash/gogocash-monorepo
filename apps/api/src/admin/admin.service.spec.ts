@@ -471,6 +471,59 @@ describe('AdminService', () => {
     });
   });
 
+  describe('getWithdrawAll', () => {
+    // The admin withdraw table's Status/Method dropdowns must actually filter
+    // the result set. Before #25 these params were dropped and every status
+    // returned the full list, so the filter looked broken.
+    it('getWithdrawAll > given status and method > then it filters the query by both (exact match)', async () => {
+      const findQuery = makeQuery([]);
+      withdrawModel.find.mockReturnValue(findQuery);
+      withdrawModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.getWithdrawAll(
+        1,
+        10,
+        undefined,
+        'approved',
+        'bank_transfer',
+      );
+
+      expect(withdrawModel.find).toHaveBeenCalledWith({
+        status: 'approved',
+        method: 'bank_transfer',
+      });
+    });
+
+    // A status filter and a free-text search should intersect (AND), not
+    // replace each other — status pins the bucket, search narrows within it.
+    it('getWithdrawAll > given a status filter plus a search term > then both narrow the query', async () => {
+      const findQuery = makeQuery([]);
+      withdrawModel.find.mockReturnValue(findQuery);
+      withdrawModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.getWithdrawAll(1, 10, 'abc', 'pending');
+
+      expect(withdrawModel.find).toHaveBeenCalledWith({
+        status: 'pending',
+        $or: [
+          { method: { $regex: 'abc', $options: 'i' } },
+          { status: { $regex: 'abc', $options: 'i' } },
+          { address: { $regex: 'abc', $options: 'i' } },
+        ],
+      });
+    });
+
+    it('getWithdrawAll > given no filters > then it queries with an empty filter', async () => {
+      const findQuery = makeQuery([]);
+      withdrawModel.find.mockReturnValue(findQuery);
+      withdrawModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.getWithdrawAll();
+
+      expect(withdrawModel.find).toHaveBeenCalledWith({});
+    });
+  });
+
   describe('updateRequestWithdraw', () => {
     const bankWithdraw = (overrides: Record<string, unknown> = {}) => ({
       _id: new Types.ObjectId(),
@@ -1912,6 +1965,50 @@ describe('AdminService', () => {
 
       const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
       expect(persisted.product_type).toEqual([{ name: 'game', minimum: '1' }]);
+    });
+
+    // #428 / #429 — cashback PATCH must persist plural product-type rows + flag
+    // without wiping them on unrelated partial updates.
+    it('updateOffer > given product_type rows and all_product_types > then both persist', async () => {
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      const rows = [
+        {
+          name: 'Fashion',
+          pay_in: 'cashback',
+          commission_info: '5.6',
+        },
+      ];
+      await service.updateOffer(offerId, {
+        product_type: rows as never,
+        all_product_types: false,
+        commission_store: 5.6,
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.product_type).toEqual(rows);
+      expect(persisted.all_product_types).toBe(false);
+      expect(persisted.commission_store).toBe(5.6);
+    });
+
+    it('updateOffer > given no product_type field > then existing product_type is not wiped', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          product_type: [{ name: 'Keep me' }],
+          commission_store: 4,
+        }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        offer_name_display: 'Renamed',
+      } as never);
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.product_type).toBeUndefined();
+      expect(persisted.offer_name_display).toBe('Renamed');
     });
 
     it('updateOffer > given a tracking_link > then it persists the customer redirect link', async () => {

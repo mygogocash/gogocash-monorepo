@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
 import { InvolveModule } from 'src/involve/involve.module';
+import { OptimiseModule } from 'src/optimise/optimise.module';
+import { OptimiseAffiliateProvider } from 'src/optimise/optimise.provider';
+import { AccesstradeModule } from 'src/accesstrade/accesstrade.module';
+import { AccesstradeAffiliateProvider } from 'src/accesstrade/accesstrade.provider';
 import { AFFILIATE_PROVIDERS } from './affiliate-provider.interface';
 import { AffiliateProviderRegistry } from './affiliate-provider.registry';
 import { InvolveAffiliateProvider } from './involve.provider';
@@ -17,13 +21,23 @@ import { InvolveAffiliateProvider } from './involve.provider';
  * network adapter.
  */
 @Module({
-  imports: [InvolveModule],
+  imports: [InvolveModule, OptimiseModule, AccesstradeModule],
   providers: [
     InvolveAffiliateProvider,
+    OptimiseAffiliateProvider,
+    AccesstradeAffiliateProvider,
     {
       provide: AFFILIATE_PROVIDERS,
-      useFactory: (involve: InvolveAffiliateProvider) => [involve],
-      inject: [InvolveAffiliateProvider],
+      useFactory: (
+        involve: InvolveAffiliateProvider,
+        optimise: OptimiseAffiliateProvider,
+        accesstrade: AccesstradeAffiliateProvider,
+      ) => [involve, optimise, accesstrade],
+      inject: [
+        InvolveAffiliateProvider,
+        OptimiseAffiliateProvider,
+        AccesstradeAffiliateProvider,
+      ],
     },
     AffiliateProviderRegistry,
   ],

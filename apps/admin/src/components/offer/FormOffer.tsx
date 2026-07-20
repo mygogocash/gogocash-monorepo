@@ -1358,7 +1358,12 @@ const FormOffer = ({
       toast.success("Cashback updated successfully");
     } catch (err) {
       devError("Failed to update cashback:", err);
-      setCashbackSaveError("Could not update cashback. Please try again.");
+      setCashbackSaveError(
+        getApiErrorMessage(
+          err,
+          "Could not update cashback. Please try again.",
+        ),
+      );
     } finally {
       setSavingCashback(false);
     }
@@ -3707,14 +3712,14 @@ const FormOffer = ({
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {editingMedia
-              ? "Upload one square logo and one wide banner. Each asset is reused on desktop, mobile, and legacy surfaces."
+              ? "Upload a square logo for product/brand cards and a wide banner for the brand page hero."
               : "Current images. Click Edit to replace them."}
           </p>
 
           <div>
             <FieldLabel
               label="Logo"
-              description="Square (1:1) logo — used on both desktop and mobile."
+              description="Square (1:1) — shown on product/brand cards across the app."
             />
             <div className="flex flex-wrap items-start gap-4">
               {editingMedia && (
@@ -3751,7 +3756,7 @@ const FormOffer = ({
           <div>
             <FieldLabel
               label="Banner"
-              description="Hero / banner image — used on both desktop and mobile."
+              description="Wide hero — shown as the banner on the brand/shop detail page."
             />
             <div className="flex flex-wrap items-start gap-4">
               {editingMedia && (

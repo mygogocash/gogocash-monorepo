@@ -23,6 +23,53 @@ describe("offerToEditForm", () => {
     expect(form.extra_store).toBe(true);
   });
 
+  // #428 — real API stores rows on singular `product_type`.
+  it("seeds product_types from API product_type when plural key is absent", () => {
+    const form = offerToEditForm({
+      _id: "offer-pt",
+      offer_name: "Partner",
+      product_type: [
+        {
+          name: "Fashion",
+          pay_in: "cashback",
+          commission_info: "5.6",
+        },
+      ],
+      all_product_types: false,
+    } as unknown as Offer);
+
+    expect(form.all_product_types).toBe(false);
+    expect(form.product_types).toEqual([
+      expect.objectContaining({
+        name: "Fashion",
+        commission_info: "5.6",
+      }),
+    ]);
+  });
+
+  it("infers all_product_types=false from legacy product_type rows when flag is absent", () => {
+    const form = offerToEditForm({
+      _id: "offer-legacy-rows",
+      offer_name: "Partner",
+      product_type: [
+        { name: "Fashion", pay_in: "cashback", commission_info: "4" },
+      ],
+    } as unknown as Offer);
+
+    expect(form.all_product_types).toBe(false);
+    expect(form.product_types).toHaveLength(1);
+  });
+
+  it("defaults all_product_types=true when neither flag nor rows exist", () => {
+    const form = offerToEditForm({
+      _id: "offer-empty",
+      offer_name: "Partner",
+    } as unknown as Offer);
+
+    expect(form.all_product_types).toBe(true);
+    expect(form.product_types).toEqual([]);
+  });
+
   it("seeds tracking period from the offer, defaulting to auto with null days", () => {
     const manual = offerToEditForm({
       _id: "offer-1",

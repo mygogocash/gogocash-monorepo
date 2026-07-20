@@ -132,8 +132,6 @@ describe('FirebaseAuthGuard (Firebase ID token path)', () => {
     const { context } = contextFor(`uid-mismatch-${Date.now()}`);
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('uid mismatch'),
-    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('uid mismatch'));
   });
 });

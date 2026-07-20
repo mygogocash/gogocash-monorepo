@@ -58,6 +58,9 @@ export class UserAdminService {
     };
     const token = this.jwtService.sign(payload, {
       secret: process.env.JWT_ADMIN_SECRET,
+      // "Keep me logged in" extends the token to 30 days; otherwise the 7-day
+      // default (this overrides the JwtModule signOptions default explicitly).
+      expiresIn: createUserAdminDto.rememberMe ? '30d' : '7d',
     });
     return {
       ...this.withoutPassword(user),

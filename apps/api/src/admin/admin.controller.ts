@@ -17,10 +17,7 @@ import {
   ValidationPipe,
   Res,
 } from '@nestjs/common';
-import {
-  MAX_TRACKING_PERIOD_DAYS,
-  MIN_TRACKING_PERIOD_DAYS,
-} from 'src/offer/tracking-period.util';
+import { coerceOptionalDayCount } from 'src/offer/tracking-period.util';
 import { Request, Response } from 'express';
 import { coerceOptionalPolicyCategoryId } from './policy-category-id';
 import { AdminService } from './admin.service';
@@ -56,6 +53,7 @@ import {
 } from './dto/admin-auth.dto';
 import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { parseOfferDisplayTagsField } from 'src/offer/offer-display-tags.util';
+import { resolveProductTypeUpdate } from 'src/offer/product-type.util';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
@@ -96,34 +94,6 @@ function coerceOptionalNumber(value: unknown): number | undefined {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
-}
-
-/**
- * Tracking-period day counts: absent stays undefined (partial saves must not
- * touch the field), but a present-and-invalid value REJECTS rather than being
- * silently dropped — an admin who typed a number must not see it vanish.
- */
-function coerceOptionalDayCount(
-  value: unknown,
-  label: string,
-): number | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (typeof value === 'string') {
-    const normalized = value.trim();
-    if (!normalized || normalized === 'undefined') return undefined;
-    value = Number(normalized);
-  }
-  if (
-    typeof value !== 'number' ||
-    !Number.isInteger(value) ||
-    value < MIN_TRACKING_PERIOD_DAYS ||
-    value > MAX_TRACKING_PERIOD_DAYS
-  ) {
-    throw new BadRequestException(
-      `Invalid ${label}: expected a whole number of days between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS}`,
-    );
-  }
-  return value;
 }
 
 /**
@@ -461,9 +431,17 @@ export class AdminController {
     @Query('limit') limit?: number,
     @Query('page') page?: number,
     @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('method') method?: string,
   ) {
     // return this.adminService.findAll(page, limit, search);
-    return this.adminService.getWithdrawAll(page, limit, search);
+    return this.adminService.getWithdrawAll(
+      page,
+      limit,
+      search,
+      status,
+      method,
+    );
   }
 
   @UseGuards(AuthAdminGuard)
@@ -628,7 +606,13 @@ export class AdminController {
         updateAdminDto.tracking_link.toString() !== 'undefined'
           ? updateAdminDto.tracking_link
           : undefined,
-      product_type: updateAdminDto.product_type,
+      product_type: resolveProductTypeUpdate({
+        product_types: updateAdminDto.product_types,
+        product_type: updateAdminDto.product_type,
+      }),
+      all_product_types: coerceOptionalBoolean(
+        updateAdminDto.all_product_types,
+      ),
       tracking_period_mode: updateAdminDto.tracking_period_mode,
       tracking_days: coerceOptionalDayCount(
         updateAdminDto.tracking_days,

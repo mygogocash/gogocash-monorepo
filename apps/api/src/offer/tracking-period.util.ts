@@ -15,11 +15,46 @@
  * to the defaults.
  */
 
+import { BadRequestException } from '@nestjs/common';
+
 export const DEFAULT_TRACKING_DAYS = 30;
 export const DEFAULT_CONFIRM_DAYS = 30;
 
 export const MIN_TRACKING_PERIOD_DAYS = 1;
 export const MAX_TRACKING_PERIOD_DAYS = 365;
+
+/**
+ * Admin-supplied day count from a write path (create or update). Absent/blank
+ * means "not supplied" -> undefined, so the schema default applies. Anything
+ * supplied but outside [1, 365] or non-integer is a 400: an admin who typed a
+ * number must never be told the save succeeded while their value was quietly
+ * swapped for a default.
+ *
+ * Shared by the admin update controller and admin offer creation so the two
+ * write paths cannot drift apart on what counts as a valid window.
+ */
+export function coerceOptionalDayCount(
+  value: unknown,
+  label: string,
+): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    if (!normalized || normalized === 'undefined') return undefined;
+    value = Number(normalized);
+  }
+  if (
+    typeof value !== 'number' ||
+    !Number.isInteger(value) ||
+    value < MIN_TRACKING_PERIOD_DAYS ||
+    value > MAX_TRACKING_PERIOD_DAYS
+  ) {
+    throw new BadRequestException(
+      `Invalid ${label}: expected a whole number of days between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS}`,
+    );
+  }
+  return value;
+}
 
 /**
  * Flow shape of the customer strip: 'three_step' renders Purchase → Tracking →

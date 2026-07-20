@@ -5,6 +5,7 @@ import { User } from 'src/user/schemas/user.schema';
 import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { Withdraw } from 'src/withdraw/schemas/withdraw.schema';
+import { Quest } from 'src/point/schemas/quest.schema';
 
 type DashboardBucket = {
   count: number;
@@ -362,6 +363,65 @@ function emptyQuestMetrics() {
   };
 }
 
+type QuestCountFacet = {
+  total?: { n?: number }[];
+  live?: { n?: number }[];
+  scheduled?: { n?: number }[];
+  ended?: { n?: number }[];
+  overlapping?: { n?: number }[];
+};
+
+type QuestScheduleCounts = {
+  totalQuests: number;
+  liveNow: number;
+  scheduled: number;
+  ended: number;
+  overlappingSelectedRange: number;
+};
+
+/**
+ * Build the aggregation that counts quest campaigns by lifecycle. Live/
+ * scheduled/ended mirror the admin's `deriveQuestStatus`, which keys purely
+ * off the start/end window (start <= now <= end === live). "overlapping"
+ * counts campaigns whose window intersects the selected KPI range.
+ */
+export function buildQuestCountsPipeline(now: Date, from: Date, to: Date) {
+  const bucket = (match: Record<string, unknown>) => [
+    { $match: match },
+    { $count: 'n' },
+  ];
+  return [
+    {
+      $facet: {
+        total: [{ $count: 'n' }],
+        live: bucket({ start_date: { $lte: now }, end_date: { $gte: now } }),
+        scheduled: bucket({ start_date: { $gt: now } }),
+        ended: bucket({ end_date: { $lt: now } }),
+        overlapping: bucket({
+          start_date: { $lte: to },
+          end_date: { $gte: from },
+        }),
+      },
+    },
+  ];
+}
+
+/** Reduce a {@link buildQuestCountsPipeline} result into flat counts. */
+export function questCountsFromFacet(
+  facet: QuestCountFacet[] | undefined,
+): QuestScheduleCounts {
+  const first = facet?.[0] ?? {};
+  const read = (bucket?: { n?: number }[]): number =>
+    finiteNumber(bucket?.[0]?.n);
+  return {
+    totalQuests: read(first.total),
+    liveNow: read(first.live),
+    scheduled: read(first.scheduled),
+    ended: read(first.ended),
+    overlappingSelectedRange: read(first.overlapping),
+  };
+}
+
 type NormalizedStatisticsRow = {
   date: string;
   conversions: number;
@@ -483,6 +543,8 @@ export class DashboardService {
     private readonly conversionModel: Model<Conversion>,
     @InjectModel(Withdraw.name)
     private readonly withdrawModel: Model<Withdraw>,
+    @InjectModel(Quest.name)
+    private readonly questModel: Model<Quest>,
   ) {}
 
   async getStats() {
@@ -536,6 +598,7 @@ export class DashboardService {
       conversionRows,
       withdrawRows,
       pendingOver48hCount,
+      questFacet,
     ] = await Promise.all([
       this.userModel.countDocuments(currentUserFilter),
       this.myCashbackModel.countDocuments(currentUserFilter),
@@ -688,6 +751,9 @@ export class DashboardService {
         status: 'pending',
         createdAt: { $lt: new Date(now.getTime() - 48 * 60 * 60 * 1000) },
       }),
+      this.questModel.aggregate(
+        buildQuestCountsPipeline(now, window.current.from, window.current.to),
+      ),
     ]);
 
     const facets = (conversionRows[0] ?? {}) as RawConversionFacets;
@@ -846,7 +912,13 @@ export class DashboardService {
         facets.timeSeries ?? [],
         window.range,
       ),
-      quests: emptyQuestMetrics(),
+      // Live/scheduled/ended/overlap counts are real (derived from campaign
+      // schedules). Engagement/attribution/funnel stay zero and availability.
+      // quests stays unavailable until those analytics are actually wired.
+      quests: {
+        ...emptyQuestMetrics(),
+        ...questCountsFromFacet(questFacet as never),
+      },
     };
   }
 

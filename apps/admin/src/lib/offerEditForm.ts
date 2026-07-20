@@ -11,6 +11,25 @@ import {
   DEFAULT_TRACKING_SUBTITLE,
 } from "@/lib/offerTrackingPeriod";
 
+/**
+ * Resolve the Cashback Management "all products" toggle for edit seeding.
+ * When the API omits the flag (legacy docs), infer from whether product-type
+ * rows already exist — otherwise the first save stamps `true` and hides them.
+ */
+export function resolveAllProductTypesFlag(offer: {
+  all_product_types?: boolean;
+  product_types?: unknown;
+  product_type?: unknown;
+}): boolean {
+  if (typeof offer.all_product_types === "boolean") {
+    return offer.all_product_types;
+  }
+  const rows = normalizeOfferProductTypes(
+    offer.product_types ?? offer.product_type,
+  );
+  return rows.length === 0;
+}
+
 export function emptyOfferRequestForm(): OfferRequestForm {
   return {
     logo_desktop: null,
@@ -75,8 +94,14 @@ export function offerToEditForm(offer: Offer): OfferRequestForm {
     upsize_special_commission: offer.upsize_special_commission ?? null,
     upsize_max_cap: offer.upsize_max_cap ?? null,
     upsize_product_types: normalizeOfferProductTypes(offer.upsize_product_types),
-    product_types: normalizeOfferProductTypes(offer.product_types),
-    all_product_types: offer.all_product_types ?? true,
+    // Real API persists rows on singular `product_type`; mock/admin UI use
+    // plural `product_types`. Prefer plural when both are present.
+    product_types: normalizeOfferProductTypes(
+      offer.product_types ?? offer.product_type,
+    ),
+    // Legacy docs lack `all_product_types`. Infer from rows so the first
+    // cashback save does not stamp `true` and hide an existing product table.
+    all_product_types: resolveAllProductTypesFlag(offer),
     admin_commission_info: offer.admin_commission_info ?? [],
     policy_category_id: offer.policy_category_id ?? "",
     custom_terms: offer.custom_terms ?? "",

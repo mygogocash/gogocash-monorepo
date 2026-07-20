@@ -239,37 +239,38 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("ShopRedirectOverlay");
   });
 
-  it("shop detail parity > given an unsigned user taps favorite > then login redirect is required", () => {
+  // #432 — Favorite is hidden (not login-gated) when the user is logged out.
+  it("shop detail parity > given an unsigned user > then favorite is hidden until auth", () => {
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 
     expect(shopFile).toContain("handleToggleFavorite");
-    expect(shopFile).toMatch(
+    expect(shopFile).toContain("const showFavorite = authReady && isAuthed");
+    expect(shopFile).toContain("{showFavorite ? favoriteButton : null}");
+    expect(shopFile).toContain("onPress={handleToggleFavorite}");
+    // Must not redirect unsigned users into login from the favorite control.
+    expect(shopFile).not.toMatch(
       /handleToggleFavorite[\s\S]*?buildLoginRedirectWithCallback/,
     );
-    expect(shopFile).toContain("onPress={handleToggleFavorite}");
   });
 
-  it("shop detail parity > given shop media URI changes > then logo and banner failure state resets", () => {
+  it("shop detail parity > given shop media URI changes > then banner failure state resets", () => {
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 
     expect(shopFile).toMatch(
       /setBannerFailed\(false\)[\s\S]*?\[shop\.bannerUri\]/,
     );
-    expect(shopFile).toMatch(/setLogoFailed\(false\)[\s\S]*?\[shop\.logoUri\]/);
+    // #427 — summary CTA no longer renders a logo chip, so no logo failure state.
+    expect(shopFile).not.toContain("setLogoFailed");
   });
 
-  it("shop detail parity > given hero summary card > then mobile lays identity and actions on one row", () => {
-    // Design feedback 2026-07-10: the stacked mobile layout (identity row, then
-    // a right-aligned actions row) left a dead zone bottom-left for short brand
-    // names like "Shopee". Mobile now renders one row: name (flex) → heart →
-    // Shop Now. The logo circle is DESKTOP-only — on mobile the banner above
-    // already carries the brand, so the pill drops the redundant logo and the
-    // name keeps the room.
+  it("shop detail parity > given hero summary card > then name-only identity with actions on one row", () => {
+    // #427 — remove the 1:1 logo chip before the brand name on shop detail.
+    // Banner already represents the brand; cards keep using the square logo.
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 
     expect(shopFile).toContain('testID="shop-detail-brand-name"');
-    expect(shopFile).toContain('testID="shop-detail-brand-logo"');
-    expect((shopFile.match(/\{brandLogo\}/g) ?? []).length).toBe(1);
+    expect(shopFile).not.toContain('testID="shop-detail-brand-logo"');
+    expect(shopFile).not.toContain("{brandLogo}");
     expect(shopFile).toContain("styles.summaryTitleMobile");
     expect(shopFile).toContain("styles.summaryMobileRow");
     expect(shopFile).not.toContain("styles.summaryActionsRow");
@@ -279,6 +280,24 @@ describe("Shop detail parity", () => {
     expect(shopFile).toMatch(/summaryTitleWrap:[\s\S]*?minWidth: 0/);
     expect(shopFile).toMatch(/favoriteButton:[\s\S]*?flexShrink: 0/);
     expect(shopFile).toMatch(/shopNowButton:[\s\S]*?flexShrink: 0/);
+  });
+
+  // #426 — left rail is legal/policy; right panel keeps Cashback Tips.
+  it("shop detail parity > given policy terms card > then it is not labeled Cashback Tips and bullets are muted", () => {
+    expect(webShopDetailGroceryGalaxy.terms.title).toBe("Terms & Conditions");
+    expect(webShopDetailGroceryGalaxy.terms.subtitle).toBe(
+      "Rules and exclusions",
+    );
+    expect(webShopDetailGroceryGalaxy.terms.title).not.toBe(
+      webShopDetailGroceryGalaxy.cashbackTips.title,
+    );
+
+    const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+    expect(shopFile).toContain('testID="shop-detail-terms-panel"');
+    expect(shopFile).toMatch(/termBulletDot:[\s\S]*?color: colors\.muted/);
+    expect(shopFile).not.toMatch(
+      /termBulletDot:[\s\S]*?color: colors\.primaryDark/,
+    );
   });
 
   it("shop detail parity > given rate breakdown rows > then they read as quiet secondary info", () => {

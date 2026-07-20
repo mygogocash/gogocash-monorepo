@@ -10,8 +10,21 @@ export default registerAs('env', () => ({
   OPTIMISE_API_KEY: process.env.OPTIMISE_API_KEY,
   OPTIMISE_CONTACT_ID: process.env.OPTIMISE_CONTACT_ID || '2442123',
   OPTIMISE_AGENCY_ID: process.env.OPTIMISE_AGENCY_ID,
+  // Public API host — the `/v1` segment is part of the base. The old default
+  // (`https://api.optimisemedia.com`) is an NXDOMAIN and was never reachable;
+  // the real gateway is `public.api.optimisemedia.com/v1` (verified live).
   OPTIMISE_API_BASE:
-    process.env.OPTIMISE_API_BASE || 'https://api.optimisemedia.com',
+    process.env.OPTIMISE_API_BASE || 'https://public.api.optimisemedia.com/v1',
+  /**
+   * Accesstrade Global affiliate network. Auth is a two-stage provisioning ->
+   * HS256 JWT flow keyed off the publisher username+password (NOT a single API
+   * key); the region host + site id are required on nearly every call.
+   */
+  ACCESSTRADE_USERNAME: process.env.ACCESSTRADE_USERNAME,
+  ACCESSTRADE_PASSWORD: process.env.ACCESSTRADE_PASSWORD,
+  ACCESSTRADE_SITE_ID: process.env.ACCESSTRADE_SITE_ID,
+  ACCESSTRADE_API_BASE:
+    process.env.ACCESSTRADE_API_BASE || 'https://gurkha.accesstrade.in.th',
   // Email (Resend) — RESEND_API_KEY loaded from Google Secret Manager in
   // prod/staging. MAIL_FROM must be an address on a Resend-verified domain.
   RESEND_API_KEY: process.env.RESEND_API_KEY,

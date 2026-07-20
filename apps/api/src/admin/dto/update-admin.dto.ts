@@ -307,7 +307,28 @@ export class UpdateOfferAdminDto {
 
   @ApiProperty({ type: [ProductTypeDto] })
   @IsOptional()
-  product_type: ProductTypeDto[];
+  product_type?: ProductTypeDto[] | string;
+
+  /**
+   * Admin Cashback Management sends product-type rows under this plural key
+   * (JSON string via multipart FormData). Alias of `product_type`.
+   */
+  @ApiProperty({
+    required: false,
+    description:
+      'JSON string of product-type rows (multipart FormData). Alias of product_type.',
+  })
+  @IsString()
+  @IsOptional()
+  product_types?: string;
+
+  /**
+   * When true, the offer uses a single all-products cashback rate; when false,
+   * per-row product types drive the table (and usually the headline rate).
+   */
+  @ApiProperty({ required: false })
+  @IsOptional()
+  all_product_types?: boolean | string;
 
   @ApiProperty({ required: false, enum: ['auto', 'manual'] })
   @IsIn(['auto', 'manual'])
