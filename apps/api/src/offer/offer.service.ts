@@ -66,6 +66,7 @@ import {
   resolveDeviceBrandEntries,
   resolveOfferCashbackLabel,
 } from './top-brand.contract';
+import { syncOfferTopBrandMembership } from './top-brand-membership';
 import { MISSION_ORDER_SCHEMA_VERSION } from './schemas/missing-order.schema';
 import {
   buildMissionOrderCustomerSnapshot,
@@ -159,6 +160,15 @@ const PUBLIC_OFFER_DETAIL_FIELDS = [
   'extra_store',
   'extra_point',
   'product_type',
+  'all_product_types',
+  'upsize_start_date',
+  'upsize_end_date',
+  'upsize_start_time',
+  'upsize_end_time',
+  'upsize_special_commission',
+  'upsize_max_cap',
+  'upsize_all_product_types',
+  'upsize_product_types',
   'source',
   'brand_id',
   'is_global',
@@ -1011,8 +1021,9 @@ export class OfferService implements OnApplicationBootstrap {
       MAX_NOTE_TO_USER_LENGTH,
     );
     const trackingPeriodFields = parseTrackingPeriodCreateFields(body);
+    const wantsTopBrand = parseBoolean(body.extra_store, false);
 
-    return this.categoryIntegrity.withNormalWrite({
+    const created = await this.categoryIntegrity.withNormalWrite({
       legacy: async () => {
         const upload = async (
           label: string,
@@ -1323,6 +1334,27 @@ export class OfferService implements OnApplicationBootstrap {
         });
       },
     });
+
+    // #475 — create with Top Brand on also upserts the curated list.
+    const createdId = String(
+      (created as { _id?: unknown } | null | undefined)?._id ?? '',
+    );
+    if (createdId && wantsTopBrand) {
+      try {
+        await syncOfferTopBrandMembership(
+          this.topBrandConfigModel,
+          createdId,
+          true,
+        );
+      } catch (error) {
+        // Keep Brand Info toggle aligned when the curated list is full.
+        await this.offerModel
+          .findByIdAndUpdate(createdId, { $set: { extra_store: false } })
+          .exec();
+        throw error;
+      }
+    }
+    return created;
   }
 
   async getCategoryList(search: string) {
@@ -1796,7 +1828,12 @@ export class OfferService implements OnApplicationBootstrap {
     const providerOfferId = Number(offerRow.offer_id);
     const offerName =
       offerRow.offer_name_display?.trim() || offerRow.offer_name?.trim() || '';
-    if (!offerSource || !Number.isFinite(providerOfferId) || !offerName) {
+    if (!offerName) {
+      throw new BadRequestException(
+        'The selected brand is missing a display name. Choose another brand.',
+      );
+    }
+    if (!offerSource || !Number.isFinite(providerOfferId)) {
       throw new ServiceUnavailableException(
         'The selected offer is missing canonical provider details.',
       );

@@ -63,6 +63,11 @@ import {
   resolveDeviceBrandEntries,
   resolveOfferCashbackLabel,
 } from 'src/offer/top-brand.contract';
+import {
+  mirrorTopBrandExtraStoreFlags,
+  syncOfferTopBrandMembership,
+  topBrandMemberIds,
+} from 'src/offer/top-brand-membership';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
@@ -106,6 +111,18 @@ type AdminOfferUpdateData = {
   /** Present only when the admin PATCH included product_type(s). */
   product_type?: ProductTypeDto[] | Array<Record<string, unknown>> | string;
   all_product_types?: boolean;
+  upsize_start_date?: string | null;
+  upsize_end_date?: string | null;
+  upsize_start_time?: string | null;
+  upsize_end_time?: string | null;
+  upsize_special_commission?: number | null;
+  upsize_max_cap?: number | null;
+  upsize_all_product_types?: boolean;
+  /** Present only when the admin PATCH included upsize_product_types. */
+  upsize_product_types?:
+    | ProductTypeDto[]
+    | Array<Record<string, unknown>>
+    | string;
   tracking_period_mode?: 'auto' | 'manual';
   tracking_days?: number;
   confirm_days?: number;
@@ -119,12 +136,50 @@ type AdminOfferUpdateData = {
 
 /** Persist product_type rows; string input is validated (400 on bad JSON). */
 function coerceProductTypeForPersist(
-  value: AdminOfferUpdateData['product_type'],
+  value:
+    | AdminOfferUpdateData['product_type']
+    | AdminOfferUpdateData['upsize_product_types'],
 ): Array<Record<string, unknown>> | ProductTypeDto[] {
   if (typeof value === 'string') {
     return requireProductTypeRowsField(value, 'product_type') ?? [];
   }
   return (value ?? []) as Array<Record<string, unknown>> | ProductTypeDto[];
+}
+
+/** Partial $set fragment for upsize fields (absent key = leave unchanged). */
+function upsizePersistPatch(
+  updateData: AdminOfferUpdateData,
+): Record<string, unknown> {
+  return {
+    ...(updateData.upsize_start_date !== undefined
+      ? { upsize_start_date: updateData.upsize_start_date }
+      : {}),
+    ...(updateData.upsize_end_date !== undefined
+      ? { upsize_end_date: updateData.upsize_end_date }
+      : {}),
+    ...(updateData.upsize_start_time !== undefined
+      ? { upsize_start_time: updateData.upsize_start_time }
+      : {}),
+    ...(updateData.upsize_end_time !== undefined
+      ? { upsize_end_time: updateData.upsize_end_time }
+      : {}),
+    ...(updateData.upsize_special_commission !== undefined
+      ? { upsize_special_commission: updateData.upsize_special_commission }
+      : {}),
+    ...(updateData.upsize_max_cap !== undefined
+      ? { upsize_max_cap: updateData.upsize_max_cap }
+      : {}),
+    ...(updateData.upsize_all_product_types !== undefined
+      ? { upsize_all_product_types: updateData.upsize_all_product_types }
+      : {}),
+    ...(updateData.upsize_product_types !== undefined
+      ? {
+          upsize_product_types: coerceProductTypeForPersist(
+            updateData.upsize_product_types,
+          ),
+        }
+      : {}),
+  };
 }
 
 type AdminCategoryUpdateData = {
@@ -1023,10 +1078,19 @@ export class AdminService {
   }
 
   async updateOffer(id: string, updateData: AdminOfferUpdateData) {
-    return this.categoryIntegrity.withNormalWrite({
+    // #475 — enable Top Brand only after curated list accepts the offer
+    // (throws at max capacity before we persist a divergent extra_store flag).
+    if (updateData.extra_store === true) {
+      await syncOfferTopBrandMembership(this.topBrandConfigModel, id, true);
+    }
+    const updated = await this.categoryIntegrity.withNormalWrite({
       legacy: () => this.updateOfferLegacy(id, updateData),
       enforced: () => this.updateOfferWithIntegrity(id, updateData),
     });
+    if (updateData.extra_store === false) {
+      await syncOfferTopBrandMembership(this.topBrandConfigModel, id, false);
+    }
+    return updated;
   }
 
   private async updateOfferLegacy(
@@ -1100,6 +1164,7 @@ export class AdminService {
           ...(updateData.all_product_types !== undefined
             ? { all_product_types: updateData.all_product_types }
             : {}),
+          ...upsizePersistPatch(updateData),
           ...(updateData.tracking_period_mode !== undefined
             ? { tracking_period_mode: updateData.tracking_period_mode }
             : {}),
@@ -1200,6 +1265,7 @@ export class AdminService {
         ...(updateData.all_product_types !== undefined
           ? { all_product_types: updateData.all_product_types }
           : {}),
+        ...upsizePersistPatch(updateData),
         ...(updateData.tracking_period_mode !== undefined
           ? { tracking_period_mode: updateData.tracking_period_mode }
           : {}),
@@ -2206,6 +2272,10 @@ export class AdminService {
         },
         { upsert: true },
       );
+      await mirrorTopBrandExtraStoreFlags(
+        this.offerModel,
+        topBrandMemberIds(brandsDesktop, brandsMobile),
+      );
       return {
         success: true,
         brands: brandsDesktop,
@@ -2231,6 +2301,10 @@ export class AdminService {
         },
       },
       { upsert: true },
+    );
+    await mirrorTopBrandExtraStoreFlags(
+      this.offerModel,
+      topBrandMemberIds(normalizedBrands, normalizedBrands),
     );
     return {
       success: true,

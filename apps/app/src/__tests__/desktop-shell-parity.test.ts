@@ -298,6 +298,12 @@ describe("desktop route shell parity", () => {
     expect(header).toContain("hideSearch ? null : (");
   });
 
+  it("desktop brand chrome > given /brand routes > then hides the global header search (#463)", () => {
+    const chrome = readMobileFile("src/components/CustomerDesktopRouteChrome.tsx");
+    expect(chrome).toContain('normalizedPathname === "/brand"');
+    expect(chrome).toContain('normalizedPathname.startsWith("/brand/")');
+  });
+
   it("desktop brand logo > given navbar and footer brand links > then both use the shared navbar logo treatment", () => {
     const header = readMobileFile("src/components/CustomerDesktopHeader.tsx");
     const footer = readMobileFile("src/components/CustomerDesktopFooter.tsx");

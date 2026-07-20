@@ -485,6 +485,12 @@ export function normalizeOfferProductTypes(
         currency: String(o.currency ?? "").trim(),
         deeplink: String(o.deeplink ?? "").trim(),
         description: String(o.description ?? "").trim(),
+        // Non-empty saved description ⇒ rewrite was on (#467 load).
+        ...(o.description_rewrite === true ||
+        String(o.description ?? "").trim()
+          ? { description_rewrite: true }
+          : {}),
+        ...(o.is_others === true ? { is_others: true } : {}),
         ...(o.is_tagline === true ? { is_tagline: true } : {}),
       };
     }

@@ -2049,7 +2049,12 @@ export const webShopDirectory = {
 } as const;
 
 export type WebShopDirectoryStore = (typeof webShopDirectory.stores)[number];
-export type WebBrandDirectorySort = "highest_cashback" | "lowest_cashback" | "popular" | "newest";
+export type WebBrandDirectorySort =
+  | "all"
+  | "highest_cashback"
+  | "lowest_cashback"
+  | "popular"
+  | "newest";
 
 export const webBrandDirectory = {
   categoryHeading: "Categories",
@@ -2065,6 +2070,7 @@ export const webBrandDirectory = {
   searchPlaceholder: "Search by store or product…",
   sortLabel: "Sort by:",
   sortPills: [
+    { label: "All", value: "all" },
     { label: "Popular", value: "popular" },
     { label: "Latest", value: "newest" },
     { label: "Highest Cashback", value: "highest_cashback" },
@@ -2158,7 +2164,7 @@ export function getShopDirectoryGridMetrics({
 export function getBrandDirectoryResults({
   category = "All",
   query = "",
-  sortBy = "highest_cashback",
+  sortBy = "all",
 }: {
   category?: string;
   query?: string;
@@ -2181,6 +2187,11 @@ export function getBrandDirectoryResults({
       return matchesCategory && matchesQuery;
     })
     .sort((a, b) => {
+      // #464 — "All" preserves catalog insertion order (mirror #437 category sort).
+      if (sortBy === "all") {
+        return a.position - b.position;
+      }
+
       if (sortBy === "popular") {
         return a.popularity - b.popularity || a.position - b.position;
       }
@@ -2942,6 +2953,8 @@ export const webShopDetailGroceryGalaxy = {
   category: "others",
   cashback: "26.5%",
   extraCashback: "14%",
+  /** Fixture demos the Extra Cashback badge (#472). Live offers require admin tag on. */
+  showExtraCashbackTag: true,
   shopNowLabel: "Shop Now",
   disclaimer:
     "The cashback rates shown above are the maximum possible amounts. Actual rates vary by merchant and specific order conditions. Final approval is at the sole discretion of the merchant; GoGoCash acts as a platform provider for your convenience.",
