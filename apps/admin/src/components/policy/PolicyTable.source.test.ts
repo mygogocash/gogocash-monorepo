@@ -62,12 +62,21 @@ describe("PolicyTable — unified new-policy editor (#335–#337, source signals
   it("uploads the one selected Default banner from the same aggregate action", () => {
     expect(tableSource).toContain("defaultBanner: defaultUpload?.file");
     expect(tableSource).not.toContain("bannerForm.append");
-    expect(tableSource).not.toContain("/admin/update-category/");
     expect(tableSource).not.toContain("saved automatically");
+  });
+
+  it("saves optional custom icon image after aggregate via update-category", () => {
+    expect(tableSource).toContain("customIconUpload");
+    expect(tableSource).toContain(
+      "`/admin/update-category/${savedCategory._id}`",
+    );
+    expect(tableSource).toContain('iconForm.append("image"');
   });
 
   it("keeps the policy banner as localized text, not a phantom second file", () => {
     expect(tableSource).toContain('aria-label="Policy banner text"');
+    // Banner file lives in PolicyTable; custom icon file lives in CategoryIconPicker.
     expect(tableSource.match(/type="file"/g)).toHaveLength(1);
+    expect(tableSource).toContain("onCustomIconChange");
   });
 });

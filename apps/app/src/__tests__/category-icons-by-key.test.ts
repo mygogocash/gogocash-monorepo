@@ -1,0 +1,48 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+/**
+ * Source contract test — importing `@mobile/theme/categoryIcons` pulls Phosphor /
+ * RN icon modules that Vitest's node env cannot parse (`Unexpected token 'typeof'`).
+ * Assert the Phase C icon_key surface from source instead.
+ */
+const categoryIconsSource = readFileSync(
+  path.resolve(__dirname, "../theme/categoryIcons.ts"),
+  "utf8",
+);
+
+describe("categoryIcons > icon_key parity with admin Policy Management", () => {
+  it("re-exports the contracts allow-list", () => {
+    expect(categoryIconsSource).toContain('from "@gogocash/contracts"');
+    expect(categoryIconsSource).toContain(
+      'export { CATEGORY_ICON_KEYS, type CategoryIconKey } from "@gogocash/contracts"',
+    );
+  });
+
+  it("maps every allow-listed key in categoryIconsByKey with distinct glyphs", () => {
+    expect(categoryIconsSource).toContain(
+      "export const categoryIconsByKey: Record<CategoryIconKey, IconComponent>",
+    );
+    expect(categoryIconsSource).toMatch(/gift:\s*Gift/);
+    expect(categoryIconsSource).toMatch(/pets:\s*PawPrint/);
+    expect(categoryIconsSource).toMatch(/baby:\s*Baby/);
+    expect(categoryIconsSource).toMatch(/auto:\s*Car/);
+    // Baby must not reuse the Gift glyph.
+    expect(categoryIconsSource).not.toMatch(/baby:\s*Gift/);
+    expect(categoryIconsSource).not.toMatch(/pets:\s*Heart/);
+    expect(categoryIconsSource).not.toMatch(/auto:\s*ShoppingCart/);
+  });
+
+  it("getCategoryIcon prefers resolveCategoryIconKey over the label map", () => {
+    expect(categoryIconsSource).toContain("export function resolveCategoryIconKey");
+    expect(categoryIconsSource).toMatch(
+      /export function getCategoryIcon\(\s*category: string,\s*iconKey\?: string \| null,/,
+    );
+    expect(categoryIconsSource).toContain("const key = resolveCategoryIconKey(iconKey)");
+    expect(categoryIconsSource).toContain("return categoryIconsByKey[key]");
+    expect(categoryIconsSource).toContain(
+      "return categoryIcons[category] ?? Store",
+    );
+  });
+});
