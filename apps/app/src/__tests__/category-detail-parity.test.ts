@@ -100,7 +100,9 @@ describe("Category detail parity", () => {
     // #437 — All preserves fixture insertion order (no forced cashback ranking).
     const allOrder = parity.getCategoryExploreResults?.({ sortBy: "all" }).map((store) => store.brand);
     const fixtureOrder = (
-      webDesignParity as { webCategoryExploreHealthBeauty: { stores: { brand: string }[] } }
+      webDesignParity as {
+        webCategoryExploreHealthBeauty: { stores: readonly { brand: string }[] };
+      }
     ).webCategoryExploreHealthBeauty.stores.map((store) => store.brand);
     expect(allOrder).toEqual(fixtureOrder);
     expect(
