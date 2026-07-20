@@ -154,6 +154,48 @@ describe("catalog mapper > mapOffersToCatalogBrands", () => {
     expect(brand.cashback).toBe("8.5%");
   });
 
+  // #428 — product-type rows saved but headline commission_store missing.
+  it("given missing commission_store but product_type rates > then uses the highest product rate", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          _id: "pt-fallback",
+          offer_name: "Product Type Shop",
+          disabled: false,
+          status: "approved",
+          product_type: [
+            { name: "Fashion", pay_in: "cashback", commission_info: "3.5" },
+            { name: "Beauty", pay_in: "cashback", commission_info: "7" },
+            { name: "Heading", is_tagline: true, commission_info: "99" },
+          ],
+        },
+      ],
+    });
+
+    expect(brand.cashback).toBe("7%");
+  });
+
+  it("given commission_store 0 with product_type rates > then uses the highest product rate", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          _id: "pt-zero-store",
+          offer_name: "Zero Store Shop",
+          commission_store: 0,
+          disabled: false,
+          status: "approved",
+          product_type: [
+            { name: "Beauty", pay_in: "cashback", commission_info: "6.5" },
+          ],
+        },
+      ],
+    });
+
+    expect(brand.cashback).toBe("6.5%");
+  });
+
   it("given any record > then derives a stable tint from the brand name", () => {
     const first = mapOffersToCatalogBrands(sampleResponse);
     const second = mapOffersToCatalogBrands(sampleResponse);

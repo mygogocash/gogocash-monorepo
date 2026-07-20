@@ -53,6 +53,7 @@ import {
 } from './dto/admin-auth.dto';
 import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { parseOfferDisplayTagsField } from 'src/offer/offer-display-tags.util';
+import { resolveProductTypeUpdate } from 'src/offer/product-type.util';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
@@ -605,7 +606,13 @@ export class AdminController {
         updateAdminDto.tracking_link.toString() !== 'undefined'
           ? updateAdminDto.tracking_link
           : undefined,
-      product_type: updateAdminDto.product_type,
+      product_type: resolveProductTypeUpdate({
+        product_types: updateAdminDto.product_types,
+        product_type: updateAdminDto.product_type,
+      }),
+      all_product_types: coerceOptionalBoolean(
+        updateAdminDto.all_product_types,
+      ),
       tracking_period_mode: updateAdminDto.tracking_period_mode,
       tracking_days: coerceOptionalDayCount(
         updateAdminDto.tracking_days,

@@ -544,7 +544,6 @@ function ShopHeroSummaryCard({
 }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
-  const router = useRouter();
   const tc = useCopy();
   const { isAuthed, ready: authReady } = useAuthGuardSession();
   const { isFavorite, toggleFavorite } = useFavoriteBrands();
@@ -553,12 +552,10 @@ function ShopHeroSummaryCard({
   useEffect(() => {
     setLogoFailed(false);
   }, [shop.logoUri]);
+  // #432 — Favorite is unavailable when logged out (hide, don't tease login).
+  const showFavorite = authReady && isAuthed;
   const handleToggleFavorite = () => {
-    if (!authReady) {
-      return;
-    }
-    if (!isAuthed) {
-      router.push(buildLoginRedirectWithCallback(`/shop/${shop.id}`) as never);
+    if (!showFavorite) {
       return;
     }
     toggleFavorite(shop.id);
@@ -657,13 +654,13 @@ function ShopHeroSummaryCard({
       {isDesktop ? (
         <>
           {brandIdentity}
-          {favoriteButton}
+          {showFavorite ? favoriteButton : null}
           {shopNowButton}
         </>
       ) : (
         <View style={styles.summaryMobileRow}>
           {brandIdentity}
-          {favoriteButton}
+          {showFavorite ? favoriteButton : null}
           {shopNowButton}
         </View>
       )}
@@ -926,6 +923,8 @@ function ShopExploreRelated({ excludeShopId }: { excludeShopId: string }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const tc = useCopy();
   const { region } = useLocale();
+  const { isAuthed, ready: authReady } = useAuthGuardSession();
+  const showFavoriteHeart = authReady && isAuthed;
   const catalogResource = useCustomerAccountResource<
     OfferListResponse,
     OfferListResponse
@@ -966,7 +965,7 @@ function ShopExploreRelated({ excludeShopId }: { excludeShopId: string }) {
             key={store.id}
             logoUri={store.logoUri}
             logoVisualHeight={relatedCardMetrics.logoVisualHeight}
-            showFavoriteHeart
+            showFavoriteHeart={showFavoriteHeart}
             size="S"
             tint={store.tint}
           />

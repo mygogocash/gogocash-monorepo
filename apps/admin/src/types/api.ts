@@ -605,8 +605,13 @@ export interface Offer {
   upsize_all_product_types?: boolean;
   /** Per–product-line commission copy for the upsize promo period (optional). */
   upsize_product_types?: OfferProductTypeEntry[];
-  /** Product types for this offer (optional, from API) */
+  /** Product types for this offer (optional, from API / mock). */
   product_types?: OfferProductTypeEntry[];
+  /**
+   * Persisted API field (singular). Admin edit form maps this into
+   * `product_types` when the plural key is absent (#428).
+   */
+  product_type?: OfferProductTypeEntry[];
   /** When true, admin treats this offer as covering all product lines (single tracking link / commission setup). */
   all_product_types?: boolean;
   /** Admin-entered commission notes or tiers (e.g. internal deals); separate from partner feed. */

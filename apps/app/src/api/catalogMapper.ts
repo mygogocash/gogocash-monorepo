@@ -1,5 +1,6 @@
 import type { OfferListResponse, OfferRecord } from "@mobile/api/catalogTypes";
 import { getMobileEnv } from "@mobile/config/env";
+import { formatCatalogCashback } from "@mobile/api/offerCashbackFormat";
 import { resolvePublicOfferLogo } from "@mobile/api/offerLogo";
 import { resolveOfferMediaUrl } from "@mobile/api/mediaUrl";
 import { BRAND_LOGO_IMAGE_WIDTH } from "@mobile/api/optimizedImageUrl";
@@ -40,14 +41,6 @@ export function deriveCatalogTint(name: string): string {
   return CATALOG_TINT_PALETTE[hash % CATALOG_TINT_PALETTE.length];
 }
 
-function formatCashback(commission: OfferRecord["commission_store"]): string {
-  const value = typeof commission === "number" ? String(commission) : commission?.trim();
-  if (!value) {
-    return "0%";
-  }
-  return value.endsWith("%") ? value : `${value}%`;
-}
-
 function resolveLogo(offer: OfferRecord, apiBaseUrl?: string): string | undefined {
   const baseUrl = apiBaseUrl ?? getMobileEnv().apiUrl;
   return resolveOfferMediaUrl(resolvePublicOfferLogo(offer), baseUrl, {
@@ -86,7 +79,7 @@ export function mapOffersToCatalogBrands(response: OfferListResponse): CatalogBr
         id: offer._id,
         name,
         category: resolveOfferDisplayCategory(offer, "Others"),
-        cashback: formatCashback(offer.commission_store),
+        cashback: formatCatalogCashback(offer),
         href: `/shop/${offer._id}`,
         showGrabCoupon: Boolean(offer.extra_store),
         logo: resolveLogo(offer),

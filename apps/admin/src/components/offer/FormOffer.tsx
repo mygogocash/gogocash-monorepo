@@ -1358,7 +1358,12 @@ const FormOffer = ({
       toast.success("Cashback updated successfully");
     } catch (err) {
       devError("Failed to update cashback:", err);
-      setCashbackSaveError("Could not update cashback. Please try again.");
+      setCashbackSaveError(
+        getApiErrorMessage(
+          err,
+          "Could not update cashback. Please try again.",
+        ),
+      );
     } finally {
       setSavingCashback(false);
     }

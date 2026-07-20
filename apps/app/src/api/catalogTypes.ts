@@ -17,6 +17,11 @@ export type OfferRecord = {
   offer_display_tags?: OfferDisplayTags | null;
   /** Headline cashback percentage as a number, e.g. 3.5. */
   commission_store?: number | string;
+  /**
+   * Per-product cashback rows from the API (`Offer.product_type`). Used as a
+   * headline fallback when `commission_store` is missing (#428).
+   */
+  product_type?: Array<Record<string, unknown>>;
   /** Absolute logo URL when the merchant has one. */
   logo?: string;
   logo_desktop?: string;
