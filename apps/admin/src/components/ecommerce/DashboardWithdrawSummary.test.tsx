@@ -71,4 +71,33 @@ describe("DashboardWithdrawSummary", () => {
       expect(screen.getByText(/12 pending withdrawals need review/i)).toBeInTheDocument();
     });
   });
+
+  it("deep-links the pending banner and status cards into /withdraw?status=", async () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    fetchDashboardWithdrawSummaryMock.mockResolvedValue(MOCK_DASHBOARD_SUMMARY);
+
+    renderSummary();
+
+    const pendingBanner = await screen.findByRole("link", {
+      name: /12 pending withdrawals need review/i,
+    });
+    expect(pendingBanner).toHaveAttribute("href", "/withdraw?status=pending");
+
+    // Accessible name comes from visible card copy (count + total), not a
+    // truncated aria-label that hid the request totals from SR users.
+    expect(
+      screen.getByRole("link", { name: /pending\s+12 requests/i }),
+    ).toHaveAttribute("href", "/withdraw?status=pending");
+    expect(
+      screen.getByRole("link", { name: /approved\s+\d+ requests/i }),
+    ).toHaveAttribute("href", "/withdraw?status=approved");
+    expect(
+      screen.getByRole("link", { name: /rejected\s+\d+ requests/i }),
+    ).toHaveAttribute("href", "/withdraw?status=rejected");
+
+    expect(screen.getByRole("link", { name: /view all/i })).toHaveAttribute(
+      "href",
+      "/withdraw",
+    );
+  });
 });

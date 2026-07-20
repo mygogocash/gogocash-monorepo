@@ -9,10 +9,16 @@ import {
   WithdrawQuery,
 } from "@/types/api";
 import ModalWithdraw from "./ModalWithdraw";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import CopyButton from "@/components/ui/CopyButton";
 import NoData from "@/components/common/NoData";
 import { devError } from "@/lib/devConsole";
+import {
+  WITHDRAW_STATUS_FILTER_OPTIONS,
+  hasInvalidWithdrawStatusParam,
+  parseWithdrawStatusFilter,
+  withdrawPathWithStatus,
+} from "@/lib/withdrawStatusFilter";
 export interface WithdrawRequestForm {
   file: File | null;
   id: string;
@@ -27,6 +33,9 @@ export default function WithdrawTable() {
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawStatusParam = searchParams.get("status");
+  const statusFromUrl = parseWithdrawStatusFilter(rawStatusParam);
   const [form, setForm] = useState<WithdrawRequestForm>({
     file: null,
     id: "",
@@ -40,20 +49,13 @@ export default function WithdrawTable() {
     totalPages: 1,
   });
 
-  const [query, setQuery] = useState<WithdrawQuery>({
+  const [query, setQuery] = useState<WithdrawQuery>(() => ({
     search: "",
     limit: 10,
     page: 1,
-    status: undefined,
+    status: statusFromUrl,
     method: undefined,
-  });
-
-  const STATUS_FILTER_OPTIONS = [
-    { value: "", label: "All statuses" },
-    { value: "pending", label: "Pending" },
-    { value: "approved", label: "Approved" },
-    { value: "rejected", label: "Rejected" },
-  ] as const;
+  }));
 
   const METHOD_FILTER_OPTIONS = [
     { value: "", label: "All methods" },
@@ -61,22 +63,10 @@ export default function WithdrawTable() {
     { value: "web3", label: "Web3 / Crypto" },
   ] as const;
 
-  // const { data: getDetailConversionWithdraw } = useQuery<
-  //   ConversionInWithdraw[]
-  // >({
-  //   queryKey: ["getDetailConversionWithdraw", openModal],
-  //   queryFn: () =>
-  //     fetcherPost([
-  //       `/admin/getConversionInWithdraw`,
-  //       { data: (openModal as DataWithdrawsList).conversion_id as number[] },
-  //     ]),
-  // });
-
   // Guards: ignore out-of-order responses; debounce free-text search.
   const reqIdRef = useRef(0);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch offers
   const fetchOffers = async (newQuery?: WithdrawQuery) => {
     const reqId = ++reqIdRef.current;
     try {
@@ -96,12 +86,39 @@ export default function WithdrawTable() {
     }
   };
 
-  // Initial load
+  // Strip unknown ?status= tokens so the address bar matches the filter.
+  useEffect(() => {
+    if (!hasInvalidWithdrawStatusParam(rawStatusParam)) return;
+    router.replace(withdrawPathWithStatus(searchParams, undefined), {
+      scroll: false,
+    });
+  }, [rawStatusParam, router, searchParams]);
+
+  // Initial load (status already taken from the URL in useState).
   useEffect(() => {
     startTransition(() => {
-      void fetchOffers();
+      void fetchOffers(query);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // URL is the source of truth for status (dashboard deep-links, back/forward,
+  // Status dropdown → router.replace). Fetch only here when status changes —
+  // never also from handleStatusFilter (avoids dual-fetch / loading flicker).
+  useEffect(() => {
+    let nextQuery: WithdrawQuery | undefined;
+    setQuery((prev) => {
+      if ((prev.status ?? undefined) === (statusFromUrl ?? undefined)) {
+        return prev;
+      }
+      nextQuery = { ...prev, page: 1, status: statusFromUrl };
+      return nextQuery;
+    });
+    if (nextQuery) {
+      startTransition(() => {
+        void fetchOffers(nextQuery);
+      });
+    }
+  }, [statusFromUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!openActionsId) return;
@@ -131,13 +148,11 @@ export default function WithdrawTable() {
   }, []);
 
   const handleStatusFilter = (value: string) => {
-    const newQuery: WithdrawQuery = {
-      ...query,
-      page: 1,
-      status: value ? value : undefined,
-    };
-    setQuery(newQuery);
-    void fetchOffers(newQuery);
+    // URL-only — the statusFromUrl effect syncs query + fetches exactly once.
+    router.replace(
+      withdrawPathWithStatus(searchParams, parseWithdrawStatusFilter(value)),
+      { scroll: false },
+    );
   };
 
   const handleMethodFilter = (value: string) => {
@@ -240,7 +255,7 @@ export default function WithdrawTable() {
                 onChange={(e) => handleStatusFilter(e.target.value)}
                 className="shadow-theme-xs h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-white/90"
               >
-                {STATUS_FILTER_OPTIONS.map((opt) => (
+                {WITHDRAW_STATUS_FILTER_OPTIONS.map((opt) => (
                   <option key={opt.label} value={opt.value}>
                     {opt.label}
                   </option>

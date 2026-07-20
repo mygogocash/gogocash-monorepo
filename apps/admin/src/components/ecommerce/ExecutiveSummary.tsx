@@ -24,6 +24,7 @@ import {
   insightRangeShortLabel,
 } from "@/components/ecommerce/DashboardInsightRangeControl";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { withdrawListHref } from "@/lib/withdrawStatusFilter";
 
 function formatPayoutAmount(value: number, currency = "THB"): string {
   const amount = value.toLocaleString(undefined, {
@@ -196,7 +197,7 @@ export function ExecutiveSummary({
         <DollarLineIcon className="text-warning-600 dark:text-warning-400 size-6" />
       ),
       bgIcon: "bg-warning-50 dark:bg-warning-500/10",
-      href: "/withdraw?status=pending",
+      href: withdrawListHref("pending"),
     },
   ];
 
