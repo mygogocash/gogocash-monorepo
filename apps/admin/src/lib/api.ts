@@ -518,12 +518,26 @@ class ApiClient {
         }
         // Prefer the backend's own message (RolesGuard etc.); otherwise use
         // plain, status-aware copy — never a raw "HTTP Error 403".
-        const message =
-          error.response.data?.message ||
-          friendlyStatusMessage(error.response.status);
+        // Preserve Nest structured `code`/`reason` so getApiErrorMessage can
+        // append ops-actionable detail for POLICY_* 503s (#407).
+        const data = error.response.data as
+          | {
+              message?: string | string[];
+              errors?: Record<string, string[]>;
+              code?: string;
+              reason?: string;
+            }
+          | undefined;
+        const rawMessage = data?.message;
+        const message = Array.isArray(rawMessage)
+          ? rawMessage.filter((part) => typeof part === "string").join(", ") ||
+            friendlyStatusMessage(error.response.status)
+          : rawMessage || friendlyStatusMessage(error.response.status);
         throw Object.assign(new Error(message), {
           status: error.response.status,
-          errors: error.response.data?.errors,
+          errors: data?.errors,
+          ...(typeof data?.code === "string" ? { code: data.code } : {}),
+          ...(typeof data?.reason === "string" ? { reason: data.reason } : {}),
         } satisfies Partial<ApiError>);
       }
 

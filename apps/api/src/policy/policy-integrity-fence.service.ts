@@ -5,7 +5,10 @@ import { ClientSession, Connection, Model } from 'mongoose';
 import { Category } from 'src/offer/schemas/category.schema';
 import { Offer } from 'src/offer/schemas/offer.schema';
 
-import { inspectPolicyTransactionCapability } from './policy-transaction-capability';
+import {
+  inspectPolicyTransactionCapability,
+  policyTransactionsUnsupportedError,
+} from './policy-transaction-capability';
 import {
   PolicyCategorySource,
   PolicyCategorySourceDocument,
@@ -120,8 +123,10 @@ export class PolicyIntegrityFenceService {
       this.connection,
     );
     if (!capability.supported) {
-      const error = policyIntegrityReadinessError(
-        capability.reason ?? 'MongoDB transaction support is unavailable',
+      // Topology/txn failures use POLICY_TRANSACTIONS_UNSUPPORTED — not the
+      // integrity-migration code — so ops chase the RS/Atlas runbook (#407).
+      const error = new ServiceUnavailableException(
+        policyTransactionsUnsupportedError(capability),
       );
       this.readinessCache = { checkedAt: now, ready: false, error };
       throw error;

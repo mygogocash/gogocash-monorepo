@@ -16,7 +16,9 @@ fingerprint + `POLICY_CATEGORY_INTEGRITY_PRODUCTION_AUTHORIZE` sentinel).
 - admin-beta BFF must use private Railway upstream
   `API_URL=http://gogocash-api.railway.internal:8080` (not
   `*.up.railway.app` / public `api-beta`). Browser mode still uses
-  `NEXT_PUBLIC_API_URL=https://api-beta.gogocash.co`. See
+  `NEXT_PUBLIC_API_URL=https://api-beta.gogocash.co`. On Railway the admin
+  BFF fails closed if `API_URL` is missing or public-edge
+  (`ADMIN_UPSTREAM_*` 503). See
   [`docs/railway-env-matrix.md`](railway-env-matrix.md#gogocash-admin).
 - Dev and staging Railway Mongo remain authenticated single-node replica sets
   (`rs0`; MongoDB 8.0.4 on dev, 8.3.4 on staging) with committing transactions.

@@ -3,8 +3,9 @@ import { getToken } from "next-auth/jwt";
 import {
   assertProxyBodyWithinLimit,
   proxyToBackend,
-  resolveUpstreamBaseUrl,
+  resolveUpstreamBaseUrlDetailed,
   sessionExpiredResponse,
+  upstreamMisconfiguredResponse,
 } from "@/lib/backendProxy";
 
 export const dynamic = "force-dynamic";
@@ -15,21 +16,11 @@ async function handle(
   request: NextRequest,
   context: RouteContext,
 ): Promise<Response> {
-  const upstreamBase = resolveUpstreamBaseUrl();
-  if (!upstreamBase) {
-    // Keep the real cause in the server logs for ops — the client only ever
-    // gets a generic message that never names env vars or internal config.
-    console.error(
-      "[api/backend] Upstream API base URL is not configured — set API_URL (or NEXT_PUBLIC_API_URL).",
-    );
-    return Response.json(
-      {
-        message:
-          "This service is temporarily unavailable. Please try again later, or contact an administrator if it continues.",
-      },
-      { status: 503 },
-    );
+  const upstream = resolveUpstreamBaseUrlDetailed();
+  if (!upstream.ok) {
+    return upstreamMisconfiguredResponse(upstream);
   }
+  const upstreamBase = upstream.url;
 
   const tooLargeBeforeRead = assertProxyBodyWithinLimit(request.headers, null);
   if (tooLargeBeforeRead) return tooLargeBeforeRead;

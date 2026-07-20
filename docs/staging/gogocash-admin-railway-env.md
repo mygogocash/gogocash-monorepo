@@ -31,6 +31,7 @@ Apply on **`gogocash-admin`** in **staging**:
 ```bash
 railway variables --service gogocash-admin \
   --set 'NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co' \
+  --set 'API_URL=http://gogocash-api.railway.internal:8080' \
   --set 'NEXTAUTH_URL=https://admin-staging.gogocash.co' \
   --set 'NEXTAUTH_SECRET=<paste-openssl-output>'
 ```

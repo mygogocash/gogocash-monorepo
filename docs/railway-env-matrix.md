@@ -121,12 +121,23 @@ railway variables --set 'NEXTAUTH_URL=https://admin-staging.gogocash.co' --servi
 
 **Do not** point `API_URL` at `https://gogocash-api-*.up.railway.app` or the public custom domain.
 That path was the residual #407 admin-beta failure mode after Atlas integrity was
-ready: the BFF must use the private service DNS. Verify from the admin container:
+ready: the BFF must use the private service DNS. On Railway the admin BFF
+**requires** `API_URL` and rejects public-edge values at runtime
+(`ADMIN_UPSTREAM_MISSING` / `ADMIN_UPSTREAM_UNSAFE_PUBLIC` → 503).
+
+**Do not** use Railway-injected `RAILWAY_SERVICE_GOGOCASH_API_URL` (public host,
+often scheme-less) as the BFF upstream — that is not `API_URL`.
+
+Verify from the admin container:
 
 ```bash
 railway ssh -s gogocash-admin -e production -- \
   'node -e "fetch(\"http://gogocash-api.railway.internal:8080/health\").then(r=>r.text().then(t=>console.log(r.status,t)))"'
 ```
+
+Railway **staging / production (beta)** use the private `API_URL` pattern above.
+Legacy GCP hosts (`admin.gogocash.co` / `api.gogocash.co`) are a separate path —
+still set an explicit server upstream if that admin uses `/api/backend`.
 
 Do **not** set `ALLOW_MOCK_ADMIN_PASSWORD`, `BUILD_FOR_FIREBASE`, or `NEXT_PUBLIC_FIREBASE_STATIC` on Railway
 (the last two switch on the Firebase static-export path, which disables the API routes the Node server needs).
