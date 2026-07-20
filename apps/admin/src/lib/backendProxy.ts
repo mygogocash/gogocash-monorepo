@@ -9,9 +9,10 @@ import {
   resolveAdminUpstream,
   type AdminUpstreamResolution,
 } from "@/lib/adminUpstreamSafety";
+import { MAX_ADMIN_UPLOAD_BYTES } from "@/lib/uploadLimits";
 
 /** Cap for buffered proxy bodies (banner/brand multipart). Reject before reading. */
-export const MAX_PROXY_BODY_BYTES = 32 * 1024 * 1024;
+export const MAX_PROXY_BODY_BYTES = MAX_ADMIN_UPLOAD_BYTES;
 
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
