@@ -4,7 +4,9 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import client from "@/lib/axios/client";
+import { MAX_ADMIN_UPLOAD_BYTES } from "@/lib/uploadLimits";
 import type { BannerRequestForm } from "@/types/banner";
+import toast from "react-hot-toast";
 import FormUpdate from "./FormUpdate";
 
 vi.mock("@/lib/axios/client", () => ({
@@ -158,6 +160,23 @@ describe("Banner FormUpdate save", () => {
     expect(config?.headers).not.toHaveProperty("Authorization");
     expect(config?.timeout).toBe(120_000);
     expect(onSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it("#487 rejects oversized banner files before posting multipart", async () => {
+    // Avoid allocating 32MB+ in CI — only size/type are read by the handler.
+    const huge = new File(["x"], "july.png", { type: "image/png" });
+    Object.defineProperty(huge, "size", { value: MAX_ADMIN_UPLOAD_BYTES + 1 });
+
+    render(<SaveHarness initialForm={makeForm()} />);
+
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, {
+      target: { files: [huge] },
+    });
+
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringMatching(/too large|32 MB/i),
+    );
+    expect(postMock).not.toHaveBeenCalled();
   });
 
   it("warns before closing a dirty banner editor", async () => {

@@ -282,22 +282,19 @@ describe("GoGoCash web design parity", () => {
       "Electronics",
       "Health & Beauty",
     ]);
+    // #483 — Top Brands uses the same Phosphor icon treatment as other tabs.
     expect(webDesktopHeaderNavItems[0]).toMatchObject({
       active: true,
-      showFire: true,
+      icon: "fire",
     });
-    expect(webDesktopHeaderNavItems[3]).toMatchObject({
-      label: "Product Discovery",
-      menuTypography: "lead",
-    });
-    expect(webDesktopHeaderNavItems[5]).toMatchObject({
-      label: "Electronics",
-      menuTypography: "lead",
-    });
-    expect(webDesktopHeaderNavItems[6]).toMatchObject({
-      label: "Health & Beauty",
-      menuTypography: "lead",
-    });
+    expect(webDesktopHeaderNavItems.every((item) => typeof item.icon === "string")).toBe(
+      true,
+    );
+    expect(
+      webDesktopHeaderNavItems.every(
+        (item) => !("showFire" in item) && !("menuTypography" in item),
+      ),
+    ).toBe(true);
     expect(webCookieConsentBanner).toMatchObject({
       allow: "Accept all cookies",
       decline: "Cookie settings",

@@ -9,9 +9,10 @@ import {
   resolveAdminUpstream,
   type AdminUpstreamResolution,
 } from "@/lib/adminUpstreamSafety";
+import { MAX_ADMIN_UPLOAD_BYTES } from "@/lib/uploadLimits";
 
 /** Cap for buffered proxy bodies (banner/brand multipart). Reject before reading. */
-export const MAX_PROXY_BODY_BYTES = 32 * 1024 * 1024;
+export const MAX_PROXY_BODY_BYTES = MAX_ADMIN_UPLOAD_BYTES;
 
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
@@ -124,6 +125,22 @@ export function assertProxyBodyWithinLimit(
         {
           message:
             "The file you're uploading is too large. Please use a smaller file (under 32 MB).",
+        },
+        { status: 413 },
+      );
+    }
+    // #487 — if Next truncated the buffered body below Content-Length, refuse
+    // to forward a partial multipart (avoids Nest "Unexpected end of form").
+    if (
+      body &&
+      Number.isFinite(declared) &&
+      declared > 0 &&
+      body.byteLength < declared
+    ) {
+      return Response.json(
+        {
+          message:
+            "Upload was cut off before it finished. Use a file under 32 MB, or compress the image, then try again.",
         },
         { status: 413 },
       );
