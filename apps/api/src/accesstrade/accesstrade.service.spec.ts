@@ -42,7 +42,7 @@ describe('AccesstradeService', () => {
   });
 
   describe('syncOffers', () => {
-    it('upserts each campaign scoped to source accesstrade and sweeps stale offers', async () => {
+    it('upserts each campaign scoped to source accesstrade', async () => {
       const { service, offerModel } = makeService();
       spyPrivate(service, 'fetchAllCampaigns').mockResolvedValue([
         { id: 42, name: 'Shopee', status: 'RUNNING' },
@@ -53,7 +53,7 @@ describe('AccesstradeService', () => {
 
       expect(offerModel.updateOne).toHaveBeenNthCalledWith(
         1,
-        { source: { $in: ['accesstrade', null] }, offer_id: 42 },
+        { source: 'accesstrade', offer_id: 42 },
         {
           $set: expect.objectContaining({
             offer_id: 42,
@@ -61,16 +61,60 @@ describe('AccesstradeService', () => {
             type: 'new',
             disabled: false,
           }),
+          $setOnInsert: { status: 'pending_review' },
         },
         { upsert: true },
       );
-      expect(offerModel.updateMany).toHaveBeenCalledWith(
-        {
-          source: { $in: ['accesstrade', null] },
-          offer_id: { $nin: [42, 43] },
-        },
-        { $set: { type: 'old', disabled: true } },
-      );
+    });
+
+    // A source-less legacy doc is canonically an Involve offer (offer.schema.ts
+    // defaults `source` to 'involve'). Involve's sync claims `null` for that
+    // reason; Accesstrade must not, or an `offer_id` collision would overwrite
+    // an Involve offer's tracking link with an Accesstrade one.
+    it('never widens its filter to source-less legacy (Involve) documents', async () => {
+      const { service, offerModel } = makeService();
+      spyPrivate(service, 'fetchAllCampaigns').mockResolvedValue([
+        { id: 42, name: 'Shopee', status: 'RUNNING' },
+      ] as never);
+
+      await service.syncOffers();
+
+      const upsertFilter = offerModel.updateOne.mock.calls[0][0];
+      expect(upsertFilter.source).toBe('accesstrade');
+      expect(JSON.stringify(upsertFilter)).not.toContain('null');
+    });
+
+    // `status` is admin curation, not upstream state. Re-stamping it on every
+    // pass would revert every approve an admin made.
+    it('seeds status only on insert, so a re-sync cannot revert admin curation', async () => {
+      const { service, offerModel } = makeService();
+      spyPrivate(service, 'fetchAllCampaigns').mockResolvedValue([
+        { id: 42, name: 'Shopee', status: 'RUNNING' },
+      ] as never);
+
+      await service.syncOffers();
+
+      const update = offerModel.updateOne.mock.calls[0][1];
+      expect(update.$set).not.toHaveProperty('status');
+      expect(update.$setOnInsert).toEqual({ status: 'pending_review' });
+    });
+
+    // The sync reads /campaigns/UNAFFILIATED — a partial view, not the full
+    // catalogue. A campaign leaves that list precisely when we affiliate it,
+    // which is the goal state. Sweeping "everything absent from the pull" would
+    // therefore disable an offer the moment it becomes earnable. A stale-sweep
+    // needs an authoritative full-catalogue enumeration; until one is confirmed
+    // against a live account, Accesstrade must not sweep at all.
+    it('never sweeps: absence from the unaffiliated list means affiliated, not stale', async () => {
+      const { service, offerModel } = makeService();
+      spyPrivate(service, 'fetchAllCampaigns').mockResolvedValue([
+        { id: 42, name: 'Shopee', status: 'RUNNING' },
+        { id: 43, name: 'Lazada', status: 'PAUSED' },
+      ] as never);
+
+      await service.syncOffers();
+
+      expect(offerModel.updateMany).not.toHaveBeenCalled();
     });
 
     it('does NOT sweep on an empty pull', async () => {

@@ -127,26 +127,42 @@ export class AccesstradeService {
     return all;
   }
 
+  /**
+   * Sync discovered Accesstrade campaigns into the Offer store.
+   *
+   * The filter matches `source: 'accesstrade'` EXACTLY. Involve's sync widens to
+   * `$in: ['involve', null]` because a source-less legacy document *is* an
+   * Involve offer (offer.schema.ts defaults `source` to 'involve'); copying that
+   * arm here would let an `offer_id` collision overwrite an Involve offer's
+   * tracking link with an Accesstrade one.
+   *
+   * `status` is admin curation, not upstream state, so it rides `$setOnInsert`:
+   * newly-seen campaigns seed to pending_review and a re-sync never reverts an
+   * approve/reject. `type`/`disabled` still track upstream state each pass.
+   *
+   * DELIBERATELY NO STALE-SWEEP. This reads `/campaigns/unaffiliated`, a partial
+   * view of the catalogue: a campaign leaves that list precisely when we
+   * affiliate it, which is the goal state (Accesstrade requires affiliation
+   * before a campaign can earn). Sweeping "everything absent from the pull"
+   * would disable an offer the moment it became earnable. A correct sweep needs
+   * an authoritative full-catalogue enumeration; that endpoint is unconfirmed
+   * against a live account, so this sync only ever adds and refreshes.
+   */
   async syncOffers(): Promise<{ upserted: number }> {
     const campaigns = await this.fetchAllCampaigns();
     const ids: number[] = [];
     for (const campaign of campaigns) {
-      const mapped = mapAccesstradeCampaignToOffer(campaign);
+      const { status, ...mapped } = mapAccesstradeCampaignToOffer(campaign);
       const offerId = mapped.offer_id as number;
       if (!Number.isFinite(offerId) || offerId === 0) continue;
       ids.push(offerId);
       await this.offerModel.updateOne(
-        { source: { $in: ['accesstrade', null] }, offer_id: offerId },
+        { source: 'accesstrade', offer_id: offerId },
         {
           $set: { ...mapped, source: 'accesstrade', type: 'new', disabled: false },
+          $setOnInsert: { status },
         },
         { upsert: true },
-      );
-    }
-    if (ids.length > 0) {
-      await this.offerModel.updateMany(
-        { source: { $in: ['accesstrade', null] }, offer_id: { $nin: ids } },
-        { $set: { type: 'old', disabled: true } },
       );
     }
     return { upserted: ids.length };
