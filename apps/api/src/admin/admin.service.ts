@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { CreateAdminDto } from './dto/create-admin.dto';
@@ -1586,9 +1587,44 @@ export class AdminService {
       .exec();
   }
 
+  /**
+   * Admin detail for a MyCashBack profile.
+   *
+   * The users table navigates with the **UserMyCashback** `_id`. Older call
+   * sites still pass an app **User** `_id`. Resolve MyCashback first, then fall
+   * back to the User-linked lookup. Always return an array (admin mock + UI
+   * contract). Never surface `UnauthorizedException` — the admin axios client
+   * treats any HTTP 401 as session expiry and redirects to `/signin`.
+   */
   async getMyCashBackUser(id: string) {
-    const myCashBack = await this.userService.getBalanceMyCashback(id);
-    return myCashBack?.userMyCashback;
+    const trimmed = String(id ?? '').trim();
+    if (/^[0-9a-f]{24}$/i.test(trimmed)) {
+      const row = await this.userMyCashbackModel
+        .findById(trimmed)
+        .select('-withdrawalPassword')
+        .lean()
+        .exec();
+      if (row) {
+        return [row];
+      }
+    }
+
+    try {
+      const myCashBack = await this.userService.getBalanceMyCashback(trimmed);
+      const rows = myCashBack?.userMyCashback;
+      if (Array.isArray(rows)) {
+        return rows;
+      }
+      if (rows) {
+        return [rows];
+      }
+      return [];
+    } catch (err) {
+      if (err instanceof UnauthorizedException) {
+        return [];
+      }
+      throw err;
+    }
   }
 
   /**
