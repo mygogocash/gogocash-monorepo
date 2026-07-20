@@ -727,17 +727,27 @@ export class AdminService {
     }
   }
 
-  async getWithdrawAll(page: number = 1, limit: number = 10, search?: string) {
+  async getWithdrawAll(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    status?: string,
+    method?: string,
+  ) {
     const skip = (page - 1) * limit;
-    const query = search
-      ? {
-          $or: [
-            { method: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-            { status: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-            { address: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-          ],
-        }
-      : {};
+    // Status/method are exact-match filters (from the admin table dropdowns);
+    // search is a free-text regex that narrows *within* the selected filters.
+    // Both compose as an implicit AND on the same query object.
+    const query: Record<string, unknown> = {};
+    if (status) query.status = status;
+    if (method) query.method = method;
+    if (search) {
+      query.$or = [
+        { method: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+        { status: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+        { address: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+      ];
+    }
 
     const [data, total] = await Promise.all([
       this.withdrawModel
