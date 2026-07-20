@@ -14,8 +14,7 @@ export default registerAs('env', () => ({
   // (`https://api.optimisemedia.com`) is an NXDOMAIN and was never reachable;
   // the real gateway is `public.api.optimisemedia.com/v1` (verified live).
   OPTIMISE_API_BASE:
-    process.env.OPTIMISE_API_BASE ||
-    'https://public.api.optimisemedia.com/v1',
+    process.env.OPTIMISE_API_BASE || 'https://public.api.optimisemedia.com/v1',
   // Email (Resend) — RESEND_API_KEY loaded from Google Secret Manager in
   // prod/staging. MAIL_FROM must be an address on a Resend-verified domain.
   RESEND_API_KEY: process.env.RESEND_API_KEY,

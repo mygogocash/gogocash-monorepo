@@ -117,7 +117,9 @@ describe('OptimiseAffiliateProvider', () => {
       service.findOfferByOfferId.mockResolvedValue({ tracking_link: '' });
       const provider = new OptimiseAffiliateProvider(service as never);
 
-      await expect(provider.refreshOffer({ offer_id: 1001 })).resolves.toBeNull();
+      await expect(
+        provider.refreshOffer({ offer_id: 1001 }),
+      ).resolves.toBeNull();
     });
   });
 });

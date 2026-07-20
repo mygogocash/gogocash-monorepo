@@ -127,10 +127,17 @@ describe('OptimiseService', () => {
   describe('findOfferByOfferId', () => {
     it('maps a live campaign lookup', async () => {
       const { service } = makeService();
-      jest.spyOn(service as never as { httpGet: jest.Mock }, 'httpGet' as never).mockResolvedValue({
-        data: { productId: 1001, name: 'A', status: 'live', baseTrackingUrl: 'https://t/1001' },
-        headers: {},
-      } as never);
+      jest
+        .spyOn(service as never as { httpGet: jest.Mock }, 'httpGet' as never)
+        .mockResolvedValue({
+          data: {
+            productId: 1001,
+            name: 'A',
+            status: 'live',
+            baseTrackingUrl: 'https://t/1001',
+          },
+          headers: {},
+        } as never);
 
       const refreshed = await service.findOfferByOfferId(1001);
       expect(refreshed).toMatchObject({
@@ -197,7 +204,8 @@ describe('OptimiseService', () => {
           source: 'optimise',
           offer_id: 1001,
           merchant_id: 778,
-          deeplink: 'https://track.optimise/c/1001?uid=5f9d5510aaaaaaaaaaaaaaaa',
+          deeplink:
+            'https://track.optimise/c/1001?uid=5f9d5510aaaaaaaaaaaaaaaa',
         }),
       );
     });
@@ -214,7 +222,10 @@ describe('OptimiseService', () => {
         expect.stringContaining('/campaigns/'),
         expect.objectContaining({
           headers: { apikey: 'test-key' },
-          params: expect.objectContaining({ contactId: '2442123', agencyId: '118' }),
+          params: expect.objectContaining({
+            contactId: '2442123',
+            agencyId: '118',
+          }),
         }),
       );
     });
