@@ -239,14 +239,18 @@ describe("Shop detail parity", () => {
     expect(shopFile).toContain("ShopRedirectOverlay");
   });
 
-  it("shop detail parity > given an unsigned user taps favorite > then login redirect is required", () => {
+  // #432 — Favorite is hidden (not login-gated) when the user is logged out.
+  it("shop detail parity > given an unsigned user > then favorite is hidden until auth", () => {
     const shopFile = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
 
     expect(shopFile).toContain("handleToggleFavorite");
-    expect(shopFile).toMatch(
+    expect(shopFile).toContain("const showFavorite = authReady && isAuthed");
+    expect(shopFile).toContain("{showFavorite ? favoriteButton : null}");
+    expect(shopFile).toContain("onPress={handleToggleFavorite}");
+    // Must not redirect unsigned users into login from the favorite control.
+    expect(shopFile).not.toMatch(
       /handleToggleFavorite[\s\S]*?buildLoginRedirectWithCallback/,
     );
-    expect(shopFile).toContain("onPress={handleToggleFavorite}");
   });
 
   it("shop detail parity > given shop media URI changes > then logo and banner failure state resets", () => {

@@ -41,6 +41,7 @@ import {
 } from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { parseOfferDisplayTagsField } from './offer-display-tags.util';
+import { parseProductTypeRowsField } from './product-type.util';
 import { resolvePublicOfferLogo } from './offer-logo.util';
 import { Quest, QuestTask } from 'src/point/schemas/quest.schema';
 import { effectiveQuestRewardModel } from 'src/point/quest-task.contract';
@@ -562,14 +563,7 @@ function offerUploadIdentity(file: Express.Multer.File | undefined) {
 }
 
 function parseProductTypeRows(value: unknown): any[] {
-  if (Array.isArray(value)) return value;
-  if (typeof value !== 'string' || !value.trim()) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return parseProductTypeRowsField(value) ?? [];
 }
 
 @Injectable()

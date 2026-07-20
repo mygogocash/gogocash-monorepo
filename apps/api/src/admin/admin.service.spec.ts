@@ -1967,6 +1967,50 @@ describe('AdminService', () => {
       expect(persisted.product_type).toEqual([{ name: 'game', minimum: '1' }]);
     });
 
+    // #428 / #429 — cashback PATCH must persist plural product-type rows + flag
+    // without wiping them on unrelated partial updates.
+    it('updateOffer > given product_type rows and all_product_types > then both persist', async () => {
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      const rows = [
+        {
+          name: 'Fashion',
+          pay_in: 'cashback',
+          commission_info: '5.6',
+        },
+      ];
+      await service.updateOffer(offerId, {
+        product_type: rows as never,
+        all_product_types: false,
+        commission_store: 5.6,
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.product_type).toEqual(rows);
+      expect(persisted.all_product_types).toBe(false);
+      expect(persisted.commission_store).toBe(5.6);
+    });
+
+    it('updateOffer > given no product_type field > then existing product_type is not wiped', async () => {
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          product_type: [{ name: 'Keep me' }],
+          commission_store: 4,
+        }),
+      );
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        offer_name_display: 'Renamed',
+      } as never);
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.product_type).toBeUndefined();
+      expect(persisted.offer_name_display).toBe('Renamed');
+    });
+
     it('updateOffer > given a tracking_link > then it persists the customer redirect link', async () => {
       offerModel.findById.mockReturnValue(
         makeQuery({
