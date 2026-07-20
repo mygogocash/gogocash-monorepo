@@ -9,10 +9,11 @@ import {
   WithdrawQuery,
 } from "@/types/api";
 import ModalWithdraw from "./ModalWithdraw";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import CopyButton from "@/components/ui/CopyButton";
 import NoData from "@/components/common/NoData";
 import { devError } from "@/lib/devConsole";
+import { parseWithdrawStatusFilter } from "@/lib/withdrawStatusFilter";
 export interface WithdrawRequestForm {
   file: File | null;
   id: string;
@@ -27,6 +28,8 @@ export default function WithdrawTable() {
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const statusFromUrl = parseWithdrawStatusFilter(searchParams.get("status"));
   const [form, setForm] = useState<WithdrawRequestForm>({
     file: null,
     id: "",
@@ -40,13 +43,13 @@ export default function WithdrawTable() {
     totalPages: 1,
   });
 
-  const [query, setQuery] = useState<WithdrawQuery>({
+  const [query, setQuery] = useState<WithdrawQuery>(() => ({
     search: "",
     limit: 10,
     page: 1,
-    status: undefined,
+    status: statusFromUrl,
     method: undefined,
-  });
+  }));
 
   const STATUS_FILTER_OPTIONS = [
     { value: "", label: "All statuses" },
@@ -96,12 +99,28 @@ export default function WithdrawTable() {
     }
   };
 
-  // Initial load
+  // Initial load — honor ?status= from dashboard deep-links (#KPI cards).
   useEffect(() => {
     startTransition(() => {
-      void fetchOffers();
+      void fetchOffers(query);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the Status dropdown + fetch in sync when the URL status changes
+  // (dashboard banner/cards, browser back/forward).
+  useEffect(() => {
+    const nextStatus = statusFromUrl;
+    if ((query.status ?? undefined) === (nextStatus ?? undefined)) return;
+    const newQuery: WithdrawQuery = {
+      ...query,
+      page: 1,
+      status: nextStatus,
+    };
+    setQuery(newQuery);
+    startTransition(() => {
+      void fetchOffers(newQuery);
+    });
+  }, [statusFromUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!openActionsId) return;
@@ -131,12 +150,18 @@ export default function WithdrawTable() {
   }, []);
 
   const handleStatusFilter = (value: string) => {
+    const nextStatus = parseWithdrawStatusFilter(value);
     const newQuery: WithdrawQuery = {
       ...query,
       page: 1,
-      status: value ? value : undefined,
+      status: nextStatus,
     };
     setQuery(newQuery);
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextStatus) params.set("status", nextStatus);
+    else params.delete("status");
+    const qs = params.toString();
+    router.replace(qs ? `/withdraw?${qs}` : "/withdraw", { scroll: false });
     void fetchOffers(newQuery);
   };
 
