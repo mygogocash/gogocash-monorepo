@@ -63,6 +63,11 @@ import {
   resolveDeviceBrandEntries,
   resolveOfferCashbackLabel,
 } from 'src/offer/top-brand.contract';
+import {
+  mirrorTopBrandExtraStoreFlags,
+  syncOfferTopBrandMembership,
+  topBrandMemberIds,
+} from 'src/offer/top-brand-membership';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
@@ -1073,10 +1078,19 @@ export class AdminService {
   }
 
   async updateOffer(id: string, updateData: AdminOfferUpdateData) {
-    return this.categoryIntegrity.withNormalWrite({
+    const updated = await this.categoryIntegrity.withNormalWrite({
       legacy: () => this.updateOfferLegacy(id, updateData),
       enforced: () => this.updateOfferWithIntegrity(id, updateData),
     });
+    // #475 — Top Brand toggle upserts/pulls the curated top-brands list.
+    if (updateData.extra_store !== undefined) {
+      await syncOfferTopBrandMembership(
+        this.topBrandConfigModel,
+        id,
+        Boolean(updateData.extra_store),
+      );
+    }
+    return updated;
   }
 
   private async updateOfferLegacy(
@@ -2258,6 +2272,10 @@ export class AdminService {
         },
         { upsert: true },
       );
+      await mirrorTopBrandExtraStoreFlags(
+        this.offerModel,
+        topBrandMemberIds(brandsDesktop, brandsMobile),
+      );
       return {
         success: true,
         brands: brandsDesktop,
@@ -2283,6 +2301,10 @@ export class AdminService {
         },
       },
       { upsert: true },
+    );
+    await mirrorTopBrandExtraStoreFlags(
+      this.offerModel,
+      topBrandMemberIds(normalizedBrands, normalizedBrands),
     );
     return {
       success: true,

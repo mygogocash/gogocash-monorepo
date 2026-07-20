@@ -323,7 +323,7 @@ export default function MissingOrdersManagement() {
                     <dt className="text-xs text-gray-500 dark:text-gray-400">
                       Brand
                     </dt>
-                    <dd className="mt-0.5 font-medium text-gray-900 dark:text-gray-100">
+                    <dd className="mt-0.5 font-bold text-gray-900 dark:text-gray-100">
                       {detailQ.data.merchantName}
                     </dd>
                   </div>
@@ -562,17 +562,17 @@ export default function MissingOrdersManagement() {
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap sm:px-6 sm:py-4">
-                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          <div className="text-sm font-bold text-gray-900 dark:text-gray-100">
                             {c.merchantName}
                           </div>
-                          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center text-xs font-semibold text-gray-700 dark:text-gray-300">
                             <span className="font-mono">{c.orderId}</span>
                             <CopyButton
                               value={c.orderId}
                               title="Copy order ID"
                             />
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                          <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                             {formatDate(c.purchaseDate)}
                           </div>
                         </td>
