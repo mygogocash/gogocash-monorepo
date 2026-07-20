@@ -191,6 +191,9 @@ describe('AdminService', () => {
       find: jest.fn(),
       findById: jest.fn(),
       findByIdAndUpdate: jest.fn(),
+      updateMany: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ acknowledged: true }),
+      }),
     };
     categoryModel = {
       create: jest.fn(),
@@ -230,7 +233,10 @@ describe('AdminService', () => {
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
     };
-    topBrandConfigModel = { updateOne: jest.fn(), findOne: jest.fn() };
+    topBrandConfigModel = {
+      updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+      findOne: jest.fn().mockReturnValue(makeQuery(null)),
+    };
     deeplinkModel = { aggregate: jest.fn() };
     storedMediaService = {
       upload: jest
