@@ -49,23 +49,60 @@ describe('OptimiseService', () => {
       expect(offerModel.updateOne).toHaveBeenCalledTimes(2);
       expect(offerModel.updateOne).toHaveBeenNthCalledWith(
         1,
-        { source: { $in: ['optimise', null] }, offer_id: 1001 },
+        { source: 'optimise', offer_id: 1001 },
         {
           $set: expect.objectContaining({
             offer_id: 1001,
             source: 'optimise',
             type: 'new',
             disabled: false,
-            status: 'approved',
           }),
+          $setOnInsert: { status: 'pending_review' },
         },
         { upsert: true },
       );
       // Stale sweep disables offers NOT in this pull, source-scoped.
       expect(offerModel.updateMany).toHaveBeenCalledWith(
-        { source: { $in: ['optimise', null] }, offer_id: { $nin: [1001, 1002] } },
+        { source: 'optimise', offer_id: { $nin: [1001, 1002] } },
         { $set: { type: 'old', disabled: true } },
       );
+    });
+
+    // A source-less legacy doc is canonically an Involve offer (offer.schema.ts
+    // defaults `source` to 'involve'). Involve's own sync claims `null` for that
+    // reason; Optimise copying that arm would let this sweep disable the entire
+    // legacy Involve catalogue on the first run after the key is provisioned,
+    // and let an id collision overwrite an Involve offer's tracking link.
+    it('never widens its filters to source-less legacy (Involve) documents', async () => {
+      const { service, offerModel } = makeService();
+      jest
+        .spyOn(service, 'fetchAllCampaigns')
+        .mockResolvedValue([{ productId: 1001, name: 'A', status: 'live' }]);
+
+      await service.syncOffers();
+
+      const upsertFilter = offerModel.updateOne.mock.calls[0][0];
+      const sweepFilter = offerModel.updateMany.mock.calls[0][0];
+      for (const filter of [upsertFilter, sweepFilter]) {
+        expect(filter.source).toBe('optimise');
+        expect(JSON.stringify(filter)).not.toContain('null');
+      }
+    });
+
+    // `status` is admin curation, not upstream state. Involve's sync writes
+    // `type`/`disabled` but never `status`; re-stamping it on every pass would
+    // silently revert every approve/reject an admin made.
+    it('seeds status only on insert, so a re-sync cannot revert admin curation', async () => {
+      const { service, offerModel } = makeService();
+      jest
+        .spyOn(service, 'fetchAllCampaigns')
+        .mockResolvedValue([{ productId: 1001, name: 'A', status: 'live' }]);
+
+      await service.syncOffers();
+
+      const update = offerModel.updateOne.mock.calls[0][1];
+      expect(update.$set).not.toHaveProperty('status');
+      expect(update.$setOnInsert).toEqual({ status: 'pending_review' });
     });
 
     it('skips campaigns without a usable product id', async () => {
