@@ -42,6 +42,7 @@ import {
   UpdateOfferAdminDto,
   UpdateRequestWithdrawDto,
   UpdateUserDto,
+  ListMyCashbackUsersDto,
 } from './dto/update-admin.dto';
 import { UserAdminService } from './user-admin/user-admin-service';
 import { AdminInviteService } from './admin-invite.service';
@@ -66,8 +67,8 @@ import {
   FileInterceptor,
 } from '@nestjs/platform-express';
 
-// Strip unknown fields + coerce types on the unauthenticated admin-auth
-// endpoints (no global ValidationPipe in this app).
+// Strip unknown fields + coerce types (no global ValidationPipe in this app).
+// Shared by unauthenticated admin-auth bodies and validated admin list bodies.
 const adminAuthValidation = new ValidationPipe({
   transform: true,
   whitelist: true,
@@ -729,6 +730,27 @@ export class AdminController {
   @Get('get-mycashback-user/:id')
   viewMyCahsback(@Param('id') id: string) {
     return this.adminService.getMyCashBackUser(id);
+  }
+
+  // Admin MyCashBack users table (apps/admin MyCashbackUsersTable).
+  // Class-level AuthAdminGuard + RolesGuard already apply; no @Roles so any
+  // authenticated admin (including viewer) may read — matches RBAC contract.
+  // POST kept for the current UI client; GET is the preferred list shape.
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: ListMyCashbackUsersDto })
+  @Post('list-mycashback-users')
+  listMyCashbackUsers(@Body(adminAuthValidation) body: ListMyCashbackUsersDto) {
+    return this.adminService.listMyCashbackUsers(body ?? {});
+  }
+
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('list-mycashback-users')
+  listMyCashbackUsersGet(
+    @Query(adminAuthValidation) query: ListMyCashbackUsersDto,
+  ) {
+    return this.adminService.listMyCashbackUsers(query ?? {});
   }
 
   @UseInterceptors(

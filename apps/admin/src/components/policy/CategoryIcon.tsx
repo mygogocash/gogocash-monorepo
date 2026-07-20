@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  CATEGORY_ICON_KEYS,
-  CATEGORY_ICON_OPTIONS,
-  isCategoryIconKey,
-  type CategoryIconKey,
-} from "@gogocash/contracts";
+import { isCategoryIconKey, type CategoryIconKey } from "@gogocash/contracts";
 
 export {
   CATEGORY_ICON_KEYS,

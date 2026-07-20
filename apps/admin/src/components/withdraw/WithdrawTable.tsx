@@ -94,6 +94,14 @@ export default function WithdrawTable() {
     });
   }, [rawStatusParam, router, searchParams]);
 
+  // Keep query.status aligned with the URL during render (React-recommended
+  // "adjusting state when a prop changes" — avoids setState-in-effect lint).
+  const [prevStatusFromUrl, setPrevStatusFromUrl] = useState(statusFromUrl);
+  if (statusFromUrl !== prevStatusFromUrl) {
+    setPrevStatusFromUrl(statusFromUrl);
+    setQuery((prev) => ({ ...prev, page: 1, status: statusFromUrl }));
+  }
+
   // Initial load (status already taken from the URL in useState).
   useEffect(() => {
     startTransition(() => {
@@ -104,21 +112,17 @@ export default function WithdrawTable() {
   // URL is the source of truth for status (dashboard deep-links, back/forward,
   // Status dropdown → router.replace). Fetch only here when status changes —
   // never also from handleStatusFilter (avoids dual-fetch / loading flicker).
+  const skipStatusFetchOnMount = useRef(true);
   useEffect(() => {
-    let nextQuery: WithdrawQuery | undefined;
-    setQuery((prev) => {
-      if ((prev.status ?? undefined) === (statusFromUrl ?? undefined)) {
-        return prev;
-      }
-      nextQuery = { ...prev, page: 1, status: statusFromUrl };
-      return nextQuery;
-    });
-    if (nextQuery) {
-      startTransition(() => {
-        void fetchOffers(nextQuery);
-      });
+    if (skipStatusFetchOnMount.current) {
+      skipStatusFetchOnMount.current = false;
+      return;
     }
-  }, [statusFromUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+    startTransition(() => {
+      void fetchOffers({ ...query, page: 1, status: statusFromUrl });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- statusFromUrl only
+  }, [statusFromUrl]);
 
   useEffect(() => {
     if (!openActionsId) return;

@@ -18,6 +18,12 @@ import {
   UpdateSpecificPageBannerDto,
   UpdateFeeRateDto,
   UpdateRequestWithdrawDto,
+  MYCASHBACK_USERS_DEFAULT_LIMIT,
+  MYCASHBACK_USERS_MAX_LIMIT,
+  MYCASHBACK_USERS_MAX_PAGE,
+  MYCASHBACK_USERS_MAX_SEARCH_LENGTH,
+  MYCASHBACK_USER_SORTS,
+  type MyCashbackUserSort,
 } from './dto/update-admin.dto';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
@@ -97,10 +103,7 @@ type AdminOfferUpdateData = {
   extra_store?: boolean;
   tracking_link?: string;
   /** Present only when the admin PATCH included product_type(s). */
-  product_type?:
-    | ProductTypeDto[]
-    | Array<Record<string, unknown>>
-    | string;
+  product_type?: ProductTypeDto[] | Array<Record<string, unknown>> | string;
   all_product_types?: boolean;
   tracking_period_mode?: 'auto' | 'manual';
   tracking_days?: number;
@@ -1087,7 +1090,11 @@ export class AdminService {
           tracking_link: trackingLink,
           // Partial updates (brand info, T&C, …) must not wipe product rows.
           ...(updateData.product_type !== undefined
-            ? { product_type: coerceProductTypeForPersist(updateData.product_type) }
+            ? {
+                product_type: coerceProductTypeForPersist(
+                  updateData.product_type,
+                ),
+              }
             : {}),
           ...(updateData.all_product_types !== undefined
             ? { all_product_types: updateData.all_product_types }
@@ -1183,7 +1190,11 @@ export class AdminService {
         extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
         tracking_link: trackingLink,
         ...(updateData.product_type !== undefined
-          ? { product_type: coerceProductTypeForPersist(updateData.product_type) }
+          ? {
+              product_type: coerceProductTypeForPersist(
+                updateData.product_type,
+              ),
+            }
           : {}),
         ...(updateData.all_product_types !== undefined
           ? { all_product_types: updateData.all_product_types }
@@ -1578,6 +1589,155 @@ export class AdminService {
   async getMyCashBackUser(id: string) {
     const myCashBack = await this.userService.getBalanceMyCashback(id);
     return myCashBack?.userMyCashback;
+  }
+
+  /**
+   * Paginated MyCashBack user directory for the admin table.
+   * Contract matches admin mock `POST|GET /admin/list-mycashback-users`.
+   */
+  async listMyCashbackUsers(
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      sort?: string;
+      status?: string;
+    } = {},
+  ) {
+    const page = Math.min(
+      MYCASHBACK_USERS_MAX_PAGE,
+      Math.max(1, Number(params.page) || 1),
+    );
+    const limit = Math.min(
+      MYCASHBACK_USERS_MAX_LIMIT,
+      Math.max(1, Number(params.limit) || MYCASHBACK_USERS_DEFAULT_LIMIT),
+    );
+    const skip = (page - 1) * limit;
+    const search = String(params.search ?? '')
+      .trim()
+      .slice(0, MYCASHBACK_USERS_MAX_SEARCH_LENGTH);
+    const status = String(params.status ?? '').trim();
+    const rawSort = String(params.sort ?? 'newest').trim() || 'newest';
+    const sortKey = (MYCASHBACK_USER_SORTS as readonly string[]).includes(
+      rawSort,
+    )
+      ? (rawSort as MyCashbackUserSort)
+      : 'newest';
+
+    const query = this.buildMyCashbackUsersQuery(search, status);
+
+    // Balance sort sums every currency row (not FX-normalized). Primary-row
+    // sort would under-rank multi-wallet users; aggregation is required.
+    if (sortKey === 'balance') {
+      const [data, total] = await Promise.all([
+        this.userMyCashbackModel
+          .aggregate([
+            { $match: query },
+            {
+              $addFields: {
+                _balanceTotal: {
+                  $sum: {
+                    $map: {
+                      input: { $ifNull: ['$balance', []] },
+                      as: 'b',
+                      in: { $ifNull: ['$$b.amount', 0] },
+                    },
+                  },
+                },
+              },
+            },
+            { $sort: { _balanceTotal: -1, createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                withdrawalPassword: 0,
+                buyerToken: 0,
+                _balanceTotal: 0,
+              },
+            },
+          ])
+          .exec(),
+        this.userMyCashbackModel.countDocuments(query).exec(),
+      ]);
+
+      return {
+        status: 'success',
+        data,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    }
+
+    let sort: Record<string, 1 | -1>;
+    switch (sortKey) {
+      case 'name':
+        sort = { firstName: 1, lastName: 1, email: 1 };
+        break;
+      case 'newest':
+      default:
+        sort = { createdAt: -1 };
+        break;
+    }
+
+    const [data, total] = await Promise.all([
+      this.userMyCashbackModel
+        .find(query)
+        .select('-withdrawalPassword -buyerToken')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.userMyCashbackModel.countDocuments(query).exec(),
+    ]);
+
+    // Match findAll / mock paginate: empty result sets report totalPages 0.
+    return {
+      status: 'success',
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  private buildMyCashbackUsersQuery(
+    search: string,
+    status: string,
+  ): Record<string, unknown> {
+    const query: Record<string, unknown> = {};
+    if (search) {
+      const safe = escapeRegexLiteral(search);
+      const or: Record<string, unknown>[] = [
+        { email: { $regex: safe, $options: 'i' } },
+        { phoneNumber: { $regex: safe, $options: 'i' } },
+        { buyerId: { $regex: safe, $options: 'i' } },
+        { firstName: { $regex: safe, $options: 'i' } },
+        { lastName: { $regex: safe, $options: 'i' } },
+      ];
+      // Exact 24-char hex only — Types.ObjectId.isValid also accepts any
+      // 12-char string, which would wrongly coerce free-text searches.
+      if (/^[0-9a-f]{24}$/i.test(search)) {
+        const objectId = new Types.ObjectId(search);
+        or.push({ _id: objectId }, { publisherId: objectId });
+      }
+      query.$or = or;
+    }
+    if (status === 'active') {
+      // Treat missing `banned` as active (legacy rows).
+      query.banned = { $ne: true };
+    } else if (status === 'banned') {
+      query.banned = true;
+    }
+    return query;
   }
 
   private async updateBanner(
