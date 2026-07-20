@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import {
   AlertCircle as AlertIcon,
@@ -11,6 +11,7 @@ import {
 import { Link } from "expo-router";
 
 import {
+  resolveProfileDisplayName,
   resolveProfileEmail,
   resolveProfilePhone,
 } from "@mobile/account/profileIdentity";
@@ -60,9 +61,20 @@ export function isValidBirthdate(input: string, now: Date = new Date()): boolean
  */
 export function ProfileInfoPanel({ session }: { session: MobileSession }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [username, setUsername] = useState(
-    typeof session.username === "string" && session.username ? session.username : "Mock User",
-  );
+  // `session` hydrates AFTER mount: useMobileSessionSnapshot starts at null and
+  // fills in from an effect, and CustomerProfileDetailScreen renders this panel
+  // ungated as `session={session ?? {}}`. So the first render always sees an
+  // empty session and the real one arrives on a later render, WITHOUT a remount.
+  // Anything seeded from a one-shot useState initializer therefore freezes at
+  // its empty-session value forever — that was issue #411, where Link Email
+  // showed a fixture (and then, once the fixture was removed, nothing at all).
+  const resolvedUsername = resolveProfileDisplayName(session);
+  const [username, setUsername] = useState(resolvedUsername);
+  // Adopt the real name once the session lands. Keyed on the resolved value, not
+  // on `isEditing`, so leaving edit mode never reverts what the user just typed.
+  useEffect(() => {
+    setUsername(resolvedUsername);
+  }, [resolvedUsername]);
   const [idType, setIdType] = useState<"national" | "passport">("national");
   const [idNumber, setIdNumber] = useState("");
   const [address, setAddress] = useState("");
@@ -72,8 +84,11 @@ export function ProfileInfoPanel({ session }: { session: MobileSession }) {
   const [zip, setZip] = useState("");
   const [gender] = useState("");
   const [birthdate, setBirthdate] = useState("");
-  const [email] = useState(() => resolveProfileEmail(session));
-  const [phone] = useState(() => resolveProfilePhone(session));
+  // Read-only display values — derived straight from the session on every render
+  // rather than held in state, so they cannot get stuck on the pre-hydration
+  // empty session (see the note above).
+  const email = resolveProfileEmail(session);
+  const phone = resolveProfilePhone(session);
   const [errors, setErrors] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
 

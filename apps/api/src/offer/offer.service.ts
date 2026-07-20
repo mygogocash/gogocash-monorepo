@@ -51,13 +51,13 @@ import { escapeRegexLiteral } from 'src/common/escape-regex';
 import { countryFilterRegex } from 'src/utils/country';
 import { requireObjectId, mongoSetUpdate } from 'src/common/mongo-query';
 import {
-  MAX_TRACKING_PERIOD_DAYS,
-  MIN_TRACKING_PERIOD_DAYS,
+  coerceOptionalDayCount,
   resolveTrackingPeriod,
 } from './tracking-period.util';
 import {
   MAX_CUSTOM_TERMS_LENGTH,
   MAX_NOTE_TO_USER_LENGTH,
+  MAX_TRACKING_SUBTITLE_LENGTH,
 } from './offer-text-limits';
 import { rankOffersWithSearchRules } from './search-ranking';
 import { normalizeSearchRuleKeywords } from 'src/admin/search/search-rule.contract';
@@ -264,24 +264,16 @@ function parseTrackingPeriodCreateFields(
     fields.tracking_period_mode = mode;
   }
   if (mode === 'manual') {
-    const parseDay = (value: unknown): number | undefined => {
-      const n =
-        typeof value === 'number'
-          ? value
-          : typeof value === 'string' && value.trim()
-            ? Number(value.trim())
-            : NaN;
-      if (
-        Number.isInteger(n) &&
-        n >= MIN_TRACKING_PERIOD_DAYS &&
-        n <= MAX_TRACKING_PERIOD_DAYS
-      ) {
-        return n;
-      }
-      return undefined;
-    };
-    const trackingDays = parseDay(body.tracking_days);
-    const confirmDays = parseDay(body.confirm_days);
+    // Same validator the admin update path uses: absent means "use the default",
+    // but a supplied-yet-invalid value is a 400 rather than a silent fallback.
+    const trackingDays = coerceOptionalDayCount(
+      body.tracking_days,
+      'tracking_days',
+    );
+    const confirmDays = coerceOptionalDayCount(
+      body.confirm_days,
+      'confirm_days',
+    );
     if (trackingDays !== undefined) fields.tracking_days = trackingDays;
     if (confirmDays !== undefined) fields.confirm_days = confirmDays;
   }
@@ -289,10 +281,18 @@ function parseTrackingPeriodCreateFields(
     fields.flow_type = body.flow_type;
   }
   if (typeof body.tracking_subtitle === 'string') {
-    fields.tracking_subtitle = body.tracking_subtitle.trim();
+    fields.tracking_subtitle = parseBoundedOptionalText(
+      body.tracking_subtitle,
+      'tracking_subtitle',
+      MAX_TRACKING_SUBTITLE_LENGTH,
+    );
   }
   if (typeof body.confirm_subtitle === 'string') {
-    fields.confirm_subtitle = body.confirm_subtitle.trim();
+    fields.confirm_subtitle = parseBoundedOptionalText(
+      body.confirm_subtitle,
+      'confirm_subtitle',
+      MAX_TRACKING_SUBTITLE_LENGTH,
+    );
   }
   return fields;
 }

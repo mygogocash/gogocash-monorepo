@@ -261,6 +261,15 @@ export default function CreateBrandForm() {
     setOfferDisplayTags({ ...DEFAULT_OFFER_DISPLAY_TAGS });
     setDisabledOffer(false);
     setTopBrands(false);
+    // Cashback tracking period is per-country too (a partner's windows differ by
+    // market), so it resets with the rest — otherwise the next variant silently
+    // inherits the previous country's manual day counts.
+    setTrackingPeriodMode("auto");
+    setTrackingDays(null);
+    setConfirmDays(null);
+    setFlowType(DEFAULT_FLOW_TYPE);
+    setTrackingSubtitle(null);
+    setConfirmSubtitle(null);
     // Brand-level fields kept: brandName, logos, banners, description, isGlobal.
   };
   const [logoFile, setLogoFile] = useState<File | null>(null);
