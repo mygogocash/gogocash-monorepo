@@ -98,7 +98,7 @@ export function AuthShell({
               alt="GoGoCash"
               width={180}
               height={56}
-              className="h-12 w-auto sm:h-14"
+              className="h-12 w-auto rounded-[22%] [corner-shape:squircle] sm:h-14"
               style={{ width: "auto", height: "auto" }}
               priority
             />
