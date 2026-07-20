@@ -41,10 +41,7 @@ function timingSafeEqualHex(a: string, b: string): boolean {
   return timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
 }
 
-function normalizeTarget(
-  channel: 'email' | 'mobile',
-  raw: string,
-): string {
+function normalizeTarget(channel: 'email' | 'mobile', raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) {
     throw new BadRequestException('target is required');

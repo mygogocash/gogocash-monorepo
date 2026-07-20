@@ -84,7 +84,7 @@
     "@playwright/test": "^1.55.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/react-native": "14.0.1",
-    "@types/node": "^26.1.1",
+    "@types/node": "^24.13.3",
     "@types/react": "*",
     "babel-preset-expo": "~57.0.0",
     "happy-dom": "^20.11.0",

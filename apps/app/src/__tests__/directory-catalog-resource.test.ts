@@ -135,7 +135,7 @@ describe("directoryCatalogResource", () => {
       Travel: "travel",
       Pets: "pets",
     });
-    expect(resolveCategoryIconKeys("fixture", payload)).toEqual({});
+    expect(resolveCategoryIconKeys("fixtures", payload)).toEqual({});
     expect(
       resolveCategoryIconImages("backend", [
         { name: "Travel", image: "https://cdn.example/t.png" },

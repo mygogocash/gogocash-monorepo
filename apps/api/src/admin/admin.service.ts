@@ -97,10 +97,7 @@ type AdminOfferUpdateData = {
   extra_store?: boolean;
   tracking_link?: string;
   /** Present only when the admin PATCH included product_type(s). */
-  product_type?:
-    | ProductTypeDto[]
-    | Array<Record<string, unknown>>
-    | string;
+  product_type?: ProductTypeDto[] | Array<Record<string, unknown>> | string;
   all_product_types?: boolean;
   tracking_period_mode?: 'auto' | 'manual';
   tracking_days?: number;
@@ -1087,7 +1084,11 @@ export class AdminService {
           tracking_link: trackingLink,
           // Partial updates (brand info, T&C, …) must not wipe product rows.
           ...(updateData.product_type !== undefined
-            ? { product_type: coerceProductTypeForPersist(updateData.product_type) }
+            ? {
+                product_type: coerceProductTypeForPersist(
+                  updateData.product_type,
+                ),
+              }
             : {}),
           ...(updateData.all_product_types !== undefined
             ? { all_product_types: updateData.all_product_types }
@@ -1183,7 +1184,11 @@ export class AdminService {
         extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
         tracking_link: trackingLink,
         ...(updateData.product_type !== undefined
-          ? { product_type: coerceProductTypeForPersist(updateData.product_type) }
+          ? {
+              product_type: coerceProductTypeForPersist(
+                updateData.product_type,
+              ),
+            }
           : {}),
         ...(updateData.all_product_types !== undefined
           ? { all_product_types: updateData.all_product_types }
