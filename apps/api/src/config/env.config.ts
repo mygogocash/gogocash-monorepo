@@ -36,4 +36,12 @@ export default registerAs('env', () => ({
   ADMIN_APP_URL:
     process.env.ADMIN_APP_URL || 'https://admin-staging.gogocash.co',
   WEB_URL: process.env.WEB_APP_URL,
+  /**
+   * ORION Phase 0 ops mode. LIVE = intended production posture once Vertex is
+   * wired; DEGRADED (default) = safe Phase 0 without external AI providers;
+   * OFF = hard-disabled health signal.
+   */
+  ORION_MODE: process.env.ORION_MODE || 'DEGRADED',
+  /** In-memory TTL for GET /admin/orion/context/snapshot (seconds). */
+  ORION_SNAPSHOT_TTL_SEC: process.env.ORION_SNAPSHOT_TTL_SEC || '90',
 }));

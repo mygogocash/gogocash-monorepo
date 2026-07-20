@@ -23,6 +23,7 @@ import { InvolveModule } from './involve/involve.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PdpaModule } from './pdpa/pdpa.module';
 import { GolinkModule } from './golink/golink.module';
+import { OrionModule } from './orion/orion.module';
 import { QuestTaskEngineModule } from './quest-task-engine/quest-task-engine.module';
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { QuestTaskEngineModule } from './quest-task-engine/quest-task-engine.mod
     CatalogModule,
     PdpaModule,
     GolinkModule,
+    OrionModule,
     QuestTaskEngineModule,
     ConfigModule.forRoot({
       load: [envConfig],
