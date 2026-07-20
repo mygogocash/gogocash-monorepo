@@ -512,6 +512,7 @@ class ApiClient {
             realApi: this.isRealApi,
             isBrowser: true,
             pathname: window.location.pathname,
+            data: error.response.data,
           })
         ) {
           window.location.assign(SIGN_IN_PATH);

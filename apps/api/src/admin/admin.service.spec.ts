@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getConnectionToken, getModelToken } from '@nestjs/mongoose';
-import { HttpException } from '@nestjs/common';
-import { ConflictException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Types } from 'mongoose';
 import { AdminService } from './admin.service';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
@@ -3525,15 +3528,59 @@ describe('AdminService', () => {
   });
 
   describe('getMyCashBackUser', () => {
-    it('getMyCashBackUser > given a user id > then it returns the userMyCashback from the user service', async () => {
-      userService.getBalanceMyCashback.mockResolvedValue({
-        userMyCashback: { balance: 42 },
+    it('getMyCashBackUser > given a UserMyCashback ObjectId > then it returns that row as an array', async () => {
+      const mcbId = '60583a4d1325b29fd914af5b';
+      const row = { _id: mcbId, buyerId: 'tmn.1', balance: [{ amount: 1 }] };
+      userMyCashbackModel.findById = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(row),
+          }),
+        }),
       });
 
-      const result = await service.getMyCashBackUser('user-1');
+      const result = await service.getMyCashBackUser(mcbId);
 
-      expect(userService.getBalanceMyCashback).toHaveBeenCalledWith('user-1');
-      expect(result).toEqual({ balance: 42 });
+      expect(userMyCashbackModel.findById).toHaveBeenCalledWith(mcbId);
+      expect(userService.getBalanceMyCashback).not.toHaveBeenCalled();
+      expect(result).toEqual([row]);
+    });
+
+    it('getMyCashBackUser > given an app user id > then it returns the userMyCashback list from the user service', async () => {
+      userMyCashbackModel.findById = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(null),
+          }),
+        }),
+      });
+      userService.getBalanceMyCashback.mockResolvedValue({
+        userMyCashback: [{ balance: 42 }],
+      });
+
+      const result = await service.getMyCashBackUser('60583a4d1325b29fd914af5b');
+
+      expect(userService.getBalanceMyCashback).toHaveBeenCalledWith(
+        '60583a4d1325b29fd914af5b',
+      );
+      expect(result).toEqual([{ balance: 42 }]);
+    });
+
+    it('getMyCashBackUser > given user-service UnauthorizedException > then it returns [] (never 401)', async () => {
+      userMyCashbackModel.findById = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(null),
+          }),
+        }),
+      });
+      userService.getBalanceMyCashback.mockRejectedValue(
+        new UnauthorizedException('User not found'),
+      );
+
+      await expect(
+        service.getMyCashBackUser('60583a4d1325b29fd914af5b'),
+      ).resolves.toEqual([]);
     });
   });
 
