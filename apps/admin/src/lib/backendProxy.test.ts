@@ -246,6 +246,16 @@ describe("assertProxyBodyWithinLimit", () => {
     const body = new ArrayBuffer(16);
     expect(assertProxyBodyWithinLimit(new Headers(), body)).toBeNull();
   });
+
+  it("#487 given Content-Length larger than the buffered body > then returns 413", async () => {
+    const headers = new Headers({ "content-length": "1000" });
+    const body = new ArrayBuffer(100);
+    const rejected = assertProxyBodyWithinLimit(headers, body);
+    expect(rejected?.status).toBe(413);
+    expect(await rejected?.json()).toMatchObject({
+      message: expect.stringMatching(/cut off|under 32 MB/i),
+    });
+  });
 });
 
 describe("sessionExpiredResponse", () => {

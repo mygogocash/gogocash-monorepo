@@ -128,6 +128,22 @@ export function assertProxyBodyWithinLimit(
         { status: 413 },
       );
     }
+    // #487 — if Next truncated the buffered body below Content-Length, refuse
+    // to forward a partial multipart (avoids Nest "Unexpected end of form").
+    if (
+      body &&
+      Number.isFinite(declared) &&
+      declared > 0 &&
+      body.byteLength < declared
+    ) {
+      return Response.json(
+        {
+          message:
+            "Upload was cut off before it finished. Use a file under 32 MB, or compress the image, then try again.",
+        },
+        { status: 413 },
+      );
+    }
   }
   if (body && body.byteLength > MAX_PROXY_BODY_BYTES) {
     return Response.json(

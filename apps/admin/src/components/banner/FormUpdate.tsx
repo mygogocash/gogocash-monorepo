@@ -44,7 +44,7 @@ const FormUpdate = ({
   savePath = "/admin/banner-home",
   headerTitle = "Banner Home",
   headerDescription = "Edit homepage banner slot {slot}: upload an image, set the link and optional start/end dates. The banner is shown to users on the app homepage.",
-  uploadImageHint = "Choose a banner image (e.g. PNG, JPG). Recommended size: 1920×1080 (16:9). Non-16:9 uploads are center-cropped to fill the hero frame.",
+  uploadImageHint = "Choose a banner image (PNG, JPG, or WebP). Recommended artwork: 1920×1080 (16:9) — other sizes are accepted and fitted to the hero frame. Max upload 32 MB (large PNGs are optimized on save).",
   surfaceLabel = "Home Page Banner",
 }: IProp) => {
   const { can } = usePermissions();
@@ -142,6 +142,15 @@ const FormUpdate = ({
       !["image/png", "image/jpeg", "image/webp"].includes(file.type)
     ) {
       toast.error("Choose a PNG, JPG, or WebP banner image.");
+      e.target.value = "";
+      return;
+    }
+    // #487 — align with admin BFF / Next proxy body limit (32 MiB).
+    const maxBytes = 32 * 1024 * 1024;
+    if (file && file.size > maxBytes) {
+      toast.error(
+        "That image is too large (over 32 MB). Compress it or export a smaller PNG/JPG/WebP, then try again.",
+      );
       e.target.value = "";
       return;
     }
