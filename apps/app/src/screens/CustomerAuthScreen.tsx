@@ -2360,6 +2360,7 @@ function createAuthScreenStyles(colors: ThemeColors) {
     letterSpacing: 0.66,
   },
   socialStackDesktop: {
+    flexDirection: "row",
     gap: 10,
     width: "100%",
   },
@@ -2385,12 +2386,13 @@ function createAuthScreenStyles(colors: ThemeColors) {
   },
   socialButtonRow: {
     alignItems: "center",
+    flex: 1,
     flexDirection: "row",
     gap: 12,
     height: 52,
     justifyContent: "flex-start",
     paddingHorizontal: 18,
-    width: "100%",
+    width: undefined,
   },
   socialButtonHovered: {
     borderColor: "#56D4AA",
@@ -2415,7 +2417,7 @@ function createAuthScreenStyles(colors: ThemeColors) {
     color: colors.ink,
     flex: 1,
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "400",
     lineHeight: 20,
     textAlign: "left",
     width: undefined,

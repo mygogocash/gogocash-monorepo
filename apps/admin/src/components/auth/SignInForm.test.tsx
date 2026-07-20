@@ -129,6 +129,37 @@ describe("SignInForm", () => {
     expect(message).toBeTruthy();
   });
 
+  it('given "Keep me logged in" is checked > then signIn receives rememberMe "true"', async () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    authMock.signIn.mockResolvedValue({ ok: false });
+
+    render(<SignInForm />);
+    await userEvent.type(screen.getByLabelText(/^email/i), "admin@gogocash.co");
+    await userEvent.type(screen.getByLabelText(/^password/i), "secret");
+    await userEvent.click(screen.getByText("Keep me logged in"));
+    await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    expect(authMock.signIn).toHaveBeenCalledWith(
+      "credentials",
+      expect.objectContaining({ rememberMe: "true" }),
+    );
+  });
+
+  it('given "Keep me logged in" is unchecked > then signIn receives rememberMe "false"', async () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    authMock.signIn.mockResolvedValue({ ok: false });
+
+    render(<SignInForm />);
+    await userEvent.type(screen.getByLabelText(/^email/i), "admin@gogocash.co");
+    await userEvent.type(screen.getByLabelText(/^password/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    expect(authMock.signIn).toHaveBeenCalledWith(
+      "credentials",
+      expect.objectContaining({ rememberMe: "false" }),
+    );
+  });
+
   it("given a real API is configured > then mock quick access is hidden", () => {
     process.env.NEXT_PUBLIC_API_URL = "https://api.gogocash.co";
 

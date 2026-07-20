@@ -471,6 +471,59 @@ describe('AdminService', () => {
     });
   });
 
+  describe('getWithdrawAll', () => {
+    // The admin withdraw table's Status/Method dropdowns must actually filter
+    // the result set. Before #25 these params were dropped and every status
+    // returned the full list, so the filter looked broken.
+    it('getWithdrawAll > given status and method > then it filters the query by both (exact match)', async () => {
+      const findQuery = makeQuery([]);
+      withdrawModel.find.mockReturnValue(findQuery);
+      withdrawModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.getWithdrawAll(
+        1,
+        10,
+        undefined,
+        'approved',
+        'bank_transfer',
+      );
+
+      expect(withdrawModel.find).toHaveBeenCalledWith({
+        status: 'approved',
+        method: 'bank_transfer',
+      });
+    });
+
+    // A status filter and a free-text search should intersect (AND), not
+    // replace each other — status pins the bucket, search narrows within it.
+    it('getWithdrawAll > given a status filter plus a search term > then both narrow the query', async () => {
+      const findQuery = makeQuery([]);
+      withdrawModel.find.mockReturnValue(findQuery);
+      withdrawModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.getWithdrawAll(1, 10, 'abc', 'pending');
+
+      expect(withdrawModel.find).toHaveBeenCalledWith({
+        status: 'pending',
+        $or: [
+          { method: { $regex: 'abc', $options: 'i' } },
+          { status: { $regex: 'abc', $options: 'i' } },
+          { address: { $regex: 'abc', $options: 'i' } },
+        ],
+      });
+    });
+
+    it('getWithdrawAll > given no filters > then it queries with an empty filter', async () => {
+      const findQuery = makeQuery([]);
+      withdrawModel.find.mockReturnValue(findQuery);
+      withdrawModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.getWithdrawAll();
+
+      expect(withdrawModel.find).toHaveBeenCalledWith({});
+    });
+  });
+
   describe('updateRequestWithdraw', () => {
     const bankWithdraw = (overrides: Record<string, unknown> = {}) => ({
       _id: new Types.ObjectId(),

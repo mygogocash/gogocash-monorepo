@@ -44,6 +44,8 @@ export default function SignInForm() {
       const result = await signIn("credentials", {
         email,
         password,
+        // "Keep me logged in" → 30-day token/session (else 7-day).
+        rememberMe: String(isChecked),
         redirect: false,
       });
 

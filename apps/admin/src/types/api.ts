@@ -4,6 +4,8 @@ import type { Permission } from "@/lib/rbac/permissions";
 export interface LoginRequest {
   email: string;
   password: string;
+  /** "Keep me logged in" → the API issues a 30-day token instead of 7 days. */
+  rememberMe?: boolean;
 }
 
 export interface LoginResponse {
