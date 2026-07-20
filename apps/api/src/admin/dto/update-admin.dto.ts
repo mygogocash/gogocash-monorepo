@@ -11,6 +11,7 @@ import {
   ArrayNotEmpty,
   IsArray,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -387,6 +388,47 @@ export class UpdateUserDto {
   @IsNotEmpty()
   @IsString()
   mobile: string;
+}
+
+/** Body for POST /admin/list-mycashback-users (admin MyCashBack users table). */
+export class ListMyCashbackUsersDto {
+  @ApiProperty({ required: false, default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiProperty({ required: false, default: 12 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiProperty({
+    required: false,
+    enum: ['newest', 'name', 'balance'],
+    default: 'newest',
+  })
+  @IsOptional()
+  @IsIn(['newest', 'name', 'balance', ''])
+  sort?: string;
+
+  @ApiProperty({
+    required: false,
+    enum: ['active', 'banned', ''],
+    description: 'Derived account status filter',
+  })
+  @IsOptional()
+  @IsIn(['active', 'banned', ''])
+  status?: string;
 }
 
 export class UpdateBannerHomeBodyDto {

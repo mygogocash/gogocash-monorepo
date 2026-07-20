@@ -97,10 +97,7 @@ type AdminOfferUpdateData = {
   extra_store?: boolean;
   tracking_link?: string;
   /** Present only when the admin PATCH included product_type(s). */
-  product_type?:
-    | ProductTypeDto[]
-    | Array<Record<string, unknown>>
-    | string;
+  product_type?: ProductTypeDto[] | Array<Record<string, unknown>> | string;
   all_product_types?: boolean;
   tracking_period_mode?: 'auto' | 'manual';
   tracking_days?: number;
@@ -1087,7 +1084,11 @@ export class AdminService {
           tracking_link: trackingLink,
           // Partial updates (brand info, T&C, …) must not wipe product rows.
           ...(updateData.product_type !== undefined
-            ? { product_type: coerceProductTypeForPersist(updateData.product_type) }
+            ? {
+                product_type: coerceProductTypeForPersist(
+                  updateData.product_type,
+                ),
+              }
             : {}),
           ...(updateData.all_product_types !== undefined
             ? { all_product_types: updateData.all_product_types }
@@ -1183,7 +1184,11 @@ export class AdminService {
         extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
         tracking_link: trackingLink,
         ...(updateData.product_type !== undefined
-          ? { product_type: coerceProductTypeForPersist(updateData.product_type) }
+          ? {
+              product_type: coerceProductTypeForPersist(
+                updateData.product_type,
+              ),
+            }
           : {}),
         ...(updateData.all_product_types !== undefined
           ? { all_product_types: updateData.all_product_types }
@@ -1578,6 +1583,86 @@ export class AdminService {
   async getMyCashBackUser(id: string) {
     const myCashBack = await this.userService.getBalanceMyCashback(id);
     return myCashBack?.userMyCashback;
+  }
+
+  /**
+   * Paginated MyCashBack user directory for the admin table.
+   * Contract matches admin mock `POST /admin/list-mycashback-users`.
+   */
+  async listMyCashbackUsers(
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      sort?: string;
+      status?: string;
+    } = {},
+  ) {
+    const page = Math.max(1, Number(params.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(params.limit) || 12));
+    const skip = (page - 1) * limit;
+    const search = String(params.search ?? '').trim();
+    const status = String(params.status ?? '').trim();
+    const sortKey = String(params.sort ?? 'newest').trim() || 'newest';
+
+    const query: Record<string, unknown> = {};
+    if (search) {
+      const safe = escapeRegexLiteral(search);
+      const or: Record<string, unknown>[] = [
+        { email: { $regex: safe, $options: 'i' } },
+        { phoneNumber: { $regex: safe, $options: 'i' } },
+        { buyerId: { $regex: safe, $options: 'i' } },
+        { firstName: { $regex: safe, $options: 'i' } },
+        { lastName: { $regex: safe, $options: 'i' } },
+      ];
+      if (Types.ObjectId.isValid(search)) {
+        or.push({ _id: new Types.ObjectId(search) });
+      }
+      query.$or = or;
+    }
+    if (status === 'active') {
+      query.banned = { $ne: true };
+    } else if (status === 'banned') {
+      query.banned = true;
+    }
+
+    let sort: Record<string, 1 | -1>;
+    switch (sortKey) {
+      case 'name':
+        sort = { firstName: 1, lastName: 1, email: 1 };
+        break;
+      case 'balance':
+        sort = { 'balance.0.amount': -1 };
+        break;
+      case 'newest':
+      default:
+        sort = { createdAt: -1 };
+        break;
+    }
+
+    const [data, total] = await Promise.all([
+      this.userMyCashbackModel
+        .find(query)
+        .select('-withdrawalPassword -buyerToken')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.userMyCashbackModel.countDocuments(query).exec(),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / limit) || 1);
+    return {
+      status: 'success',
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
   }
 
   private async updateBanner(

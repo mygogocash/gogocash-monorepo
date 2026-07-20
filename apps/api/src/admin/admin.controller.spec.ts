@@ -61,6 +61,7 @@ describe('AdminController', () => {
       updateCategory: stub(),
       updateUser: stub(),
       getMyCashBackUser: stub(),
+      listMyCashbackUsers: stub(),
       updateBannerHome: stub(),
       getBannerHome: stub(),
       updateAllBrandBanner: stub(),
@@ -935,6 +936,23 @@ describe('AdminController', () => {
     it('viewMyCahsback > given a user id > then it delegates to getMyCashBackUser', () => {
       controller.viewMyCahsback('user-3');
       expect(adminService.getMyCashBackUser).toHaveBeenCalledWith('user-3');
+    });
+
+    it('listMyCashbackUsers > given a body > then it forwards the body to the service', () => {
+      const body = {
+        page: 2,
+        limit: 12,
+        search: 'alice',
+        sort: 'name',
+        status: 'active',
+      };
+      controller.listMyCashbackUsers(body);
+      expect(adminService.listMyCashbackUsers).toHaveBeenCalledWith(body);
+    });
+
+    it('listMyCashbackUsers > given no body > then it forwards an empty object', () => {
+      controller.listMyCashbackUsers(undefined as never);
+      expect(adminService.listMyCashbackUsers).toHaveBeenCalledWith({});
     });
 
     it('updateConversionDataByConversionId > given an id > then it forwards the id', () => {
