@@ -24,6 +24,12 @@ import {
   CreateWithdrawMethod,
   UpdateWithdrawDto,
 } from './dto/update-withdraw.dto';
+import {
+  SendUserContactOtpDto,
+  UpdateWithdrawUserDto,
+  VerifyUserContactOtpDto,
+} from './dto/user-contact-otp.dto';
+import { UserContactOtpService } from './user-contact-otp.service';
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
@@ -35,12 +41,45 @@ import { RolesGuard } from 'src/admin/roles.guard';
 import { Roles } from 'src/admin/roles.decorator';
 import { requireAdminActor } from 'src/admin/activity/admin-activity.actor';
 import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
+import { RateLimitGuard } from 'src/auth/rate-limit.guard';
+import { RateLimit } from 'src/auth/rate-limit.decorator';
 @Controller('withdraw')
 export class WithdrawController {
   constructor(
     private readonly withdrawService: WithdrawService,
     private readonly analytics: AnalyticsService,
+    private readonly userContactOtpService: UserContactOtpService,
   ) {}
+
+  // #424 — admin withdraw-detail contact OTP (was mock-only → Cannot POST on beta).
+  @UseGuards(AuthAdminGuard, RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: SendUserContactOtpDto })
+  @Post('send-user-contact-otp')
+  sendUserContactOtp(@Body() body: SendUserContactOtpDto) {
+    return this.userContactOtpService.sendOtp(body);
+  }
+
+  @UseGuards(AuthAdminGuard, RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 10 })
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: VerifyUserContactOtpDto })
+  @Post('verify-user-contact-otp')
+  verifyUserContactOtp(@Body() body: VerifyUserContactOtpDto) {
+    return this.userContactOtpService.verifyOtp(body);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: UpdateWithdrawUserDto })
+  @Post('update-withdraw-user')
+  updateWithdrawUser(@Body() body: UpdateWithdrawUserDto) {
+    return this.userContactOtpService.updateWithdrawUser(body);
+  }
 
   @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: GETSignDTO })
