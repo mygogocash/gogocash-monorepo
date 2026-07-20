@@ -29,7 +29,11 @@ import walletNoDataImage from "../../assets/wallet-no-data.png";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { WalletSkeleton } from "@mobile/components/Skeleton";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
-import { mapCheckWithdrawToWalletMetrics, type WalletMetricView } from "@mobile/api/walletMapper";
+import {
+  mapCheckWithdrawToWalletMetrics,
+  resolveWalletListCheckMetricExtras,
+  type WalletMetricView,
+} from "@mobile/api/walletMapper";
 import {
   mapListCheckToWalletTxRows,
   type WalletTxRow,
@@ -76,13 +80,20 @@ export function CustomerWalletScreen() {
     : mapListCheckToWalletTxRows(txResource.data);
   // Money rule: live amounts are backend-derived or zero — the fixture's demo
   // balances must never render as real money. Fixtures mode rejects the guard
-  // and stays byte-identical.
+  // and stays byte-identical. Pending/Withdrawn come from list-check THB
+  // aggregates (FX applied server-side), not from summing tx row strings.
+  const metricExtras = resolveWalletListCheckMetricExtras(txResource.data);
   const liveMetrics = isCheckWithdrawResponse(walletResource.data)
-    ? mapCheckWithdrawToWalletMetrics(walletResource.data, webWalletCashbackSummary.metrics)
+    ? mapCheckWithdrawToWalletMetrics(
+        walletResource.data,
+        webWalletCashbackSummary.metrics,
+        metricExtras,
+      )
     : walletResource.status === "empty"
       ? mapCheckWithdrawToWalletMetrics(
           { netAmount: 0, netAmountTHB: 0, totalPayoutTHB: 0, totalPayoutUSD: 0 },
           webWalletCashbackSummary.metrics,
+          metricExtras,
         )
       : null;
 
