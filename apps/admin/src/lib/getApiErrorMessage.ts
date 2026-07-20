@@ -27,6 +27,50 @@ export function friendlyStatusMessage(status?: number): string {
   }
 }
 
+type StructuredApiErrorBody = {
+  message?: string | string[];
+  reason?: unknown;
+  code?: unknown;
+};
+
+/** Append Nest structured `reason` for policy readiness / txn gates (#407). */
+function withOptionalReason(
+  message: string,
+  body: StructuredApiErrorBody | undefined,
+): string {
+  const reason =
+    body && typeof body.reason === "string" ? body.reason.trim() : "";
+  if (!reason || message.includes(reason)) {
+    return message;
+  }
+  const code = body && typeof body.code === "string" ? body.code : "";
+  if (
+    code.startsWith("POLICY_") ||
+    /replica set|mongos|integrity migration|transaction/i.test(message)
+  ) {
+    return `${message} (${reason})`;
+  }
+  return message;
+}
+
+function messageFromBody(body: StructuredApiErrorBody | undefined): string | null {
+  if (!body) return null;
+  const msg = body.message;
+  if (Array.isArray(msg)) {
+    const joined = msg
+      .filter(
+        (part): part is string =>
+          typeof part === "string" && part.trim().length > 0,
+      )
+      .join(", ");
+    return joined ? withOptionalReason(joined, body) : null;
+  }
+  if (typeof msg === "string" && msg.trim()) {
+    return withOptionalReason(msg.trim(), body);
+  }
+  return null;
+}
+
 /**
  * Normalizes errors from our axios client (interceptor rejects `response`, so `data.message`)
  * plus raw `AxiosError` shapes (`response.data.message`), generic `Error`, and the flat
@@ -39,34 +83,16 @@ export function getApiErrorMessage(
   fallback = GENERIC_ERROR_MESSAGE,
 ): string {
   if (error && typeof error === "object" && "response" in error) {
-    const res = (error as { response?: { data?: { message?: string | string[] } } })
-      .response;
-    const msg = res?.data?.message;
-    if (Array.isArray(msg)) {
-      const joined = msg
-        .filter(
-          (part): part is string =>
-            typeof part === "string" && part.trim().length > 0,
-        )
-        .join(", ");
-      if (joined) return joined;
-    }
-    if (typeof msg === "string" && msg.trim()) return msg;
+    const res = (
+      error as { response?: { data?: StructuredApiErrorBody } }
+    ).response;
+    const fromBody = messageFromBody(res?.data);
+    if (fromBody) return fromBody;
   }
   if (error && typeof error === "object" && "data" in error) {
-    const data = (error as { data?: { message?: string | string[] } }).data;
-    if (data && Array.isArray(data.message)) {
-      const joined = data.message
-        .filter(
-          (part): part is string =>
-            typeof part === "string" && part.trim().length > 0,
-        )
-        .join(", ");
-      if (joined) return joined;
-    }
-    if (data && typeof data.message === "string" && data.message.trim()) {
-      return data.message;
-    }
+    const data = (error as { data?: StructuredApiErrorBody }).data;
+    const fromBody = messageFromBody(data);
+    if (fromBody) return fromBody;
   }
   if (error instanceof Error && error.message.trim()) {
     return error.message;

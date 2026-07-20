@@ -91,6 +91,37 @@ describe("getApiErrorMessage", () => {
     ).toBe("boom");
   });
 
+  it("appends Nest structured reason for policy transaction/integrity 503s (#407)", () => {
+    expect(
+      getApiErrorMessage({
+        response: {
+          data: {
+            statusCode: 503,
+            code: "POLICY_TRANSACTIONS_UNSUPPORTED",
+            message:
+              "Policy aggregate saves require MongoDB replica set or mongos transaction support.",
+            reason: "Durable migration marker is absent or stale",
+            topology: "replica-set",
+          },
+        },
+      }),
+    ).toBe(
+      "Policy aggregate saves require MongoDB replica set or mongos transaction support. (Durable migration marker is absent or stale)",
+    );
+  });
+
+  it("does not duplicate reason when it is already embedded in message", () => {
+    expect(
+      getApiErrorMessage({
+        data: {
+          code: "POLICY_CATEGORY_INTEGRITY_NOT_READY",
+          message: "Unavailable (Durable migration marker is absent or stale)",
+          reason: "Durable migration marker is absent or stale",
+        },
+      }),
+    ).toBe("Unavailable (Durable migration marker is absent or stale)");
+  });
+
   it("still reads the interceptor-rejected data.message shape", () => {
     expect(getApiErrorMessage({ data: { message: "rejected" } })).toBe(
       "rejected",
