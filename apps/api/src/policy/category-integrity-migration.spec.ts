@@ -7,6 +7,9 @@ import { join } from 'node:path';
 const {
   REVIEWED_PRODUCTION_ATLAS_FINGERPRINT,
   assertPolicyCategoryIntegrityApplyGate,
+  buildApplyConfirmSentinel,
+  buildProductionAuthorizeSentinel,
+  buildWriterDrainConfirm,
   describeMongoTarget,
   loadWriterDrainEvidence,
   planMigration,
@@ -304,9 +307,23 @@ describe('policy category integrity migration', () => {
       POLICY_CATEGORY_INTEGRITY_TARGET_FINGERPRINT: target.fingerprint,
       POLICY_CATEGORY_INTEGRITY_CANDIDATE_SHA: candidateSha,
       POLICY_CATEGORY_INTEGRITY_WRITER_DRAIN_EVIDENCE_SHA256: evidenceSha256,
-      POLICY_CATEGORY_INTEGRITY_WRITER_DRAIN_CONFIRM: `drained-all-writers:production:${candidateSha}:${target.fingerprint}:${evidenceSha256}`,
-      POLICY_CATEGORY_INTEGRITY_CONFIRM: `apply-category-integrity-v2:production:${candidateSha}:gogocash:${target.fingerprint}`,
-      POLICY_CATEGORY_INTEGRITY_PRODUCTION_AUTHORIZE: `authorize-production-integrity-v2:${candidateSha}:${target.fingerprint}`,
+      POLICY_CATEGORY_INTEGRITY_WRITER_DRAIN_CONFIRM: buildWriterDrainConfirm({
+        environment: 'production',
+        candidateSha,
+        fingerprint: target.fingerprint,
+        evidenceSha256,
+      }),
+      POLICY_CATEGORY_INTEGRITY_CONFIRM: buildApplyConfirmSentinel({
+        environment: 'production',
+        candidateSha,
+        database: 'gogocash',
+        fingerprint: target.fingerprint,
+      }),
+      POLICY_CATEGORY_INTEGRITY_PRODUCTION_AUTHORIZE:
+        buildProductionAuthorizeSentinel({
+          candidateSha,
+          fingerprint: target.fingerprint,
+        }),
     };
 
     expect(() =>
@@ -325,8 +342,20 @@ describe('policy category integrity migration', () => {
         {
           ...baseEnv,
           POLICY_CATEGORY_INTEGRITY_ENVIRONMENT: 'staging',
-          POLICY_CATEGORY_INTEGRITY_WRITER_DRAIN_CONFIRM: `drained-all-writers:staging:${candidateSha}:${target.fingerprint}:${evidenceSha256}`,
-          POLICY_CATEGORY_INTEGRITY_CONFIRM: `apply-category-integrity-v2:staging:${candidateSha}:gogocash:${target.fingerprint}`,
+          POLICY_CATEGORY_INTEGRITY_WRITER_DRAIN_CONFIRM: buildWriterDrainConfirm(
+            {
+              environment: 'staging',
+              candidateSha,
+              fingerprint: target.fingerprint,
+              evidenceSha256,
+            },
+          ),
+          POLICY_CATEGORY_INTEGRITY_CONFIRM: buildApplyConfirmSentinel({
+            environment: 'staging',
+            candidateSha,
+            database: 'gogocash',
+            fingerprint: target.fingerprint,
+          }),
         },
         { ...writerDrainEvidence, environment: 'staging' },
         evidenceSha256,
@@ -344,6 +373,25 @@ describe('policy category integrity migration', () => {
         evidenceSha256,
       ),
     ).toThrow('PRODUCTION_AUTHORIZE');
+
+    expect(() =>
+      assertPolicyCategoryIntegrityApplyGate(
+        target,
+        baseEnv,
+        {
+          ...writerDrainEvidence,
+          writer_deployments: [
+            {
+              service: 'gogocash-admin',
+              deployment_sha: 'f'.repeat(40),
+              replicas: 0,
+              state: 'stopped',
+            },
+          ],
+        },
+        evidenceSha256,
+      ),
+    ).toThrow('gogocash-api');
   });
 
   it('derives a credential-free target fingerprint and exposes implicit database risk', () => {

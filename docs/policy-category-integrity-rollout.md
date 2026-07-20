@@ -1,22 +1,22 @@
 # Policy category integrity rollout (#349 / #350)
 
-This is the Wave 2B release contract. It has been executed on both dev and
-staging (migration applied with writers drained and an empty quarantine — see
-Execution status below) and remains the reference runbook for any future
-environment. It does not authorize production.
+This is the Wave 2B release contract. It has been executed on dev, staging, and
+production Atlas (see Execution status). Production apply is gated in
+`apps/api/scripts/policy-category-integrity-migration.cjs` (reviewed Atlas
+fingerprint + `POLICY_CATEGORY_INTEGRITY_PRODUCTION_AUTHORIZE` sentinel).
 
-## Execution status (as of 2026-07-18)
+## Execution status (as of 2026-07-20)
 
-- The policy/category integrity migration has been applied on BOTH dev and
-  staging: writers were drained during the maintenance window and the reviewed
-  quarantine was empty (quarantine=0).
-- Policy endpoints serve on both environments; the fail-closed behavior on
-  standalone topology no longer applies because both environments now report
-  replica-set topology.
-- Dev and staging Mongo were converted to authenticated single-node replica
-  sets (rs0; MongoDB 8.0.4 on dev, 8.3.4 on staging) with committing
-  transactions, satisfying the topology gate in section 1.
-- Production has not been migrated and remains unauthorized by this document.
+- The policy/category integrity migration has been applied on **dev**,
+  **staging**, and **production Atlas** (`gogocash.4prpd9j.mongodb.net/gogocash`,
+  fingerprint `f3a5dff559dda931`): quarantine=0; durable marker
+  `key=category-integrity`, `status=ready`, `migration_version=2`.
+- `api-beta` / admin-beta use **Atlas** (not the Railway MongoDB service).
+  Converting Railway Mongo does not affect beta policy saves — see #407.
+- Dev and staging Railway Mongo remain authenticated single-node replica sets
+  (`rs0`; MongoDB 8.0.4 on dev, 8.3.4 on staging) with committing transactions.
+- Production apply remains fail-closed without the authorize sentinel and the
+  reviewed fingerprint; do not broaden that allowlist without a fresh dry-run.
 
 ## Non-negotiable safety contract
 
