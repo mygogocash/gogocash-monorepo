@@ -465,7 +465,13 @@ export class AdminController {
     @Query('method') method?: string,
   ) {
     // return this.adminService.findAll(page, limit, search);
-    return this.adminService.getWithdrawAll(page, limit, search, status, method);
+    return this.adminService.getWithdrawAll(
+      page,
+      limit,
+      search,
+      status,
+      method,
+    );
   }
 
   @UseGuards(AuthAdminGuard)
