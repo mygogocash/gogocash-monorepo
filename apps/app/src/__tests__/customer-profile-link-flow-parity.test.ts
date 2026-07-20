@@ -32,4 +32,12 @@ describe("Profile link sections — same coming-soon flow as the Next.js web app
   it("link flow > given the MyCashBack CTA > then routes to /link-mycashback (web parity)", () => {
     expect(panel).toContain('href="/link-mycashback"');
   });
+
+  // Issue #411: Link Email / Phone must seed from session identity helpers, not hardcoded mocks.
+  it("link contact fields > given Personal Information > then seeds email/phone via profileIdentity (no hardcoded mocks)", () => {
+    expect(panel).toContain("resolveProfileEmail");
+    expect(panel).toContain("resolveProfilePhone");
+    expect(panel).not.toContain('useState("mock.user@gogocash.test")');
+    expect(panel).not.toContain('useState("+66123456789")');
+  });
 });

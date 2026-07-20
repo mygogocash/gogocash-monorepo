@@ -1790,6 +1790,33 @@ async function handleMockPOST(
         active_policy: activePolicy,
         custom_terms: customTerms,
       };
+
+      const trackingPeriodMode = String(b.tracking_period_mode ?? "").trim();
+      if (trackingPeriodMode === "auto" || trackingPeriodMode === "manual") {
+        newOffer.tracking_period_mode = trackingPeriodMode;
+      }
+      if (trackingPeriodMode === "manual") {
+        const parseDay = (v: unknown): number | undefined => {
+          const n = Number(v);
+          if (Number.isInteger(n) && n >= 1 && n <= 365) return n;
+          return undefined;
+        };
+        const td = parseDay(b.tracking_days);
+        const cd = parseDay(b.confirm_days);
+        if (td !== undefined) newOffer.tracking_days = td;
+        if (cd !== undefined) newOffer.confirm_days = cd;
+      }
+      const flowType = String(b.flow_type ?? "").trim();
+      if (flowType === "two_step" || flowType === "three_step") {
+        newOffer.flow_type = flowType;
+      }
+      if (typeof b.tracking_subtitle === "string") {
+        newOffer.tracking_subtitle = b.tracking_subtitle.trim();
+      }
+      if (typeof b.confirm_subtitle === "string") {
+        newOffer.confirm_subtitle = b.confirm_subtitle.trim();
+      }
+
       const pickPath = (key: string) => {
         const v = b[key];
         return typeof v === "string" && v.trim().length > 0

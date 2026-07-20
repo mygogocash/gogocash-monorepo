@@ -868,6 +868,21 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("flexShrink: 1");
   });
 
+  it("home section titles > given dark mode > then Top Brands / promo titles match Sign in primary green", () => {
+    const homeFile = readHomeFile();
+    const signInGraphicFile = readMobileFile("src/components/CustomerSignInNavGraphic.tsx");
+
+    // Sign in pill uses colors.primary (#00CC99). Section titles must share that dark-mode
+    // token — not the cyan accent (#5EEAD4) — so Top Brands / promo rails match the header CTA.
+    expect(signInGraphicFile).toContain("backgroundColor: colors.primary");
+    expect(homeFile).toMatch(
+      /sectionTitle:\s*\{[\s\S]*?pickThemed\(colors, "#103522", colors\.primary\)/,
+    );
+    expect(homeFile).toMatch(
+      /sectionTitleSmall:\s*\{[\s\S]*?pickThemed\(colors, "#103522", colors\.primary\)/,
+    );
+  });
+
   it("home design parity > given staging mobile icon weight > then Expo avoids heavier placeholder strokes", () => {
     const homeFile = readHomeFile();
 
