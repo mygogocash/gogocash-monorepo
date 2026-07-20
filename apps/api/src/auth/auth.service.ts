@@ -24,10 +24,7 @@ import { ethers } from 'ethers';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Point, PointDocument } from 'src/point/schemas/point.schema';
-import {
-  getAdminAuth,
-  verifyFirebaseIdToken,
-} from './firebase-admin.provider';
+import { getAdminAuth, verifyFirebaseIdToken } from './firebase-admin.provider';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { SiweNonce, SiweNonceDocument } from './schemas/siwe-nonce.schema';
