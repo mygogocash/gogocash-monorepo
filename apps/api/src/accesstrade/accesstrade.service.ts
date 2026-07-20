@@ -62,7 +62,9 @@ export class AccesstradeService {
       const userUid = res.data?.userUid;
       const secretKey = res.data?.secretKey;
       if (!userUid || !secretKey) {
-        throw new BadGatewayException({ code: 'ACCESSTRADE_PROVISION_INVALID' });
+        throw new BadGatewayException({
+          code: 'ACCESSTRADE_PROVISION_INVALID',
+        });
       }
       this.provisioned = { userUid, secretKey };
       return this.provisioned;
@@ -159,7 +161,12 @@ export class AccesstradeService {
       await this.offerModel.updateOne(
         { source: 'accesstrade', offer_id: offerId },
         {
-          $set: { ...mapped, source: 'accesstrade', type: 'new', disabled: false },
+          $set: {
+            ...mapped,
+            source: 'accesstrade',
+            type: 'new',
+            disabled: false,
+          },
           $setOnInsert: { status },
         },
         { upsert: true },

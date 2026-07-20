@@ -226,7 +226,10 @@ describe('AccesstradeService', () => {
       mockedAxios.get.mockRejectedValueOnce({ response: { status: 401 } });
 
       await expect(service.fetchAllCampaigns()).rejects.toMatchObject({
-        response: { code: 'ACCESSTRADE_PROVISION_FAILED', upstreamStatusCode: 401 },
+        response: {
+          code: 'ACCESSTRADE_PROVISION_FAILED',
+          upstreamStatusCode: 401,
+        },
       });
     });
   });

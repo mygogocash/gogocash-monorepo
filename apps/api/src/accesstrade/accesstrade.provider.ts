@@ -22,7 +22,7 @@ export class AccesstradeAffiliateProvider implements AffiliateNetworkProvider {
     // panel's "connected" flag is reconciled to the same check.
     return Boolean(
       process.env.ACCESSTRADE_USERNAME?.trim() &&
-        process.env.ACCESSTRADE_PASSWORD?.trim(),
+      process.env.ACCESSTRADE_PASSWORD?.trim(),
     );
   }
 

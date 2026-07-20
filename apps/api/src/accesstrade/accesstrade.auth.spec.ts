@@ -10,9 +10,7 @@ describe('buildAccesstradeProvisioningAuth', () => {
   it('is SHA256(username + ":" + MD5(password)) as lowercase hex', () => {
     expect(
       buildAccesstradeProvisioningAuth('pub@gogocash.co', 'secret123'),
-    ).toBe(
-      'dc67871944bb4f230098e93147e64d2b2eb7d2a8e268af30d79292a4829d6f2e',
-    );
+    ).toBe('dc67871944bb4f230098e93147e64d2b2eb7d2a8e268af30d79292a4829d6f2e');
   });
 
   it('changes when either credential changes', () => {

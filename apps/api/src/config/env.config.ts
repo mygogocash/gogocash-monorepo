@@ -14,8 +14,7 @@ export default registerAs('env', () => ({
   // (`https://api.optimisemedia.com`) is an NXDOMAIN and was never reachable;
   // the real gateway is `public.api.optimisemedia.com/v1` (verified live).
   OPTIMISE_API_BASE:
-    process.env.OPTIMISE_API_BASE ||
-    'https://public.api.optimisemedia.com/v1',
+    process.env.OPTIMISE_API_BASE || 'https://public.api.optimisemedia.com/v1',
   /**
    * Accesstrade Global affiliate network. Auth is a two-stage provisioning ->
    * HS256 JWT flow keyed off the publisher username+password (NOT a single API

@@ -76,7 +76,10 @@ export class OptimiseService {
         headers: { apikey: process.env.OPTIMISE_API_KEY ?? '' },
         timeout: OPTIMISE_TIMEOUT_MS,
       });
-      return { data: res.data, headers: res.headers as Record<string, unknown> };
+      return {
+        data: res.data,
+        headers: res.headers as Record<string, unknown>,
+      };
     } catch (error) {
       const status =
         (error as { response?: { status?: number } })?.response?.status ?? 0;
@@ -104,7 +107,9 @@ export class OptimiseService {
       );
       const page = Array.isArray(data) ? data : [];
       all.push(...page);
-      const total = Number(headers['x-total-count'] ?? headers['X-Total-Count']);
+      const total = Number(
+        headers['x-total-count'] ?? headers['X-Total-Count'],
+      );
       offset += OPTIMISE_PAGE_LIMIT;
       if (page.length < OPTIMISE_PAGE_LIMIT) break;
       if (Number.isFinite(total) && offset >= total) break;

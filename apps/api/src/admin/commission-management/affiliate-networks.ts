@@ -69,7 +69,7 @@ export function listAffiliateNetworks(): AffiliateNetworkDto[] {
               // "connected" tracks those, not the legacy ACCESSTRADE_API_KEY.
               Boolean(
                 process.env.ACCESSTRADE_USERNAME?.trim() &&
-                  process.env.ACCESSTRADE_PASSWORD?.trim(),
+                process.env.ACCESSTRADE_PASSWORD?.trim(),
               )
             : false,
   }));
