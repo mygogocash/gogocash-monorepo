@@ -4,6 +4,7 @@ import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { UserAdminService } from './user-admin/user-admin-service';
 import { AdminInviteService } from './admin-invite.service';
+import { ListMyCashbackUsersDto } from './dto/update-admin.dto';
 
 /**
  * AdminController is a thin delegation layer over three injected services. The
@@ -939,7 +940,7 @@ describe('AdminController', () => {
     });
 
     it('listMyCashbackUsers > given a body > then it forwards the body to the service', () => {
-      const body = {
+      const body: ListMyCashbackUsersDto = {
         page: 2,
         limit: 12,
         search: 'alice',
@@ -956,7 +957,7 @@ describe('AdminController', () => {
     });
 
     it('listMyCashbackUsersGet > given query params > then it forwards them to the same service', () => {
-      const query = {
+      const query: ListMyCashbackUsersDto = {
         page: 1,
         limit: 12,
         search: 'bob',
