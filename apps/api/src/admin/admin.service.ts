@@ -80,6 +80,7 @@ import {
   type PolicyMediaWriteAssets,
 } from 'src/policy/policy-media-write.service';
 import { PolicyMediaAssetRegistryService } from 'src/policy/policy-media-asset-registry.service';
+import { requireProductTypeRowsField } from 'src/offer/product-type.util';
 
 type AdminOfferUpdateData = {
   logo_desktop?: Express.Multer.File;
@@ -96,7 +97,10 @@ type AdminOfferUpdateData = {
   extra_store?: boolean;
   tracking_link?: string;
   /** Present only when the admin PATCH included product_type(s). */
-  product_type?: ProductTypeDto[] | Array<Record<string, unknown>>;
+  product_type?:
+    | ProductTypeDto[]
+    | Array<Record<string, unknown>>
+    | string;
   all_product_types?: boolean;
   tracking_period_mode?: 'auto' | 'manual';
   tracking_days?: number;
@@ -108,6 +112,16 @@ type AdminOfferUpdateData = {
   custom_terms?: string;
   note_to_user?: string;
 };
+
+/** Persist product_type rows; string input is validated (400 on bad JSON). */
+function coerceProductTypeForPersist(
+  value: AdminOfferUpdateData['product_type'],
+): Array<Record<string, unknown>> | ProductTypeDto[] {
+  if (typeof value === 'string') {
+    return requireProductTypeRowsField(value, 'product_type') ?? [];
+  }
+  return (value ?? []) as Array<Record<string, unknown>> | ProductTypeDto[];
+}
 
 type AdminCategoryUpdateData = {
   name?: string;
@@ -1073,12 +1087,7 @@ export class AdminService {
           tracking_link: trackingLink,
           // Partial updates (brand info, T&C, …) must not wipe product rows.
           ...(updateData.product_type !== undefined
-            ? {
-                product_type:
-                  typeof updateData.product_type === 'string'
-                    ? JSON.parse(updateData.product_type)
-                    : updateData.product_type,
-              }
+            ? { product_type: coerceProductTypeForPersist(updateData.product_type) }
             : {}),
           ...(updateData.all_product_types !== undefined
             ? { all_product_types: updateData.all_product_types }
@@ -1174,12 +1183,7 @@ export class AdminService {
         extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
         tracking_link: trackingLink,
         ...(updateData.product_type !== undefined
-          ? {
-              product_type:
-                typeof updateData.product_type === 'string'
-                  ? JSON.parse(updateData.product_type)
-                  : updateData.product_type,
-            }
+          ? { product_type: coerceProductTypeForPersist(updateData.product_type) }
           : {}),
         ...(updateData.all_product_types !== undefined
           ? { all_product_types: updateData.all_product_types }

@@ -300,6 +300,22 @@ describe("mapMerchantOfferToShopDetail", () => {
     expect(shop.extraCashback).toBe("6%");
   });
 
+  it("given commission_store 0 with product_type rates > then uses the highest product rate", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        commission_store: 0,
+        commissions: [],
+        product_type: [
+          { name: "Beauty", pay_in: "cashback", commission_info: "8" },
+        ],
+      },
+      fixtureShop,
+    );
+
+    expect(shop.cashback).toBe("8%");
+  });
+
   it("given a numeric commission without a percent sign > then formats it", () => {
     const shop = mapMerchantOfferToShopDetail(
       { ...liveOffer, commissions: [{ Commission: "7.25" }] },

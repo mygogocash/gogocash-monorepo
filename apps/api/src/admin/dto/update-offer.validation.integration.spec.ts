@@ -203,4 +203,15 @@ describe('UpdateOfferAdminDto validation (integration)', () => {
     expect(response.body.body.all_product_types).toBe('true');
     expect(response.body.body.product_types).toBe('[]');
   });
+
+  // DTO only validates string presence; controller require* throws on bad JSON.
+  // Here we pin that a garbage string is still whitelisted (not forbidNonWhitelisted).
+  it('given a non-JSON product_types string > then DTO whitelist still accepts the field', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/offer-test/update-offer/offer-1')
+      .field('product_types', 'not-json');
+
+    expect(response.status).toBe(200);
+    expect(response.body.body.product_types).toBe('not-json');
+  });
 });

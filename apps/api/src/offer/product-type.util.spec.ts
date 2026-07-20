@@ -1,5 +1,7 @@
+import { BadRequestException } from '@nestjs/common';
 import {
   parseProductTypeRowsField,
+  requireProductTypeRowsField,
   resolveProductTypeUpdate,
 } from './product-type.util';
 
@@ -21,6 +23,24 @@ describe('product-type.util', () => {
     expect(parseProductTypeRowsField('[]')).toEqual([]);
   });
 
+  it('parseProductTypeRowsField > given invalid JSON > then returns undefined (soft)', () => {
+    expect(parseProductTypeRowsField('{not-json')).toBeUndefined();
+    expect(parseProductTypeRowsField('{"name":"x"}')).toBeUndefined();
+  });
+
+  it('requireProductTypeRowsField > given invalid JSON > then throws 400', () => {
+    expect(() =>
+      requireProductTypeRowsField('{not-json', 'product_types'),
+    ).toThrow(BadRequestException);
+    expect(() =>
+      requireProductTypeRowsField('{"name":"x"}', 'product_types'),
+    ).toThrow(BadRequestException);
+  });
+
+  it('requireProductTypeRowsField > given [] > then returns empty array', () => {
+    expect(requireProductTypeRowsField('[]', 'product_types')).toEqual([]);
+  });
+
   it('resolveProductTypeUpdate > prefers product_types over product_type', () => {
     expect(
       resolveProductTypeUpdate({
@@ -32,5 +52,11 @@ describe('product-type.util', () => {
 
   it('resolveProductTypeUpdate > given neither field > then returns undefined', () => {
     expect(resolveProductTypeUpdate({})).toBeUndefined();
+  });
+
+  it('resolveProductTypeUpdate > given invalid product_types > then throws 400', () => {
+    expect(() =>
+      resolveProductTypeUpdate({ product_types: 'not-an-array' }),
+    ).toThrow(BadRequestException);
   });
 });

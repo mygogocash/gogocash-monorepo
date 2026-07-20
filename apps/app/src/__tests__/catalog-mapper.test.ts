@@ -176,6 +176,26 @@ describe("catalog mapper > mapOffersToCatalogBrands", () => {
     expect(brand.cashback).toBe("7%");
   });
 
+  it("given commission_store 0 with product_type rates > then uses the highest product rate", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          _id: "pt-zero-store",
+          offer_name: "Zero Store Shop",
+          commission_store: 0,
+          disabled: false,
+          status: "approved",
+          product_type: [
+            { name: "Beauty", pay_in: "cashback", commission_info: "6.5" },
+          ],
+        },
+      ],
+    });
+
+    expect(brand.cashback).toBe("6.5%");
+  });
+
   it("given any record > then derives a stable tint from the brand name", () => {
     const first = mapOffersToCatalogBrands(sampleResponse);
     const second = mapOffersToCatalogBrands(sampleResponse);

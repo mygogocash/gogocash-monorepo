@@ -5,6 +5,7 @@ import {
   SHOP_BANNER_IMAGE_WIDTH,
 } from "@mobile/api/optimizedImageUrl";
 import { getMobileEnv } from "@mobile/config/env";
+import { formatMerchantCashback } from "@mobile/api/offerCashbackFormat";
 import {
   resolvePublicOfferLogo,
   resolveShopPageBannerUri,
@@ -116,41 +117,6 @@ export function buildTrackingPeriodSteps(
   ];
 }
 
-function highestProductTypeCashback(
-  productType: MerchantOfferResponse["product_type"],
-): string | null {
-  if (!Array.isArray(productType)) return null;
-  let max: number | null = null;
-  for (const row of productType) {
-    if (!row || typeof row !== "object") continue;
-    if (row.is_tagline === true) continue;
-    if (row.pay_in === "cash") continue;
-    const info = row.commission_info;
-    if (info == null || info === "") continue;
-    const n =
-      typeof info === "number" ? info : Number(String(info).replace(/%/g, ""));
-    if (!Number.isFinite(n)) continue;
-    if (max == null || n > max) max = n;
-  }
-  return max == null ? null : `${max}%`;
-}
-
-function formatCashback(offer: MerchantOfferResponse): string | null {
-  const store = offer.commission_store;
-  if (typeof store === "number" && Number.isFinite(store)) {
-    return `${store}%`;
-  }
-  if (typeof store === "string" && store.trim()) {
-    return store.includes("%") ? store.trim() : `${store.trim()}%`;
-  }
-  const commission = offer.commissions?.[0]?.Commission?.trim();
-  if (commission) {
-    return commission.includes("%") ? commission : `${commission}%`;
-  }
-  // #428 — fall back to the best product-type rate before showing "—".
-  return highestProductTypeCashback(offer.product_type);
-}
-
 function initialsFromBrand(brand: string): string {
   const parts = brand
     .replace(/&/g, " ")
@@ -194,7 +160,7 @@ export function mapMerchantOfferToShopDetail<
     offer.offer_name_display?.trim() || offer.offer_name?.trim() || fixtureShop.brand;
   // Never fall back to fixture cashback on a live offer — that leaks Grocery Galaxy
   // rates (e.g. 26.5%) onto merchants whose commission fields are empty.
-  const cashback = formatCashback(offer) ?? "—";
+  const cashback = formatMerchantCashback(offer) ?? "—";
   const apiBaseUrl = getMobileEnv().apiUrl;
 
   return {
