@@ -67,8 +67,8 @@ import {
   FileInterceptor,
 } from '@nestjs/platform-express';
 
-// Strip unknown fields + coerce types on the unauthenticated admin-auth
-// endpoints (no global ValidationPipe in this app).
+// Strip unknown fields + coerce types (no global ValidationPipe in this app).
+// Shared by unauthenticated admin-auth bodies and validated admin list bodies.
 const adminAuthValidation = new ValidationPipe({
   transform: true,
   whitelist: true,
@@ -733,12 +733,13 @@ export class AdminController {
   }
 
   // Admin MyCashBack users table (apps/admin MyCashbackUsersTable).
-  // Authenticated read for any admin role — mirrors mock/list contract.
+  // Class-level AuthAdminGuard + RolesGuard already apply; no @Roles so any
+  // authenticated admin (including viewer) may read — matches RBAC contract.
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @ApiBody({ type: ListMyCashbackUsersDto })
   @Post('list-mycashback-users')
-  listMyCashbackUsers(@Body() body: ListMyCashbackUsersDto) {
+  listMyCashbackUsers(@Body(adminAuthValidation) body: ListMyCashbackUsersDto) {
     return this.adminService.listMyCashbackUsers(body ?? {});
   }
 

@@ -20,8 +20,8 @@ import { BadRequestException } from '@nestjs/common';
 export const DEFAULT_TRACKING_DAYS = 30;
 export const DEFAULT_CONFIRM_DAYS = 30;
 
-export const MIN_TRACKING_PERIOD_DAYS = 1;
-export const MAX_TRACKING_PERIOD_DAYS = 365;
+const MIN_TRACKING_PERIOD_DAYS = 1;
+const MAX_TRACKING_PERIOD_DAYS = 365;
 
 /**
  * Admin-supplied day count from a write path (create or update). Absent/blank

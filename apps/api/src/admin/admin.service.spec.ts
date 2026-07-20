@@ -3611,6 +3611,52 @@ describe('AdminService', () => {
       });
       expect(findQuery.sort).toHaveBeenCalledWith({ 'balance.0.amount': -1 });
     });
+
+    it('listMyCashbackUsers > given a 24-char hex search > then it also matches by _id', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+      const hex = '507f1f77bcf86cd799439011';
+
+      await service.listMyCashbackUsers({ search: hex });
+
+      expect(userMyCashbackModel.find).toHaveBeenCalledWith({
+        $or: expect.arrayContaining([{ _id: new Types.ObjectId(hex) }]),
+      });
+    });
+
+    it('listMyCashbackUsers > given a 12-char non-hex search > then it does not coerce ObjectId', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.listMyCashbackUsers({ search: 'abcdefghijkl' });
+
+      const filter = userMyCashbackModel.find.mock.calls[0][0] as {
+        $or: Array<Record<string, unknown>>;
+      };
+      expect(filter.$or.some((clause) => '_id' in clause)).toBe(false);
+    });
+
+    it('listMyCashbackUsers > given unknown sort > then it falls back to newest', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.listMyCashbackUsers({ sort: 'not-a-sort' });
+
+      expect(findQuery.sort).toHaveBeenCalledWith({ createdAt: -1 });
+    });
+
+    it('listMyCashbackUsers > given empty result set > then totalPages is 0', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      const result = await service.listMyCashbackUsers();
+
+      expect(result.pagination.totalPages).toBe(0);
+    });
   });
 
   describe('updateConversionDataByConversionId', () => {

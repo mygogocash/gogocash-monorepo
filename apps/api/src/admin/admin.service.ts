@@ -18,6 +18,12 @@ import {
   UpdateSpecificPageBannerDto,
   UpdateFeeRateDto,
   UpdateRequestWithdrawDto,
+  MYCASHBACK_USERS_DEFAULT_LIMIT,
+  MYCASHBACK_USERS_MAX_LIMIT,
+  MYCASHBACK_USERS_MAX_PAGE,
+  MYCASHBACK_USERS_MAX_SEARCH_LENGTH,
+  MYCASHBACK_USER_SORTS,
+  type MyCashbackUserSort,
 } from './dto/update-admin.dto';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
@@ -1598,12 +1604,25 @@ export class AdminService {
       status?: string;
     } = {},
   ) {
-    const page = Math.max(1, Number(params.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(params.limit) || 12));
+    const page = Math.min(
+      MYCASHBACK_USERS_MAX_PAGE,
+      Math.max(1, Number(params.page) || 1),
+    );
+    const limit = Math.min(
+      MYCASHBACK_USERS_MAX_LIMIT,
+      Math.max(1, Number(params.limit) || MYCASHBACK_USERS_DEFAULT_LIMIT),
+    );
     const skip = (page - 1) * limit;
-    const search = String(params.search ?? '').trim();
+    const search = String(params.search ?? '')
+      .trim()
+      .slice(0, MYCASHBACK_USERS_MAX_SEARCH_LENGTH);
     const status = String(params.status ?? '').trim();
-    const sortKey = String(params.sort ?? 'newest').trim() || 'newest';
+    const rawSort = String(params.sort ?? 'newest').trim() || 'newest';
+    const sortKey = (MYCASHBACK_USER_SORTS as readonly string[]).includes(
+      rawSort,
+    )
+      ? (rawSort as MyCashbackUserSort)
+      : 'newest';
 
     const query: Record<string, unknown> = {};
     if (search) {
@@ -1615,12 +1634,15 @@ export class AdminService {
         { firstName: { $regex: safe, $options: 'i' } },
         { lastName: { $regex: safe, $options: 'i' } },
       ];
-      if (Types.ObjectId.isValid(search)) {
+      // Prefer exact 24-char hex — Types.ObjectId.isValid also accepts any
+      // 12-char string, which would wrongly coerce free-text searches.
+      if (/^[0-9a-f]{24}$/i.test(search)) {
         or.push({ _id: new Types.ObjectId(search) });
       }
       query.$or = or;
     }
     if (status === 'active') {
+      // Treat missing `banned` as active (legacy rows).
       query.banned = { $ne: true };
     } else if (status === 'banned') {
       query.banned = true;
@@ -1652,7 +1674,8 @@ export class AdminService {
       this.userMyCashbackModel.countDocuments(query).exec(),
     ]);
 
-    const totalPages = Math.max(1, Math.ceil(total / limit) || 1);
+    // Match findAll / mock paginate: empty result sets report totalPages 0.
+    const totalPages = Math.ceil(total / limit);
     return {
       status: 'success',
       data,
