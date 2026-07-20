@@ -1078,17 +1078,17 @@ export class AdminService {
   }
 
   async updateOffer(id: string, updateData: AdminOfferUpdateData) {
+    // #475 — enable Top Brand only after curated list accepts the offer
+    // (throws at max capacity before we persist a divergent extra_store flag).
+    if (updateData.extra_store === true) {
+      await syncOfferTopBrandMembership(this.topBrandConfigModel, id, true);
+    }
     const updated = await this.categoryIntegrity.withNormalWrite({
       legacy: () => this.updateOfferLegacy(id, updateData),
       enforced: () => this.updateOfferWithIntegrity(id, updateData),
     });
-    // #475 — Top Brand toggle upserts/pulls the curated top-brands list.
-    if (updateData.extra_store !== undefined) {
-      await syncOfferTopBrandMembership(
-        this.topBrandConfigModel,
-        id,
-        Boolean(updateData.extra_store),
-      );
+    if (updateData.extra_store === false) {
+      await syncOfferTopBrandMembership(this.topBrandConfigModel, id, false);
     }
     return updated;
   }

@@ -46,7 +46,9 @@ export class MissingOrdersService {
     if (missingIds.length === 0) return claims;
 
     const offers = await this.offerModel
-      .find({ _id: { $in: missingIds } })
+      .find({
+        _id: { $in: missingIds.map((id) => new Types.ObjectId(id)) },
+      })
       .select('offer_name offer_name_display')
       .lean()
       .exec();
