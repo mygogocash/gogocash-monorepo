@@ -4,14 +4,10 @@ import {
 } from './affiliate-networks';
 
 describe('affiliate-networks', () => {
-  const originalAccesstrade = process.env.ACCESSTRADE_API_KEY;
+  const original = { ...process.env };
 
   afterEach(() => {
-    if (originalAccesstrade === undefined) {
-      delete process.env.ACCESSTRADE_API_KEY;
-    } else {
-      process.env.ACCESSTRADE_API_KEY = originalAccesstrade;
-    }
+    process.env = { ...original };
   });
 
   describe('sourceForAffiliateNetwork', () => {
@@ -29,24 +25,31 @@ describe('affiliate-networks', () => {
   });
 
   describe('listAffiliateNetworks > accesstrade connected flag', () => {
-    it('given ACCESSTRADE_API_KEY set > then accesstrade is connected', () => {
-      process.env.ACCESSTRADE_API_KEY = '123456';
+    // The Accesstrade provider authenticates with username+password (the
+    // provisioning flow), so the panel's "connected" flag must reflect those —
+    // not the legacy ACCESSTRADE_API_KEY — or the panel and provider disagree.
+    const accesstrade = () =>
+      listAffiliateNetworks().find((n) => n.id === 'accesstrade');
 
-      const accesstrade = listAffiliateNetworks().find(
-        (n) => n.id === 'accesstrade',
-      );
+    it('given username AND password set > then accesstrade is connected', () => {
+      process.env.ACCESSTRADE_USERNAME = 'pub@gogocash.co';
+      process.env.ACCESSTRADE_PASSWORD = 'secret';
 
-      expect(accesstrade?.connected).toBe(true);
+      expect(accesstrade()?.connected).toBe(true);
     });
 
-    it('given ACCESSTRADE_API_KEY unset > then accesstrade is not connected', () => {
-      delete process.env.ACCESSTRADE_API_KEY;
+    it('given only one of username/password > then accesstrade is not connected', () => {
+      process.env.ACCESSTRADE_USERNAME = 'pub@gogocash.co';
+      delete process.env.ACCESSTRADE_PASSWORD;
 
-      const accesstrade = listAffiliateNetworks().find(
-        (n) => n.id === 'accesstrade',
-      );
+      expect(accesstrade()?.connected).toBe(false);
+    });
 
-      expect(accesstrade?.connected).toBe(false);
+    it('given neither credential > then accesstrade is not connected', () => {
+      delete process.env.ACCESSTRADE_USERNAME;
+      delete process.env.ACCESSTRADE_PASSWORD;
+
+      expect(accesstrade()?.connected).toBe(false);
     });
   });
 });
