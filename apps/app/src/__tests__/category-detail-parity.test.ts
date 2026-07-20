@@ -8,7 +8,12 @@ import * as webDesignParity from "@mobile/design/webDesignParity";
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
 
-type CategoryExploreSort = "highest_cashback" | "lowest_cashback" | "popular" | "newest";
+type CategoryExploreSort =
+  | "all"
+  | "highest_cashback"
+  | "lowest_cashback"
+  | "popular"
+  | "newest";
 type CategoryExploreResult = {
   brand: string;
   cashback: string;
@@ -55,6 +60,7 @@ describe("Category detail parity", () => {
         "Others",
       ],
       sortPills: [
+        { label: "All", value: "all" },
         { label: "Popular", value: "popular" },
         { label: "Latest", value: "newest" },
         { label: "Highest Cashback", value: "highest_cashback" },
@@ -91,6 +97,12 @@ describe("Category detail parity", () => {
     expect(parity.getCategoryExploreResults?.({ query: "pearl" }).map((store) => store.brand)).toEqual([
       "Pearl Polish",
     ]);
+    // #437 — All preserves fixture insertion order (no forced cashback ranking).
+    const allOrder = parity.getCategoryExploreResults?.({ sortBy: "all" }).map((store) => store.brand);
+    const fixtureOrder = (
+      webDesignParity as { webCategoryExploreHealthBeauty: { stores: { brand: string }[] } }
+    ).webCategoryExploreHealthBeauty.stores.map((store) => store.brand);
+    expect(allOrder).toEqual(fixtureOrder);
     expect(
       parity.getCategoryExploreResults?.({ sortBy: "lowest_cashback" }).map((store) => store.brand)
     ).toEqual([
@@ -136,11 +148,13 @@ describe("Category detail parity", () => {
 
     expect(screenFile).toContain("webCategoryExploreHealthBeauty");
     expect(screenFile).toContain("resolveCategoryExploreStores");
-    expect(screenFile).toContain("useCustomerAccountResource");
+    expect(screenFile).toContain("useCategoryOfferBrowse");
+    expect(screenFile).toContain('useState<WebCategoryExploreSort>("all")');
     expect(screenFile).toContain("CustomerMobileBottomNav");
     expect(screenFile).toContain("category-result-card");
     expect(screenFile).not.toContain("Compare shops and cashback options");
     expect(screenFile).not.toContain("Discover more");
+    expect(screenFile).not.toContain('resourceId: "brandCatalog"');
   });
 
   it("category detail card > given category result grid > then it renders the shared compact BrandCard", () => {

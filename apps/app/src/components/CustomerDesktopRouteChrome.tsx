@@ -33,6 +33,14 @@ export function isDesktopSelfChromePathname(pathname: string) {
   });
 }
 
+/** #436 — category detail already has a page-scoped search; hide the header one. */
+export function shouldHideDesktopHeaderSearch(pathname: string) {
+  const normalizedPathname = normalizeDesktopPathname(pathname);
+  return (
+    normalizedPathname === "/category" || normalizedPathname.startsWith("/category/")
+  );
+}
+
 export function CustomerDesktopRouteChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
@@ -45,7 +53,10 @@ export function CustomerDesktopRouteChrome({ children }: { children: ReactNode }
 
   return (
     <View style={styles.desktopViewport} testID="desktop-route-chrome">
-      <CustomerDesktopHeader viewportWidth={width} />
+      <CustomerDesktopHeader
+        hideSearch={shouldHideDesktopHeaderSearch(pathname)}
+        viewportWidth={width}
+      />
       <View style={styles.routeContent}>{children}</View>
     </View>
   );

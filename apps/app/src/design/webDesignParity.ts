@@ -2732,7 +2732,12 @@ export function getProductDiscoveryGridMetrics({
   };
 }
 
-export type WebCategoryExploreSort = "highest_cashback" | "lowest_cashback" | "popular" | "newest";
+export type WebCategoryExploreSort =
+  | "all"
+  | "highest_cashback"
+  | "lowest_cashback"
+  | "popular"
+  | "newest";
 
 export const webCategoryExploreHealthBeauty = {
   category: "Health & Beauty",
@@ -2759,6 +2764,7 @@ export const webCategoryExploreHealthBeauty = {
     "Others",
   ],
   sortPills: [
+    { label: "All", value: "all" },
     { label: "Popular", value: "popular" },
     { label: "Latest", value: "newest" },
     { label: "Highest Cashback", value: "highest_cashback" },
@@ -2883,7 +2889,7 @@ function getCategoryExploreBaseStores(category: string): CategoryExploreStore[] 
 export function getCategoryExploreResults({
   category = webCategoryExploreHealthBeauty.category,
   query = "",
-  sortBy = "highest_cashback",
+  sortBy = "all",
 }: {
   category?: string;
   query?: string;
@@ -2896,6 +2902,9 @@ export function getCategoryExploreResults({
     : [...baseStores];
 
   switch (sortBy) {
+    case "all":
+      // Preserve catalog / fixture insertion order — no forced cashback ranking.
+      return filteredStores;
     case "lowest_cashback":
       return filteredStores.sort(
         (left, right) => categoryExploreCashbackValue(left) - categoryExploreCashbackValue(right)
@@ -2917,10 +2926,11 @@ export function getCategoryExploreResults({
         return 0;
       });
     case "highest_cashback":
-    default:
       return filteredStores.sort(
         (left, right) => categoryExploreCashbackValue(right) - categoryExploreCashbackValue(left)
       );
+    default:
+      return filteredStores;
   }
 }
 

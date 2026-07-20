@@ -668,10 +668,26 @@ export class OfferService implements OnApplicationBootstrap {
       filter.$or = orConditions;
     }
     if (categories) {
-      filter['categories'] = {
-        $regex: escapeRegexLiteral(categories),
-        $options: 'i',
+      // #438 — match partner feed `categories` OR an enabled admin brand-category
+      // display override. Admin-assigned Electronics brands were invisible in
+      // customer category browse when only the display tag was set.
+      const safeCategory = escapeRegexLiteral(categories);
+      const categoryClause = {
+        $or: [
+          { categories: { $regex: safeCategory, $options: 'i' } },
+          {
+            'offer_display_tags.brand_category_enabled': true,
+            'offer_display_tags.brand_category_label': {
+              $regex: safeCategory,
+              $options: 'i',
+            },
+          },
+        ],
       };
+      if (!Array.isArray(filter.$and)) {
+        filter.$and = [];
+      }
+      filter.$and.push(categoryClause);
     }
     const countryRegex = countryFilterRegex(country);
     if (countryRegex) {
