@@ -480,7 +480,13 @@ describe('AdminService', () => {
       withdrawModel.find.mockReturnValue(findQuery);
       withdrawModel.countDocuments.mockReturnValue(makeQuery(0));
 
-      await service.getWithdrawAll(1, 10, undefined, 'approved', 'bank_transfer');
+      await service.getWithdrawAll(
+        1,
+        10,
+        undefined,
+        'approved',
+        'bank_transfer',
+      );
 
       expect(withdrawModel.find).toHaveBeenCalledWith({
         status: 'approved',
