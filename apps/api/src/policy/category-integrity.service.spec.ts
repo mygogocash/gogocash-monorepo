@@ -406,9 +406,12 @@ describe('normalizeCategoryIdentity', () => {
 describe('CategoryIntegrityService readiness', () => {
   it('fails closed when MongoDB has no transaction support', async () => {
     const { service, stateModel } = makeHarness({ capability: false });
-    await expect(service.assertReady(true)).rejects.toBeInstanceOf(
-      ServiceUnavailableException,
-    );
+    await expect(service.assertReady(true)).rejects.toMatchObject({
+      status: 503,
+      response: expect.objectContaining({
+        code: 'POLICY_TRANSACTIONS_UNSUPPORTED',
+      }),
+    });
     expect(stateModel.findOne).not.toHaveBeenCalled();
   });
 
@@ -528,7 +531,12 @@ describe('CategoryIntegrityService normal-write activation latch', () => {
 
     await expect(
       service.withNormalWrite({ legacy, enforced }),
-    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    ).rejects.toMatchObject({
+      status: 503,
+      response: expect.objectContaining({
+        code: 'POLICY_TRANSACTIONS_UNSUPPORTED',
+      }),
+    });
     expect(legacy).not.toHaveBeenCalled();
     expect(enforced).not.toHaveBeenCalled();
   });

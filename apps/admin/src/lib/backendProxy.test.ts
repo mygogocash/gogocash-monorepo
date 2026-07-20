@@ -13,38 +13,70 @@ import {
 } from "./backendProxy";
 
 describe("resolveUpstreamBaseUrl", () => {
-  const originalApiUrl = process.env.API_URL;
-  const originalPublicApiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const keys = [
+    "API_URL",
+    "NEXT_PUBLIC_API_URL",
+    "RAILWAY_ENVIRONMENT",
+    "RAILWAY_SERVICE_NAME",
+    "RAILWAY_PROJECT_ID",
+  ] as const;
+  const original = Object.fromEntries(
+    keys.map((key) => [key, process.env[key]]),
+  );
 
   afterEach(() => {
-    if (originalApiUrl === undefined) delete process.env.API_URL;
-    else process.env.API_URL = originalApiUrl;
-    if (originalPublicApiUrl === undefined) {
-      delete process.env.NEXT_PUBLIC_API_URL;
-    } else {
-      process.env.NEXT_PUBLIC_API_URL = originalPublicApiUrl;
+    for (const key of keys) {
+      const value = original[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
     }
   });
 
   it("given API_URL > then prefers the server-only upstream", () => {
-    process.env.API_URL = "https://api.internal.example/";
+    delete process.env.RAILWAY_ENVIRONMENT;
+    delete process.env.RAILWAY_SERVICE_NAME;
+    delete process.env.RAILWAY_PROJECT_ID;
+    process.env.API_URL = "http://api.internal.example:8080/";
     process.env.NEXT_PUBLIC_API_URL = "https://api.public.example";
-    expect(resolveUpstreamBaseUrl()).toBe("https://api.internal.example");
+    expect(resolveUpstreamBaseUrl()).toBe("http://api.internal.example:8080");
   });
 
-  it("given only NEXT_PUBLIC_API_URL > then uses it as upstream", () => {
+  it("given only NEXT_PUBLIC_API_URL locally > then uses it as upstream", () => {
+    delete process.env.RAILWAY_ENVIRONMENT;
+    delete process.env.RAILWAY_SERVICE_NAME;
+    delete process.env.RAILWAY_PROJECT_ID;
     delete process.env.API_URL;
     process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080/";
     expect(resolveUpstreamBaseUrl()).toBe("http://localhost:8080");
   });
 
-  it("given a blank private URL > then falls back to the configured public URL", () => {
+  it("given a blank private URL locally > then falls back to the configured public URL", () => {
+    delete process.env.RAILWAY_ENVIRONMENT;
+    delete process.env.RAILWAY_SERVICE_NAME;
+    delete process.env.RAILWAY_PROJECT_ID;
     process.env.API_URL = "   ";
-    process.env.NEXT_PUBLIC_API_URL = "https://api.public.example/";
-    expect(resolveUpstreamBaseUrl()).toBe("https://api.public.example");
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080/";
+    expect(resolveUpstreamBaseUrl()).toBe("http://localhost:8080");
+  });
+
+  it("given Railway without API_URL > then returns null (no public fallback)", () => {
+    process.env.RAILWAY_ENVIRONMENT = "production";
+    delete process.env.API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "https://api-beta.gogocash.co";
+    expect(resolveUpstreamBaseUrl()).toBeNull();
+  });
+
+  it("given API_URL on *.up.railway.app > then returns null", () => {
+    delete process.env.RAILWAY_ENVIRONMENT;
+    process.env.API_URL = "https://gogocash-api-production.up.railway.app";
+    process.env.NEXT_PUBLIC_API_URL = "https://api-beta.gogocash.co";
+    expect(resolveUpstreamBaseUrl()).toBeNull();
   });
 
   it("given no upstream env > then returns null", () => {
+    delete process.env.RAILWAY_ENVIRONMENT;
+    delete process.env.RAILWAY_SERVICE_NAME;
+    delete process.env.RAILWAY_PROJECT_ID;
     delete process.env.API_URL;
     delete process.env.NEXT_PUBLIC_API_URL;
     expect(resolveUpstreamBaseUrl()).toBeNull();

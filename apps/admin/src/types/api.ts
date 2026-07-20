@@ -23,6 +23,10 @@ export interface ApiError {
   message: string;
   status: number;
   errors?: Record<string, string[]>;
+  /** Nest machine code when present (e.g. POLICY_TRANSACTIONS_UNSUPPORTED). */
+  code?: string;
+  /** Nest ops-actionable detail appended by getApiErrorMessage for POLICY_* gates. */
+  reason?: string;
 }
 
 export interface User {
