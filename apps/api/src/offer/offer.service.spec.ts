@@ -306,7 +306,21 @@ describe('OfferService', () => {
         { lookup_value: { $regex: 'shopee', $options: 'i' } },
         { countries: { $regex: 'shopee', $options: 'i' } },
       ]);
-      expect(filter.categories).toEqual({ $regex: 'fashion', $options: 'i' });
+      // #438 — category matches partner feed OR enabled admin brand-category override.
+      expect(filter.$and).toEqual([
+        {
+          $or: [
+            { categories: { $regex: 'fashion', $options: 'i' } },
+            {
+              'offer_display_tags.brand_category_enabled': true,
+              'offer_display_tags.brand_category_label': {
+                $regex: 'fashion',
+                $options: 'i',
+              },
+            },
+          ],
+        },
+      ]);
       // Country becomes a token-anchored alternation (ISO-2 + full names) —
       // assert behaviorally rather than pinning the source string.
       const countryRegex = new RegExp(
@@ -356,16 +370,46 @@ describe('OfferService', () => {
         { lookup_value: { $regex: 'a\\.\\*', $options: 'i' } },
         { countries: { $regex: 'a\\.\\*', $options: 'i' } },
       ]);
-      expect(filter.categories).toEqual({
-        $regex: 'fashion\\+',
-        $options: 'i',
-      });
+      expect(filter.$and).toEqual([
+        {
+          $or: [
+            { categories: { $regex: 'fashion\\+', $options: 'i' } },
+            {
+              'offer_display_tags.brand_category_enabled': true,
+              'offer_display_tags.brand_category_label': {
+                $regex: 'fashion\\+',
+                $options: 'i',
+              },
+            },
+          ],
+        },
+      ]);
       const countryRegex = new RegExp(
         filter.countries.$regex,
         filter.countries.$options,
       );
       expect(countryRegex.test('Thailand?')).toBe(true);
       expect(countryRegex.test('Thailand')).toBe(false);
+    });
+
+    it('findAll > given category only > then matches admin brand-category display override (#438)', async () => {
+      await service.findAll(1, 10, '', 'Electronics');
+
+      const filter = offerModel.find.mock.calls[0][0];
+      expect(filter.$and).toEqual([
+        {
+          $or: [
+            { categories: { $regex: 'Electronics', $options: 'i' } },
+            {
+              'offer_display_tags.brand_category_enabled': true,
+              'offer_display_tags.brand_category_label': {
+                $regex: 'Electronics',
+                $options: 'i',
+              },
+            },
+          ],
+        },
+      ]);
     });
 
     it('findAll > given a blacklisted search query > then returns no ranked results', async () => {

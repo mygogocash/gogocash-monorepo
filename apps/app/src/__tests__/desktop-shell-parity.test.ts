@@ -287,6 +287,17 @@ describe("desktop route shell parity", () => {
     expect(home).toContain("searchQuery={searchQuery}");
   });
 
+  it("desktop category chrome > given /category routes > then hides the global header search (#436)", () => {
+    const chrome = readMobileFile("src/components/CustomerDesktopRouteChrome.tsx");
+    const header = readMobileFile("src/components/CustomerDesktopHeader.tsx");
+
+    expect(chrome).toContain("shouldHideDesktopHeaderSearch");
+    expect(chrome).toContain('normalizedPathname.startsWith("/category/")');
+    expect(chrome).toContain("hideSearch={shouldHideDesktopHeaderSearch(pathname)}");
+    expect(header).toContain("hideSearch");
+    expect(header).toContain("hideSearch ? null : (");
+  });
+
   it("desktop brand logo > given navbar and footer brand links > then both use the shared navbar logo treatment", () => {
     const header = readMobileFile("src/components/CustomerDesktopHeader.tsx");
     const footer = readMobileFile("src/components/CustomerDesktopFooter.tsx");
