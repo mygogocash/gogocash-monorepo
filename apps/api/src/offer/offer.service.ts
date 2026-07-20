@@ -159,6 +159,7 @@ const PUBLIC_OFFER_DETAIL_FIELDS = [
   'extra_store',
   'extra_point',
   'product_type',
+  'all_product_types',
   'upsize_start_date',
   'upsize_end_date',
   'upsize_start_time',

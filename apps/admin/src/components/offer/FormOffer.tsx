@@ -3314,6 +3314,7 @@ const FormOffer = ({
                                                       is_others: false,
                                                       name: e.target.value,
                                                       description_rewrite: false,
+                                                      description: "",
                                                     })
                                               }
                                               disabled={isLoading}
