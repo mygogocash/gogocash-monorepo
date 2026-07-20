@@ -5,12 +5,12 @@ import {
 } from './optimise.mappers';
 
 describe('mapOptimiseCampaignStatus', () => {
-  // Only live campaigns are customer-ready; everything else lands in the admin
-  // Pending tab (pending_review) or is treated as rejected. This mirrors the
-  // Offer.status enum (offer.schema.ts) and the comment that Optimise sync
-  // writes pending_review on newly-seen offers.
-  it('maps live to approved', () => {
-    expect(mapOptimiseCampaignStatus('live')).toBe('approved');
+  // Dead campaigns are rejected outright; everything else — including `live` —
+  // lands in the admin Pending tab. Per offer.schema.ts, Optimise sync writes
+  // pending_review on newly-seen offers: being live upstream means the campaign
+  // is *available*, not that GoGoCash has agreed to surface it to customers.
+  it('maps live to pending_review, not straight to approved', () => {
+    expect(mapOptimiseCampaignStatus('live')).toBe('pending_review');
   });
 
   it('maps closed and rejected to rejected', () => {
@@ -86,7 +86,7 @@ describe('mapOptimiseCampaignToOffer', () => {
       countries: 'Thailand, Singapore',
       commissions: [{ payout: 'CPS 5%' }, { commission: '5' }],
       commission_tracking: 'percentage',
-      status: 'approved',
+      status: 'pending_review',
       logo: 'https://cdn.example/acme.png',
       logo_desktop: 'https://cdn.example/acme.png',
       tracking_days: 30,

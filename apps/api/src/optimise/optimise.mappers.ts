@@ -34,14 +34,16 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 /**
- * Optimise campaign status -> internal Offer curation state. Only `live`
- * campaigns are customer-ready; `closed`/`rejected` are dead; everything else
- * (`waiting`/`pending`/unknown) waits in the admin Pending tab.
+ * Optimise campaign status -> internal Offer curation state. `closed`/`rejected`
+ * are dead upstream; everything else — including `live` — waits in the admin
+ * Pending tab, per offer.schema.ts ("Optimise sync writes 'pending_review' on
+ * newly-seen offers"). Live upstream means the campaign is *available* to us,
+ * not that GoGoCash has agreed to surface it to customers; that call is the
+ * admin's. Only ever consumed via `$setOnInsert`, so it seeds newly-seen offers
+ * and never overwrites a curation decision on re-sync.
  */
 export function mapOptimiseCampaignStatus(status: unknown): OfferStatus {
   switch (asString(status)?.toLowerCase()) {
-    case 'live':
-      return 'approved';
     case 'closed':
     case 'rejected':
       return 'rejected';
