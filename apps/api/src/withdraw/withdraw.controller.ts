@@ -41,6 +41,8 @@ import { RolesGuard } from 'src/admin/roles.guard';
 import { Roles } from 'src/admin/roles.decorator';
 import { requireAdminActor } from 'src/admin/activity/admin-activity.actor';
 import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
+import { RateLimitGuard } from 'src/auth/rate-limit.guard';
+import { RateLimit } from 'src/auth/rate-limit.decorator';
 @Controller('withdraw')
 export class WithdrawController {
   constructor(
@@ -50,7 +52,8 @@ export class WithdrawController {
   ) {}
 
   // #424 — admin withdraw-detail contact OTP (was mock-only → Cannot POST on beta).
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 5 })
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @ApiBody({ type: SendUserContactOtpDto })
@@ -59,7 +62,8 @@ export class WithdrawController {
     return this.userContactOtpService.sendOtp(body);
   }
 
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 10 })
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @ApiBody({ type: VerifyUserContactOtpDto })

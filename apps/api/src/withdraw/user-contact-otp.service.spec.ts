@@ -1,4 +1,8 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { createHash } from 'crypto';
 import { Types } from 'mongoose';
 import { UserContactOtpService } from './user-contact-otp.service';
@@ -10,7 +14,11 @@ describe('UserContactOtpService (#424)', () => {
     findOne: jest.Mock;
     deleteOne: jest.Mock;
   };
-  let userModel: { findById: jest.Mock; findByIdAndUpdate: jest.Mock };
+  let userModel: {
+    findById: jest.Mock;
+    findByIdAndUpdate: jest.Mock;
+    findOne: jest.Mock;
+  };
   let emailService: { sendOtp: jest.Mock };
   let service: UserContactOtpService;
 
@@ -26,10 +34,21 @@ describe('UserContactOtpService (#424)', () => {
     };
     userModel = {
       findById: jest.fn().mockReturnValue({
-        exec: jest.fn().mockResolvedValue({ _id: userId }),
+        exec: jest.fn().mockResolvedValue({
+          _id: userId,
+          email: 'old@example.com',
+          mobile: '0811111111',
+        }),
       }),
       findByIdAndUpdate: jest.fn().mockReturnValue({
         exec: jest.fn().mockResolvedValue({ _id: userId }),
+      }),
+      findOne: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(null),
+          }),
+        }),
       }),
     };
     emailService = { sendOtp: jest.fn().mockResolvedValue(undefined) };
@@ -67,6 +86,18 @@ describe('UserContactOtpService (#424)', () => {
     );
   });
 
+  it('sendOtp > given email delivery failure > then deletes the session', async () => {
+    emailService.sendOtp.mockRejectedValue(new Error('resend down'));
+    await expect(
+      service.sendOtp({
+        userId,
+        channel: 'email',
+        target: 'a@b.co',
+      }),
+    ).rejects.toThrow('resend down');
+    expect(otpModel.deleteOne).toHaveBeenCalled();
+  });
+
   it('sendOtp > given mobile channel > then returns a clear unavailable error (route exists)', async () => {
     await expect(
       service.sendOtp({
@@ -101,7 +132,7 @@ describe('UserContactOtpService (#424)', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('verifyOtp > given matching code > then marks verified and deletes the session', async () => {
+  it('verifyOtp > given matching code > then stores a short-lived proof (does not delete yet)', async () => {
     const otp = '123456';
     const otpHash = createHash('sha256').update(otp).digest('hex');
     const doc = {
@@ -124,8 +155,10 @@ describe('UserContactOtpService (#424)', () => {
     });
 
     expect(result).toEqual({ success: true, verified: true });
+    expect(doc.verified).toBe(true);
+    expect(doc.otpHash).toBe('verified');
     expect(doc.save).toHaveBeenCalled();
-    expect(otpModel.deleteOne).toHaveBeenCalled();
+    expect(otpModel.deleteOne).not.toHaveBeenCalled();
   });
 
   it('verifyOtp > given wrong code > then 400 and increments attempts', async () => {
@@ -167,10 +200,10 @@ describe('UserContactOtpService (#424)', () => {
     ).rejects.toThrow(/No active OTP/);
   });
 
-  it('updateWithdrawUser > maps primary email/mobile onto the User document', async () => {
+  it('updateWithdrawUser > given unchanged email > then updates profile without OTP proof', async () => {
     const result = await service.updateWithdrawUser({
       userId,
-      emails: [' Primary@Example.com ', 'secondary@example.com'],
+      emails: ['old@example.com'],
       mobiles: ['0811111111'],
       fullName: 'Ada Lovelace',
       gender: 'female',
@@ -182,9 +215,6 @@ describe('UserContactOtpService (#424)', () => {
       expect.anything(),
       {
         $set: expect.objectContaining({
-          email: 'primary@example.com',
-          email_verified: true,
-          mobile: '0811111111',
           username: 'Ada Lovelace',
           gender: 'female',
           birthdate: '1990-01-01',
@@ -192,5 +222,72 @@ describe('UserContactOtpService (#424)', () => {
       },
       { new: true },
     );
+    const setArg = userModel.findByIdAndUpdate.mock.calls[0][1].$set;
+    expect(setArg.email).toBeUndefined();
+    expect(setArg.email_verified).toBeUndefined();
+  });
+
+  it('updateWithdrawUser > given new email without OTP proof > then 400', async () => {
+    otpModel.findOne.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(null),
+    });
+    await expect(
+      service.updateWithdrawUser({
+        userId,
+        emails: ['new@example.com'],
+      }),
+    ).rejects.toThrow(/Verify the new email/);
+  });
+
+  it('updateWithdrawUser > given new email with OTP proof > then persists and consumes proof', async () => {
+    otpModel.findOne.mockReturnValue({
+      exec: jest.fn().mockResolvedValue({
+        verified: true,
+        expiresAt: new Date(Date.now() + 60_000),
+      }),
+    });
+
+    const result = await service.updateWithdrawUser({
+      userId,
+      emails: [' New@Example.com '],
+    });
+
+    expect(result.success).toBe(true);
+    expect(userModel.findByIdAndUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        $set: expect.objectContaining({
+          email: 'new@example.com',
+          email_verified: true,
+        }),
+      },
+      { new: true },
+    );
+    expect(otpModel.deleteOne).toHaveBeenCalled();
+  });
+
+  it('updateWithdrawUser > given email taken by another user > then 409', async () => {
+    userModel.findOne.mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ _id: new Types.ObjectId() }),
+        }),
+      }),
+    });
+    await expect(
+      service.updateWithdrawUser({
+        userId,
+        emails: ['taken@example.com'],
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('updateWithdrawUser > given new mobile > then rejects until SMS exists', async () => {
+    await expect(
+      service.updateWithdrawUser({
+        userId,
+        mobiles: ['0899999999'],
+      }),
+    ).rejects.toThrow(/Phone OTP delivery is not available/);
   });
 });

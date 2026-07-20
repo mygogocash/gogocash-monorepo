@@ -22,6 +22,7 @@ import {
 } from './dto/update-withdraw.dto';
 import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
+import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { RolesGuard } from 'src/admin/roles.guard';
 import { ROLES_KEY } from 'src/admin/roles.decorator';
@@ -163,6 +164,8 @@ describe('WithdrawController', () => {
       .overrideGuard(AuthAdminGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RateLimitGuard)
       .useValue({ canActivate: () => true })
       .compile();
 
