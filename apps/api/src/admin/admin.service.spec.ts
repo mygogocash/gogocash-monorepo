@@ -3541,6 +3541,7 @@ describe('AdminService', () => {
     beforeEach(() => {
       userMyCashbackModel.find = jest.fn();
       userMyCashbackModel.countDocuments = jest.fn();
+      userMyCashbackModel.aggregate = jest.fn();
     });
 
     it('listMyCashbackUsers > given defaults > then it pages with limit 12 and newest sort', async () => {
@@ -3596,32 +3597,66 @@ describe('AdminService', () => {
       expect(findQuery.limit).toHaveBeenCalledWith(20);
     });
 
-    it('listMyCashbackUsers > given active status and balance sort > then it filters non-banned and sorts by primary balance', async () => {
-      const findQuery = makeQuery([]);
-      userMyCashbackModel.find.mockReturnValue(findQuery);
-      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+    it('listMyCashbackUsers > given balance sort > then it aggregates by summed balance amounts', async () => {
+      const aggregateQuery = makeQuery([{ _id: 'mcb-rich' }]);
+      userMyCashbackModel.aggregate.mockReturnValue(aggregateQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(1));
 
-      await service.listMyCashbackUsers({
+      const result = await service.listMyCashbackUsers({
         status: 'active',
         sort: 'balance',
+        page: 2,
+        limit: 5,
       });
 
-      expect(userMyCashbackModel.find).toHaveBeenCalledWith({
-        banned: { $ne: true },
+      expect(userMyCashbackModel.find).not.toHaveBeenCalled();
+      expect(userMyCashbackModel.aggregate).toHaveBeenCalledWith([
+        { $match: { banned: { $ne: true } } },
+        {
+          $addFields: {
+            _balanceTotal: {
+              $sum: {
+                $map: {
+                  input: { $ifNull: ['$balance', []] },
+                  as: 'b',
+                  in: { $ifNull: ['$$b.amount', 0] },
+                },
+              },
+            },
+          },
+        },
+        { $sort: { _balanceTotal: -1, createdAt: -1 } },
+        { $skip: 5 },
+        { $limit: 5 },
+        {
+          $project: {
+            withdrawalPassword: 0,
+            buyerToken: 0,
+            _balanceTotal: 0,
+          },
+        },
+      ]);
+      expect(result).toEqual({
+        status: 'success',
+        data: [{ _id: 'mcb-rich' }],
+        pagination: { page: 2, limit: 5, total: 1, totalPages: 1 },
       });
-      expect(findQuery.sort).toHaveBeenCalledWith({ 'balance.0.amount': -1 });
     });
 
-    it('listMyCashbackUsers > given a 24-char hex search > then it also matches by _id', async () => {
+    it('listMyCashbackUsers > given a 24-char hex search > then it matches _id and publisherId', async () => {
       const findQuery = makeQuery([]);
       userMyCashbackModel.find.mockReturnValue(findQuery);
       userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
       const hex = '507f1f77bcf86cd799439011';
+      const objectId = new Types.ObjectId(hex);
 
       await service.listMyCashbackUsers({ search: hex });
 
       expect(userMyCashbackModel.find).toHaveBeenCalledWith({
-        $or: expect.arrayContaining([{ _id: new Types.ObjectId(hex) }]),
+        $or: expect.arrayContaining([
+          { _id: objectId },
+          { publisherId: objectId },
+        ]),
       });
     });
 
@@ -3636,6 +3671,7 @@ describe('AdminService', () => {
         $or: Array<Record<string, unknown>>;
       };
       expect(filter.$or.some((clause) => '_id' in clause)).toBe(false);
+      expect(filter.$or.some((clause) => 'publisherId' in clause)).toBe(false);
     });
 
     it('listMyCashbackUsers > given unknown sort > then it falls back to newest', async () => {

@@ -955,6 +955,18 @@ describe('AdminController', () => {
       expect(adminService.listMyCashbackUsers).toHaveBeenCalledWith({});
     });
 
+    it('listMyCashbackUsersGet > given query params > then it forwards them to the same service', () => {
+      const query = {
+        page: 1,
+        limit: 12,
+        search: 'bob',
+        sort: 'balance',
+        status: '',
+      };
+      controller.listMyCashbackUsersGet(query);
+      expect(adminService.listMyCashbackUsers).toHaveBeenCalledWith(query);
+    });
+
     it('updateConversionDataByConversionId > given an id > then it forwards the id', () => {
       controller.updateConversionDataByConversionId('conv-1');
       expect(

@@ -735,12 +735,22 @@ export class AdminController {
   // Admin MyCashBack users table (apps/admin MyCashbackUsersTable).
   // Class-level AuthAdminGuard + RolesGuard already apply; no @Roles so any
   // authenticated admin (including viewer) may read — matches RBAC contract.
+  // POST kept for the current UI client; GET is the preferred list shape.
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @ApiBody({ type: ListMyCashbackUsersDto })
   @Post('list-mycashback-users')
   listMyCashbackUsers(@Body(adminAuthValidation) body: ListMyCashbackUsersDto) {
     return this.adminService.listMyCashbackUsers(body ?? {});
+  }
+
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('list-mycashback-users')
+  listMyCashbackUsersGet(
+    @Query(adminAuthValidation) query: ListMyCashbackUsersDto,
+  ) {
+    return this.adminService.listMyCashbackUsers(query ?? {});
   }
 
   @UseInterceptors(

@@ -12,7 +12,9 @@ export interface SortableMcbUser {
   balance?: { amount?: number }[];
 }
 
-const balanceOf = (u: SortableMcbUser): number => u.balance?.[0]?.amount ?? 0;
+/** Sum every currency row (not FX-normalized) — matches API balance sort. */
+const balanceOf = (u: SortableMcbUser): number =>
+  (u.balance ?? []).reduce((sum, row) => sum + (Number(row?.amount) || 0), 0);
 
 const nameOf = (u: SortableMcbUser): string =>
   `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() || (u.email ?? "");
@@ -39,7 +41,7 @@ export function filterMyCashbackByStatus<T extends FilterableMcbUser>(
  * Return a new array of MyCashBack users ordered by `sort` (input not mutated):
  * - `newest` — most recent `createdAt` first (default)
  * - `name` — full name (or email) A–Z, case-insensitive
- * - `balance` — primary balance amount high → low
+ * - `balance` — sum of all balance.amount rows, high → low
  */
 export function sortMyCashback<T extends SortableMcbUser>(
   users: T[],
