@@ -53,7 +53,7 @@ export function filterDirectoryStores<T extends BrandDirectoryStore>({
 }: {
   category?: string;
   query?: string;
-  sortBy?: WebBrandDirectorySort | WebShopDirectorySort | string;
+  sortBy?: WebBrandDirectorySort | WebShopDirectorySort | WebCategoryExploreSort | string;
   stores: readonly T[];
 }): T[] {
   const normalizedCategory = category.trim().toLowerCase();
@@ -73,6 +73,11 @@ export function filterDirectoryStores<T extends BrandDirectoryStore>({
       return matchesCategory && matchesQuery;
     })
     .sort((a, b) => {
+      // #437 — "All" preserves API / catalog insertion order (no forced cashback sort).
+      if (sortBy === "all") {
+        return a.position - b.position;
+      }
+
       if (sortBy === "popular") {
         return a.popularity - b.popularity || a.position - b.position;
       }
@@ -336,14 +341,14 @@ export function resolveCategoryExploreStores({
   data,
   query = "",
   regionCode = DEFAULT_REGION,
-  sortBy = "highest_cashback",
+  sortBy = "all",
   source,
 }: {
   category: string;
   data: unknown;
   query?: string;
   regionCode?: RegionCode;
-  sortBy?: WebBrandDirectorySort | string;
+  sortBy?: WebBrandDirectorySort | WebCategoryExploreSort | string;
   source: AccountDataSource;
 }): CategoryExploreStore[] {
   if (source === "backend" && isOfferListResponse(data)) {
@@ -361,9 +366,13 @@ export function resolveCategoryExploreStores({
   }
 
   const exploreSort: WebCategoryExploreSort =
-    sortBy === "popular" || sortBy === "newest" || sortBy === "lowest_cashback"
+    sortBy === "all" ||
+    sortBy === "popular" ||
+    sortBy === "newest" ||
+    sortBy === "lowest_cashback" ||
+    sortBy === "highest_cashback"
       ? sortBy
-      : "highest_cashback";
+      : "all";
 
   return getCategoryExploreResults({ category, query, sortBy: exploreSort }).filter((store) =>
     offerMatchesRegion(resolveFixtureBrandCountries(store.brand), regionCode),

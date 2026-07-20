@@ -83,12 +83,15 @@ function useDesktopHeaderStyles() {
 }
 
 export function CustomerDesktopHeader({
+  hideSearch = false,
   onSearchFocus,
   onSearchFrameChange,
   onSearchQueryChange,
   searchQuery,
   viewportWidth,
 }: {
+  /** #436 — hide global header search on routes that already have page-scoped search. */
+  hideSearch?: boolean;
   onSearchFocus?: () => void;
   onSearchFrameChange?: (frame: SearchAnchorFrame) => void;
   onSearchQueryChange?: (value: string) => void;
@@ -118,13 +121,15 @@ export function CustomerDesktopHeader({
           ]}
         >
           <CustomerDesktopBrandLink />
-          <DesktopHeaderSearch
-            onSearchFocus={onSearchFocus}
-            onSearchFrameChange={onSearchFrameChange}
-            onSearchQueryChange={onSearchQueryChange}
-            searchQuery={searchQuery}
-            viewportWidth={viewportWidth}
-          />
+          {hideSearch ? null : (
+            <DesktopHeaderSearch
+              onSearchFocus={onSearchFocus}
+              onSearchFrameChange={onSearchFrameChange}
+              onSearchQueryChange={onSearchQueryChange}
+              searchQuery={searchQuery}
+              viewportWidth={viewportWidth}
+            />
+          )}
           <View style={styles.desktopHeaderActions}>
             <Link asChild href="/quest">
               <MotionPressable

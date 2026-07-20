@@ -67,6 +67,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
       "Explore your Favorite",
       "webCategoryExploreHealthBeauty",
       "resolveCategoryExploreStores",
+      "useCategoryOfferBrowse",
     ],
     routeId: "categoryDetail",
     routeMarkers: ["useLocalSearchParams", "CustomerCategoryDetailScreen", "categoryName"],
