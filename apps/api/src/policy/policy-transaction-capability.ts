@@ -51,7 +51,7 @@ export async function inspectPolicyTransactionCapability(
 }
 
 /** Stable machine code for admin/API clients when aggregate txn support is down. */
-export const POLICY_TRANSACTIONS_UNSUPPORTED_CODE =
+const POLICY_TRANSACTIONS_UNSUPPORTED_CODE =
   'POLICY_TRANSACTIONS_UNSUPPORTED' as const;
 
 export function policyTransactionsUnsupportedError(capability: {
@@ -63,8 +63,7 @@ export function policyTransactionsUnsupportedError(capability: {
     code: POLICY_TRANSACTIONS_UNSUPPORTED_CODE,
     message:
       'Policy aggregate saves require MongoDB replica set or mongos transaction support.',
-    reason:
-      capability.reason ?? 'MongoDB transaction support is unavailable',
+    reason: capability.reason ?? 'MongoDB transaction support is unavailable',
     topology: capability.topology,
   };
 }

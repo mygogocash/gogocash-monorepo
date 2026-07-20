@@ -11,6 +11,7 @@ import {
   ArrayNotEmpty,
   IsArray,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -387,6 +388,65 @@ export class UpdateUserDto {
   @IsNotEmpty()
   @IsString()
   mobile: string;
+}
+
+/** Allowed sort keys for POST /admin/list-mycashback-users. */
+export const MYCASHBACK_USER_SORTS = ['newest', 'name', 'balance'] as const;
+export type MyCashbackUserSort = (typeof MYCASHBACK_USER_SORTS)[number];
+
+/** Allowed status filters for POST /admin/list-mycashback-users. */
+export const MYCASHBACK_USER_STATUSES = ['active', 'banned'] as const;
+export type MyCashbackUserStatus = (typeof MYCASHBACK_USER_STATUSES)[number];
+
+export const MYCASHBACK_USERS_DEFAULT_LIMIT = 12;
+export const MYCASHBACK_USERS_MAX_LIMIT = 100;
+export const MYCASHBACK_USERS_MAX_PAGE = 10_000;
+export const MYCASHBACK_USERS_MAX_SEARCH_LENGTH = 100;
+
+/** Body for POST /admin/list-mycashback-users (admin MyCashBack users table). */
+export class ListMyCashbackUsersDto {
+  @ApiProperty({ required: false, default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(MYCASHBACK_USERS_MAX_PAGE)
+  page?: number;
+
+  @ApiProperty({ required: false, default: MYCASHBACK_USERS_DEFAULT_LIMIT })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(MYCASHBACK_USERS_MAX_LIMIT)
+  limit?: number;
+
+  @ApiProperty({
+    required: false,
+    maxLength: MYCASHBACK_USERS_MAX_SEARCH_LENGTH,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(MYCASHBACK_USERS_MAX_SEARCH_LENGTH)
+  search?: string;
+
+  @ApiProperty({
+    required: false,
+    enum: MYCASHBACK_USER_SORTS,
+    default: 'newest',
+  })
+  @IsOptional()
+  @IsIn([...MYCASHBACK_USER_SORTS, ''])
+  sort?: MyCashbackUserSort | '';
+
+  @ApiProperty({
+    required: false,
+    enum: [...MYCASHBACK_USER_STATUSES, ''],
+    description: 'Derived account status filter',
+  })
+  @IsOptional()
+  @IsIn([...MYCASHBACK_USER_STATUSES, ''])
+  status?: MyCashbackUserStatus | '';
 }
 
 export class UpdateBannerHomeBodyDto {

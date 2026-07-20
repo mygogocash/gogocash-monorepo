@@ -3537,6 +3537,164 @@ describe('AdminService', () => {
     });
   });
 
+  describe('listMyCashbackUsers', () => {
+    beforeEach(() => {
+      userMyCashbackModel.find = jest.fn();
+      userMyCashbackModel.countDocuments = jest.fn();
+      userMyCashbackModel.aggregate = jest.fn();
+    });
+
+    it('listMyCashbackUsers > given defaults > then it pages with limit 12 and newest sort', async () => {
+      const findQuery = makeQuery([{ _id: 'mcb-1' }]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(1));
+
+      const result = await service.listMyCashbackUsers();
+
+      expect(userMyCashbackModel.find).toHaveBeenCalledWith({});
+      expect(findQuery.select).toHaveBeenCalledWith(
+        '-withdrawalPassword -buyerToken',
+      );
+      expect(findQuery.sort).toHaveBeenCalledWith({ createdAt: -1 });
+      expect(findQuery.skip).toHaveBeenCalledWith(0);
+      expect(findQuery.limit).toHaveBeenCalledWith(12);
+      expect(result).toEqual({
+        status: 'success',
+        data: [{ _id: 'mcb-1' }],
+        pagination: { page: 1, limit: 12, total: 1, totalPages: 1 },
+      });
+    });
+
+    it('listMyCashbackUsers > given search + banned status + name sort > then it builds the filter and sort', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.listMyCashbackUsers({
+        page: 2,
+        limit: 20,
+        search: 'a.*',
+        sort: 'name',
+        status: 'banned',
+      });
+
+      expect(userMyCashbackModel.find).toHaveBeenCalledWith({
+        banned: true,
+        $or: [
+          { email: { $regex: 'a\\.\\*', $options: 'i' } },
+          { phoneNumber: { $regex: 'a\\.\\*', $options: 'i' } },
+          { buyerId: { $regex: 'a\\.\\*', $options: 'i' } },
+          { firstName: { $regex: 'a\\.\\*', $options: 'i' } },
+          { lastName: { $regex: 'a\\.\\*', $options: 'i' } },
+        ],
+      });
+      expect(findQuery.sort).toHaveBeenCalledWith({
+        firstName: 1,
+        lastName: 1,
+        email: 1,
+      });
+      expect(findQuery.skip).toHaveBeenCalledWith(20);
+      expect(findQuery.limit).toHaveBeenCalledWith(20);
+    });
+
+    it('listMyCashbackUsers > given balance sort > then it aggregates by summed balance amounts', async () => {
+      const aggregateQuery = makeQuery([{ _id: 'mcb-rich' }]);
+      userMyCashbackModel.aggregate.mockReturnValue(aggregateQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(1));
+
+      const result = await service.listMyCashbackUsers({
+        status: 'active',
+        sort: 'balance',
+        page: 2,
+        limit: 5,
+      });
+
+      expect(userMyCashbackModel.find).not.toHaveBeenCalled();
+      expect(userMyCashbackModel.aggregate).toHaveBeenCalledWith([
+        { $match: { banned: { $ne: true } } },
+        {
+          $addFields: {
+            _balanceTotal: {
+              $sum: {
+                $map: {
+                  input: { $ifNull: ['$balance', []] },
+                  as: 'b',
+                  in: { $ifNull: ['$$b.amount', 0] },
+                },
+              },
+            },
+          },
+        },
+        { $sort: { _balanceTotal: -1, createdAt: -1 } },
+        { $skip: 5 },
+        { $limit: 5 },
+        {
+          $project: {
+            withdrawalPassword: 0,
+            buyerToken: 0,
+            _balanceTotal: 0,
+          },
+        },
+      ]);
+      expect(result).toEqual({
+        status: 'success',
+        data: [{ _id: 'mcb-rich' }],
+        pagination: { page: 2, limit: 5, total: 1, totalPages: 1 },
+      });
+    });
+
+    it('listMyCashbackUsers > given a 24-char hex search > then it matches _id and publisherId', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+      const hex = '507f1f77bcf86cd799439011';
+      const objectId = new Types.ObjectId(hex);
+
+      await service.listMyCashbackUsers({ search: hex });
+
+      expect(userMyCashbackModel.find).toHaveBeenCalledWith({
+        $or: expect.arrayContaining([
+          { _id: objectId },
+          { publisherId: objectId },
+        ]),
+      });
+    });
+
+    it('listMyCashbackUsers > given a 12-char non-hex search > then it does not coerce ObjectId', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.listMyCashbackUsers({ search: 'abcdefghijkl' });
+
+      const filter = userMyCashbackModel.find.mock.calls[0][0] as {
+        $or: Array<Record<string, unknown>>;
+      };
+      expect(filter.$or.some((clause) => '_id' in clause)).toBe(false);
+      expect(filter.$or.some((clause) => 'publisherId' in clause)).toBe(false);
+    });
+
+    it('listMyCashbackUsers > given unknown sort > then it falls back to newest', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.listMyCashbackUsers({ sort: 'not-a-sort' });
+
+      expect(findQuery.sort).toHaveBeenCalledWith({ createdAt: -1 });
+    });
+
+    it('listMyCashbackUsers > given empty result set > then totalPages is 0', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      const result = await service.listMyCashbackUsers();
+
+      expect(result.pagination.totalPages).toBe(0);
+    });
+  });
+
   describe('updateConversionDataByConversionId', () => {
     it('updateConversionDataByConversionId > given a conversion id > then it delegates to the job service', async () => {
       jobService.syncConversionByConversionId.mockResolvedValue({ ok: true });

@@ -342,14 +342,13 @@ describe('policy category integrity migration', () => {
         {
           ...baseEnv,
           POLICY_CATEGORY_INTEGRITY_ENVIRONMENT: 'staging',
-          POLICY_CATEGORY_INTEGRITY_WRITER_DRAIN_CONFIRM: buildWriterDrainConfirm(
-            {
+          POLICY_CATEGORY_INTEGRITY_WRITER_DRAIN_CONFIRM:
+            buildWriterDrainConfirm({
               environment: 'staging',
               candidateSha,
               fingerprint: target.fingerprint,
               evidenceSha256,
-            },
-          ),
+            }),
           POLICY_CATEGORY_INTEGRITY_CONFIRM: buildApplyConfirmSentinel({
             environment: 'staging',
             candidateSha,
