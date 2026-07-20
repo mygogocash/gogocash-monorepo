@@ -388,7 +388,9 @@ export class PolicyAggregateService {
     const capability = await this.getTransactionCapability();
     if (!capability.supported) {
       throw new ServiceUnavailableException(
-        'Policy aggregate saves require MongoDB replica set or mongos transaction support.',
+        capability.reason
+          ? `Policy aggregate saves require MongoDB replica set or mongos transaction support. (${capability.reason}; topology=${capability.topology})`
+          : 'Policy aggregate saves require MongoDB replica set or mongos transaction support.',
       );
     }
   }
