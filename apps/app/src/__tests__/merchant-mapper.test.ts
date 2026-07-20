@@ -282,6 +282,24 @@ describe("mapMerchantOfferToShopDetail", () => {
     expect(shop.cashback).not.toBe(fixtureShop.cashback);
   });
 
+  // #428 — product-type rows present but headline commission fields empty.
+  it("given product_type rates without commission_store > then uses the highest product rate", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        commissions: [],
+        product_type: [
+          { name: "Fashion", pay_in: "cashback", commission_info: "2.5" },
+          { name: "Beauty", pay_in: "cashback", commission_info: "6" },
+        ],
+      },
+      fixtureShop,
+    );
+
+    expect(shop.cashback).toBe("6%");
+    expect(shop.extraCashback).toBe("6%");
+  });
+
   it("given a numeric commission without a percent sign > then formats it", () => {
     const shop = mapMerchantOfferToShopDetail(
       { ...liveOffer, commissions: [{ Commission: "7.25" }] },

@@ -95,7 +95,9 @@ type AdminOfferUpdateData = {
   max_cap?: number;
   extra_store?: boolean;
   tracking_link?: string;
-  product_type: ProductTypeDto[];
+  /** Present only when the admin PATCH included product_type(s). */
+  product_type?: ProductTypeDto[] | Array<Record<string, unknown>>;
+  all_product_types?: boolean;
   tracking_period_mode?: 'auto' | 'manual';
   tracking_days?: number;
   confirm_days?: number;
@@ -1069,10 +1071,18 @@ export class AdminService {
           max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
           extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
           tracking_link: trackingLink,
-          product_type:
-            typeof updateData.product_type === 'string'
-              ? JSON.parse(updateData.product_type)
-              : updateData.product_type,
+          // Partial updates (brand info, T&C, …) must not wipe product rows.
+          ...(updateData.product_type !== undefined
+            ? {
+                product_type:
+                  typeof updateData.product_type === 'string'
+                    ? JSON.parse(updateData.product_type)
+                    : updateData.product_type,
+              }
+            : {}),
+          ...(updateData.all_product_types !== undefined
+            ? { all_product_types: updateData.all_product_types }
+            : {}),
           ...(updateData.tracking_period_mode !== undefined
             ? { tracking_period_mode: updateData.tracking_period_mode }
             : {}),
@@ -1163,10 +1173,17 @@ export class AdminService {
         max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
         extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
         tracking_link: trackingLink,
-        product_type:
-          typeof updateData.product_type === 'string'
-            ? JSON.parse(updateData.product_type)
-            : updateData.product_type,
+        ...(updateData.product_type !== undefined
+          ? {
+              product_type:
+                typeof updateData.product_type === 'string'
+                  ? JSON.parse(updateData.product_type)
+                  : updateData.product_type,
+            }
+          : {}),
+        ...(updateData.all_product_types !== undefined
+          ? { all_product_types: updateData.all_product_types }
+          : {}),
         ...(updateData.tracking_period_mode !== undefined
           ? { tracking_period_mode: updateData.tracking_period_mode }
           : {}),

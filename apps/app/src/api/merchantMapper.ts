@@ -116,6 +116,25 @@ export function buildTrackingPeriodSteps(
   ];
 }
 
+function highestProductTypeCashback(
+  productType: MerchantOfferResponse["product_type"],
+): string | null {
+  if (!Array.isArray(productType)) return null;
+  let max: number | null = null;
+  for (const row of productType) {
+    if (!row || typeof row !== "object") continue;
+    if (row.is_tagline === true) continue;
+    if (row.pay_in === "cash") continue;
+    const info = row.commission_info;
+    if (info == null || info === "") continue;
+    const n =
+      typeof info === "number" ? info : Number(String(info).replace(/%/g, ""));
+    if (!Number.isFinite(n)) continue;
+    if (max == null || n > max) max = n;
+  }
+  return max == null ? null : `${max}%`;
+}
+
 function formatCashback(offer: MerchantOfferResponse): string | null {
   const store = offer.commission_store;
   if (typeof store === "number" && Number.isFinite(store)) {
@@ -128,7 +147,8 @@ function formatCashback(offer: MerchantOfferResponse): string | null {
   if (commission) {
     return commission.includes("%") ? commission : `${commission}%`;
   }
-  return null;
+  // #428 — fall back to the best product-type rate before showing "—".
+  return highestProductTypeCashback(offer.product_type);
 }
 
 function initialsFromBrand(brand: string): string {

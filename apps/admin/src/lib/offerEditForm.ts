@@ -75,7 +75,11 @@ export function offerToEditForm(offer: Offer): OfferRequestForm {
     upsize_special_commission: offer.upsize_special_commission ?? null,
     upsize_max_cap: offer.upsize_max_cap ?? null,
     upsize_product_types: normalizeOfferProductTypes(offer.upsize_product_types),
-    product_types: normalizeOfferProductTypes(offer.product_types),
+    // Real API persists rows on singular `product_type`; mock/admin UI use
+    // plural `product_types`. Prefer plural when both are present.
+    product_types: normalizeOfferProductTypes(
+      offer.product_types ?? offer.product_type,
+    ),
     all_product_types: offer.all_product_types ?? true,
     admin_commission_info: offer.admin_commission_info ?? [],
     policy_category_id: offer.policy_category_id ?? "",

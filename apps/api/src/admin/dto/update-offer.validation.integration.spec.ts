@@ -162,4 +162,45 @@ describe('UpdateOfferAdminDto validation (integration)', () => {
 
     expect(response.status).toBe(400);
   });
+
+  // #428 / #429 — Cashback Management always PATCHes these multipart keys; with
+  // forbidNonWhitelisted they used to 400 the whole save (commission + rows).
+  it('given cashback multipart product_types + all_product_types > then validation accepts', async () => {
+    const productTypes = JSON.stringify([
+      {
+        name: 'Fashion',
+        pay_in: 'cashback',
+        commission_info: '5.6',
+        amount: null,
+        currency: '',
+        deeplink: '',
+        description: '',
+      },
+    ]);
+    const response = await request(app.getHttpServer())
+      .patch('/offer-test/update-offer/offer-1')
+      .field('commission_store', '5.6')
+      .field('max_cap', '100')
+      .field('all_product_types', 'false')
+      .field('product_types', productTypes);
+
+    expect(response.status).toBe(200);
+    expect(response.body.body.commission_store).toBe('5.6');
+    expect(response.body.body.max_cap).toBe('100');
+    expect(response.body.body.all_product_types).toBe('false');
+    expect(response.body.body.product_types).toBe(productTypes);
+  });
+
+  it('given all-products cashback save (empty product_types) > then validation accepts', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/offer-test/update-offer/offer-1')
+      .field('commission_store', '3')
+      .field('max_cap', '0')
+      .field('all_product_types', 'true')
+      .field('product_types', '[]');
+
+    expect(response.status).toBe(200);
+    expect(response.body.body.all_product_types).toBe('true');
+    expect(response.body.body.product_types).toBe('[]');
+  });
 });
