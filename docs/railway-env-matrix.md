@@ -104,10 +104,30 @@ legacy Google Drive (`GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI/REFRESH_TOKEN`).
 ```bash
 # BUILD-TIME (set BEFORE build; Dockerfile declares ARG NEXT_PUBLIC_API_URL)
 railway variables --set 'NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co' --service gogocash-admin
+# RUNTIME BFF upstream (server-only). Prefer the private Railway service hostname so
+# /api/backend/* does not hairpin through the public edge (Cloudflare header spoof /
+# wrong host). Same value on staging and production:
+railway variables --set 'API_URL=http://gogocash-api.railway.internal:8080' --service gogocash-admin
 # AUTH-CRITICAL (boots without them but every route redirects to /signin)
 railway variables --set 'NEXTAUTH_SECRET=<SET_ME: openssl rand -base64 32>' --service gogocash-admin
 railway variables --set 'NEXTAUTH_URL=https://admin-staging.gogocash.co' --service gogocash-admin   # exact public HTTPS, no trailing slash
 ```
+
+| Variable | Staging | Production (beta) | Notes |
+|----------|---------|-------------------|-------|
+| `NEXT_PUBLIC_API_URL` | `https://api-staging.gogocash.co` | `https://api-beta.gogocash.co` | Build-time — browser/BFF mode signal |
+| `API_URL` | `http://gogocash-api.railway.internal:8080` | `http://gogocash-api.railway.internal:8080` | Runtime — Nest upstream for `/api/backend/*` |
+| `NEXTAUTH_URL` | `https://admin-staging.gogocash.co` | `https://admin-beta.gogocash.co` | Exact public HTTPS, no trailing slash |
+
+**Do not** point `API_URL` at `https://gogocash-api-*.up.railway.app` or the public custom domain.
+That path was the residual #407 admin-beta failure mode after Atlas integrity was
+ready: the BFF must use the private service DNS. Verify from the admin container:
+
+```bash
+railway ssh -s gogocash-admin -e production -- \
+  'node -e "fetch(\"http://gogocash-api.railway.internal:8080/health\").then(r=>r.text().then(t=>console.log(r.status,t)))"'
+```
+
 Do **not** set `ALLOW_MOCK_ADMIN_PASSWORD`, `BUILD_FOR_FIREBASE`, or `NEXT_PUBLIC_FIREBASE_STATIC` on Railway
 (the last two switch on the Firebase static-export path, which disables the API routes the Node server needs).
 If `NEXT_PUBLIC_API_URL` is empty at build, the admin silently falls back to its in-memory `/api/mock` backend.
