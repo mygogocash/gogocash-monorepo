@@ -39,7 +39,7 @@ describe("resolveShopTerms", () => {
         eyebrow: "💡",
         exclusionsTitle: "Exclusions",
         subtitle: "fixture subtitle",
-        title: "Cashback Tips",
+        title: "Terms & Conditions",
       },
       noteToUser: "Heads up",
       policyPayload: {

@@ -78,6 +78,22 @@ describe("offer media inputs (#317, source signals)", () => {
     expect(resetCountryFields).not.toContain("setBannerFile");
   });
 
+  // #427 — admin copy must say where each asset appears.
+  it("labels logo for cards and banner for brand/shop detail hero", () => {
+    expect(editSource).toContain(
+      "Square (1:1) — shown on product/brand cards across the app.",
+    );
+    expect(editSource).toContain(
+      "Wide hero — shown as the banner on the brand/shop detail page.",
+    );
+    expect(createSource).toContain(
+      "Square (1:1) — shown on product/brand cards across the app.",
+    );
+    expect(createSource).toContain(
+      "Wide hero — shown as the banner on the brand/shop detail page.",
+    );
+  });
+
   it("edit Cancel restores the media snapshot", () => {
     const cancelMedia = editSource.slice(
       editSource.indexOf("const cancelEditMedia"),
