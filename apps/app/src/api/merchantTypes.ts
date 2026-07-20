@@ -20,6 +20,11 @@ export type MerchantOfferResponse = {
   commission_store?: number | string;
   /** Per-product cashback rows (`Offer.product_type`) — headline fallback (#428). */
   product_type?: Array<Record<string, unknown>>;
+  /**
+   * When true, shop detail shows a single headline rate (not the product-type
+   * list). Absent on older APIs — treat missing as "show rows if present".
+   */
+  all_product_types?: boolean;
   /** Upsize event fields from public GET /offer/:id (#471). */
   upsize_start_date?: string | null;
   upsize_end_date?: string | null;

@@ -243,6 +243,19 @@ export function mapMerchantOfferToShopDetail<
   const cashbackSource = resolveActiveShopCashback(offer);
   const cashback = formatMerchantCashback(cashbackSource) ?? "—";
   const apiBaseUrl = getMobileEnv().apiUrl;
+  // #465 — when admin marks "All product types", show one headline row only.
+  // Per-line lists still render for `all_product_types === false` (and legacy
+  // payloads that omit the flag) or for active per-line upsize (#471).
+  const upsizeActive = isUpsizeActiveNow(offer);
+  const preferProductTypeList = upsizeActive
+    ? offer.upsize_all_product_types === false
+    : offer.all_product_types !== true;
+  const productRates = preferProductTypeList
+    ? mapProductTypeRates(cashbackSource.product_type, {
+        name: brand,
+        rate: cashback,
+      })
+    : [{ name: brand, rate: cashback }];
 
   return {
     ...fixtureShop,
@@ -270,10 +283,7 @@ export function mapMerchantOfferToShopDetail<
       offer.policy_category_id?.trim() === "custom"
         ? undefined
         : offer.policy_category_id?.trim() || undefined,
-    productRates: mapProductTypeRates(cashbackSource.product_type, {
-      name: brand,
-      rate: cashback,
-    }),
+    productRates,
     showExtraCashbackTag: offer.offer_display_tags?.extra_cashback_tag === true,
     // Admin/partner-configured windows when the API sends them; otherwise the
     // fixture's default 30/30 steps.

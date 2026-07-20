@@ -471,4 +471,21 @@ describe("mapMerchantOfferToShopDetail", () => {
     expect(resolved.commission_store).toBe(4.2);
     expect(resolved.product_type).toBeUndefined();
   });
+
+  it("#465 > given all_product_types true > then shop detail uses a single headline rate row", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        all_product_types: true,
+        commission_store: 2.8,
+        product_type: [
+          { name: "Phones", pay_in: "cashback", commission_info: "2.8" },
+          { name: "Accessories", pay_in: "cashback", commission_info: "1.4" },
+        ],
+      },
+      fixtureShop,
+    );
+
+    expect(shop.productRates).toEqual([{ name: "Lazada TH", rate: "2.8%" }]);
+  });
 });
