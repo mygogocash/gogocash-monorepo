@@ -74,6 +74,7 @@ import {
   serializeOfferProductTypes,
 } from "@/lib/productTypeDraft";
 import { appendCashbackPatchFields } from "@/lib/offerCashbackSave";
+import { appendUpsizePatchFields } from "@/lib/offerUpsizeSave";
 import {
   formatTrackingDays,
   isValidTrackingDayCount,
@@ -165,11 +166,13 @@ function formatUpsizePeriod(
   return `${start || "—"} to ${end || "—"}`;
 }
 
-/** Blank upsize per-product-line draft. */
+/** Blank upsize per-product-line draft. Description rewrite starts off (#467). */
 const EMPTY_UPSIZE_DRAFT: OfferProductTypeEntry = {
   name: "",
   commission_info: "",
   deeplink: "",
+  description_rewrite: false,
+  description: "",
 };
 
 /** Blue (brand-filled) Support button — for the product-type "Add" action. */
@@ -1383,8 +1386,10 @@ const FormOffer = ({
       cashbackSnapshot,
     );
 
-  // Upsize event edit toggle — mirrors Cashback (lock/unlock; no section save).
+  // Upsize event edit toggle — mirrors Cashback (section Save persists via PATCH).
   const [editingUpsize, setEditingUpsize] = useState(false);
+  const [savingUpsize, setSavingUpsize] = useState(false);
+  const [upsizeSaveError, setUpsizeSaveError] = useState<string | null>(null);
   const [upsizeEditKey, setUpsizeEditKey] = useState(0);
   const [upsizeSnapshot, setUpsizeSnapshot] = useState<
     | (Pick<
@@ -1413,6 +1418,7 @@ const FormOffer = ({
       upsize_max_cap: form.upsize_max_cap,
       launched: upsizeLaunched,
     });
+    setUpsizeSaveError(null);
     setEditingUpsize(true);
   };
 
@@ -1422,9 +1428,109 @@ const FormOffer = ({
       setForm((prev) => ({ ...prev, ...fields }));
       setUpsizeLaunched(launched);
     }
+    setUpsizeDraft(EMPTY_UPSIZE_DRAFT);
+    setEditingUpsizeIndex(null);
+    setUpsizeSaveError(null);
     setUpsizeEditKey((k) => k + 1);
     setEditingUpsize(false);
   };
+
+  const saveUpsizeEdit = async () => {
+    if (!form.id) return;
+    setSavingUpsize(true);
+    setUpsizeSaveError(null);
+    try {
+      const fd = new FormData();
+      appendUpsizePatchFields(fd, {
+        upsize_start_date: form.upsize_start_date,
+        upsize_end_date: form.upsize_end_date,
+        upsize_start_time: form.upsize_start_time,
+        upsize_end_time: form.upsize_end_time,
+        upsize_all_product_types: form.upsize_all_product_types,
+        upsize_special_commission: form.upsize_special_commission,
+        upsize_max_cap: form.upsize_max_cap,
+        upsize_product_types: form.upsize_product_types,
+      });
+      await client.patch(`/admin/update-offer/${form.id}`, fd, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setFormBaseline((prev) => ({
+        ...prev,
+        snapshot: {
+          ...prev.snapshot,
+          upsize_start_date: form.upsize_start_date,
+          upsize_end_date: form.upsize_end_date,
+          upsize_start_time: form.upsize_start_time,
+          upsize_end_time: form.upsize_end_time,
+          upsize_all_product_types: form.upsize_all_product_types,
+          upsize_special_commission: form.upsize_special_commission,
+          upsize_max_cap: form.upsize_max_cap,
+          upsize_product_types: form.upsize_product_types,
+        },
+      }));
+      setOpenModal((prev) =>
+        prev && typeof prev === "object"
+          ? {
+              ...prev,
+              upsize_start_date: form.upsize_start_date,
+              upsize_end_date: form.upsize_end_date,
+              upsize_start_time: form.upsize_start_time,
+              upsize_end_time: form.upsize_end_time,
+              upsize_all_product_types: form.upsize_all_product_types,
+              upsize_special_commission: form.upsize_special_commission,
+              upsize_max_cap: form.upsize_max_cap,
+              upsize_product_types: form.upsize_product_types,
+            }
+          : prev,
+      );
+      setUpsizeDraft(EMPTY_UPSIZE_DRAFT);
+      setEditingUpsizeIndex(null);
+      setEditingUpsize(false);
+      fetchOffers();
+      toast.success("Upsize event updated successfully");
+    } catch (err) {
+      devError("Failed to update upsize event:", err);
+      setUpsizeSaveError(
+        getApiErrorMessage(
+          err,
+          "Could not update upsize event. Please try again.",
+        ),
+      );
+    } finally {
+      setSavingUpsize(false);
+    }
+  };
+
+  const upsizeDirty =
+    !!upsizeSnapshot &&
+    (upsizeLaunched !== upsizeSnapshot.launched ||
+      isDirty(
+        {
+          upsize_all_product_types: form.upsize_all_product_types,
+          upsize_product_types: form.upsize_product_types,
+          upsize_start_date: form.upsize_start_date,
+          upsize_end_date: form.upsize_end_date,
+          upsize_start_time: form.upsize_start_time,
+          upsize_end_time: form.upsize_end_time,
+          upsize_special_commission: form.upsize_special_commission,
+          upsize_max_cap: form.upsize_max_cap,
+        },
+        {
+          upsize_all_product_types: upsizeSnapshot.upsize_all_product_types,
+          upsize_product_types: upsizeSnapshot.upsize_product_types,
+          upsize_start_date: upsizeSnapshot.upsize_start_date,
+          upsize_end_date: upsizeSnapshot.upsize_end_date,
+          upsize_start_time: upsizeSnapshot.upsize_start_time,
+          upsize_end_time: upsizeSnapshot.upsize_end_time,
+          upsize_special_commission: upsizeSnapshot.upsize_special_commission,
+          upsize_max_cap: upsizeSnapshot.upsize_max_cap,
+        },
+      ));
+
+  /** #468 — after save, hide setup controls until Edit. */
+  const upsizeSavedReadOnly = !editingUpsize && offerFormHasUpsize(form);
 
   const { data: policyCategories = [], isPending: policyCategoriesPending } =
     useQuery<ResCategoryList[]>({
@@ -2857,8 +2963,7 @@ const FormOffer = ({
           id="offer-section-upsize"
           className={`border-brand-200/80 bg-brand-50/50 dark:border-brand-800/60 dark:bg-brand-950/25 relative rounded-xl border border-dashed p-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
-          {/* Section actions — Edit unlocks the fields; Save locks (changes
-          persist via the form-wide "Save changes"); Cancel reverts. */}
+          {/* Section actions — Edit unlocks; Save persists via PATCH (#471). */}
           <div className="absolute top-4 right-4 z-10">
             {!editingUpsize ? (
               <SecondaryButton onClick={beginEditUpsize} disabled={!offer}>
@@ -2869,23 +2974,29 @@ const FormOffer = ({
                 <button
                   type="button"
                   onClick={cancelEditUpsize}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                  disabled={savingUpsize}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={() => setEditingUpsize(false)}
-                  className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white"
+                  onClick={() => void saveUpsizeEdit()}
+                  disabled={savingUpsize || !upsizeDirty}
+                  className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Save
+                  {savingUpsize
+                    ? "Saving…"
+                    : upsizeDirty
+                      ? "Save changes"
+                      : "No changes"}
                 </button>
               </div>
             )}
           </div>
           <fieldset
             key={upsizeEditKey}
-            disabled={!editingUpsize || isLoading}
+            disabled={!editingUpsize || isLoading || savingUpsize}
             className="min-w-0"
           >
             <div>
@@ -2899,6 +3010,52 @@ const FormOffer = ({
                     cashback above with a higher commission and max cap for a
                     set window.
                   </p>
+                  {upsizeSaveError ? (
+                    <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                      {upsizeSaveError}
+                    </p>
+                  ) : null}
+                  {/* #468 — saved read-only: only the added lines / rate summary */}
+                  {upsizeSavedReadOnly ? (
+                    !form.upsize_all_product_types ? (
+                      <div className="mt-3">
+                        <ProductTypeTable
+                          title="Added upsize lines"
+                          rows={form.upsize_product_types ?? []}
+                          editingIndex={null}
+                          disabled
+                          onReorder={() => undefined}
+                          onEdit={() => undefined}
+                          onDelete={() => undefined}
+                        />
+                      </div>
+                    ) : (
+                      <div className="mt-3 space-y-2 rounded-xl border border-gray-300 bg-white/70 p-4 dark:border-gray-600 dark:bg-gray-900/40">
+                        <p className={CASHBACK_READONLY_VALUE}>
+                          Upsize commission:{" "}
+                          {form.upsize_special_commission != null
+                            ? `${form.upsize_special_commission}%`
+                            : "—"}
+                        </p>
+                        <p className={CASHBACK_READONLY_VALUE}>
+                          Max cap:{" "}
+                          {form.upsize_max_cap != null
+                            ? form.upsize_max_cap
+                            : "—"}
+                        </p>
+                        <p className={CASHBACK_READONLY_VALUE}>
+                          Period:{" "}
+                          {formatUpsizePeriod(
+                            form.upsize_start_date,
+                            form.upsize_start_time,
+                            form.upsize_end_date,
+                            form.upsize_end_time,
+                          )}
+                        </p>
+                      </div>
+                    )
+                  ) : (
+                    <>
                   <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-14">
                     <PrimaryButton
                       variant={upsizeLaunched ? "blue" : "default"}
@@ -3222,59 +3379,37 @@ const FormOffer = ({
                                           </div>
                                         </div>
                                         <div>
+                                          {/* #467 — off-by-default switch; hide input until on */}
                                           <div className="mb-1.5 flex flex-wrap items-center gap-3">
                                             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                               Product description
                                             </span>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
+                                            <Switch
+                                              label=""
+                                              ariaLabel="Rewrite product description"
+                                              checked={
+                                                !!row.description_rewrite ||
+                                                !!row.is_others
+                                              }
+                                              onChange={(on) =>
                                                 updateUpsizeDraft({
-                                                  description_rewrite: false,
-                                                  description: "",
-                                                })
-                                              }
-                                              disabled={
-                                                isLoading || row.is_others
-                                              }
-                                              aria-pressed={
-                                                !row.description_rewrite
-                                              }
-                                              className={`${
-                                                !row.description_rewrite
-                                                  ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                                  : COMMISSION_MODE_TOGGLE_INACTIVE
-                                              } touch-manipulation`}
-                                            >
-                                              Default
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                updateUpsizeDraft({
-                                                  description_rewrite: true,
-                                                  description:
-                                                    row.description?.trim()
+                                                  description_rewrite: on,
+                                                  description: on
+                                                    ? row.description?.trim()
                                                       ? row.description
                                                       : (productTypeDescByName.get(
                                                           row.name.trim(),
-                                                        ) ?? ""),
+                                                        ) ?? "")
+                                                    : "",
                                                 })
                                               }
-                                              disabled={isLoading}
-                                              aria-pressed={
-                                                !!row.description_rewrite
+                                              disabled={
+                                                isLoading || !!row.is_others
                                               }
-                                              className={`${
-                                                row.description_rewrite
-                                                  ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                                  : COMMISSION_MODE_TOGGLE_INACTIVE
-                                              } touch-manipulation`}
-                                            >
-                                              Re-write
-                                            </button>
+                                            />
                                           </div>
-                                          {row.description_rewrite ? (
+                                          {row.description_rewrite ||
+                                          row.is_others ? (
                                             <Input
                                               type="text"
                                               placeholder="Re-write the description for this promo"
@@ -3289,20 +3424,7 @@ const FormOffer = ({
                                               autoComplete="off"
                                               className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
                                             />
-                                          ) : (
-                                            <Input
-                                              type="text"
-                                              placeholder="(uses the product type's description)"
-                                              ariaLabel={`Default description for ${row.name.trim()}`}
-                                              value={
-                                                productTypeDescByName.get(
-                                                  row.name.trim(),
-                                                ) ?? ""
-                                              }
-                                              disabled
-                                              className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                            />
-                                          )}
+                                          ) : null}
                                         </div>
                                         <div className="flex flex-wrap items-center gap-6">
                                           <div className="flex flex-wrap items-center gap-3">
@@ -3673,6 +3795,8 @@ const FormOffer = ({
                       ) : null}
                     </>
                   ) : null}
+                    </>
+                  )}
                 </div>
               </div>
             </div>

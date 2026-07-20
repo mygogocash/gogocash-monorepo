@@ -331,6 +331,48 @@ export class UpdateOfferAdminDto {
   @IsOptional()
   all_product_types?: boolean | string;
 
+  /** Upsize event — multipart strings; controller coerces nullables (#471). */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  upsize_start_date?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  upsize_end_date?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  upsize_start_time?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  upsize_end_time?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  upsize_special_commission?: number | string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  upsize_max_cap?: number | string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  upsize_all_product_types?: boolean | string;
+
+  @ApiProperty({
+    required: false,
+    description:
+      'JSON string of upsize product-type rows (multipart FormData).',
+  })
+  @IsString()
+  @IsOptional()
+  upsize_product_types?: string;
+
   @ApiProperty({ required: false, enum: ['auto', 'manual'] })
   @IsIn(['auto', 'manual'])
   @IsOptional()

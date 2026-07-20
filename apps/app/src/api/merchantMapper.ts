@@ -15,6 +15,7 @@ import {
   resolveShopPageBannerUri,
 } from "@mobile/api/offerLogo";
 import { resolveOfferDisplayCategory } from "@mobile/api/offerDisplayCategory";
+import { isUpsizeActiveNow } from "@mobile/api/upsizeStatus";
 
 type ShopDetailIdentity = {
   brand: string;
@@ -53,6 +54,54 @@ export function mapProductTypeRates(
     rows.push({ name, rate });
   }
   return rows.length > 0 ? rows : [fallback];
+}
+
+/**
+ * #471 — when an upsize window is live, prefer upsize rates for shop detail
+ * headline + product list; otherwise use the base offer cashback fields.
+ */
+export function resolveActiveShopCashback(
+  offer: MerchantOfferResponse,
+  nowMs: number = Date.now(),
+): {
+  commission_store?: unknown;
+  product_type?: readonly ProductTypeCashbackRow[] | null;
+  commissions?: MerchantOfferResponse["commissions"];
+} {
+  if (!isUpsizeActiveNow(offer, nowMs)) {
+    return {
+      commission_store: offer.commission_store,
+      product_type: offer.product_type as ProductTypeCashbackRow[] | undefined,
+      commissions: offer.commissions,
+    };
+  }
+
+  const upsizeAll = offer.upsize_all_product_types !== false;
+  if (upsizeAll && offer.upsize_special_commission != null) {
+    return {
+      commission_store: offer.upsize_special_commission,
+      product_type: undefined,
+      commissions: undefined,
+    };
+  }
+
+  const upsizeRows = offer.upsize_product_types as
+    | ProductTypeCashbackRow[]
+    | undefined;
+  if (Array.isArray(upsizeRows) && upsizeRows.length > 0) {
+    return {
+      commission_store: undefined,
+      product_type: upsizeRows,
+      commissions: undefined,
+    };
+  }
+
+  // Configured but empty lines / missing commission — fall back to base rates.
+  return {
+    commission_store: offer.commission_store,
+    product_type: offer.product_type as ProductTypeCashbackRow[] | undefined,
+    commissions: offer.commissions,
+  };
 }
 
 type LiveShopDetailFields = {
@@ -190,7 +239,9 @@ export function mapMerchantOfferToShopDetail<
     offer.offer_name_display?.trim() || offer.offer_name?.trim() || fixtureShop.brand;
   // Never fall back to fixture cashback on a live offer — that leaks Grocery Galaxy
   // rates (e.g. 26.5%) onto merchants whose commission fields are empty.
-  const cashback = formatMerchantCashback(offer) ?? "—";
+  // #471 — active upsize overrides base commission / product_type for display.
+  const cashbackSource = resolveActiveShopCashback(offer);
+  const cashback = formatMerchantCashback(cashbackSource) ?? "—";
   const apiBaseUrl = getMobileEnv().apiUrl;
 
   return {
@@ -219,7 +270,7 @@ export function mapMerchantOfferToShopDetail<
       offer.policy_category_id?.trim() === "custom"
         ? undefined
         : offer.policy_category_id?.trim() || undefined,
-    productRates: mapProductTypeRates(offer.product_type as ProductTypeCashbackRow[] | undefined, {
+    productRates: mapProductTypeRates(cashbackSource.product_type, {
       name: brand,
       rate: cashback,
     }),
