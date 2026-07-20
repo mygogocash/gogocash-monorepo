@@ -3,6 +3,7 @@ import { isMerchantOfferResponse } from "../api/merchantTypes";
 import {
   buildTrackingPeriodSteps,
   mapMerchantOfferToShopDetail,
+  resolveActiveShopCashback,
 } from "../api/merchantMapper";
 
 vi.mock("@mobile/config/env", () => ({
@@ -399,5 +400,75 @@ describe("mapMerchantOfferToShopDetail", () => {
     );
 
     expect(shop.bannerUri).toBe("https://cdn.example/cover.png");
+  });
+
+  it("#471 > given active upsize product lines > then shop detail uses upsize rates", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        commission_store: 2.8,
+        commissions: [{ Commission: "2.8%" }],
+        product_type: [
+          { name: "Phones", pay_in: "cashback", commission_info: "2.8" },
+        ],
+        upsize_all_product_types: false,
+        upsize_start_date: "2020-01-01",
+        upsize_end_date: "2099-12-31",
+        upsize_product_types: [
+          {
+            name: "OPPO Find X9",
+            pay_in: "cashback",
+            commission_info: "3.5",
+          },
+        ],
+      },
+      fixtureShop,
+    );
+
+    expect(shop.cashback).toBe("3.5%");
+    expect(shop.extraCashback).toBe("3.5%");
+    expect(shop.productRates).toEqual([{ name: "OPPO Find X9", rate: "3.5%" }]);
+  });
+
+  it("#471 > given expired upsize > then shop detail keeps base cashback", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        commission_store: 2.8,
+        commissions: [{ Commission: "2.8%" }],
+        product_type: [
+          { name: "Phones", pay_in: "cashback", commission_info: "2.8" },
+        ],
+        upsize_all_product_types: false,
+        upsize_start_date: "2020-01-01",
+        upsize_end_date: "2020-12-31",
+        upsize_product_types: [
+          {
+            name: "OPPO Find X9",
+            pay_in: "cashback",
+            commission_info: "3.5",
+          },
+        ],
+      },
+      fixtureShop,
+    );
+
+    expect(shop.cashback).toBe("2.8%");
+    expect(shop.productRates).toEqual([{ name: "Phones", rate: "2.8%" }]);
+  });
+
+  it("#471 > given active all-product upsize commission > then headline uses special commission", () => {
+    const resolved = resolveActiveShopCashback(
+      {
+        ...liveOffer,
+        commission_store: 2.8,
+        upsize_all_product_types: true,
+        upsize_special_commission: 4.2,
+        upsize_start_date: "2020-01-01",
+      },
+      Date.parse("2026-07-15T12:00:00"),
+    );
+    expect(resolved.commission_store).toBe(4.2);
+    expect(resolved.product_type).toBeUndefined();
   });
 });
