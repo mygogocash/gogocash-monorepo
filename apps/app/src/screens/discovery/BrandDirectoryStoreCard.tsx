@@ -1,8 +1,8 @@
-import { Image } from "expo-image";
 import { Link } from "expo-router";
-import { memo, useEffect, useState } from "react";
+import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Heart as HeartIcon } from "@mobile/theme/icons";
+import { BrandLogoTile, brandInitials } from "@mobile/components/BrandLogoTile";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
@@ -11,9 +11,9 @@ import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { typography } from "@mobile/theme/tokens";
 
 import { createDiscoveryScreenStyles } from "./customerDiscoveryStyles";
-import { directoryBrandInitials } from "./directoryInitials";
 import { type BrandDirectoryStore } from "./discoveryTypes";
 
+/** #461 — square 1:1 Logo tile via shared BrandLogoTile (admin Logo → logo_desktop). */
 export const BrandDirectoryStoreCard = memo(function BrandDirectoryStoreCard({
   cardWidth,
   store,
@@ -24,12 +24,6 @@ export const BrandDirectoryStoreCard = memo(function BrandDirectoryStoreCard({
   const styles = useThemedStyles(createDiscoveryScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
-  const [logoFailed, setLogoFailed] = useState(false);
-  useEffect(() => {
-    setLogoFailed(false);
-  }, [store.logoUri]);
-  const showLogo = Boolean(store.logoUri) && !logoFailed;
-  const logoTileBackground = showLogo ? colors.card : store.tint;
 
   return (
     <Link asChild href={store.href as never}>
@@ -40,22 +34,15 @@ export const BrandDirectoryStoreCard = memo(function BrandDirectoryStoreCard({
         style={StyleSheet.flatten([styles.shopDirectoryStoreCard, { width: cardWidth }])}
         testID={`brand-directory-card-${store.id}`}
       >
-        <View style={[styles.shopDirectoryLogoTile, { backgroundColor: logoTileBackground }]}>
-          {showLogo ? (
-            <Image
-              accessibilityLabel={`${store.brand} logo`}
-              cachePolicy="memory-disk"
-              contentFit="contain"
-              onError={() => setLogoFailed(true)}
-              recyclingKey={store.logoUri}
-              source={{ uri: store.logoUri }}
-              style={styles.shopDirectoryLogoImage}
-            />
-          ) : (
-            <Text numberOfLines={1} style={styles.shopDirectoryLogoFallback}>
-              {directoryBrandInitials(store.brand)}
-            </Text>
-          )}
+        <BrandLogoTile
+          brand={store.brand}
+          containerStyle={styles.shopDirectoryLogoTile}
+          fallbackText={brandInitials(store.brand)}
+          fallbackTextStyle={styles.shopDirectoryLogoFallback}
+          source={store.logoUri ? { uri: store.logoUri } : null}
+          sourceKey={store.logoUri}
+          tint={store.tint}
+        >
           {store.showGrabCoupon ? (
             <View style={styles.shopDirectoryCouponBadge}>
               <Text style={styles.shopDirectoryCouponIcon}>🧧</Text>
@@ -71,7 +58,7 @@ export const BrandDirectoryStoreCard = memo(function BrandDirectoryStoreCard({
               strokeWidth={typography.iconStrokeWidth}
             />
           </View>
-        </View>
+        </BrandLogoTile>
         <View style={styles.shopDirectoryStoreMeta}>
           <Text numberOfLines={2} style={styles.shopDirectoryStoreName}>
             {store.brand}

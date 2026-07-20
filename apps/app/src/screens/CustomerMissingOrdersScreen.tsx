@@ -67,7 +67,7 @@ const attachmentField = webMissingOrdersPage.sections
   .find((field) => field.icon === "image");
 const attachmentRequiredMessage = attachmentField?.helper ?? "";
 const MISSING_ORDER_REQUIRED_FIELDS_MESSAGE =
-  "Select a merchant and enter order ID, amount, and purchase date.";
+  "User ID, Brand, Order ID, Amount, and Purchase date are required.";
 
 const [purchaseSection, accountSection, extraSection] =
   webMissingOrdersPage.sections;
@@ -253,7 +253,16 @@ function MissingOrdersFormPanel() {
     }
 
     if (env.accountDataSource === "backend") {
+      const profileUserId =
+        profileResource.data &&
+        typeof profileResource.data === "object" &&
+        "id" in profileResource.data &&
+        typeof profileResource.data.id === "string"
+          ? profileResource.data.id.trim()
+          : "";
       if (
+        !profileUserId ||
+        !shop.trim() ||
         !selectedOfferId ||
         !orderId.trim() ||
         !amount.trim() ||
@@ -338,6 +347,7 @@ function MissingOrdersFormPanel() {
             onMeasure={setShopAnchor}
             onOpen={() => setShopOpen(true)}
             open={shopOpen}
+            required
             value={shop}
           />
           <MissingOrdersTextField
@@ -352,12 +362,14 @@ function MissingOrdersFormPanel() {
             keyboardType="decimal-pad"
             label={purchaseSection.fields[2].label}
             onChangeText={setAmount}
+            required
             value={amount}
           />
           <MissingOrdersDateField
             helper={purchaseSection.fields[3].helper}
             label={purchaseSection.fields[3].label}
             onChange={setPurchaseDate}
+            required
             value={purchaseDate}
           />
         </MissingOrdersFormSection>
@@ -701,6 +713,7 @@ function MissingOrdersSelectField({
   onMeasure,
   onOpen,
   open,
+  required,
   value,
 }: {
   disabled?: boolean;
@@ -709,12 +722,14 @@ function MissingOrdersSelectField({
   onMeasure: (rect: LayoutRectangle) => void;
   onOpen: () => void;
   open: boolean;
+  required?: boolean;
   value: string;
 }) {
   const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
   const ref = useRef<View>(null);
+  const labelText = `${tc(label)}${required ? " *" : ""}`;
   const floated = open || value.length > 0;
   const handlePress = () => {
     if (disabled) return;
@@ -742,13 +757,13 @@ function MissingOrdersSelectField({
           <Text
             style={[styles.floatLabel, open ? styles.floatLabelFocused : null]}
           >
-            {tc(label)}
+            {labelText}
           </Text>
         ) : null}
         <Text
           style={[styles.fieldInput, value ? null : styles.fieldPlaceholder]}
         >
-          {value || (floated ? "" : tc(label))}
+          {value || (floated ? "" : labelText)}
         </Text>
         <ChevronDownIcon
           color={colors.muted}
@@ -767,23 +782,26 @@ function MissingOrdersDateField({
   helper,
   label,
   onChange,
+  required,
   value,
 }: {
   helper: string;
   label: string;
   onChange: (value: string) => void;
+  required?: boolean;
   value: string;
 }) {
   const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const tc = useCopy();
   const [focused, setFocused] = useState(false);
+  const labelText = `${tc(label)}${required ? " *" : ""}`;
   return (
     <View style={styles.fieldGroup}>
       <View style={[styles.inputBox, focused ? styles.inputBoxFocused : null]}>
         <Text
           style={[styles.floatLabel, focused ? styles.floatLabelFocused : null]}
         >
-          {tc(label)}
+          {labelText}
         </Text>
         <BirthDateField
           accessibilityLabel={tc(label)}

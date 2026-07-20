@@ -191,6 +191,9 @@ describe('AdminService', () => {
       find: jest.fn(),
       findById: jest.fn(),
       findByIdAndUpdate: jest.fn(),
+      updateMany: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ acknowledged: true }),
+      }),
     };
     categoryModel = {
       create: jest.fn(),
@@ -230,7 +233,10 @@ describe('AdminService', () => {
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
     };
-    topBrandConfigModel = { updateOne: jest.fn(), findOne: jest.fn() };
+    topBrandConfigModel = {
+      updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+      findOne: jest.fn().mockReturnValue(makeQuery(null)),
+    };
     deeplinkModel = { aggregate: jest.fn() };
     storedMediaService = {
       upload: jest
@@ -1993,6 +1999,31 @@ describe('AdminService', () => {
       expect(persisted.product_type).toEqual(rows);
       expect(persisted.all_product_types).toBe(false);
       expect(persisted.commission_store).toBe(5.6);
+    });
+
+    it('updateOffer > given upsize product rows > then upsize fields persist (#471)', async () => {
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      const upsizeRows = [
+        {
+          name: 'OPPO Find X9',
+          pay_in: 'cashback',
+          commission_info: '3.5',
+        },
+      ];
+      await service.updateOffer(offerId, {
+        upsize_all_product_types: false,
+        upsize_start_date: '2026-07-01',
+        upsize_end_date: '2026-07-31',
+        upsize_product_types: upsizeRows as never,
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.upsize_all_product_types).toBe(false);
+      expect(persisted.upsize_start_date).toBe('2026-07-01');
+      expect(persisted.upsize_end_date).toBe('2026-07-31');
+      expect(persisted.upsize_product_types).toEqual(upsizeRows);
     });
 
     it('updateOffer > given no product_type field > then existing product_type is not wiped', async () => {

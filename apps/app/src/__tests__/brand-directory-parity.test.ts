@@ -92,6 +92,7 @@ describe("Brand directory parity", () => {
       "Others",
     ]);
     expect(parity.webBrandDirectory?.sortPills).toEqual([
+      { label: "All", value: "all" },
       { label: "Popular", value: "popular" },
       { label: "Latest", value: "newest" },
       { label: "Highest Cashback", value: "highest_cashback" },

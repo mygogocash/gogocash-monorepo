@@ -120,9 +120,30 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
     );
   });
 
+  function makeOfferModel(
+    rows: Array<{
+      _id: Types.ObjectId;
+      offer_name?: string;
+      offer_name_display?: string;
+    }> = [],
+  ) {
+    return {
+      find: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(rows),
+          }),
+        }),
+      }),
+    };
+  }
+
   it('maps a customer-submitted canonical row to the explicit Admin claim DTO', async () => {
     const model = makeModel();
-    const service = new MissingOrdersService(model as never);
+    const service = new MissingOrdersService(
+      model as never,
+      makeOfferModel() as never,
+    );
 
     const result = await service.findAll({ page: '1', limit: '20' });
 
@@ -188,7 +209,7 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
     const model = makeModel(
       phoneOnly.toObject() as unknown as Record<string, unknown>,
     );
-    const service = new MissingOrdersService(model as never);
+    const service = new MissingOrdersService(model as never, makeOfferModel() as never);
     const result = await service.findOne(CLAIM_ID.toHexString());
 
     expect(result).toMatchObject({
@@ -200,9 +221,34 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
     expect(result).not.toHaveProperty('migrationChecksum');
   });
 
+  it('#474 > given blank offer_snapshot.name > then fills merchantName from live offer', async () => {
+    const model = makeModel(
+      canonicalClaim({
+        offer_snapshot: {
+          source: 'involve',
+          provider_offer_id: 5031,
+          name: '',
+        },
+      }),
+    );
+    const service = new MissingOrdersService(
+      model as never,
+      makeOfferModel([
+        {
+          _id: OFFER_ID,
+          offer_name: 'OPPO Affiliate',
+          offer_name_display: 'OPPO',
+        },
+      ]) as never,
+    );
+
+    const result = await service.findAll({ page: '1', limit: '20' });
+    expect(result.data[0]?.merchantName).toBe('OPPO');
+  });
+
   it('applies the Admin date range and escaped search to canonical fields', async () => {
     const model = makeModel();
-    const service = new MissingOrdersService(model as never);
+    const service = new MissingOrdersService(model as never, makeOfferModel() as never);
 
     await service.findAll({
       page: '1',
@@ -243,7 +289,7 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
 
   it('normalizes investigating in stats and exposes the shape consumed by Admin', async () => {
     const model = makeModel();
-    const service = new MissingOrdersService(model as never);
+    const service = new MissingOrdersService(model as never, makeOfferModel() as never);
 
     await expect(service.getStats()).resolves.toEqual({
       byStatus: {
@@ -266,7 +312,7 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
       assigned_to: 'admin-7',
     });
     const model = makeModel(row);
-    const service = new MissingOrdersService(model as never);
+    const service = new MissingOrdersService(model as never, makeOfferModel() as never);
 
     const result = await service.assign(CLAIM_ID.toHexString(), 'admin-7');
 
@@ -290,7 +336,7 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
     async (method, expectedStatus) => {
       const row = canonicalClaim({ status: expectedStatus });
       const model = makeModel(row);
-      const service = new MissingOrdersService(model as never);
+      const service = new MissingOrdersService(model as never, makeOfferModel() as never);
 
       const result = await service[method](CLAIM_ID.toHexString(), 'Reviewed');
 
@@ -312,7 +358,7 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
 
   it('persists a durable note and returns the mapped note history', async () => {
     const model = makeModel();
-    const service = new MissingOrdersService(model as never);
+    const service = new MissingOrdersService(model as never, makeOfferModel() as never);
 
     const result = await service.addNote(
       CLAIM_ID.toHexString(),

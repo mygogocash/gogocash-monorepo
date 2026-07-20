@@ -93,20 +93,27 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
 
   it("directory store cards > given remote logos > then expo-image uses contain on card background", () => {
     const shopCard = readMobileFile("src/screens/discovery/ShopDirectoryStoreCard.tsx");
+    // #461 — brand directory cards share BrandLogoTile (expo-image lives there).
     const brandCard = readMobileFile("src/screens/discovery/BrandDirectoryStoreCard.tsx");
+    const tile = readMobileFile("src/components/BrandLogoTile.tsx");
     const discoveryStyles = readMobileFile("src/screens/discovery/customerDiscoveryStyles.ts");
 
-    for (const source of [shopCard, brandCard]) {
-      expect(source).toContain('from "expo-image"');
-      expect(source).toContain('contentFit="contain"');
-      expect(source).toContain("store.logoUri");
-      expect(source).toContain("colors.card");
-      expect(source).not.toMatch(
-        /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/,
-      );
-    }
+    expect(shopCard).toContain('from "expo-image"');
+    expect(shopCard).toContain('contentFit="contain"');
+    expect(shopCard).toContain("store.logoUri");
+    expect(shopCard).toContain("colors.card");
+    expect(shopCard).not.toMatch(
+      /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/,
+    );
 
-    expect(discoveryStyles).toMatch(/shopDirectoryLogoImage:[\s\S]*height: "100%"/);
+    expect(brandCard).toContain("<BrandLogoTile");
+    expect(brandCard).toContain("shopDirectoryLogoTile");
+    expect(brandCard).toContain("store.logoUri");
+    expect(brandCard).not.toContain('from "expo-image"');
+    expect(tile).toContain('from "expo-image"');
+    expect(tile).toContain('contentFit="contain"');
+
+    expect(discoveryStyles).toMatch(/shopDirectoryLogoTile:[\s\S]*aspectRatio:\s*1/);
     expect(discoveryStyles).not.toContain('height: "62%"');
   });
 

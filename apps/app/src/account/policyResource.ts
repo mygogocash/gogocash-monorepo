@@ -13,6 +13,11 @@ export type CategoryPolicyPayload = BackendCategoryPolicyPayload;
 
 export type ShopTermsViewModel = {
   bullets: readonly string[];
+  /**
+   * #466 — admin custom_terms freeform body. When set, the shop T&Cs panel
+   * renders this as plain text (no auto bullet markers).
+   */
+  body?: string;
   eyebrow: string;
   exclusionsTitle: string;
   subtitle: string;
@@ -112,13 +117,25 @@ export function resolveShopTerms({
   source: AccountDataSource;
   locale?: Locale;
 }): ShopTermsViewModel {
+  const trimmedCustom = customTerms?.trim();
+  // #466 — custom terms are freeform (preserve newlines), not auto-bulleted.
+  if (trimmedCustom) {
+    return {
+      ...fallback,
+      body: trimmedCustom,
+      bullets: [],
+      subtitle: noteToUser?.trim() || fallback.subtitle,
+    };
+  }
+
   const policyBullets =
     source === "backend" ? mapBackendCategoryPolicy(policyPayload, locale)?.bullets : undefined;
 
   return {
     ...fallback,
+    body: undefined,
     bullets: resolveShopTermsBullets({
-      customTerms,
+      customTerms: null,
       fixtureBullets: fallback.bullets,
       policyBullets,
     }),

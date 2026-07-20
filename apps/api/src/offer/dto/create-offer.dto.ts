@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 /**
  * Legacy create-offer body stub. Admin offer writes use UpdateOfferAdminDto /
@@ -19,14 +19,17 @@ export class GetMyOfferDto {
 export class SaveMissingOrderDto {
   @ApiProperty()
   @IsString()
+  @IsNotEmpty({ message: 'Brand (offer) is required.' })
   offer_id: string;
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty({ message: 'Order ID is required.' })
   orderId: string;
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty({ message: 'Purchase date is required.' })
   purchaseDate: string;
 
   @ApiProperty()
@@ -35,6 +38,7 @@ export class SaveMissingOrderDto {
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty({ message: 'Amount is required.' })
   amount: string;
 }
 

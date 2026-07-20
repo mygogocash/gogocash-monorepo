@@ -15,6 +15,7 @@ import {
 import {
   Image,
   Linking,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -109,6 +110,8 @@ type ShopDetail = Omit<
   noteToUser?: string;
   offerId?: number;
   policyCategoryId?: string;
+  /** Live offers set this from `extra_cashback_tag`; only `true` shows the badge (#472). */
+  showExtraCashbackTag?: boolean;
   trackingPeriod: readonly TrackingPeriodStep[];
   trackingUrl?: string;
 };
@@ -659,13 +662,15 @@ function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
             <Text style={styles.tagText}>{shop.category}</Text>
           </MotionPressable>
         </Link>
-        <View style={styles.extraTag}>
-          <Text style={styles.fireIcon}>🔥</Text>
-          <Text style={styles.tagText}>
-            {tc("Extra Cashback")}{" "}
-            <Text style={styles.tagStrong}>{shop.extraCashback}</Text>
-          </Text>
-        </View>
+        {shop.showExtraCashbackTag === true ? (
+          <View style={styles.extraTag} testID="shop-detail-extra-cashback-tag">
+            <Text style={styles.fireIcon}>🔥</Text>
+            <Text style={styles.tagText}>
+              {tc("Extra Cashback")}{" "}
+              <Text style={styles.tagStrong}>{shop.extraCashback}</Text>
+            </Text>
+          </View>
+        ) : null}
       </View>
       <View style={styles.rateDetails}>
         <Text style={styles.disclaimer}>{tc(shop.disclaimer)}</Text>
@@ -867,15 +872,21 @@ function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
         />
       </View>
       <Text style={styles.termsSectionTitle}>{tc(terms.exclusionsTitle)}</Text>
-      <View style={styles.termsList}>
-        {terms.bullets.map((bullet) => (
-          <View key={bullet} style={styles.termBulletRow}>
-            {/* #426 — muted legal markers, not tip-style green dots */}
-            <Text style={styles.termBulletDot}>•</Text>
-            <Text style={styles.termBulletText}>{bullet}</Text>
-          </View>
-        ))}
-      </View>
+      {terms.body ? (
+        <Text style={styles.termsFreeformBody} testID="shop-detail-terms-body">
+          {terms.body}
+        </Text>
+      ) : (
+        <View style={styles.termsList}>
+          {terms.bullets.map((bullet) => (
+            <View key={bullet} style={styles.termBulletRow}>
+              {/* #426 — muted legal markers, not tip-style green dots */}
+              <Text style={styles.termBulletDot}>•</Text>
+              <Text style={styles.termBulletText}>{bullet}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -1483,6 +1494,17 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
       fontSize: 14,
       fontWeight: typography.bodyWeight,
       lineHeight: 22,
+    },
+    // #466 — preserve admin newlines in freeform custom T&Cs (esp. web).
+    termsFreeformBody: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: typography.bodyWeight,
+      lineHeight: 22,
+      ...(Platform.OS === "web"
+        ? ({ whiteSpace: "pre-wrap" } as object)
+        : null),
     },
     relatedSection: {
       gap: 18,

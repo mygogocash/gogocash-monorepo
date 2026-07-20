@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import {
   requireObjectId,
   mongoCaseInsensitiveRegex,
@@ -12,7 +12,11 @@ import {
   requireOneOf,
 } from 'src/common/mongo-query';
 import { MissionOrder } from 'src/offer/schemas/missing-order.schema';
-import { toMissingOrderClaim } from './dto/missing-order.response.dto';
+import { Offer } from 'src/offer/schemas/offer.schema';
+import {
+  toMissingOrderClaim,
+  type MissingOrderClaimDto,
+} from './dto/missing-order.response.dto';
 import { normalizeMissionOrderStatus } from './missing-order-status';
 
 @Injectable()
@@ -20,7 +24,53 @@ export class MissingOrdersService {
   constructor(
     @InjectModel(MissionOrder.name)
     private readonly missingOrderModel: Model<MissionOrder>,
+    @InjectModel(Offer.name)
+    private readonly offerModel: Model<Offer>,
   ) {}
+
+  /**
+   * #474 — when `offer_snapshot.name` is blank (legacy/migrated rows), fill
+   * `merchantName` from the live offer display name.
+   */
+  private async enrichMerchantNames(
+    claims: MissingOrderClaimDto[],
+  ): Promise<MissingOrderClaimDto[]> {
+    const missingIds = [
+      ...new Set(
+        claims
+          .filter((claim) => !claim.merchantName.trim() && claim.merchantId)
+          .map((claim) => claim.merchantId)
+          .filter((id) => Types.ObjectId.isValid(id)),
+      ),
+    ];
+    if (missingIds.length === 0) return claims;
+
+    const offers = await this.offerModel
+      .find({
+        _id: { $in: missingIds.map((id) => new Types.ObjectId(id)) },
+      })
+      .select('offer_name offer_name_display')
+      .lean()
+      .exec();
+    const nameById = new Map(
+      offers.map((offer) => {
+        const row = offer as {
+          _id?: unknown;
+          offer_name?: string;
+          offer_name_display?: string;
+        };
+        const name =
+          row.offer_name_display?.trim() || row.offer_name?.trim() || '';
+        return [String(row._id), name] as const;
+      }),
+    );
+
+    return claims.map((claim) => {
+      if (claim.merchantName.trim()) return claim;
+      const live = nameById.get(claim.merchantId);
+      return live ? { ...claim, merchantName: live } : claim;
+    });
+  }
 
   async getStats() {
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -149,10 +199,11 @@ export class MissingOrdersService {
       this.missingOrderModel.countDocuments(mongoFilter(filter)).exec(),
     ]);
 
+    const claims = data.map((row) =>
+      toMissingOrderClaim(row as unknown as Record<string, unknown>),
+    );
     return {
-      data: data.map((row) =>
-        toMissingOrderClaim(row as unknown as Record<string, unknown>),
-      ),
+      data: await this.enrichMerchantNames(claims),
       meta: {
         total,
         page,
@@ -170,7 +221,10 @@ export class MissingOrdersService {
       throw new NotFoundException(`Missing order ${id} not found`);
     }
 
-    return toMissingOrderClaim(order as unknown as Record<string, unknown>);
+    const [claim] = await this.enrichMerchantNames([
+      toMissingOrderClaim(order as unknown as Record<string, unknown>),
+    ]);
+    return claim;
   }
 
   async approve(id: string, note?: string) {

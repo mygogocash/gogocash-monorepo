@@ -183,6 +183,38 @@ export class Offer {
   @Prop({ required: false })
   all_product_types?: boolean;
 
+  /** Upsize event window (YYYY-MM-DD); null/absent = open-ended on that side. */
+  @Prop({ required: false, type: String, default: null })
+  upsize_start_date?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  upsize_end_date?: string | null;
+
+  /** Optional HH:MM bounds for the upsize window. */
+  @Prop({ required: false, type: String, default: null })
+  upsize_start_time?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  upsize_end_time?: string | null;
+
+  /** All-product upsize headline commission (net, after platform fee). */
+  @Prop({ required: false, type: Number, default: null })
+  upsize_special_commission?: number | null;
+
+  @Prop({ required: false, type: Number, default: null })
+  upsize_max_cap?: number | null;
+
+  /**
+   * When true, upsize uses `upsize_special_commission` for all products.
+   * When false, `upsize_product_types` rows drive the promo list.
+   */
+  @Prop({ required: false })
+  upsize_all_product_types?: boolean;
+
+  /** Per-product upsize cashback rows (same shape as `product_type`). */
+  @Prop({ type: Array, required: false })
+  upsize_product_types?: { [key: string]: string }[];
+
   /**
    * Affiliate network of origin. `'involve'` default keeps every pre-existing
    * document valid without a backfill migration.
