@@ -4,7 +4,10 @@ import type { OfferDisplayTags as OfferDisplayTagsContract } from "@gogocash/con
 // types only the fields it consumes and treats them all as optional, but the
 // field names/types are derived from @gogocash/contracts so they cannot drift.
 export type OfferDisplayTags = Partial<
-  Pick<OfferDisplayTagsContract, "brand_category_enabled" | "brand_category_label">
+  Pick<
+    OfferDisplayTagsContract,
+    "brand_category_enabled" | "brand_category_label" | "extra_cashback_tag"
+  >
 >;
 
 export type OfferDisplayCategorySource = {

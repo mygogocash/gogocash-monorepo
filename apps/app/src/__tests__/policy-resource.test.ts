@@ -48,8 +48,27 @@ describe("resolveShopTerms", () => {
       source: "backend",
     });
 
-    expect(terms.bullets).toEqual(["Custom line"]);
+    expect(terms.body).toBe("Custom line");
+    expect(terms.bullets).toEqual([]);
     expect(terms.subtitle).toBe("Heads up");
+  });
+
+  it("given multiline custom_terms > then keeps freeform body without auto bullets (#466)", () => {
+    const terms = resolveShopTerms({
+      customTerms: "Line one\nLine two",
+      fallback: {
+        bullets: ["fixture"],
+        eyebrow: "💡",
+        exclusionsTitle: "Exclusions",
+        subtitle: "fixture subtitle",
+        title: "Terms & Conditions",
+      },
+      policyPayload: null,
+      source: "backend",
+    });
+
+    expect(terms.body).toBe("Line one\nLine two");
+    expect(terms.bullets).toEqual([]);
   });
 });
 
