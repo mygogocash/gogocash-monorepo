@@ -1593,7 +1593,7 @@ export class AdminService {
 
   /**
    * Paginated MyCashBack user directory for the admin table.
-   * Contract matches admin mock `POST /admin/list-mycashback-users`.
+   * Contract matches admin mock `POST|GET /admin/list-mycashback-users`.
    */
   async listMyCashbackUsers(
     params: {
@@ -1624,37 +1624,59 @@ export class AdminService {
       ? (rawSort as MyCashbackUserSort)
       : 'newest';
 
-    const query: Record<string, unknown> = {};
-    if (search) {
-      const safe = escapeRegexLiteral(search);
-      const or: Record<string, unknown>[] = [
-        { email: { $regex: safe, $options: 'i' } },
-        { phoneNumber: { $regex: safe, $options: 'i' } },
-        { buyerId: { $regex: safe, $options: 'i' } },
-        { firstName: { $regex: safe, $options: 'i' } },
-        { lastName: { $regex: safe, $options: 'i' } },
-      ];
-      // Prefer exact 24-char hex — Types.ObjectId.isValid also accepts any
-      // 12-char string, which would wrongly coerce free-text searches.
-      if (/^[0-9a-f]{24}$/i.test(search)) {
-        or.push({ _id: new Types.ObjectId(search) });
-      }
-      query.$or = or;
-    }
-    if (status === 'active') {
-      // Treat missing `banned` as active (legacy rows).
-      query.banned = { $ne: true };
-    } else if (status === 'banned') {
-      query.banned = true;
+    const query = this.buildMyCashbackUsersQuery(search, status);
+
+    // Balance sort sums every currency row (not FX-normalized). Primary-row
+    // sort would under-rank multi-wallet users; aggregation is required.
+    if (sortKey === 'balance') {
+      const [data, total] = await Promise.all([
+        this.userMyCashbackModel
+          .aggregate([
+            { $match: query },
+            {
+              $addFields: {
+                _balanceTotal: {
+                  $sum: {
+                    $map: {
+                      input: { $ifNull: ['$balance', []] },
+                      as: 'b',
+                      in: { $ifNull: ['$$b.amount', 0] },
+                    },
+                  },
+                },
+              },
+            },
+            { $sort: { _balanceTotal: -1, createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                withdrawalPassword: 0,
+                buyerToken: 0,
+                _balanceTotal: 0,
+              },
+            },
+          ])
+          .exec(),
+        this.userMyCashbackModel.countDocuments(query).exec(),
+      ]);
+
+      return {
+        status: 'success',
+        data,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
     }
 
     let sort: Record<string, 1 | -1>;
     switch (sortKey) {
       case 'name':
         sort = { firstName: 1, lastName: 1, email: 1 };
-        break;
-      case 'balance':
-        sort = { 'balance.0.amount': -1 };
         break;
       case 'newest':
       default:
@@ -1675,7 +1697,6 @@ export class AdminService {
     ]);
 
     // Match findAll / mock paginate: empty result sets report totalPages 0.
-    const totalPages = Math.ceil(total / limit);
     return {
       status: 'success',
       data,
@@ -1683,9 +1704,40 @@ export class AdminService {
         page,
         limit,
         total,
-        totalPages,
+        totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  private buildMyCashbackUsersQuery(
+    search: string,
+    status: string,
+  ): Record<string, unknown> {
+    const query: Record<string, unknown> = {};
+    if (search) {
+      const safe = escapeRegexLiteral(search);
+      const or: Record<string, unknown>[] = [
+        { email: { $regex: safe, $options: 'i' } },
+        { phoneNumber: { $regex: safe, $options: 'i' } },
+        { buyerId: { $regex: safe, $options: 'i' } },
+        { firstName: { $regex: safe, $options: 'i' } },
+        { lastName: { $regex: safe, $options: 'i' } },
+      ];
+      // Exact 24-char hex only — Types.ObjectId.isValid also accepts any
+      // 12-char string, which would wrongly coerce free-text searches.
+      if (/^[0-9a-f]{24}$/i.test(search)) {
+        const objectId = new Types.ObjectId(search);
+        or.push({ _id: objectId }, { publisherId: objectId });
+      }
+      query.$or = or;
+    }
+    if (status === 'active') {
+      // Treat missing `banned` as active (legacy rows).
+      query.banned = { $ne: true };
+    } else if (status === 'banned') {
+      query.banned = true;
+    }
+    return query;
   }
 
   private async updateBanner(
