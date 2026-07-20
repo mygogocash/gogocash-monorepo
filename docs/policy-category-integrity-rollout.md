@@ -13,6 +13,11 @@ fingerprint + `POLICY_CATEGORY_INTEGRITY_PRODUCTION_AUTHORIZE` sentinel).
   `key=category-integrity`, `status=ready`, `migration_version=2`.
 - `api-beta` / admin-beta use **Atlas** (not the Railway MongoDB service).
   Converting Railway Mongo does not affect beta policy saves — see #407.
+- admin-beta BFF must use private Railway upstream
+  `API_URL=http://gogocash-api.railway.internal:8080` (not
+  `*.up.railway.app` / public `api-beta`). Browser mode still uses
+  `NEXT_PUBLIC_API_URL=https://api-beta.gogocash.co`. See
+  [`docs/railway-env-matrix.md`](railway-env-matrix.md#gogocash-admin).
 - Dev and staging Railway Mongo remain authenticated single-node replica sets
   (`rs0`; MongoDB 8.0.4 on dev, 8.3.4 on staging) with committing transactions.
 - Production apply remains fail-closed without the authorize sentinel and the
