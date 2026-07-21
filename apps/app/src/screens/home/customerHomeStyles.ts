@@ -147,7 +147,6 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
   mobileTabletHeaderShortcutDock: {
     backgroundColor: colors.card,
     borderRadius: 22,
-    display: "none",
     overflow: "hidden",
     paddingVertical: 4,
     boxShadow: "0 9px 20px rgba(48, 56, 70, 0.12)",
@@ -684,7 +683,10 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
       "0 18px 32px -14px rgba(0, 0, 0, 0.55)",
     ),
   },
-  mobileTabletGoLinkIllustrationWrap: {
+  // Named for what it does: the illustration is hidden on the mobile/tablet header
+  // variant. Applied conditionally by DesktopGoLinkBanner (unlike the shortcut dock,
+  // which hid itself unconditionally) — see the hidden-style invariant test.
+  mobileTabletGoLinkIllustrationHidden: {
     display: "none",
   },
   desktopGoLinkGoBadge: {
