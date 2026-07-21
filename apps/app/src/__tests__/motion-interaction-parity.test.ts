@@ -82,17 +82,16 @@ describe("Expo motion interaction parity", () => {
   it("home interactions > given staged carousels > then Expo tracks active dots from scroll", () => {
     const homeFile = readHomeFile();
 
+    // #498 — Top Brands tracks a continuous scroll offset through CarouselRail rather than
+    // a settled page index, so its dot bookkeeping is gone. The promo rail still pages.
     expect(homeFile).toContain("getPagedScrollIndex");
-    expect(homeFile).toContain("getCarouselDotCount");
-    expect(homeFile).toContain("topBrandDotCount");
-    expect(homeFile).toContain("activeTopBrandPage");
-    expect(homeFile).toContain("activeTopBrandDot");
     expect(homeFile).toContain("activePromoPage");
     expect(homeFile).toContain("activePromoDot");
     expect(homeFile).toContain("onScroll={Animated.event(");
     expect(homeFile).toContain("onMomentumScrollEnd");
-    expect(homeFile).toContain("activeIndex={activeTopBrandDot}");
     expect(homeFile).toContain("activeIndex={activePromoDot}");
+    // The rail is driven by the same shared scrollX the dots used.
+    expect(homeFile).toContain("scrollX={topBrandScrollX}");
   });
 
   it("home interactions > given tappable home cards and bottom nav > then Expo uses shared press feedback", () => {
