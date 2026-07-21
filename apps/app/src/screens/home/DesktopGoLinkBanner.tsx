@@ -92,7 +92,7 @@ export function DesktopGoLinkBanner({
         accessibilityLabel={tc("GoGoLink cashback link illustration")}
         style={[
           styles.desktopGoLinkIllustrationWrap,
-          isMobileTabletHeader ? styles.mobileTabletGoLinkIllustrationWrap : null,
+          isMobileTabletHeader ? styles.mobileTabletGoLinkIllustrationHidden : null,
         ]}
       >
         <LinkIcon color={colors.primary} size={46} strokeWidth={homeIconStrokeWidth} />
