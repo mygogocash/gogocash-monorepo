@@ -79,9 +79,41 @@ export function getPromoGridCardWidth(frameWidth: number, gap: number): number {
   return Math.floor((frameWidth - gap) / 2);
 }
 
-export function getPromoSectionPageSize(homeLayout: HomeLayoutMetrics) {
+/**
+ * #499 — row count is a SECTION property, not a viewport one. topBrandRowsPerPage is a
+ * global metric that TopBrandSection also reads, so specialising it there would resize Top
+ * Brands too. Travel and Makeup are one-row rails; everything else keeps the shared rhythm.
+ */
+export function getPromoSectionRowsPerPage(
+  sectionId: string,
+  homeLayout: HomeLayoutMetrics,
+): number {
+  return ONE_ROW_PROMO_SECTION_IDS.has(sectionId)
+    ? 1
+    : homeLayout.topBrandRowsPerPage;
+}
+
+/**
+ * Height for a section's rail. A one-row section is exactly one card tall with no gap
+ * term — reserving the second row plus its gap is the empty space #499 reports.
+ */
+export function getPromoSectionGridHeight(
+  sectionId: string,
+  homeLayout: HomeLayoutMetrics,
+): number {
+  const rows = getPromoSectionRowsPerPage(sectionId, homeLayout);
+  return rows * homeLayout.topBrandCardHeight + (rows - 1) * homeLayout.topBrandGap;
+}
+
+export function getPromoSectionPageSize(
+  sectionId: string,
+  homeLayout: HomeLayoutMetrics,
+) {
   // Issue #253: promo rails match Top Brands page size (topBrandCardsPerPage).
-  return homeLayout.topBrandCardsPerPage;
+  // #499: a one-row section pages by a single row of columns instead.
+  return (
+    homeLayout.topBrandColumns * getPromoSectionRowsPerPage(sectionId, homeLayout)
+  );
 }
 
 export function getPagedScrollIndex(

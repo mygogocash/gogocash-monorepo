@@ -44,15 +44,15 @@ function styleKeysDeclaringDisplayNone(source: string): string[] {
 }
 
 describe("home styles > hidden-style invariants (#497)", () => {
-  it("browse shortcuts > given the mobile/tablet header dock > then it is not display:none", () => {
-    // The dock at MobileTabletHomeHeader.tsx:101 is the ONLY wrapper BrowseShortcuts lives in,
-    // and it is applied unconditionally — so display:none removes the whole subtree from layout.
-    // Read through an index signature on purpose: once the property is gone, TypeScript narrows
-    // it off the style object, so neither a direct read nor an all-optional annotation compiles.
-    // This keeps the assertion valid in BOTH the fixed and the regressed state.
-    const dock = styles.mobileTabletHeaderShortcutDock as Record<string, unknown>;
+  it("browse shortcuts > given the explore bar wrapper > then it is not display:none", () => {
+    // The original bug: the bar's only wrapper was display:none, unconditionally, so the
+    // whole subtree left layout. #497 moved the bar into the content stack, so the wrapper
+    // it now lives in is the one that must stay visible. Read through an index signature on
+    // purpose — once the property is gone TypeScript narrows it off the style object, so a
+    // direct read would not compile. This keeps the assertion valid in BOTH states.
+    const bar = styles.mobileTabletExploreBar as Record<string, unknown>;
 
-    expect(dock.display).not.toBe("none");
+    expect(bar.display).not.toBe("none");
   });
 
   it("home styles > given any style that hides itself > then its key is named Hidden or Collapsed", () => {

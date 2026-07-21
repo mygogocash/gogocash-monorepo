@@ -65,9 +65,9 @@ describe("Expo home design parity", () => {
 
     expect(webDesktopHeaderNavItems.map((item) => item.label)).toEqual([
       "Top Brands",
-      "All Brands",
-      "All Shops",
-      "Product Discovery",
+      "Explore Brand",
+      "Explore Shops",
+      "Explore Products",
       "Travel",
       "Electronics",
       "Health & Beauty",
@@ -422,28 +422,26 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("useWindowDimensions");
     expect(homeFile).toContain("getResponsiveHomeLayoutMetrics");
     expect(homeFile).toContain("styles.brandGrid");
-    expect(homeFile).toContain("activeIndex={activeTopBrandDot}");
-    expect(homeFile).toContain("topBrandPages");
-    expect(homeFile).toContain("homeLayout.topBrandCardsPerPage");
+    // #498 — Top Brands is one continuous column-major group now, so there are no pages
+    // and no dots. The two-row grid itself is unchanged.
+    expect(homeFile).toContain("topBrandColumns");
+    expect(homeFile).toContain("homeLayout.topBrandRowsPerPage");
     expect(homeFile).toContain("homeLayout.contentWidth");
     expect(homeFile).not.toContain("contentContainerStyle={styles.brandCardRow}");
   });
 
   it("home design parity > given staging Top Brands carousel > then desktop pages while mobile free-scrolls column flow", () => {
-    // Founder feedback 2026-07-11: mobile snapping by a whole 8-column group
-    // felt broken. Desktop keeps the paged group (snap props gated on isPager);
-    // mobile flows columns and scrolls freely with natural momentum.
+    // Founder feedback 2026-07-11 gated snapping so mobile flowed columns freely while
+    // desktop kept a paged group. #498 removed the paged group entirely: the page boundary
+    // was the visible gap between cards, so BOTH now scroll one continuous column-major
+    // group and the dots became a proportional progress rail.
     const homeFile = readHomeFile();
 
     expect(homeFile).toContain("horizontal");
     expect(homeFile).toContain("getPromoSectionLayoutMode(homeLayout.isDesktop, topBrands.length)");
-    expect(homeFile).toContain("pagingEnabled={isPager}");
-    expect(homeFile).toContain("snapToInterval={isPager ? homeLayout.topBrandGroupWidth : undefined}");
-    expect(homeFile).toContain('decelerationRate={isPager ? "fast" : "normal"}');
-    expect(homeFile).toContain("disableIntervalMomentum={isPager}");
+    expect(homeFile).not.toContain("snapToInterval={isPager ? homeLayout.topBrandGroupWidth : undefined}");
+    expect(homeFile).not.toContain("topBrandPages.map");
     expect(homeFile).toContain("styles.topBrandScroll");
-    expect(homeFile).toContain("styles.topBrandPage");
-    expect(homeFile).toContain("topBrandPages.map");
     expect(homeFile).toContain("topBrandColumns.map");
     expect(homeFile).toContain("chunkTopBrandCards(topBrands, homeLayout.topBrandRowsPerPage)");
     expect(homeFile).not.toContain("webTopBrandCards.slice(0, 6)");
@@ -833,7 +831,9 @@ describe("Expo home design parity", () => {
     );
     expect(homeFile).toContain("chunkCompactBrandCards");
     expect(homeFile).toContain("promoPages.map");
-    expect(homeFile).toContain("homeLayout.topBrandCardsPerPage");
+    // #498/#499 — promo page size is now section-aware (columns x rows) rather than the
+    // flat Top Brands per-page count.
+    expect(homeFile).toContain("getPromoSectionRowsPerPage");
     expect(homeFile).toContain("ONE_ROW_PROMO_MAX_CARDS");
     expect(homeFile).toContain("getPromoSectionPageSize");
     expect(homeFile).toContain("Math.max(promoPages.length, dotCount ?? 0)");
@@ -855,7 +855,12 @@ describe("Expo home design parity", () => {
 
     // The rail scroller fills its section (100%) while each page is a fixed-width group that
     // overflows and scrolls with a peek; no per-page slide animation.
-    expect(homeFile).toContain("style={[styles.promoScroll, { height: homeLayout.topBrandGridHeight }]}");
+    // #499 — was a verbatim source pin on `homeLayout.topBrandGridHeight`. Rail height is
+    // now per-section (travel/makeup are one row), so this asserts the BEHAVIOUR — the
+    // scroll view is sized from the section-aware helper — rather than one exact string,
+    // which broke on a legitimate change and told us nothing about what the user sees.
+    expect(homeFile).toContain("getPromoSectionGridHeight");
+    expect(homeFile).toContain("{ height: sectionGridHeight }");
     expect(homeFile).toContain("width: pageWidth,");
     expect(homeFile).not.toContain("getCarouselPageMotionStyle");
   });

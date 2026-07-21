@@ -56,6 +56,7 @@ import { HomeHeroBanners } from "./home/HomeHeroBanners";
 import { HomeSearchPopularPopover } from "./home/HomeSearchPopularPopover";
 import type { SearchAnchorFrame } from "./home/searchPopoverFrame";
 import { HomeScreenThemeProvider } from "./home/homeScreenHooks";
+import { BrowseShortcuts } from "./home/BrowseShortcuts";
 import { MobileTabletHomeHeader } from "./home/MobileTabletHomeHeader";
 import { PromoSection } from "./home/PromoSection";
 import { TopBrandSection } from "./home/TopBrandSection";
@@ -186,6 +187,14 @@ export function CustomerHomeScreen() {
           onOpenGuideline={() => setDesktopGoLinkGuidelineOpen(true)}
           onResultHref={setDesktopGoLinkResultHref}
         />
+      ) : null}
+      {/* #497 — the explore bar belongs between the banners and Top Brands on
+          mobile/tablet. Desktop reaches the same destinations from the header nav
+          (CustomerDesktopHeader), so rendering it here too would duplicate them. */}
+      {!homeLayout.isDesktop ? (
+        <View style={styles.mobileTabletExploreBar}>
+          <BrowseShortcuts />
+        </View>
       ) : null}
       {webHomeSectionOrder.includes("extra") ? (
         <TopBrandSection brandCatalogData={brandCatalogResource.data} homeLayout={homeLayout} />

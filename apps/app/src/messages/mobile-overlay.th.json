@@ -467,5 +467,8 @@
   "mobileWithdrawAmountRequiredForCoupon": "กรุณากรอกจำนวนเงินที่ต้องการถอนก่อน",
   "mobileWithdrawValidAmountRequiredForCoupon": "กรุณากรอกจำนวนเงินถอนที่ถูกต้องก่อน",
   "mobileWithdrawCouponAmountChanged": "จำนวนเงินเปลี่ยนแปลง กรุณาใช้รหัสคูปองอีกครั้ง",
-  "mobileWithdrawCouponMethodChanged": "วิธีถอนเงินเปลี่ยนแปลง กรุณาใช้รหัสคูปองอีกครั้ง"
+  "mobileWithdrawCouponMethodChanged": "วิธีถอนเงินเปลี่ยนแปลง กรุณาใช้รหัสคูปองอีกครั้ง",
+  "mobileNavExploreBrand": "เลือกชมแบรนด์",
+  "mobileNavExploreShops": "เลือกชมร้านค้า",
+  "mobileNavExploreProducts": "เลือกชมสินค้า"
 }

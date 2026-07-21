@@ -1146,18 +1146,6 @@ export const webPrivacyPolicyPage = {
   firstSectionTitle: "1. Who We Are",
 } as const;
 
-export const webBrowseShortcuts = [
-  { id: "all-brands", label: "All Brands", href: "/brand", icon: "shop" },
-  { id: "all-shops", label: "All Shops", href: "/shops", icon: "shops" },
-  {
-    id: "product-discover",
-    label: "Product Discovery",
-    href: "/discover",
-    icon: "promotion",
-  },
-  { id: "categories", label: "Categories", href: "/category", icon: "education" },
-] as const;
-
 // #483 — one icon system + one text size for every desktop header nav item.
 export const webDesktopHeaderNavItems = [
   {
@@ -1169,21 +1157,21 @@ export const webDesktopHeaderNavItems = [
   },
   {
     id: "all-brands",
-    label: "All Brands",
+    label: "Explore Brand",
     href: "/brand",
     icon: "shop",
     active: false,
   },
   {
     id: "all-shops",
-    label: "All Shops",
+    label: "Explore Shops",
     href: "/shops",
     icon: "shops",
     active: false,
   },
   {
     id: "product-discovery",
-    label: "Product Discovery",
+    label: "Explore Products",
     href: "/discover",
     icon: "promotion",
     active: false,
@@ -1210,6 +1198,16 @@ export const webDesktopHeaderNavItems = [
     active: false,
   },
 ] as const;
+
+// #497 — the mobile explore bar must reach the same destinations as the desktop nav
+// ("taps route to the same destinations as desktop"), so it is DERIVED from that list
+// rather than maintained in parallel. Derived below it so the two can never drift apart.
+export const webBrowseShortcuts = webDesktopHeaderNavItems.map((item) => ({
+  id: item.id,
+  label: item.label,
+  href: item.href,
+  icon: item.icon,
+}));
 
 export const webLocaleRegionPanel = {
   ariaLabel: "Choose language and region",
