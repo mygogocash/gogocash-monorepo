@@ -560,16 +560,31 @@ describe("GoGoCash web design parity", () => {
   });
 
   it("browse shortcuts > given web MobileBrowseShortcuts > then labels and routes match", () => {
+    // #497 — the mobile bar is now DERIVED from the desktop nav so the two cannot drift.
+    // Pinned explicitly rather than by re-deriving, so a change to either list is visible here.
     expect(webBrowseShortcuts).toEqual([
+      { id: "top-brands", label: "Top Brands", href: "/", icon: "fire" },
       { id: "all-brands", label: "Explore Brand", href: "/brand", icon: "shop" },
       { id: "all-shops", label: "Explore Shops", href: "/shops", icon: "shops" },
       {
-        id: "product-discover",
+        id: "product-discovery",
         label: "Explore Products",
         href: "/discover",
         icon: "promotion",
       },
-      { id: "categories", label: "Categories", href: "/category", icon: "education" },
+      { id: "travel", label: "Travel", href: "/category/Travel", icon: "travel" },
+      {
+        id: "electronics",
+        label: "Electronics",
+        href: "/category/Electronics",
+        icon: "electronics",
+      },
+      {
+        id: "health-beauty",
+        label: "Health & Beauty",
+        href: "/category/Health%20%26%20Beauty",
+        icon: "health",
+      },
     ]);
   });
 
