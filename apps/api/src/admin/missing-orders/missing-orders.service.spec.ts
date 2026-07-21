@@ -209,7 +209,10 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
     const model = makeModel(
       phoneOnly.toObject() as unknown as Record<string, unknown>,
     );
-    const service = new MissingOrdersService(model as never, makeOfferModel() as never);
+    const service = new MissingOrdersService(
+      model as never,
+      makeOfferModel() as never,
+    );
     const result = await service.findOne(CLAIM_ID.toHexString());
 
     expect(result).toMatchObject({
@@ -248,7 +251,10 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
 
   it('applies the Admin date range and escaped search to canonical fields', async () => {
     const model = makeModel();
-    const service = new MissingOrdersService(model as never, makeOfferModel() as never);
+    const service = new MissingOrdersService(
+      model as never,
+      makeOfferModel() as never,
+    );
 
     await service.findAll({
       page: '1',
@@ -289,7 +295,10 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
 
   it('normalizes investigating in stats and exposes the shape consumed by Admin', async () => {
     const model = makeModel();
-    const service = new MissingOrdersService(model as never, makeOfferModel() as never);
+    const service = new MissingOrdersService(
+      model as never,
+      makeOfferModel() as never,
+    );
 
     await expect(service.getStats()).resolves.toEqual({
       byStatus: {
@@ -312,7 +321,10 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
       assigned_to: 'admin-7',
     });
     const model = makeModel(row);
-    const service = new MissingOrdersService(model as never, makeOfferModel() as never);
+    const service = new MissingOrdersService(
+      model as never,
+      makeOfferModel() as never,
+    );
 
     const result = await service.assign(CLAIM_ID.toHexString(), 'admin-7');
 
@@ -336,7 +348,10 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
     async (method, expectedStatus) => {
       const row = canonicalClaim({ status: expectedStatus });
       const model = makeModel(row);
-      const service = new MissingOrdersService(model as never, makeOfferModel() as never);
+      const service = new MissingOrdersService(
+        model as never,
+        makeOfferModel() as never,
+      );
 
       const result = await service[method](CLAIM_ID.toHexString(), 'Reviewed');
 
@@ -358,7 +373,10 @@ describe('MissingOrdersService canonical MissionOrder contract', () => {
 
   it('persists a durable note and returns the mapped note history', async () => {
     const model = makeModel();
-    const service = new MissingOrdersService(model as never, makeOfferModel() as never);
+    const service = new MissingOrdersService(
+      model as never,
+      makeOfferModel() as never,
+    );
 
     const result = await service.addNote(
       CLAIM_ID.toHexString(),

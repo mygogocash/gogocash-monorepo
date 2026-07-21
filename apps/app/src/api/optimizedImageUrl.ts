@@ -1,15 +1,19 @@
 /**
  * Cloudflare Image Resizing rewrite for gogocash-hosted media.
  *
- * The staging media zone serves original admin uploads (banner PNGs run
- * 2.7–9.1 MB each) but has Image Resizing enabled, so prefixing the path with
+ * The media zones serve original admin uploads (banner PNGs run 2.7–9.1 MB
+ * each) but have Image Resizing enabled, so prefixing the path with
  * `/cdn-cgi/image/<options>/` returns a right-sized AVIF/WebP/JPEG at ~1–2% of
  * the bytes. This helper rewrites ONLY allowlisted gogocash media hosts —
  * external CDNs (img.involve.asia, cdn.simpleicons.org, drive.google.com) and
- * api hosts pass through untouched. The production media host is deliberately
- * NOT allowlisted until its zone's Image Resizing support is verified;
- * `onerror=redirect` makes Cloudflare fall back to the original asset on any
- * processing error.
+ * api hosts pass through untouched. `onerror=redirect` makes Cloudflare fall
+ * back to the original asset on any processing error.
+ *
+ * media.gogocash.co is allowlisted alongside media-staging: both are subdomains
+ * of the SAME gogocash.co zone and Image Resizing is a zone-level feature.
+ * Measured on the production host against a 9,584,617 B PNG — w=1600 returns
+ * 99,747 B AVIF and w=320 returns 12,300 B. Leaving it un-allowlisted would
+ * ship the 9.1 MB original to every visitor.
  */
 
 // Per-surface transform widths. Shared constants so the same asset resolves to
@@ -21,7 +25,10 @@ export const BRAND_LOGO_IMAGE_WIDTH = 320;
 
 const DEFAULT_IMAGE_QUALITY = 78;
 const CDN_IMAGE_SEGMENT = "cdn-cgi/image/";
-const OPTIMIZED_IMAGE_URL_PREFIXES = ["https://media-staging.gogocash.co/"] as const;
+const OPTIMIZED_IMAGE_URL_PREFIXES = [
+  "https://media-staging.gogocash.co/",
+  "https://media.gogocash.co/",
+] as const;
 
 export type OptimizedImageOptions = {
   width: number;
