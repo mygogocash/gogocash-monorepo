@@ -855,7 +855,12 @@ describe("Expo home design parity", () => {
 
     // The rail scroller fills its section (100%) while each page is a fixed-width group that
     // overflows and scrolls with a peek; no per-page slide animation.
-    expect(homeFile).toContain("style={[styles.promoScroll, { height: homeLayout.topBrandGridHeight }]}");
+    // #499 — was a verbatim source pin on `homeLayout.topBrandGridHeight`. Rail height is
+    // now per-section (travel/makeup are one row), so this asserts the BEHAVIOUR — the
+    // scroll view is sized from the section-aware helper — rather than one exact string,
+    // which broke on a legitimate change and told us nothing about what the user sees.
+    expect(homeFile).toContain("getPromoSectionGridHeight");
+    expect(homeFile).toContain("{ height: sectionGridHeight }");
     expect(homeFile).toContain("width: pageWidth,");
     expect(homeFile).not.toContain("getCarouselPageMotionStyle");
   });
