@@ -1,11 +1,7 @@
 // Category → glyph mapping (web + native).
 // Built-in allow-list lives in @gogocash/contracts; this module maps keys and
 // labels to Phosphor glyphs for customer chrome.
-import {
-  CATEGORY_ICON_KEYS,
-  isCategoryIconKey,
-  type CategoryIconKey,
-} from "@gogocash/contracts";
+import { isCategoryIconKey, type CategoryIconKey } from "@gogocash/contracts";
 import {
   Baby,
   BookOpen,

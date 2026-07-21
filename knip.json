@@ -109,6 +109,12 @@
     ],
     "apps/api/src/media/local-object-storage.ts": [
       "exports"
+    ],
+    "apps/app/src/config/featureFlags.ts": [
+      "duplicates"
+    ],
+    "apps/api/src/auth/firebase-admin.provider.ts": [
+      "exports"
     ]
   },
   "workspaces": {
