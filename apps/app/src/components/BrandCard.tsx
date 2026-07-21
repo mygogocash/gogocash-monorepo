@@ -66,6 +66,9 @@ export type BrandCardProps =
       readonly onPress?: () => void;
       /** Render the same favorite heart the L card carries. */
       readonly showFavoriteHeart?: boolean;
+      /** #496 — the offer/tag chip the L card carries, pinned to the image top-left. */
+      readonly label?: string;
+      readonly showGrabCoupon?: boolean;
       readonly testID?: string;
     });
 
@@ -118,6 +121,18 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
   const compactLogoSource =
     props.size === "S" ? resolveCompactLogoSource(props) : null;
 
+  // #496 — one chip definition for both sizes: the L and S branches rendered the same
+  // markup, and only L had it. Both cards pin it to the image top-left.
+  const couponChip =
+    props.showGrabCoupon && props.label ? (
+      <View style={styles.couponChip}>
+        <Text style={styles.couponIcon}>🧧</Text>
+        <Text numberOfLines={1} style={styles.couponText}>
+          {tc(props.label)}
+        </Text>
+      </View>
+    ) : null;
+
   const card = (
     <MotionPressable
       accessibilityLabel={props.accessibilityLabel ?? brand}
@@ -137,14 +152,7 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
             sourceKey={logoSourceKey}
             tint={tint}
           >
-            {props.showGrabCoupon && props.label ? (
-              <View style={styles.couponChip}>
-                <Text style={styles.couponIcon}>🧧</Text>
-                <Text numberOfLines={1} style={styles.couponText}>
-                  {tc(props.label)}
-                </Text>
-              </View>
-            ) : null}
+            {couponChip}
             <Pressable
               accessibilityLabel={
                 isFavorite
@@ -176,6 +184,7 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
             sourceKey={logoSourceKey}
             tint={tint}
           >
+            {couponChip}
             {props.showFavoriteHeart ? (
               <Pressable
                 accessibilityLabel={
@@ -350,7 +359,6 @@ function createBrandCardStyles(colors: ThemeColors) {
       fontSize: 14,
       fontWeight: typography.labelWeight,
       lineHeight: 17.5,
-      marginTop: 2,
     },
     compactCashbackRow: {
       alignItems: "baseline",
