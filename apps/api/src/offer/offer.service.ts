@@ -39,10 +39,7 @@ import {
   type CommandOwnedStoredMediaAsset,
   StoredMediaService,
 } from 'src/media/stored-media.service';
-import {
-  MEDIA_FOLDER,
-  type MediaFolder,
-} from 'src/media/media-folders.config';
+import { MEDIA_FOLDER, type MediaFolder } from 'src/media/media-folders.config';
 import { parseOfferDisplayTagsField } from './offer-display-tags.util';
 import { parseProductTypeRowsField } from './product-type.util';
 import { resolvePublicOfferLogo } from './offer-logo.util';

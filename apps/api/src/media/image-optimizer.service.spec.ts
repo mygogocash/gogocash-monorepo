@@ -152,7 +152,9 @@ describe('ImageOptimizerService', () => {
   it('brand banners > given the env prefix map > then the new folder is overridable like every other', () => {
     // resolveMediaFolder reverse-looks-up by value, so a folder with no GCS_MEDIA_PREFIX_*
     // entry silently loses env overrides. Nothing else enforces the pairing.
-    expect(resolveMediaFolder(MEDIA_FOLDER.BRAND_BANNERS)).toBe('brand-banners');
+    expect(resolveMediaFolder(MEDIA_FOLDER.BRAND_BANNERS)).toBe(
+      'brand-banners',
+    );
     process.env.GCS_MEDIA_PREFIX_BRAND_BANNERS = 'custom-brand-banners';
     try {
       expect(resolveMediaFolder(MEDIA_FOLDER.BRAND_BANNERS)).toBe(
