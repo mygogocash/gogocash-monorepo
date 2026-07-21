@@ -230,6 +230,27 @@ export class Offer {
   source: OfferSource;
 
   /**
+   * Affiliate network this brand line belongs to (`involve_asia`, `optimise`,
+   * `accesstrade`). Distinct from `source`, which records where the row was
+   * imported from — they usually agree, but an offer can be re-homed to a
+   * different network without rewriting its import provenance.
+   *
+   * Absent on legacy rows; the admin falls back to deriving it from `source`
+   * (#517/#518). Previously the admin submitted this key and nothing persisted
+   * it, so `forbidNonWhitelisted` rejected the whole partner-info save (#516).
+   */
+  @Prop({ required: false, type: String, default: null })
+  affiliate_network_id?: string | null;
+
+  /**
+   * Selected advertiser line within the network (e.g. `shopee_cps` vs
+   * `shopee_cps_new`), emitted as `store=` on the generated app deeplink.
+   * `global` / absent means no specific line.
+   */
+  @Prop({ required: false, type: String, default: null })
+  deeplink_store_id?: string | null;
+
+  /**
    * Admin curation state. `'approved'` default preserves visibility of every
    * legacy Involve offer after this schema change — no migration needed.
    * Optimise sync writes `'pending_review'` on newly-seen offers.

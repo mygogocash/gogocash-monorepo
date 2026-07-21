@@ -2044,6 +2044,38 @@ describe('AdminService', () => {
       expect(persisted.commission_store).toBe(5.6);
     });
 
+    // #516 / #518 — the admin has always submitted these two on partner-info
+    // save, but nothing persisted them, so forbidNonWhitelisted rejected the
+    // whole request ("property affiliate_network_id should not exist") before
+    // product_types was ever examined. That made "Info from partner" unsaveable
+    // for EVERY offer, and the admin's hardcoded error string hid the reason.
+    it('updateOffer > given affiliate_network_id and deeplink_store_id > then both persist', async () => {
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        affiliate_network_id: 'accesstrade',
+        deeplink_store_id: 'shopee_cps_new',
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.affiliate_network_id).toBe('accesstrade');
+      expect(persisted.deeplink_store_id).toBe('shopee_cps_new');
+    });
+
+    // Absent key must leave the stored value alone — a partial save (T&C, media,
+    // tracking period) must never blank the network or advertiser line.
+    it('updateOffer > given neither key > then neither is written', async () => {
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, { note_to_user: 'hello' });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect('affiliate_network_id' in persisted).toBe(false);
+      expect('deeplink_store_id' in persisted).toBe(false);
+    });
+
     it('updateOffer > given upsize product rows > then upsize fields persist (#471)', async () => {
       offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
       offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
