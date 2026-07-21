@@ -976,7 +976,7 @@ function ShopDetailSkeleton() {
   );
 }
 
-function createShopDetailScreenStyles(colors: ThemeColors) {
+export function createShopDetailScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
     viewport: {
       alignItems: "center",
@@ -1337,7 +1337,9 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
       justifyContent: "space-between",
     },
     trackingItemWrap: {
-      alignItems: "center",
+      // flex-start, not center: centring made the connector's position depend on the
+      // TALLEST step in the row, so a short step's connector was placed by its neighbour.
+      alignItems: "flex-start",
       flex: 1,
       flexDirection: "row",
     },
@@ -1350,7 +1352,10 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
       borderBottomColor: colors.border,
       borderBottomWidth: 1,
       flex: 0.35,
-      marginTop: -34,
+      // Half the 24px TrackingIcon, measured from the top of the step — so the line meets
+      // the icon centre regardless of how tall the label/detail/subtitle stack below it
+      // grows. The previous -34 was tuned against one snapshot and drifted with content.
+      marginTop: 12,
     },
     trackingLabel: {
       color: colors.ink,
