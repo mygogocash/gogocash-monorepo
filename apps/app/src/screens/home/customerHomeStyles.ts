@@ -144,12 +144,11 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     minWidth: 0,
     width: 0,
   },
-  mobileTabletHeaderShortcutDock: {
-    backgroundColor: colors.card,
-    borderRadius: 22,
-    overflow: "hidden",
+  // #497 — the explore bar now sits in the content stack between the banners and Top
+  // Brands, so it carries its own horizontal inset instead of inheriting the header's.
+  mobileTabletExploreBar: {
+    paddingHorizontal: 16,
     paddingVertical: 4,
-    boxShadow: "0 9px 20px rgba(48, 56, 70, 0.12)",
   },
   mobileTabletLegacySearchHidden: {
     display: "none",

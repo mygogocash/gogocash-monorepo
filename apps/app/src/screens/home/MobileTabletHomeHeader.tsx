@@ -10,7 +10,6 @@ import { useCopy } from "@mobile/i18n/useCopy";
 import { pickThemed } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { motion } from "@mobile/theme/motion";
-import { BrowseShortcuts } from "./BrowseShortcuts";
 import { DetectedRegionBanner } from "./DetectedRegionBanner";
 import { homeIconStrokeWidth, mobileTabletHeaderGradient } from "./homeAssets";
 import { useHomeScreenStyles } from "./homeScreenHooks";
@@ -97,10 +96,6 @@ export function MobileTabletHomeHeader({
           onResultHref={onGoLinkResultHref}
         />
       ) : null}
-
-      <View style={styles.mobileTabletHeaderShortcutDock}>
-        <BrowseShortcuts />
-      </View>
 
       {regionSheetOpen ? (
         <CustomerLocaleRegionSheet onClose={() => setRegionSheetOpen(false)} />

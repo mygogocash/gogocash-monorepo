@@ -47,6 +47,7 @@ export {
   StubIcon as EyeSlash,
   StubIcon as FileMagnifyingGlass,
   StubIcon as FileText,
+  StubIcon as Fire,
   StubIcon as FloppyDisk,
   StubIcon as ForkKnife,
   StubIcon as GearSix,

@@ -467,5 +467,8 @@
   "mobileWithdrawAmountRequiredForCoupon": "Enter a withdrawal amount first.",
   "mobileWithdrawValidAmountRequiredForCoupon": "Enter a valid withdrawal amount first.",
   "mobileWithdrawCouponAmountChanged": "Amount changed — re-apply your coupon code.",
-  "mobileWithdrawCouponMethodChanged": "Withdrawal method changed — re-apply your coupon code."
+  "mobileWithdrawCouponMethodChanged": "Withdrawal method changed — re-apply your coupon code.",
+  "mobileNavExploreBrand": "Explore Brand",
+  "mobileNavExploreShops": "Explore Shops",
+  "mobileNavExploreProducts": "Explore Products"
 }

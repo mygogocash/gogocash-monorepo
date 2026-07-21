@@ -12,7 +12,9 @@ import {
   getPromoGridCardWidth,
   getPromoSectionCards,
   getPromoSectionLayoutMode,
+  getPromoSectionGridHeight,
   getPromoSectionPageSize,
+  getPromoSectionRowsPerPage,
 } from "./homeHelpers";
 import { useHomeScreenColors, useHomeScreenStyles } from "./homeScreenHooks";
 import { type CompactBrandLogoOfferCardProps, type HomeLayoutMetrics } from "./homeTypes";
@@ -42,9 +44,12 @@ export function PromoSection({
   // (full-bleed artwork + favorite heart). Layout metrics follow topBrand*.
   const layoutMode = getPromoSectionLayoutMode(homeLayout.isDesktop, sectionCards.length);
   const isPager = layoutMode === "pager";
-  const sectionPageSize = getPromoSectionPageSize(homeLayout);
+  const sectionPageSize = getPromoSectionPageSize(id, homeLayout);
+  // #499 — travel/makeup are one-row rails, so they must not reserve two rows of height.
+  const sectionRows = getPromoSectionRowsPerPage(id, homeLayout);
+  const sectionGridHeight = getPromoSectionGridHeight(id, homeLayout);
   const promoPages = chunkCompactBrandCards(sectionCards, sectionPageSize);
-  const promoColumns = chunkCompactBrandCards(sectionCards, homeLayout.topBrandRowsPerPage);
+  const promoColumns = chunkCompactBrandCards(sectionCards, sectionRows);
   const gridCardWidth = getPromoGridCardWidth(
     homeLayout.brandSectionFrameWidth,
     homeLayout.topBrandGap
@@ -92,7 +97,7 @@ export function PromoSection({
           </View>
         ) : (
           <View
-            style={{ height: homeLayout.topBrandGridHeight, overflow: "hidden", width: "100%" }}
+            style={{ height: sectionGridHeight, overflow: "hidden", width: "100%" }}
           >
             <Animated.ScrollView
               contentContainerStyle={[
@@ -114,7 +119,7 @@ export function PromoSection({
               showsHorizontalScrollIndicator={false}
               snapToAlignment="start"
               snapToInterval={isPager ? pageWidth : undefined}
-              style={[styles.promoScroll, { height: homeLayout.topBrandGridHeight }]}
+              style={[styles.promoScroll, { height: sectionGridHeight }]}
             >
               {isPager
                 ? promoPages.map((pageCards, pageIndex) => (
@@ -125,7 +130,7 @@ export function PromoSection({
                         styles.brandGrid,
                         {
                           gap: homeLayout.topBrandGap,
-                          height: homeLayout.topBrandGridHeight,
+                          height: sectionGridHeight,
                           width: pageWidth,
                         },
                       ]}
