@@ -306,6 +306,27 @@ export class UpdateOfferAdminDto {
   @IsOptional()
   tracking_link: string;
 
+  /**
+   * Affiliate network for this brand line (`involve_asia`, `optimise`,
+   * `accesstrade`). The admin has always submitted this on partner-info save;
+   * until it was whitelisted here, `forbidNonWhitelisted` rejected the entire
+   * request with `property affiliate_network_id should not exist`, which is
+   * what made "Info from partner" unsaveable for every offer (#516).
+   */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  affiliate_network_id?: string;
+
+  /**
+   * Advertiser line within the network, emitted as `store=` on the generated
+   * app deeplink. Same history as `affiliate_network_id` above (#516/#518).
+   */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  deeplink_store_id?: string;
+
   @ApiProperty({ type: [ProductTypeDto] })
   @IsOptional()
   product_type?: ProductTypeDto[] | string;

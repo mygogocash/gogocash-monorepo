@@ -108,6 +108,10 @@ type AdminOfferUpdateData = {
   max_cap?: number;
   extra_store?: boolean;
   tracking_link?: string;
+  /** Affiliate network for this brand line; absent key leaves it unchanged. */
+  affiliate_network_id?: string;
+  /** Advertiser line emitted as `store=` on the generated app deeplink. */
+  deeplink_store_id?: string;
   /** Present only when the admin PATCH included product_type(s). */
   product_type?: ProductTypeDto[] | Array<Record<string, unknown>> | string;
   all_product_types?: boolean;
@@ -1199,6 +1203,14 @@ export class AdminService {
           max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
           extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
           tracking_link: trackingLink,
+          // Absent key = leave unchanged, so a partial save (T&C, media, …) can
+          // never blank the network or advertiser line (#516/#518).
+          ...(updateData.affiliate_network_id !== undefined
+            ? { affiliate_network_id: updateData.affiliate_network_id }
+            : {}),
+          ...(updateData.deeplink_store_id !== undefined
+            ? { deeplink_store_id: updateData.deeplink_store_id }
+            : {}),
           // Partial updates (brand info, T&C, …) must not wipe product rows.
           ...(updateData.product_type !== undefined
             ? {
@@ -1303,6 +1315,15 @@ export class AdminService {
         max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
         extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
         tracking_link: trackingLink,
+        // Mirrors updateOfferLegacy — this file keeps two patch builders and a
+        // field added to only one silently works on the legacy path and not the
+        // enforced one (#516/#518).
+        ...(updateData.affiliate_network_id !== undefined
+          ? { affiliate_network_id: updateData.affiliate_network_id }
+          : {}),
+        ...(updateData.deeplink_store_id !== undefined
+          ? { deeplink_store_id: updateData.deeplink_store_id }
+          : {}),
         ...(updateData.product_type !== undefined
           ? {
               product_type: coerceProductTypeForPersist(

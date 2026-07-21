@@ -120,6 +120,7 @@ export class CommissionManagementService {
         commissionStore: adminCommission,
         affiliateNetworkId,
         bestRatePercent,
+        deeplinkStoreId: merged.deeplink_store_id,
       });
 
     return {
@@ -195,6 +196,7 @@ export class CommissionManagementService {
           commissionStore: adminCommission,
           affiliateNetworkId,
           bestRatePercent,
+          deeplinkStoreId: offer.deeplink_store_id,
         }),
       affiliateNetworkId,
       affiliateNetworkName: affiliateNetworkName(affiliateNetworkId),
