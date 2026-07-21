@@ -630,7 +630,17 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     expect(readStoredSession()).toBeNull();
     expect(routerPush).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    // The retry click needs authOperationBusy to have cleared. The error copy appearing
+    // and the button re-enabling are SEPARATE state updates: on an idle machine they land
+    // in the same tick, but under load they can separate, and a click on the still-disabled
+    // button is a no-op — the retry never fires and the waitFor below times out. Wait for
+    // the precondition instead of assuming it, matching how the rest of this file guards
+    // clicks (expectButtonDisabled at :257, :319, :421).
+    const retryButton = screen.getByRole("button", { name: "Next" });
+    await waitFor(() => {
+      expectButtonDisabled(retryButton, false);
+    });
+    fireEvent.click(retryButton);
 
     await waitFor(() => {
       expect(readStoredSession()?.access_token).toBe("retried-token");

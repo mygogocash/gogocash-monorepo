@@ -147,7 +147,6 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
   mobileTabletHeaderShortcutDock: {
     backgroundColor: colors.card,
     borderRadius: 22,
-    display: "none",
     overflow: "hidden",
     paddingVertical: 4,
     boxShadow: "0 9px 20px rgba(48, 56, 70, 0.12)",
@@ -261,39 +260,9 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
   searchPopoverContent: {
     gap: spacing.md,
   },
+  // #494 — a section label, not a promo card: no fill, no border, no reserved height.
   searchPopoverIntro: {
-    alignItems: "center",
-    backgroundColor: pickThemed(colors, "#F6FEF9", colors.primarySoft),
-    borderColor: pickThemed(colors, "rgba(209, 250, 229, 0.9)", "rgba(0, 204, 153, 0.25)"),
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: spacing.md,
-    minHeight: 96,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  searchPopoverIntroCompact: {
-    minHeight: 82,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  searchTrendingIcon: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: radii.md,
-    height: 64,
-    justifyContent: "center",
-    width: 64,
-    boxShadow: shadows.cardCss,
-  },
-  searchTrendingIconCompact: {
-    height: 52,
-    width: 52,
-  },
-  searchIntroCopy: {
-    flex: 1,
-    minWidth: 0,
+    gap: 2,
   },
   searchPopoverTitle: {
     color: pickThemed(colors, "#103522", colors.accent),
@@ -429,16 +398,16 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     fontSize: 14,
     lineHeight: 18,
   },
+  // #494 — no flexWrap and a tight gap so "Cashback upto" and the percentage read as one
+  // metric. Wrapping used to drop the value onto its own line under pressure.
   searchResultCashbackRow: {
     alignItems: "baseline",
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
+    gap: 3,
     marginTop: 4,
   },
   searchResultCaption: {
     color: pickThemed(colors, "#7195B8", colors.muted),
-    flex: 1,
     fontFamily: typography.family,
     fontSize: 15,
     fontWeight: typography.bodyWeight,
@@ -684,7 +653,10 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
       "0 18px 32px -14px rgba(0, 0, 0, 0.55)",
     ),
   },
-  mobileTabletGoLinkIllustrationWrap: {
+  // Named for what it does: the illustration is hidden on the mobile/tablet header
+  // variant. Applied conditionally by DesktopGoLinkBanner (unlike the shortcut dock,
+  // which hid itself unconditionally) — see the hidden-style invariant test.
+  mobileTabletGoLinkIllustrationHidden: {
     display: "none",
   },
   desktopGoLinkGoBadge: {
