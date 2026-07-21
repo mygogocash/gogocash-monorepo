@@ -386,10 +386,7 @@ export function AccountWalletHeroCard({
               accessibilityLabel={tc("Profile avatar")}
               avatarUrl={avatarUrl}
               size={avatarSize}
-              style={[
-                styles.walletAvatar,
-                { borderRadius: radii.chip, height: avatarSize, width: avatarSize },
-              ]}
+              style={[styles.walletAvatar, { height: avatarSize, width: avatarSize }]}
             />
           </GoGoPassAvatar>
           <View style={[styles.walletHeroUser, isCompact ? styles.walletHeroUserCompact : null]}>
@@ -716,8 +713,9 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     paddingBottom: spacing.xs,
   },
   walletAvatar: {
+    // Fallback tint behind transparent regions of the avatar PNG. The circular crop is
+    // owned by ProfileAvatarImage, so no borderRadius here.
     backgroundColor: "#FFDDE7",
-    borderRadius: radii.chip,
   },
   walletHeroUser: {
     alignItems: "flex-end",
