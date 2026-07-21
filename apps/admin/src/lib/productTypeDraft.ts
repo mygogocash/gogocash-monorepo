@@ -90,16 +90,25 @@ export function serializeOfferProductTypes(
   rows: OfferProductTypeEntry[],
 ): OfferProductTypeEntry[] {
   return rows
-    .map((row) => ({
-      name: row.name.trim(),
-      pay_in: row.pay_in ?? "cashback",
-      commission_info: row.commission_info.trim(),
-      amount: row.amount ?? null,
-      currency: (row.currency ?? "").trim(),
-      deeplink: (row.deeplink ?? "").trim(),
-      description: (row.description ?? "").trim(),
-      ...(row.is_tagline ? { is_tagline: true } : {}),
-    }))
+    .map((row) => {
+      const commission = (row.commission_info ?? "").trim();
+      return {
+        name: row.name.trim(),
+        pay_in: row.pay_in ?? "cashback",
+        commission_info: commission,
+        // Mirror the rate onto `minimum`, the key the affiliate feed and the API's
+        // ProductTypeDto use (#516). The API persists product_type as a free-form
+        // `{[key: string]: string}[]` with no row validation, so whichever key the
+        // admin omits is simply dropped — emitting only `commission_info` silently
+        // erased the partner rate on every feed-imported row.
+        minimum: commission,
+        amount: row.amount ?? null,
+        currency: (row.currency ?? "").trim(),
+        deeplink: (row.deeplink ?? "").trim(),
+        description: (row.description ?? "").trim(),
+        ...(row.is_tagline ? { is_tagline: true } : {}),
+      };
+    })
     .filter((row) => row.name.length > 0);
 }
 

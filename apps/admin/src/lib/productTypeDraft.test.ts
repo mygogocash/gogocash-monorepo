@@ -262,6 +262,8 @@ describe("serializeOfferProductTypes", () => {
       name: "Electronics",
       pay_in: "cashback",
       commission_info: "7",
+      // Mirrored onto the feed/API key so the rate is not dropped on save (#516).
+      minimum: "7",
       amount: null,
       currency: "THB",
       deeplink: "https://go/x",
@@ -350,5 +352,66 @@ describe("highestCashbackPercent", () => {
         { name: "Group", commission_info: "", is_tagline: true },
       ]),
     ).toBeNull();
+  });
+});
+
+// #516 — round-trip data loss between the affiliate feed and the admin form.
+//
+// The API persists `product_type` as a free-form `{ [key: string]: string }[]`,
+// and the affiliate feed writes rows as `{ name, minimum }` — `minimum` IS the
+// cashback rate (verified on beta: B2S 20 rows at "4.9", AirAsia Move "1.47" /
+// "0.98", Sephora "3.92" / "1.47", all matching their headline rates).
+//
+// The admin form models the same value as `commission_info`. Because the load
+// path only read `commission_info` and the save serializer only emitted it,
+// the first successful save of any of the 16 offers carrying product types
+// rewrote every row with an empty rate and dropped `minimum` — silently
+// destroying the partner rates.
+//
+// Both keys are written on save so neither consumer breaks: the feed/API side
+// keeps `minimum`, and the customer app's highestProductTypeCashback (which
+// reads `commission_info`) starts working.
+describe("product-type feed round trip (#516)", () => {
+  it("given a feed row keyed on minimum > then the rate survives the load", () => {
+    const [row] = normalizeOfferProductTypes([
+      { name: "Comic / Manga", minimum: "4.9" },
+    ]);
+
+    expect(row.commission_info).toBe("4.9");
+  });
+
+  it("given both keys > then the admin-edited commission_info wins", () => {
+    const [row] = normalizeOfferProductTypes([
+      { name: "Hotel", commission_info: "1.47", minimum: "9.99" },
+    ]);
+
+    expect(row.commission_info).toBe("1.47");
+  });
+
+  it("given a saved row > then minimum is written back alongside commission_info", () => {
+    const [row] = serializeOfferProductTypes([
+      { name: "Hotel", pay_in: "cashback", commission_info: "1.47" },
+    ]);
+
+    expect(row.commission_info).toBe("1.47");
+    expect(row.minimum).toBe("1.47");
+  });
+
+  it("given a feed row > then load-then-save preserves the rate on both keys", () => {
+    const loaded = normalizeOfferProductTypes([
+      { name: "Flight", minimum: "0.98" },
+    ]);
+    const [saved] = serializeOfferProductTypes(loaded);
+
+    expect(saved.commission_info).toBe("0.98");
+    expect(saved.minimum).toBe("0.98");
+  });
+
+  it("given a blank rate > then minimum is emitted blank rather than omitted", () => {
+    const [row] = serializeOfferProductTypes([
+      { name: "Unrated", pay_in: "cashback", commission_info: "" },
+    ]);
+
+    expect(row.minimum).toBe("");
   });
 });
