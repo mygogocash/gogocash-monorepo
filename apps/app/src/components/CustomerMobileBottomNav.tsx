@@ -244,7 +244,7 @@ function createBottomNavStyles(colors: ThemeColors) {
       width: 64,
     },
     bottomNavProfileAvatar: {
-      borderRadius: radii.chip,
+      // Circular crop is owned by ProfileAvatarImage — no borderRadius here.
       height: 28,
       width: 28,
     },
