@@ -275,9 +275,9 @@ describe("GoGoCash web design parity", () => {
   it("desktop shell parity > given the Next desktop nav reference > then Expo keeps the same category nav order and cookie copy", () => {
     expect(webDesktopHeaderNavItems.map((item) => item.label)).toEqual([
       "Top Brands",
-      "All Brands",
-      "All Shops",
-      "Product Discovery",
+      "Explore Brand",
+      "Explore Shops",
+      "Explore Products",
       "Travel",
       "Electronics",
       "Health & Beauty",
@@ -561,11 +561,11 @@ describe("GoGoCash web design parity", () => {
 
   it("browse shortcuts > given web MobileBrowseShortcuts > then labels and routes match", () => {
     expect(webBrowseShortcuts).toEqual([
-      { id: "all-brands", label: "All Brands", href: "/brand", icon: "shop" },
-      { id: "all-shops", label: "All Shops", href: "/shops", icon: "shops" },
+      { id: "all-brands", label: "Explore Brand", href: "/brand", icon: "shop" },
+      { id: "all-shops", label: "Explore Shops", href: "/shops", icon: "shops" },
       {
         id: "product-discover",
-        label: "Product Discovery",
+        label: "Explore Products",
         href: "/discover",
         icon: "promotion",
       },

@@ -65,9 +65,9 @@ describe("Expo home design parity", () => {
 
     expect(webDesktopHeaderNavItems.map((item) => item.label)).toEqual([
       "Top Brands",
-      "All Brands",
-      "All Shops",
-      "Product Discovery",
+      "Explore Brand",
+      "Explore Shops",
+      "Explore Products",
       "Travel",
       "Electronics",
       "Health & Beauty",

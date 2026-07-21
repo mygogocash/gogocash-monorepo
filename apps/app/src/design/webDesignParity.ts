@@ -1147,11 +1147,11 @@ export const webPrivacyPolicyPage = {
 } as const;
 
 export const webBrowseShortcuts = [
-  { id: "all-brands", label: "All Brands", href: "/brand", icon: "shop" },
-  { id: "all-shops", label: "All Shops", href: "/shops", icon: "shops" },
+  { id: "all-brands", label: "Explore Brand", href: "/brand", icon: "shop" },
+  { id: "all-shops", label: "Explore Shops", href: "/shops", icon: "shops" },
   {
     id: "product-discover",
-    label: "Product Discovery",
+    label: "Explore Products",
     href: "/discover",
     icon: "promotion",
   },
@@ -1169,21 +1169,21 @@ export const webDesktopHeaderNavItems = [
   },
   {
     id: "all-brands",
-    label: "All Brands",
+    label: "Explore Brand",
     href: "/brand",
     icon: "shop",
     active: false,
   },
   {
     id: "all-shops",
-    label: "All Shops",
+    label: "Explore Shops",
     href: "/shops",
     icon: "shops",
     active: false,
   },
   {
     id: "product-discovery",
-    label: "Product Discovery",
+    label: "Explore Products",
     href: "/discover",
     icon: "promotion",
     active: false,

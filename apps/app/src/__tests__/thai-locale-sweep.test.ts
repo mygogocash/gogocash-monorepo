@@ -3,7 +3,11 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { translateCopy } from "@mobile/i18n/messages";
-import { webLocaleRegionPanel } from "@mobile/design/webDesignParity";
+import {
+  webBrowseShortcuts,
+  webDesktopHeaderNavItems,
+  webLocaleRegionPanel,
+} from "@mobile/design/webDesignParity";
 
 const read = (rel: string) => readFileSync(resolve(__dirname, "..", rel), "utf8");
 
@@ -93,6 +97,17 @@ describe("Thai locale sweep — catalog coverage", () => {
 
   it("region labels translate (the header banner shows them)", () => {
     expectAllTranslatedToThai(webLocaleRegionPanel.regions.map((r) => r.label));
+  });
+
+  // #500 — renaming an English label silently drops its Thai: translateCopy resolves by
+  // English VALUE through EN_VALUE_TO_KEY, and a renamed string simply misses the index and
+  // falls back to the English it was given. No error, no type failure. This is the assertion
+  // that makes that loud, so the explore bar can never be relabelled without its catalog pair.
+  it("explore bar labels translate (both the mobile shortcuts and the desktop nav)", () => {
+    expectAllTranslatedToThai([
+      ...webBrowseShortcuts.map((s) => s.label),
+      ...webDesktopHeaderNavItems.map((n) => n.label),
+    ]);
   });
 });
 
