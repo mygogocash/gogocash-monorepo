@@ -91,6 +91,11 @@ describe('OfferService', () => {
       find: jest.fn().mockReturnValue(makeQuery([])),
       findById: jest.fn(),
       findByIdAndDelete: jest.fn(),
+      // createAdminOffer rolls extra_store back via .findByIdAndUpdate(...).exec()
+      // when the curated Top brands list rejects the offer (#475).
+      findByIdAndUpdate: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({}),
+      }),
       deleteOne: jest.fn().mockResolvedValue({ deletedCount: 1 }),
       findOne: jest.fn(),
       create: jest.fn().mockResolvedValue([{ _id: 'created-offer' }]),
@@ -120,7 +125,14 @@ describe('OfferService', () => {
     allBrandBannerModel = { findOne: jest.fn() };
     specificPageBannerModel = { findOne: jest.fn() };
     topBrandConfigModel = {
-      findOne: jest.fn(),
+      // syncOfferTopBrandMembership calls .findOne().lean().exec(); default to
+      // "no curated config yet". makeQuery() is not reusable here because its
+      // .lean() resolves rather than returning an exec-able chain.
+      findOne: jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      }),
       updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
     };
     // missionOrderModel is used BOTH as a constructor (`new this.missionOrderModel(...)`)
