@@ -39,7 +39,10 @@ import {
   type CommandOwnedStoredMediaAsset,
   StoredMediaService,
 } from 'src/media/stored-media.service';
-import { MEDIA_FOLDER } from 'src/media/media-folders.config';
+import {
+  MEDIA_FOLDER,
+  type MediaFolder,
+} from 'src/media/media-folders.config';
 import { parseOfferDisplayTagsField } from './offer-display-tags.util';
 import { parseProductTypeRowsField } from './product-type.util';
 import { resolvePublicOfferLogo } from './offer-logo.util';
@@ -1027,14 +1030,12 @@ export class OfferService implements OnApplicationBootstrap {
       legacy: async () => {
         const upload = async (
           label: string,
-          file?: Express.Multer.File,
+          file: Express.Multer.File | undefined,
+          folder: MediaFolder,
         ): Promise<string> => {
           if (!file) return '';
           try {
-            return await this.storedMediaService.upload(
-              file,
-              MEDIA_FOLDER.BRANDS,
-            );
+            return await this.storedMediaService.upload(file, folder);
           } catch (error) {
             const reason =
               error instanceof Error ? error.message : String(error);
@@ -1049,8 +1050,9 @@ export class OfferService implements OnApplicationBootstrap {
           files.banner_mobile?.[0] ??
           files.logo_circle?.[0];
         const [logoAsset, bannerAsset] = await Promise.all([
-          upload('logo (desktop)', logoFile),
-          upload('banner', bannerFile),
+          // #493 — banners are wide hero art and must not take the logo width cap.
+          upload('logo (desktop)', logoFile, MEDIA_FOLDER.BRANDS),
+          upload('banner', bannerFile, MEDIA_FOLDER.BRAND_BANNERS),
         ]);
         const now = new Date();
         const manualId = Date.now();
@@ -1278,7 +1280,7 @@ export class OfferService implements OnApplicationBootstrap {
                 {
                   role: 'banner',
                   file: bannerFile,
-                  folder: MEDIA_FOLDER.BRANDS,
+                  folder: MEDIA_FOLDER.BRAND_BANNERS,
                 },
               ]
             : []),

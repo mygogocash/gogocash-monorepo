@@ -36,6 +36,9 @@ const DEFAULT_MAX_IMAGE_WIDTH = 1920;
 const MAX_IMAGE_WIDTH_BY_FOLDER: Partial<Record<MediaFolder, number>> = {
   [MEDIA_FOLDER.BANNER_HOME]: 1920,
   [MEDIA_FOLDER.BANNER_SPECIFIC_PAGE]: 1920,
+  // Wide hero art, same cap as the other banner folders. BRANDS stays 1024 because
+  // logos render at <=320px and raising it would inflate every card image (#493).
+  [MEDIA_FOLDER.BRAND_BANNERS]: 1920,
   [MEDIA_FOLDER.BRANDS]: 1024,
   [MEDIA_FOLDER.CATEGORIES]: 512,
   [MEDIA_FOLDER.QUESTS]: 1920,

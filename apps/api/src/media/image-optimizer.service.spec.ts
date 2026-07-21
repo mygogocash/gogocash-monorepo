@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 
-import { MEDIA_FOLDER } from './media-folders.config';
+import { MEDIA_FOLDER, resolveMediaFolder } from './media-folders.config';
 import {
   ImageOptimizerService,
   resolveMaxImageWidth,
@@ -129,5 +129,37 @@ describe('ImageOptimizerService', () => {
     expect(resolveMaxImageWidth(MEDIA_FOLDER.CATEGORIES)).toBe(512);
     expect(resolveMaxImageWidth(MEDIA_FOLDER.PROFILE_AVATARS)).toBe(512);
     expect(resolveMaxImageWidth(MEDIA_FOLDER.QUESTS)).toBe(1920);
+  });
+
+  /**
+   * #493 — brand banners were downsampled to the 1024px `brands` cap because the wide
+   * hero and the square logo shared one folder. A 2400-3840px banner lost 2.3-3.75x of
+   * its linear resolution on upload and the original was never retained, so the loss is
+   * permanent. Wide hero art gets its own folder at the same 1920px the other banner
+   * folders already use; the logo cap stays 1024 because logos render at <=320px and
+   * raising it would inflate every card image.
+   */
+  it('brand banners > given the wide hero folder > then it is capped like other banners, not like logos', () => {
+    expect(MEDIA_FOLDER.BRAND_BANNERS).toBe('brand-banners');
+    expect(resolveMaxImageWidth(MEDIA_FOLDER.BRAND_BANNERS)).toBe(1920);
+    expect(resolveMaxImageWidth(MEDIA_FOLDER.BRAND_BANNERS)).toBe(
+      resolveMaxImageWidth(MEDIA_FOLDER.BANNER_HOME),
+    );
+    // The split only helps if logos did NOT come along for the ride.
+    expect(resolveMaxImageWidth(MEDIA_FOLDER.BRANDS)).toBe(1024);
+  });
+
+  it('brand banners > given the env prefix map > then the new folder is overridable like every other', () => {
+    // resolveMediaFolder reverse-looks-up by value, so a folder with no GCS_MEDIA_PREFIX_*
+    // entry silently loses env overrides. Nothing else enforces the pairing.
+    expect(resolveMediaFolder(MEDIA_FOLDER.BRAND_BANNERS)).toBe('brand-banners');
+    process.env.GCS_MEDIA_PREFIX_BRAND_BANNERS = 'custom-brand-banners';
+    try {
+      expect(resolveMediaFolder(MEDIA_FOLDER.BRAND_BANNERS)).toBe(
+        'custom-brand-banners',
+      );
+    } finally {
+      delete process.env.GCS_MEDIA_PREFIX_BRAND_BANNERS;
+    }
   });
 });
