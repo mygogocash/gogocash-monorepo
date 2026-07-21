@@ -439,6 +439,13 @@ export interface OfferProductTypeEntry {
   pay_in?: "cashback" | "cash";
   /** Cashback %: saved net commission (after −30% fee), as a string. */
   commission_info: string;
+  /**
+   * The same rate under the key the affiliate feed and the API's `ProductTypeDto`
+   * use. Read as a fallback for `commission_info` on load and written alongside it
+   * on save (#516) — the API stores `product_type` as a free-form string map with
+   * no row validation, so a key the admin omits is dropped from the document.
+   */
+  minimum?: string;
   /** Raw partner number the admin typed; editing-only, derived from `commission_info` on load and dropped on save. */
   commission_raw?: string;
   /** Cash pay-in: fixed amount paid out. */
@@ -477,7 +484,12 @@ export function normalizeOfferProductTypes(
       return {
         name: String(o.name ?? "").trim(),
         pay_in: o.pay_in === "cash" ? "cash" : "cashback",
-        commission_info: String(o.commission_info ?? "").trim(),
+        // The affiliate feed writes the rate as `minimum`; the admin form models
+        // the same value as `commission_info` (#516). Read either, preferring the
+        // admin key so an edited value is never overwritten by a stale feed one.
+        commission_info: String(
+          o.commission_info ?? (o as { minimum?: unknown }).minimum ?? "",
+        ).trim(),
         amount:
           typeof amountNum === "number" && Number.isFinite(amountNum)
             ? amountNum
