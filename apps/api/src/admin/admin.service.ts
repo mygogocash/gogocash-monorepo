@@ -120,9 +120,7 @@ type AdminOfferUpdateData = {
   upsize_all_product_types?: boolean;
   /** Present only when the admin PATCH included upsize_product_types. */
   upsize_product_types?:
-    | ProductTypeDto[]
-    | Array<Record<string, unknown>>
-    | string;
+    ProductTypeDto[] | Array<Record<string, unknown>> | string;
   tracking_period_mode?: 'auto' | 'manual';
   tracking_days?: number;
   confirm_days?: number;
@@ -1103,7 +1101,9 @@ export class AdminService {
   ): Promise<void> {
     const unique = [
       ...new Set(
-        offerIds.map((id) => String(id ?? '').trim()).filter((id) => id.length > 0),
+        offerIds
+          .map((id) => String(id ?? '').trim())
+          .filter((id) => id.length > 0),
       ),
     ];
     if (unique.length === 0) return;
@@ -1123,9 +1123,7 @@ export class AdminService {
         bad.push(id);
         continue;
       }
-      const status = String(
-        (offer as { status?: unknown }).status ?? '',
-      )
+      const status = String((offer as { status?: unknown }).status ?? '')
         .trim()
         .toLowerCase();
       if (status === 'pending_review' || status === 'rejected') {

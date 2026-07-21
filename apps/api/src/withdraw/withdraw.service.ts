@@ -2169,9 +2169,7 @@ export class WithdrawService {
       .map((oid) => new Types.ObjectId(String(oid)));
     const withdrawListApproved = await this.withdrawModel
       .find({
-        ...(user?._id
-          ? { user_id: new Types.ObjectId(String(user._id)) }
-          : {}),
+        ...(user?._id ? { user_id: new Types.ObjectId(String(user._id)) } : {}),
         mycashback_id: {
           $in: myCashbackObjectIds,
         },
