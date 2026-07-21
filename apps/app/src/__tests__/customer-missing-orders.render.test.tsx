@@ -133,7 +133,9 @@ describe("CustomerMissingOrdersScreen (render)", () => {
   it("store field is a dropdown select (web parity): opening it and picking a shop fills the field", () => {
     renderMissingOrders();
     // The store field shows its label as the placeholder while empty.
-    fireEvent.click(screen.getByText("Store or marketplace"));
+    // The field is `required`, so MissingOrdersSelectField renders the label as
+    // "Store or marketplace *". Match the label without pinning the asterisk.
+    fireEvent.click(screen.getByText(/^Store or marketplace/));
     // Pick a shop from the dropdown menu.
     fireEvent.click(screen.getByRole("button", { name: "Lazada" }));
     // The chosen shop now shows in the field.
@@ -324,7 +326,7 @@ describe("CustomerMissingOrdersScreen (render)", () => {
     fireEvent.click(screen.getAllByText("Submit claim")[0]);
     expect(
       screen.getByText(
-        "Select a merchant and enter order ID, amount, and purchase date.",
+        "User ID, Brand, Order ID, Amount, and Purchase date are required.",
       ),
     ).toBeTruthy();
   });

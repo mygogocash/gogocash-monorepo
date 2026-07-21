@@ -3327,12 +3327,14 @@ describe('AdminService', () => {
     // live offer so stale or forged labels cannot reach the homepage.
     beforeEach(() => {
       // #479 — eligibility lookup defaults to active offers for every requested id.
-      offerModel.find.mockImplementation((filter: { _id?: { $in?: unknown[] } }) => {
-        const ids = (filter?._id?.$in ?? []).map(String);
-        return makeQuery(
-          ids.map((id) => ({ _id: id, disabled: false, status: 'approved' })),
-        );
-      });
+      offerModel.find.mockImplementation(
+        (filter: { _id?: { $in?: unknown[] } }) => {
+          const ids = (filter?._id?.$in ?? []).map(String);
+          return makeQuery(
+            ids.map((id) => ({ _id: id, disabled: false, status: 'approved' })),
+          );
+        },
+      );
     });
 
     it('saveTopBrands > given curated brand entries > then it upserts identities without editable cashback', async () => {
@@ -3653,7 +3655,9 @@ describe('AdminService', () => {
         userMyCashback: [{ balance: 42 }],
       });
 
-      const result = await service.getMyCashBackUser('60583a4d1325b29fd914af5b');
+      const result = await service.getMyCashBackUser(
+        '60583a4d1325b29fd914af5b',
+      );
 
       expect(userService.getBalanceMyCashback).toHaveBeenCalledWith(
         '60583a4d1325b29fd914af5b',

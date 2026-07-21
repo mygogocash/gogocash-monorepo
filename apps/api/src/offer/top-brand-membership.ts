@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { Model, Types } from 'mongoose';
+import { Types } from 'mongoose';
 import {
   MAX_TOP_BRANDS,
   normalizeTopBrandEntries,
@@ -7,7 +7,24 @@ import {
   type TopBrandConfigLike,
 } from './top-brand.contract';
 
-type TopBrandConfigDoc = TopBrandConfigLike & { _id?: unknown };
+/**
+ * Only the two methods this helper actually calls, mirroring the structural
+ * model type `mirrorTopBrandExtraStoreFlags` already takes below. Mongoose's
+ * `Model<T>` is invariant in its filter types, so `Model<TopBrandConfig>` is
+ * not assignable to `Model<TopBrandConfigLike & …>` even though the schema
+ * satisfies the contract. Depending on the shape instead keeps this helper
+ * decoupled from the schema class and testable with a plain fake.
+ */
+type TopBrandConfigModelLike = {
+  findOne: () => {
+    lean: () => { exec: () => Promise<TopBrandConfigLike | null> };
+  };
+  updateOne: (
+    filter: Record<string, unknown>,
+    update: Record<string, unknown>,
+    options?: Record<string, unknown>,
+  ) => PromiseLike<unknown>;
+};
 
 function toObjectIds(ids: readonly string[]): Types.ObjectId[] {
   return ids
@@ -23,7 +40,7 @@ function toObjectIds(ids: readonly string[]): Types.ObjectId[] {
  * toggle cannot silently diverge from the Top brands page.
  */
 export async function syncOfferTopBrandMembership(
-  topBrandConfigModel: Model<TopBrandConfigDoc>,
+  topBrandConfigModel: TopBrandConfigModelLike,
   offerId: string,
   enabled: boolean,
 ): Promise<void> {

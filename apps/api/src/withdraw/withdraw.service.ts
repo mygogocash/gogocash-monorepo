@@ -35,7 +35,7 @@ import {
 } from './dto/update-withdraw.dto';
 import { ethers, keccak256, solidityPacked } from 'ethers';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { User } from 'src/user/schemas/user.schema';
+import { User, UserDocument } from 'src/user/schemas/user.schema';
 import {
   ClientSession,
   Connection,
@@ -1494,10 +1494,13 @@ export class WithdrawService {
    * empty withdraw shell so the admin UI can still render the MyCashBack profile
    * without receiving HTTP 401 (which redirects the browser to `/signin`).
    */
+  // Returns the hydrated document (`findOne().exec()`, not `.lean()`), so the
+  // annotation must say so — a bare `User` drops `_id` and the document methods,
+  // which is what broke the two `user = await …` assignments below.
   private async findUserLinkedToMyCashback(mcb: {
     email?: string;
     phoneNumber?: string;
-  }): Promise<User | null> {
+  }): Promise<UserDocument | null> {
     const or: Record<string, string>[] = [];
     const email = typeof mcb.email === 'string' ? mcb.email.trim() : '';
     const phone =
@@ -2169,9 +2172,7 @@ export class WithdrawService {
       .map((oid) => new Types.ObjectId(String(oid)));
     const withdrawListApproved = await this.withdrawModel
       .find({
-        ...(user?._id
-          ? { user_id: new Types.ObjectId(String(user._id)) }
-          : {}),
+        ...(user?._id ? { user_id: new Types.ObjectId(String(user._id)) } : {}),
         mycashback_id: {
           $in: myCashbackObjectIds,
         },

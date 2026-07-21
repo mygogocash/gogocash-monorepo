@@ -46,15 +46,36 @@ describe("optimizedImageUrl", () => {
     expect(optimizedImageUrl(transformed, { width: 1600 })).toBe(transformed);
   });
 
+  it("given a production media URL > then rewrites it through the same transform", () => {
+    // media.gogocash.co and media-staging.gogocash.co are subdomains of the SAME
+    // Cloudflare zone, and Image Resizing is a zone-level feature — verified live
+    // against media-staging, where /cdn-cgi/image/ returns AVIF (9 KB at w=320 and
+    // 29 KB at w=1600, from a 33 KB original). The earlier "prod zone unverified"
+    // caveat no longer holds, so prod media must not be left un-optimized.
+    expect(
+      optimizedImageUrl("https://media.gogocash.co/banner-home/big.png", {
+        width: 1600,
+      }),
+    ).toBe(
+      "https://media.gogocash.co/cdn-cgi/image/width=1600,quality=78,fit=scale-down,format=auto,onerror=redirect/banner-home/big.png",
+    );
+  });
+
+  it("given an already-transformed production URL > then returns it unchanged", () => {
+    const transformed =
+      "https://media.gogocash.co/cdn-cgi/image/width=320,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/logo.png";
+    expect(optimizedImageUrl(transformed, { width: 1600 })).toBe(transformed);
+  });
+
   it("given non-gogocash-media hosts > then returns them unchanged", () => {
     const untouched = [
       "https://img.involve.asia/ia_logo/803_unjtmslX.png",
       "https://cdn.simpleicons.org/shopee",
       "https://drive.google.com/uc?export=view&id=abc123def456",
       "https://api-staging.gogocash.co/admin/stored-media/stream?ref=x",
-      // Production media host is deliberately NOT allowlisted yet — the prod
-      // zone's Image Resizing support is unverified, so prod URLs pass through.
-      "https://media.gogocash.co/brands/logo.png",
+      // api hosts stay untouched even though they share the gogocash.co zone —
+      // only the media hosts are allowlisted.
+      "https://api-beta.gogocash.co/admin/stored-media/stream?ref=x",
     ];
     for (const url of untouched) {
       expect(optimizedImageUrl(url, { width: 320 })).toBe(url);

@@ -63,6 +63,7 @@ jobs:
   changes:
     name: detect changed apps
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
@@ -159,6 +160,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.workflow_contract == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
@@ -184,6 +186,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.admin == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     # Next.js build + vitest can exceed Node's ~2GB default heap on runners
     # (exit 134 OOM). Bump it job-wide, same as the api jobs do per-step.
     env:
@@ -215,6 +218,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.app == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     # Metro web export + vitest can exceed Node's ~2GB default heap on runners
     # (exit 134 OOM). Bump it job-wide, same as the api jobs do per-step.
     env:
@@ -251,6 +255,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/setup-node-monorepo
@@ -267,6 +272,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/setup-node-monorepo
@@ -292,6 +298,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       mongo:
         image: mongo:8.0.4
@@ -438,6 +445,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.api == 'true' || needs.changes.outputs.app == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       NODE_OPTIONS: --max-old-space-size=4096
     steps:
@@ -458,6 +466,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.mcp == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/setup-node-monorepo
@@ -474,6 +483,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.knip == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: ./.github/actions/setup-node-monorepo
@@ -497,6 +507,7 @@ jobs:
       - workflow-contract
     if: ${{ always() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
