@@ -34,8 +34,11 @@ export function isDesktopSelfChromePathname(pathname: string) {
 }
 
 /**
- * #436 / #463 — category + All Brands already have a page-scoped search;
- * hide the global header search so users are not bounced to homepage search.
+ * #436 / #463 / #495 — every directory page that owns a page-scoped search; hide the
+ * global header search so users are not bounced to homepage search.
+ *
+ * /shops and /discover are exact paths (their detail routes are the singular /shop/:id
+ * and /product/:slug, which have no search of their own and must keep the header search).
  */
 export function shouldHideDesktopHeaderSearch(pathname: string) {
   const normalizedPathname = normalizeDesktopPathname(pathname);
@@ -43,7 +46,9 @@ export function shouldHideDesktopHeaderSearch(pathname: string) {
     normalizedPathname === "/category" ||
     normalizedPathname.startsWith("/category/") ||
     normalizedPathname === "/brand" ||
-    normalizedPathname.startsWith("/brand/")
+    normalizedPathname.startsWith("/brand/") ||
+    normalizedPathname === "/shops" ||
+    normalizedPathname === "/discover"
   );
 }
 
