@@ -1145,12 +1145,14 @@ export class AdminService {
   ) {
     const offer = await this.offerModel.findById(requireObjectId(id)).exec();
     if (!offer) throw new Error('Offer not found');
-    const folder = MEDIA_FOLDER.BRANDS;
+    // #493 — the wide hero and the square logo need different width caps.
+    const logoFolder = MEDIA_FOLDER.BRANDS;
+    const bannerFolder = MEDIA_FOLDER.BRAND_BANNERS;
     const logoUpload = updateData.logo_desktop ?? updateData.logo_mobile;
     const logoAsset = logoUpload
       ? await this.storedMediaService.replace(
           logoUpload,
-          folder,
+          logoFolder,
           offer.logo_desktop ?? offer.logo_mobile ?? offer.logo,
         )
       : undefined;
@@ -1159,7 +1161,7 @@ export class AdminService {
     const bannerAsset = bannerUpload
       ? await this.storedMediaService.replace(
           bannerUpload,
-          folder,
+          bannerFolder,
           offer.banner ?? offer.banner_mobile ?? offer.logo_circle,
         )
       : undefined;
@@ -1257,7 +1259,9 @@ export class AdminService {
         updateData.policy_category_id,
       );
     }
-    const folder = MEDIA_FOLDER.BRANDS;
+    // #493 — the wide hero and the square logo need different width caps.
+    const logoFolder = MEDIA_FOLDER.BRANDS;
+    const bannerFolder = MEDIA_FOLDER.BRAND_BANNERS;
     const logoUpload = updateData.logo_desktop ?? updateData.logo_mobile;
     const bannerUpload =
       updateData.banner ?? updateData.banner_mobile ?? updateData.logo_circle;
@@ -1445,9 +1449,11 @@ export class AdminService {
         ownerId,
         operation: 'offer-update',
         uploads: [
-          ...(logoUpload ? [{ role: 'logo', file: logoUpload, folder }] : []),
+          ...(logoUpload
+            ? [{ role: 'logo', file: logoUpload, folder: logoFolder }]
+            : []),
           ...(bannerUpload
-            ? [{ role: 'banner', file: bannerUpload, folder }]
+            ? [{ role: 'banner', file: bannerUpload, folder: bannerFolder }]
             : []),
         ],
         commit: async (assets, session) => {

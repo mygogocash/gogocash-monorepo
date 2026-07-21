@@ -53,14 +53,14 @@ export const GCS_R2_TARGET_SPECS: StoredMediaTargetSpec[] = [
   {
     collection: 'offers',
     folder: 'brands',
-    fields: [
-      'logo',
-      'logo_desktop',
-      'logo_mobile',
-      'logo_circle',
-      'banner',
-      'banner_mobile',
-    ],
+    fields: ['logo', 'logo_desktop', 'logo_mobile'],
+  },
+  {
+    // #493 — mirrors the split in stored-media-targets.ts. `logo_circle` sits with the
+    // banner fields because the banner upload path writes it.
+    collection: 'offers',
+    folder: 'brand-banners',
+    fields: ['banner', 'banner_mobile', 'logo_circle'],
   },
   {
     collection: 'categories',

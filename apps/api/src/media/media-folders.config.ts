@@ -2,6 +2,9 @@ export const MEDIA_FOLDER = {
   BANNER_ALL_BRAND: 'banner-all-brand',
   BANNER_HOME: 'banner-home',
   BANNER_SPECIFIC_PAGE: 'banner-specific-page',
+  /** Wide hero art for the brand/shop detail page. Separate from BRANDS so the
+   *  square logo cap does not downsample it — see #493. */
+  BRAND_BANNERS: 'brand-banners',
   BRANDS: 'brands',
   CATEGORIES: 'categories',
   QUESTS: 'quests',
@@ -16,6 +19,7 @@ const DEFAULT_FOLDER_BY_ENV: Record<string, MediaFolder> = {
   GCS_MEDIA_PREFIX_BANNER_ALL_BRAND: MEDIA_FOLDER.BANNER_ALL_BRAND,
   GCS_MEDIA_PREFIX_BANNER_HOME: MEDIA_FOLDER.BANNER_HOME,
   GCS_MEDIA_PREFIX_BANNER_SPECIFIC_PAGE: MEDIA_FOLDER.BANNER_SPECIFIC_PAGE,
+  GCS_MEDIA_PREFIX_BRAND_BANNERS: MEDIA_FOLDER.BRAND_BANNERS,
   GCS_MEDIA_PREFIX_BRANDS: MEDIA_FOLDER.BRANDS,
   GCS_MEDIA_PREFIX_CATEGORIES: MEDIA_FOLDER.CATEGORIES,
   GCS_MEDIA_PREFIX_QUESTS: MEDIA_FOLDER.QUESTS,

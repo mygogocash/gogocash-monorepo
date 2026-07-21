@@ -1562,6 +1562,48 @@ describe('AdminService', () => {
       });
     });
 
+    /**
+     * #493 — the wide hero banner and the square logo both uploaded into `brands`,
+     * whose 1024px cap is sized for logos. A 2400-3840px banner was downsampled on
+     * upload and the original was never retained, so the loss is permanent. The banner
+     * role now routes to its own 1920px folder; the logo must NOT follow it.
+     */
+    it('updateOffer > given a banner upload > then it stores under brand-banners while the logo stays under brands', async () => {
+      categoryIntegrity.withNormalWrite.mockImplementation(({ legacy }) =>
+        legacy(),
+      );
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          logo_desktop: 'old-logo',
+          banner: 'old-banner',
+          categories: 'Shopping',
+        }),
+      );
+      storedMediaService.replace.mockResolvedValue('new-asset');
+      offerModel.findByIdAndUpdate.mockReturnValue(
+        makeQuery({ _id: offerId, banner: 'new-asset' }),
+      );
+
+      await service.updateOffer(offerId, {
+        logo_desktop: { originalname: 'logo.png' } as Express.Multer.File,
+        banner: { originalname: 'hero.png' } as Express.Multer.File,
+        policy_category_id: '507f1f77bcf86cd799439011',
+        product_type: [],
+      });
+
+      expect(storedMediaService.replace).toHaveBeenCalledWith(
+        expect.objectContaining({ originalname: 'hero.png' }),
+        MEDIA_FOLDER.BRAND_BANNERS,
+        'old-banner',
+      );
+      expect(storedMediaService.replace).toHaveBeenCalledWith(
+        expect.objectContaining({ originalname: 'logo.png' }),
+        MEDIA_FOLDER.BRANDS,
+        'old-logo',
+      );
+    });
+
     it('updateOffer > given an unknown offer id > then it throws "Offer not found"', async () => {
       offerModel.findById.mockReturnValue(makeQuery(null));
 
@@ -1717,7 +1759,8 @@ describe('AdminService', () => {
       expect(storedMediaService.upload).toHaveBeenCalledTimes(1);
       expect(storedMediaService.upload).toHaveBeenCalledWith(
         expect.objectContaining({ originalname: 'banner.png' }),
-        'brands',
+        // #493 — banner roles moved off the logo-sized `brands` folder.
+        MEDIA_FOLDER.BRAND_BANNERS,
       );
       expect(storedMediaService.replace).not.toHaveBeenCalled();
       expect(policyMediaCleanup.journalLegacyReplacements).toHaveBeenCalledWith(
