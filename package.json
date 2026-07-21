@@ -39,6 +39,7 @@
     "@nestjs/core": "11.1.28",
     "@nestjs/platform-express": "11.1.28",
     "@playwright/test": "^1.55.0",
+    "@swc/core": "^1.15.43",
     "cache-manager": "^7.2.9",
     "happy-dom": "^20.10.6",
     "knip": "^6.26.0",
