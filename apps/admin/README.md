@@ -645,6 +645,8 @@ The repo ships a multi-stage [`Dockerfile`](./Dockerfile) that builds the Next.j
   `package-lock.json` drives the npm workspace install):
   ```bash
   docker build -f apps/admin/Dockerfile -t gogocash-admin .
+  # Pre-launch surfaces default VISIBLE; add these to hide them (only "0" hides):
+  #   --build-arg NEXT_PUBLIC_ENABLE_CREDIT_SCORE=0 --build-arg NEXT_PUBLIC_ENABLE_GOGOPASS=0
   docker run -p 8080:8080 --env-file .env gogocash-admin
   ```
 - Base image **`node:26-slim`**; install via **`npm ci --legacy-peer-deps`**; build

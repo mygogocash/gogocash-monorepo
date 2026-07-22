@@ -94,6 +94,11 @@ jobs:
             admin:
               - *root
               - 'apps/admin/**'
+              # Deploy files the admin buildWiring guard pins (so a clobber of
+              # them re-runs the guard — apphosting.yaml is under apps/admin/**):
+              - '.github/workflows/_build-push.yml'
+              - 'cloudbuild/build-staging.yaml'
+              - 'docs/railway-env-matrix.md'
             api:
               - *root
               - 'apps/api/**'

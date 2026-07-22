@@ -25,6 +25,10 @@ steps:
             MAX_INSTANCES="3"
             PORT="8080"
             HEALTH_PATH="/"
+            # NOTE: these are RUNTIME env vars. NEXT_PUBLIC_* is inlined at BUILD
+            # time, so a NEXT_PUBLIC_ENABLE_* added here would NOT hide the
+            # client-gated pre-launch surfaces — set those as --build-arg in the
+            # build pipeline (cloudbuild/build-staging.yaml) instead.
             ENV_VARS="NODE_ENV=production,NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co"
             SECRETS_MAP=""
             ;;

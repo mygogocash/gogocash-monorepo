@@ -32,6 +32,19 @@ env:
     value: "true"
     availability:
       - BUILD
+  # Pre-launch feature flags — kept HIDDEN in staging (default-ENABLED; only the
+  # literal "0" hides). App Hosting builds Next.js from source, NOT via
+  # apps/admin/Dockerfile, so these must live here with BUILD availability to be
+  # inlined by `next build`; a runtime-scoped value would never reach the client
+  # bundle. See src/config/featureFlags.ts.
+  - variable: NEXT_PUBLIC_ENABLE_CREDIT_SCORE
+    value: "0"
+    availability:
+      - BUILD
+  - variable: NEXT_PUBLIC_ENABLE_GOGOPASS
+    value: "0"
+    availability:
+      - BUILD
   # Staging custom domain — App Hosting also sets this automatically, but
   # setting it explicitly avoids the default *.hosted.app URL being used in OAuth callbacks.
   - variable: NEXTAUTH_URL
