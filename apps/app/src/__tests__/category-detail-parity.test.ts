@@ -178,6 +178,19 @@ describe("Category detail parity", () => {
     expect(brandCardFile).toContain("compactBrandLogoFallback");
   });
 
+  it("category detail card > forwards the store href so it routes to /shop/<id>, not a name slug", () => {
+    // Regression guard for the brand-click 404: the category grid MUST pass the
+    // store's real href to BrandCard. Without it, BrandCard falls back to
+    // getTopBrandHref(brand) which slugifies the NAME (e.g. "/shop/traveloka"),
+    // and the ObjectId-keyed GET /offer/:id can't resolve it -> "No merchant
+    // details yet". store.href is already "/shop/<ObjectId>".
+    const screenFile = fs.readFileSync(
+      path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),
+      "utf8"
+    );
+    expect(screenFile).toMatch(/<BrandCard[\s\S]*?href=\{store\.href\}[\s\S]*?\/>/);
+  });
+
   it("category detail grid > given desktop width >= 1024 > then it uses 5 columns matching brand/shop directories", () => {
     const screenFile = fs.readFileSync(
       path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),

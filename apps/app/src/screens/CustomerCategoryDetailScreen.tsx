@@ -270,7 +270,8 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
                   cardHeight={gridMetrics.cardHeight}
                   cardWidth={gridMetrics.cardWidth}
                   cashback={store.cashback}
-                  key={store.brand}
+                  href={store.href}
+                  key={store.href ?? store.brand}
                   logoUri={store.logoUri}
                   logoVisualHeight={gridMetrics.logoVisualHeight}
                   size="S"
