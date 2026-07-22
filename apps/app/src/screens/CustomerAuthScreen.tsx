@@ -2182,13 +2182,13 @@ function createAuthScreenStyles(colors: ThemeColors) {
   },
   primaryAction: {
     alignItems: "center",
-    alignSelf: "center",
+    alignSelf: "stretch",
     backgroundColor: "#55C99E",
     borderRadius: radii.chip,
     height: 48,
     justifyContent: "center",
     marginTop: 6,
-    width: 218,
+    width: "100%",
   },
   primaryActionMobile: {
     height: 52,

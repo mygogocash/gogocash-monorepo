@@ -63,11 +63,13 @@ describe("Expo home design parity", () => {
       "utf8"
     );
 
+    // Founder request 2026-07-22: Explore Shops + Explore Products hidden from the nav,
+    // replaced by the Digital Services + Fashion category shortcuts.
     expect(webDesktopHeaderNavItems.map((item) => item.label)).toEqual([
       "Top Brands",
       "Explore Brand",
-      "Explore Shops",
-      "Explore Products",
+      "Digital Services",
+      "Fashion",
       "Travel",
       "Electronics",
       "Health & Beauty",
@@ -137,8 +139,10 @@ describe("Expo home design parity", () => {
       expect(sourceFile).not.toContain("lucide-react-native");
       expect(sourceFile).not.toContain('from "phosphor-react-native');
       expect(sourceFile).toContain("Storefront");
-      expect(sourceFile).toContain("SquaresFour");
-      expect(sourceFile).toContain("Tag");
+      // Digital Services + Fashion nav shortcuts use the Cloud + Shirt phosphor glyphs
+      // (Explore Shops "SquaresFour" + Explore Products "Tag" were removed with those items).
+      expect(sourceFile).toContain("Cloud");
+      expect(sourceFile).toContain("Shirt");
       expect(sourceFile).toContain("AirplaneTilt");
       expect(sourceFile).toContain("DeviceMobile");
       expect(sourceFile).toContain("Heartbeat");
