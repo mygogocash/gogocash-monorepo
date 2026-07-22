@@ -7,6 +7,7 @@ import { ImageOptimizerService } from './image-optimizer.service';
 import { CdnCachePurgeService } from './cdn-cache-purge.service';
 import { MEDIA_FOLDER } from './media-folders.config';
 import { StoredMediaService } from './stored-media.service';
+import { MediaOriginalArchiveService } from './media-original-archive.service';
 import { buildCommandOwnedMediaObjectKey } from './stored-media.util';
 
 describe('StoredMediaService', () => {
@@ -28,6 +29,7 @@ describe('StoredMediaService', () => {
   };
   let imageOptimizer: { optimizeUpload: jest.Mock };
   let cdnCachePurge: { purgeUrls: jest.Mock };
+  let originalArchive: { archiveOriginal: jest.Mock };
 
   beforeEach(async () => {
     r2ObjectStorage = {
@@ -72,6 +74,8 @@ describe('StoredMediaService', () => {
       purgeUrls: jest.fn().mockResolvedValue({ purged: true }),
     };
 
+    originalArchive = { archiveOriginal: jest.fn().mockResolvedValue(undefined) };
+
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         StoredMediaService,
@@ -79,6 +83,7 @@ describe('StoredMediaService', () => {
         { provide: GoogleDriveService, useValue: googleDriveService },
         { provide: ImageOptimizerService, useValue: imageOptimizer },
         { provide: CdnCachePurgeService, useValue: cdnCachePurge },
+        { provide: MediaOriginalArchiveService, useValue: originalArchive },
       ],
     }).compile();
 
@@ -127,6 +132,28 @@ describe('StoredMediaService', () => {
       'banner-home',
       'public',
     );
+  });
+
+  it('upload > archives the ORIGINAL (not the optimized) to Drive with the served object key', async () => {
+    const original = {
+      originalname: 'hero.png',
+      mimetype: 'image/png',
+      buffer: Buffer.from('original-bytes'),
+    } as Express.Multer.File;
+    imageOptimizer.optimizeUpload.mockResolvedValueOnce({
+      originalname: 'hero.webp',
+      mimetype: 'image/webp',
+      buffer: Buffer.from('tiny'),
+    } as Express.Multer.File);
+
+    const url = await service.upload(original, MEDIA_FOLDER.BANNER_HOME);
+
+    expect(originalArchive.archiveOriginal).toHaveBeenCalledWith({
+      original, // the pre-optimization file, not the webp
+      folder: MEDIA_FOLDER.BANNER_HOME,
+      objectKey: 'brands/logo.png',
+      servedUrl: url,
+    });
   });
 
   it('upload > given a private folder > then uploads with private access', async () => {
