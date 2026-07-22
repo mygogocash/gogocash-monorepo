@@ -1,0 +1,60 @@
+name: Production Smoke Test
+
+# Lightweight external uptime monitor for the live customer-facing stack (#547).
+#
+# IMPORTANT: GitHub Actions `on: schedule` ONLY fires from the repository's
+# DEFAULT branch (main). The earlier copy of this file lived on production/
+# staging, so its cron never ran. This copy lives on main so the schedule is
+# active. Keep it here; promote edits down to staging/production as usual.
+#
+# `curl --fail` turns any 4xx/5xx into a red run so an outage pages loudly.
+# Only fixed, trusted URLs are curled — no workflow inputs flow into `run:`.
+on:
+  schedule:
+    - cron: "0 2,14 * * *" # 02:00 & 14:00 UTC — twice daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Ping production
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # HARD check — the customer web is the thing that must never be down.
+      # app.gogocash.co currently answers 307 (redirect to locale/login), so we
+      # accept any 2xx/3xx and only page on 4xx/5xx or connection failure.
+      - name: Customer web (app.gogocash.co) reachable
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            --retry 3 --retry-delay 5 --max-time 30 \
+            https://app.gogocash.co/)
+          echo "app.gogocash.co -> HTTP $code"
+          case "$code" in
+            2*|3*) echo "OK" ;;
+            *) echo "::error::Customer web returned HTTP $code (expected 2xx/3xx)"; exit 1 ;;
+          esac
+
+      # SOFT probe — the GCloud origin does NOT yet expose /health
+      # (api.gogocash.co is unreachable / 404 pre-cutover; /health is verified
+      # 200 on the Railway stack via api-beta.gogocash.co). Warn instead of
+      # paging so the cron stays green on real liveness and we still see when
+      # the API comes online. FLIP THIS TO A HARD `curl --fail` once Phase-2
+      # cutover points api.gogocash.co at the Railway build.
+      - name: API health (api.gogocash.co/health) — advisory until cutover
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            --retry 2 --retry-delay 5 --max-time 30 \
+            https://api.gogocash.co/health || echo 000)
+          echo "api.gogocash.co/health -> HTTP $code"
+          if [ "$code" = "200" ]; then
+            echo "API health OK — consider promoting this step to a hard check."
+          else
+            echo "::warning::api.gogocash.co/health returned HTTP $code (expected 200 after Phase-2 cutover; not paging yet)."
+          fi
