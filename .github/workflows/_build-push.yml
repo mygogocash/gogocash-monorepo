@@ -139,6 +139,8 @@ jobs:
           docker build \
             -f "${{ inputs.dockerfile }}" \
             --build-arg NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co \
+            --build-arg NEXT_PUBLIC_ENABLE_CREDIT_SCORE=0 \
+            --build-arg NEXT_PUBLIC_ENABLE_GOGOPASS=0 \
             --tag "$IMAGE:$IMAGE_SHA" \
             --tag "$IMAGE:staging-candidate" \
             --cache-from "$IMAGE:staging-candidate" \
