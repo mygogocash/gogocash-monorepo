@@ -1,0 +1,35 @@
+name: Production Smoke Test
+
+# Lightweight external uptime monitor for the live customer-facing stack (#547).
+# Runs twice daily and on demand. `curl --fail` turns any non-2xx into a red run
+# so an outage pages loudly. Only fixed, trusted URLs are curled — no workflow
+# inputs flow into `run:`.
+on:
+  schedule:
+    - cron: "0 2,14 * * *" # 02:00 & 14:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Ping production
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Customer web (app.gogocash.co) responds
+        run: >-
+          curl --fail --show-error --silent --location
+          --retry 3 --retry-delay 5 --max-time 30
+          -o /dev/null https://app.gogocash.co/
+
+      - name: API health (api.gogocash.co/health)
+        # /health is served by apps/api (verified 200 on the Railway stack via
+        # api-beta.gogocash.co/health). If the current GCloud origin does not yet
+        # expose /health this step goes red — that gap closes when api.gogocash.co
+        # is pointed at the Railway build (Phase-2 cutover).
+        run: >-
+          curl --fail --show-error --silent
+          --retry 3 --retry-delay 5 --max-time 30
+          -o /dev/null https://api.gogocash.co/health

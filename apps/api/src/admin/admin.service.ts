@@ -816,13 +816,16 @@ export class AdminService {
     // search is a free-text regex that narrows *within* the selected filters.
     // Both compose as an implicit AND on the same query object.
     const query: Record<string, unknown> = {};
-    if (status) query.status = status;
-    if (method) query.method = method;
+    // #540 — coerce user-supplied filters to primitives so a crafted object (e.g.
+    // `{ $ne: null }`) can never inject Mongo query operators (CodeQL js/sql-injection).
+    if (status) query.status = String(status);
+    if (method) query.method = String(method);
     if (search) {
+      const safeSearch = escapeRegexLiteral(String(search));
       query.$or = [
-        { method: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-        { status: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-        { address: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+        { method: { $regex: safeSearch, $options: 'i' } },
+        { status: { $regex: safeSearch, $options: 'i' } },
+        { address: { $regex: safeSearch, $options: 'i' } },
       ];
     }
 
