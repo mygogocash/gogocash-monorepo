@@ -859,6 +859,53 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
       return;
     }
 
+    if (provider.id === "telegram") {
+      // Telegram Login Widget is web-only (no native SDK path); mirror the LINE flow.
+      if (Platform.OS !== "web") {
+        toastCtx?.show(tc(authSendErrorMessages.webOnly));
+        return;
+      }
+      authOperationInFlightRef.current = true;
+      setSocialBusyProviderId(provider.id);
+      void (async () => {
+        try {
+          const {
+            exchangeTelegramAuth,
+            getTelegramBotUsername,
+            isTelegramLoginConfigured,
+            requestTelegramLogin,
+          } = await import("@mobile/auth/telegramLogin");
+          if (!isTelegramLoginConfigured()) {
+            // No EXPO_PUBLIC_TELEGRAM_BOT_USERNAME baked into the build yet.
+            toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+            return;
+          }
+          const payload = await requestTelegramLogin(getTelegramBotUsername());
+          const session = await exchangeTelegramAuth({
+            apiUrl: env.apiUrl,
+            country: selectedCountry.code,
+            payload,
+          });
+          await completeSocialSession(session);
+        } catch (error) {
+          const code = (error as { code?: string })?.code;
+          if (
+            code === "auth/popup-closed-by-user" ||
+            code === "auth/cancelled-popup-request"
+          ) {
+            // User closed the Telegram widget — silent cancel, same as LINE.
+            return;
+          }
+          toastCtx?.show(tc(sendErrorCopy[toSendErrorKind(error)]));
+          haptics.error();
+        } finally {
+          authOperationInFlightRef.current = false;
+          setSocialBusyProviderId(null);
+        }
+      })();
+      return;
+    }
+
     const isNativeGoogle = Platform.OS !== "web" && provider.id === "google";
     // Facebook/Apple ride Firebase's hosted OAuth via RNFB signInWithPopup —
     // native-capable without new modules. Microsoft/X stay web-only.
