@@ -337,6 +337,10 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
       ? mobileShellLayout.topBrandMobilePageCardCount
       : topBrandColumnsPerRow * topBrandRowsPerPage,
     topBrandColumns: topBrandColumnsPerRow,
+    // Per-design-version columns-per-row (6 desktop / 4 tablet / 2 mobile). Distinct from
+    // topBrandColumns, which is the 8-wide mobile paging group off-desktop. Sections that
+    // must fit one on-screen page (e.g. the two-row Trending cap) size off this instead.
+    topBrandDesignColumns: designFrame.topBrandColumns,
     topBrandRowsPerPage,
     topBrandDotCount: isMobileTopBrandGrid
       ? mobileShellLayout.topBrandMobileDotCount
