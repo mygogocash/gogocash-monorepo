@@ -41,10 +41,14 @@ import { haptics } from "@mobile/lib/haptics";
 import type { QuestTaskRow } from "@mobile/quest/questTaskResource";
 import { useQuestTaskRows } from "@mobile/quest/questTaskResource";
 import {
+  useMyQuestRank,
+  useQuestLeaderboard,
+  useQuestWindow,
+} from "@mobile/quest/questRankResource";
+import {
   mobileShellLayout,
   webAccountPageSurface,
   webQuestHistory,
-  webQuestLeaderboardRows,
   webQuestMyRank,
   webQuestTabs,
 } from "@mobile/design/webDesignParity";
@@ -424,6 +428,12 @@ function QuestLeaderboardPanel({
   const styles = useThemedStyles(createQuestScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  // Real quest data from the shared /point/* API. In non-backend (design/preview) builds
+  // these fall back to the designed fixtures; on a backend error the leaderboard shows an
+  // honest empty state and My Rank shows zeros rather than fabricated numbers.
+  const { window: questWindow } = useQuestWindow();
+  const leaderboard = useQuestLeaderboard(questWindow);
+  const myRank = useMyQuestRank(questWindow);
   return (
     <View style={styles.leaderboardPanel}>
       <Image
@@ -432,7 +442,7 @@ function QuestLeaderboardPanel({
         source={questPromoImage}
         style={[styles.promoImage, { height: mediaColumnWidth / (484 / 320) }]}
       />
-      <QuestMyRankCard />
+      <QuestMyRankCard data={{ ...webQuestMyRank, ...myRank.data }} />
       <View style={styles.leaderboardCard}>
         <View style={styles.leaderboardHeader}>
           <View style={styles.leaderboardTitleRow}>
@@ -457,13 +467,7 @@ function QuestLeaderboardPanel({
             </MotionPressable>
           </Link>
         </View>
-        <QuestRankRows
-          rows={webQuestLeaderboardRows.map((row) => ({
-            key: row.name,
-            name: row.name,
-            points: row.points,
-          }))}
-        />
+        <QuestRankRows rows={leaderboard.rows} />
       </View>
     </View>
   );
