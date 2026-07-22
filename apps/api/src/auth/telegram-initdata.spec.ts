@@ -137,6 +137,34 @@ describe('verifyTelegramInitData > given auth_date outside the freshness window 
   });
 });
 
+describe('verifyTelegramInitData > given a WebAppData-signed payload whose auth_date is not a positive integer > then invalid with reason bad_auth_date', () => {
+  // These isolate the REQUIRED-NUMERIC auth_date guard. The HMAC is computed
+  // over the (bad) auth_date value with the correct WebAppData secret, so the
+  // signature genuinely verifies — the ONLY thing that can reject the payload
+  // is the `Number.isFinite(authDate) && authDate > 0` guard. If that guard is
+  // removed: 'abc' becomes NaN and sails through as VALID (both assertions
+  // fail), and '0' falls to the freshness check and is rejected for the WRONG
+  // reason 'expired' (the reason assertion fails). So each test is a true
+  // isolation of the guard, not a false green.
+  it('rejects a non-numeric auth_date (abc)', () => {
+    const initData = signInitData(baseParams({ auth_date: 'abc' }));
+    const res = verifyTelegramInitData(initData, BOT_TOKEN, {
+      nowSec: NOW_SEC,
+    });
+    expect(res.valid).toBe(false);
+    expect(res.reason).toBe('bad_auth_date');
+  });
+
+  it('rejects auth_date=0', () => {
+    const initData = signInitData(baseParams({ auth_date: '0' }));
+    const res = verifyTelegramInitData(initData, BOT_TOKEN, {
+      nowSec: NOW_SEC,
+    });
+    expect(res.valid).toBe(false);
+    expect(res.reason).toBe('bad_auth_date');
+  });
+});
+
 describe('verifyTelegramInitData > given malformed input > then invalid without throwing', () => {
   it('rejects missing hash', () => {
     const usp = new URLSearchParams(baseParams());

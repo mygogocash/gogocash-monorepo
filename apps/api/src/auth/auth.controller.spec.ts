@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -9,6 +9,7 @@ import { AnalyticsService } from 'src/analytics/analytics.service';
 import { RateLimitGuard } from './rate-limit.guard';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { GLOBAL_VALIDATION_PIPE_OPTIONS } from 'src/common/validation-pipe.options';
 
 // Mocked collaborators — the controller is exercised over real HTTP (supertest)
 // so the route-level ValidationPipe wiring is what's under test, not the pipe in
@@ -27,6 +28,7 @@ const authService = {
   isPhoneLoginEligible: jest.fn(),
   signIn: jest.fn(),
   signInFirebase: jest.fn(),
+  signInTelegramMiniApp: jest.fn(),
 };
 const analytics = { capture: jest.fn() };
 const allow = { canActivate: () => true };
@@ -283,5 +285,84 @@ describe('AuthController', () => {
         expect(authService.isPhoneLoginEligible).not.toHaveBeenCalled();
       },
     );
+  });
+
+  // The Mini App route has NO per-route ValidationPipe; only the global pipe
+  // (main.ts) validates its DTO. This block builds a dedicated app wired with
+  // the SAME GLOBAL_VALIDATION_PIPE_OPTIONS so the DTO boundary is exercised
+  // exactly as in production — the shared `app` above (per-route pipes only)
+  // would let malformed initData through.
+  describe('POST /auth/log-in/telegram-miniapp', () => {
+    let miniApp: INestApplication;
+
+    beforeEach(async () => {
+      const moduleRef: TestingModule = await Test.createTestingModule({
+        controllers: [AuthController],
+        providers: [
+          { provide: AuthService, useValue: authService },
+          { provide: OtpService, useValue: otpService },
+          { provide: EmailService, useValue: emailService },
+          { provide: AnalyticsService, useValue: analytics },
+        ],
+      })
+        .overrideGuard(RateLimitGuard)
+        .useValue(allow)
+        .overrideGuard(FirebaseAuthGuard)
+        .useValue(allow)
+        .overrideGuard(AuthAdminGuard)
+        .useValue(allow)
+        .compile();
+
+      miniApp = moduleRef.createNestApplication();
+      miniApp.useGlobalPipes(new ValidationPipe(GLOBAL_VALIDATION_PIPE_OPTIONS));
+      await miniApp.init();
+    });
+
+    afterEach(async () => {
+      await miniApp?.close();
+    });
+
+    it('given a valid initData string > calls signInTelegramMiniApp with the raw initData and returns the session envelope', async () => {
+      const initData =
+        'query_id=AA&user=%7B%22id%22%3A1%7D&auth_date=1700000000&hash=abc';
+      authService.signInTelegramMiniApp.mockResolvedValue({
+        token: 'jwt',
+        user: { _id: 'u1', provider: 'telegram' },
+        is_new_user: false,
+        auth_flow: 'login',
+      });
+
+      const res = await request(miniApp.getHttpServer())
+        .post('/auth/log-in/telegram-miniapp')
+        .send({ initData });
+
+      expect(res.status).toBe(201);
+      // The raw query string is passed through untouched — its exact bytes are
+      // part of the signature the service verifies.
+      expect(authService.signInTelegramMiniApp).toHaveBeenCalledWith(initData);
+      expect(res.body).toMatchObject({
+        message: 'Login successful!',
+        token: 'jwt',
+        auth_flow: 'login',
+      });
+    });
+
+    it('given a missing initData > rejects with 400 before AuthService is called', async () => {
+      const res = await request(miniApp.getHttpServer())
+        .post('/auth/log-in/telegram-miniapp')
+        .send({});
+
+      expect(res.status).toBe(400);
+      expect(authService.signInTelegramMiniApp).not.toHaveBeenCalled();
+    });
+
+    it('given a NoSQL operator object as initData > rejects with 400 before AuthService is called', async () => {
+      const res = await request(miniApp.getHttpServer())
+        .post('/auth/log-in/telegram-miniapp')
+        .send({ initData: { $gt: '' } });
+
+      expect(res.status).toBe(400);
+      expect(authService.signInTelegramMiniApp).not.toHaveBeenCalled();
+    });
   });
 });
