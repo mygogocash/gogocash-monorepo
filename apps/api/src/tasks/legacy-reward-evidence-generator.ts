@@ -115,7 +115,40 @@ export function computeLeaderboardSnapshotHash(
   return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 }
 
-function assertLeaderboardSortedDesc(leaderboard: LeaderboardEntryInput[]) {
+export interface GeneratorSnapshotInput {
+  /** Funded-rank leaderboard slice, in ascending rank order. */
+  fundedRankEntries: Array<{ user_id: string; point: number }>;
+  /** Special-next-round recipients, in the order the source returns them. */
+  specialEntries: Array<{ user_id: string; amount: number }>;
+}
+
+/**
+ * Order-sensitive sha256 covering BOTH payout-determining slices: the funded
+ * rank winners AND the special-next-round recipients ({user_id, amount}). The
+ * CLI hashes this across two independent reads so that ANY movement in either
+ * slice (a rank winner changing, or a special amount/recipient shifting) is a
+ * hard drift refuse — points still moving must never be paid out. It is also
+ * the value operators pin via --confirm-leaderboard-hash on --apply.
+ */
+export function computeGeneratorSnapshotHash(
+  input: GeneratorSnapshotInput,
+): string {
+  const canonical = {
+    funded_rank: input.fundedRankEntries.map((entry) => ({
+      user_id: String(entry.user_id),
+      point: Number(entry.point),
+    })),
+    special_next_round: input.specialEntries.map((entry) => ({
+      user_id: String(entry.user_id),
+      amount: Number(entry.amount),
+    })),
+  };
+  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+}
+
+export function assertLeaderboardSortedDesc(
+  leaderboard: LeaderboardEntryInput[],
+) {
   for (let i = 1; i < leaderboard.length; i++) {
     if (Number(leaderboard[i].point) > Number(leaderboard[i - 1].point)) {
       throw new Error(
