@@ -91,6 +91,7 @@ import {
   hasCompleteQuestBannerSet,
   nextQuestCampaignRequest,
   questCampaignFingerprint,
+  sanitizeQuestCampaignText,
   type QuestCampaignRequest,
 } from "./questCampaignFormData";
 
@@ -320,9 +321,9 @@ function makeCampaignDraft(quest?: ResponseQuestDate | null): CampaignDraft {
   return {
     startDate: toBangkokDateTimeInput(quest?.start_date),
     endDate: toBangkokDateTimeInput(quest?.end_date),
-    facebookPage: quest?.facebook_page ?? "",
-    facebookPost: quest?.facebook_post ?? "",
-    line: quest?.line ?? "",
+    facebookPage: sanitizeQuestCampaignText(quest?.facebook_page),
+    facebookPost: sanitizeQuestCampaignText(quest?.facebook_post),
+    line: sanitizeQuestCampaignText(quest?.line),
     bannerEn: null,
     bannerTh: null,
     subBannerEn: null,
