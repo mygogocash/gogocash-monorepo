@@ -302,7 +302,8 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
             contentContainerStyle={[
               styles.pageDesktopFullBleed,
               {
-                paddingTop: Math.max(spacing.lg, insets.top + spacing.lg),
+                // Match the Explore brand/shop/product directories' navbar->content gap.
+              paddingTop: Math.max(8, insets.top + 8),
               },
             ]}
             showsVerticalScrollIndicator={false}
@@ -348,7 +349,8 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
                 ? mobileShellLayout.bottomNavClearance + 24
                 : mobileShellLayout.desktopBottomClearance,
               paddingHorizontal: homeLayout.contentHorizontalPadding,
-              paddingTop: Math.max(spacing.lg, insets.top + spacing.lg),
+              // Match the Explore brand/shop/product directories' navbar->content gap.
+              paddingTop: Math.max(8, insets.top + 8),
             },
           ]}
           showsVerticalScrollIndicator={false}

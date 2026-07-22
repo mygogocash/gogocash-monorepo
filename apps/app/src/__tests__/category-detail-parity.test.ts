@@ -224,4 +224,27 @@ describe("Category detail parity", () => {
       "Find cashback deals from brands in Health & Beauty. Search and sort to narrow results."
     );
   });
+
+  it("category detail header gap > matches the brand/shop/product directories (Math.max(8, insets.top + 8)), not spacing.lg", () => {
+    // The three Explore directories (brand/shop/product) all pad the scroll
+    // content's top by Math.max(8, insets.top + 8). The category page used
+    // spacing.lg (24px), leaving a visibly larger navbar->header gap on
+    // /category/<name> (e.g. "Explore your Favorite Travel"). Pin it to the
+    // directory value so all four Explore surfaces share the same gap.
+    const screenFile = fs.readFileSync(
+      path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),
+      "utf8"
+    );
+    const brandDir = fs.readFileSync(
+      path.join(mobileRoot, "src/screens/discovery/CustomerBrandDirectoryScreen.tsx"),
+      "utf8"
+    );
+    const directoryGap = "Math.max(8, insets.top + 8)";
+    // Reference invariant: the directory the user pointed to as "correct".
+    expect(brandDir).toContain(directoryGap);
+    // Both category shells (desktop + mobile) must use the directory gap...
+    expect(screenFile.split(directoryGap).length - 1).toBeGreaterThanOrEqual(2);
+    // ...and no longer the larger spacing.lg top padding.
+    expect(screenFile).not.toContain("Math.max(spacing.lg, insets.top + spacing.lg)");
+  });
 });
