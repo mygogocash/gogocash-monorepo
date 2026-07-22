@@ -52,6 +52,19 @@
         text-decoration: none;
       }
 
+      /* Image download deterrent (founder request 2026-07-22): block drag-to-save and the
+         long-press callout on every image app-wide. This is a DETERRENT only — screenshots
+         and the network tab still expose the raw asset; real protection needs CDN hotlink
+         protection / signed URLs on media.gogocash.co. */
+      img,
+      [data-expoimage],
+      [data-expoimage] * {
+        -webkit-user-drag: none;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
       #root {
         display: flex;
         height: 100%;
@@ -93,6 +106,34 @@
           }
           location.replace(next.pathname + next.search + next.hash);
         } catch (e) {}
+      })();
+    </script>
+    <!-- Image download deterrent: swallow right-click "Save image" + drag-to-save on every
+         image app-wide (pairs with the img CSS above). Deterrent only, not real protection. -->
+    <script>
+      (function () {
+        function isImage(target) {
+          return (
+            target &&
+            (target.tagName === "IMG" ||
+              (typeof target.closest === "function" &&
+                target.closest("[data-expoimage]")))
+          );
+        }
+        document.addEventListener(
+          "contextmenu",
+          function (e) {
+            if (isImage(e.target)) e.preventDefault();
+          },
+          true
+        );
+        document.addEventListener(
+          "dragstart",
+          function (e) {
+            if (isImage(e.target)) e.preventDefault();
+          },
+          true
+        );
       })();
     </script>
     <div id="root"></div>
