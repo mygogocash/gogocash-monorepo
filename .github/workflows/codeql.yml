@@ -112,12 +112,13 @@ jobs:
 
   analyze-swift:
     name: Analyze (swift)
-    # Main already publishes the /language:swift CodeQL configuration, so each
-    # PR must upload the same real analysis or GitHub marks the aggregate gate
-    # incomplete. Avoid the expensive macOS lane on ordinary branch pushes;
-    # PRs, weekly schedules, and explicit reruns retain full Swift coverage.
+    # The repo has a single .swift file, yet the macOS Swift lane costs ~2.5h per
+    # PR. Run it only on the weekly schedule + manual reruns to keep periodic
+    # coverage without the per-PR tax (#542).
+    # ⚠️ If "Analyze (swift)" is a REQUIRED status check in branch protection,
+    # remove it there (see #541) — otherwise PRs will block on a check that no
+    # longer runs on pull_request.
     if: >-
-      github.event_name == 'pull_request' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch'
     # macos-15: React Native 0.86 requires Xcode >= 16.1; the macos-14 image
