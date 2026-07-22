@@ -134,7 +134,6 @@ const CREATE_BRAND_INITIAL_SNAPSHOT = {
   affiliateNetworkId: "involve_asia",
   deeplinkStoreId: "global",
   trackingLink: "",
-  appDeeplink: "",
   countries: "Thailand",
   currency: "THB",
   lookupValue: "",
@@ -187,7 +186,6 @@ export default function CreateBrandForm() {
   const [affiliateNetworkId, setAffiliateNetworkId] = useState("involve_asia");
   const [deeplinkStoreId, setDeeplinkStoreId] = useState("global");
   const [trackingLink, setTrackingLink] = useState("");
-  const [appDeeplink, setAppDeeplink] = useState("");
   const [countries, setCountries] = useState("Thailand");
   const [currency, setCurrency] = useState("THB");
   const [lookupValue, setLookupValue] = useState("");
@@ -242,7 +240,6 @@ export default function CreateBrandForm() {
     setCountries("Thailand");
     setCurrency("THB");
     setTrackingLink("");
-    setAppDeeplink("");
     setLookupValue("");
     setSyncLookupFromBrandCountry(true);
     setCommissionEntryMode("manual");
@@ -285,7 +282,6 @@ export default function CreateBrandForm() {
           affiliateNetworkId,
           deeplinkStoreId,
           trackingLink,
-          appDeeplink,
           countries,
           currency,
           lookupValue,
@@ -322,7 +318,6 @@ export default function CreateBrandForm() {
       affiliateNetworkId,
       deeplinkStoreId,
       trackingLink,
-      appDeeplink,
       countries,
       currency,
       lookupValue,
@@ -569,8 +564,6 @@ export default function CreateBrandForm() {
     if (desc) formData.append("description", desc);
     const lookup = lookupValue.trim();
     if (lookup) formData.append("lookup_value", lookup);
-    const app = appDeeplink.trim();
-    if (app) formData.append("app_deeplink", app);
     if (logoFile) formData.append("logo_desktop", logoFile);
     if (bannerFile) formData.append("banner", bannerFile);
 
@@ -627,10 +620,10 @@ export default function CreateBrandForm() {
         Create brand from affiliate
       </h1>
       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-        Register a merchant line using the partner tracking URL, map the
-        GoGoCash app tracking link when you have it, and choose the advertiser
-        store used in tracking links (same as offer edit / Commission
-        Management).
+        Register a merchant line using the partner tracking URL and choose the
+        advertiser store used in tracking links (same as offer edit / Commission
+        Management). The GoGoCash app tracking link is auto-generated from the
+        affiliate URL on save.
       </p>
       {!canManageBrands ? (
         <p className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
@@ -727,23 +720,12 @@ export default function CreateBrandForm() {
             />
           </div>
           <div>
-            <label
-              htmlFor="create-brand-app-deeplink"
-              className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
+            <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               GoGoCash app tracking link
-            </label>
-            <input
-              id="create-brand-app-deeplink"
-              type="url"
-              value={appDeeplink}
-              onChange={(e) => setAppDeeplink(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              placeholder="https://gogocash.app/open/offer/… (optional)"
-            />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              If set, saved as the commission tracking link mapping for this new
-              offer (same as editing an offer → Tracking Links).
+            </p>
+            <p className="mt-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+              Auto-generated from the affiliate tracking URL on save — no manual
+              entry needed. (Replaces the old manually-mapped app tracking link.)
             </p>
           </div>
 
