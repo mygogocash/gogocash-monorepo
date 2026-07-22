@@ -40,6 +40,8 @@
     "migrate:conversion-provider-identity": "node -r ./scripts/register-swc-runtime.cjs scripts/migrate-conversion-provider-identity.ts",
     "migrate:dashboard-indexes": "node -r ./scripts/register-swc-runtime.cjs scripts/migrate-dashboard-indexes.ts",
     "reconcile:quest-task-events": "node -r ./scripts/register-swc-runtime.cjs scripts/reconcile-quest-task-events.ts",
+    "generate:legacy-reward-evidence": "node -r ./scripts/register-swc-runtime.cjs scripts/generate-legacy-reward-evidence.ts",
+    "generate:legacy-reward-evidence:dry": "node -r ./scripts/register-swc-runtime.cjs scripts/generate-legacy-reward-evidence.ts --dry-run",
     "gototrack:seed-merchants": "node -r ./scripts/register-swc-runtime.cjs scripts/seed-gototrack-merchants.ts",
     "seed:local-admin": "node -r ./scripts/register-swc-runtime.cjs scripts/seed-local-admin.ts",
     "seed:local-customer": "node -r ./scripts/register-swc-runtime.cjs scripts/seed-local-customer.ts",
