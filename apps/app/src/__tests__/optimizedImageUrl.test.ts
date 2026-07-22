@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   BRAND_LOGO_IMAGE_WIDTH,
@@ -96,5 +96,33 @@ describe("optimizedImageUrl", () => {
     expect(SIDE_BANNER_IMAGE_WIDTH).toBe(800);
     expect(SHOP_BANNER_IMAGE_WIDTH).toBe(1080);
     expect(BRAND_LOGO_IMAGE_WIDTH).toBe(320);
+  });
+});
+
+describe("optimizedImageUrl > media host drift guard", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("given EXPO_PUBLIC_MEDIA_HOST is set > then that host is also optimized", () => {
+    // If R2_PUBLIC_BASE_URL on the API is repointed to a new media host, setting
+    // the matching EXPO_PUBLIC_MEDIA_HOST keeps Image Resizing working instead of
+    // silently serving raw. Accepts a bare host or a full origin.
+    vi.stubEnv("EXPO_PUBLIC_MEDIA_HOST", "cdn.gogocash.co");
+    expect(
+      optimizedImageUrl("https://cdn.gogocash.co/brands/logo.png", { width: 320 }),
+    ).toBe(
+      "https://cdn.gogocash.co/cdn-cgi/image/width=320,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/logo.png",
+    );
+  });
+
+  it("given no EXPO_PUBLIC_MEDIA_HOST > then the built-in hosts still optimize and others pass through", () => {
+    vi.stubEnv("EXPO_PUBLIC_MEDIA_HOST", "");
+    expect(
+      optimizedImageUrl("https://media.gogocash.co/brands/logo.png", { width: 320 }),
+    ).toContain("/cdn-cgi/image/");
+    expect(
+      optimizedImageUrl("https://cdn.gogocash.co/brands/logo.png", { width: 320 }),
+    ).toBe("https://cdn.gogocash.co/brands/logo.png");
   });
 });
