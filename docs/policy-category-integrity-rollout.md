@@ -138,7 +138,7 @@ export WRITER_DRAIN_CONFIRM="drained-old-writers:${ENVIRONMENT}:${CANDIDATE_SHA}
 
 ## 2. Mandatory migration dry run and apply
 
-Run from `apps/api` with Node 24:
+Run from `apps/api` with Node 26:
 
 ```bash
 node scripts/policy-category-integrity-migration.cjs

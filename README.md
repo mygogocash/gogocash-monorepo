@@ -2,7 +2,7 @@
 
 > **Thailand cashback platform** — a Turborepo monorepo: NestJS API, Next.js admin dashboard, and an Expo (web / iOS / Android) customer app.
 
-npm workspaces + Turborepo · Node 24 LTS · staging-first (production cutover is gated).
+npm workspaces + Turborepo · Node 26 · staging-first (production cutover is gated).
 
 ## Apps
 | Path | App | Stack | Platforms | Source repo (merged) |

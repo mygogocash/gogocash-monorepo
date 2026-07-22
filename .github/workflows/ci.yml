@@ -163,7 +163,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
-          node-version: "24"
+          node-version: "26"
       - name: Validate CI workflow contracts
         run: npm run test:workflow-contracts
       - name: Validate Expo EAS workflow schema
@@ -501,7 +501,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
-          node-version: "24"
+          node-version: "26"
       - name: Require every selected gate to pass
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}

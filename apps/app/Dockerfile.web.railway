@@ -11,7 +11,7 @@
 # Dockerfile declares a matching ARG — hence the explicit ARG list below.
 
 # ── Stage 1: build the web export ────────────────────────────────────────────
-FROM node:24-slim AS build
+FROM node:26-slim AS build
 WORKDIR /app
 
 # Metro/Expo web export exceeds Node's default container heap.
