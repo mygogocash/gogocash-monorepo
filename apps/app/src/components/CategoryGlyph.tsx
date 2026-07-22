@@ -1,8 +1,16 @@
 import { Image } from "expo-image";
 import { View } from "react-native";
 
+import { optimizedImageUrl } from "@mobile/api/optimizedImageUrl";
 import { getCategoryIcon } from "@mobile/theme/categoryIcons";
 import { typography } from "@mobile/theme/tokens";
+
+/**
+ * Category glyphs render tiny (16–22px). Request 3× so they stay crisp at the
+ * highest common device pixel ratio while Cloudflare Image Resizing serves a
+ * few-KB AVIF instead of the full-size R2 original.
+ */
+const GLYPH_PIXEL_DENSITY = 3;
 
 type CategoryGlyphProps = {
   category: string;
@@ -26,12 +34,16 @@ export function CategoryGlyph({
 }: CategoryGlyphProps) {
   const trimmed = imageUrl?.trim();
   if (trimmed) {
+    const uri =
+      optimizedImageUrl(trimmed, {
+        width: Math.round(size * GLYPH_PIXEL_DENSITY),
+      }) ?? trimmed;
     return (
       <View style={{ height: size, width: size, overflow: "hidden", borderRadius: size / 2 }}>
         <Image
           accessibilityIgnoresInvertColors
           contentFit="cover"
-          source={{ uri: trimmed }}
+          source={{ uri }}
           style={{ height: size, width: size }}
         />
       </View>
