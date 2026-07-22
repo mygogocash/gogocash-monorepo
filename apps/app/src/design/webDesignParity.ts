@@ -1276,10 +1276,14 @@ export const webDesktopFooter = {
       ],
     },
     {
-      title: "Products",
+      title: "Company",
       items: [
-        { label: "Business Inquiries", href: "https://lin.ee/7om5sAr", external: true },
-        { label: "Careers", href: "https://lin.ee/7om5sAr", external: true },
+        { label: "Business Inquiries", href: "mailto:info@gogocash.co", external: true },
+        {
+          label: "Careers",
+          href: "https://www.linkedin.com/company/gogocash",
+          external: true,
+        },
       ],
     },
     {
@@ -1304,6 +1308,15 @@ export const webDesktopFooter = {
           href: "https://gogocash.co/privacy-policy",
           external: true,
         },
+      ],
+    },
+    {
+      title: "Agents",
+      items: [
+        { label: "sitemap.md", href: "https://gogocash.co/sitemap.md", external: true },
+        { label: "llms.txt", href: "https://gogocash.co/llms.txt", external: true },
+        { label: "skills.md", href: "https://gogocash.co/skills.md", external: true },
+        { label: "rss.xml", href: "https://gogocash.co/rss.xml", external: true },
       ],
     },
   ],
