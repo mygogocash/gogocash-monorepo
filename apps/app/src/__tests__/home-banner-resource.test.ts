@@ -106,7 +106,7 @@ describe("mapBackendHomeBanners", () => {
         href: "/quest",
         placement: "main",
         imageUri:
-          "https://drive.google.com/uc?export=view&id=1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh",
+          "https://drive.google.com/thumbnail?id=1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh&sz=w1600",
       },
     ]);
   });
