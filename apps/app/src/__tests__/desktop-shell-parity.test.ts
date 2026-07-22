@@ -287,21 +287,22 @@ describe("desktop route shell parity", () => {
     expect(home).toContain("searchQuery={searchQuery}");
   });
 
-  it("desktop category chrome > given /category routes > then hides the global header search (#436)", () => {
+  it("desktop header search > given every desktop route > then the global header search is never hidden (seam kept; always shown per founder request 2026-07-22, overriding #436/#463/#495)", () => {
     const chrome = readMobileFile("src/components/CustomerDesktopRouteChrome.tsx");
     const header = readMobileFile("src/components/CustomerDesktopHeader.tsx");
 
+    // Wiring seam preserved so per-route hiding can be reintroduced if ever needed.
     expect(chrome).toContain("shouldHideDesktopHeaderSearch");
-    expect(chrome).toContain('normalizedPathname.startsWith("/category/")');
     expect(chrome).toContain("hideSearch={shouldHideDesktopHeaderSearch(pathname)}");
     expect(header).toContain("hideSearch");
     expect(header).toContain("hideSearch ? null : (");
-  });
-
-  it("desktop brand chrome > given /brand routes > then hides the global header search (#463)", () => {
-    const chrome = readMobileFile("src/components/CustomerDesktopRouteChrome.tsx");
-    expect(chrome).toContain('normalizedPathname === "/brand"');
-    expect(chrome).toContain('normalizedPathname.startsWith("/brand/")');
+    // ...but the function no longer hides ANY route. The former directory-route
+    // literals are gone; the always-false behavior is pinned in
+    // desktop-header-search-routes.render.test.tsx.
+    expect(chrome).not.toContain('normalizedPathname === "/brand"');
+    expect(chrome).not.toContain('normalizedPathname.startsWith("/category/")');
+    expect(chrome).not.toContain('normalizedPathname === "/shops"');
+    expect(chrome).not.toContain('normalizedPathname === "/discover"');
   });
 
   it("desktop brand logo > given navbar and footer brand links > then both use the shared navbar logo treatment", () => {
