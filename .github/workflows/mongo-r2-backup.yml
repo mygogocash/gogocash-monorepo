@@ -1,0 +1,138 @@
+name: Mongo -> R2 Backup
+
+# Offsite disaster-recovery backup of the production MongoDB to Cloudflare R2 (#546).
+# Volume snapshots (#545) protect against volume loss; this protects against a
+# project wipe / regional failure by streaming a gzip archive offsite daily.
+#
+# UNVERIFIED until first run: this workflow cannot be tested in CI without the
+# secrets below and network access to the DB. After adding the secrets, run it
+# once via workflow_dispatch and confirm a green run + the object in R2.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   MONGO_BACKUP_URI        mongodb+srv/mongodb URI for a DEDICATED read-only
+#                           backup user (role: readAnyDatabase). Use the Railway
+#                           Mongo public TCP proxy host. NEVER the root user.
+#   R2_ACCOUNT_ID           Cloudflare account id (the R2 endpoint subdomain).
+#   R2_ACCESS_KEY_ID        R2 access key with write access to the bucket.
+#   R2_SECRET_ACCESS_KEY    R2 secret.
+#   R2_BUCKET               Bucket name, e.g. gogocash-mongo-backups.
+# Optional:
+#   BACKUP_DEADMAN_URL      healthchecks.io (or similar) ping URL — hit on SUCCESS
+#                           only, so a silent failure trips the dead-man's switch.
+#   BACKUP_RETENTION_DAYS   if set, prune archives older than N days after upload.
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # daily 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mongo-r2-backup
+  cancel-in-progress: false # never interrupt an in-flight backup
+
+env:
+  MONGO_TOOLS_VERSION: "100.10.0"
+  AWS_DEFAULT_REGION: auto # R2 ignores region but the aws cli requires one
+
+jobs:
+  backup:
+    name: Dump and upload
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Guard required secrets
+        env:
+          MONGO_BACKUP_URI: ${{ secrets.MONGO_BACKUP_URI }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for v in MONGO_BACKUP_URI R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET; do
+            if [ -z "${!v:-}" ]; then echo "::error::Missing required secret: $v"; missing=1; fi
+          done
+          [ "$missing" -eq 0 ] || exit 1
+
+      - name: Install mongodb-database-tools
+        run: |
+          set -euo pipefail
+          url="https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2404-x86_64-${MONGO_TOOLS_VERSION}.tgz"
+          curl -fsSL "$url" -o /tmp/mdbtools.tgz
+          tar -xzf /tmp/mdbtools.tgz -C /tmp
+          sudo cp /tmp/mongodb-database-tools-*/bin/* /usr/local/bin/
+          mongodump --version | head -1
+
+      - name: Dump -> gzip -> R2 (streamed, no PII on disk)
+        id: dump
+        env:
+          MONGO_BACKUP_URI: ${{ secrets.MONGO_BACKUP_URI }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y-%m-%dT%H%M%SZ)"
+          key="mongo/gogocash-${stamp}.archive.gz"
+          endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          # PIPEFAIL makes a mongodump failure fail the step even though it's
+          # upstream of the aws pipe.
+          mongodump --uri="$MONGO_BACKUP_URI" --gzip --archive \
+            | aws s3 cp - "s3://${R2_BUCKET}/${key}" --endpoint-url "$endpoint" --no-progress
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+          echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the object exists and is non-empty
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          size=$(aws s3api head-object \
+            --bucket "$R2_BUCKET" --key "${{ steps.dump.outputs.key }}" \
+            --endpoint-url "${{ steps.dump.outputs.endpoint }}" \
+            --query 'ContentLength' --output text)
+          echo "Backup ${{ steps.dump.outputs.key }} = ${size} bytes"
+          if [ -z "$size" ] || [ "$size" -lt 1024 ]; then
+            echo "::error::Backup object is missing or suspiciously small (${size} bytes)"; exit 1
+          fi
+
+      - name: Prune old archives (opt-in)
+        if: ${{ success() }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          RETENTION_DAYS: ${{ secrets.BACKUP_RETENTION_DAYS }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RETENTION_DAYS:-}" ]; then
+            echo "BACKUP_RETENTION_DAYS unset — keeping all archives (no prune)."; exit 0
+          fi
+          cutoff=$(date -u -d "-${RETENTION_DAYS} days" +%s)
+          aws s3 ls "s3://${R2_BUCKET}/mongo/" --endpoint-url "${{ steps.dump.outputs.endpoint }}" \
+            | while read -r d t _ name; do
+                ts=$(date -u -d "$d $t" +%s 2>/dev/null || echo 0)
+                if [ "$ts" -gt 0 ] && [ "$ts" -lt "$cutoff" ]; then
+                  echo "pruning $name"
+                  aws s3 rm "s3://${R2_BUCKET}/mongo/${name}" --endpoint-url "${{ steps.dump.outputs.endpoint }}"
+                fi
+              done
+
+      - name: Ping dead-man's switch (success only)
+        if: ${{ success() }}
+        env:
+          DEADMAN_URL: ${{ secrets.BACKUP_DEADMAN_URL }}
+        run: |
+          set -euo pipefail
+          if [ -n "${DEADMAN_URL:-}" ]; then
+            curl -fsS --max-time 20 "$DEADMAN_URL" && echo "deadman pinged"
+          else
+            echo "BACKUP_DEADMAN_URL unset — skipping dead-man's switch ping."
+          fi

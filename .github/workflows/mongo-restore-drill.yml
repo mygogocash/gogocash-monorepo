@@ -1,0 +1,142 @@
+name: Mongo Restore Drill
+
+# Weekly proof that the R2 backups (#546) are actually restorable — a backup you
+# have never restored is not a backup. Pulls the latest archive from R2, restores
+# it into a THROWAWAY mongo:7 service container, and asserts documents came back.
+#
+# Safe by construction: it only ever writes to the ephemeral service container,
+# never to any real database. No --drop is used (honours the ticket's restore
+# non-negotiable), though the target is empty anyway.
+#
+# UNVERIFIED until first run: needs the R2 secrets below + at least one backup
+# object present. Run once via workflow_dispatch after the backup workflow has
+# produced an archive.
+#
+# Required repository secrets (read-only R2 access is enough):
+#   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
+# Optional:
+#   RESTORE_DRILL_DEADMAN_URL   pinged on SUCCESS only.
+
+on:
+  schedule:
+    - cron: "0 5 * * 1" # weekly, Monday 05:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mongo-restore-drill
+  cancel-in-progress: true
+
+env:
+  MONGO_TOOLS_VERSION: "100.10.0"
+  AWS_DEFAULT_REGION: auto
+  TARGET_URI: mongodb://localhost:27017
+
+jobs:
+  restore-drill:
+    name: Restore latest backup into a throwaway Mongo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' localhost:27017"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    steps:
+      - name: Guard required secrets
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for v in R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET; do
+            if [ -z "${!v:-}" ]; then echo "::error::Missing required secret: $v"; missing=1; fi
+          done
+          [ "$missing" -eq 0 ] || exit 1
+
+      - name: Install mongodb-database-tools (mongorestore)
+        run: |
+          set -euo pipefail
+          url="https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2404-x86_64-${MONGO_TOOLS_VERSION}.tgz"
+          curl -fsSL "$url" -o /tmp/mdbtools.tgz
+          tar -xzf /tmp/mdbtools.tgz -C /tmp
+          sudo cp /tmp/mongodb-database-tools-*/bin/* /usr/local/bin/
+          mongorestore --version | head -1
+
+      - name: Download the latest backup archive from R2
+        id: fetch
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          # Keys are ISO-timestamped, so lexicographic sort == chronological.
+          latest=$(aws s3 ls "s3://${R2_BUCKET}/mongo/" --endpoint-url "$endpoint" \
+            | awk '{print $4}' | grep -E '\.archive\.gz$' | sort | tail -1)
+          if [ -z "$latest" ]; then echo "::error::No backup archives found in s3://${R2_BUCKET}/mongo/"; exit 1; fi
+          echo "Latest backup: $latest"
+          aws s3 cp "s3://${R2_BUCKET}/mongo/${latest}" /tmp/backup.archive.gz \
+            --endpoint-url "$endpoint" --no-progress
+          echo "archive=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Restore into the throwaway Mongo (no --drop)
+        run: |
+          set -euo pipefail
+          # Capture mongorestore's summary; it prints "<N> document(s) restored
+          # successfully. <M> document(s) failed to restore."
+          mongorestore --uri="$TARGET_URI" --gzip --archive=/tmp/backup.archive.gz 2>&1 | tee /tmp/restore.log
+          restored=$(grep -oE '[0-9]+ document\(s\) restored successfully' /tmp/restore.log | grep -oE '^[0-9]+' | tail -1 || echo 0)
+          failed=$(grep -oE '[0-9]+ document\(s\) failed to restore' /tmp/restore.log | grep -oE '^[0-9]+' | tail -1 || echo 0)
+          echo "restored=${restored} failed=${failed}"
+          if [ "${failed:-0}" -ne 0 ]; then echo "::error::${failed} documents failed to restore"; exit 1; fi
+          if [ "${restored:-0}" -lt 1 ]; then echo "::error::Restore produced 0 documents — backup is empty or corrupt"; exit 1; fi
+
+      - name: Per-database document counts (parity summary)
+        run: |
+          set -euo pipefail
+          # mongosh ships inside the mongo:7 image; reach the service via host port.
+          docker run --rm --network host mongo:7 mongosh "$TARGET_URI" --quiet --eval '
+            const out = [];
+            db.adminCommand({ listDatabases: 1 }).databases
+              .filter(d => !["admin","config","local"].includes(d.name))
+              .forEach(d => {
+                const cdb = db.getSiblingDB(d.name);
+                cdb.getCollectionNames().forEach(c => {
+                  out.push(`${d.name}.${c} = ${cdb.getCollection(c).countDocuments({})}`);
+                });
+              });
+            print(out.length ? out.join("\n") : "NO USER COLLECTIONS RESTORED");
+            if (!out.length) quit(1);
+          '
+
+      - name: Ping dead-man's switch (success only)
+        if: ${{ success() }}
+        env:
+          DEADMAN_URL: ${{ secrets.RESTORE_DRILL_DEADMAN_URL }}
+        run: |
+          set -euo pipefail
+          if [ -n "${DEADMAN_URL:-}" ]; then
+            curl -fsS --max-time 20 "$DEADMAN_URL" && echo "deadman pinged"
+          else
+            echo "RESTORE_DRILL_DEADMAN_URL unset — skipping ping."
+          fi
+
+      - name: Drill summary
+        if: ${{ always() }}
+        run: |
+          {
+            echo "## Mongo restore drill"
+            echo "- Archive: ${{ steps.fetch.outputs.archive || 'n/a' }}"
+            echo "- Result: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"
