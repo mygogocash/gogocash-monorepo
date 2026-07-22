@@ -52,7 +52,7 @@ import { motion } from "@mobile/theme/motion";
 
 import { createHomeScreenStyles } from "./home/customerHomeStyles";
 import { CustomerMobileBottomNav } from "./home/CustomerMobileBottomNav";
-import { isGoLinkEnabled } from "@mobile/config/featureFlags";
+import { resolveGoLinkMode } from "@mobile/config/featureFlags";
 import { DesktopGoLinkBanner } from "./home/DesktopGoLinkBanner";
 import { homeGoLinkShopNowRoute, homeIconStrokeWidth, webSearchInputFocusReset } from "./home/homeAssets";
 import { HomeHeroBanners } from "./home/HomeHeroBanners";
@@ -101,6 +101,8 @@ export function CustomerHomeScreen() {
   const [searchAnchorFrame, setSearchAnchorFrame] = useState<SearchAnchorFrame | null>(null);
   const [goLinkSheetOpen, setGoLinkSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // GoLink 3-state: "hidden" removes the surface, "comingSoon" shows it disabled.
+  const goLinkMode = resolveGoLinkMode();
   const brandCatalogResource = useCustomerAccountResource({
     fixtureData: webHomePromoSections,
     resourceId: "brandCatalog",
@@ -191,8 +193,9 @@ export function CustomerHomeScreen() {
       {webHomeSectionOrder.includes("banner") ? (
         <HomeHeroBanners homeLayout={homeLayout} />
       ) : null}
-      {homeLayout.isDesktop && isGoLinkEnabled() ? (
+      {homeLayout.isDesktop && goLinkMode !== "hidden" ? (
         <DesktopGoLinkBanner
+          comingSoon={goLinkMode === "comingSoon"}
           onOpenGuideline={() => setDesktopGoLinkGuidelineOpen(true)}
           onResultHref={setDesktopGoLinkResultHref}
         />
