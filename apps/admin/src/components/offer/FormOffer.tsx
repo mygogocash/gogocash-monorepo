@@ -1144,7 +1144,16 @@ const FormOffer = ({
       toast.success("Partner info updated successfully");
     } catch (err) {
       devError("Failed to update partner info:", err);
-      setTrackingSaveError("Could not update partner info. Please try again.");
+      // Surface the API's actual message. The hardcoded string here is exactly
+      // why #516 went undiagnosed — a 400 naming the rejected fields
+      // (affiliate_network_id / deeplink_store_id) was hidden behind "Please try
+      // again", so nobody saw the cause.
+      setTrackingSaveError(
+        getApiErrorMessage(
+          err,
+          "Could not update partner info. Please try again, or contact an administrator if it continues.",
+        ),
+      );
     } finally {
       setSavingTracking(false);
     }
