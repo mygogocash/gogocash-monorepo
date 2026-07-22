@@ -13,7 +13,7 @@ import {
 } from './schemas/media-original-archive.schema';
 
 /** A public, image upload is eligible to be archived to Drive. */
-export function isArchivableUpload(
+function isArchivableUpload(
   file: Pick<Express.Multer.File, 'mimetype'> | undefined,
   folder: MediaFolder,
 ): boolean {
@@ -79,9 +79,7 @@ export class MediaOriginalArchiveService {
       const message = error instanceof Error ? error.message : String(error);
       // Best-effort by design: log and move on. The served image is fine; only
       // the recoverable-original guarantee is missing for this asset.
-      this.logger.warn(
-        `Original archive skipped for ${objectKey}: ${message}`,
-      );
+      this.logger.warn(`Original archive skipped for ${objectKey}: ${message}`);
     }
   }
 }

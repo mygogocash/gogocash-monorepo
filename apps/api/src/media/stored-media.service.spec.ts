@@ -74,7 +74,9 @@ describe('StoredMediaService', () => {
       purgeUrls: jest.fn().mockResolvedValue({ purged: true }),
     };
 
-    originalArchive = { archiveOriginal: jest.fn().mockResolvedValue(undefined) };
+    originalArchive = {
+      archiveOriginal: jest.fn().mockResolvedValue(undefined),
+    };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
