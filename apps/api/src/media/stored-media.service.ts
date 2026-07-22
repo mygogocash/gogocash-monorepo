@@ -7,6 +7,7 @@ import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { R2ObjectStorageService } from './r2-object-storage.service';
 import { ImageOptimizerService } from './image-optimizer.service';
 import { CdnCachePurgeService } from './cdn-cache-purge.service';
+import { MediaOriginalArchiveService } from './media-original-archive.service';
 import {
   isPrivateMediaFolder,
   MediaFolder,
@@ -63,6 +64,7 @@ export class StoredMediaService {
     private readonly googleDriveService: GoogleDriveService,
     private readonly imageOptimizer: ImageOptimizerService,
     private readonly cdnCachePurge: CdnCachePurgeService,
+    private readonly originalArchive: MediaOriginalArchiveService,
   ) {}
 
   async upload(
@@ -73,12 +75,21 @@ export class StoredMediaService {
     const access = isPrivateMediaFolder(folder) ? 'private' : 'public';
     // Resize + re-encode display images before storage (no-op for private
     // evidence folders, non-images, and anything the optimizer can't decode).
+    // optimizeUpload returns a NEW object, so `file` here is still the original.
     const optimized = await this.imageOptimizer.optimizeUpload(file, folder);
     const uploaded = await this.r2ObjectStorage.uploadFile(
       optimized,
       prefix,
       access,
     );
+    // Best-effort: archive the ORIGINAL to Google Drive so a full-res source
+    // survives the optimizer's width cap. Never throws — R2 already succeeded.
+    await this.originalArchive.archiveOriginal({
+      original: file,
+      folder,
+      objectKey: uploaded.objectKey,
+      servedUrl: uploaded.publicUrl,
+    });
     return uploaded.publicUrl;
   }
 
