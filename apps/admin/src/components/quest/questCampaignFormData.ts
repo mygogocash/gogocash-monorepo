@@ -42,6 +42,20 @@ function isBrowserFile(value: unknown): value is File {
   return typeof File !== "undefined" && value instanceof File;
 }
 
+/**
+ * Normalize free-text campaign fields (facebook_page/facebook_post/line).
+ *
+ * Older saves persisted the literal strings "undefined"/"null" (from
+ * `String(undefined)` on an empty field). Those flowed back into the editor and
+ * re-saved, so the fields showed "undefined". Treat the sentinels — and any
+ * non-string / whitespace-only value — as empty, both on load and on save.
+ */
+export function sanitizeQuestCampaignText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  return trimmed === "undefined" || trimmed === "null" ? "" : trimmed;
+}
+
 export function hasCompleteQuestBannerSet(
   draft: QuestCampaignBannerDraft,
 ): boolean {
@@ -106,9 +120,9 @@ export function buildQuestCampaignFormData(
   form.append("start_date", input.startDate);
   form.append("end_date", input.endDate);
   form.append("status", input.status);
-  form.append("facebook_page", input.facebookPage.trim());
-  form.append("facebook_post", input.facebookPost.trim());
-  form.append("line", input.line.trim());
+  form.append("facebook_page", sanitizeQuestCampaignText(input.facebookPage));
+  form.append("facebook_post", sanitizeQuestCampaignText(input.facebookPost));
+  form.append("line", sanitizeQuestCampaignText(input.line));
 
   for (const { draftKey, formKey, label } of BANNER_FIELDS) {
     const value = input[draftKey];
