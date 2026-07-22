@@ -20,7 +20,10 @@
 // the same URL everywhere (one CDN variant, one expo-image cache entry).
 export const HERO_BANNER_IMAGE_WIDTH = 1600;
 export const SIDE_BANNER_IMAGE_WIDTH = 800;
-export const SHOP_BANNER_IMAGE_WIDTH = 1080;
+// #493 — the shop-detail hero fills full device width, so it shares the home hero's
+// 1600px variant. At 1080 a 1920px stored brand banner was undersampled and upscaled on
+// high-DPR phones (the reported soft banner). 1600 <= 1920 stored, so no upscale.
+export const SHOP_BANNER_IMAGE_WIDTH = HERO_BANNER_IMAGE_WIDTH;
 export const BRAND_LOGO_IMAGE_WIDTH = 320;
 
 const DEFAULT_IMAGE_QUALITY = 78;

@@ -4,6 +4,7 @@ import { MEDIA_FOLDER, resolveMediaFolder } from './media-folders.config';
 import {
   ImageOptimizerService,
   resolveMaxImageWidth,
+  resolveWebpQuality,
 } from './image-optimizer.service';
 
 /**
@@ -57,6 +58,33 @@ describe('ImageOptimizerService', () => {
     const meta = await sharp(optimized.buffer).metadata();
     expect(meta.format).toBe('webp');
     expect(meta.width).toBe(resolveMaxImageWidth(MEDIA_FOLDER.BANNER_HOME));
+  });
+
+  it('optimizeUpload > given the same wide source > then brand banners keep more bytes than same-width logo-tier folders (q90 wired end-to-end)', async () => {
+    // BRAND_BANNERS and BANNER_HOME share the 1920px width cap, so the ONLY thing that can
+    // differ in their output is the WebP quality (90 vs 82). Running one source through both
+    // and asserting brand-banner bytes > home-banner bytes proves resolveWebpQuality is
+    // actually applied inside optimizeUpload — not merely returned in isolation. (#493)
+    const original = await makePng(2400, 820);
+
+    const brandBanner = await service.optimizeUpload(
+      asUpload(original, 'hero.png', 'image/png'),
+      MEDIA_FOLDER.BRAND_BANNERS,
+    );
+    const homeBanner = await service.optimizeUpload(
+      asUpload(original, 'hero.png', 'image/png'),
+      MEDIA_FOLDER.BANNER_HOME,
+    );
+
+    const brandMeta = await sharp(brandBanner.buffer).metadata();
+    const homeMeta = await sharp(homeBanner.buffer).metadata();
+    // Same width cap...
+    expect(brandMeta.width).toBe(1920);
+    expect(brandMeta.width).toBe(homeMeta.width);
+    // ...so the higher quality is the only reason brand banners carry more detail (bytes).
+    expect(brandBanner.buffer.length).toBeGreaterThan(homeBanner.buffer.length);
+    // And q90 still clears the size-guard (both smaller than the source PNG).
+    expect(brandBanner.buffer.length).toBeLessThan(original.length);
   });
 
   it('optimizeUpload > given a small logo with alpha > then keeps dimensions (no upscale) and preserves transparency', async () => {
@@ -147,6 +175,20 @@ describe('ImageOptimizerService', () => {
     );
     // The split only helps if logos did NOT come along for the ride.
     expect(resolveMaxImageWidth(MEDIA_FOLDER.BRANDS)).toBe(1024);
+  });
+
+  /**
+   * #493 — the width split stops the banner being downsampled, but the global WebP
+   * quality (82) is tuned for logos/cards. Wide hero art gets q90 so the re-encode does
+   * not add visible softening on top of the already-correct resolution. Every other
+   * folder keeps 82. The size-guard in optimizeUpload still stores the ORIGINAL whenever
+   * the higher-quality re-encode is not smaller, so q90 never bloats storage.
+   */
+  it('brand banners > given the per-folder webp quality > then hero art is q90 while logos stay q82', () => {
+    expect(resolveWebpQuality(MEDIA_FOLDER.BRAND_BANNERS)).toBe(90);
+    expect(resolveWebpQuality(MEDIA_FOLDER.BRANDS)).toBe(82);
+    expect(resolveWebpQuality(MEDIA_FOLDER.CATEGORIES)).toBe(82);
+    expect(resolveWebpQuality(MEDIA_FOLDER.BANNER_HOME)).toBe(82);
   });
 
   it('brand banners > given the env prefix map > then the new folder is overridable like every other', () => {

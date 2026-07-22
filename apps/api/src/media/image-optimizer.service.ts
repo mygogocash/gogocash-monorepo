@@ -25,6 +25,15 @@ import {
 
 const WEBP_QUALITY = 82;
 
+// #493 — wide hero art gets a higher WebP quality than logos/cards. The resolution split
+// (BRAND_BANNERS -> 1920) fixes downsampling; q90 keeps the re-encode from adding its own
+// softening on top. Every unlisted folder keeps the 82 default. The size-guard in
+// optimizeUpload still stores the ORIGINAL if the richer re-encode is not smaller, so this
+// never bloats storage.
+const WEBP_QUALITY_BY_FOLDER: Partial<Record<MediaFolder, number>> = {
+  [MEDIA_FOLDER.BRAND_BANNERS]: 90,
+};
+
 const OPTIMIZABLE_MIME_TYPES = new Set([
   'image/png',
   'image/jpeg',
@@ -47,6 +56,10 @@ const MAX_IMAGE_WIDTH_BY_FOLDER: Partial<Record<MediaFolder, number>> = {
 
 export function resolveMaxImageWidth(folder: MediaFolder): number {
   return MAX_IMAGE_WIDTH_BY_FOLDER[folder] ?? DEFAULT_MAX_IMAGE_WIDTH;
+}
+
+export function resolveWebpQuality(folder: MediaFolder): number {
+  return WEBP_QUALITY_BY_FOLDER[folder] ?? WEBP_QUALITY;
 }
 
 function webpFilename(originalname: string): string {
@@ -79,7 +92,7 @@ export class ImageOptimizerService {
           width: resolveMaxImageWidth(folder),
           withoutEnlargement: true,
         })
-        .webp({ quality: WEBP_QUALITY })
+        .webp({ quality: resolveWebpQuality(folder) })
         .toBuffer();
 
       if (optimizedBuffer.length >= file.buffer.length) {

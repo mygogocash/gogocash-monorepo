@@ -94,7 +94,12 @@ describe("optimizedImageUrl", () => {
   it("shared width constants > pin the per-surface transform sizes", () => {
     expect(HERO_BANNER_IMAGE_WIDTH).toBe(1600);
     expect(SIDE_BANNER_IMAGE_WIDTH).toBe(800);
-    expect(SHOP_BANNER_IMAGE_WIDTH).toBe(1080);
+    // #493 — the shop-detail hero fills full device width like the home hero, so it must
+    // request the same 1600px CDN variant. At 1080 a 1920px stored banner is undersampled
+    // and upscaled on high-DPR phones (soft banner). Sharing the width also means one CDN
+    // variant / one expo-image cache entry across both hero surfaces.
+    expect(SHOP_BANNER_IMAGE_WIDTH).toBe(1600);
+    expect(SHOP_BANNER_IMAGE_WIDTH).toBe(HERO_BANNER_IMAGE_WIDTH);
     expect(BRAND_LOGO_IMAGE_WIDTH).toBe(320);
   });
 });
