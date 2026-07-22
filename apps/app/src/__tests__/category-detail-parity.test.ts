@@ -42,7 +42,7 @@ describe("Category detail parity", () => {
         "Find cashback deals from brands in Health & Beauty. Search and sort to narrow results.",
       searchPlaceholder: "Search within Health & Beauty",
       sortLabel: "Sort by:",
-      storeCountLabel: "13 brands in this category",
+      storeCountLabel: "13 brands",
       categories: [
         "All",
         "Digital Services",
@@ -214,6 +214,9 @@ describe("Category detail parity", () => {
     expect(screenFile).not.toContain("Find cashback deals from stores in");
     expect(screenFile).toContain('count === 1 ? "brand" : "brands"');
     expect(screenFile).not.toContain('"store" : "stores"');
+    // Count label aligns with Explore Brand's `{n} brands` (CustomerBrandDirectoryScreen
+    // renders `${count} ${tc(webBrandDirectory.resultsUnit)}`) — no trailing clause.
+    expect(screenFile).not.toContain("in this category");
 
     // tc() only resolves the localized Health & Beauty subtitle when the inline template's output
     // (category interpolated) equals this fixture — so they must stay in lockstep.
