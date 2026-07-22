@@ -609,7 +609,10 @@ describe("Expo home design parity", () => {
     ]);
     expect(homeFile).toContain("webHomePromoSections");
     expect(homeFile).toContain('resourceId: "brandCatalog"');
-    expect(homeFile).toContain("resolveHomePromoSections");
+    // Homepage rails now prefer the admin-curated /offer/landing-rails config,
+    // falling back to the webHomePromoSections fixture (see resolveApiLandingRails).
+    expect(homeFile).toContain('resourceId: "landingRails"');
+    expect(homeFile).toContain("resolveApiLandingRails");
     expect(homeFile).not.toContain("Recommended Shops");
     expect(homeFile).not.toContain("Travel cashback stores");
     expect(homeFile).not.toContain("Beauty store rewards");

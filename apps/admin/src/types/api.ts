@@ -784,6 +784,52 @@ export interface SaveTopBrandsResponse {
   message?: string;
 }
 
+/** One curated homepage landing rail (admin view). */
+export interface LandingRailAdmin {
+  railId: string;
+  title: string;
+  emoji: string;
+  link: string;
+  cardVariant: string;
+  position: number;
+  enabled: boolean;
+  orderDesktop: string[];
+  orderMobile: string[];
+  brandsDesktop: TopBrandConfigEntry[];
+  brandsMobile: TopBrandConfigEntry[];
+}
+
+export interface LandingRailsAdminResponse {
+  rails: LandingRailAdmin[];
+  /** Resolved offer catalog for every curated offerId across all rails. */
+  items: Offer[];
+  maxRails: number;
+  maxBrands: number;
+}
+
+/** One rail in a save payload. Brand lists reuse the Top brands entry shape. */
+export interface SaveLandingRailPayload {
+  railId: string;
+  title?: string;
+  emoji?: string;
+  link?: string;
+  cardVariant?: string;
+  position?: number;
+  enabled?: boolean;
+  brandsDesktop?: TopBrandConfigEntry[];
+  brandsMobile?: TopBrandConfigEntry[];
+}
+
+export interface SaveLandingRailsPayload {
+  rails: SaveLandingRailPayload[];
+}
+
+export interface SaveLandingRailsResponse {
+  success: boolean;
+  rails: LandingRailAdmin[];
+  message?: string;
+}
+
 export interface ResponseWithdraws {
   data: DataWithdrawsList[];
   pagination: Pagination;

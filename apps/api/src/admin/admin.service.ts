@@ -14,6 +14,7 @@ import {
   ProductTypeDto,
   ADMIN_ASSIGNABLE_ROLES,
   SaveTopBrandsDto,
+  SaveLandingRailsDto,
   UpdateAdminDto,
   UpdateBannerHomeDto,
   UpdateSpecificPageBannerDto,
@@ -57,12 +58,21 @@ import { ALL_BRAND_BANNER_MODEL } from 'src/offer/schemas/banner.schema';
 import { SPECIFIC_PAGE_BANNER_MODEL } from 'src/offer/schemas/specific-page-banner.schema';
 import { requireSpecificPageBannerTarget } from 'src/offer/specific-page-banner.contract';
 import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
+import { LandingRailConfig } from 'src/offer/schemas/landing-rail-config.schema';
 import {
   MAX_TOP_BRANDS,
   normalizeTopBrandEntries,
   resolveDeviceBrandEntries,
   resolveOfferCashbackLabel,
 } from 'src/offer/top-brand.contract';
+import {
+  MAX_LANDING_RAILS,
+  MAX_LANDING_RAIL_BRANDS,
+  landingRailMemberIds,
+  normalizeLandingRailMeta,
+  normalizeLandingRailsForSave,
+  sortLandingRails,
+} from 'src/offer/landing-rail.contract';
 import {
   mirrorTopBrandExtraStoreFlags,
   syncOfferTopBrandMembership,
@@ -223,6 +233,8 @@ export class AdminService {
     private specificPageBannerModel: Model<Banner>,
     @InjectModel(TopBrandConfig.name)
     private topBrandConfigModel: Model<TopBrandConfig>,
+    @InjectModel(LandingRailConfig.name)
+    private landingRailConfigModel: Model<LandingRailConfig>,
     @InjectModel(Deeplink.name) private deeplinkModel: Model<Deeplink>,
 
     private readonly storedMediaService: StoredMediaService,
@@ -2392,6 +2404,126 @@ export class AdminService {
       brandsDesktop: normalizedBrands,
       brandsMobile: normalizedBrands,
     };
+  }
+
+  /**
+   * Admin read for the curated homepage rails ("Trending Brands", "Travel
+   * Deals are Here!", "Makeup Must Have!"). Mirrors {@link getTopBrands}: each
+   * rail's device lists are returned with live-recomputed cashback, and a
+   * shared `items` offer catalog lets the panel render brand names/logos.
+   */
+  async getLandingRails() {
+    const rails = sortLandingRails(
+      await this.landingRailConfigModel.find().lean().exec(),
+    );
+
+    const unionIds = [
+      ...new Set(
+        rails.flatMap((rail) => [
+          ...resolveDeviceBrandEntries(rail, 'desktop').map((e) => e.offerId),
+          ...resolveDeviceBrandEntries(rail, 'mobile').map((e) => e.offerId),
+        ]),
+      ),
+    ];
+
+    const offers =
+      unionIds.length === 0
+        ? []
+        : await this.offerModel.find({ _id: { $in: unionIds } }).exec();
+    const offerById = new Map(
+      offers.map((offer) => [String(offer._id), offer]),
+    );
+
+    const withLiveCashback = (
+      entries: { offerId: string; cashback: string }[],
+    ) =>
+      entries.map((entry) => ({
+        offerId: entry.offerId,
+        cashback: resolveOfferCashbackLabel(offerById.get(entry.offerId)),
+      }));
+
+    return {
+      rails: rails.map((rail, index) => {
+        const meta = normalizeLandingRailMeta(rail, index);
+        const brandsDesktop = withLiveCashback(
+          resolveDeviceBrandEntries(rail, 'desktop'),
+        );
+        const brandsMobile = withLiveCashback(
+          resolveDeviceBrandEntries(rail, 'mobile'),
+        );
+        return {
+          railId: meta.railId,
+          title: meta.title,
+          emoji: meta.emoji,
+          link: meta.link,
+          cardVariant: meta.cardVariant,
+          position: meta.position,
+          enabled: meta.enabled,
+          orderDesktop: brandsDesktop.map((b) => b.offerId),
+          orderMobile: brandsMobile.map((b) => b.offerId),
+          brandsDesktop,
+          brandsMobile,
+        };
+      }),
+      items: unionIds
+        .map((offerId) => offerById.get(offerId))
+        .filter((offer) => offer != null),
+      maxRails: MAX_LANDING_RAILS,
+      maxBrands: MAX_LANDING_RAIL_BRANDS,
+    };
+  }
+
+  /**
+   * Save the full set of curated homepage rails. Replace-set semantics: the
+   * admin panel always sends the complete list, so rails whose `railId` is no
+   * longer present are removed, and the remaining rails are upserted by
+   * `railId`. Each rail's curated offers are validated for eligibility exactly
+   * like Top brands. Cashback is never trusted from the client.
+   */
+  async saveLandingRails(input: SaveLandingRailsDto | null | undefined) {
+    const rails = normalizeLandingRailsForSave(input?.rails);
+
+    for (const rail of rails) {
+      if (
+        rail.brandsDesktop.length > MAX_LANDING_RAIL_BRANDS ||
+        rail.brandsMobile.length > MAX_LANDING_RAIL_BRANDS
+      ) {
+        throw new BadRequestException(
+          `Each landing rail is limited to ${MAX_LANDING_RAIL_BRANDS} offers.`,
+        );
+      }
+    }
+
+    await this.assertTopBrandOffersEligible(landingRailMemberIds(rails));
+
+    const keepRailIds = rails.map((rail) => rail.railId);
+    // Remove rails the admin dropped from the list (replace-set semantics).
+    await this.landingRailConfigModel
+      .deleteMany({ railId: { $nin: keepRailIds } })
+      .exec();
+
+    for (const rail of rails) {
+      await this.landingRailConfigModel.updateOne(
+        { railId: rail.railId },
+        {
+          $set: {
+            railId: rail.railId,
+            title: rail.title,
+            emoji: rail.emoji,
+            link: rail.link,
+            cardVariant: rail.cardVariant,
+            position: rail.position,
+            enabled: rail.enabled,
+            brands: rail.brands,
+            brandsDesktop: rail.brandsDesktop,
+            brandsMobile: rail.brandsMobile,
+          },
+        },
+        { upsert: true },
+      );
+    }
+
+    return { success: true, rails };
   }
 
   /**
