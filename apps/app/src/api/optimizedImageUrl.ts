@@ -30,6 +30,28 @@ const OPTIMIZED_IMAGE_URL_PREFIXES = [
   "https://media.gogocash.co/",
 ] as const;
 
+/**
+ * The set of hosts routed through Cloudflare Image Resizing. The built-in media
+ * hosts are always included; `EXPO_PUBLIC_MEDIA_HOST` extends it so that if the
+ * API's `R2_PUBLIC_BASE_URL` is ever repointed to a new host, setting the
+ * matching env keeps optimization working instead of silently serving raw. Read
+ * per call (not memoized) so the value stays correct under env changes/tests.
+ */
+function optimizedImagePrefixes(): string[] {
+  const prefixes: string[] = [...OPTIMIZED_IMAGE_URL_PREFIXES];
+  const configured = process.env.EXPO_PUBLIC_MEDIA_HOST?.trim();
+  if (configured) {
+    const origin = configured.startsWith("http")
+      ? configured
+      : `https://${configured}`;
+    const withSlash = origin.endsWith("/") ? origin : `${origin}/`;
+    if (!prefixes.includes(withSlash)) {
+      prefixes.push(withSlash);
+    }
+  }
+  return prefixes;
+}
+
 export type OptimizedImageOptions = {
   width: number;
   quality?: number;
@@ -43,7 +65,7 @@ export function optimizedImageUrl(
     return url;
   }
 
-  const prefix = OPTIMIZED_IMAGE_URL_PREFIXES.find((candidate) =>
+  const prefix = optimizedImagePrefixes().find((candidate) =>
     url.startsWith(candidate),
   );
   if (!prefix) {
