@@ -185,7 +185,37 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   const mintedLinkRef = useRef<Promise<string | null> | null>(null);
   const redirectFallbackRef = useRef<string | undefined>(undefined);
   const allowSearchFallbackRef = useRef(true);
+  // Guards a double-open when the awaited mint and a manual "Tap here" race.
+  // Reset at the start of every redirect.
+  const redirectOpenedRef = useRef(false);
+
+  // Open the merchant exactly once + hide the overlay. `minted` is the per-user
+  // tracked link when ready; null falls back to the raw tracking link (or a
+  // brand search when allowed).
+  const openDestination = (minted: string | null) => {
+    if (redirectOpenedRef.current) return;
+    redirectOpenedRef.current = true;
+    setRedirecting(false);
+    const destination =
+      minted ||
+      redirectFallbackRef.current ||
+      (allowSearchFallbackRef.current
+        ? `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
+        : null);
+    if (!destination) return;
+    void Linking.openURL(destination).catch(() => undefined);
+  };
+
+  // Redirect the MOMENT the mint resolves — a ready link opens instantly; a slow
+  // one is capped by mintUserTrackingLink's AbortController, then falls back to
+  // the raw link. No fixed minimum wait.
+  const openMerchantUrl = async () => {
+    const minted = await (mintedLinkRef.current ?? Promise.resolve(null));
+    openDestination(minted);
+  };
+
   const beginShopNowRedirect = () => {
+    redirectOpenedRef.current = false;
     redirectFallbackRef.current = shop.trackingUrl;
     allowSearchFallbackRef.current = true;
     mintedLinkRef.current = mintUserTrackingLink({
@@ -199,10 +229,12 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
       offerId: shop.offerId,
     });
     setRedirecting(true);
+    void openMerchantUrl();
   };
 
   const beginCouponRedirect = (coupon: ShopCoupon) => {
     if (!coupon.destinationUrl) return;
+    redirectOpenedRef.current = false;
     redirectFallbackRef.current = coupon.destinationUrl;
     allowSearchFallbackRef.current = false;
     mintedLinkRef.current = mintUserTrackingLink({
@@ -216,18 +248,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
       offerId: shop.offerId,
     });
     setRedirecting(true);
-  };
-
-  const openMerchantUrl = async () => {
-    const minted = await (mintedLinkRef.current ?? Promise.resolve(null));
-    const destination =
-      minted ||
-      redirectFallbackRef.current ||
-      (allowSearchFallbackRef.current
-        ? `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
-        : null);
-    if (!destination) return;
-    void Linking.openURL(destination).catch(() => undefined);
+    void openMerchantUrl();
   };
 
   const handleShopNow = () => {
@@ -413,10 +434,8 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
         {redirecting ? (
           <ShopRedirectOverlay
             brand={shop.brand}
-            onComplete={() => {
-              setRedirecting(false);
-              void openMerchantUrl();
-            }}
+            logoUri={shop.logoUri}
+            onComplete={() => openDestination(null)}
           />
         ) : null}
       </View>
@@ -458,10 +477,8 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
       {redirecting ? (
         <ShopRedirectOverlay
           brand={shop.brand}
-          onComplete={() => {
-            setRedirecting(false);
-            void openMerchantUrl();
-          }}
+          logoUri={shop.logoUri}
+          onComplete={() => openDestination(null)}
         />
       ) : null}
     </View>
