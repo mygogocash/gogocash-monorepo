@@ -84,7 +84,7 @@ const packageJson = JSON.parse(
   readFileSync(resolve(repoRoot, "package.json"), "utf8"),
 );
 const SETUP_NODE_ACTION =
-  "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e";
+  "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020";
 
 function indentation(line) {
   return line.match(/^ */)?.[0].length ?? 0;
