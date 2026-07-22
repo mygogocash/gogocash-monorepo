@@ -95,6 +95,17 @@ describe("GoGoCash Expo web metadata parity", () => {
     expect(html).toContain('<meta property="og:image:alt" content="GoGoCash — Earn Cashback on Every Spend"');
     expect(html).toContain('<meta property="og:type" content="website"');
     expect(html).toContain('<meta name="twitter:image:alt" content="GoGoCash — Earn Cashback on Every Spend"');
+    // SEO wins (2026-07-23): drop the dead IE tag, add robots large-preview, bilingual og:locale,
+    // preconnect the brand image CDN, and JSON-LD Organization + WebSite (search box + logo).
+    expect(html).not.toContain("X-UA-Compatible");
+    expect(html).toContain('<meta name="robots" content="index, follow, max-image-preview:large');
+    expect(html).toContain('<meta property="og:locale" content="en_US"');
+    expect(html).toContain('<meta property="og:locale:alternate" content="th_TH"');
+    expect(html).toContain('rel="preconnect" href="https://media.gogocash.co"');
+    expect(html).toContain('application/ld+json');
+    expect(html).toContain('"@type": "Organization"');
+    expect(html).toContain('"@type": "WebSite"');
+    expect(html).toContain('"@type": "SearchAction"');
   });
 
   it("web metadata parity > given the migrated route catalog > then sitemap exposes localized concrete customer URLs", () => {

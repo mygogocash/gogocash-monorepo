@@ -2,8 +2,8 @@
 <html lang="%LANG_ISO_CODE%">
   <head>
     <meta charset="utf-8" />
-    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="description" content="GoGoCash is a cashback platform that rewards users instantly for online shopping. Shop, save, and earn in real-time with seamless integration across top e-commerce and telco providers in Southeast Asia." />
     <meta name="theme-color" content="#00B14F" />
     <meta name="application-name" content="GoGoCash" />
@@ -18,6 +18,8 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="GoGoCash — Earn Cashback on Every Spend" />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="th_TH" />
     <meta property="og:site_name" content="GoGoCash" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="GoGoCash - Earn Cash on Every Spend" />
@@ -31,7 +33,37 @@
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://media.gogocash.co" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "name": "GoGoCash",
+            "url": "https://app.gogocash.co",
+            "logo": "https://app.gogocash.co/android-chrome-512x512.png",
+            "sameAs": [
+              "https://x.com/mygogocash",
+              "https://www.linkedin.com/company/gogocash",
+              "https://www.youtube.com/@mygogocash",
+              "https://t.me/GoGoCashOfficialChannel"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "name": "GoGoCash",
+            "url": "https://app.gogocash.co",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://app.gogocash.co/en/search?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          }
+        ]
+      }
+    </script>
     <title>%WEB_TITLE%</title>
     <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
