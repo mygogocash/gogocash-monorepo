@@ -21,6 +21,14 @@ export function isGoGoPassEnabled(): boolean {
   return resolveFeatureEnabled(process.env.EXPO_PUBLIC_ENABLE_GOGOPASS);
 }
 
+export function resolveCreditScoreEnabled(value: string | undefined): boolean {
+  return resolveFeatureEnabled(value);
+}
+
+export function isCreditScoreEnabled(): boolean {
+  return resolveFeatureEnabled(process.env.EXPO_PUBLIC_ENABLE_CREDIT_SCORE);
+}
+
 export function isGoGoTrackEnabled(): boolean {
   return resolveFeatureEnabled(process.env.EXPO_PUBLIC_ENABLE_GOTOTRACK);
 }
@@ -38,6 +46,10 @@ const PROFILE_MENU_FEATURE_GATES: ReadonlyArray<{
 }> = [
   { href: "/membership", enabled: isGoGoPassEnabled },
   { href: "/gototrack", enabled: isGoGoTrackEnabled },
+  // "My Rating Score" lives in profileHubSubNavItems (the Profile accordion),
+  // not the top-level menu — filterHiddenProfileMenuItems is generic over
+  // { href } so the same gate list covers both arrays.
+  { href: "/credit-score", enabled: isCreditScoreEnabled },
 ];
 
 export function filterHiddenProfileMenuItems<
