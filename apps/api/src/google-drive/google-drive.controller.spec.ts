@@ -42,8 +42,10 @@ describe('GoogleDriveController', () => {
   // an admin JWT (fail-closed).
   it('protects the controller with AuthAdminGuard (fail-closed)', () => {
     const guards =
-      (Reflect.getMetadata(GUARDS_METADATA, GoogleDriveController) as unknown[]) ??
-      [];
+      (Reflect.getMetadata(
+        GUARDS_METADATA,
+        GoogleDriveController,
+      ) as unknown[]) ?? [];
     expect(guards).toContain(AuthAdminGuard);
   });
 });

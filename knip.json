@@ -58,7 +58,8 @@
     "typescript-eslint",
     "@mui/material",
     "@mui/system",
-    "cache-manager"
+    "cache-manager",
+    "@swc/core"
   ],
   "ignoreIssues": {
     "apps/admin/src/lib/api.ts": [
@@ -115,6 +116,9 @@
     ],
     "apps/api/src/auth/firebase-admin.provider.ts": [
       "exports"
+    ],
+    "apps/app/src/api/optimizedImageUrl.ts": [
+      "duplicates"
     ]
   },
   "workspaces": {
