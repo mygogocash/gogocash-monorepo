@@ -26,7 +26,10 @@ const OTP_TTL_MS = 10 * 60_000;
 /** How long a successful verify may be used as proof for a profile save. */
 const VERIFIED_PROOF_TTL_MS = 30 * 60_000;
 const MAX_ATTEMPTS = 5;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Exported for the ReDoS regression test. Linear-time: labels exclude '.', so the
+// dot separators are unambiguous and no two adjacent quantifiers can match the same
+// character (fixes CodeQL js/polynomial-redos on the old `[^\s@]+\.[^\s@]+`).
+export const EMAIL_RE = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 /** Cleared after verify so the OTP code cannot be replayed; proof is `verified`. */
 const CONSUMED_OTP_HASH = 'verified';
 
