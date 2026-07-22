@@ -1,5 +1,7 @@
 import {
+  assertLeaderboardSortedDesc,
   buildLegacyRewardEvidence,
+  computeGeneratorSnapshotHash,
   computeLeaderboardSnapshotHash,
   selectFundedRankEntries,
   type GeneratorQuestInput,
@@ -421,5 +423,107 @@ describe('leaderboard snapshot hash', () => {
       { user_id: uid(1), point: 900 },
     ]);
     expect(hash).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+describe('assertLeaderboardSortedDesc', () => {
+  it('throws when the leaderboard is not sorted by point descending', () => {
+    expect(() =>
+      assertLeaderboardSortedDesc([
+        { user_id: uid(1), point: 100 },
+        { user_id: uid(2), point: 900 },
+      ]),
+    ).toThrow(/not sorted|descending/i);
+  });
+
+  it('accepts a descending leaderboard, allowing equal-point ties', () => {
+    expect(() =>
+      assertLeaderboardSortedDesc([
+        { user_id: uid(1), point: 900 },
+        { user_id: uid(2), point: 900 },
+        { user_id: uid(3), point: 100 },
+      ]),
+    ).not.toThrow();
+  });
+
+  it('accepts empty and single-row leaderboards', () => {
+    expect(() => assertLeaderboardSortedDesc([])).not.toThrow();
+    expect(() =>
+      assertLeaderboardSortedDesc([{ user_id: uid(1), point: 5 }]),
+    ).not.toThrow();
+  });
+});
+
+describe('computeGeneratorSnapshotHash (funded rank + special slice)', () => {
+  it('changes when a special-next-round amount changes (special drift is detectable)', () => {
+    const a = computeGeneratorSnapshotHash({
+      fundedRankEntries: [{ user_id: uid(1), point: 900 }],
+      specialEntries: [{ user_id: uid(1), amount: 80 }],
+    });
+    const b = computeGeneratorSnapshotHash({
+      fundedRankEntries: [{ user_id: uid(1), point: 900 }],
+      specialEntries: [{ user_id: uid(1), amount: 81 }],
+    });
+    expect(a).not.toBe(b);
+  });
+
+  it('changes when a special recipient identity or ordering changes', () => {
+    const a = computeGeneratorSnapshotHash({
+      fundedRankEntries: [],
+      specialEntries: [
+        { user_id: uid(1), amount: 80 },
+        { user_id: uid(2), amount: 30 },
+      ],
+    });
+    const identityChanged = computeGeneratorSnapshotHash({
+      fundedRankEntries: [],
+      specialEntries: [
+        { user_id: uid(9), amount: 80 },
+        { user_id: uid(2), amount: 30 },
+      ],
+    });
+    const orderChanged = computeGeneratorSnapshotHash({
+      fundedRankEntries: [],
+      specialEntries: [
+        { user_id: uid(2), amount: 30 },
+        { user_id: uid(1), amount: 80 },
+      ],
+    });
+    expect(a).not.toBe(identityChanged);
+    expect(a).not.toBe(orderChanged);
+  });
+
+  it('changes when the funded-rank slice changes', () => {
+    const a = computeGeneratorSnapshotHash({
+      fundedRankEntries: [{ user_id: uid(1), point: 900 }],
+      specialEntries: [],
+    });
+    const b = computeGeneratorSnapshotHash({
+      fundedRankEntries: [{ user_id: uid(2), point: 900 }],
+      specialEntries: [],
+    });
+    expect(a).not.toBe(b);
+  });
+
+  it('is stable for identical funded + special slices', () => {
+    const funded = [{ user_id: uid(1), point: 900 }];
+    const special = [{ user_id: uid(1), amount: 80 }];
+    expect(
+      computeGeneratorSnapshotHash({
+        fundedRankEntries: funded,
+        specialEntries: special,
+      }),
+    ).toBe(
+      computeGeneratorSnapshotHash({
+        fundedRankEntries: [...funded],
+        specialEntries: [...special],
+      }),
+    );
+  });
+
+  it('produces a 64-char hex sha256 digest', () => {
+    expect(
+      computeGeneratorSnapshotHash({ fundedRankEntries: [], specialEntries: [] }),
+    ).toMatch(/^[0-9a-f]{64}$/);
   });
 });
