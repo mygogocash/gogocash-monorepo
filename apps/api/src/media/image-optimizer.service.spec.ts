@@ -4,6 +4,7 @@ import { MEDIA_FOLDER, resolveMediaFolder } from './media-folders.config';
 import {
   ImageOptimizerService,
   resolveMaxImageWidth,
+  resolveWebpQuality,
 } from './image-optimizer.service';
 
 /**
@@ -147,6 +148,20 @@ describe('ImageOptimizerService', () => {
     );
     // The split only helps if logos did NOT come along for the ride.
     expect(resolveMaxImageWidth(MEDIA_FOLDER.BRANDS)).toBe(1024);
+  });
+
+  /**
+   * #493 — the width split stops the banner being downsampled, but the global WebP
+   * quality (82) is tuned for logos/cards. Wide hero art gets q90 so the re-encode does
+   * not add visible softening on top of the already-correct resolution. Every other
+   * folder keeps 82. The size-guard in optimizeUpload still stores the ORIGINAL whenever
+   * the higher-quality re-encode is not smaller, so q90 never bloats storage.
+   */
+  it('brand banners > given the per-folder webp quality > then hero art is q90 while logos stay q82', () => {
+    expect(resolveWebpQuality(MEDIA_FOLDER.BRAND_BANNERS)).toBe(90);
+    expect(resolveWebpQuality(MEDIA_FOLDER.BRANDS)).toBe(82);
+    expect(resolveWebpQuality(MEDIA_FOLDER.CATEGORIES)).toBe(82);
+    expect(resolveWebpQuality(MEDIA_FOLDER.BANNER_HOME)).toBe(82);
   });
 
   it('brand banners > given the env prefix map > then the new folder is overridable like every other', () => {
