@@ -170,6 +170,24 @@ export class TelegramAuthDto {
   country?: string;
 }
 
+/**
+ * POST /auth/log-in/telegram-miniapp body — the RAW Telegram Mini App
+ * `initData` query string (e.g. "user=%7B...%7D&auth_date=...&hash=..."). The
+ * server verifies it with the WebAppData-keyed HMAC; do NOT pre-parse it on the
+ * client, as the exact bytes are part of the signature check.
+ */
+export class TelegramMiniAppDto {
+  @ApiProperty({
+    example:
+      'query_id=AA...&user=%7B%22id%22%3A1%7D&auth_date=1700000000&hash=abc',
+    description: 'Raw Telegram Mini App initData query string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(8192)
+  initData: string;
+}
+
 /** POST /auth/firebase body — phone verification idToken after FirebaseAuthGuard. */
 export class FirebaseIdTokenDto {
   @ApiProperty()

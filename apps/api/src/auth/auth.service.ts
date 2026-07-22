@@ -32,6 +32,7 @@ import { UserDocument } from 'src/user/schemas/user.schema';
 import { toIso2Server } from 'src/utils/country';
 import { AccountRegistrationService } from 'src/quest-task-engine/account-registration.service';
 import { assertRegistrationSourceEnabled } from 'src/quest-task-engine/registration-source.manifest';
+import { verifyTelegramInitData } from './telegram-initdata';
 
 type FirebaseSignInOptions = {
   allowPhoneRegistration?: boolean;
@@ -284,88 +285,111 @@ export class AuthService {
       if (!Number.isFinite(ageSeconds) || ageSeconds < 0 || ageSeconds > 60) {
         throw new UnauthorizedException('Telegram auth payload expired');
       }
-      const data = payload;
 
-      let userExist = await this.userService.findOne({
-        id_telegram: data.id.toString(),
+      return await this.finalizeTelegramLogin(payload);
+    } catch (error: any) {
+      // Preserve UnauthorizedException so 401 reaches the client; wrap
+      // anything else in a 401 too so we never leak DB/SDK details.
+      if (error instanceof UnauthorizedException) throw error;
+      throw new UnauthorizedException('Telegram login failed');
+    }
+  }
+
+  /**
+   * Telegram Mini App auto-login. Verifies the raw `initData` query string with
+   * the WebAppData-keyed HMAC (see `verifyTelegramInitData`) — this is the
+   * algorithm the Login Widget's SHA256(bot_token) secret CANNOT satisfy — then
+   * reuses the exact same find-or-create-by-id_telegram + session-mint path as
+   * the widget login via {@link finalizeTelegramLogin}.
+   *
+   * initData carries no email/country (Telegram doesn't share them), so those
+   * are left undefined and the shared path falls back accordingly.
+   */
+  async signInTelegramMiniApp(initData: string) {
+    try {
+      if (!process.env.TELEGRAM_BOT_TOKEN) {
+        throw new UnauthorizedException(
+          'Telegram login is not configured on this server',
+        );
+      }
+      const maxAgeSeconds =
+        Number(process.env.TELEGRAM_INITDATA_MAX_AGE_SECONDS) || 86_400;
+      const result = verifyTelegramInitData(
+        initData,
+        process.env.TELEGRAM_BOT_TOKEN,
+        { maxAgeSeconds },
+      );
+      if (!result.valid) {
+        throw new UnauthorizedException('Invalid Telegram initData');
+      }
+      const tgUser = result.user as
+        { id?: number | string; username?: string } | null | undefined;
+      if (tgUser?.id === undefined || tgUser?.id === null) {
+        throw new UnauthorizedException('Invalid Telegram initData');
+      }
+
+      return await this.finalizeTelegramLogin({
+        id: tgUser.id,
+        username: tgUser.username || '',
       });
+    } catch (error: any) {
+      if (error instanceof UnauthorizedException) throw error;
+      throw new UnauthorizedException('Telegram login failed');
+    }
+  }
 
-      // Cross-provider collision guard: if no user matches by Telegram ID
-      // but the email matches an existing record from a DIFFERENT provider
-      // (Firebase, MiniPay, etc.), refuse to merge silently. An attacker
-      // with a Telegram account using the victim's email could otherwise
-      // hijack the victim's record. Require the user to verify ownership
-      // through the original provider (or an OTP linking flow we don't
-      // ship yet) before linking accounts.
-      if (!userExist && data.email) {
-        const emailMatch = await this.userService.findOne({
-          email: data.email,
-        });
-        const alreadyLinkedToTelegram =
-          emailMatch &&
-          (emailMatch.id_telegram === data.id.toString() ||
-            emailMatch.provider === 'telegram');
-        if (emailMatch && !alreadyLinkedToTelegram) {
-          throw new UnauthorizedException(
-            'An account already exists for this email under a different sign-in method. ' +
-              'Please sign in with your original method, then link Telegram from your profile.',
-          );
-        }
-        userExist = emailMatch;
-      }
+  /**
+   * Shared find-or-create-by-id_telegram + session-mint logic used by BOTH the
+   * Login Widget path ({@link signInTelegram}) and the Mini App path
+   * ({@link signInTelegramMiniApp}). Callers are responsible for verifying the
+   * Telegram signature + auth_date freshness BEFORE calling this.
+   */
+  private async finalizeTelegramLogin(data: {
+    id: number | string;
+    email?: string;
+    username?: string;
+    country?: string;
+    referral_id?: string;
+  }) {
+    let userExist = await this.userService.findOne({
+      id_telegram: data.id.toString(),
+    });
 
-      if (userExist) {
-        const user = await this.userService.update(userExist._id, {
-          email: userExist?.email || data.email,
-          username: userExist.username || data?.username || '',
-          id_twitter: userExist?.id_twitter || '',
-          id_telegram: data.id.toString(),
-          address: userExist?.address || '',
-          id_firebase: userExist?.id_firebase || `telegram_${data.id}`,
-          country: toIso2Server(userExist?.country || data?.country),
-          provider: userExist?.provider || 'telegram',
-        });
-        if (user?.disabled) {
-          throw new Error('Your account has been disabled');
-        }
-        const accessToken = await this.generateToken({
-          userId: user._id.toString(),
-          firebaseId: user.id_firebase,
-        });
-        return {
-          user,
-          token: accessToken,
-          is_new_user: false,
-          auth_flow: 'login' as const,
-        };
+    // Cross-provider collision guard: if no user matches by Telegram ID
+    // but the email matches an existing record from a DIFFERENT provider
+    // (Firebase, MiniPay, etc.), refuse to merge silently. An attacker
+    // with a Telegram account using the victim's email could otherwise
+    // hijack the victim's record. Require the user to verify ownership
+    // through the original provider (or an OTP linking flow we don't
+    // ship yet) before linking accounts.
+    if (!userExist && data.email) {
+      const emailMatch = await this.userService.findOne({
+        email: data.email,
+      });
+      const alreadyLinkedToTelegram =
+        emailMatch &&
+        (emailMatch.id_telegram === data.id.toString() ||
+          emailMatch.provider === 'telegram');
+      if (emailMatch && !alreadyLinkedToTelegram) {
+        throw new UnauthorizedException(
+          'An account already exists for this email under a different sign-in method. ' +
+            'Please sign in with your original method, then link Telegram from your profile.',
+        );
       }
-      assertRegistrationSourceEnabled('telegram');
-      const user = await this.userService.createFromFirebase({
-        email: data?.email,
-        username: data?.username || '',
+      userExist = emailMatch;
+    }
+
+    if (userExist) {
+      const user = await this.userService.update(userExist._id, {
+        email: userExist?.email || data.email,
+        username: userExist.username || data?.username || '',
         id_twitter: userExist?.id_twitter || '',
         id_telegram: data.id.toString(),
-        address: '',
+        address: userExist?.address || '',
         id_firebase: userExist?.id_firebase || `telegram_${data.id}`,
         country: toIso2Server(userExist?.country || data?.country),
         provider: userExist?.provider || 'telegram',
-        id_crossmint: userExist?.id_crossmint || '',
       });
-      if (payload?.referral_id && payload.referral_id !== 'undefined') {
-        const refData = await this.userService.findOne({
-          _id: new Types.ObjectId(payload?.referral_id),
-        });
-        if (
-          refData &&
-          user._id?.toString() !== payload.referral_id?.toString()
-        ) {
-          await this.updatePoint({
-            user_id: user._id.toString(),
-            referral_id: payload.referral_id,
-          });
-        }
-      }
-
       if (user?.disabled) {
         throw new Error('Your account has been disabled');
       }
@@ -376,15 +400,47 @@ export class AuthService {
       return {
         user,
         token: accessToken,
-        is_new_user: true,
-        auth_flow: 'register' as const,
+        is_new_user: false,
+        auth_flow: 'login' as const,
       };
-    } catch (error: any) {
-      // Preserve UnauthorizedException so 401 reaches the client; wrap
-      // anything else in a 401 too so we never leak DB/SDK details.
-      if (error instanceof UnauthorizedException) throw error;
-      throw new UnauthorizedException('Telegram login failed');
     }
+    assertRegistrationSourceEnabled('telegram');
+    const user = await this.userService.createFromFirebase({
+      email: data?.email,
+      username: data?.username || '',
+      id_twitter: userExist?.id_twitter || '',
+      id_telegram: data.id.toString(),
+      address: '',
+      id_firebase: userExist?.id_firebase || `telegram_${data.id}`,
+      country: toIso2Server(userExist?.country || data?.country),
+      provider: userExist?.provider || 'telegram',
+      id_crossmint: userExist?.id_crossmint || '',
+    });
+    if (data?.referral_id && data.referral_id !== 'undefined') {
+      const refData = await this.userService.findOne({
+        _id: new Types.ObjectId(data?.referral_id),
+      });
+      if (refData && user._id?.toString() !== data.referral_id?.toString()) {
+        await this.updatePoint({
+          user_id: user._id.toString(),
+          referral_id: data.referral_id,
+        });
+      }
+    }
+
+    if (user?.disabled) {
+      throw new Error('Your account has been disabled');
+    }
+    const accessToken = await this.generateToken({
+      userId: user._id.toString(),
+      firebaseId: user.id_firebase,
+    });
+    return {
+      user,
+      token: accessToken,
+      is_new_user: true,
+      auth_flow: 'register' as const,
+    };
   }
 
   async verifyTelegramAuth(data: any): Promise<boolean> {
