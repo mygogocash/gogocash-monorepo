@@ -82,7 +82,7 @@ function getVisibleStoreCountLabel(count: number) {
     return webCategoryExploreHealthBeauty.storeCountLabel;
   }
 
-  return `${count} ${count === 1 ? "brand" : "brands"} in this category`;
+  return `${count} ${count === 1 ? "brand" : "brands"}`;
 }
 
 function getCategoryGridMetrics({

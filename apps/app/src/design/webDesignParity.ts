@@ -2759,7 +2759,7 @@ export const webCategoryExploreHealthBeauty = {
     "Find cashback deals from brands in Health & Beauty. Search and sort to narrow results.",
   searchPlaceholder: "Search within Health & Beauty",
   sortLabel: "Sort by:",
-  storeCountLabel: "13 brands in this category",
+  storeCountLabel: "13 brands",
   categories: [
     "All",
     "Digital Services",
