@@ -1481,4 +1481,52 @@ describe("QuestTable management tabs", () => {
     expect(screen.queryByText("open")).not.toBeInTheDocument();
     expect(screen.queryByText("close")).not.toBeInTheDocument();
   });
+
+  it("previews a stored banner and shows none for an empty banner slot (BUG 4)", async () => {
+    const driveId = "1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh";
+    questQueries.fetchAdminQuests.mockResolvedValue([
+      { ...quest, banner_en: driveId, banner_th: "" },
+    ]);
+    renderQuestTable();
+
+    const preview = await screen.findByAltText("Current Banner EN");
+    expect(preview).toHaveAttribute(
+      "src",
+      `https://drive.google.com/uc?export=view&id=${driveId}`,
+    );
+    // An empty banner slot must not render a stale preview.
+    expect(screen.queryByAltText("Current Banner TH")).not.toBeInTheDocument();
+  });
+
+  it("does not preview banners while creating a new quest (BUG 4)", async () => {
+    renderQuestTable("create");
+
+    await screen.findByLabelText("Banner EN");
+    expect(screen.queryByAltText("Current Banner EN")).not.toBeInTheDocument();
+  });
+
+  it("explains where legacy-quest brand tasks live (GAP 5)", async () => {
+    // Default fixture quest is reward_model: "legacy_v1".
+    renderQuestTable();
+
+    expect(
+      await screen.findByText(
+        /brand tasks are managed per-offer in the Offers module/i,
+      ),
+    ).toBeVisible();
+  });
+
+  it("hides the legacy-quest note for a task-v2 quest (GAP 5)", async () => {
+    questQueries.fetchAdminQuests.mockResolvedValue([
+      { ...quest, reward_model: "task_v2" },
+    ]);
+    renderQuestTable();
+
+    await screen.findByRole("tab", { name: /Quest tasks/i });
+    expect(
+      screen.queryByText(
+        /brand tasks are managed per-offer in the Offers module/i,
+      ),
+    ).not.toBeInTheDocument();
+  });
 });
