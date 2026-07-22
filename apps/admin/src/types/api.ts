@@ -914,6 +914,8 @@ export interface ResponseFee {
   global_withdraw_fee?: number;
   global_minimum_withdraw?: number;
   global_withdraw_currency?: string;
+  /** Referrer earns this % of a referred friend's approved cashback (0-100). */
+  referral_bonus_percent?: number;
 }
 
 export interface FeeSettingsForm {
@@ -933,4 +935,6 @@ export interface FeeSettingsForm {
   global_withdraw_fee: number;
   global_minimum_withdraw: number;
   global_withdraw_currency: string;
+  /** Referrer earns this % of a referred friend's approved cashback (0-100). */
+  referral_bonus_percent: number;
 }

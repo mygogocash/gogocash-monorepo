@@ -215,6 +215,20 @@ export class UpdateFeeRateDto {
   @IsString()
   @Matches(/^[A-Za-z]{3,8}$/)
   global_withdraw_currency?: string;
+
+  /**
+   * Referrer earns this % of a referred friend's approved cashback (MONEY / R0).
+   * Single source of truth for the referral bonus engine. Whitelisted here so
+   * the global `forbidNonWhitelisted` ValidationPipe accepts it on the existing
+   * PATCH /admin/update-fee-rate — no new admin endpoint.
+   */
+  @ApiPropertyOptional({ minimum: 0, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  referral_bonus_percent?: number;
 }
 
 export class UpdateRequestWithdrawDto {

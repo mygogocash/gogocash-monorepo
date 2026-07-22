@@ -108,6 +108,15 @@ export class FeeRate {
     maxlength: 8,
   })
   global_withdraw_currency?: string;
+
+  /**
+   * Referral bonus payout rate (MONEY / R0): the referrer earns this percentage
+   * of a referred friend's approved cashback. Single source of truth for the
+   * referral bonus engine (see point/referral-bonus.ts). Default mirrors the
+   * customer "10% Cashback Bonus" copy; edited via the superadmin Fee screen.
+   */
+  @Prop({ type: Number, default: 10, min: 0, max: 100 })
+  referral_bonus_percent: number;
 }
 
 export const FeeRateSchema = SchemaFactory.createForClass(FeeRate);

@@ -20,6 +20,10 @@ import {
   SocialReward,
   SocialRewardSchema,
 } from './schemas/social-reward.schema';
+import {
+  ReferralPayout,
+  ReferralPayoutSchema,
+} from './schemas/referral-payout.schema';
 import { MediaModule } from 'src/media/media.module';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import {
@@ -55,6 +59,7 @@ import {
       { name: Quest.name, schema: QuestSchema },
       { name: MembershipTier.name, schema: MembershipTierSchema },
       { name: SocialReward.name, schema: SocialRewardSchema },
+      { name: ReferralPayout.name, schema: ReferralPayoutSchema },
       {
         name: QuestMediaWriteCommand.name,
         schema: QuestMediaWriteCommandSchema,
