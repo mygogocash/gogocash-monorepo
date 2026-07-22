@@ -58,3 +58,16 @@ describe("nav surfaces route through filterHiddenAdminItems", () => {
     expect(src).toContain('from "@/config/featureFlags"');
   });
 });
+
+describe("WithdrawDetail gates its embedded pre-launch surfaces", () => {
+  it("imports the flags and routes the tab list + activeTab through the gate", () => {
+    const src = read("components/withdraw/WithdrawDetail.tsx");
+    expect(src).toContain('from "@/config/featureFlags"');
+    expect(src).toContain("isCreditScoreEnabled");
+    expect(src).toContain("isGoGoPassEnabled");
+    // Both the tab bar AND the activeTab initializer must consume the filtered
+    // list, so a ?tab= deep-link can never strand activeTab on a removed tab.
+    expect(src).toMatch(/visibleTabs\.some\(/);
+    expect(src).toMatch(/visibleTabs\.map\(/);
+  });
+});
