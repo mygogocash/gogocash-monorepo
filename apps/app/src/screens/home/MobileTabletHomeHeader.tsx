@@ -3,7 +3,7 @@ import { Text, View } from "react-native";
 import { Globe as GlobeIcon, Search as SearchIcon } from "@mobile/theme/icons";
 import { CustomerLocaleRegionSheet } from "@mobile/components/CustomerLocaleRegionSheet";
 import { MotionPressable } from "@mobile/components/MotionPressable";
-import { isGoLinkEnabled } from "@mobile/config/featureFlags";
+import { resolveGoLinkMode } from "@mobile/config/featureFlags";
 import { webLocaleRegionPanel } from "@mobile/design/webDesignParity";
 import { useRegion } from "@mobile/i18n/LocaleProvider";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -35,6 +35,8 @@ export function MobileTabletHomeHeader({
   const regionFlag =
     webLocaleRegionPanel.regions.find((option) => option.code === region)?.flag ?? "";
   const headerIconColor = pickThemed(colors, "#303846", "rgba(255, 255, 255, 0.92)");
+  // GoLink 3-state: render the paste box unless HIDDEN; coming-soon shows it disabled.
+  const goLinkMode = resolveGoLinkMode();
 
   return (
     <View
@@ -89,8 +91,9 @@ export function MobileTabletHomeHeader({
 
       <DetectedRegionBanner onChangePress={() => setRegionSheetOpen(true)} />
 
-      {isGoLinkEnabled() ? (
+      {goLinkMode !== "hidden" ? (
         <MobileTabletGoLinkBannerCollapse
+          comingSoon={goLinkMode === "comingSoon"}
           isCovered={isGoLinkCovered}
           onOpenGuideline={onOpenGoLinkGuideline}
           onResultHref={onGoLinkResultHref}

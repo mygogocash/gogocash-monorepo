@@ -252,7 +252,9 @@ describe("Expo home design parity", () => {
       title: "GoGoLink – Easy to earn cashback by just copy, paste and shop!",
     });
     expect(homeFile).toContain("DesktopGoLinkBanner");
-    expect(homeFile).toContain("homeLayout.isDesktop && isGoLinkEnabled() ? (");
+    // GoLink 3-state: the desktop banner renders unless HIDDEN; coming-soon shows
+    // it visible-but-disabled via the comingSoon prop.
+    expect(homeFile).toContain('homeLayout.isDesktop && goLinkMode !== "hidden" ? (');
     expect(homeFile).toContain("MobileTabletHomeHeader");
     expect(homeFile).toContain('variant="mobileTabletHeader"');
     expect(homeFile).toContain("mobile-tablet-golink-banner");

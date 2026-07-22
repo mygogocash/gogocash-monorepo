@@ -14,6 +14,11 @@ import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { queueProtectedBottomNavWhileSessionHydrates } from "@mobile/auth/protectedBottomNavPress";
 import { mobileShellLayout, webMobileBottomNavItems } from "@mobile/design/webDesignParity";
 import { filterHiddenBottomNavItems } from "@mobile/config/featureFlags";
+import {
+  GOLINK_COMING_SOON_OPACITY,
+  GoLinkSoonBadge,
+  isGoLinkComingSoonTab,
+} from "@mobile/components/goLinkNavTab";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { CustomerGoLinkScreen } from "@mobile/screens/CustomerGoLinkScreen";
@@ -101,16 +106,20 @@ export function CustomerMobileBottomNav({
         {filterHiddenBottomNavItems(webMobileBottomNavItems).map((item) => {
           const active = getBottomNavRouteId(item.href) === activeRouteId;
           const emphasized = "emphasized" in item && item.emphasized;
+          const comingSoon = isGoLinkComingSoonTab(item.href);
 
           return (
             <Pressable
               accessibilityRole="button"
+              accessibilityState={comingSoon ? { disabled: true } : undefined}
+              disabled={comingSoon}
               key={item.label}
-              onPress={() => handleBottomNavPress(item.href)}
+              onPress={comingSoon ? undefined : () => handleBottomNavPress(item.href)}
               style={StyleSheet.flatten([
                 styles.bottomNavItem,
                 emphasized ? styles.bottomNavItemEmphasized : null,
                 active ? styles.bottomNavItemActive : null,
+                comingSoon ? { opacity: GOLINK_COMING_SOON_OPACITY } : null,
               ])}
             >
                 <View
@@ -126,6 +135,7 @@ export function CustomerMobileBottomNav({
                     emphasized={emphasized}
                     name={item.icon}
                   />
+                  {comingSoon ? <GoLinkSoonBadge /> : null}
                 </View>
                 <Text
                   numberOfLines={1}
