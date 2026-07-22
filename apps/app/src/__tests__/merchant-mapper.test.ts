@@ -76,7 +76,7 @@ describe("mapMerchantOfferToShopDetail", () => {
     );
 
     expect(shop.bannerUri).toBe(
-      "https://media-staging.gogocash.co/cdn-cgi/image/width=1080,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/shop-banner.png",
+      "https://media-staging.gogocash.co/cdn-cgi/image/width=1600,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/shop-banner.png",
     );
     expect(shop.logoUri).toBe(
       "https://media-staging.gogocash.co/cdn-cgi/image/width=320,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/shop-logo.png",
@@ -96,7 +96,7 @@ describe("mapMerchantOfferToShopDetail", () => {
     expect(shop.merchantId).toBe(2048);
     expect(shop.logoUri).toBe("https://cdn.example/logo.png");
     expect(shop.bannerUri).toBe(
-      "https://drive.google.com/thumbnail?id=backend-banner-file-id&sz=w1080"
+      "https://drive.google.com/thumbnail?id=backend-banner-file-id&sz=w1600"
     );
     expect(shop.logoText).toBe("LT");
     expect(shop.extraCashback).toBe("5.6%");
