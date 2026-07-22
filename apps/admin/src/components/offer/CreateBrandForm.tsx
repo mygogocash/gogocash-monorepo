@@ -874,7 +874,7 @@ export default function CreateBrandForm() {
                   : undefined
               }
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 read-only:bg-gray-50 read-only:text-gray-700 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:read-only:bg-gray-800 dark:read-only:text-gray-200"
-              placeholder="my_brand_th — used in app open URLs"
+              placeholder="bangkok_airways_in — used in app open URLs"
             />
             <p
               id="create-brand-lookup-hint"
@@ -882,10 +882,13 @@ export default function CreateBrandForm() {
             >
               With the default option on, the slug stays{" "}
               <code className="rounded bg-gray-100 px-1 py-0.5 text-[0.7rem] dark:bg-gray-800">
-                brandname_countrycode
+                brandname_in
               </code>{" "}
-              (lowercase, non-alphanumeric → underscore) and updates when brand
-              or country changes.
+              (lowercase, non-alphanumeric → underscore, international{" "}
+              <code className="rounded bg-gray-100 px-1 py-0.5 text-[0.7rem] dark:bg-gray-800">
+                _in
+              </code>{" "}
+              suffix) and updates when the brand name changes.
             </p>
           </div>
         </section>
