@@ -60,6 +60,33 @@ describe('ImageOptimizerService', () => {
     expect(meta.width).toBe(resolveMaxImageWidth(MEDIA_FOLDER.BANNER_HOME));
   });
 
+  it('optimizeUpload > given the same wide source > then brand banners keep more bytes than same-width logo-tier folders (q90 wired end-to-end)', async () => {
+    // BRAND_BANNERS and BANNER_HOME share the 1920px width cap, so the ONLY thing that can
+    // differ in their output is the WebP quality (90 vs 82). Running one source through both
+    // and asserting brand-banner bytes > home-banner bytes proves resolveWebpQuality is
+    // actually applied inside optimizeUpload — not merely returned in isolation. (#493)
+    const original = await makePng(2400, 820);
+
+    const brandBanner = await service.optimizeUpload(
+      asUpload(original, 'hero.png', 'image/png'),
+      MEDIA_FOLDER.BRAND_BANNERS,
+    );
+    const homeBanner = await service.optimizeUpload(
+      asUpload(original, 'hero.png', 'image/png'),
+      MEDIA_FOLDER.BANNER_HOME,
+    );
+
+    const brandMeta = await sharp(brandBanner.buffer).metadata();
+    const homeMeta = await sharp(homeBanner.buffer).metadata();
+    // Same width cap...
+    expect(brandMeta.width).toBe(1920);
+    expect(brandMeta.width).toBe(homeMeta.width);
+    // ...so the higher quality is the only reason brand banners carry more detail (bytes).
+    expect(brandBanner.buffer.length).toBeGreaterThan(homeBanner.buffer.length);
+    // And q90 still clears the size-guard (both smaller than the source PNG).
+    expect(brandBanner.buffer.length).toBeLessThan(original.length);
+  });
+
   it('optimizeUpload > given a small logo with alpha > then keeps dimensions (no upscale) and preserves transparency', async () => {
     const original = await makePng(300, 300, true);
     const file = asUpload(original, 'logo.png', 'image/png');
