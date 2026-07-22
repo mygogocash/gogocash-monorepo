@@ -88,6 +88,13 @@ describe("GoGoCash Expo web metadata parity", () => {
       '<meta name="twitter:title" content="GoGoCash - Earn Cash on Every Spend"'
     );
     expect(html).not.toContain("Save Cash on Every Spend");
+    // Share-preview image dimensions + alt + type (2026-07-23): og:image:width/height let
+    // iMessage/Facebook render the card on first fetch instead of guessing; alt aids a11y.
+    expect(html).toContain('<meta property="og:image:width" content="1200"');
+    expect(html).toContain('<meta property="og:image:height" content="630"');
+    expect(html).toContain('<meta property="og:image:alt" content="GoGoCash — Earn Cashback on Every Spend"');
+    expect(html).toContain('<meta property="og:type" content="website"');
+    expect(html).toContain('<meta name="twitter:image:alt" content="GoGoCash — Earn Cashback on Every Spend"');
   });
 
   it("web metadata parity > given the migrated route catalog > then sitemap exposes localized concrete customer URLs", () => {
