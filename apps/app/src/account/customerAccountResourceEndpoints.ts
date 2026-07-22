@@ -103,6 +103,10 @@ export function resolveCustomerAccountResourceEndpoint({
     return "/offer/top-brands";
   }
 
+  if (resourceId === "landingRails") {
+    return "/offer/landing-rails";
+  }
+
   if (resourceId === "merchant") {
     return merchantEndpointTemplate.replace("${merchantId}", encodeURIComponent(merchantId));
   }

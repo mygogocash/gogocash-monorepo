@@ -27,6 +27,10 @@ import {
   TopBrandConfig,
   TopBrandConfigSchema,
 } from './schemas/top-brand-config.schema';
+import {
+  LandingRailConfig,
+  LandingRailConfigSchema,
+} from './schemas/landing-rail-config.schema';
 import { AffiliateModule } from 'src/affiliate/affiliate.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import {
@@ -92,6 +96,7 @@ import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
         collection: SPECIFIC_PAGE_BANNER_COLLECTION,
       },
       { name: TopBrandConfig.name, schema: TopBrandConfigSchema },
+      { name: LandingRailConfig.name, schema: LandingRailConfigSchema },
       { name: Conversion.name, schema: ConversionSchema },
       { name: Coupon.name, schema: CouponSchema },
       { name: CouponActivity.name, schema: CouponActivitySchema },

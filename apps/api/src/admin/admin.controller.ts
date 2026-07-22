@@ -32,6 +32,7 @@ import {
   GetConversionInWithdrawDto,
   RejectOfferDto,
   SaveTopBrandsDto,
+  SaveLandingRailsDto,
   UpdateAdminDto,
   UpdateBannerHomeBodyDto,
   UpdateBannerHomeDto,
@@ -415,6 +416,25 @@ export class AdminController {
   @Put('top-brands')
   saveTopBrands(@Body() body: SaveTopBrandsDto) {
     return this.adminService.saveTopBrands(body);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('landing-rails')
+  getLandingRails() {
+    return this.adminService.getLandingRails();
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  // Homepage curated rails — a mutation, so it must not be reachable by a
+  // read-only viewer (mirrors the Top brands write gate).
+  @Roles('approver')
+  @Put('landing-rails')
+  saveLandingRails(@Body() body: SaveLandingRailsDto) {
+    return this.adminService.saveLandingRails(body);
   }
 
   // Creating an admin account is a superadmin action (parallels the gated

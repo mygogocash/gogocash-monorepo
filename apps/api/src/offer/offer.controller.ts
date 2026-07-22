@@ -66,6 +66,12 @@ export class OfferController {
     return this.offerService.getDisplayTopBrands();
   }
 
+  @Get('landing-rails')
+  getLandingRails() {
+    // Public home curated rails — admin-managed via PUT /admin/landing-rails.
+    return this.offerService.getDisplayLandingRails();
+  }
+
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'logo_desktop', maxCount: 1 },

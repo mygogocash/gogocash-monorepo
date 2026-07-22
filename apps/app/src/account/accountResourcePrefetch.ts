@@ -18,13 +18,14 @@ import { DEFAULT_REGION } from "@mobile/i18n/regionTypes";
 
 const AUTHED_PREFETCH_RESOURCE_IDS = ["profile", "wallet"] as const satisfies readonly CustomerAccountResourceId[];
 
-const PUBLIC_PREFETCH_RESOURCE_IDS = ["homeBanner", "topBrand", "brandCatalog"] as const satisfies readonly CustomerAccountResourceId[];
+const PUBLIC_PREFETCH_RESOURCE_IDS = ["homeBanner", "topBrand", "landingRails", "brandCatalog"] as const satisfies readonly CustomerAccountResourceId[];
 
 export const PUBLIC_CATALOG_REFETCH_RESOURCE_IDS = [
   "allBrandBanner",
   "allShopBanner",
   "homeBanner",
   "topBrand",
+  "landingRails",
   "merchantCoupons",
   "brandCatalog",
   "categoryList",

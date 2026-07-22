@@ -85,6 +85,7 @@ export const navItems: NavItem[] = [
       { name: "Policy Management", path: "/brands?tab=policy", pro: false, permission: "brands:view" },
       { name: "User tracking link", path: "/brands?tab=deeplink", pro: false, permission: "brands:view" },
       { name: "Top brands", path: "/brands?tab=top-brands", pro: false, permission: "brands:view" },
+      { name: "Landing rails", path: "/brands?tab=landing-rails", pro: false, permission: "brands:view" },
       { name: "Missing conversions", path: "/missing-orders", pro: false, permission: "brands:view" },
       { name: "Search Management", path: "/search-config", pro: false, permission: "brands:view" },
     ],

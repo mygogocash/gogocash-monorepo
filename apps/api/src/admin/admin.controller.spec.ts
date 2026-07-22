@@ -45,6 +45,8 @@ describe('AdminController', () => {
       getCreatedConversions: stub(),
       getTopBrands: stub(),
       saveTopBrands: stub(),
+      getLandingRails: stub(),
+      saveLandingRails: stub(),
       create: stub(),
       getWithdrawAll: stub(),
       getConversionAll: stub(),
@@ -352,6 +354,29 @@ describe('AdminController', () => {
       controller.saveTopBrands(body);
 
       expect(adminService.saveTopBrands).toHaveBeenCalledWith(body);
+    });
+  });
+
+  describe('landing rails', () => {
+    it('getLandingRails > then it delegates to the service', () => {
+      adminService.getLandingRails.mockReturnValue(RETURN);
+      expect(controller.getLandingRails()).toBe(RETURN);
+      expect(adminService.getLandingRails).toHaveBeenCalledTimes(1);
+    });
+
+    it('saveLandingRails > given a rails body > then it forwards the full DTO', () => {
+      const body = {
+        rails: [
+          {
+            railId: 'trending',
+            title: 'Trending Brands',
+            brandsDesktop: [{ offerId: 'offer-1', cashback: '5%' }],
+          },
+        ],
+      };
+      controller.saveLandingRails(body);
+
+      expect(adminService.saveLandingRails).toHaveBeenCalledWith(body);
     });
   });
 

@@ -28,7 +28,10 @@ import {
   openGoLinkTracked,
   useGoLinkResolution,
 } from "@mobile/features/useGoLinkResolution";
-import { resolveHomePromoSections, resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
+import {
+  resolveApiLandingRails,
+  resolveLiveBrandCards,
+} from "@mobile/account/brandCatalogResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { usePublicCatalogPullToRefresh } from "@mobile/account/usePublicCatalogPullToRefresh";
 import {
@@ -102,6 +105,12 @@ export function CustomerHomeScreen() {
     fixtureData: webHomePromoSections,
     resourceId: "brandCatalog",
   });
+  // Admin-curated homepage rails (GET /offer/landing-rails). Prefer these; the
+  // fixture is the fallback when the API is unavailable / not in backend mode.
+  const landingRailsResource = useCustomerAccountResource({
+    fixtureData: { data: [] },
+    resourceId: "landingRails",
+  });
   const { onRefresh: onPullToRefresh, refreshing } = usePublicCatalogPullToRefresh();
   const homeRefreshControl = (
     <RefreshControl
@@ -110,9 +119,9 @@ export function CustomerHomeScreen() {
       tintColor={colors.primaryDark}
     />
   );
-  const promoSections = resolveHomePromoSections(
-    brandCatalogResource.source,
-    brandCatalogResource.data,
+  const promoSections = resolveApiLandingRails(
+    landingRailsResource.source,
+    landingRailsResource.data,
     webHomePromoSections,
     region,
   );

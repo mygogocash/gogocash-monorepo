@@ -37,6 +37,7 @@ function createOfferServiceMock(): OfferServiceMock {
     getAllBrandBanner: jest.fn().mockResolvedValue({ banner: 'all-brand' }),
     getSpecificPageBanner: jest.fn().mockResolvedValue({ banner: 'specific' }),
     getDisplayTopBrands: jest.fn().mockResolvedValue({ data: [] }),
+    getDisplayLandingRails: jest.fn().mockResolvedValue({ data: [] }),
     createAdminOffer: jest.fn().mockResolvedValue({ _id: 'offer-new' }),
     getCoupon: jest.fn().mockResolvedValue({ data: [], total: 0 }),
     getCouponId: jest.fn().mockResolvedValue({ _id: 'coupon-1' }),
@@ -133,6 +134,13 @@ describe('OfferController', () => {
     it('getTopBrands > given a request > then delegates to OfferService.getDisplayTopBrands', async () => {
       await expect(controller.getTopBrands()).resolves.toEqual({ data: [] });
       expect(service.getDisplayTopBrands).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getLandingRails', () => {
+    it('getLandingRails > given a request > then delegates to OfferService.getDisplayLandingRails', async () => {
+      await expect(controller.getLandingRails()).resolves.toEqual({ data: [] });
+      expect(service.getDisplayLandingRails).toHaveBeenCalledTimes(1);
     });
   });
 

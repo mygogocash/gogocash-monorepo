@@ -10,6 +10,7 @@ import {
   ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -24,6 +25,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { MAX_TOP_BRANDS } from 'src/offer/top-brand.contract';
+import { MAX_LANDING_RAILS } from 'src/offer/landing-rail.contract';
 import {
   MAX_CUSTOM_TERMS_LENGTH,
   MAX_NOTE_TO_USER_LENGTH,
@@ -732,6 +734,82 @@ export class SaveTopBrandsDto {
   @ValidateNested({ each: true })
   @Type(() => TopBrandConfigEntryDto)
   brandsMobile?: TopBrandConfigEntryDto[];
+}
+
+/**
+ * One curated homepage rail in a {@link SaveLandingRailsDto} payload. Brand
+ * lists reuse {@link TopBrandConfigEntryDto} — same offerId/cashback shape as
+ * Top brands. `railId` is the stable slug the customer app curates by.
+ */
+export class LandingRailDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  railId: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  emoji?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  link?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  cardVariant?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  position?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
+  @ApiProperty({ type: [TopBrandConfigEntryDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_TOP_BRANDS)
+  @ValidateNested({ each: true })
+  @Type(() => TopBrandConfigEntryDto)
+  brands?: TopBrandConfigEntryDto[];
+
+  @ApiProperty({ type: [TopBrandConfigEntryDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_TOP_BRANDS)
+  @ValidateNested({ each: true })
+  @Type(() => TopBrandConfigEntryDto)
+  brandsDesktop?: TopBrandConfigEntryDto[];
+
+  @ApiProperty({ type: [TopBrandConfigEntryDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_TOP_BRANDS)
+  @ValidateNested({ each: true })
+  @Type(() => TopBrandConfigEntryDto)
+  brandsMobile?: TopBrandConfigEntryDto[];
+}
+
+/** Full-set save for the homepage landing rails (replace-set semantics). */
+export class SaveLandingRailsDto {
+  @ApiProperty({ type: [LandingRailDto] })
+  @IsArray()
+  @ArrayMaxSize(MAX_LANDING_RAILS)
+  @ValidateNested({ each: true })
+  @Type(() => LandingRailDto)
+  rails: LandingRailDto[];
 }
 
 export class GetConversionInWithdrawDto {
