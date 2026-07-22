@@ -8,7 +8,7 @@ Prerequisites:
 
 - `QUEST_TASK_V2_ENABLED=true`
 - `MONGO_URI` points to the intended replica set or mongos
-- Node.js 24 or newer (the API package engine requirement)
+- Node.js 26 or newer (the API package engine requirement)
 - run against one environment at a time; confirm dev/staging/production before
   proceeding
 

@@ -26,7 +26,7 @@ steps:
       - .
 
   - id: export-app-web
-    name: node:24-bookworm
+    name: node:26-bookworm
     entrypoint: bash
     args:
       - -ceu

@@ -225,7 +225,7 @@ src/
 
 ### Prerequisites
 
-- Node.js 24 LTS
+- Node.js 26
 - npm 10.9.8 (managed from the monorepo root)
 
 ### Install & Run
@@ -647,7 +647,7 @@ The repo ships a multi-stage [`Dockerfile`](./Dockerfile) that builds the Next.j
   docker build -f apps/admin/Dockerfile -t gogocash-admin .
   docker run -p 8080:8080 --env-file .env gogocash-admin
   ```
-- Base image **`node:24-slim`**; install via **`npm ci --legacy-peer-deps`**; build
+- Base image **`node:26-slim`**; install via **`npm ci --legacy-peer-deps`**; build
   via `npm run build:standalone -w gogocash-admin`.
 - Runs as non-root (`nextjs:nodejs`); entrypoint `node apps/admin/server.js`; listens on **port 8080**.
 - Target image/region: `asia-southeast1-docker.pkg.dev/gogocash-staging/gogocash/gogocash-admin` (Cloud Run, asia-southeast1).
@@ -664,7 +664,7 @@ The repo ships a multi-stage [`Dockerfile`](./Dockerfile) that builds the Next.j
 
 An [`app.yaml`](./app.yaml) is present:
 
-- Runtime: **Node.js 24 LTS**
+- Runtime: **Node.js 26**
 - Auto-scaling: 0–10 instances, CPU target 60%
 - Resources: 1 CPU, 0.5 GB RAM
 

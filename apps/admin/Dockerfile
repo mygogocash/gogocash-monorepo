@@ -13,7 +13,7 @@
 # same environment. NEXT_PUBLIC_API_URL has no default to avoid silently pointing
 # production builds at staging.
 
-FROM node:24-slim AS builder
+FROM node:26-slim AS builder
 WORKDIR /app
 
 # 1) Install dependencies from the lockfile first, for layer caching.
@@ -51,7 +51,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 RUN npm run build:standalone -w gogocash-admin
 
-FROM node:24-slim AS runner
+FROM node:26-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

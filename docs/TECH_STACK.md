@@ -113,7 +113,7 @@ gogocash-monorepo/
 | Testing          | **Jest 30**, Supertest 7, real-Mongo integration tests                      |
 | Lint             | **Oxlint 1.74**                                                             |
 | Package manager  | **npm** (monorepo root lockfile; build via `npm run build -w gogocash-api`) |
-| Container        | **node:24-alpine** multi-stage Dockerfile (`apps/api/Dockerfile`)           |
+| Container        | **node:26-alpine** multi-stage Dockerfile (`apps/api/Dockerfile`)           |
 
 **Key integrations:** Involve Asia, Optimise Media, Stripe, Resend, PostHog, GCS, Google Drive (legacy), Telegraf, ethers (on-chain withdraw).
 
@@ -181,7 +181,7 @@ Cloud Run services:
 
 CI/CD:
 
-- **CI:** GitHub Actions `ci.yml` — path-filtered per app (Node 24 LTS, `npm ci` at root)
+- **CI:** GitHub Actions `ci.yml` — path-filtered per app (Node 26, `npm ci` at root)
 - **Primary deploy:** push/merge to `staging` → `ci-staging.yml` → Railway auto-deploy; changed app code publishes staging OTA only after the reusable app CI gate succeeds
 - **GCP rollback build:** manual `build-staging.yml` from `main` — reviewed-ref preflight, CI gate, selected app(s), exact 40-character SHA image tags, canonical copyable service→digest map
 - **GCP rollback release:** manual `release-staging.yml` from `main` — reviewed-ref preflight, required exact SHA plus canonical selected build digest map, exact registry digest match, Cloud Run health smoke

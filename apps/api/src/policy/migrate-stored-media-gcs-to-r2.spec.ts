@@ -134,7 +134,7 @@ describe('GCS to R2 policy media migration contract', () => {
     expect(GCS_R2_TARGET_SPECS).toEqual(STORED_MEDIA_TARGET_SPECS);
   });
 
-  it('boots with Node 24 native TypeScript and no SWC/TypeScript 7 hook', () => {
+  it('boots with Node 26 native TypeScript and no SWC/TypeScript 7 hook', () => {
     const apiRoot = path.resolve(__dirname, '../..');
     const packageJson = JSON.parse(
       fs.readFileSync(path.join(apiRoot, 'package.json'), 'utf8'),
@@ -159,7 +159,7 @@ describe('GCS to R2 policy media migration contract', () => {
       ],
       { cwd: apiRoot, env, encoding: 'utf8' },
     );
-    expect(process.versions.node).toMatch(/^24\./);
+    expect(process.versions.node).toMatch(/^26\./);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('MONGO_URI is required');
     expect(result.stderr).not.toContain('ts.Extension');
