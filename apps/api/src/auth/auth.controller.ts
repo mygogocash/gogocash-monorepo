@@ -28,6 +28,7 @@ import {
   SignInDto,
   SignInFirebaseDto,
   TelegramAuthDto,
+  TelegramMiniAppDto,
   VerifyOtpDto,
 } from './dto/auth.dto';
 import { Request } from 'express';
@@ -235,6 +236,22 @@ export class AuthController {
   async loginTelegram(@Req() req: Request, @Body() body: TelegramAuthDto) {
     // The guard has already validated the token and added the user payload to the request
     const user = await this.auth.signInTelegram(body);
+    return { message: 'Login successful!', ...user };
+  }
+
+  /**
+   * Telegram Mini App auto-login. Accepts the raw `initData` query string and
+   * verifies it with the WebAppData-keyed HMAC (distinct from the widget's
+   * SHA256(bot_token) secret), then returns the same envelope as the widget
+   * login. Enables safe in-app auto-login without a separate widget round-trip.
+   */
+  @Post('log-in/telegram-miniapp')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 20 })
+  @ApiBody({ type: TelegramMiniAppDto })
+  @ApiResponse({ status: 201, description: 'User login successfully' })
+  async loginTelegramMiniApp(@Body() body: TelegramMiniAppDto) {
+    const user = await this.auth.signInTelegramMiniApp(body.initData);
     return { message: 'Login successful!', ...user };
   }
 

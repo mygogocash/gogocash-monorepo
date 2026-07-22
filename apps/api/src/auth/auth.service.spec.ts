@@ -45,7 +45,27 @@ jest.mock('./firebase-admin.provider', () => ({
   verifyFirebaseIdToken: jest.fn((token: string) => verifyIdTokenMock(token)),
 }));
 
+// The registration-source guard stays REAL by default: every existing test —
+// and the "telegram registration disabled" mini-app case below — relies on the
+// genuine throw-on-disabled behavior. Only the NEW-user happy-path test flips
+// it on for a single call (telegram is disabled in the manifest, so a brand-new
+// account cannot otherwise be created), letting us exercise the create + session
+// envelope path without weakening any other assertion.
+jest.mock('src/quest-task-engine/registration-source.manifest', () => {
+  const actual = jest.requireActual(
+    'src/quest-task-engine/registration-source.manifest',
+  );
+  return {
+    __esModule: true,
+    ...actual,
+    assertRegistrationSourceEnabled: jest.fn(
+      actual.assertRegistrationSourceEnabled,
+    ),
+  };
+});
+
 import axios from 'axios';
+import { assertRegistrationSourceEnabled } from 'src/quest-task-engine/registration-source.manifest';
 import { AuthService } from './auth.service';
 
 // Mongo ObjectId-ish strings the service feeds into `new Types.ObjectId(...)`.
@@ -1187,6 +1207,152 @@ describe('AuthService', () => {
     });
   });
 
+  // --- signInTelegramMiniApp ------------------------------------------------
+  // Mirrors the widget signInTelegram tests, but for the Mini App auto-login
+  // path that verifies the raw initData query string via the WebAppData-keyed
+  // HMAC (verifyTelegramInitData) and then reuses finalizeTelegramLogin.
+  describe('signInTelegramMiniApp', () => {
+    const MINI_BOT_TOKEN = 'mini-bot-token';
+    const TG_ID = 987654321;
+    const TG_USER_JSON = JSON.stringify({ id: TG_ID, username: 'ada_l' });
+
+    /** initData carrying a fresh (now-10s) auth_date and a well-formed user. */
+    function freshMiniAppInitData(botToken = MINI_BOT_TOKEN): string {
+      return signMiniAppInitData(
+        {
+          query_id: 'AAETEST',
+          user: TG_USER_JSON,
+          auth_date: String(Math.floor(Date.now() / 1000) - 10),
+        },
+        botToken,
+      );
+    }
+
+    // (a) Without the bot token, the WebAppData HMAC cannot be verified, so the
+    // login MUST be refused before any account lookup or creation.
+    it('signInTelegramMiniApp > given TELEGRAM_BOT_TOKEN is not set > then it throws UnauthorizedException and creates no account', async () => {
+      const { service, userService } = makeService();
+
+      await expect(
+        service.signInTelegramMiniApp(freshMiniAppInitData()),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(userService.findOne).not.toHaveBeenCalled();
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
+    // (b) A payload whose HMAC does not match the configured bot token (here:
+    // signed with a DIFFERENT token) is a forgery and must be rejected before
+    // any account lookup.
+    it('signInTelegramMiniApp > given initData with an invalid HMAC > then it throws UnauthorizedException', async () => {
+      process.env.TELEGRAM_BOT_TOKEN = MINI_BOT_TOKEN;
+      const { service, userService } = makeService();
+      const forged = freshMiniAppInitData('a-different-bot-token');
+
+      await expect(
+        service.signInTelegramMiniApp(forged),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(userService.findOne).not.toHaveBeenCalled();
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
+    // (c) A genuinely-signed payload for an UNKNOWN telegram id must still be
+    // refused while the telegram registration source is disabled — and it must
+    // reject BEFORE creating a user. The real assertRegistrationSourceEnabled
+    // (telegram = disabled) drives this.
+    it('signInTelegramMiniApp > given a valid initData for a new id but disabled telegram registration > then it rejects before creating a user', async () => {
+      process.env.TELEGRAM_BOT_TOKEN = MINI_BOT_TOKEN;
+      const { service, userService } = makeService({
+        userService: { findOne: jest.fn().mockResolvedValue(null) },
+      });
+
+      await expect(
+        service.signInTelegramMiniApp(freshMiniAppInitData()),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      // Reached the find-or-create path (looked up by telegram id)...
+      expect(userService.findOne).toHaveBeenCalledWith({
+        id_telegram: String(TG_ID),
+      });
+      // ...hit the disabled-source guard for telegram...
+      expect(assertRegistrationSourceEnabled).toHaveBeenCalledWith('telegram');
+      // ...and refused to create the account.
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
+    // (d) A genuinely-signed payload for a NEW telegram id, with the telegram
+    // registration source enabled, must create the account keyed by id_telegram
+    // and return a register session envelope.
+    it('signInTelegramMiniApp > given a valid initData for a new id and enabled registration > then it creates by id_telegram and returns a register envelope', async () => {
+      process.env.TELEGRAM_BOT_TOKEN = MINI_BOT_TOKEN;
+      const created = makeUser({
+        id_telegram: String(TG_ID),
+        provider: 'telegram',
+        username: 'ada_l',
+      });
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(null),
+          createFromFirebase: jest.fn().mockResolvedValue(created),
+        },
+      });
+      // Enable telegram registration for THIS call only.
+      (assertRegistrationSourceEnabled as jest.Mock).mockImplementationOnce(
+        () => ({
+          source: 'telegram',
+          enabled: true,
+          central_transaction_required: true,
+          reason: 'test-enabled',
+        }),
+      );
+
+      const result = await service.signInTelegramMiniApp(freshMiniAppInitData());
+
+      expect(result).toMatchObject({
+        user: created,
+        token: 'signed.jwt.token',
+        is_new_user: true,
+        auth_flow: 'register',
+      });
+      expect(userService.createFromFirebase).toHaveBeenCalledTimes(1);
+      expect(userService.createFromFirebase).toHaveBeenCalledWith(
+        expect.objectContaining({ id_telegram: String(TG_ID) }),
+      );
+    });
+
+    // (e) A genuinely-signed payload for an EXISTING telegram user resolves to a
+    // login session envelope WITHOUT creating a duplicate account.
+    it('signInTelegramMiniApp > given a valid initData for an existing telegram user > then it returns a login envelope without duplicate creation', async () => {
+      process.env.TELEGRAM_BOT_TOKEN = MINI_BOT_TOKEN;
+      const existing = makeUser({
+        id_telegram: String(TG_ID),
+        provider: 'telegram',
+      });
+      const updated = makeUser({
+        id_telegram: String(TG_ID),
+        provider: 'telegram',
+        username: 'ada_l',
+      });
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(existing),
+          update: jest.fn().mockResolvedValue(updated),
+        },
+      });
+
+      const result = await service.signInTelegramMiniApp(freshMiniAppInitData());
+
+      expect(result).toMatchObject({
+        user: updated,
+        token: 'signed.jwt.token',
+        is_new_user: false,
+        auth_flow: 'login',
+      });
+      expect(userService.findOne).toHaveBeenCalledWith({
+        id_telegram: String(TG_ID),
+      });
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+  });
+
   // --- verifyTelegramAuth ---------------------------------------------------
   describe('verifyTelegramAuth', () => {
     it('verifyTelegramAuth > given a hash computed with the bot token > then it returns true', async () => {
@@ -1482,4 +1648,28 @@ function signTelegram(
     .join('\n');
   const secretKey = createHash('sha256').update(botToken).digest();
   return createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+}
+
+// Build a signed Telegram Mini App initData query string using the CORRECT
+// WebAppData-keyed HMAC (secret = HMAC_SHA256(key="WebAppData", msg=botToken)),
+// which is a DIFFERENT algorithm from the widget's SHA256(botToken) above. This
+// mirrors the fixture builder in telegram-initdata.spec.ts so the service's real
+// verifyTelegramInitData path is exercised against a genuinely valid signature.
+function signMiniAppInitData(
+  params: Record<string, string>,
+  botToken: string,
+): string {
+  const dataCheckString = Object.keys(params)
+    .filter((k) => k !== 'hash' && k !== 'signature')
+    .sort()
+    .map((k) => `${k}=${params[k]}`)
+    .join('\n');
+  const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest();
+  const hash = createHmac('sha256', secretKey)
+    .update(dataCheckString)
+    .digest('hex');
+  const usp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) usp.set(k, v);
+  usp.set('hash', hash);
+  return usp.toString();
 }
