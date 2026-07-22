@@ -242,4 +242,17 @@ describe("CustomerQuestScreen — Wave B (B5) foundations adopted (source signal
       /hitSlop=[\s\S]*?style=\{styles\.historyButton\}/,
     );
   });
+
+  it("wires the leaderboard + my-rank + window to the real /point API, not the static fixture", () => {
+    // Regression guard: the Quest leaderboard panel must consume the real resource hooks
+    // (which fall back to the designed fixtures only in non-backend/design builds), NOT map
+    // the static webQuestLeaderboardRows directly. On beta (accountDataSource==="backend")
+    // this is what surfaces the real GoGoQuest ranking.
+    expect(questSource).toContain('from "@mobile/quest/questRankResource"');
+    expect(questSource).toContain("useQuestWindow()");
+    expect(questSource).toContain("useQuestLeaderboard(questWindow)");
+    expect(questSource).toContain("useMyQuestRank(questWindow)");
+    expect(questSource).toContain("rows={leaderboard.rows}");
+    expect(questSource).not.toContain("webQuestLeaderboardRows.map(");
+  });
 });
