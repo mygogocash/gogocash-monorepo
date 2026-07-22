@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { Link, Redirect } from "expo-router";
 import { ChevronLeft as ChevronLeftIcon } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
 import { Fragment } from "react";
@@ -6,6 +6,7 @@ import type { DimensionValue, ViewStyle } from "react-native";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { isCreditScoreEnabled } from "@mobile/config/featureFlags";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import { mobileShellLayout, webCreditScorePage } from "@mobile/design/webDesignParity";
@@ -18,6 +19,13 @@ export function CustomerCreditScoreScreen() {
   const styles = useThemedStyles(createCreditScoreScreenStyles);
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
+
+  // Hidden pre-launch: block direct-URL access when the flag is off (mirrors
+  // CustomerGoGoTrackScreen / CustomerMembershipScreen). Route stays registered
+  // so re-enabling is a pure flag flip.
+  if (!isCreditScoreEnabled()) {
+    return <Redirect href="/profile" />;
+  }
 
   return (
     <CreditScoreSubPage>

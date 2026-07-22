@@ -55,7 +55,10 @@ describe("Remaining customer route parity", () => {
     const ratingRoute = readMobileFile("app/profile/my-rating.tsx");
 
     expect(ratingRoute).toContain("Redirect");
-    expect(ratingRoute).toContain('href="/credit-score"');
+    // Flag-aware alias: -> /credit-score when enabled, -> /profile when hidden.
+    expect(ratingRoute).toContain("isCreditScoreEnabled");
+    expect(ratingRoute).toContain("/credit-score");
+    expect(ratingRoute).toContain("/profile");
     expect(ratingRoute).not.toContain("CustomerProfileDetailScreen");
   });
 
