@@ -533,6 +533,14 @@ export class AdminController {
     return this.adminService.getFeeRate();
   }
 
+  // Public: the customer app reads only the referral bonus % (not the rest of
+  // the admin-guarded fee singleton) to render the dynamic Share & Earn copy.
+  @Public()
+  @Get('referral-bonus-percent')
+  getReferralBonusPercent() {
+    return this.adminService.getReferralBonusPercent();
+  }
+
   @UseGuards(AuthAdminGuard)
   @ApiBody({ type: UpdateFeeRateDto })
   @ApiSecurity('access-token') // Apply the security scheme defined globally

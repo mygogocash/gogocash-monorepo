@@ -109,4 +109,29 @@ describe('buildFeeRateUpdate', () => {
       /between 0 and 100/i,
     );
   });
+
+  it('persists referral_bonus_percent within 0-100 (mirrors the system-fee clamp)', () => {
+    expect(buildFeeRateUpdate({ referral_bonus_percent: 12 })).toEqual({
+      referral_bonus_percent: 12,
+    });
+    expect(buildFeeRateUpdate({ referral_bonus_percent: 0 })).toEqual({
+      referral_bonus_percent: 0,
+    });
+  });
+
+  it('rejects a referral_bonus_percent outside 0-100 or non-finite', () => {
+    expect(() =>
+      buildFeeRateUpdate({ referral_bonus_percent: 101 }),
+    ).toThrow(/between 0 and 100/i);
+    expect(() =>
+      buildFeeRateUpdate({ referral_bonus_percent: -1 }),
+    ).toThrow(/zero or greater/i);
+    expect(() =>
+      buildFeeRateUpdate({ referral_bonus_percent: Number.NaN }),
+    ).toThrow();
+  });
+
+  it('omits referral_bonus_percent from the update when not supplied', () => {
+    expect(buildFeeRateUpdate({ system: 5 })).toEqual({ system: 5 });
+  });
 });

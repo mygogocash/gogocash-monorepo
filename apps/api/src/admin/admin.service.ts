@@ -46,6 +46,7 @@ import type { AdminActor } from './activity/admin-activity.actor';
 import { InvolveService } from 'src/involve/involve.service';
 import { User } from 'src/user/schemas/user.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
+import { REFERRAL_BONUS_DEFAULT_PERCENT } from 'src/point/referral-bonus';
 import { StoredMediaService } from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { Offer } from 'src/offer/schemas/offer.schema';
@@ -1076,6 +1077,26 @@ export class AdminService {
 
   async getFeeRate() {
     return this.feeRateModel.find().exec();
+  }
+
+  /**
+   * Public read of the referral bonus percentage for the customer app copy.
+   * FeeRate is a singleton (admin uses find()[0]); this returns just the
+   * percentage so the app never sees admin-only fee internals. Falls back to
+   * the schema default when no singleton exists yet.
+   */
+  async getReferralBonusPercent(): Promise<{ referral_bonus_percent: number }> {
+    const feeRate = await this.feeRateModel
+      .findOne()
+      .select('referral_bonus_percent')
+      .lean();
+    const value = feeRate?.referral_bonus_percent;
+    return {
+      referral_bonus_percent:
+        typeof value === 'number' && Number.isFinite(value)
+          ? value
+          : REFERRAL_BONUS_DEFAULT_PERCENT,
+    };
   }
 
   async updateFeeRate(updateFeeRateDto: UpdateFeeRateDto, id: string) {

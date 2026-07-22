@@ -50,6 +50,11 @@ import {
 import { getMobileEnv } from "@mobile/config/env";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { isMerchantOfferResponse } from "@mobile/api/merchantTypes";
+import { useReferralBonusPercent } from "@mobile/api/referralBonus";
+import {
+  buildReferralCardCopy,
+  type ReferralCardCopy,
+} from "@mobile/api/referralBonusCopy";
 import { buildLoginRedirectWithCallback } from "@mobile/auth/routeGuard";
 import {
   consumePendingShopNowIntentDetails,
@@ -141,6 +146,14 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   const shop: ShopDetail = isMerchantOfferResponse(merchantResource.data)
     ? mapMerchantOfferToShopDetail(merchantResource.data, fixtureShop)
     : fixtureShop;
+  // Dynamic "Share & earn {n}%" copy from the live FeeRate.referral_bonus_percent
+  // (single source of truth). Falls back to the fixture copy until/if the public
+  // read resolves, so the card never flashes a broken or 0% bonus.
+  const referralBonusPercent = useReferralBonusPercent();
+  const referralCopy = buildReferralCardCopy(
+    referralBonusPercent,
+    shop.referral,
+  );
   const policyResource = useCustomerAccountResource<
     CategoryPolicyPayload | null,
     CategoryPolicyPayload
@@ -353,7 +366,10 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
         >
           <ShopCashbackRail shop={shop} />
           <ShopTrackingPeriod shop={shop} />
-          <ShopReferralCard onShare={handleShareReferral} shop={shop} />
+          <ShopReferralCard
+            onShare={handleShareReferral}
+            referralCopy={referralCopy}
+          />
           {isDesktop ? <ShopTermsPanel terms={shopTerms} /> : null}
         </View>
         <View
@@ -799,10 +815,10 @@ function TrackingIcon({ name }: { name: TrackingStep["icon"] }) {
 
 function ShopReferralCard({
   onShare,
-  shop,
+  referralCopy,
 }: {
   onShare: () => void;
-  shop: ShopDetail;
+  referralCopy: ReferralCardCopy;
 }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
@@ -818,12 +834,12 @@ function ShopReferralCard({
       </View>
       <View style={styles.referralCopy}>
         <Text numberOfLines={2} style={styles.referralTitle}>
-          {tc(shop.referral.title)}
+          {tc(referralCopy.title)}
         </Text>
         <Text numberOfLines={2} style={styles.referralSubtitle}>
-          {tc(shop.referral.subtitle)}
+          {tc(referralCopy.subtitle)}
         </Text>
-        <Text style={styles.referralBody}>{tc(shop.referral.body)}</Text>
+        <Text style={styles.referralBody}>{tc(referralCopy.body)}</Text>
       </View>
       <MotionPressable
         accessibilityRole="button"
@@ -834,7 +850,7 @@ function ShopReferralCard({
       >
         <ShareIcon color={colors.white} size={16} strokeWidth={2} />
         <Text style={styles.shareButtonText}>
-          {tc(shop.referral.actionLabel)}
+          {tc(referralCopy.actionLabel)}
         </Text>
       </MotionPressable>
     </View>

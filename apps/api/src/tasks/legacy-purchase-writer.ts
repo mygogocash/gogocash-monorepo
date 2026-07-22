@@ -74,6 +74,19 @@ function assertReadyIdentity(conversion: LegacyPurchaseConversion) {
   return payoutKey;
 }
 
+/**
+ * Optional follow-on invoked strictly AFTER the referee's cashback is durably
+ * completed. Kept as an injected callback so this purchase writer stays
+ * dependency-free and the referral bonus (MONEY / R0) is unit-tested in
+ * isolation. Absence = no referral side effects (backward compatible).
+ */
+export type ReferralBonusHook = (input: {
+  refereeUserId: string;
+  sourceCashbackAmount: number;
+  sourceConversionId: number;
+  sourcePayoutKey: string;
+}) => Promise<unknown>;
+
 export async function awardReconciledPurchaseConversion(
   conversion: LegacyPurchaseConversion,
   dependencies: {
@@ -81,6 +94,7 @@ export async function awardReconciledPurchaseConversion(
     pointService: PointWriter;
     thbPerUsd: number;
     now?: Date;
+    referralBonus?: ReferralBonusHook;
   },
 ) {
   const payoutKey = assertReadyIdentity(conversion);
@@ -162,5 +176,18 @@ export async function awardReconciledPurchaseConversion(
       throw new Error('Purchase conversion completion fence was lost');
     }
   }
+
+  // Referee cashback is now durably credited + the conversion is completed.
+  // Pay the referrer their percentage (idempotent + audited inside the hook).
+  // Only reachable for approved+completed conversions, so reversals never pay.
+  if (dependencies.referralBonus) {
+    await dependencies.referralBonus({
+      refereeUserId: userId,
+      sourceCashbackAmount: Number(amount),
+      sourceConversionId: conversion.conversion_id,
+      sourcePayoutKey: payoutKey,
+    });
+  }
+
   return { payout_key: payoutKey, amount: Number(amount) };
 }
