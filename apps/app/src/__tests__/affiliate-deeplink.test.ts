@@ -106,4 +106,43 @@ describe("mintUserTrackingLink", () => {
       ).resolves.toBeNull();
     },
   );
+
+  it("given a mint slower than the timeout > then aborts and returns null so the redirect can fall back to the raw link", async () => {
+    vi.useFakeTimers();
+    try {
+      // A backend mint can be auth + 401 refresh + a retried provider call
+      // (PROVIDER_TIMEOUT_MS = 10s each). Simulate one that never resolves; the
+      // client must abort at timeoutMs and return null, NOT hang the redirect.
+      const fetchImpl = vi.fn(
+        (_url: string, init?: { signal?: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("The operation was aborted.", "AbortError"));
+            });
+          }),
+      );
+      const pending = mintUserTrackingLink({
+        ...BASE,
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        timeoutMs: 2500,
+      });
+      await vi.advanceTimersByTimeAsync(2500);
+      await expect(pending).resolves.toBeNull();
+      expect(
+        (fetchImpl.mock.calls[0][1] as { signal?: AbortSignal }).signal,
+      ).toBeInstanceOf(AbortSignal);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("given a fast successful mint > then clears the timeout and returns the link", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      json: async () => ({ deeplink: "https://invl.me/aff_m?aff_sub=user_id%3Aabc" }),
+      ok: true,
+    });
+    await expect(
+      mintUserTrackingLink({ ...BASE, fetchImpl, timeoutMs: 2500 }),
+    ).resolves.toBe("https://invl.me/aff_m?aff_sub=user_id%3Aabc");
+  });
 });
