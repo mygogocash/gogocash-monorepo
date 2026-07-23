@@ -50,7 +50,7 @@ function readStoredSession(): Record<string, unknown> | null {
 
 function openEmailForm() {
   render(createElement(CustomerAuthScreen, { mode: "login" }));
-  fireEvent.click(screen.getByText("Sign in with email"));
+  fireEvent.click(screen.getByText("Use email instead"));
 }
 
 function fillEmailForm(email: string, password: string) {
@@ -79,7 +79,7 @@ describe("CustomerAuthScreen — email/password (backend mode)", () => {
     window.localStorage.clear();
   });
 
-  it("phone step > offers a 'Sign in with email' entry that switches to the email form", () => {
+  it("phone step > offers a concise email entry that switches to the email form", () => {
     openEmailForm();
 
     expect(screen.getByPlaceholderText("Email address")).toBeTruthy();

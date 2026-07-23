@@ -46,7 +46,7 @@ describe("Expo auth design parity", () => {
     });
     expect(webAuthPage.socialProviders.map((provider) => provider.label)).toEqual([
       "Facebook",
-      "Gmail",
+      "Google",
       "LINE",
       "Telegram",
       "Apple",
@@ -172,9 +172,9 @@ describe("Expo auth design parity", () => {
     ]);
     expectStyleBlock(authFile, "socialLabel", [
       "color: colors.muted",
-      "fontSize: 10",
+      "fontSize: 12",
       'fontWeight: "500"',
-      "lineHeight: 12.5",
+      "lineHeight: 16",
     ]);
     expectStyleBlock(authFile, "socialLabelRow", [
       "fontSize: 15",
@@ -196,8 +196,13 @@ describe("Expo auth design parity", () => {
   it("auth mobile cosmetic parity > given the Next mobile form > then Expo uses vertical fields and a two-column social grid", () => {
     const authFile = readMobileFile("src/screens/CustomerAuthScreen.tsx");
 
+    expect(webAuthPage.mobileSocialDividerByMode).toEqual({
+      login: "Other ways to sign in",
+      register: "Other ways to sign up",
+    });
     expect(authFile).toContain("styles.pageAuthMobile");
     expect(authFile).toContain("styles.brandBlockMobile");
+    expect(authFile).toContain("styles.cardMobile");
     expect(authFile).toContain("styles.cardInnerMobile");
     expect(authFile).toContain("styles.countryRowMobile");
     expect(authFile).toContain("styles.countrySelectMobile");
@@ -208,34 +213,67 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("styles.socialGridMobile");
     expect(authFile).toContain("styles.socialButtonMobile");
     expect(authFile).toContain("authSocialProviders.map");
-    expect(authFile).toContain("usesMobileFormLayout ? tc(dividerText).toUpperCase() : tc(dividerText)");
+    expect(authFile).toContain("{tc(dividerText)}");
+    expect(authFile).toContain("webAuthPage.mobileSocialDividerByMode[mode]");
+    expect(authFile).toContain('showsVerticalScrollIndicator={!usesMobileFormLayout}');
+    expect(authFile).toContain(
+      'tc(usesMobileFormLayout ? "Use email instead" : "Sign in with email")',
+    );
     expect(authFile).toContain("<CustomerCookieConsentBanner isDesktop={isDesktopShell} />");
     // Founder 2026-07-13: the social grid sat flush against the card edge and
     // the floating bottom nav. The page clears the nav like sibling detail
     // screens (clearance + 24) and the card keeps inner bottom breathing room.
     expectStyleBlock(authFile, "pageAuthMobile", [
       "paddingBottom: mobileShellLayout.bottomNavClearance + 24",
-      "paddingHorizontal: 24",
+      "paddingHorizontal: 20",
+    ]);
+    expectStyleBlock(authFile, "cardMobile", [
+      "backgroundColor: colors.background",
+      "borderRadius: 0",
+      "borderWidth: 0",
+      'overflow: "visible"',
     ]);
     expectStyleBlock(authFile, "cardInnerMobile", [
       "paddingBottom: 24",
-      "paddingHorizontal: 16",
-      "paddingTop: 24",
+      "paddingHorizontal: 0",
+      "paddingTop: 0",
     ]);
-    expectStyleBlock(authFile, "brandBlockMobile", ["gap: 8", "paddingBottom: 32"]);
+    expectStyleBlock(authFile, "brandBlockMobile", ["gap: 4", "paddingBottom: 24"]);
     expectStyleBlock(authFile, "countryRowMobile", [
       'alignItems: "stretch"',
       'flexDirection: "column"',
     ]);
-    expectStyleBlock(authFile, "countrySelectMobile", ['width: "100%"']);
-    expectStyleBlock(authFile, "formStackMobile", ["gap: 20"]);
-    expectStyleBlock(authFile, "privacyWrapMobile", ["height: 72"]);
-    expectStyleBlock(authFile, "socialBlockMobile", ["marginTop: 24"]);
+    expectStyleBlock(authFile, "countrySelectMobile", [
+      "backgroundColor: colors.field",
+      "borderColor: colors.border",
+      "height: 54",
+      'width: "100%"',
+    ]);
+    expectStyleBlock(authFile, "formStackMobile", ["gap: 16"]);
+    expectStyleBlock(authFile, "dialCodeBoxMobile", [
+      "backgroundColor: colors.field",
+      "height: 54",
+      "width: 80",
+    ]);
+    expectStyleBlock(authFile, "phoneInputMobile", [
+      "backgroundColor: colors.field",
+      "height: 54",
+    ]);
+    expectStyleBlock(authFile, "privacyWrapMobile", [
+      "minHeight: 64",
+      "paddingHorizontal: 12",
+      "paddingVertical: 12",
+    ]);
+    expectStyleBlock(authFile, "primaryActionTextMobile", [
+      'color: "#053B30"',
+      'fontWeight: "600"',
+    ]);
+    expectStyleBlock(authFile, "socialBlockMobile", ["marginTop: 20"]);
     expectStyleBlock(authFile, "socialGridMobile", [
       'flexWrap: "wrap"',
       'justifyContent: "space-between"',
     ]);
-    expectStyleBlock(authFile, "socialButtonMobile", ["height: 72", 'width: "48%"']);
+    expectStyleBlock(authFile, "socialButtonMobile", ["height: 64", 'width: "48%"']);
   });
 
   it("auth tablet parity > given the 768-1023 band > then Expo uses the centered tablet frame and desktop social stack", () => {
