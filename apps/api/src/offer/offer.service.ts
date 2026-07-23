@@ -1568,7 +1568,9 @@ export class OfferService implements OnApplicationBootstrap {
    */
   async getDisplayLandingRails() {
     const rails = sortLandingRails(
-      await this.landingRailConfigModel.find({ enabled: { $ne: false } }).exec(),
+      await this.landingRailConfigModel
+        .find({ enabled: { $ne: false } })
+        .exec(),
     );
     if (rails.length === 0) {
       return { data: [] };

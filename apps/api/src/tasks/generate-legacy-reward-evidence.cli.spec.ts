@@ -94,7 +94,10 @@ describe('generate-legacy-reward-evidence > parseArgs', () => {
   ];
 
   it('defaults to dry-run when neither --apply nor --dry-run is given', () => {
-    expect(parseArgs(REQ)).toMatchObject({ mode: 'dry-run', questId: QUEST_ID });
+    expect(parseArgs(REQ)).toMatchObject({
+      mode: 'dry-run',
+      questId: QUEST_ID,
+    });
   });
 
   it('refuses --apply and --dry-run together', () => {
@@ -105,7 +108,9 @@ describe('generate-legacy-reward-evidence > parseArgs', () => {
 
   it('requires --quest-id, --reviewed-by and --review-reference', () => {
     expect(() => parseArgs([])).toThrow(/--quest-id/);
-    expect(() => parseArgs([`--quest-id=${QUEST_ID}`])).toThrow(/--reviewed-by/);
+    expect(() => parseArgs([`--quest-id=${QUEST_ID}`])).toThrow(
+      /--reviewed-by/,
+    );
     expect(() =>
       parseArgs([`--quest-id=${QUEST_ID}`, '--reviewed-by=ops']),
     ).toThrow(/--review-reference/);
@@ -173,21 +178,18 @@ describe('generate-legacy-reward-evidence > runGenerate gate', () => {
     ['false', 'false'],
     ['1', '1'],
     ['yes', 'yes'],
-  ])(
-    'refuses and touches no IO when the gate is %s',
-    async (_label, raw) => {
-      const deps = makeDeps({
-        env: raw === undefined ? {} : { QUEST_WINNER_GENERATOR_ENABLED: raw },
-      });
-      await expect(runGenerate(baseOptions(), deps)).rejects.toThrow(
-        /QUEST_WINNER_GENERATOR_ENABLED/,
-      );
-      expect(deps.loadQuest).not.toHaveBeenCalled();
-      expect(deps.fetchLeaderboard).not.toHaveBeenCalled();
-      expect(deps.fetchSpecial).not.toHaveBeenCalled();
-      expect(deps.writeFile).not.toHaveBeenCalled();
-    },
-  );
+  ])('refuses and touches no IO when the gate is %s', async (_label, raw) => {
+    const deps = makeDeps({
+      env: raw === undefined ? {} : { QUEST_WINNER_GENERATOR_ENABLED: raw },
+    });
+    await expect(runGenerate(baseOptions(), deps)).rejects.toThrow(
+      /QUEST_WINNER_GENERATOR_ENABLED/,
+    );
+    expect(deps.loadQuest).not.toHaveBeenCalled();
+    expect(deps.fetchLeaderboard).not.toHaveBeenCalled();
+    expect(deps.fetchSpecial).not.toHaveBeenCalled();
+    expect(deps.writeFile).not.toHaveBeenCalled();
+  });
 
   it('proceeds when the gate is exactly "true"', async () => {
     const deps = makeDeps();

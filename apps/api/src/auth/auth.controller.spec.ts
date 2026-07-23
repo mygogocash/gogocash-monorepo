@@ -314,7 +314,9 @@ describe('AuthController', () => {
         .compile();
 
       miniApp = moduleRef.createNestApplication();
-      miniApp.useGlobalPipes(new ValidationPipe(GLOBAL_VALIDATION_PIPE_OPTIONS));
+      miniApp.useGlobalPipes(
+        new ValidationPipe(GLOBAL_VALIDATION_PIPE_OPTIONS),
+      );
       await miniApp.init();
     });
 

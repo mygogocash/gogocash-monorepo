@@ -25,10 +25,7 @@ describe('MediaOriginalArchiveService', () => {
   beforeEach(() => {
     drive = { uploadFile: jest.fn() };
     model = { updateOne: jest.fn().mockResolvedValue({ acknowledged: true }) };
-    service = new MediaOriginalArchiveService(
-      drive as never,
-      model as never,
-    );
+    service = new MediaOriginalArchiveService(drive as never, model as never);
   });
 
   it('archives a public image original to Drive and records the mapping', async () => {

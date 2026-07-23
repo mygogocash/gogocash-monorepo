@@ -45,7 +45,9 @@ export function calculateReferralBonusPoints(
   percent: number,
 ): number {
   if (!Number.isFinite(sourceCashback) || sourceCashback < 0) {
-    throw new Error('Referral bonus source cashback must be a non-negative number');
+    throw new Error(
+      'Referral bonus source cashback must be a non-negative number',
+    );
   }
   if (!Number.isFinite(percent)) {
     throw new Error('Referral bonus percent must be a finite number');

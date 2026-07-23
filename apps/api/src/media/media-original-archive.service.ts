@@ -79,9 +79,7 @@ export class MediaOriginalArchiveService {
       const message = error instanceof Error ? error.message : String(error);
       // Best-effort by design: log and move on. The served image is fine; only
       // the recoverable-original guarantee is missing for this asset.
-      this.logger.warn(
-        `Original archive skipped for ${objectKey}: ${message}`,
-      );
+      this.logger.warn(`Original archive skipped for ${objectKey}: ${message}`);
     }
   }
 }
