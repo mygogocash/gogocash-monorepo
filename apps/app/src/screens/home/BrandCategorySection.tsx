@@ -1,4 +1,5 @@
 import { Link } from "expo-router";
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { BrandLogoTile } from "@mobile/components/BrandLogoTile";
@@ -26,6 +27,7 @@ export function BrandCategorySection({
   isDesktop: boolean;
   tiles: readonly BrandCategoryTile[];
 }) {
+  const [measuredWidth, setMeasuredWidth] = useState(0);
   const homeStyles = useHomeScreenStyles();
   const styles = useThemedStyles(createBrandCategoryStyles);
   const tc = useCopy();
@@ -36,11 +38,17 @@ export function BrandCategorySection({
 
   const columns = getBrandCategoryColumns(isDesktop);
   const gap = isDesktop ? spacing.md : spacing.sm;
-  const cardWidth = Math.max(0, (contentWidth - gap * (columns - 1)) / columns);
+  // Measure the row rather than trusting contentWidth: the home shell adds its own
+  // padding, so contentWidth ran ~16px wide and the cards wrapped to one per row.
+  const availableWidth = measuredWidth > 0 ? measuredWidth : contentWidth;
+  const cardWidth = Math.max(0, (availableWidth - gap * (columns - 1)) / columns);
 
   return (
     <View style={homeStyles.section} testID="home-brand-categories">
-      <View style={[styles.grid, { gap }]}>
+      <View
+        onLayout={(event) => setMeasuredWidth(event.nativeEvent.layout.width)}
+        style={[styles.grid, { gap }]}
+      >
         {tiles.map((tile) => (
           <Link asChild href={tile.href as never} key={tile.id}>
               <MotionPressable
