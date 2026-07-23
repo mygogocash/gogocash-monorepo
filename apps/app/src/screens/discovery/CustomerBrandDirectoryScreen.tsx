@@ -46,11 +46,9 @@ import {
 } from "@mobile/design/webDesignParity";
 
 import { BrandCard } from "@mobile/components/BrandCard";
+import { getBrandCardLargeHeight } from "@mobile/components/brandCardMetrics";
 import { BrandDirectoryCategoryAside } from "./BrandDirectoryCategoryAside";
-import {
-  DirectoryVirtualizedGrid,
-  getDirectoryStoreCardHeight,
-} from "./directoryVirtualizedGrid";
+import { DirectoryVirtualizedGrid } from "./directoryVirtualizedGrid";
 import { type BrandDirectoryStore } from "./discoveryTypes";
 import { ShopDirectoryPagination } from "./ShopDirectoryPagination";
 import { SpecificPageBannerCarousel } from "./SpecificPageBannerCarousel";
@@ -174,7 +172,11 @@ export function CustomerBrandDirectoryScreen() {
     specificPageBanner.retry();
     requestAnimationFrame(() => setRefreshing(false));
   }, [catalogResource, categoryResource, specificPageBanner]);
-  const brandDirectoryRowHeight = getDirectoryStoreCardHeight(gridMetrics.cardWidth);
+  // Sized for the shared BrandCard this grid renders, NOT the legacy bespoke
+  // ShopDirectoryStoreCard (two-line name) that getDirectoryStoreCardHeight
+  // still covers for the shop directory — that formula left ~40px dead under
+  // every brand card.
+  const brandDirectoryRowHeight = getBrandCardLargeHeight(gridMetrics.cardWidth);
   const renderBrandDirectoryCard = useCallback(
     (store: BrandDirectoryStore) => (
       // Unified with the shared BrandCard (size "L") used by the home rails, Top Brands,
