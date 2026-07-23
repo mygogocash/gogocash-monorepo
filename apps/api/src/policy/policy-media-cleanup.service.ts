@@ -770,15 +770,24 @@ export class PolicyMediaCleanupService {
     row: CleanupRow,
     asset: CommandOwnedStoredMediaAsset,
   ): MediaFolder {
+    // #493 — the object key is ground truth: it IS the prefix the bytes were written
+    // under. owner_type is only a heuristic, and since offers now own assets in TWO
+    // folders (square logos in `brands`, wide heroes in `brand-banners`), resolving by
+    // owner_type first would send banner cleanup at the wrong prefix and silently fail
+    // to delete. Key checks therefore run BEFORE the owner_type fallback, which is
+    // retained for legacy assets whose keys predate prefixing.
     const ownerType = row.owner_type ?? (row.category_id ? 'category' : null);
-    if (ownerType === 'category') return MEDIA_FOLDER.CATEGORIES;
-    if (ownerType === 'offer') return MEDIA_FOLDER.BRANDS;
+    if (asset.object_key.startsWith(`${MEDIA_FOLDER.BRAND_BANNERS}/`)) {
+      return MEDIA_FOLDER.BRAND_BANNERS;
+    }
     if (asset.object_key.startsWith(`${MEDIA_FOLDER.CATEGORIES}/`)) {
       return MEDIA_FOLDER.CATEGORIES;
     }
     if (asset.object_key.startsWith(`${MEDIA_FOLDER.BRANDS}/`)) {
       return MEDIA_FOLDER.BRANDS;
     }
+    if (ownerType === 'category') return MEDIA_FOLDER.CATEGORIES;
+    if (ownerType === 'offer') return MEDIA_FOLDER.BRANDS;
     throw new Error('Cleanup media folder could not be proven');
   }
 }

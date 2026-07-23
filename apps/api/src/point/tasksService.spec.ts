@@ -41,7 +41,22 @@ describe('Point TasksService legacy purchase writer', () => {
         .mockResolvedValue({ matchedCount: 1, modifiedCount: 1 }),
       updateMany: jest.fn().mockResolvedValue({ modifiedCount: 0 }),
     };
-    service = new TasksService(pointService as never, conversionModel as never);
+    // Referral bonus is OFF by default (REFERRAL_BONUS_ENABLED unset), so the
+    // hook short-circuits before touching these models — bare stubs suffice.
+    const pointModel = {
+      findOne: jest.fn().mockReturnValue({ lean: jest.fn() }),
+    };
+    const feeRateModel = {
+      findOne: jest.fn().mockReturnValue({ lean: jest.fn() }),
+    };
+    const referralPayoutModel = { updateOne: jest.fn() };
+    service = new TasksService(
+      pointService as never,
+      conversionModel as never,
+      pointModel as never,
+      feeRateModel as never,
+      referralPayoutModel as never,
+    );
   });
 
   describe('scheduledHandleCron CRON_ENABLED gate', () => {
@@ -150,5 +165,56 @@ describe('Point TasksService legacy purchase writer', () => {
       'legacy:purchase:conversion:involve:default:701',
       'legacy:purchase:conversion:optimise:default:701',
     ]);
+  });
+
+  describe('referral bonus wiring (REFERRAL_BONUS_ENABLED)', () => {
+    const original = process.env.REFERRAL_BONUS_ENABLED;
+    afterEach(() => {
+      if (original === undefined) delete process.env.REFERRAL_BONUS_ENABLED;
+      else process.env.REFERRAL_BONUS_ENABLED = original;
+    });
+
+    it('credits the referrer their % after the referee cashback completes', async () => {
+      process.env.REFERRAL_BONUS_ENABLED = 'true';
+      const referrerId = '507f1f77bcf86cd7994390ff';
+      const pointModel = {
+        // referrerLookup: friend's signup referral row -> referrer user_id
+        findOne: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue({ user_id: referrerId }),
+        }),
+      };
+      const feeRateModel = {
+        findOne: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue({ referral_bonus_percent: 10 }),
+        }),
+      };
+      const referralPayoutModel = {
+        updateOne: jest.fn().mockResolvedValue({ upsertedCount: 1 }),
+      };
+      const svc = new TasksService(
+        pointService as never,
+        conversionModel as never,
+        pointModel as never,
+        feeRateModel as never,
+        referralPayoutModel as never,
+      );
+      conversionModel.find.mockReturnValue({
+        lean: jest.fn().mockResolvedValue([conversion]),
+      });
+
+      await svc.handleCron();
+
+      // referee purchase credit + referrer bonus credit
+      const calls = pointService.addPointsToUser.mock.calls;
+      const bonusCall = calls.find((c) => c[3] === 'referral_bonus');
+      expect(bonusCall).toBeDefined();
+      expect(bonusCall[0]).toBe(referrerId);
+      expect(bonusCall[1]).toBe(25); // floor(250 * 10%)
+      expect(bonusCall[4]).toBe(
+        'referral:bonus:v1:source:legacy:purchase:conversion:involve:default:701',
+      );
+      // one immutable audit row
+      expect(referralPayoutModel.updateOne).toHaveBeenCalledTimes(1);
+    });
   });
 });

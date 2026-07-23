@@ -25,6 +25,7 @@ import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { appLinks } from "@/lib/appLinks";
 import { formatDate } from "@/lib/dateFormat";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { pathImage } from "@/utils/helper";
 import { getMembershipTiers } from "@/lib/api/adminModulesApi";
 import {
   defaultQuestTaskWording,
@@ -91,6 +92,7 @@ import {
   hasCompleteQuestBannerSet,
   nextQuestCampaignRequest,
   questCampaignFingerprint,
+  sanitizeQuestCampaignText,
   type QuestCampaignRequest,
 } from "./questCampaignFormData";
 
@@ -320,9 +322,9 @@ function makeCampaignDraft(quest?: ResponseQuestDate | null): CampaignDraft {
   return {
     startDate: toBangkokDateTimeInput(quest?.start_date),
     endDate: toBangkokDateTimeInput(quest?.end_date),
-    facebookPage: quest?.facebook_page ?? "",
-    facebookPost: quest?.facebook_post ?? "",
-    line: quest?.line ?? "",
+    facebookPage: sanitizeQuestCampaignText(quest?.facebook_page),
+    facebookPost: sanitizeQuestCampaignText(quest?.facebook_post),
+    line: sanitizeQuestCampaignText(quest?.line),
     bannerEn: null,
     bannerTh: null,
     subBannerEn: null,
@@ -667,9 +669,9 @@ export default function QuestTable({
   const tasksBaseline = useMemo(
     () => ({
       ...buildTaskConfigPayload(makeTaskConfigDraft(selectedQuest)),
-      tasks: buildQuestTaskPayloads(makeTaskDrafts(selectedQuest)),
+      tasks: buildQuestTaskPayloads(makeTaskDrafts(selectedQuest), offersById),
     }),
-    [selectedQuest],
+    [selectedQuest, offersById],
   );
   const taskConfigPayload = useMemo(
     () => buildTaskConfigPayload(taskConfigDraft),
@@ -678,9 +680,9 @@ export default function QuestTable({
   const currentTaskPayloads = useMemo(
     () =>
       taskDrafts.every((task) => task.task_type)
-        ? buildQuestTaskPayloads(taskDrafts)
+        ? buildQuestTaskPayloads(taskDrafts, offersById)
         : null,
-    [taskDrafts],
+    [taskDrafts, offersById],
   );
   const rewardsBaseline = useMemo(
     () =>
@@ -704,7 +706,8 @@ export default function QuestTable({
   );
   const rewardsDirty = !sameJson(rewardsPayload, rewardsBaseline);
   const taskValidationError =
-    validateQuestTasks(taskDrafts) ?? validateTaskConfig(taskConfigDraft);
+    validateQuestTasks(taskDrafts, offersById) ??
+    validateTaskConfig(taskConfigDraft);
   const rewardValidationError =
     validateQuestRewards(rewardDrafts) ??
     validateQuestRewardDistribution(rewardDistributionDraft);
@@ -792,7 +795,7 @@ export default function QuestTable({
       }
 
       const draftTaskPayloads =
-        currentTaskPayloads ?? buildQuestTaskPayloads(taskDrafts);
+        currentTaskPayloads ?? buildQuestTaskPayloads(taskDrafts, offersById);
       const campaignTaskPayloads = draftTaskPayloads.map((task, index) => {
         const committedTaskKey = campaign.tasks?.[index]?.task_key;
         return committedTaskKey
@@ -1287,13 +1290,23 @@ export default function QuestTable({
             </div>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {[
-                ["Banner EN", "bannerEn"],
-                ["Banner TH", "bannerTh"],
-                ["Sub banner EN", "subBannerEn"],
-                ["Sub banner TH", "subBannerTh"],
-              ].map(([label, key]) => {
+              {(
+                [
+                  ["Banner EN", "bannerEn", "banner_en"],
+                  ["Banner TH", "bannerTh", "banner_th"],
+                  ["Sub banner EN", "subBannerEn", "sub_banner_en"],
+                  ["Sub banner TH", "subBannerTh", "sub_banner_th"],
+                ] as const
+              ).map(([label, key, dbField]) => {
                 const fieldId = `quest-campaign-${key}`;
+                const resolvedBanner = pathImage(
+                  selectedQuest?.[dbField],
+                  "banner",
+                );
+                const hasExistingBanner =
+                  !creatingNew &&
+                  !!resolvedBanner &&
+                  !resolvedBanner.includes("placehold.co");
                 return (
                   <div key={key}>
                     <Label htmlFor={fieldId}>
@@ -1304,6 +1317,19 @@ export default function QuestTable({
                         </span>
                       ) : null}
                     </Label>
+                    {hasExistingBanner ? (
+                      <div className="mb-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={resolvedBanner}
+                          alt={`Current ${label}`}
+                          className="h-20 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-700"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Current image — choose a file to replace.
+                        </p>
+                      </div>
+                    ) : null}
                     <input
                       id={fieldId}
                       name={key}
@@ -1334,6 +1360,23 @@ export default function QuestTable({
               </p>
             ) : null}
           </section>
+
+          {!creatingNew &&
+          selectedQuest &&
+          selectedQuest.reward_model !== "task_v2" ? (
+            <div
+              role="note"
+              className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+            >
+              <span className="font-semibold">Legacy quest.</span> Brand tasks
+              are managed per-offer in the Offers module (each offer&rsquo;s{" "}
+              <code className="rounded bg-amber-100 px-1 dark:bg-amber-500/20">
+                extra_point
+              </code>
+              ). The Tasks and Rewards tabs below apply to task-v2 quests, so a
+              count of 0 here is expected.
+            </div>
+          ) : null}
 
           <div
             role="tablist"
@@ -1716,22 +1759,25 @@ export default function QuestTable({
                                     task.completion_rule ?? "account_created"
                                   }
                                   disabled={!canEditTaskEconomics}
-                                  onChange={(event) =>
+                                  onChange={(event) => {
+                                    // Capture synchronously — same currentTarget-nulled
+                                    // crash as the spend-target field (React clears
+                                    // event.currentTarget before the updater runs).
+                                    const nextRule = event.target
+                                      .value as NonNullable<
+                                      TaskDraft["completion_rule"]
+                                    >;
                                     setTaskDrafts((current) =>
                                       current.map((row, i) =>
                                         i === index
                                           ? {
                                               ...row,
-                                              completion_rule: event
-                                                .currentTarget
-                                                .value as NonNullable<
-                                                TaskDraft["completion_rule"]
-                                              >,
+                                              completion_rule: nextRule,
                                             }
                                           : row,
                                       ),
-                                    )
-                                  }
+                                    );
+                                  }}
                                   className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                                 >
                                   <option value="account_created">
@@ -1761,22 +1807,29 @@ export default function QuestTable({
                                     Number(task.target_thb_minor ?? 0) / 100
                                   }
                                   disabled={!canEditTaskEconomics}
-                                  onChange={(event) =>
+                                  onChange={(event) => {
+                                    // Capture the value SYNCHRONOUSLY. React nulls
+                                    // event.currentTarget after the handler returns, and
+                                    // the setTaskDrafts functional updater runs later (in
+                                    // the reducer) — reading event.currentTarget.value
+                                    // there threw "Cannot read properties of null" and
+                                    // crashed the editor. Guard NaN so a mid-edit value
+                                    // never poisons the draft.
+                                    const nextThb = Number(event.target.value);
+                                    const nextMinor = Number.isFinite(nextThb)
+                                      ? Math.round(nextThb * 100)
+                                      : 0;
                                     setTaskDrafts((current) =>
                                       current.map((row, i) =>
                                         i === index
                                           ? {
                                               ...row,
-                                              target_thb_minor: Math.round(
-                                                Number(
-                                                  event.currentTarget.value,
-                                                ) * 100,
-                                              ),
+                                              target_thb_minor: nextMinor,
                                             }
                                           : row,
                                       ),
-                                    )
-                                  }
+                                    );
+                                  }}
                                   className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                                 />
                               </div>

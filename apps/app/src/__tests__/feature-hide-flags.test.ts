@@ -8,6 +8,7 @@ import {
   filterHiddenProfileMenuItems,
   isGoGoTrackEnabled,
   isGoLinkEnabled,
+  resolveGoLinkMode,
 } from "@mobile/config/featureFlags";
 import {
   profileHubMenuItems,
@@ -23,22 +24,43 @@ const mobileRoot = path.resolve(testDir, "../..");
 const readMobileFile = (p: string) =>
   fs.readFileSync(path.join(mobileRoot, p), "utf8");
 
-describe("isGoGoTrackEnabled / isGoLinkEnabled", () => {
+describe("isGoGoTrackEnabled", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("default-on when unset; hidden only by the literal '0'", () => {
     delete process.env.EXPO_PUBLIC_ENABLE_GOTOTRACK;
-    delete process.env.EXPO_PUBLIC_ENABLE_GOLINK;
     expect(isGoGoTrackEnabled()).toBe(true);
-    expect(isGoLinkEnabled()).toBe(true);
 
     vi.stubEnv("EXPO_PUBLIC_ENABLE_GOTOTRACK", "0");
-    vi.stubEnv("EXPO_PUBLIC_ENABLE_GOLINK", "0");
     expect(isGoGoTrackEnabled()).toBe(false);
-    expect(isGoLinkEnabled()).toBe(false);
 
     vi.stubEnv("EXPO_PUBLIC_ENABLE_GOTOTRACK", "false");
     expect(isGoGoTrackEnabled()).toBe(true); // only "0" hides
+  });
+});
+
+describe("isGoLinkEnabled (3-state coming-soon rollout)", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("defaults to comingSoon (NOT enabled) so beta flips with no env change", () => {
+    delete process.env.EXPO_PUBLIC_ENABLE_GOLINK;
+    delete process.env.EXPO_PUBLIC_GOLINK_COMING_SOON;
+    expect(resolveGoLinkMode()).toBe("comingSoon");
+    // isGoLinkEnabled() now means the mode is FULLY clickable — false while coming-soon.
+    expect(isGoLinkEnabled()).toBe(false);
+  });
+
+  it('EXPO_PUBLIC_GOLINK_COMING_SOON="0" fully launches GoLink (enabled)', () => {
+    delete process.env.EXPO_PUBLIC_ENABLE_GOLINK;
+    vi.stubEnv("EXPO_PUBLIC_GOLINK_COMING_SOON", "0");
+    expect(resolveGoLinkMode()).toBe("enabled");
+    expect(isGoLinkEnabled()).toBe(true);
+  });
+
+  it('EXPO_PUBLIC_ENABLE_GOLINK="0" hides GoLink entirely (wins over coming-soon)', () => {
+    vi.stubEnv("EXPO_PUBLIC_ENABLE_GOLINK", "0");
+    expect(resolveGoLinkMode()).toBe("hidden");
+    expect(isGoLinkEnabled()).toBe(false);
   });
 });
 
@@ -84,7 +106,7 @@ describe("filterHiddenProfileMenuItems", () => {
 describe("filterHiddenBottomNavItems (GoLink)", () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it("drops the GoGoLink (/golink) tab when GOLINK='0'", () => {
+  it("drops the GoGoLink (/golink) tab ONLY in hidden mode (GOLINK='0')", () => {
     vi.stubEnv("EXPO_PUBLIC_ENABLE_GOLINK", "0");
     const hrefs = filterHiddenBottomNavItems(webMobileBottomNavItems).map(
       (i) => i.href,
@@ -92,8 +114,18 @@ describe("filterHiddenBottomNavItems (GoLink)", () => {
     expect(hrefs).not.toContain("/golink");
   });
 
-  it("keeps the tab when the flag is default-on", () => {
+  it("KEEPS the tab in coming-soon mode (default) — it is disabled, not removed", () => {
     delete process.env.EXPO_PUBLIC_ENABLE_GOLINK;
+    delete process.env.EXPO_PUBLIC_GOLINK_COMING_SOON;
+    const hrefs = filterHiddenBottomNavItems(webMobileBottomNavItems).map(
+      (i) => i.href,
+    );
+    expect(hrefs).toContain("/golink");
+  });
+
+  it("keeps the tab when fully enabled", () => {
+    delete process.env.EXPO_PUBLIC_ENABLE_GOLINK;
+    vi.stubEnv("EXPO_PUBLIC_GOLINK_COMING_SOON", "0");
     const hrefs = filterHiddenBottomNavItems(webMobileBottomNavItems).map(
       (i) => i.href,
     );
@@ -118,30 +150,44 @@ describe("hide wiring across surfaces (source-pinned)", () => {
     expect(s).toContain("Redirect");
   });
 
-  it("the GoLink route redirects when the flag is off", () => {
+  it("the GoLink route redirects unless FULLY enabled (hidden AND coming-soon bounce home)", () => {
     const s = readMobileFile("app/golink.tsx");
+    // isGoLinkEnabled() === (mode === "enabled"), so !isGoLinkEnabled() covers
+    // both hidden and coming-soon — a direct URL never reaches the live flow.
     expect(s).toContain("isGoLinkEnabled");
     expect(s).toContain("Redirect");
   });
 
-  it("the home GoLink hero is gated on isGoLinkEnabled", () => {
+  it("the home GoLink hero is gated on the 3-state resolveGoLinkMode", () => {
     expect(readMobileFile("src/screens/CustomerHomeScreen.tsx")).toContain(
-      "isGoLinkEnabled",
+      "resolveGoLinkMode",
     );
   });
 
-  it("the bottom nav filters GoLink through filterHiddenBottomNavItems", () => {
-    expect(
-      readMobileFile("src/components/CustomerMobileBottomNav.tsx"),
-    ).toContain("filterHiddenBottomNavItems");
+  it("both bottom-nav components route GoLink through the shared coming-soon helper", () => {
+    for (const f of [
+      "src/components/CustomerMobileBottomNav.tsx",
+      "src/screens/home/CustomerMobileBottomNav.tsx",
+    ]) {
+      const s = readMobileFile(f);
+      expect(s).toContain("filterHiddenBottomNavItems");
+      expect(s).toContain("isGoLinkComingSoonTab");
+    }
   });
 
-  it("the web Dockerfile bakes all three ENABLE_* build args", () => {
+  it("the mobile/tablet home header renders the GoLink box unless hidden, flagged coming-soon", () => {
+    const s = readMobileFile("src/screens/home/MobileTabletHomeHeader.tsx");
+    expect(s).toContain("resolveGoLinkMode");
+    expect(s).toContain("comingSoon");
+  });
+
+  it("the web Dockerfile bakes all feature build args incl. the coming-soon flag", () => {
     const df = readMobileFile("Dockerfile.web.railway");
     for (const arg of [
       "EXPO_PUBLIC_ENABLE_GOGOPASS",
       "EXPO_PUBLIC_ENABLE_GOTOTRACK",
       "EXPO_PUBLIC_ENABLE_GOLINK",
+      "EXPO_PUBLIC_GOLINK_COMING_SOON",
     ]) {
       expect(df).toContain(`ARG ${arg}`);
     }

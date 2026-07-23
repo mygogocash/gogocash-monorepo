@@ -54,6 +54,14 @@ export function buildSuggestedAppDeeplink(input: {
   commissionStore?: number | null;
   affiliateNetworkId: string;
   bestRatePercent: number;
+  /**
+   * Selected advertiser line (e.g. `shopee_cps_new`), emitted as `store=`.
+   * `global` is the sentinel for "no specific line" and is omitted, matching
+   * `apps/admin/src/lib/offerDeeplink.ts`. Kept in lockstep with the admin
+   * builder — the two previously diverged on exactly this parameter (#517/#518),
+   * so a link generated admin-side and one generated API-side disagreed.
+   */
+  deeplinkStoreId?: string | null;
 }): string {
   const safeLookup = encodeURIComponent(
     input.lookupValue.trim() || input.offerId,
@@ -62,5 +70,9 @@ export function buildSuggestedAppDeeplink(input: {
   params.set('bestRate', String(input.bestRatePercent));
   params.set('currency', input.currency || 'THB');
   params.set('affNetwork', input.affiliateNetworkId.trim() || 'involve_asia');
+  const storeId = (input.deeplinkStoreId ?? '').trim();
+  if (storeId && storeId !== 'global') {
+    params.set('store', storeId);
+  }
   return `https://gogocash.app/open/offer/${safeLookup}?${params.toString()}`;
 }

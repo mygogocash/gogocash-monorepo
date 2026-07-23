@@ -20,8 +20,9 @@ import {
   resolveCategoryIconImages,
   resolveCategoryIconKeys,
 } from "@mobile/account/directoryCatalogResource";
-import type { OfferListResponse } from "@mobile/api/catalogTypes";
+import { useCategoryOfferBrowse } from "@mobile/account/useCategoryOfferBrowse";
 import { BrandCard } from "@mobile/components/BrandCard";
+import { getMobileEnv } from "@mobile/config/env";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
@@ -81,7 +82,7 @@ function getVisibleStoreCountLabel(count: number) {
     return webCategoryExploreHealthBeauty.storeCountLabel;
   }
 
-  return `${count} ${count === 1 ? "brand" : "brands"} in this category`;
+  return `${count} ${count === 1 ? "brand" : "brands"}`;
 }
 
 function getCategoryGridMetrics({
@@ -133,11 +134,11 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
   const showBottomNav = !isDesktop;
   const category = safeDecodeCategoryName(categoryName);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<WebCategoryExploreSort>("highest_cashback");
-  const catalogResource = useCustomerAccountResource<OfferListResponse, OfferListResponse>({
-    fixtureData: { data: [], limit: 80, page: 1, total: 0, totalPages: 0 },
-    resourceId: "brandCatalog",
-  });
+  // #437 — default Sort by to All (unforced catalog order), not Highest Cashback.
+  const [sortBy, setSortBy] = useState<WebCategoryExploreSort>("all");
+  const liveBackend = getMobileEnv().accountDataSource === "backend";
+  // #438 — category-scoped `/offer?category=` browse (not home brandCatalog page-1).
+  const categoryBrowse = useCategoryOfferBrowse(category, liveBackend);
   const categoryResource = useCustomerAccountResource({
     fixtureData: webCategoryExploreHealthBeauty.categories,
     resourceId: "categoryList",
@@ -150,17 +151,18 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
     categoryResource.source,
     categoryResource.data,
   );
+  const catalogSource = liveBackend ? "backend" : "fixtures";
   const stores = useMemo(
     () =>
       resolveCategoryExploreStores({
         category,
-        data: catalogResource.data,
+        data: categoryBrowse.data,
         query: searchQuery,
         regionCode: region,
         sortBy,
-        source: catalogResource.source,
+        source: catalogSource,
       }),
-    [catalogResource.data, catalogResource.source, category, region, searchQuery, sortBy]
+    [catalogSource, category, categoryBrowse.data, region, searchQuery, sortBy]
   );
   const gridMetrics = getCategoryGridMetrics({
     contentWidth: homeLayout.contentWidth,
@@ -268,7 +270,8 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
                   cardHeight={gridMetrics.cardHeight}
                   cardWidth={gridMetrics.cardWidth}
                   cashback={store.cashback}
-                  key={store.brand}
+                  href={store.href}
+                  key={store.href ?? store.brand}
                   logoUri={store.logoUri}
                   logoVisualHeight={gridMetrics.logoVisualHeight}
                   size="S"
@@ -299,7 +302,8 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
             contentContainerStyle={[
               styles.pageDesktopFullBleed,
               {
-                paddingTop: Math.max(spacing.lg, insets.top + spacing.lg),
+                // Match the Explore brand/shop/product directories' navbar->content gap.
+              paddingTop: Math.max(8, insets.top + 8),
               },
             ]}
             showsVerticalScrollIndicator={false}
@@ -345,7 +349,8 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
                 ? mobileShellLayout.bottomNavClearance + 24
                 : mobileShellLayout.desktopBottomClearance,
               paddingHorizontal: homeLayout.contentHorizontalPadding,
-              paddingTop: Math.max(spacing.lg, insets.top + spacing.lg),
+              // Match the Explore brand/shop/product directories' navbar->content gap.
+              paddingTop: Math.max(8, insets.top + 8),
             },
           ]}
           showsVerticalScrollIndicator={false}

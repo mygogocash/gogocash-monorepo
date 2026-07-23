@@ -343,9 +343,9 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     const phoneInput = screen.getByPlaceholderText("Phone Number");
     const countryButton = screen.getByRole("button", { name: "Shopping in…" });
     const emailSwitch = screen.getByRole("button", {
-      name: "Sign in with email",
+      name: "Use email instead",
     });
-    const socialButton = screen.getByRole("button", { name: "Gmail" });
+    const socialButton = screen.getByRole("button", { name: "Google" });
 
     // Leave the menu open so a same-tick selection is available after submit.
     fireEvent.click(countryButton);
@@ -408,9 +408,9 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     const phoneInput = screen.getByPlaceholderText("Phone Number");
     const submitButton = screen.getByRole("button", { name: "Sign in" });
     const emailSwitch = screen.getByRole("button", {
-      name: "Sign in with email",
+      name: "Use email instead",
     });
-    const socialButton = screen.getByRole("button", { name: "Gmail" });
+    const socialButton = screen.getByRole("button", { name: "Google" });
 
     fireEvent.click(socialButton);
     await waitFor(() => {
@@ -449,7 +449,7 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     fireEvent.click(
       screen.getByRole("checkbox", { name: "I have read and understand" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Sign in with email" }));
+    fireEvent.click(screen.getByRole("button", { name: "Use email instead" }));
     fireEvent.change(screen.getByLabelText("Email address"), {
       target: { value: "user@example.com" },
     });
@@ -467,7 +467,7 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     const phoneSwitch = screen.getByRole("button", {
       name: "Use phone number instead",
     });
-    const socialButton = screen.getByRole("button", { name: "Gmail" });
+    const socialButton = screen.getByRole("button", { name: "Google" });
     expectButtonDisabled(phoneSwitch, true);
     expectButtonDisabled(socialButton, true);
 
@@ -555,7 +555,7 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     const changePhoneButton = screen.getByRole("button", {
       name: "Change phone number",
     });
-    const socialButton = screen.getByRole("button", { name: "Gmail" });
+    const socialButton = screen.getByRole("button", { name: "Google" });
     expectButtonDisabled(changePhoneButton, true);
     expectButtonDisabled(socialButton, true);
 
@@ -630,7 +630,17 @@ describe("CustomerAuthScreen — backend mode uses the real Firebase phone flow"
     expect(readStoredSession()).toBeNull();
     expect(routerPush).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    // The retry click needs authOperationBusy to have cleared. The error copy appearing
+    // and the button re-enabling are SEPARATE state updates: on an idle machine they land
+    // in the same tick, but under load they can separate, and a click on the still-disabled
+    // button is a no-op — the retry never fires and the waitFor below times out. Wait for
+    // the precondition instead of assuming it, matching how the rest of this file guards
+    // clicks (expectButtonDisabled at :257, :319, :421).
+    const retryButton = screen.getByRole("button", { name: "Next" });
+    await waitFor(() => {
+      expectButtonDisabled(retryButton, false);
+    });
+    fireEvent.click(retryButton);
 
     await waitFor(() => {
       expect(readStoredSession()?.access_token).toBe("retried-token");

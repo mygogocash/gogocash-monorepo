@@ -10,12 +10,23 @@ import { useLocale } from "@mobile/i18n/LocaleProvider";
 import type { Locale } from "@mobile/i18n/locales";
 
 import {
+  HARDCODED_SHOP_300_TASK,
+  extraPointEndpoint,
+  mapPublicBrandTasks,
+} from "./questBrandTaskMapper";
+import {
   mapBackendQuestTasks,
   questTaskEndpoint,
   type QuestTaskRow,
 } from "./questTaskMapper";
 
-export { mapBackendQuestTasks, questTaskEndpoint };
+export {
+  HARDCODED_SHOP_300_TASK,
+  extraPointEndpoint,
+  mapBackendQuestTasks,
+  mapPublicBrandTasks,
+  questTaskEndpoint,
+};
 export type { QuestTaskRow };
 
 export type QuestTaskResourceStatus = "error" | "loading" | "ready";
@@ -117,4 +128,58 @@ export async function fetchQuestTaskPayload(
   client: QuestTaskBaseClient,
 ): Promise<unknown> {
   return client.get(questTaskEndpoint);
+}
+
+// Design/preview (accountDataSource !== "backend") earn-list fixture: the same brand rows the
+// screen showed before, plus the hardcoded prod-parity row, so non-backend builds stay intact.
+export const fixtureBrandTaskRows: QuestTaskRow[] = [
+  ...fixtureQuestTaskRows,
+  HARDCODED_SHOP_300_TASK,
+];
+
+// PUBLIC GoGoQuest earn-list. Gated ONLY on accountDataSource === "backend" (NOT auth), so it
+// renders for signed-out visitors exactly like prod app.gogocash.co. The hardcoded "Shop 300
+// Baht+" row is appended after the /offer/extra-point brands.
+export function useQuestBrandTasks(): QuestTaskResourceResult {
+  const env = useMemo(() => getMobileEnv(), []);
+  const { locale } = useLocale();
+  const shouldFetchBackend = env.accountDataSource === "backend";
+  const query = useQuery<unknown, Error>({
+    enabled: shouldFetchBackend,
+    queryFn: async () => {
+      const client = await getSharedMobileApiClient(env.apiUrl);
+      if (!client)
+        throw new Error("Quest brand task session store is unavailable.");
+      return fetchPublicBrandTaskPayload(client);
+    },
+    queryKey: ["quest-brand-tasks", env.apiUrl, extraPointEndpoint, locale],
+    retry: false,
+  });
+
+  const retry = () => {
+    if (shouldFetchBackend) void query.refetch();
+  };
+
+  if (!shouldFetchBackend) {
+    return { error: null, retry, rows: fixtureBrandTaskRows, status: "ready" };
+  }
+  if (query.isPending) {
+    return { error: null, retry, rows: [], status: "loading" };
+  }
+  if (query.isError) {
+    return { error: query.error, retry, rows: [], status: "error" };
+  }
+
+  return {
+    error: null,
+    retry,
+    rows: [...mapPublicBrandTasks(query.data, locale), HARDCODED_SHOP_300_TASK],
+    status: "ready",
+  };
+}
+
+export async function fetchPublicBrandTaskPayload(
+  client: QuestTaskBaseClient,
+): Promise<unknown> {
+  return client.get(extraPointEndpoint);
 }

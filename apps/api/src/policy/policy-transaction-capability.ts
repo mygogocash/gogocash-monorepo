@@ -39,11 +39,31 @@ export async function inspectPolicyTransactionCapability(
           ? { reason: 'MongoDB is not a replica set or mongos' }
           : {}),
     };
-  } catch {
+  } catch (error) {
+    // Never leak URIs / credentials from driver errors — name only.
+    const detail = error instanceof Error ? error.name : 'unknown';
     return {
       supported: false,
       topology: 'unavailable',
-      reason: 'MongoDB transaction capability check failed',
+      reason: `MongoDB transaction capability check failed (${detail})`,
     };
   }
+}
+
+/** Stable machine code for admin/API clients when aggregate txn support is down. */
+const POLICY_TRANSACTIONS_UNSUPPORTED_CODE =
+  'POLICY_TRANSACTIONS_UNSUPPORTED' as const;
+
+export function policyTransactionsUnsupportedError(capability: {
+  reason?: string;
+  topology: PolicyTransactionCapability['topology'];
+}) {
+  return {
+    statusCode: 503,
+    code: POLICY_TRANSACTIONS_UNSUPPORTED_CODE,
+    message:
+      'Policy aggregate saves require MongoDB replica set or mongos transaction support.',
+    reason: capability.reason ?? 'MongoDB transaction support is unavailable',
+    topology: capability.topology,
+  };
 }

@@ -5,6 +5,7 @@ import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import StackedDateTime from "@/components/common/StackedDateTime";
 import { planCycle, CYCLE_LABEL, CYCLE_BADGE } from "@/lib/subscriptionCycle";
 import { tierFromScore, CREDIT_TIER_BADGE } from "@/lib/creditTier";
+import { isCreditScoreEnabled, isGoGoPassEnabled } from "@/config/featureFlags";
 import type { UserMembership } from "@/types/adminModules";
 import type { GridColDef } from "@mui/x-data-grid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -78,12 +79,7 @@ const WithdrawDetailDataGrid = dynamic(
 );
 
 type DetailTab =
-  | "user"
-  | "subscription"
-  | "conversion"
-  | "withdraw"
-  | "login"
-  | "deleteData";
+  "user" | "subscription" | "conversion" | "withdraw" | "login" | "deleteData";
 
 const DELETE_USER_DATA_CONFIRM_PHRASE = "DELETE";
 
@@ -194,8 +190,19 @@ const WithdrawDetail = () => {
   // Allow deep-linking to a tab via ?tab= (e.g. from the membership /
   // subscription admin "View" buttons → Benefits & Scoring).
   const tabParam = searchParams.get("tab");
+  // Pre-launch gating: the "Benefits & Scoring" tab hosts BOTH the credit-score
+  // and GoGoPass surfaces, so it stays visible while EITHER flag is on and is
+  // dropped only when BOTH are hidden. Deriving visibleTabs here (not just at
+  // the tab bar) also feeds the activeTab initializer below, so a
+  // ?tab=subscription deep-link can never strand activeTab on a removed tab.
+  const subscriptionTabEnabled = isCreditScoreEnabled() || isGoGoPassEnabled();
+  const visibleTabs = subscriptionTabEnabled
+    ? TABS
+    : TABS.filter((t) => t.id !== "subscription");
   const [activeTab, setActiveTab] = useState<DetailTab>(
-    TABS.some((t) => t.id === tabParam) ? (tabParam as DetailTab) : "user",
+    visibleTabs.some((t) => t.id === tabParam)
+      ? (tabParam as DetailTab)
+      : "user",
   );
   const [openModal, setOpenModal] = useState<DataWithdrawsList | boolean>(
     false,
@@ -286,9 +293,12 @@ const WithdrawDetail = () => {
   });
 
   const myCashbackUser = useMemo(() => {
-    if (!Array.isArray(myCashbackRows) || myCashbackRows.length === 0)
-      return null;
-    return myCashbackRows[0] as MyCashbackResponse;
+    // API/mock contract is an array; tolerate a single object from older builds.
+    if (!myCashbackRows) return null;
+    if (Array.isArray(myCashbackRows)) {
+      return (myCashbackRows[0] as MyCashbackResponse | undefined) ?? null;
+    }
+    return myCashbackRows as MyCashbackResponse;
   }, [myCashbackRows]);
 
   const column = useMemo<GridColDef[]>(
@@ -756,7 +766,7 @@ const WithdrawDetail = () => {
             className="-mb-px flex flex-wrap gap-1 overflow-x-auto sm:gap-2"
             aria-label="Tabs"
           >
-            {TABS.map((tab) => {
+            {visibleTabs.map((tab) => {
               const isActive = activeTab === tab.id;
               const danger = tab.id === "deleteData";
               return (
@@ -1025,23 +1035,29 @@ const WithdrawDetail = () => {
                         className="h-11 font-mono text-sm"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="wd-user-gogopass">GoGoPass status</Label>
-                      <select
-                        id="wd-user-gogopass"
-                        value={userDraft.gogopassActive ? "active" : "inactive"}
-                        onChange={(e) =>
-                          setUserDraft((d) => ({
-                            ...d,
-                            gogopassActive: e.target.value === "active",
-                          }))
-                        }
-                        className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 dark:focus:ring-brand-400/25 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                      >
-                        <option value="active">Active</option>
-                        <option value="inactive">Not Active</option>
-                      </select>
-                    </div>
+                    {isGoGoPassEnabled() && (
+                      <div>
+                        <Label htmlFor="wd-user-gogopass">
+                          GoGoPass status
+                        </Label>
+                        <select
+                          id="wd-user-gogopass"
+                          value={
+                            userDraft.gogopassActive ? "active" : "inactive"
+                          }
+                          onChange={(e) =>
+                            setUserDraft((d) => ({
+                              ...d,
+                              gogopassActive: e.target.value === "active",
+                            }))
+                          }
+                          className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 dark:focus:ring-brand-400/25 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Not Active</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1121,61 +1137,89 @@ const WithdrawDetail = () => {
                             </p>
                           </div>
 
-                          <hr className="my-4 border-gray-200 dark:border-gray-700" />
+                          {/* Part 2 — Standing (pre-launch gated). The whole
+                           * section is dropped when BOTH flags are off so no
+                           * empty grid / doubled divider is left behind; each
+                           * row is additionally gated by its own flag so a
+                           * single-flag rollout shows only the live rows. */}
+                          {subscriptionTabEnabled && (
+                            <>
+                              <hr className="my-4 border-gray-200 dark:border-gray-700" />
 
-                          {/* Part 2 — Standing */}
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <p className="text-sm text-gray-800 dark:text-gray-200">
-                              <span className="font-medium">Credit Score:</span>{" "}
-                              {wu.creditScore != null ? wu.creditScore : "—"}
-                            </p>
-                            <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                              <span className="font-medium">Membership:</span>{" "}
-                              {userMembership ? (
-                                <span
-                                  className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                                    userMembership.tierName === "GoGoPass Plus"
-                                      ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
-                                      : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                                  }`}
-                                >
-                                  {userMembership.tierName}
-                                </span>
-                              ) : (
-                                "—"
-                              )}
-                            </p>
-                            <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                              <span className="font-medium">Credit Tier:</span>{" "}
-                              {wu.creditScore != null ? (
-                                <span
-                                  className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold capitalize ${CREDIT_TIER_BADGE[tierFromScore(wu.creditScore)]}`}
-                                >
-                                  {tierFromScore(wu.creditScore)}
-                                </span>
-                              ) : (
-                                "—"
-                              )}
-                            </p>
-                            <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
-                              <span className="font-medium">Subscription:</span>{" "}
-                              {withdrawDetail?.user?.subscriptionPlan ? (
-                                <span
-                                  className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${CYCLE_BADGE[planCycle(withdrawDetail.user.subscriptionPlan)]}`}
-                                >
-                                  {
-                                    CYCLE_LABEL[
-                                      planCycle(
-                                        withdrawDetail.user.subscriptionPlan,
-                                      )
-                                    ]
-                                  }
-                                </span>
-                              ) : (
-                                "—"
-                              )}
-                            </p>
-                          </div>
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                {isCreditScoreEnabled() && (
+                                  <p className="text-sm text-gray-800 dark:text-gray-200">
+                                    <span className="font-medium">
+                                      Credit Score:
+                                    </span>{" "}
+                                    {wu.creditScore != null
+                                      ? wu.creditScore
+                                      : "—"}
+                                  </p>
+                                )}
+                                {isGoGoPassEnabled() && (
+                                  <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                                    <span className="font-medium">
+                                      Membership:
+                                    </span>{" "}
+                                    {userMembership ? (
+                                      <span
+                                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                                          userMembership.tierName ===
+                                          "GoGoPass Plus"
+                                            ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
+                                            : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                        }`}
+                                      >
+                                        {userMembership.tierName}
+                                      </span>
+                                    ) : (
+                                      "—"
+                                    )}
+                                  </p>
+                                )}
+                                {isCreditScoreEnabled() && (
+                                  <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                                    <span className="font-medium">
+                                      Credit Tier:
+                                    </span>{" "}
+                                    {wu.creditScore != null ? (
+                                      <span
+                                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold capitalize ${CREDIT_TIER_BADGE[tierFromScore(wu.creditScore)]}`}
+                                      >
+                                        {tierFromScore(wu.creditScore)}
+                                      </span>
+                                    ) : (
+                                      "—"
+                                    )}
+                                  </p>
+                                )}
+                                {isGoGoPassEnabled() && (
+                                  <p className="flex items-center gap-1 text-sm text-gray-800 dark:text-gray-200">
+                                    <span className="font-medium">
+                                      Subscription:
+                                    </span>{" "}
+                                    {withdrawDetail?.user?.subscriptionPlan ? (
+                                      <span
+                                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${CYCLE_BADGE[planCycle(withdrawDetail.user.subscriptionPlan)]}`}
+                                      >
+                                        {
+                                          CYCLE_LABEL[
+                                            planCycle(
+                                              withdrawDetail.user
+                                                .subscriptionPlan,
+                                            )
+                                          ]
+                                        }
+                                      </span>
+                                    ) : (
+                                      "—"
+                                    )}
+                                  </p>
+                                )}
+                              </div>
+                            </>
+                          )}
 
                           <hr className="my-4 border-gray-200 dark:border-gray-700" />
 
@@ -1221,7 +1265,7 @@ const WithdrawDetail = () => {
             </div>
           )}
 
-          {activeTab === "subscription" && (
+          {activeTab === "subscription" && subscriptionTabEnabled && (
             <UserActiveBenefits
               withdrawUserId={withdrawUserId}
               username={withdrawDetail?.user?.username ?? ""}

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   BRAND_LOGO_IMAGE_WIDTH,
@@ -46,15 +46,36 @@ describe("optimizedImageUrl", () => {
     expect(optimizedImageUrl(transformed, { width: 1600 })).toBe(transformed);
   });
 
+  it("given a production media URL > then rewrites it through the same transform", () => {
+    // media.gogocash.co and media-staging.gogocash.co are subdomains of the SAME
+    // Cloudflare zone, and Image Resizing is a zone-level feature — verified live
+    // against media-staging, where /cdn-cgi/image/ returns AVIF (9 KB at w=320 and
+    // 29 KB at w=1600, from a 33 KB original). The earlier "prod zone unverified"
+    // caveat no longer holds, so prod media must not be left un-optimized.
+    expect(
+      optimizedImageUrl("https://media.gogocash.co/banner-home/big.png", {
+        width: 1600,
+      }),
+    ).toBe(
+      "https://media.gogocash.co/cdn-cgi/image/width=1600,quality=78,fit=scale-down,format=auto,onerror=redirect/banner-home/big.png",
+    );
+  });
+
+  it("given an already-transformed production URL > then returns it unchanged", () => {
+    const transformed =
+      "https://media.gogocash.co/cdn-cgi/image/width=320,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/logo.png";
+    expect(optimizedImageUrl(transformed, { width: 1600 })).toBe(transformed);
+  });
+
   it("given non-gogocash-media hosts > then returns them unchanged", () => {
     const untouched = [
       "https://img.involve.asia/ia_logo/803_unjtmslX.png",
       "https://cdn.simpleicons.org/shopee",
       "https://drive.google.com/uc?export=view&id=abc123def456",
       "https://api-staging.gogocash.co/admin/stored-media/stream?ref=x",
-      // Production media host is deliberately NOT allowlisted yet — the prod
-      // zone's Image Resizing support is unverified, so prod URLs pass through.
-      "https://media.gogocash.co/brands/logo.png",
+      // api hosts stay untouched even though they share the gogocash.co zone —
+      // only the media hosts are allowlisted.
+      "https://api-beta.gogocash.co/admin/stored-media/stream?ref=x",
     ];
     for (const url of untouched) {
       expect(optimizedImageUrl(url, { width: 320 })).toBe(url);
@@ -73,7 +94,40 @@ describe("optimizedImageUrl", () => {
   it("shared width constants > pin the per-surface transform sizes", () => {
     expect(HERO_BANNER_IMAGE_WIDTH).toBe(1600);
     expect(SIDE_BANNER_IMAGE_WIDTH).toBe(800);
-    expect(SHOP_BANNER_IMAGE_WIDTH).toBe(1080);
+    // #493 — the shop-detail hero fills full device width like the home hero, so it must
+    // request the same 1600px CDN variant. At 1080 a 1920px stored banner is undersampled
+    // and upscaled on high-DPR phones (soft banner). Sharing the width also means one CDN
+    // variant / one expo-image cache entry across both hero surfaces.
+    expect(SHOP_BANNER_IMAGE_WIDTH).toBe(1600);
+    expect(SHOP_BANNER_IMAGE_WIDTH).toBe(HERO_BANNER_IMAGE_WIDTH);
     expect(BRAND_LOGO_IMAGE_WIDTH).toBe(320);
+  });
+});
+
+describe("optimizedImageUrl > media host drift guard", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("given EXPO_PUBLIC_MEDIA_HOST is set > then that host is also optimized", () => {
+    // If R2_PUBLIC_BASE_URL on the API is repointed to a new media host, setting
+    // the matching EXPO_PUBLIC_MEDIA_HOST keeps Image Resizing working instead of
+    // silently serving raw. Accepts a bare host or a full origin.
+    vi.stubEnv("EXPO_PUBLIC_MEDIA_HOST", "cdn.gogocash.co");
+    expect(
+      optimizedImageUrl("https://cdn.gogocash.co/brands/logo.png", { width: 320 }),
+    ).toBe(
+      "https://cdn.gogocash.co/cdn-cgi/image/width=320,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/logo.png",
+    );
+  });
+
+  it("given no EXPO_PUBLIC_MEDIA_HOST > then the built-in hosts still optimize and others pass through", () => {
+    vi.stubEnv("EXPO_PUBLIC_MEDIA_HOST", "");
+    expect(
+      optimizedImageUrl("https://media.gogocash.co/brands/logo.png", { width: 320 }),
+    ).toContain("/cdn-cgi/image/");
+    expect(
+      optimizedImageUrl("https://cdn.gogocash.co/brands/logo.png", { width: 320 }),
+    ).toBe("https://cdn.gogocash.co/brands/logo.png");
   });
 });

@@ -3,7 +3,11 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { translateCopy } from "@mobile/i18n/messages";
-import { webLocaleRegionPanel } from "@mobile/design/webDesignParity";
+import {
+  webBrowseShortcuts,
+  webDesktopHeaderNavItems,
+  webLocaleRegionPanel,
+} from "@mobile/design/webDesignParity";
 
 const read = (rel: string) => readFileSync(resolve(__dirname, "..", rel), "utf8");
 
@@ -50,18 +54,21 @@ describe("Thai locale sweep — catalog coverage", () => {
       "That phone number doesn't look valid. Check it and try again.",
       "Sign-in is temporarily unavailable. Please try again later.",
       "Social sign-in isn't available in the app yet. Open GoGoCash in your web browser to continue.",
+      "Use email instead",
+      "Other ways to sign in",
+      "Other ways to sign up",
       "Could not save GoGoTrack settings. Please try again.",
-      // Issue #249: search screen headings + idle helper leaked English in Thai mode.
-      "Start typing to search brands, stores, products, or cashback.",
+      // Search screen layout/copy must remain localized in the compact mobile presentation.
+      "Search brands",
       "Trending searches",
-      "Search suggestions",
+      "Hand-picked stores with standout cashback.",
+      "Popular brands",
       // Issue #249 follow-up: recent-history chrome also missing from catalogs.
       "Recent searches",
       "Clear all",
       "Clear recent searches",
-      // Issue #248: the suggestions grid gets its own subtitle instead of
-      // duplicating the popular-banner sentence.
-      "Tap a brand to search its cashback deals.",
+      "Explore standout cashback offers.",
+      "Cashback up to",
     ]);
   });
 
@@ -93,6 +100,17 @@ describe("Thai locale sweep — catalog coverage", () => {
 
   it("region labels translate (the header banner shows them)", () => {
     expectAllTranslatedToThai(webLocaleRegionPanel.regions.map((r) => r.label));
+  });
+
+  // #500 — renaming an English label silently drops its Thai: translateCopy resolves by
+  // English VALUE through EN_VALUE_TO_KEY, and a renamed string simply misses the index and
+  // falls back to the English it was given. No error, no type failure. This is the assertion
+  // that makes that loud, so the explore bar can never be relabelled without its catalog pair.
+  it("explore bar labels translate (both the mobile shortcuts and the desktop nav)", () => {
+    expectAllTranslatedToThai([
+      ...webBrowseShortcuts.map((s) => s.label),
+      ...webDesktopHeaderNavItems.map((n) => n.label),
+    ]);
   });
 });
 

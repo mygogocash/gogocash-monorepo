@@ -92,6 +92,7 @@ describe("Brand directory parity", () => {
       "Others",
     ]);
     expect(parity.webBrandDirectory?.sortPills).toEqual([
+      { label: "All", value: "all" },
       { label: "Popular", value: "popular" },
       { label: "Latest", value: "newest" },
       { label: "Highest Cashback", value: "highest_cashback" },
@@ -160,7 +161,11 @@ describe("Brand directory parity", () => {
     expect(screenFile).toContain("useCustomerAccountResource");
     expect(screenFile).toContain("resolveLiveDirectoryStores");
     expect(screenFile).toContain("getBrandDirectoryGridMetrics");
-    expect(screenFile).toContain("BrandDirectoryStoreCard");
+    // #card-parity — the grid renders the SHARED BrandCard (size "L"), the same component
+    // the home rails / Top Brands / category surfaces use, so cards are visually consistent
+    // (was a bespoke BrandDirectoryStoreCard that drifted).
+    expect(screenFile).toContain("<BrandCard");
+    expect(screenFile).toContain('size="L"');
     expect(screenFile).toContain("brandDirectoryGrid");
     expect(screenFile).not.toContain(
       "Browse cashback partners and open the best available tracking route."

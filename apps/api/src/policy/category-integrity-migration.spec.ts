@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const {
+  REVIEWED_PRODUCTION_ATLAS_FINGERPRINT,
   assertPolicyCategoryIntegrityApplyGate,
+  buildApplyConfirmSentinel,
+  buildProductionAuthorizeSentinel,
+  buildWriterDrainConfirm,
   describeMongoTarget,
   loadWriterDrainEvidence,
   planMigration,
@@ -270,6 +274,123 @@ describe('policy category integrity migration', () => {
         evidenceSha256,
       ),
     ).toThrow('stopped writer deployments');
+  });
+
+  it('production apply > requires reviewed Atlas fingerprint + authorize sentinel (#407)', () => {
+    const target = describeMongoTarget(
+      'mongodb+srv://operator:secret@gogocash.4prpd9j.mongodb.net/gogocash?retryWrites=true',
+    );
+    expect(target.fingerprint).toBe(REVIEWED_PRODUCTION_ATLAS_FINGERPRINT);
+    const candidateSha = 'd'.repeat(40);
+    const evidenceSha256 = 'e'.repeat(64);
+    const writerDrainEvidence = {
+      schema: 'gogocash-policy-writer-drain-v1',
+      environment: 'production',
+      candidate_sha: candidateSha,
+      target_fingerprint: target.fingerprint,
+      recorded_at: new Date().toISOString(),
+      ingress: 'blocked',
+      inflight_requests: 0,
+      background_jobs: 'stopped',
+      writer_deployments: [
+        {
+          service: 'gogocash-api',
+          deployment_sha: 'f'.repeat(40),
+          replicas: 0,
+          state: 'stopped',
+        },
+      ],
+    };
+    const baseEnv = {
+      POLICY_CATEGORY_INTEGRITY_APPLY: '1',
+      POLICY_CATEGORY_INTEGRITY_ENVIRONMENT: 'production',
+      POLICY_CATEGORY_INTEGRITY_TARGET_FINGERPRINT: target.fingerprint,
+      POLICY_CATEGORY_INTEGRITY_CANDIDATE_SHA: candidateSha,
+      POLICY_CATEGORY_INTEGRITY_WRITER_DRAIN_EVIDENCE_SHA256: evidenceSha256,
+      POLICY_CATEGORY_INTEGRITY_WRITER_DRAIN_CONFIRM: buildWriterDrainConfirm({
+        environment: 'production',
+        candidateSha,
+        fingerprint: target.fingerprint,
+        evidenceSha256,
+      }),
+      POLICY_CATEGORY_INTEGRITY_CONFIRM: buildApplyConfirmSentinel({
+        environment: 'production',
+        candidateSha,
+        database: 'gogocash',
+        fingerprint: target.fingerprint,
+      }),
+      POLICY_CATEGORY_INTEGRITY_PRODUCTION_AUTHORIZE:
+        buildProductionAuthorizeSentinel({
+          candidateSha,
+          fingerprint: target.fingerprint,
+        }),
+    };
+
+    expect(() =>
+      assertPolicyCategoryIntegrityApplyGate(
+        target,
+        baseEnv,
+        writerDrainEvidence,
+        evidenceSha256,
+      ),
+    ).not.toThrow();
+
+    // Staging env must never apply against the reviewed Atlas fingerprint.
+    expect(() =>
+      assertPolicyCategoryIntegrityApplyGate(
+        target,
+        {
+          ...baseEnv,
+          POLICY_CATEGORY_INTEGRITY_ENVIRONMENT: 'staging',
+          POLICY_CATEGORY_INTEGRITY_WRITER_DRAIN_CONFIRM:
+            buildWriterDrainConfirm({
+              environment: 'staging',
+              candidateSha,
+              fingerprint: target.fingerprint,
+              evidenceSha256,
+            }),
+          POLICY_CATEGORY_INTEGRITY_CONFIRM: buildApplyConfirmSentinel({
+            environment: 'staging',
+            candidateSha,
+            database: 'gogocash',
+            fingerprint: target.fingerprint,
+          }),
+        },
+        { ...writerDrainEvidence, environment: 'staging' },
+        evidenceSha256,
+      ),
+    ).toThrow('refuses a production target');
+
+    expect(() =>
+      assertPolicyCategoryIntegrityApplyGate(
+        target,
+        {
+          ...baseEnv,
+          POLICY_CATEGORY_INTEGRITY_PRODUCTION_AUTHORIZE: '',
+        },
+        writerDrainEvidence,
+        evidenceSha256,
+      ),
+    ).toThrow('PRODUCTION_AUTHORIZE');
+
+    expect(() =>
+      assertPolicyCategoryIntegrityApplyGate(
+        target,
+        baseEnv,
+        {
+          ...writerDrainEvidence,
+          writer_deployments: [
+            {
+              service: 'gogocash-admin',
+              deployment_sha: 'f'.repeat(40),
+              replicas: 0,
+              state: 'stopped',
+            },
+          ],
+        },
+        evidenceSha256,
+      ),
+    ).toThrow('gogocash-api');
   });
 
   it('derives a credential-free target fingerprint and exposes implicit database risk', () => {

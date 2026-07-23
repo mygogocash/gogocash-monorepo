@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "@mobile/theme/icons";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { useSpecificPageBanner } from "@mobile/account/specificPageBannerResource";
+import { useDirectoryOfferBrowse } from "@mobile/account/useDirectoryOfferBrowse";
 import { useDirectoryOfferSearch } from "@mobile/account/useDirectoryOfferSearch";
 import {
   filterDirectoryStores,
@@ -18,7 +19,6 @@ import {
   resolveCategoryIconImages,
   resolveCategoryIconKeys,
   resolveCategoryList,
-  resolveLiveDirectoryStores,
 } from "@mobile/account/directoryCatalogResource";
 import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
@@ -45,12 +45,10 @@ import {
   type WebBrandDirectorySort,
 } from "@mobile/design/webDesignParity";
 
+import { BrandCard } from "@mobile/components/BrandCard";
+import { getBrandCardLargeHeight } from "@mobile/components/brandCardMetrics";
 import { BrandDirectoryCategoryAside } from "./BrandDirectoryCategoryAside";
-import { BrandDirectoryStoreCard } from "./BrandDirectoryStoreCard";
-import {
-  DirectoryVirtualizedGrid,
-  getDirectoryStoreCardHeight,
-} from "./directoryVirtualizedGrid";
+import { DirectoryVirtualizedGrid } from "./directoryVirtualizedGrid";
 import { type BrandDirectoryStore } from "./discoveryTypes";
 import { ShopDirectoryPagination } from "./ShopDirectoryPagination";
 import { SpecificPageBannerCarousel } from "./SpecificPageBannerCarousel";
@@ -66,7 +64,7 @@ export function CustomerBrandDirectoryScreen() {
   const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [sortBy, setSortBy] = useState<WebBrandDirectorySort>("highest_cashback");
+  const [sortBy, setSortBy] = useState<WebBrandDirectorySort>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
   const pageSize = webBrandDirectory.pagination.pageSize;
@@ -79,6 +77,7 @@ export function CustomerBrandDirectoryScreen() {
     contentWidth: gridContentWidth,
     viewportWidth: width,
   });
+  // Probe backend vs fixture; home brandCatalog page-1 is not used for the grid (#462).
   const catalogResource = useCustomerAccountResource<OfferListResponse, OfferListResponse>({
     fixtureData: { data: [], limit: 80, page: 1, total: 0, totalPages: 0 },
     resourceId: "brandCatalog",
@@ -101,18 +100,11 @@ export function CustomerBrandDirectoryScreen() {
     categoryResource.source,
     categoryResource.data,
   );
-  const liveStores = resolveLiveDirectoryStores(
-    catalogResource.source,
-    catalogResource.data,
-    webBrandDirectory.stores,
-    region,
-  );
-  const directorySearch = useDirectoryOfferSearch(
-    searchQuery,
-    catalogResource.source === "backend",
-  );
+  const liveBackend = catalogResource.source === "backend";
+  const directoryBrowse = useDirectoryOfferBrowse(liveBackend && !searchQuery.trim());
+  const directorySearch = useDirectoryOfferSearch(searchQuery, liveBackend);
   const brandResults = useMemo(() => {
-    if (catalogResource.source === "backend" && searchQuery.trim()) {
+    if (liveBackend && searchQuery.trim()) {
       if (directorySearch.status !== "ready" || !directorySearch.stores) {
         return [];
       }
@@ -125,12 +117,16 @@ export function CustomerBrandDirectoryScreen() {
       });
     }
 
-    if (catalogResource.source === "backend") {
+    if (liveBackend) {
+      if (directoryBrowse.status !== "ready" || !directoryBrowse.stores) {
+        return [];
+      }
+
       return filterDirectoryStores({
         category: selectedCategory,
-        query: searchQuery,
+        query: "",
         sortBy,
-        stores: liveStores,
+        stores: directoryBrowse.stores,
       });
     }
 
@@ -141,10 +137,11 @@ export function CustomerBrandDirectoryScreen() {
       sortBy,
     });
   }, [
-    catalogResource.source,
+    directoryBrowse.status,
+    directoryBrowse.stores,
     directorySearch.status,
     directorySearch.stores,
-    liveStores,
+    liveBackend,
     region,
     searchQuery,
     selectedCategory,
@@ -175,12 +172,34 @@ export function CustomerBrandDirectoryScreen() {
     specificPageBanner.retry();
     requestAnimationFrame(() => setRefreshing(false));
   }, [catalogResource, categoryResource, specificPageBanner]);
-  const brandDirectoryRowHeight = getDirectoryStoreCardHeight(gridMetrics.cardWidth);
+  // Sized for the shared BrandCard this grid renders, NOT the legacy bespoke
+  // ShopDirectoryStoreCard (two-line name) that getDirectoryStoreCardHeight
+  // still covers for the shop directory — that formula left ~40px dead under
+  // every brand card.
+  const brandDirectoryRowHeight = getBrandCardLargeHeight(gridMetrics.cardWidth);
   const renderBrandDirectoryCard = useCallback(
     (store: BrandDirectoryStore) => (
-      <BrandDirectoryStoreCard cardWidth={gridMetrics.cardWidth} store={store} />
+      // Unified with the shared BrandCard (size "L") used by the home rails, Top Brands,
+      // category + shop-detail surfaces — so every brand card renders identically (logo
+      // tile, favorite heart pinned bottom-right, single-line name, cashback row) instead
+      // of the bespoke BrandDirectoryStoreCard that drifted from that component.
+      <BrandCard
+        accessibilityLabel={`${store.brand} ${store.cashback} cashback`}
+        brand={store.brand}
+        cardHeight={brandDirectoryRowHeight}
+        cardWidth={gridMetrics.cardWidth}
+        cashback={store.cashback}
+        href={store.href}
+        id={store.id}
+        label={store.label}
+        logoUri={store.logoUri}
+        showGrabCoupon={store.showGrabCoupon}
+        size="L"
+        testID={`brand-directory-card-${store.id}`}
+        tint={store.tint}
+      />
     ),
-    [gridMetrics.cardWidth]
+    [brandDirectoryRowHeight, gridMetrics.cardWidth]
   );
 
   // Desktop search lives in the header (CustomerDesktopHeader); only mobile needs the sticky search.

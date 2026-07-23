@@ -32,6 +32,7 @@ import { ALL_BRAND_BANNER_MODEL, Banner } from './schemas/banner.schema';
 import { SPECIFIC_PAGE_BANNER_MODEL } from './schemas/specific-page-banner.schema';
 import { requireSpecificPageBannerTarget } from './specific-page-banner.contract';
 import { TopBrandConfig } from './schemas/top-brand-config.schema';
+import { LandingRailConfig } from './schemas/landing-rail-config.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { UpdateCouponDto } from './dto/update-offer.dto';
 import { MissionOrder } from './schemas/missing-order.schema';
@@ -39,7 +40,7 @@ import {
   type CommandOwnedStoredMediaAsset,
   StoredMediaService,
 } from 'src/media/stored-media.service';
-import { MEDIA_FOLDER } from 'src/media/media-folders.config';
+import { MEDIA_FOLDER, type MediaFolder } from 'src/media/media-folders.config';
 import { parseOfferDisplayTagsField } from './offer-display-tags.util';
 import { parseProductTypeRowsField } from './product-type.util';
 import { resolvePublicOfferLogo } from './offer-logo.util';
@@ -66,6 +67,12 @@ import {
   resolveDeviceBrandEntries,
   resolveOfferCashbackLabel,
 } from './top-brand.contract';
+import {
+  DEFAULT_LANDING_RAIL_CARD_VARIANT,
+  normalizeLandingRailMeta,
+  sortLandingRails,
+} from './landing-rail.contract';
+import { syncOfferTopBrandMembership } from './top-brand-membership';
 import { MISSION_ORDER_SCHEMA_VERSION } from './schemas/missing-order.schema';
 import {
   buildMissionOrderCustomerSnapshot,
@@ -159,6 +166,15 @@ const PUBLIC_OFFER_DETAIL_FIELDS = [
   'extra_store',
   'extra_point',
   'product_type',
+  'all_product_types',
+  'upsize_start_date',
+  'upsize_end_date',
+  'upsize_start_time',
+  'upsize_end_time',
+  'upsize_special_commission',
+  'upsize_max_cap',
+  'upsize_all_product_types',
+  'upsize_product_types',
   'source',
   'brand_id',
   'is_global',
@@ -585,6 +601,8 @@ export class OfferService implements OnApplicationBootstrap {
     private allBrandBannerModel: Model<Banner>,
     @InjectModel(TopBrandConfig.name)
     private topBrandConfigModel: Model<TopBrandConfig>,
+    @InjectModel(LandingRailConfig.name)
+    private landingRailConfigModel: Model<LandingRailConfig>,
     @InjectModel(MissionOrder.name)
     private missionOrderModel: Model<MissionOrder>,
     @InjectModel(Quest.name) private questModel: Model<Quest>,
@@ -668,10 +686,26 @@ export class OfferService implements OnApplicationBootstrap {
       filter.$or = orConditions;
     }
     if (categories) {
-      filter['categories'] = {
-        $regex: escapeRegexLiteral(categories),
-        $options: 'i',
+      // #438 — match partner feed `categories` OR an enabled admin brand-category
+      // display override. Admin-assigned Electronics brands were invisible in
+      // customer category browse when only the display tag was set.
+      const safeCategory = escapeRegexLiteral(categories);
+      const categoryClause = {
+        $or: [
+          { categories: { $regex: safeCategory, $options: 'i' } },
+          {
+            'offer_display_tags.brand_category_enabled': true,
+            'offer_display_tags.brand_category_label': {
+              $regex: safeCategory,
+              $options: 'i',
+            },
+          },
+        ],
       };
+      if (!Array.isArray(filter.$and)) {
+        filter.$and = [];
+      }
+      filter.$and.push(categoryClause);
     }
     const countryRegex = countryFilterRegex(country);
     if (countryRegex) {
@@ -995,19 +1029,18 @@ export class OfferService implements OnApplicationBootstrap {
       MAX_NOTE_TO_USER_LENGTH,
     );
     const trackingPeriodFields = parseTrackingPeriodCreateFields(body);
+    const wantsTopBrand = parseBoolean(body.extra_store, false);
 
-    return this.categoryIntegrity.withNormalWrite({
+    const created = await this.categoryIntegrity.withNormalWrite({
       legacy: async () => {
         const upload = async (
           label: string,
-          file?: Express.Multer.File,
+          file: Express.Multer.File | undefined,
+          folder: MediaFolder,
         ): Promise<string> => {
           if (!file) return '';
           try {
-            return await this.storedMediaService.upload(
-              file,
-              MEDIA_FOLDER.BRANDS,
-            );
+            return await this.storedMediaService.upload(file, folder);
           } catch (error) {
             const reason =
               error instanceof Error ? error.message : String(error);
@@ -1022,8 +1055,9 @@ export class OfferService implements OnApplicationBootstrap {
           files.banner_mobile?.[0] ??
           files.logo_circle?.[0];
         const [logoAsset, bannerAsset] = await Promise.all([
-          upload('logo (desktop)', logoFile),
-          upload('banner', bannerFile),
+          // #493 — banners are wide hero art and must not take the logo width cap.
+          upload('logo (desktop)', logoFile, MEDIA_FOLDER.BRANDS),
+          upload('banner', bannerFile, MEDIA_FOLDER.BRAND_BANNERS),
         ]);
         const now = new Date();
         const manualId = Date.now();
@@ -1251,7 +1285,7 @@ export class OfferService implements OnApplicationBootstrap {
                 {
                   role: 'banner',
                   file: bannerFile,
-                  folder: MEDIA_FOLDER.BRANDS,
+                  folder: MEDIA_FOLDER.BRAND_BANNERS,
                 },
               ]
             : []),
@@ -1307,6 +1341,27 @@ export class OfferService implements OnApplicationBootstrap {
         });
       },
     });
+
+    // #475 — create with Top Brand on also upserts the curated list.
+    const createdId = String(
+      (created as { _id?: unknown } | null | undefined)?._id ?? '',
+    );
+    if (createdId && wantsTopBrand) {
+      try {
+        await syncOfferTopBrandMembership(
+          this.topBrandConfigModel,
+          createdId,
+          true,
+        );
+      } catch (error) {
+        // Keep Brand Info toggle aligned when the curated list is full.
+        await this.offerModel
+          .findByIdAndUpdate(createdId, { $set: { extra_store: false } })
+          .exec();
+        throw error;
+      }
+    }
+    return created;
   }
 
   async getCategoryList(search: string) {
@@ -1500,6 +1555,100 @@ export class OfferService implements OnApplicationBootstrap {
     const dataMobile = toDisplay(mobileEntries);
     // `data` stays desktop-shaped for legacy clients / E2E pollers.
     return { data: dataDesktop, dataDesktop, dataMobile };
+  }
+
+  /**
+   * Public home "landing rails": every enabled admin-curated rail
+   * ("Trending Brands", "Travel Deals are Here!", "Makeup Must Have!"), ordered
+   * by position, each hydrated from live offer economics exactly like
+   * {@link getDisplayTopBrands}. Rails whose curated offers all resolve to
+   * unknown/inactive offers still return (with empty cards) so the customer app
+   * can fall back to its fixture for that rail. No rails → empty list (the
+   * client falls back to fixtures entirely).
+   */
+  async getDisplayLandingRails() {
+    const rails = sortLandingRails(
+      await this.landingRailConfigModel
+        .find({ enabled: { $ne: false } })
+        .exec(),
+    );
+    if (rails.length === 0) {
+      return { data: [] };
+    }
+
+    const unionIds = [
+      ...new Set(
+        rails.flatMap((rail) => [
+          ...resolveDeviceBrandEntries(rail, 'desktop').map((e) => e.offerId),
+          ...resolveDeviceBrandEntries(rail, 'mobile').map((e) => e.offerId),
+        ]),
+      ),
+    ];
+
+    const offers =
+      unionIds.length === 0
+        ? []
+        : await this.offerModel
+            .find({
+              _id: { $in: unionIds },
+              ...ACTIVE_OFFER_FILTER,
+            } as any)
+            .select(
+              'offer_id offer_name offer_name_display logo logo_desktop logo_mobile logo_circle commission_store commissions',
+            )
+            .exec();
+    const offerById = new Map(
+      offers.map((offer) => [String(offer._id), offer]),
+    );
+
+    const toDisplay = (entries: { offerId: string; cashback: string }[]) =>
+      entries
+        .map((entry) => {
+          const offer = offerById.get(entry.offerId);
+          if (!offer) {
+            return null;
+          }
+          const row = offer as {
+            _id: unknown;
+            offer_id: number;
+            offer_name: string;
+            offer_name_display?: string;
+            logo?: string;
+            logo_desktop?: string;
+            logo_mobile?: string;
+            logo_circle?: string;
+            commission_store?: unknown;
+            commissions?: unknown[];
+          };
+          return {
+            _id: String(row._id),
+            offer_id: row.offer_id,
+            brand: row.offer_name_display?.trim() || row.offer_name,
+            logo: resolvePublicOfferLogo(row),
+            cashback: resolveOfferCashbackLabel(row),
+          };
+        })
+        .filter((brand) => brand !== null);
+
+    const data = rails.map((rail, index) => {
+      const meta = normalizeLandingRailMeta(rail, index);
+      const dataDesktop = toDisplay(resolveDeviceBrandEntries(rail, 'desktop'));
+      const dataMobile = toDisplay(resolveDeviceBrandEntries(rail, 'mobile'));
+      return {
+        railId: meta.railId,
+        title: meta.title,
+        emoji: meta.emoji,
+        link: meta.link,
+        cardVariant: meta.cardVariant || DEFAULT_LANDING_RAIL_CARD_VARIANT,
+        position: meta.position,
+        // `data` stays desktop-shaped for legacy clients / E2E pollers.
+        data: dataDesktop,
+        dataDesktop,
+        dataMobile,
+      };
+    });
+
+    return { data };
   }
 
   async updateCoupon(body: UpdateCouponDto) {
@@ -1780,7 +1929,12 @@ export class OfferService implements OnApplicationBootstrap {
     const providerOfferId = Number(offerRow.offer_id);
     const offerName =
       offerRow.offer_name_display?.trim() || offerRow.offer_name?.trim() || '';
-    if (!offerSource || !Number.isFinite(providerOfferId) || !offerName) {
+    if (!offerName) {
+      throw new BadRequestException(
+        'The selected brand is missing a display name. Choose another brand.',
+      );
+    }
+    if (!offerSource || !Number.isFinite(providerOfferId)) {
       throw new ServiceUnavailableException(
         'The selected offer is missing canonical provider details.',
       );

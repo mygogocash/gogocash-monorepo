@@ -5,9 +5,14 @@
  */
 
 import { normalizeAdminApiUrl } from "@/lib/adminApiMode";
+import {
+  resolveAdminUpstream,
+  type AdminUpstreamResolution,
+} from "@/lib/adminUpstreamSafety";
+import { MAX_ADMIN_UPLOAD_BYTES } from "@/lib/uploadLimits";
 
 /** Cap for buffered proxy bodies (banner/brand multipart). Reject before reading. */
-export const MAX_PROXY_BODY_BYTES = 32 * 1024 * 1024;
+export const MAX_PROXY_BODY_BYTES = MAX_ADMIN_UPLOAD_BYTES;
 
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
@@ -34,11 +39,34 @@ function isEdgeOwnedHeader(lowerName: string): boolean {
   return lowerName.startsWith("cf-") || EDGE_OWNED_HEADERS.has(lowerName);
 }
 
+/**
+ * Resolve Nest upstream for `/api/backend/*`.
+ * On Railway, requires a private-safe `API_URL` (no public-edge fallback).
+ */
 export function resolveUpstreamBaseUrl(): string | null {
-  return (
-    normalizeAdminApiUrl(process.env.API_URL) ??
-    normalizeAdminApiUrl(process.env.NEXT_PUBLIC_API_URL) ??
-    null
+  const resolved = resolveAdminUpstream();
+  return resolved.ok ? resolved.url : null;
+}
+
+/** Full resolution (ok / missing / unsafe) for BFF route error responses. */
+export function resolveUpstreamBaseUrlDetailed(): AdminUpstreamResolution {
+  return resolveAdminUpstream();
+}
+
+/** Structured 503 when the BFF upstream is missing or unsafe (#407). */
+export function upstreamMisconfiguredResponse(
+  resolution: Extract<AdminUpstreamResolution, { ok: false }>,
+): Response {
+  // Keep the real cause in server logs for ops — the client only ever gets a
+  // generic message that never names env vars or internal hostnames.
+  console.error(`[api/backend] ${resolution.code}: ${resolution.reason}`);
+  return Response.json(
+    {
+      message:
+        "This service is temporarily unavailable. Please try again later, or contact an administrator if it continues.",
+      code: resolution.code,
+    },
+    { status: 503 },
   );
 }
 
@@ -97,6 +125,22 @@ export function assertProxyBodyWithinLimit(
         {
           message:
             "The file you're uploading is too large. Please use a smaller file (under 32 MB).",
+        },
+        { status: 413 },
+      );
+    }
+    // #487 — if Next truncated the buffered body below Content-Length, refuse
+    // to forward a partial multipart (avoids Nest "Unexpected end of form").
+    if (
+      body &&
+      Number.isFinite(declared) &&
+      declared > 0 &&
+      body.byteLength < declared
+    ) {
+      return Response.json(
+        {
+          message:
+            "Upload was cut off before it finished. Use a file under 32 MB, or compress the image, then try again.",
         },
         { status: 413 },
       );

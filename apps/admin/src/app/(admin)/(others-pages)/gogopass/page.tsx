@@ -1,6 +1,8 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { Metadata } from "next";
 import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
+import { notFound } from "next/navigation";
+import { isGoGoPassEnabled } from "@/config/featureFlags";
 
 export const metadata: Metadata = {
   title: "GoGoPass | GoGoCash Admin",
@@ -8,6 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function GoGoPassPage(props: DefaultAppPageProps) {
+  if (!isGoGoPassEnabled()) notFound();
   await awaitPageDynamicProps(props);
   return (
     <div>

@@ -85,6 +85,7 @@ export function buildFeeRateUpdate(
     ['global_max_cap_amount', 'global max cap amount'],
     ['global_withdraw_fee', 'global withdrawal fee'],
     ['global_minimum_withdraw', 'global minimum withdrawal'],
+    ['referral_bonus_percent', 'referral bonus percent'],
   ];
   for (const [key, label] of numericEntries) {
     const value = dto[key];
@@ -94,7 +95,9 @@ export function buildFeeRateUpdate(
       throw new BadRequestException(`${label} must be zero or greater`);
     }
     if (
-      (key === 'system' || key === 'global_max_cap_percent') &&
+      (key === 'system' ||
+        key === 'global_max_cap_percent' ||
+        key === 'referral_bonus_percent') &&
       normalized > 100
     ) {
       throw new BadRequestException(`${label} must be between 0 and 100`);

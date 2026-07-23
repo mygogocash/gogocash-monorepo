@@ -38,13 +38,24 @@ import { trackQuestStarted } from "@mobile/analytics/events";
 import { useAnalytics } from "@mobile/analytics/useAnalytics";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
-import type { QuestTaskRow } from "@mobile/quest/questTaskResource";
-import { useQuestTaskRows } from "@mobile/quest/questTaskResource";
+import type {
+  QuestTaskResourceStatus,
+  QuestTaskRow,
+} from "@mobile/quest/questTaskResource";
+import {
+  useQuestBrandTasks,
+  useQuestTaskRows,
+} from "@mobile/quest/questTaskResource";
+import {
+  QUEST_LEADERBOARD_TOP_N,
+  useMyQuestRank,
+  useQuestLeaderboard,
+  useQuestWindow,
+} from "@mobile/quest/questRankResource";
 import {
   mobileShellLayout,
   webAccountPageSurface,
   webQuestHistory,
-  webQuestLeaderboardRows,
   webQuestMyRank,
   webQuestTabs,
 } from "@mobile/design/webDesignParity";
@@ -157,6 +168,8 @@ function CustomerQuestMainScreen() {
                 { height: mediaColumnWidth / (1216 / 930) },
               ]}
             />
+            {/* Prod parity: the task list is visible under the how-to-earn tab too. */}
+            <QuestTaskPanel />
           </View>
         ) : null}
         {activeTab === "tasks" ? (
@@ -165,11 +178,16 @@ function CustomerQuestMainScreen() {
           </View>
         ) : null}
         {activeTab === "leaderboard" ? (
+          // Full leaderboard: list every ranked participant (no limit).
           <QuestLeaderboardPanel mediaColumnWidth={contentWidth} />
         ) : null}
+        {/* Secondary desktop rail beside the other tabs: keep it a compact glance. */}
         {isDesktop && activeTab !== "leaderboard" ? (
           <View style={styles.questColumn}>
-            <QuestLeaderboardPanel mediaColumnWidth={mediaColumnWidth} />
+            <QuestLeaderboardPanel
+              limit={QUEST_LEADERBOARD_TOP_N}
+              mediaColumnWidth={mediaColumnWidth}
+            />
           </View>
         ) : null}
       </View>
@@ -178,43 +196,83 @@ function CustomerQuestMainScreen() {
   );
 }
 
+// "Both" (founder decision 2026-07-22): show the PUBLIC brand earn-list to EVERYONE (signed in
+// or not) via useQuestBrandTasks (/offer/extra-point, prod parity with app.gogocash.co), AND
+// overlay the signed-in user's PERSONAL quest progress via useQuestTaskRows (/point/quest-progress).
+// Signed-out shoppers get an empty personal list, so only the public earn-list renders.
 function QuestTaskPanel() {
   const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
-  const questTasks = useQuestTaskRows();
+  const brandTasks = useQuestBrandTasks();
+  const personalTasks = useQuestTaskRows();
+  const hasPersonal =
+    personalTasks.status === "ready" && personalTasks.rows.length > 0;
   return (
     <View style={styles.taskPanel}>
       <Text style={styles.taskTitle}>{tc("Let’s Got the Tasks Done!")}</Text>
-      {questTasks.status === "loading" ? (
-        <Text style={styles.taskResourceMessage}>
-          {tc("Loading quest progress…")}
-        </Text>
-      ) : null}
-      {questTasks.status === "error" ? (
-        <View style={styles.taskResourceState}>
-          <Text style={styles.taskResourceMessage}>
-            {tc("We couldn’t load your quest progress.")}
-          </Text>
-          <MotionPressable
-            accessibilityRole="button"
-            onPress={questTasks.retry}
-            pressScale={0.98}
-            style={styles.taskRetryButton}
-          >
-            <Text style={styles.taskRetryText}>{tc("Try again")}</Text>
-          </MotionPressable>
-        </View>
-      ) : null}
-      {questTasks.status === "ready" && questTasks.rows.length === 0 ? (
-        <Text style={styles.taskResourceMessage}>
-          {tc("No active quest tasks right now.")}
-        </Text>
-      ) : null}
-      {questTasks.rows.map((task) => (
+
+      {/* Public brand earn-list — shown to everyone. */}
+      <QuestTaskResourceState
+        onRetry={brandTasks.retry}
+        status={brandTasks.status}
+      />
+      {brandTasks.rows.map((task) => (
         <QuestTaskListRow key={task.key} task={task} />
       ))}
+
+      {/* Personal progress overlay — signed-in shoppers only (empty list when signed out). */}
+      <QuestTaskResourceState
+        onRetry={personalTasks.retry}
+        status={personalTasks.status}
+      />
+      {hasPersonal ? (
+        <>
+          <Text style={styles.taskSectionLabel}>{tc("Quest progress")}</Text>
+          {personalTasks.rows.map((task) => (
+            <QuestTaskListRow key={task.key} task={task} />
+          ))}
+        </>
+      ) : null}
     </View>
   );
+}
+
+// Shared loading/error chrome for a quest task resource — reused by the public earn-list and
+// the personal progress overlay so both surfaces behave identically.
+function QuestTaskResourceState({
+  status,
+  onRetry,
+}: {
+  status: QuestTaskResourceStatus;
+  onRetry: () => void;
+}) {
+  const styles = useThemedStyles(createQuestScreenStyles);
+  const tc = useCopy();
+  if (status === "loading") {
+    return (
+      <Text style={styles.taskResourceMessage}>
+        {tc("Loading quest progress…")}
+      </Text>
+    );
+  }
+  if (status === "error") {
+    return (
+      <View style={styles.taskResourceState}>
+        <Text style={styles.taskResourceMessage}>
+          {tc("We couldn’t load your quest progress.")}
+        </Text>
+        <MotionPressable
+          accessibilityRole="button"
+          onPress={onRetry}
+          pressScale={0.98}
+          style={styles.taskRetryButton}
+        >
+          <Text style={styles.taskRetryText}>{tc("Try again")}</Text>
+        </MotionPressable>
+      </View>
+    );
+  }
+  return null;
 }
 
 function QuestTaskListRow({ task }: { task: QuestTaskRow }) {
@@ -418,12 +476,26 @@ function QuestMyRankCard({
 
 function QuestLeaderboardPanel({
   mediaColumnWidth,
+  // undefined -> list EVERY ranked participant (the leaderboard tab). A number caps the
+  // rows (the compact desktop side-rail passes QUEST_LEADERBOARD_TOP_N for a glance).
+  limit,
 }: {
   mediaColumnWidth: number;
+  limit?: number;
 }) {
   const styles = useThemedStyles(createQuestScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  // Real quest data from the shared /point/* API. In non-backend (design/preview) builds
+  // these fall back to the designed fixtures; on a backend error the leaderboard shows an
+  // honest empty state and My Rank shows zeros rather than fabricated numbers.
+  const { window: questWindow } = useQuestWindow();
+  const leaderboard = useQuestLeaderboard(questWindow);
+  const myRank = useMyQuestRank(questWindow);
+  const rows =
+    typeof limit === "number"
+      ? leaderboard.rows.slice(0, limit)
+      : leaderboard.rows;
   return (
     <View style={styles.leaderboardPanel}>
       <Image
@@ -432,7 +504,7 @@ function QuestLeaderboardPanel({
         source={questPromoImage}
         style={[styles.promoImage, { height: mediaColumnWidth / (484 / 320) }]}
       />
-      <QuestMyRankCard />
+      <QuestMyRankCard data={{ ...webQuestMyRank, ...myRank.data }} />
       <View style={styles.leaderboardCard}>
         <View style={styles.leaderboardHeader}>
           <View style={styles.leaderboardTitleRow}>
@@ -457,13 +529,7 @@ function QuestLeaderboardPanel({
             </MotionPressable>
           </Link>
         </View>
-        <QuestRankRows
-          rows={webQuestLeaderboardRows.map((row) => ({
-            key: row.name,
-            name: row.name,
-            points: row.points,
-          }))}
-        />
+        <QuestRankRows rows={rows} />
       </View>
     </View>
   );
@@ -1429,6 +1495,15 @@ function createQuestScreenStyles(colors: ThemeColors) {
       fontWeight: "600",
       lineHeight: 32,
       marginBottom: spacing.md,
+    },
+    taskSectionLabel: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: typography.caption,
+      fontWeight: "600",
+      letterSpacing: 0.5,
+      marginTop: spacing.lg,
+      textTransform: "uppercase",
     },
     taskResourceState: {
       alignItems: "flex-start",

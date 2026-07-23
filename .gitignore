@@ -22,6 +22,11 @@ apps/app/.bundle-measure/
 !.env.e2e.example
 !.env.railway.production.example
 
+# Railway variable dumps — plaintext connection strings, API keys and JWT secrets.
+# Generated when exporting service variables; never commit (this repo is public).
+vars-*.json
+err-*.txt
+
 # misc
 .DS_Store
 *.log

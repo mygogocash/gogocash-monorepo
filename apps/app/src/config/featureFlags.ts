@@ -21,12 +21,47 @@ export function isGoGoPassEnabled(): boolean {
   return resolveFeatureEnabled(process.env.EXPO_PUBLIC_ENABLE_GOGOPASS);
 }
 
+export function resolveCreditScoreEnabled(value: string | undefined): boolean {
+  return resolveFeatureEnabled(value);
+}
+
+export function isCreditScoreEnabled(): boolean {
+  return resolveFeatureEnabled(process.env.EXPO_PUBLIC_ENABLE_CREDIT_SCORE);
+}
+
 export function isGoGoTrackEnabled(): boolean {
   return resolveFeatureEnabled(process.env.EXPO_PUBLIC_ENABLE_GOTOTRACK);
 }
 
+// ── GoLink 3-state rollout (2026-07) ────────────────────────────────────────
+// Founder decision: GoLink ships VISIBLE but NON-CLICKABLE ("coming soon") on
+// mobile until launch. Two env vars compose the mode:
+//   EXPO_PUBLIC_ENABLE_GOLINK === "0"   -> "hidden"     (fully removed; wins over all)
+//   EXPO_PUBLIC_GOLINK_COMING_SOON      -> "comingSoon" by DEFAULT; only "0" opts out
+//   otherwise                           -> "enabled"    (fully clickable / live flow)
+// Coming-soon DEFAULTS ON so beta flips into the coming-soon state with NO env
+// change. TO FULLY LAUNCH GoLink later, set EXPO_PUBLIC_GOLINK_COMING_SOON=0.
+export type GoLinkMode = "hidden" | "comingSoon" | "enabled";
+
+// Mirrors the "only the literal '0' flips it" contract above, but INVERTED: this
+// flag defaults ON (coming-soon), so an unset env can never accidentally ship the
+// live flow before launch — only an explicit "0" opts out into "enabled".
+export function isGoLinkComingSoon(): boolean {
+  return process.env.EXPO_PUBLIC_GOLINK_COMING_SOON !== "0";
+}
+
+export function resolveGoLinkMode(): GoLinkMode {
+  if (process.env.EXPO_PUBLIC_ENABLE_GOLINK === "0") {
+    return "hidden";
+  }
+  return isGoLinkComingSoon() ? "comingSoon" : "enabled";
+}
+
+// "Enabled" now means the mode is FULLY clickable (live flow) — NOT merely
+// "not hidden". Callers gating the live GoLink flow use this; surfaces that must
+// stay visible-but-disabled read resolveGoLinkMode() instead.
 export function isGoLinkEnabled(): boolean {
-  return resolveFeatureEnabled(process.env.EXPO_PUBLIC_ENABLE_GOLINK);
+  return resolveGoLinkMode() === "enabled";
 }
 
 // Which profile menu hrefs are hidden by which flag. Shared by ALL
@@ -38,6 +73,10 @@ const PROFILE_MENU_FEATURE_GATES: ReadonlyArray<{
 }> = [
   { href: "/membership", enabled: isGoGoPassEnabled },
   { href: "/gototrack", enabled: isGoGoTrackEnabled },
+  // "My Rating Score" lives in profileHubSubNavItems (the Profile accordion),
+  // not the top-level menu — filterHiddenProfileMenuItems is generic over
+  // { href } so the same gate list covers both arrays.
+  { href: "/credit-score", enabled: isCreditScoreEnabled },
 ];
 
 export function filterHiddenProfileMenuItems<
@@ -55,11 +94,15 @@ export function filterHiddenProfileMenuItems<
  */
 export const filterGoGoPassMenuItems = filterHiddenProfileMenuItems;
 
-/** Drops the GoGoLink (/golink) tab from the mobile bottom nav when hidden. */
+/**
+ * Drops the GoGoLink (/golink) tab from the mobile bottom nav ONLY when hidden.
+ * In "comingSoon" mode the tab STAYS (rendered disabled/badged by the nav
+ * components) so the surface is visible but non-clickable.
+ */
 export function filterHiddenBottomNavItems<
   T extends { readonly href: string },
 >(items: readonly T[]): readonly T[] {
-  return isGoLinkEnabled()
-    ? items
-    : items.filter((item) => item.href !== "/golink");
+  return resolveGoLinkMode() === "hidden"
+    ? items.filter((item) => item.href !== "/golink")
+    : items;
 }

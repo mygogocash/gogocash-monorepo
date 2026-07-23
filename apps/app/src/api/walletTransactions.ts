@@ -20,9 +20,21 @@ export type WalletTxRow = {
   statusLabel: string;
 };
 
+export type ListCheckStatusTotal = {
+  status?: unknown;
+  totalTHB?: unknown;
+  totalUSD?: unknown;
+  count?: unknown;
+};
+
 export type ListCheckResponse = {
   allConversions?: unknown;
   withdrawList?: unknown;
+  /** Per conversion_status aggregates with server-side FX → THB/USD. */
+  totalsByStatusAndCurrency?: readonly ListCheckStatusTotal[];
+  /** Approved withdrawals already converted to THB. */
+  withdrawSumThbApproved?: { netAmount?: unknown; count?: unknown };
+  withdrawSumThbPending?: { netAmount?: unknown; count?: unknown };
 };
 
 /** True when the payload looks like a /withdraw/list-check response. */

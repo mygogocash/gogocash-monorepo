@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
   UseInterceptors,
   UploadedFile,
   Res,
@@ -15,6 +16,14 @@ import { CreateGoogleDriveDto } from './dto/create-google-drive.dto';
 import { UpdateGoogleDriveDto } from './dto/update-google-drive.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
+import { AuthAdminGuard } from '../admin/jwt-auth-admin.guard';
+
+// Every route here writes to or reads from Google Drive. Upload was live and
+// UNAUTHENTICATED, letting anyone push bytes to Drive outside R2 + Image
+// Resizing; the rest were open too. Fail-closed behind an admin JWT — no
+// customer/admin frontend calls these endpoints (verified: 0 references), so
+// gating the whole controller is safe.
+@UseGuards(AuthAdminGuard)
 @Controller('google-drive')
 export class GoogleDriveController {
   constructor(private readonly googleDriveService: GoogleDriveService) {}

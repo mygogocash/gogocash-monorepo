@@ -27,14 +27,16 @@ export const STORED_MEDIA_TARGET_SPECS: StoredMediaTargetSpec[] = [
   {
     collection: 'offers',
     folder: MEDIA_FOLDER.BRANDS,
-    fields: [
-      'logo',
-      'logo_desktop',
-      'logo_mobile',
-      'logo_circle',
-      'banner',
-      'banner_mobile',
-    ],
+    fields: ['logo', 'logo_desktop', 'logo_mobile'],
+  },
+  {
+    // #493 — banner roles live in their own 1920px folder. `logo_circle` is named like a
+    // logo but is written by the BANNER path (bannerFile = banner ?? banner_mobile ??
+    // logo_circle), so it belongs here or inventory/migration would look under the wrong
+    // prefix for it.
+    collection: 'offers',
+    folder: MEDIA_FOLDER.BRAND_BANNERS,
+    fields: ['banner', 'banner_mobile', 'logo_circle'],
   },
   {
     collection: 'categories',

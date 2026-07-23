@@ -326,7 +326,9 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
     sendCooldownSeconds <= 0 &&
     !authOperationBusy;
   const canSubmitOtp = !authOperationBusy;
-  const dividerText = webAuthPage.socialDividerByMode[mode];
+  const dividerText = usesMobileFormLayout
+    ? webAuthPage.mobileSocialDividerByMode[mode]
+    : webAuthPage.socialDividerByMode[mode];
   const resendCountdownLabel = formatOtpCountdown(resendSecondsRemaining);
   const sendCooldownLabel = formatOtpCountdown(sendCooldownSeconds);
   const maskedPhone = activePhoneOtpSnapshot?.maskedDestination ?? selectedCountry.dialCode;
@@ -859,6 +861,53 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
       return;
     }
 
+    if (provider.id === "telegram") {
+      // Telegram Login Widget is web-only (no native SDK path); mirror the LINE flow.
+      if (Platform.OS !== "web") {
+        toastCtx?.show(tc(authSendErrorMessages.webOnly));
+        return;
+      }
+      authOperationInFlightRef.current = true;
+      setSocialBusyProviderId(provider.id);
+      void (async () => {
+        try {
+          const {
+            exchangeTelegramAuth,
+            getTelegramBotUsername,
+            isTelegramLoginConfigured,
+            requestTelegramLogin,
+          } = await import("@mobile/auth/telegramLogin");
+          if (!isTelegramLoginConfigured()) {
+            // No EXPO_PUBLIC_TELEGRAM_BOT_USERNAME baked into the build yet.
+            toastCtx?.show(tc(webAccountSettingsPage.notifications.comingSoonLabel));
+            return;
+          }
+          const payload = await requestTelegramLogin(getTelegramBotUsername());
+          const session = await exchangeTelegramAuth({
+            apiUrl: env.apiUrl,
+            country: selectedCountry.code,
+            payload,
+          });
+          await completeSocialSession(session);
+        } catch (error) {
+          const code = (error as { code?: string })?.code;
+          if (
+            code === "auth/popup-closed-by-user" ||
+            code === "auth/cancelled-popup-request"
+          ) {
+            // User closed the Telegram widget — silent cancel, same as LINE.
+            return;
+          }
+          toastCtx?.show(tc(sendErrorCopy[toSendErrorKind(error)]));
+          haptics.error();
+        } finally {
+          authOperationInFlightRef.current = false;
+          setSocialBusyProviderId(null);
+        }
+      })();
+      return;
+    }
+
     const isNativeGoogle = Platform.OS !== "web" && provider.id === "google";
     // Facebook/Apple ride Firebase's hosted OAuth via RNFB signInWithPopup —
     // native-capable without new modules. Microsoft/X stay web-only.
@@ -978,12 +1027,21 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                           </Animated.View>
                         </View>
                       </View>
-                      <Text style={styles.privacyText}>{tc(webAuthPage.privacyLead)} </Text>
-                      <Link asChild href="/privacy-policy">
-                        <Pressable onPress={(event) => event.stopPropagation()}>
-                          <Text style={styles.privacyLink}>{tc(webAuthPage.privacyPolicyLabel)}</Text>
-                        </Pressable>
-                      </Link>
+                      <View
+                        style={[
+                          styles.privacyCopy,
+                          usesMobileFormLayout ? styles.privacyCopyMobile : null,
+                        ]}
+                      >
+                        <Text style={styles.privacyText}>{tc(webAuthPage.privacyLead)} </Text>
+                        <Link asChild href="/privacy-policy">
+                          <Pressable onPress={(event) => event.stopPropagation()}>
+                            <Text style={styles.privacyLink}>
+                              {tc(webAuthPage.privacyPolicyLabel)}
+                            </Text>
+                          </Pressable>
+                        </Link>
+                      </View>
                     </MotionPressable>
   );
 
@@ -1029,6 +1087,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
               paddingTop: isDesktopShell ? 80 : Math.max(64, insets.top + 40),
             },
           ]}
+          showsVerticalScrollIndicator={!usesMobileFormLayout}
         >
           <View
             style={[
@@ -1057,6 +1116,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                 styles.card,
                 isWideDesktop ? styles.cardDesktop : null,
                 !isWideDesktop ? styles.cardStacked : null,
+                usesMobileFormLayout ? styles.cardMobile : null,
                 isTabletShell ? styles.cardStackedTablet : null,
               ]}
               testID="auth-card"
@@ -1187,7 +1247,12 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                     <View style={styles.fieldGroup}>
                       <Text style={styles.fieldLabel}>{tc(webAuthPage.phoneLabelByMode[mode])}</Text>
                       <View style={styles.phoneRow}>
-                        <View style={styles.dialCodeBox}>
+                        <View
+                          style={[
+                            styles.dialCodeBox,
+                            usesMobileFormLayout ? styles.dialCodeBoxMobile : null,
+                          ]}
+                        >
                           <Text style={styles.dialCodeText}>
                             {selectedCountry.dialCode}
                           </Text>
@@ -1207,6 +1272,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                           returnKeyType="done"
                           style={[
                             styles.phoneInput,
+                            usesMobileFormLayout ? styles.phoneInputMobile : null,
                             phoneFocused ? styles.phoneInputFocused : null,
                             authOperationBusy ? styles.phoneOtpTransitionDisabled : null,
                           ]}
@@ -1234,6 +1300,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       <Text
                         style={[
                           styles.primaryActionText,
+                          usesMobileFormLayout ? styles.primaryActionTextMobile : null,
                           !canSubmitPhone ? styles.primaryActionTextDisabled : null,
                         ]}
                       >
@@ -1254,7 +1321,9 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         authOperationBusy ? styles.phoneOtpTransitionDisabled : null,
                       ]}
                     >
-                      <Text style={styles.changePhoneText}>{tc("Sign in with email")}</Text>
+                      <Text style={styles.changePhoneText}>
+                        {tc(usesMobileFormLayout ? "Use email instead" : "Sign in with email")}
+                      </Text>
                     </MotionPressable>
                   </View>
                 ) : authPhase === "email" ? (
@@ -1279,7 +1348,10 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         onChangeText={handleEmailChange}
                         placeholder={tc("Email address")}
                         placeholderTextColor={colors.muted}
-                        style={styles.emailField}
+                        style={[
+                          styles.emailField,
+                          usesMobileFormLayout ? styles.emailFieldMobile : null,
+                        ]}
                         value={emailInput}
                       />
                       <TextInput
@@ -1292,7 +1364,10 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         placeholder={tc("Password")}
                         placeholderTextColor={colors.muted}
                         secureTextEntry
-                        style={styles.emailField}
+                        style={[
+                          styles.emailField,
+                          usesMobileFormLayout ? styles.emailFieldMobile : null,
+                        ]}
                         value={passwordInput}
                       />
                       {emailError ? (
@@ -1320,6 +1395,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       <Text
                         style={[
                           styles.primaryActionText,
+                          usesMobileFormLayout ? styles.primaryActionTextMobile : null,
                           !canSubmitEmail ? styles.primaryActionTextDisabled : null,
                         ]}
                       >
@@ -1436,6 +1512,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                       <Text
                         style={[
                           styles.primaryActionText,
+                          usesMobileFormLayout ? styles.primaryActionTextMobile : null,
                           !canSubmitOtp ? styles.primaryActionTextDisabled : null,
                         ]}
                       >
@@ -1459,7 +1536,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
                         usesMobileFormLayout ? styles.dividerTextMobile : null,
                       ]}
                     >
-                      {usesMobileFormLayout ? tc(dividerText).toUpperCase() : tc(dividerText)}
+                      {tc(dividerText)}
                     </Text>
                     <View style={styles.dividerLine} />
                   </View>
@@ -1827,7 +1904,7 @@ function createAuthScreenStyles(colors: ThemeColors) {
     // bottomNavClearance alone left the social grid flush against it. Match
     // the sibling detail screens' clearance + 24.
     paddingBottom: mobileShellLayout.bottomNavClearance + 24,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   pageAuthTablet: {
     paddingHorizontal: mobileShellLayout.tabletContentHorizontalPadding,
@@ -1881,6 +1958,12 @@ function createAuthScreenStyles(colors: ThemeColors) {
     maxWidth: webAuthPage.desktop.formCardWidth,
     width: "100%",
   },
+  cardMobile: {
+    backgroundColor: colors.background,
+    borderRadius: 0,
+    borderWidth: 0,
+    overflow: "visible",
+  },
   cardStackedTablet: {
     maxWidth: "100%",
     width: "100%",
@@ -1893,11 +1976,11 @@ function createAuthScreenStyles(colors: ThemeColors) {
     paddingTop: 32,
   },
   cardInnerMobile: {
-    // The card clips (overflow hidden); without inner bottom padding the
-    // social grid renders flush against the card edge.
+    // The mobile card is continuous with the page, so the page owns the only
+    // horizontal gutter instead of compounding 20px + 16px insets.
     paddingBottom: 24,
-    paddingHorizontal: 16,
-    paddingTop: 24,
+    paddingHorizontal: 0,
+    paddingTop: 0,
   },
   cardInnerTablet: {
     paddingHorizontal: 32,
@@ -1910,8 +1993,8 @@ function createAuthScreenStyles(colors: ThemeColors) {
     width: "100%",
   },
   brandBlockMobile: {
-    gap: 8,
-    paddingBottom: 32,
+    gap: 4,
+    paddingBottom: 24,
   },
   formLogo: {
     borderRadius: 14,
@@ -1919,7 +2002,7 @@ function createAuthScreenStyles(colors: ThemeColors) {
     width: 56,
   },
   formLogoMobile: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   formTitle: {
     color: "#00CC99",
@@ -1944,7 +2027,7 @@ function createAuthScreenStyles(colors: ThemeColors) {
     zIndex: 20,
   },
   formStackMobile: {
-    gap: 20,
+    gap: 16,
   },
   countryRow: {
     alignItems: "center",
@@ -1988,6 +2071,9 @@ function createAuthScreenStyles(colors: ThemeColors) {
     width: 208,
   },
   countrySelectMobile: {
+    backgroundColor: colors.field,
+    borderColor: colors.border,
+    height: 54,
     width: "100%",
   },
   countrySelectWrap: {
@@ -2086,6 +2172,12 @@ function createAuthScreenStyles(colors: ThemeColors) {
     justifyContent: "center",
     width: 100,
   },
+  dialCodeBoxMobile: {
+    backgroundColor: colors.field,
+    borderColor: colors.border,
+    height: 54,
+    width: 80,
+  },
   dialCodeText: {
     color: "#B5B5B5",
     fontFamily: typography.family,
@@ -2110,6 +2202,11 @@ function createAuthScreenStyles(colors: ThemeColors) {
     paddingHorizontal: 16,
     width: "100%",
   },
+  emailFieldMobile: {
+    backgroundColor: colors.field,
+    borderColor: colors.border,
+    height: 54,
+  },
   phoneInput: {
     backgroundColor: colors.card,
     borderColor: colors.border,
@@ -2129,6 +2226,11 @@ function createAuthScreenStyles(colors: ThemeColors) {
     outlineWidth: 0,
     paddingHorizontal: 16,
   },
+  phoneInputMobile: {
+    backgroundColor: colors.field,
+    borderColor: colors.border,
+    height: 54,
+  },
   phoneInputFocused: {
     borderColor: "#00CC99",
   },
@@ -2138,13 +2240,18 @@ function createAuthScreenStyles(colors: ThemeColors) {
     borderRadius: 14,
     borderWidth: 1.5,
     flexDirection: "row",
-    height: 48,
     justifyContent: "center",
+    minHeight: 48,
     paddingHorizontal: 16,
     width: "100%",
   },
   privacyWrapMobile: {
-    height: 72,
+    alignItems: "flex-start",
+    backgroundColor: colors.field,
+    borderColor: colors.border,
+    minHeight: 64,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   checkboxHitArea: {
     alignItems: "center",
@@ -2166,6 +2273,15 @@ function createAuthScreenStyles(colors: ThemeColors) {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
+  privacyCopy: {
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  privacyCopyMobile: {
+    flex: 1,
+    flexWrap: "wrap",
+    minHeight: 32,
+  },
   privacyText: {
     color: colors.ink,
     fontFamily: typography.family,
@@ -2182,13 +2298,13 @@ function createAuthScreenStyles(colors: ThemeColors) {
   },
   primaryAction: {
     alignItems: "center",
-    alignSelf: "center",
+    alignSelf: "stretch",
     backgroundColor: "#55C99E",
     borderRadius: radii.chip,
     height: 48,
     justifyContent: "center",
     marginTop: 6,
-    width: 218,
+    width: "100%",
   },
   primaryActionMobile: {
     height: 52,
@@ -2203,6 +2319,10 @@ function createAuthScreenStyles(colors: ThemeColors) {
     fontSize: 14,
     fontWeight: "500",
     lineHeight: 20,
+  },
+  primaryActionTextMobile: {
+    color: "#053B30",
+    fontWeight: "600",
   },
   primaryActionTextDisabled: {
     color: pickThemed(colors, "#9A9A9A", colors.muted),
@@ -2334,7 +2454,7 @@ function createAuthScreenStyles(colors: ThemeColors) {
     width: "100%",
   },
   socialBlockMobile: {
-    marginTop: 24,
+    marginTop: 20,
   },
   dividerRow: {
     alignItems: "center",
@@ -2357,7 +2477,7 @@ function createAuthScreenStyles(colors: ThemeColors) {
   dividerTextMobile: {
     fontSize: 11,
     fontWeight: "600",
-    letterSpacing: 0.66,
+    letterSpacing: 0.2,
   },
   socialStackDesktop: {
     flexDirection: "row",
@@ -2401,15 +2521,15 @@ function createAuthScreenStyles(colors: ThemeColors) {
     opacity: 0.55,
   },
   socialButtonMobile: {
-    height: 72,
+    height: 64,
     width: "48%",
   },
   socialLabel: {
     color: colors.muted,
     fontFamily: typography.family,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "500",
-    lineHeight: 12.5,
+    lineHeight: 16,
     textAlign: "center",
     width: "100%",
   },

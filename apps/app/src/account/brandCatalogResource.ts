@@ -1,5 +1,5 @@
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
-import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
+import { deriveCatalogTint, mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
 import { resolveFixtureBrandCountries } from "@mobile/i18n/fixtureRegionCountries";
 import { filterCatalogItemsByRegion, offerMatchesRegion } from "@mobile/i18n/regionCatalogFilter";
@@ -131,6 +131,119 @@ export function resolveHomePromoSections<TSection extends HomePromoSection>(
     return {
       ...section,
       cards: sectionCards,
+      dotCount: undefined,
+    };
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Admin-curated landing rails (GET /offer/landing-rails)             *
+ * ------------------------------------------------------------------ */
+
+type LandingRailApiCard = {
+  readonly _id?: string;
+  readonly offer_id?: number;
+  readonly brand?: string;
+  readonly logo?: string;
+  readonly cashback?: string;
+};
+
+type LandingRailApiEntry = {
+  readonly railId?: string;
+  readonly title?: string;
+  readonly emoji?: string;
+  readonly link?: string;
+  readonly cardVariant?: string;
+  readonly data?: readonly LandingRailApiCard[];
+  readonly dataDesktop?: readonly LandingRailApiCard[];
+  readonly dataMobile?: readonly LandingRailApiCard[];
+};
+
+type LandingRailApiResponse = {
+  readonly data?: readonly LandingRailApiEntry[];
+};
+
+export function isLandingRailsResponse(
+  payload: unknown,
+): payload is LandingRailApiResponse {
+  return (
+    payload != null &&
+    typeof payload === "object" &&
+    Array.isArray((payload as { data?: unknown }).data)
+  );
+}
+
+function mapLandingRailCard(card: LandingRailApiCard): FallbackCompactBrandCard {
+  const brand = String(card.brand ?? "").trim();
+  return {
+    brand,
+    cashback: String(card.cashback ?? "").trim(),
+    logoUri: card.logo,
+    tint: deriveCatalogTint(brand),
+  };
+}
+
+/**
+ * Prefer admin-curated landing rails from GET /offer/landing-rails, falling
+ * back to the {@link webHomePromoSections} fixture when the API is unavailable,
+ * the account is not in backend mode, or a given rail resolves to zero live
+ * cards. The fixture rail order is authoritative so the homepage stays stable
+ * even before an admin curates anything; each rail's cards, title, "see all"
+ * link, and emoji are overlaid from the API when present.
+ */
+export function resolveApiLandingRails<TSection extends HomePromoSection>(
+  source: AccountDataSource,
+  data: unknown,
+  fallbackSections: readonly TSection[],
+  regionCode: RegionCode = DEFAULT_REGION,
+): readonly TSection[] {
+  const withFixtureCards = (section: TSection): TSection => ({
+    ...section,
+    cards: filterCompactBrandCardsByRegion(section.cards, regionCode, source),
+  });
+
+  // Backend mode = the admin back office is the ONLY source of rail brands.
+  // The fixture brands are demo content (webHomePromoSections) and must never
+  // stand in for un-curated admin data, or the storefront advertises cashback
+  // for merchants that do not exist in Brands Management. An empty rail renders
+  // no cards; CustomerHomeScreen drops zero-card sections, so the rail vanishes.
+  const withNoCards = (section: TSection): TSection => ({ ...section, cards: [] });
+
+  if (source !== "backend") {
+    return fallbackSections.map(withFixtureCards);
+  }
+
+  if (!isLandingRailsResponse(data)) {
+    return fallbackSections.map(withNoCards);
+  }
+
+  const apiByRailId = new Map<string, LandingRailApiEntry>();
+  for (const rail of data.data ?? []) {
+    const railId = String(rail?.railId ?? "").trim();
+    if (railId && !apiByRailId.has(railId)) {
+      apiByRailId.set(railId, rail);
+    }
+  }
+
+  return fallbackSections.map((section) => {
+    const apiRail = apiByRailId.get(section.id);
+    if (!apiRail) {
+      return withNoCards(section);
+    }
+
+    const apiCards = apiRail.dataDesktop ?? apiRail.data ?? [];
+    const cards = apiCards.map(mapLandingRailCard);
+
+    const title = String(apiRail.title ?? "").trim() || section.title;
+    const link = String(apiRail.link ?? "").trim() || section.link;
+    const icon = String(apiRail.emoji ?? "").trim() || section.icon;
+
+    return {
+      ...section,
+      title,
+      link,
+      icon,
+      cards,
       dotCount: undefined,
     };
   });

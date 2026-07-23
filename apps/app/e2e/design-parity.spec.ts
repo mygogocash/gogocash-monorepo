@@ -17,9 +17,9 @@ const p0Routes = [
     path: "/",
     requiredLabel: ["Search brands, stores, products, and cashback offers"],
     requiredText: [
-      "All Brands",
-      "All Shops",
-      "Product Discovery",
+      "Explore Brand",
+      "Explore Shops",
+      "Explore Products",
       "Top Brands",
       "Trending Brands",
       "Travel Deals are Here!",
@@ -470,9 +470,9 @@ test.describe("mobile design QA parity", () => {
     );
     for (const navLabel of [
       "Top Brands",
-      "All Brands",
-      "All Shops",
-      "Product Discovery",
+      "Explore Brand",
+      "Explore Shops",
+      "Explore Products",
       "Travel",
       "Electronics",
       "Health & Beauty",
@@ -585,7 +585,7 @@ test.describe("mobile design QA parity", () => {
     await page.goto("/login", { waitUntil: "networkidle" });
 
     await expect(page.getByText("GoGoCash", { exact: true }).first()).toBeVisible();
-    for (const navLabel of ["Top Brands", "All Brands", "Product Discovery"]) {
+    for (const navLabel of ["Top Brands", "Explore Brand", "Explore Products"]) {
       await expect(page.getByText(navLabel, { exact: true }).first()).toBeVisible();
     }
 
@@ -602,13 +602,13 @@ test.describe("mobile design QA parity", () => {
     await expect(authCard.getByText("Privacy Policy", { exact: true })).toBeVisible();
     await expect(authCard.getByText("or sign in with", { exact: true })).toBeVisible();
     for (const providerLabel of [
-      "Facebook",
-      "Gmail",
-      "Telegram",
-      "Apple",
-      "X",
-      "Microsoft",
-      "Connect Wallet",
+      "Continue with Facebook",
+      "Continue with Google",
+      "Continue with Telegram",
+      "Continue with Apple",
+      "Continue with X",
+      "Continue with Microsoft",
+      "Continue with Connect Wallet",
     ]) {
       await expect(
         authCard.getByRole("button", { exact: true, name: providerLabel })

@@ -14,6 +14,7 @@ import { FavoriteOffer } from './schemas/favorite-offer.schema';
 import { Banner } from './schemas/banner.schema';
 import { SPECIFIC_PAGE_BANNER_MODEL } from './schemas/specific-page-banner.schema';
 import { TopBrandConfig } from './schemas/top-brand-config.schema';
+import { LandingRailConfig } from './schemas/landing-rail-config.schema';
 import { MissionOrder } from './schemas/missing-order.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { User } from 'src/user/schemas/user.schema';
@@ -66,6 +67,7 @@ describe('OfferService', () => {
   let allBrandBannerModel: any;
   let specificPageBannerModel: any;
   let topBrandConfigModel: any;
+  let landingRailConfigModel: any;
   let missionOrderModel: any;
   let questModel: any;
   let featuredSearchModel: any;
@@ -91,6 +93,11 @@ describe('OfferService', () => {
       find: jest.fn().mockReturnValue(makeQuery([])),
       findById: jest.fn(),
       findByIdAndDelete: jest.fn(),
+      // createAdminOffer rolls extra_store back via .findByIdAndUpdate(...).exec()
+      // when the curated Top brands list rejects the offer (#475).
+      findByIdAndUpdate: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({}),
+      }),
       deleteOne: jest.fn().mockResolvedValue({ deletedCount: 1 }),
       findOne: jest.fn(),
       create: jest.fn().mockResolvedValue([{ _id: 'created-offer' }]),
@@ -120,8 +127,25 @@ describe('OfferService', () => {
     allBrandBannerModel = { findOne: jest.fn() };
     specificPageBannerModel = { findOne: jest.fn() };
     topBrandConfigModel = {
-      findOne: jest.fn(),
+      // syncOfferTopBrandMembership calls .findOne().lean().exec(); default to
+      // "no curated config yet". makeQuery() is not reusable here because its
+      // .lean() resolves rather than returning an exec-able chain.
+      findOne: jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      }),
       updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+    };
+    landingRailConfigModel = {
+      find: jest.fn().mockReturnValue(makeQuery([])),
+      findOne: jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      }),
+      updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 0 }),
     };
     // missionOrderModel is used BOTH as a constructor (`new this.missionOrderModel(...)`)
     // and as a static query holder (`this.missionOrderModel.find(...)`), so the
@@ -239,6 +263,10 @@ describe('OfferService', () => {
           useValue: topBrandConfigModel,
         },
         {
+          provide: getModelToken(LandingRailConfig.name),
+          useValue: landingRailConfigModel,
+        },
+        {
           provide: getModelToken(MissionOrder.name),
           useValue: missionOrderModel,
         },
@@ -306,7 +334,21 @@ describe('OfferService', () => {
         { lookup_value: { $regex: 'shopee', $options: 'i' } },
         { countries: { $regex: 'shopee', $options: 'i' } },
       ]);
-      expect(filter.categories).toEqual({ $regex: 'fashion', $options: 'i' });
+      // #438 — category matches partner feed OR enabled admin brand-category override.
+      expect(filter.$and).toEqual([
+        {
+          $or: [
+            { categories: { $regex: 'fashion', $options: 'i' } },
+            {
+              'offer_display_tags.brand_category_enabled': true,
+              'offer_display_tags.brand_category_label': {
+                $regex: 'fashion',
+                $options: 'i',
+              },
+            },
+          ],
+        },
+      ]);
       // Country becomes a token-anchored alternation (ISO-2 + full names) —
       // assert behaviorally rather than pinning the source string.
       const countryRegex = new RegExp(
@@ -356,16 +398,46 @@ describe('OfferService', () => {
         { lookup_value: { $regex: 'a\\.\\*', $options: 'i' } },
         { countries: { $regex: 'a\\.\\*', $options: 'i' } },
       ]);
-      expect(filter.categories).toEqual({
-        $regex: 'fashion\\+',
-        $options: 'i',
-      });
+      expect(filter.$and).toEqual([
+        {
+          $or: [
+            { categories: { $regex: 'fashion\\+', $options: 'i' } },
+            {
+              'offer_display_tags.brand_category_enabled': true,
+              'offer_display_tags.brand_category_label': {
+                $regex: 'fashion\\+',
+                $options: 'i',
+              },
+            },
+          ],
+        },
+      ]);
       const countryRegex = new RegExp(
         filter.countries.$regex,
         filter.countries.$options,
       );
       expect(countryRegex.test('Thailand?')).toBe(true);
       expect(countryRegex.test('Thailand')).toBe(false);
+    });
+
+    it('findAll > given category only > then matches admin brand-category display override (#438)', async () => {
+      await service.findAll(1, 10, '', 'Electronics');
+
+      const filter = offerModel.find.mock.calls[0][0];
+      expect(filter.$and).toEqual([
+        {
+          $or: [
+            { categories: { $regex: 'Electronics', $options: 'i' } },
+            {
+              'offer_display_tags.brand_category_enabled': true,
+              'offer_display_tags.brand_category_label': {
+                $regex: 'Electronics',
+                $options: 'i',
+              },
+            },
+          ],
+        },
+      ]);
     });
 
     it('findAll > given a blacklisted search query > then returns no ranked results', async () => {
@@ -2441,6 +2513,136 @@ describe('OfferService', () => {
           cashback: '12.5%',
         },
       ]);
+    });
+  });
+
+  describe('getDisplayLandingRails', () => {
+    it('getDisplayLandingRails > given no rails > then returns empty and skips the offer lookup', async () => {
+      landingRailConfigModel.find.mockReturnValue(makeQuery([]));
+
+      await expect(service.getDisplayLandingRails()).resolves.toEqual({
+        data: [],
+      });
+      expect(offerModel.find).not.toHaveBeenCalled();
+    });
+
+    it('getDisplayLandingRails > given enabled rails > then returns rails ordered by position with live cashback', async () => {
+      landingRailConfigModel.find.mockReturnValue(
+        makeQuery([
+          {
+            railId: 'travel',
+            title: 'Travel Deals are Here!',
+            emoji: '✈️',
+            link: '/category/Travel',
+            cardVariant: 'brandLogoBadge',
+            position: 1,
+            brandsDesktop: [{ offerId: 'id2', cashback: 'stale' }],
+            brandsMobile: [{ offerId: 'id2', cashback: 'stale' }],
+          },
+          {
+            railId: 'trending',
+            title: 'Trending Brands',
+            link: '/brand',
+            position: 0,
+            brandsDesktop: [{ offerId: 'id1', cashback: 'stale' }],
+            brandsMobile: [],
+          },
+        ]),
+      );
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: 'id1',
+            offer_id: 1,
+            offer_name: 'Alpha',
+            logo: 'a.png',
+            commission_store: 12.5,
+          },
+          {
+            _id: 'id2',
+            offer_id: 2,
+            offer_name: 'Bravo',
+            logo: 'b.png',
+            commission_store: 10,
+          },
+        ]),
+      );
+
+      const result = await service.getDisplayLandingRails();
+
+      // position ⇒ trending (0) before travel (1)
+      expect(result.data.map((r: { railId: string }) => r.railId)).toEqual([
+        'trending',
+        'travel',
+      ]);
+      const [trending, travel] = result.data;
+      expect(trending).toEqual({
+        railId: 'trending',
+        title: 'Trending Brands',
+        emoji: '',
+        link: '/brand',
+        cardVariant: 'brandLogoBadge',
+        position: 0,
+        data: [
+          {
+            _id: 'id1',
+            offer_id: 1,
+            brand: 'Alpha',
+            logo: 'a.png',
+            cashback: '12.5%',
+          },
+        ],
+        dataDesktop: [
+          {
+            _id: 'id1',
+            offer_id: 1,
+            brand: 'Alpha',
+            logo: 'a.png',
+            cashback: '12.5%',
+          },
+        ],
+        dataMobile: [],
+      });
+      expect(travel.emoji).toBe('✈️');
+      expect(travel.dataDesktop).toEqual([
+        {
+          _id: 'id2',
+          offer_id: 2,
+          brand: 'Bravo',
+          logo: 'b.png',
+          cashback: '10%',
+        },
+      ]);
+      expect(travel.dataMobile).toEqual([
+        {
+          _id: 'id2',
+          offer_id: 2,
+          brand: 'Bravo',
+          logo: 'b.png',
+          cashback: '10%',
+        },
+      ]);
+    });
+
+    it('getDisplayLandingRails > given a rail whose offers are all inactive > then returns the rail with empty cards', async () => {
+      landingRailConfigModel.find.mockReturnValue(
+        makeQuery([
+          {
+            railId: 'trending',
+            title: 'Trending Brands',
+            position: 0,
+            brandsDesktop: [{ offerId: 'gone', cashback: '' }],
+            brandsMobile: [{ offerId: 'gone', cashback: '' }],
+          },
+        ]),
+      );
+      // Active-offer filter drops it ⇒ no offers returned.
+      offerModel.find.mockReturnValue(makeQuery([]));
+
+      const result = await service.getDisplayLandingRails();
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].dataDesktop).toEqual([]);
+      expect(result.data[0].dataMobile).toEqual([]);
     });
   });
 

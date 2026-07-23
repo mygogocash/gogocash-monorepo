@@ -57,10 +57,12 @@
         "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "backend",
         "EXPO_PUBLIC_FRONTEND_URL": "https://beta.gogocash.co",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "729804769570-jlg4fpajbbvur587dcv9qpocfhn6aots.apps.googleusercontent.com",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://REPLACE_WITH_YOUR_SENTRY_DSN@o0.ingest.sentry.io/0",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_ENABLE_GOTOTRACK": "0",
         "EXPO_PUBLIC_ENABLE_GOGOPASS": "0",
-        "EXPO_PUBLIC_ENABLE_GOLINK": "0"
+        "EXPO_PUBLIC_ENABLE_GOLINK": "0",
+        "EXPO_PUBLIC_ENABLE_CREDIT_SCORE": "0"
       }
     },
     "production": {
@@ -72,6 +74,7 @@
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_ACCOUNT_DATA_SOURCE": "backend",
         "EXPO_PUBLIC_FRONTEND_URL": "https://app.gogocash.co",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://REPLACE_WITH_YOUR_SENTRY_DSN@o0.ingest.sentry.io/0",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }

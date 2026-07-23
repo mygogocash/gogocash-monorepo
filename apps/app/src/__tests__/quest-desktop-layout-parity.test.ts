@@ -42,7 +42,7 @@ describe("Quest desktop two-column layout parity", () => {
     // This is the exact regression: the desktop leaderboard sibling must be wrapped so
     // it cannot starve the flex:1 content column to width 0.
     expect(normalized).toContain(
-      '<View style={styles.questColumn}> <QuestLeaderboardPanel mediaColumnWidth={mediaColumnWidth} />'
+      '<View style={styles.questColumn}> <QuestLeaderboardPanel limit={QUEST_LEADERBOARD_TOP_N} mediaColumnWidth={mediaColumnWidth} />'
     );
   });
 

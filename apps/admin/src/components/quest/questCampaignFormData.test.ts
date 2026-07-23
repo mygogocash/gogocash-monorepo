@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildQuestCampaignFormData,
   nextQuestCampaignRequest,
+  sanitizeQuestCampaignText,
 } from "./questCampaignFormData";
 
 function file(name: string) {
@@ -43,6 +44,64 @@ describe("questCampaignFormData", () => {
     expect(
       [...form.values()].filter((value) => value instanceof File),
     ).toHaveLength(4);
+  });
+
+  it("collapses the literal 'undefined'/'null'/whitespace campaign text to empty (fixes the corrupted quest editor fields)", () => {
+    // Regression guard for the admin Quest editor (2026-07-23): quests whose
+    // facebook_page/facebook_post/line were saved as the STRING "undefined"
+    // rendered "undefined" in the editor and re-saved it. Sanitize so the bad
+    // sentinels collapse to empty on save (and load).
+    const form = buildQuestCampaignFormData({
+      requestKey: "quest-media:test-command",
+      campaignRevision: 0,
+      configRevision: 0,
+      questId: "quest-1",
+      startDate: "2026-07-01T02:30:00.000Z",
+      endDate: "2026-07-31T15:15:00.000Z",
+      status: "scheduled",
+      facebookPage: "undefined",
+      facebookPost: "  null  ",
+      line: "   ",
+      bannerEn: null,
+      bannerTh: null,
+      subBannerEn: null,
+      subBannerTh: null,
+    });
+
+    expect(form.get("facebook_page")).toBe("");
+    expect(form.get("facebook_post")).toBe("");
+    expect(form.get("line")).toBe("");
+  });
+
+  it("preserves and trims real campaign text", () => {
+    const form = buildQuestCampaignFormData({
+      requestKey: "quest-media:test-command",
+      campaignRevision: 0,
+      configRevision: 0,
+      startDate: "2026-07-01T02:30:00.000Z",
+      endDate: "2026-07-31T15:15:00.000Z",
+      status: "scheduled",
+      facebookPage: "  GoGoCashTH  ",
+      facebookPost: "https://fb.com/post/123",
+      line: "@gogocash",
+      bannerEn: null,
+      bannerTh: null,
+      subBannerEn: null,
+      subBannerTh: null,
+    });
+
+    expect(form.get("facebook_page")).toBe("GoGoCashTH");
+    expect(form.get("facebook_post")).toBe("https://fb.com/post/123");
+    expect(form.get("line")).toBe("@gogocash");
+  });
+
+  it("sanitizeQuestCampaignText normalizes sentinels and non-strings", () => {
+    expect(sanitizeQuestCampaignText("undefined")).toBe("");
+    expect(sanitizeQuestCampaignText("null")).toBe("");
+    expect(sanitizeQuestCampaignText("  undefined  ")).toBe("");
+    expect(sanitizeQuestCampaignText(undefined)).toBe("");
+    expect(sanitizeQuestCampaignText(null)).toBe("");
+    expect(sanitizeQuestCampaignText("  keep me ")).toBe("keep me");
   });
 
   it("refuses a legacy string banner instead of serializing it as upload proof", () => {

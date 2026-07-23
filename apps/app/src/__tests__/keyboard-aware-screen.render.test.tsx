@@ -40,4 +40,18 @@ describe("KeyboardAwareScreen (render)", () => {
     // markup proves the prop was forwarded (paddingBottom: 99px surfaces in the DOM).
     expect(document.body.innerHTML).toContain("padding-bottom: 99px");
   });
+
+  it("can hide the vertical indicator without disabling scrolling", () => {
+    render(
+      createElement(KeyboardAwareScreen, {
+        children: createElement(Text, {}, "Body"),
+        showsVerticalScrollIndicator: false,
+      })
+    );
+
+    const scrollView = screen.getByTestId("keyboard-aware-scroll");
+    // react-native-web emits the hide-scrollbar rule as an atomic class; happy-dom
+    // does not calculate that vendor-neutral property in getComputedStyle.
+    expect(scrollView.className).toContain("r-scrollbarWidth-");
+  });
 });

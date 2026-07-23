@@ -3,6 +3,7 @@ import { isMerchantOfferResponse } from "../api/merchantTypes";
 import {
   buildTrackingPeriodSteps,
   mapMerchantOfferToShopDetail,
+  resolveActiveShopCashback,
 } from "../api/merchantMapper";
 
 vi.mock("@mobile/config/env", () => ({
@@ -75,7 +76,7 @@ describe("mapMerchantOfferToShopDetail", () => {
     );
 
     expect(shop.bannerUri).toBe(
-      "https://media-staging.gogocash.co/cdn-cgi/image/width=1080,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/shop-banner.png",
+      "https://media-staging.gogocash.co/cdn-cgi/image/width=1600,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/shop-banner.png",
     );
     expect(shop.logoUri).toBe(
       "https://media-staging.gogocash.co/cdn-cgi/image/width=320,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/shop-logo.png",
@@ -95,7 +96,7 @@ describe("mapMerchantOfferToShopDetail", () => {
     expect(shop.merchantId).toBe(2048);
     expect(shop.logoUri).toBe("https://cdn.example/logo.png");
     expect(shop.bannerUri).toBe(
-      "https://drive.google.com/uc?export=view&id=backend-banner-file-id"
+      "https://drive.google.com/thumbnail?id=backend-banner-file-id&sz=w1600"
     );
     expect(shop.logoText).toBe("LT");
     expect(shop.extraCashback).toBe("5.6%");
@@ -298,6 +299,27 @@ describe("mapMerchantOfferToShopDetail", () => {
 
     expect(shop.cashback).toBe("6%");
     expect(shop.extraCashback).toBe("6%");
+    // #465 — list rows, not a single synthetic headline.
+    expect(shop.productRates).toEqual([
+      { name: "Fashion", rate: "2.5%" },
+      { name: "Beauty", rate: "6%" },
+    ]);
+  });
+
+  it("given extra_cashback_tag off > then showExtraCashbackTag is false (#472)", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        offer_display_tags: {
+          brand_category_enabled: true,
+          brand_category_label: "Electronics",
+          extra_cashback_tag: false,
+        },
+      },
+      fixtureShop,
+    );
+
+    expect(shop.showExtraCashbackTag).toBe(false);
   });
 
   it("given commission_store 0 with product_type rates > then uses the highest product rate", () => {
@@ -378,5 +400,92 @@ describe("mapMerchantOfferToShopDetail", () => {
     );
 
     expect(shop.bannerUri).toBe("https://cdn.example/cover.png");
+  });
+
+  it("#471 > given active upsize product lines > then shop detail uses upsize rates", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        commission_store: 2.8,
+        commissions: [{ Commission: "2.8%" }],
+        product_type: [
+          { name: "Phones", pay_in: "cashback", commission_info: "2.8" },
+        ],
+        upsize_all_product_types: false,
+        upsize_start_date: "2020-01-01",
+        upsize_end_date: "2099-12-31",
+        upsize_product_types: [
+          {
+            name: "OPPO Find X9",
+            pay_in: "cashback",
+            commission_info: "3.5",
+          },
+        ],
+      },
+      fixtureShop,
+    );
+
+    expect(shop.cashback).toBe("3.5%");
+    expect(shop.extraCashback).toBe("3.5%");
+    expect(shop.productRates).toEqual([{ name: "OPPO Find X9", rate: "3.5%" }]);
+  });
+
+  it("#471 > given expired upsize > then shop detail keeps base cashback", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        commission_store: 2.8,
+        commissions: [{ Commission: "2.8%" }],
+        product_type: [
+          { name: "Phones", pay_in: "cashback", commission_info: "2.8" },
+        ],
+        upsize_all_product_types: false,
+        upsize_start_date: "2020-01-01",
+        upsize_end_date: "2020-12-31",
+        upsize_product_types: [
+          {
+            name: "OPPO Find X9",
+            pay_in: "cashback",
+            commission_info: "3.5",
+          },
+        ],
+      },
+      fixtureShop,
+    );
+
+    expect(shop.cashback).toBe("2.8%");
+    expect(shop.productRates).toEqual([{ name: "Phones", rate: "2.8%" }]);
+  });
+
+  it("#471 > given active all-product upsize commission > then headline uses special commission", () => {
+    const resolved = resolveActiveShopCashback(
+      {
+        ...liveOffer,
+        commission_store: 2.8,
+        upsize_all_product_types: true,
+        upsize_special_commission: 4.2,
+        upsize_start_date: "2020-01-01",
+      },
+      Date.parse("2026-07-15T12:00:00"),
+    );
+    expect(resolved.commission_store).toBe(4.2);
+    expect(resolved.product_type).toBeUndefined();
+  });
+
+  it("#465 > given all_product_types true > then shop detail uses a single headline rate row", () => {
+    const shop = mapMerchantOfferToShopDetail(
+      {
+        ...liveOffer,
+        all_product_types: true,
+        commission_store: 2.8,
+        product_type: [
+          { name: "Phones", pay_in: "cashback", commission_info: "2.8" },
+          { name: "Accessories", pay_in: "cashback", commission_info: "1.4" },
+        ],
+      },
+      fixtureShop,
+    );
+
+    expect(shop.productRates).toEqual([{ name: "Lazada TH", rate: "2.8%" }]);
   });
 });

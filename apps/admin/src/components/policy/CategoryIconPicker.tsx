@@ -30,6 +30,18 @@ type CategoryIconPickerProps = {
 };
 
 /**
+ * #540 — only allow image `src` values that cannot execute script when set on an
+ * <img>: http(s), object-URL previews, and same-origin relative paths. A persisted
+ * `category.image` (or any upstream value) that is `javascript:`, `vbscript:`, or an
+ * unsafe `data:` URI is dropped, so it can never become a DOM-based XSS sink
+ * (CodeQL js/xss-through-dom).
+ */
+export function safeImageSrc(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return /^(https?:\/\/|blob:|\/)/i.test(url.trim()) ? url : null;
+}
+
+/**
  * Visual built-in icon gallery for Policy Management.
  * Optional custom image upload overrides the glyph in customer lists when set.
  */
@@ -57,7 +69,7 @@ export default function CategoryIconPicker({
     0,
     CATEGORY_ICON_OPTIONS.findIndex((option) => option.key === value),
   );
-  const previewCustomSrc = customIconPreviewUrl || customIconUrl || null;
+  const previewCustomSrc = safeImageSrc(customIconPreviewUrl || customIconUrl);
 
   const focusOption = useCallback((index: number) => {
     const next = optionRefs.current[index];

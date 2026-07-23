@@ -183,6 +183,38 @@ export class Offer {
   @Prop({ required: false })
   all_product_types?: boolean;
 
+  /** Upsize event window (YYYY-MM-DD); null/absent = open-ended on that side. */
+  @Prop({ required: false, type: String, default: null })
+  upsize_start_date?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  upsize_end_date?: string | null;
+
+  /** Optional HH:MM bounds for the upsize window. */
+  @Prop({ required: false, type: String, default: null })
+  upsize_start_time?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  upsize_end_time?: string | null;
+
+  /** All-product upsize headline commission (net, after platform fee). */
+  @Prop({ required: false, type: Number, default: null })
+  upsize_special_commission?: number | null;
+
+  @Prop({ required: false, type: Number, default: null })
+  upsize_max_cap?: number | null;
+
+  /**
+   * When true, upsize uses `upsize_special_commission` for all products.
+   * When false, `upsize_product_types` rows drive the promo list.
+   */
+  @Prop({ required: false })
+  upsize_all_product_types?: boolean;
+
+  /** Per-product upsize cashback rows (same shape as `product_type`). */
+  @Prop({ type: Array, required: false })
+  upsize_product_types?: { [key: string]: string }[];
+
   /**
    * Affiliate network of origin. `'involve'` default keeps every pre-existing
    * document valid without a backfill migration.
@@ -196,6 +228,27 @@ export class Offer {
     enum: ['involve', 'optimise', 'manual', 'accesstrade'],
   })
   source: OfferSource;
+
+  /**
+   * Affiliate network this brand line belongs to (`involve_asia`, `optimise`,
+   * `accesstrade`). Distinct from `source`, which records where the row was
+   * imported from — they usually agree, but an offer can be re-homed to a
+   * different network without rewriting its import provenance.
+   *
+   * Absent on legacy rows; the admin falls back to deriving it from `source`
+   * (#517/#518). Previously the admin submitted this key and nothing persisted
+   * it, so `forbidNonWhitelisted` rejected the whole partner-info save (#516).
+   */
+  @Prop({ required: false, type: String, default: null })
+  affiliate_network_id?: string | null;
+
+  /**
+   * Selected advertiser line within the network (e.g. `shopee_cps` vs
+   * `shopee_cps_new`), emitted as `store=` on the generated app deeplink.
+   * `global` / absent means no specific line.
+   */
+  @Prop({ required: false, type: String, default: null })
+  deeplink_store_id?: string | null;
 
   /**
    * Admin curation state. `'approved'` default preserves visibility of every
