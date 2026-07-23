@@ -20,6 +20,12 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 # Read by expo export (app.config.ts `extra.*` + EXPO_PUBLIC inlining). Declared
 # as ARG so Railway service variables reach the build, then promoted to ENV so
 # the export subprocess sees them.
+# Marks this as a hosted build so scripts/webExportEnvGuard.mjs enforces that the
+# EXPO_PUBLIC_* URLs were actually injected. Without it a missing arg silently
+# falls back to the STAGING defaults — which is how beta.gogocash.co shipped
+# pointing at api-staging and rendered empty.
+ENV EXPO_PUBLIC_WEB_BUILD_HOSTED=1
+
 ARG EXPO_PUBLIC_API_URL
 ARG EXPO_PUBLIC_APP_ENV
 ARG EXPO_PUBLIC_ACCOUNT_DATA_SOURCE
