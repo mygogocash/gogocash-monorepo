@@ -266,7 +266,7 @@ function DesktopProfileRail() {
               </MotionPressable>
               {profileSubOpen ? (
                 <View style={styles.railSubNav}>
-                  {profileHubSubNavItems.map((sub) => {
+                  {filterHiddenProfileMenuItems(profileHubSubNavItems).map((sub) => {
                     const subActive = isProfileSubNavItemActive(pathname, sub.href);
                     return (
                       <Link asChild href={sub.href as never} key={sub.href}>

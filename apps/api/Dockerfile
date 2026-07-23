@@ -6,7 +6,7 @@
 # whole workspace, then build only the gogocash-api workspace.
 
 # ── Stage 1: build ───────────────────────────────────────────────────────────
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 
 # Build is `swc src -d dist` (native, ~100ms) since the TS 7 upgrade — the old
@@ -36,7 +36,7 @@ COPY apps/api ./apps/api
 RUN npm run build -w gogocash-api
 
 # ── Stage 2: production runtime ──────────────────────────────────────────────
-FROM node:24-alpine
+FROM node:26-alpine
 WORKDIR /app
 
 # Carry over the build stage's fully-resolved workspace node_modules (hoisted

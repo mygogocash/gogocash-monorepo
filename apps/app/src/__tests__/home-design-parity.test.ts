@@ -63,11 +63,13 @@ describe("Expo home design parity", () => {
       "utf8"
     );
 
+    // Founder request 2026-07-22: Explore Shops + Explore Products hidden from the nav,
+    // replaced by the Digital Services + Fashion category shortcuts.
     expect(webDesktopHeaderNavItems.map((item) => item.label)).toEqual([
       "Top Brands",
       "Explore Brand",
-      "Explore Shops",
-      "Explore Products",
+      "Digital Services",
+      "Fashion",
       "Travel",
       "Electronics",
       "Health & Beauty",
@@ -137,8 +139,10 @@ describe("Expo home design parity", () => {
       expect(sourceFile).not.toContain("lucide-react-native");
       expect(sourceFile).not.toContain('from "phosphor-react-native');
       expect(sourceFile).toContain("Storefront");
-      expect(sourceFile).toContain("SquaresFour");
-      expect(sourceFile).toContain("Tag");
+      // Digital Services + Fashion nav shortcuts use the Cloud + Shirt phosphor glyphs
+      // (Explore Shops "SquaresFour" + Explore Products "Tag" were removed with those items).
+      expect(sourceFile).toContain("Cloud");
+      expect(sourceFile).toContain("Shirt");
       expect(sourceFile).toContain("AirplaneTilt");
       expect(sourceFile).toContain("DeviceMobile");
       expect(sourceFile).toContain("Heartbeat");
@@ -248,7 +252,9 @@ describe("Expo home design parity", () => {
       title: "GoGoLink – Easy to earn cashback by just copy, paste and shop!",
     });
     expect(homeFile).toContain("DesktopGoLinkBanner");
-    expect(homeFile).toContain("homeLayout.isDesktop && isGoLinkEnabled() ? (");
+    // GoLink 3-state: the desktop banner renders unless HIDDEN; coming-soon shows
+    // it visible-but-disabled via the comingSoon prop.
+    expect(homeFile).toContain('homeLayout.isDesktop && goLinkMode !== "hidden" ? (');
     expect(homeFile).toContain("MobileTabletHomeHeader");
     expect(homeFile).toContain('variant="mobileTabletHeader"');
     expect(homeFile).toContain("mobile-tablet-golink-banner");
@@ -605,7 +611,10 @@ describe("Expo home design parity", () => {
     ]);
     expect(homeFile).toContain("webHomePromoSections");
     expect(homeFile).toContain('resourceId: "brandCatalog"');
-    expect(homeFile).toContain("resolveHomePromoSections");
+    // Homepage rails now prefer the admin-curated /offer/landing-rails config,
+    // falling back to the webHomePromoSections fixture (see resolveApiLandingRails).
+    expect(homeFile).toContain('resourceId: "landingRails"');
+    expect(homeFile).toContain("resolveApiLandingRails");
     expect(homeFile).not.toContain("Recommended Shops");
     expect(homeFile).not.toContain("Travel cashback stores");
     expect(homeFile).not.toContain("Beauty store rewards");

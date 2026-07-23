@@ -47,13 +47,29 @@ export function chunkCompactBrandCards(
 const ONE_ROW_PROMO_SECTION_IDS = new Set(["travel", "makeup"]);
 const ONE_ROW_PROMO_MAX_CARDS = 16;
 
+// Founder request 2026-07-23: the Trending rail served ~20 backend cards across a
+// multi-page pager / long horizontal rail. Cap it to exactly two rows per breakpoint —
+// columns-per-row (6 desktop / 4 tablet / 2 mobile) x topBrandRowsPerPage — so it fills a
+// single on-screen page; the overflow stays reachable via the section's "View all" link.
+// Capping here (not at the render) means layoutMode, page size, columns and the grid all
+// read the same trimmed list.
+const TWO_ROW_PROMO_SECTION_ID = "trending";
+
 export function getPromoSectionCards(
   sectionId: string,
-  cards: readonly CompactBrandLogoOfferCardProps[]
+  cards: readonly CompactBrandLogoOfferCardProps[],
+  homeLayout: HomeLayoutMetrics
 ) {
-  return ONE_ROW_PROMO_SECTION_IDS.has(sectionId)
-    ? cards.slice(0, ONE_ROW_PROMO_MAX_CARDS)
-    : cards;
+  if (ONE_ROW_PROMO_SECTION_IDS.has(sectionId)) {
+    return cards.slice(0, ONE_ROW_PROMO_MAX_CARDS);
+  }
+  if (sectionId === TWO_ROW_PROMO_SECTION_ID) {
+    return cards.slice(
+      0,
+      homeLayout.topBrandDesignColumns * homeLayout.topBrandRowsPerPage
+    );
+  }
+  return cards;
 }
 
 export type HomeCarouselLayoutMode = "pager" | "scroll" | "grid";

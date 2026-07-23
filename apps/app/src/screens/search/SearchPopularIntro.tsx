@@ -8,32 +8,22 @@ import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 
 import { createSearchScreenStyles } from "./createSearchScreenStyles";
 
-type SearchPopularIntroProps = {
-  readonly variant: "compact" | "large";
-};
+const MOBILE_POPULAR_SUBTITLE = "Hand-picked stores with standout cashback.";
 
-export function SearchPopularIntro({ variant }: SearchPopularIntroProps) {
+export function SearchPopularIntro() {
   const styles = useThemedStyles(createSearchScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
-  const compact = variant === "compact";
 
   return (
-    <View style={[styles.popularIntro, compact ? styles.popularIntroCompact : null]}>
-      <View style={[styles.popularIntroIcon, compact ? styles.popularIntroIconCompact : null]}>
-        <TrendingUpIcon color={colors.primaryDark} size={compact ? 20 : 24} strokeWidth={2.2} />
+    <View style={styles.popularIntro}>
+      <View style={styles.popularIntroIcon}>
+        <TrendingUpIcon color={colors.primaryDark} size={20} strokeWidth={2.2} />
       </View>
       <View style={styles.popularIntroCopy}>
-        <Text style={[styles.popularIntroTitle, compact ? styles.popularIntroTitleCompact : null]}>
-          {tc(webHomeSearchPopularPanel.title)}
-        </Text>
-        <Text
-          style={[
-            styles.popularIntroSubtitle,
-            compact ? styles.popularIntroSubtitleCompact : null,
-          ]}
-        >
-          {tc(webHomeSearchPopularPanel.subtitle)}
+        <Text style={styles.popularIntroTitle}>{tc(webHomeSearchPopularPanel.title)}</Text>
+        <Text style={styles.popularIntroSubtitle}>
+          {tc(MOBILE_POPULAR_SUBTITLE)}
         </Text>
       </View>
     </View>

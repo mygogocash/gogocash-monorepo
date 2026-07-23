@@ -10,12 +10,20 @@ import {
   awardReconciledPurchaseConversion,
   legacyPurchaseReadyFilter,
 } from 'src/tasks/legacy-purchase-writer';
+import { Point } from './schemas/point.schema';
+import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
+import { ReferralPayout } from './schemas/referral-payout.schema';
+import { buildReferralBonusHook } from './referral-bonus-hook';
 
 @Injectable()
 export class TasksService {
   constructor(
     private readonly pointService: PointService,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
+    @InjectModel(Point.name) private pointModel: Model<Point>,
+    @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
+    @InjectModel(ReferralPayout.name)
+    private referralPayoutModel: Model<ReferralPayout>,
   ) {}
   // @Cron('45 * * * * *')
   // @Cron(CronExpression.EVERY_MINUTE)
@@ -49,11 +57,19 @@ export class TasksService {
       .lean();
     const rate = await rateCurrencyUSD();
 
+    const referralBonus = buildReferralBonusHook({
+      pointModel: this.pointModel,
+      feeRateModel: this.feeRateModel,
+      referralPayoutModel: this.referralPayoutModel,
+      pointService: this.pointService,
+    });
+
     for (const conversion of filterApproved) {
       await awardReconciledPurchaseConversion(conversion, {
         conversionModel: this.conversionModel as never,
         pointService: this.pointService,
         thbPerUsd: rate['THB'],
+        referralBonus,
       });
     }
   }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   mapOfferCatalogToCompactBrandCards,
+  resolveApiLandingRails,
   resolveHomePromoSections,
   resolveLiveBrandCards,
 } from "@mobile/account/brandCatalogResource";
@@ -40,7 +41,17 @@ const catalogPayload: OfferListResponse = {
   ],
 };
 
-const fallbackSections = [
+type TestPromoSection = {
+  id: string;
+  title: string;
+  link: string;
+  icon?: string;
+  cardVariant?: string;
+  dotCount?: number;
+  cards: readonly { brand: string; cashback: string; tint: string }[];
+};
+
+const fallbackSections: readonly TestPromoSection[] = [
   {
     id: "trending",
     title: "Trending Brands",
@@ -59,7 +70,7 @@ const fallbackSections = [
     link: "/category/Health%20%26%20Beauty",
     cards: [{ brand: "Fixture Beauty", cashback: "3%", tint: "#222222" }],
   },
-] as const;
+];
 
 describe("brand catalog resource", () => {
   it("mapOfferCatalogToCompactBrandCards > given live offers > returns customer shop cards", () => {
@@ -117,5 +128,65 @@ describe("brand catalog resource", () => {
     }, fallbackSections);
 
     expect(sections.find((section) => section.id === "makeup")?.cards).toEqual([]);
+  });
+
+  const landingRailsPayload = {
+    data: [
+      {
+        railId: "travel",
+        title: "Curated Travel",
+        emoji: "🧳",
+        link: "/category/Travel?curated=1",
+        cardVariant: "brandLogoBadge",
+        position: 1,
+        data: [
+          { _id: "o1", offer_id: 1, brand: "Klook", logo: "https://cdn/k.png", cashback: "6%" },
+        ],
+        dataDesktop: [
+          { _id: "o1", offer_id: 1, brand: "Klook", logo: "https://cdn/k.png", cashback: "6%" },
+        ],
+        dataMobile: [],
+      },
+    ],
+  };
+
+  it("resolveApiLandingRails > given non-backend source > returns fixture rails", () => {
+    const sections = resolveApiLandingRails("fixtures", landingRailsPayload, fallbackSections);
+    expect(sections.map((s) => s.id)).toEqual(["trending", "travel", "makeup"]);
+    expect(sections.find((s) => s.id === "travel")?.cards).toEqual([
+      expect.objectContaining({ brand: "Fixture Travel" }),
+    ]);
+  });
+
+  it("resolveApiLandingRails > given an unavailable API payload > renders no fixture brands", () => {
+    const sections = resolveApiLandingRails("backend", null, fallbackSections);
+    expect(sections.map((s) => s.id)).toEqual(["trending", "travel", "makeup"]);
+    for (const section of sections) {
+      expect(section.cards).toEqual([]);
+    }
+  });
+
+  it("resolveApiLandingRails > given backend rails with cards > prefers the curated rail and overlays title/link/icon", () => {
+    const sections = resolveApiLandingRails("backend", landingRailsPayload, fallbackSections);
+    const travel = sections.find((s) => s.id === "travel");
+    expect(travel?.title).toBe("Curated Travel");
+    expect(travel?.link).toBe("/category/Travel?curated=1");
+    expect(travel?.icon).toBe("🧳");
+    expect(travel?.cards).toEqual([
+      expect.objectContaining({ brand: "Klook", cashback: "6%", logoUri: "https://cdn/k.png" }),
+    ]);
+  });
+
+  it("resolveApiLandingRails > given a rail the API does not curate > renders that rail with no cards", () => {
+    const sections = resolveApiLandingRails("backend", landingRailsPayload, fallbackSections);
+    expect(sections.find((s) => s.id === "trending")?.cards).toEqual([]);
+  });
+
+  it("resolveApiLandingRails > given an empty curated rail > renders that rail with no cards", () => {
+    const emptyRail = {
+      data: [{ railId: "makeup", title: "Makeup Must Have!", link: "/x", data: [], dataDesktop: [], dataMobile: [] }],
+    };
+    const sections = resolveApiLandingRails("backend", emptyRail, fallbackSections);
+    expect(sections.find((s) => s.id === "makeup")?.cards).toEqual([]);
   });
 });

@@ -210,6 +210,7 @@ export default function FeeForm() {
     global_withdraw_fee: 0,
     global_minimum_withdraw: 0,
     global_withdraw_currency: "THB",
+    referral_bonus_percent: 10,
   });
 
   const [presetValue, setPresetValue] = useState("");
@@ -259,6 +260,7 @@ export default function FeeForm() {
       global_withdraw_fee: withdrawalDefaults.fee,
       global_minimum_withdraw: withdrawalDefaults.minimum,
       global_withdraw_currency: withdrawalDefaults.currency,
+      referral_bonus_percent: res.referral_bonus_percent ?? 10,
     };
     setForms(loaded);
     // Baseline reflects the LOADED entity so Save stays disabled until edited.
@@ -499,6 +501,32 @@ export default function FeeForm() {
                     setForms({
                       ...forms,
                       system: parseNum(e.target.value),
+                    })
+                  }
+                />
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  %
+                </span>
+              </div>
+            </div>
+            <div>
+              <Label>Referral bonus %</Label>
+              <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                Referrer earns this % of a referred friend&apos;s approved
+                cashback (e.g. 10 for 10%). Payout engine stays gated by
+                REFERRAL_BONUS_ENABLED.
+              </p>
+              <div className="mt-2 flex max-w-md items-center gap-3">
+                <Input
+                  placeholder="0.00"
+                  type="number"
+                  value={forms.referral_bonus_percent}
+                  min="0"
+                  max="100"
+                  onChange={(e) =>
+                    setForms({
+                      ...forms,
+                      referral_bonus_percent: parseNum(e.target.value),
                     })
                   }
                 />

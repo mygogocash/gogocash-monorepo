@@ -104,6 +104,12 @@ legacy Google Drive (`GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI/REFRESH_TOKEN`).
 ```bash
 # BUILD-TIME (set BEFORE build; Dockerfile declares ARG NEXT_PUBLIC_API_URL)
 railway variables --set 'NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co' --service gogocash-admin
+# PRE-LAUNCH FEATURE FLAGS (build-time; Dockerfile declares ARG NEXT_PUBLIC_ENABLE_*).
+# Set to "0" to keep the pre-launch surfaces HIDDEN (credit tier + membership +
+# subscription columns/filters). Default-ENABLED, so an UNSET var ships them VISIBLE
+# — you MUST set both here for Railway (the live deploy) to hide them.
+railway variables --set 'NEXT_PUBLIC_ENABLE_CREDIT_SCORE=0' --service gogocash-admin
+railway variables --set 'NEXT_PUBLIC_ENABLE_GOGOPASS=0' --service gogocash-admin
 # RUNTIME BFF upstream (server-only). Prefer the private Railway service hostname so
 # /api/backend/* does not hairpin through the public edge (Cloudflare header spoof /
 # wrong host). Same value on staging and production:

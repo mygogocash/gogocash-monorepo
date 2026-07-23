@@ -107,10 +107,10 @@ grep -Fq "$MONGO_TARGET_FINGERPRINT" "$BACKUP_EVIDENCE_FILE" ||
 [[ "$CLEANUP_POLL_INTERVAL" =~ ^[1-9][0-9]*$ ]] || refuse 'invalid cleanup poll interval'
 
 command -v curl >/dev/null 2>&1 || refuse 'curl is required'
-command -v node >/dev/null 2>&1 || refuse 'Node 24 is required'
+command -v node >/dev/null 2>&1 || refuse 'Node 26 is required'
 command -v npx >/dev/null 2>&1 || refuse 'npx is required for real Admin UI QA'
-[[ "$(node -p 'process.versions.node.split(".")[0]')" == '24' ]] ||
-  refuse 'Node 24 is required'
+[[ "$(node -p 'process.versions.node.split(".")[0]')" == '26' ]] ||
+  refuse 'Node 26 is required'
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel 2>/dev/null)" ||

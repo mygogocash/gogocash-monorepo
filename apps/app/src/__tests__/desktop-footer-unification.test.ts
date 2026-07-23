@@ -36,10 +36,13 @@ describe("CustomerDesktopFooterSlot default breakout", () => {
 
 describe("webDesktopFooter contract", () => {
   it("webDesktopFooter > given the shared footer model > then includes all public sections and social links", () => {
+    // Aligned with the gogocash-landing-page footer (2026-07-22): "Products" -> "Company"
+    // and a new "Agents" column (sitemap.md / llms.txt / skills.md / rss.xml).
     expect(webDesktopFooter.sections.map((section) => section.title)).toEqual([
       "Live on Platform",
-      "Products",
+      "Company",
       "Resources",
+      "Agents",
     ]);
     expect(webDesktopFooter.socialLinks.map((link) => link.label)).toEqual([
       "X",

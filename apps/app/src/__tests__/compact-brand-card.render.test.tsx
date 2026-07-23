@@ -36,6 +36,14 @@ describe("compact BrandCard (#496)", () => {
     renderCompact();
 
     expect(screen.queryByText("Grab Coupon")).toBeNull();
+    expect(screen.getByText("Cashback upto")).toBeTruthy();
+  });
+
+  it("given a surface-specific caption > then it leaves the shared default unchanged", () => {
+    renderCompact({ cashbackCaption: "Cashback up to" });
+
+    expect(screen.getByText("Cashback up to")).toBeTruthy();
+    expect(screen.queryByText("Cashback upto")).toBeNull();
   });
 
   it("given the favorite heart is requested > then it renders alongside the chip", () => {

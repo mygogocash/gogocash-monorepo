@@ -119,7 +119,7 @@ export function CustomerProfileScreen() {
           />
           {profileSubNavOpen ? (
             <View style={styles.profileSubNavGroup}>
-              {profileHubSubNavItems.map((item) => (
+              {filterHiddenProfileMenuItems(profileHubSubNavItems).map((item) => (
                 <Link asChild href={item.href as never} key={item.href}>
                   <MotionPressable pressScale={0.98} style={styles.profileSubNavRow}>
                     <Text style={styles.profileSubNavText}>{tc(item.label)}</Text>

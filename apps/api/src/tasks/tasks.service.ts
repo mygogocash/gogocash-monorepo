@@ -25,6 +25,10 @@ import {
   awardReconciledPurchaseConversion,
   legacyPurchaseReadyFilter,
 } from './legacy-purchase-writer';
+import { Point } from 'src/point/schemas/point.schema';
+import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
+import { ReferralPayout } from 'src/point/schemas/referral-payout.schema';
+import { buildReferralBonusHook } from 'src/point/referral-bonus-hook';
 
 @Injectable()
 export class TasksService {
@@ -32,10 +36,23 @@ export class TasksService {
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
     @InjectModel(Offer.name) private offerModel: Model<Offer>,
     @InjectModel(Quest.name) private questModel: Model<Quest>,
+    @InjectModel(Point.name) private pointModel: Model<Point>,
+    @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
+    @InjectModel(ReferralPayout.name)
+    private referralPayoutModel: Model<ReferralPayout>,
     private readonly involveService: InvolveService,
     private readonly conversionIngestService: ConversionIngestService,
     private readonly pointService: PointService,
   ) {}
+
+  private buildReferralBonusHook() {
+    return buildReferralBonusHook({
+      pointModel: this.pointModel,
+      feeRateModel: this.feeRateModel,
+      referralPayoutModel: this.referralPayoutModel,
+      pointService: this.pointService,
+    });
+  }
 
   private rewardDistributionDueFilter(now: Date): QueryFilter<Quest> {
     return {
@@ -104,11 +121,13 @@ export class TasksService {
       })
       .lean();
     const rate = await rateCurrencyUSD();
+    const referralBonus = this.buildReferralBonusHook();
     for (const conversion of conversions) {
       await awardReconciledPurchaseConversion(conversion, {
         conversionModel: this.conversionModel as never,
         pointService: this.pointService,
         thbPerUsd: rate['THB'],
+        referralBonus,
       });
     }
     return { scanned: conversions.length };

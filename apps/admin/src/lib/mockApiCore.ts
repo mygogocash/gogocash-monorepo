@@ -564,6 +564,44 @@ let topBrandHomepageBrandsMobile: TopBrandConfigEntry[] = DEFAULT_TOP_BRANDS.map
   (entry) => ({ ...entry }),
 );
 
+const MAX_LANDING_RAILS = 12;
+
+/** In-memory landing rails for mock mode, seeded from the customer fixture. */
+type MockLandingRail = {
+  railId: string;
+  title: string;
+  emoji: string;
+  link: string;
+  cardVariant: string;
+  position: number;
+  enabled: boolean;
+  brandsDesktop: TopBrandConfigEntry[];
+  brandsMobile: TopBrandConfigEntry[];
+};
+
+let mockLandingRails: MockLandingRail[] = [
+  { railId: "trending", title: "Trending Brands", emoji: "", link: "/brand" },
+  {
+    railId: "travel",
+    title: "Travel Deals are Here!",
+    emoji: "✈️",
+    link: "/category/Travel",
+  },
+  {
+    railId: "makeup",
+    title: "Makeup Must Have!",
+    emoji: "💄",
+    link: "/category/Health & Beauty",
+  },
+].map((rail, index) => ({
+  ...rail,
+  cardVariant: "brandLogoBadge",
+  position: index,
+  enabled: true,
+  brandsDesktop: [] as TopBrandConfigEntry[],
+  brandsMobile: [] as TopBrandConfigEntry[],
+}));
+
 function normalizeMockTopBrands(raw: unknown): TopBrandConfigEntry[] {
   const brands = Array.isArray(raw)
     ? raw.map((entry) => ({
@@ -724,6 +762,41 @@ function handleMockGET(
       brandsDesktop,
       brandsMobile,
       items,
+      maxBrands: MAX_TOP_BRANDS,
+    });
+  }
+
+  if (joined === "admin/landing-rails") {
+    const unionIds = [
+      ...new Set(
+        mockLandingRails.flatMap((rail) => [
+          ...rail.brandsDesktop.map((e) => e.offerId),
+          ...rail.brandsMobile.map((e) => e.offerId),
+        ]),
+      ),
+    ];
+    const items = unionIds
+      .map((id) => mockOffers.find((o) => o._id === id))
+      .filter((o) => o != null);
+    return ok({
+      rails: mockLandingRails
+        .slice()
+        .sort((a, b2) => a.position - b2.position)
+        .map((rail) => ({
+          railId: rail.railId,
+          title: rail.title,
+          emoji: rail.emoji,
+          link: rail.link,
+          cardVariant: rail.cardVariant,
+          position: rail.position,
+          enabled: rail.enabled,
+          orderDesktop: rail.brandsDesktop.map((e) => e.offerId),
+          orderMobile: rail.brandsMobile.map((e) => e.offerId),
+          brandsDesktop: rail.brandsDesktop.map((e) => ({ ...e })),
+          brandsMobile: rail.brandsMobile.map((e) => ({ ...e })),
+        })),
+      items,
+      maxRails: MAX_LANDING_RAILS,
       maxBrands: MAX_TOP_BRANDS,
     });
   }
@@ -2252,6 +2325,61 @@ async function handleMockPUT(
       brandsDesktop: next.map((entry) => ({ ...entry })),
       brandsMobile: next.map((entry) => ({ ...entry })),
       message: "Top brand homepage config saved (mock).",
+    });
+  }
+
+  if (joined === "admin/landing-rails") {
+    const rawRails = Array.isArray(b?.rails) ? b.rails : [];
+    if (rawRails.length > MAX_LANDING_RAILS) {
+      return jsonErr(400, {
+        message: `You can create up to ${MAX_LANDING_RAILS} rails.`,
+      });
+    }
+    const seen = new Set<string>();
+    const next: MockLandingRail[] = [];
+    rawRails.forEach((rail: Record<string, unknown>, index: number) => {
+      const railId = String(rail?.railId ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      if (!railId || seen.has(railId)) return;
+      seen.add(railId);
+      const desktop = normalizeMockTopBrands(
+        (rail?.brandsDesktop as unknown) ?? rail?.brands,
+      );
+      const mobile = normalizeMockTopBrands(
+        (rail?.brandsMobile as unknown) ?? rail?.brands,
+      );
+      next.push({
+        railId,
+        title: String(rail?.title ?? "").trim(),
+        emoji: String(rail?.emoji ?? "").trim(),
+        link: String(rail?.link ?? "").trim(),
+        cardVariant: String(rail?.cardVariant ?? "").trim() || "brandLogoBadge",
+        position: Number(rail?.position ?? index) || index,
+        enabled: rail?.enabled !== false,
+        brandsDesktop: desktop,
+        brandsMobile: mobile,
+      });
+    });
+    mockLandingRails = next.sort((a, b2) => a.position - b2.position);
+    return ok({
+      success: true,
+      rails: mockLandingRails.map((rail) => ({
+        railId: rail.railId,
+        title: rail.title,
+        emoji: rail.emoji,
+        link: rail.link,
+        cardVariant: rail.cardVariant,
+        position: rail.position,
+        enabled: rail.enabled,
+        orderDesktop: rail.brandsDesktop.map((e) => e.offerId),
+        orderMobile: rail.brandsMobile.map((e) => e.offerId),
+        brandsDesktop: rail.brandsDesktop.map((e) => ({ ...e })),
+        brandsMobile: rail.brandsMobile.map((e) => ({ ...e })),
+      })),
+      message: "Landing rails saved (mock).",
     });
   }
 

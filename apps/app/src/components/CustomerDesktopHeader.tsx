@@ -19,12 +19,12 @@ import {
 } from "@mobile/design/webDesignParity";
 import {
   AirplaneTilt,
+  Cloud,
   DeviceMobile,
   Fire,
   Heartbeat,
-  SquaresFour,
+  Shirt,
   Storefront,
-  Tag,
   type IconComponent,
 } from "@mobile/theme/icons";
 import { motion } from "@mobile/theme/motion";
@@ -36,12 +36,12 @@ import { radii, typography } from "@mobile/theme/tokens";
 const desktopNavIcons: Partial<
   Record<(typeof webDesktopHeaderNavItems)[number]["icon"], IconComponent>
 > = {
+  digital: Cloud,
   electronics: DeviceMobile,
+  fashion: Shirt,
   fire: Fire,
   health: Heartbeat,
-  promotion: Tag,
   shop: Storefront,
-  shops: SquaresFour,
   travel: AirplaneTilt,
 };
 

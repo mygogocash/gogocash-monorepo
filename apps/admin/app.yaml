@@ -1,4 +1,4 @@
-runtime: nodejs24
+runtime: nodejs26
 
 env_variables:
   NODE_ENV: production

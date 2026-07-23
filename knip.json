@@ -114,11 +114,11 @@
     "apps/app/src/config/featureFlags.ts": [
       "duplicates"
     ],
-    "apps/api/src/auth/firebase-admin.provider.ts": [
-      "exports"
-    ],
     "apps/app/src/api/optimizedImageUrl.ts": [
       "duplicates"
+    ],
+    "apps/api/src/auth/firebase-admin.provider.ts": [
+      "exports"
     ]
   },
   "workspaces": {

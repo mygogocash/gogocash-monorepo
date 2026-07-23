@@ -4,12 +4,15 @@ import UsersManagementTabs from "@/components/user/UsersManagementTabs";
 import { Metadata } from "next";
 import { Suspense } from "react";
 import { awaitPageDynamicProps, type DefaultAppPageProps } from "@/lib/nextAppPageProps";
+import { notFound } from "next/navigation";
+import { isGoGoPassEnabled } from "@/config/featureFlags";
 
 export const metadata: Metadata = {
   title: "Membership | GoGoCash Admin",
 };
 
 export default async function MembershipPage(props: DefaultAppPageProps) {
+  if (!isGoGoPassEnabled()) notFound();
   await awaitPageDynamicProps(props);
   return (
     <div className="min-w-0">

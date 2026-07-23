@@ -337,6 +337,10 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
       ? mobileShellLayout.topBrandMobilePageCardCount
       : topBrandColumnsPerRow * topBrandRowsPerPage,
     topBrandColumns: topBrandColumnsPerRow,
+    // Per-design-version columns-per-row (6 desktop / 4 tablet / 2 mobile). Distinct from
+    // topBrandColumns, which is the 8-wide mobile paging group off-desktop. Sections that
+    // must fit one on-screen page (e.g. the two-row Trending cap) size off this instead.
+    topBrandDesignColumns: designFrame.topBrandColumns,
     topBrandRowsPerPage,
     topBrandDotCount: isMobileTopBrandGrid
       ? mobileShellLayout.topBrandMobileDotCount
@@ -593,6 +597,10 @@ export const webAuthPage = {
     login: "or sign in with",
     register: "or sign up with",
   },
+  mobileSocialDividerByMode: {
+    login: "Other ways to sign in",
+    register: "Other ways to sign up",
+  },
   otp: {
     changeNumber: "Change phone number",
     errorAria:
@@ -606,7 +614,7 @@ export const webAuthPage = {
   },
   socialProviders: [
     { id: "facebook", label: "Facebook" },
-    { id: "google", label: "Gmail" },
+    { id: "google", label: "Google" },
     { id: "line", label: "LINE" },
     { id: "telegram", label: "Telegram" },
     { id: "apple", label: "Apple" },
@@ -1163,17 +1171,17 @@ export const webDesktopHeaderNavItems = [
     active: false,
   },
   {
-    id: "all-shops",
-    label: "Explore Shops",
-    href: "/shops",
-    icon: "shops",
+    id: "digital-services",
+    label: "Digital Services",
+    href: "/category/Digital%20Services",
+    icon: "digital",
     active: false,
   },
   {
-    id: "product-discovery",
-    label: "Explore Products",
-    href: "/discover",
-    icon: "promotion",
+    id: "fashion",
+    label: "Fashion",
+    href: "/category/Fashion",
+    icon: "fashion",
     active: false,
   },
   {
@@ -1276,10 +1284,14 @@ export const webDesktopFooter = {
       ],
     },
     {
-      title: "Products",
+      title: "Company",
       items: [
-        { label: "Business Inquiries", href: "https://lin.ee/7om5sAr", external: true },
-        { label: "Careers", href: "https://lin.ee/7om5sAr", external: true },
+        { label: "Business Inquiries", href: "mailto:info@gogocash.co", external: true },
+        {
+          label: "Careers",
+          href: "https://www.linkedin.com/company/gogocash",
+          external: true,
+        },
       ],
     },
     {
@@ -1304,6 +1316,15 @@ export const webDesktopFooter = {
           href: "https://gogocash.co/privacy-policy",
           external: true,
         },
+      ],
+    },
+    {
+      title: "Agents",
+      items: [
+        { label: "sitemap.md", href: "https://gogocash.co/sitemap.md", external: true },
+        { label: "llms.txt", href: "https://gogocash.co/llms.txt", external: true },
+        { label: "skills.md", href: "https://gogocash.co/skills.md", external: true },
+        { label: "rss.xml", href: "https://gogocash.co/rss.xml", external: true },
       ],
     },
   ],
@@ -2125,6 +2146,18 @@ export function getShopDirectoryResults({
     });
 }
 
+/**
+ * Narrowest card that still renders its cashback row without truncating.
+ * Measured in the shipped font (DM Sans) against BrandCard size "L":
+ * "Cashback upto" (77) + row gap (10) + widest cashback "2.45%" (54) + card
+ * chrome (18) = 159 — within rounding of the directory card's 158.4px design
+ * width. Below it the caption clips to "Cashb…".
+ */
+const MIN_DIRECTORY_CARD_WIDTH = 158;
+
+/** Two-up is the floor; one full-bleed card per row reads as a broken grid. */
+const MIN_DIRECTORY_COLUMNS = 2;
+
 export function getShopDirectoryGridMetrics({
   contentWidth,
   viewportWidth,
@@ -2132,7 +2165,11 @@ export function getShopDirectoryGridMetrics({
   contentWidth: number;
   viewportWidth: number;
 }) {
-  const columns =
+  // The viewport sets the DENSEST allowed grid, but both directories put a
+  // ~280px category aside beside the cards, so contentWidth can be far narrower
+  // than the viewport implies. Sizing columns off the viewport alone squeezed
+  // the desktop 5-up down to ~98px cards next to the aside (#615 follow-up).
+  const maxColumns =
     viewportWidth >= 1024
       ? 5
       : viewportWidth >= 768
@@ -2141,10 +2178,16 @@ export function getShopDirectoryGridMetrics({
           ? 3
           : 2;
   const gap = viewportWidth >= 1024 ? 24 : viewportWidth >= 640 ? 16 : 12;
-  const cardWidth = roundLayoutValue((contentWidth - gap * Math.max(0, columns - 1)) / columns);
+  const widthAt = (count: number) =>
+    (contentWidth - gap * Math.max(0, count - 1)) / count;
+
+  let columns = maxColumns;
+  while (columns > MIN_DIRECTORY_COLUMNS && widthAt(columns) < MIN_DIRECTORY_CARD_WIDTH) {
+    columns -= 1;
+  }
 
   return {
-    cardWidth,
+    cardWidth: roundLayoutValue(widthAt(columns)),
     columns,
     gap,
   };
@@ -2746,7 +2789,7 @@ export const webCategoryExploreHealthBeauty = {
     "Find cashback deals from brands in Health & Beauty. Search and sort to narrow results.",
   searchPlaceholder: "Search within Health & Beauty",
   sortLabel: "Sort by:",
-  storeCountLabel: "13 brands in this category",
+  storeCountLabel: "13 brands",
   categories: [
     "All",
     "Digital Services",

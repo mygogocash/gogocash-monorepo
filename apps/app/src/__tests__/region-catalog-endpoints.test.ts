@@ -23,6 +23,12 @@ describe("customer account resource > region-aware endpoints", () => {
       "/offer?limit=20&page=1",
     );
   });
+
+  it("landingRails > then resolves the public curated-rails endpoint", () => {
+    expect(resolveCustomerAccountResourceEndpoint({ resourceId: "landingRails", regionCode: "TH" })).toBe(
+      "/offer/landing-rails",
+    );
+  });
 });
 
 describe("searchResource > buildOfferSearchPath", () => {

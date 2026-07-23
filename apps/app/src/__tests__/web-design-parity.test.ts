@@ -273,11 +273,13 @@ describe("GoGoCash web design parity", () => {
   });
 
   it("desktop shell parity > given the Next desktop nav reference > then Expo keeps the same category nav order and cookie copy", () => {
+    // Founder request 2026-07-22: Explore Shops + Explore Products were hidden from the
+    // header nav and replaced with the Digital Services + Fashion category shortcuts.
     expect(webDesktopHeaderNavItems.map((item) => item.label)).toEqual([
       "Top Brands",
       "Explore Brand",
-      "Explore Shops",
-      "Explore Products",
+      "Digital Services",
+      "Fashion",
       "Travel",
       "Electronics",
       "Health & Beauty",
@@ -565,13 +567,13 @@ describe("GoGoCash web design parity", () => {
     expect(webBrowseShortcuts).toEqual([
       { id: "top-brands", label: "Top Brands", href: "/", icon: "fire" },
       { id: "all-brands", label: "Explore Brand", href: "/brand", icon: "shop" },
-      { id: "all-shops", label: "Explore Shops", href: "/shops", icon: "shops" },
       {
-        id: "product-discovery",
-        label: "Explore Products",
-        href: "/discover",
-        icon: "promotion",
+        id: "digital-services",
+        label: "Digital Services",
+        href: "/category/Digital%20Services",
+        icon: "digital",
       },
+      { id: "fashion", label: "Fashion", href: "/category/Fashion", icon: "fashion" },
       { id: "travel", label: "Travel", href: "/category/Travel", icon: "travel" },
       {
         id: "electronics",
@@ -624,10 +626,14 @@ describe("GoGoCash web design parity", () => {
         ],
       },
       {
-        title: "Products",
+        title: "Company",
         items: [
-          { label: "Business Inquiries", href: "https://lin.ee/7om5sAr", external: true },
-          { label: "Careers", href: "https://lin.ee/7om5sAr", external: true },
+          { label: "Business Inquiries", href: "mailto:info@gogocash.co", external: true },
+          {
+            label: "Careers",
+            href: "https://www.linkedin.com/company/gogocash",
+            external: true,
+          },
         ],
       },
       {
@@ -652,6 +658,15 @@ describe("GoGoCash web design parity", () => {
             href: "https://gogocash.co/privacy-policy",
             external: true,
           },
+        ],
+      },
+      {
+        title: "Agents",
+        items: [
+          { label: "sitemap.md", href: "https://gogocash.co/sitemap.md", external: true },
+          { label: "llms.txt", href: "https://gogocash.co/llms.txt", external: true },
+          { label: "skills.md", href: "https://gogocash.co/skills.md", external: true },
+          { label: "rss.xml", href: "https://gogocash.co/rss.xml", external: true },
         ],
       },
     ]);

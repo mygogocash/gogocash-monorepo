@@ -28,7 +28,10 @@ import {
   openGoLinkTracked,
   useGoLinkResolution,
 } from "@mobile/features/useGoLinkResolution";
-import { resolveHomePromoSections, resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
+import {
+  resolveApiLandingRails,
+  resolveLiveBrandCards,
+} from "@mobile/account/brandCatalogResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { usePublicCatalogPullToRefresh } from "@mobile/account/usePublicCatalogPullToRefresh";
 import {
@@ -49,7 +52,7 @@ import { motion } from "@mobile/theme/motion";
 
 import { createHomeScreenStyles } from "./home/customerHomeStyles";
 import { CustomerMobileBottomNav } from "./home/CustomerMobileBottomNav";
-import { isGoLinkEnabled } from "@mobile/config/featureFlags";
+import { resolveGoLinkMode } from "@mobile/config/featureFlags";
 import { DesktopGoLinkBanner } from "./home/DesktopGoLinkBanner";
 import { homeGoLinkShopNowRoute, homeIconStrokeWidth, webSearchInputFocusReset } from "./home/homeAssets";
 import { HomeHeroBanners } from "./home/HomeHeroBanners";
@@ -98,9 +101,17 @@ export function CustomerHomeScreen() {
   const [searchAnchorFrame, setSearchAnchorFrame] = useState<SearchAnchorFrame | null>(null);
   const [goLinkSheetOpen, setGoLinkSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // GoLink 3-state: "hidden" removes the surface, "comingSoon" shows it disabled.
+  const goLinkMode = resolveGoLinkMode();
   const brandCatalogResource = useCustomerAccountResource({
     fixtureData: webHomePromoSections,
     resourceId: "brandCatalog",
+  });
+  // Admin-curated homepage rails (GET /offer/landing-rails). Prefer these; the
+  // fixture is the fallback when the API is unavailable / not in backend mode.
+  const landingRailsResource = useCustomerAccountResource({
+    fixtureData: { data: [] },
+    resourceId: "landingRails",
   });
   const { onRefresh: onPullToRefresh, refreshing } = usePublicCatalogPullToRefresh();
   const homeRefreshControl = (
@@ -110,9 +121,9 @@ export function CustomerHomeScreen() {
       tintColor={colors.primaryDark}
     />
   );
-  const promoSections = resolveHomePromoSections(
-    brandCatalogResource.source,
-    brandCatalogResource.data,
+  const promoSections = resolveApiLandingRails(
+    landingRailsResource.source,
+    landingRailsResource.data,
     webHomePromoSections,
     region,
   );
@@ -182,8 +193,9 @@ export function CustomerHomeScreen() {
       {webHomeSectionOrder.includes("banner") ? (
         <HomeHeroBanners homeLayout={homeLayout} />
       ) : null}
-      {homeLayout.isDesktop && isGoLinkEnabled() ? (
+      {homeLayout.isDesktop && goLinkMode !== "hidden" ? (
         <DesktopGoLinkBanner
+          comingSoon={goLinkMode === "comingSoon"}
           onOpenGuideline={() => setDesktopGoLinkGuidelineOpen(true)}
           onResultHref={setDesktopGoLinkResultHref}
         />

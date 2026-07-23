@@ -221,10 +221,10 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/profile/my-rating.tsx",
-    expectedLinks: ['href="/credit-score"'],
+    expectedLinks: ["/credit-score", "/profile"],
     landmarks: ["Redirect", "/credit-score"],
     routeId: "profileRating",
-    routeMarkers: ["Redirect", 'href="/credit-score"'],
+    routeMarkers: ["Redirect", "isCreditScoreEnabled"],
     screenFiles: ["app/profile/my-rating.tsx"],
     userFlow: "Customer follows the legacy rating route and lands on the credit-score flow.",
   },

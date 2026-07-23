@@ -22,6 +22,10 @@ import {
   SocialRewardSchema,
 } from 'src/point/schemas/social-reward.schema';
 import { Point, PointSchema } from 'src/point/schemas/point.schema';
+import {
+  ReferralPayout,
+  ReferralPayoutSchema,
+} from 'src/point/schemas/referral-payout.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { WithdrawService } from 'src/withdraw/withdraw.service';
@@ -90,6 +94,7 @@ import {
       { name: Quest.name, schema: QuestSchema },
       { name: SocialReward.name, schema: SocialRewardSchema },
       { name: Point.name, schema: PointSchema },
+      { name: ReferralPayout.name, schema: ReferralPayoutSchema },
       { name: Withdraw.name, schema: WithdrawSchema },
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },

@@ -55,12 +55,12 @@ describe("mobile Expo SDK target", () => {
 
   it("Expo SDK 57 compatibility > given SDK-managed native packages > then versions match the stable SDK bundle", () => {
     expect(packageJson.dependencies["@sentry/react-native"]).toBe("~7.11.0");
-    expect(packageJson.dependencies["@shopify/flash-list"]).toBe("2.0.2");
+    expect(packageJson.dependencies["@shopify/flash-list"]).toBe("2.3.2");
     expect(packageJson.dependencies["react-native-safe-area-context"]).toBe(
-      "~5.7.0",
+      "~5.8.0",
     );
-    expect(packageJson.dependencies["react-native-screens"]).toBe("4.25.2");
-    expect(packageJson.dependencies["react-native-svg"]).toBe("15.15.4");
+    expect(packageJson.dependencies["react-native-screens"]).toBe("4.26.2");
+    expect(packageJson.dependencies["react-native-svg"]).toBe("15.15.5");
   });
 
   it("Expo SDK 57 compatibility > given the intentional TypeScript 7 compiler lane > then Doctor validates SDK packages without downgrading the compiler", () => {
