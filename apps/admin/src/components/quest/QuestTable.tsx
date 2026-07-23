@@ -1758,22 +1758,25 @@ export default function QuestTable({
                                     task.completion_rule ?? "account_created"
                                   }
                                   disabled={!canEditTaskEconomics}
-                                  onChange={(event) =>
+                                  onChange={(event) => {
+                                    // Capture synchronously — same currentTarget-nulled
+                                    // crash as the spend-target field (React clears
+                                    // event.currentTarget before the updater runs).
+                                    const nextRule = event.target
+                                      .value as NonNullable<
+                                      TaskDraft["completion_rule"]
+                                    >;
                                     setTaskDrafts((current) =>
                                       current.map((row, i) =>
                                         i === index
                                           ? {
                                               ...row,
-                                              completion_rule: event
-                                                .currentTarget
-                                                .value as NonNullable<
-                                                TaskDraft["completion_rule"]
-                                              >,
+                                              completion_rule: nextRule,
                                             }
                                           : row,
                                       ),
-                                    )
-                                  }
+                                    );
+                                  }}
                                   className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                                 >
                                   <option value="account_created">
@@ -1803,22 +1806,29 @@ export default function QuestTable({
                                     Number(task.target_thb_minor ?? 0) / 100
                                   }
                                   disabled={!canEditTaskEconomics}
-                                  onChange={(event) =>
+                                  onChange={(event) => {
+                                    // Capture the value SYNCHRONOUSLY. React nulls
+                                    // event.currentTarget after the handler returns, and
+                                    // the setTaskDrafts functional updater runs later (in
+                                    // the reducer) — reading event.currentTarget.value
+                                    // there threw "Cannot read properties of null" and
+                                    // crashed the editor. Guard NaN so a mid-edit value
+                                    // never poisons the draft.
+                                    const nextThb = Number(event.target.value);
+                                    const nextMinor = Number.isFinite(nextThb)
+                                      ? Math.round(nextThb * 100)
+                                      : 0;
                                     setTaskDrafts((current) =>
                                       current.map((row, i) =>
                                         i === index
                                           ? {
                                               ...row,
-                                              target_thb_minor: Math.round(
-                                                Number(
-                                                  event.currentTarget.value,
-                                                ) * 100,
-                                              ),
+                                              target_thb_minor: nextMinor,
                                             }
                                           : row,
                                       ),
-                                    )
-                                  }
+                                    );
+                                  }}
                                   className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                                 />
                               </div>
