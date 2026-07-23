@@ -1827,7 +1827,8 @@ describe('OfferService', () => {
 
       expect(questModel.findOne).toHaveBeenCalledWith(
         expect.objectContaining({
-          status: 'open',
+          publication_status: { $ne: 'draft' },
+          status: { $ne: 'close' },
           $and: expect.arrayContaining([
             expect.objectContaining({ $or: expect.any(Array) }),
             expect.objectContaining({ $or: expect.any(Array) }),

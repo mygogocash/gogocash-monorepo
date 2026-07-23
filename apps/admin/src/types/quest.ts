@@ -5,6 +5,11 @@ export type QuestTaskType =
 
 export type QuestRewardModel = "legacy_v1" | "task_v2";
 
+export interface QuestManagementCapabilities {
+  revision_workflow_enabled: boolean;
+  direct_create_enabled: boolean;
+}
+
 export type QuestAudience =
   { kind: "all" } | { kind: "membership_tiers"; tier_ids: string[] };
 
@@ -92,6 +97,121 @@ export interface QuestTaskDeeplinkSummaryResponse {
   data: QuestTaskDeeplinkSummary[];
 }
 
+export type QuestEffectiveTaskCatalogSource =
+  "canonical" | "legacy_compatibility" | "none";
+
+export type QuestEffectiveTaskSource =
+  "quest_task" | "legacy_offer_fallback" | "legacy_system_rule";
+
+export type QuestEffectiveTaskKind = QuestTaskType | "points_threshold_bonus";
+
+export type QuestEffectiveTaskTarget =
+  | { kind: "purchase"; required_purchases: 1 }
+  | {
+      kind: "referral";
+      completion_rule: "account_created" | "first_earning_conversion";
+    }
+  | {
+      kind: "spend_thb_minor";
+      spend_scope: "any_shop_via_ggc";
+      target_thb_minor: number;
+    }
+  | { kind: "quest_points_threshold"; threshold_points: number };
+
+export interface QuestEffectiveTaskOffer {
+  id: string;
+  name: string;
+  logo_uri?: string;
+  href?: string;
+}
+
+export interface QuestMutationCapabilities {
+  can_edit_campaign_economics: boolean;
+  can_edit_task_economics: boolean;
+  can_edit_rewards: boolean;
+  can_edit_presentation: boolean;
+  can_create_revision: boolean;
+  freeze_reason:
+    | "QUEST_ALREADY_STARTED"
+    | "QUEST_HAS_EFFECTS"
+    | "QUEST_REVISION_PUBLISHED"
+    | null;
+}
+
+export interface QuestRevisionWorkflowReadiness {
+  workflow_enabled: boolean;
+  task_v2_enabled: boolean;
+  publish_ready: boolean;
+  can_create_revision: boolean;
+  can_publish: boolean;
+  blockers: string[];
+}
+
+/**
+ * Sanitized task definition that the customer currently sees.
+ *
+ * This deliberately stays separate from `QuestTask`: compatibility rows can
+ * come from a legacy Offer or a server-owned system rule and are not
+ * necessarily persisted in `quest.tasks`.
+ */
+export interface QuestEffectiveTask {
+  task_key: string;
+  task_kind: QuestEffectiveTaskKind;
+  points: number;
+  sort_order: number;
+  wording_en: string;
+  wording_th: string;
+  target?: QuestEffectiveTaskTarget;
+  offer?: QuestEffectiveTaskOffer;
+  source: QuestEffectiveTaskSource;
+  editable_fields: string[];
+}
+
+export interface QuestEffectiveTasksResponse {
+  contract_version: 1;
+  quest_id: string;
+  config_revision: number;
+  catalog_source: QuestEffectiveTaskCatalogSource;
+  stored_task_count: number;
+  effective_task_count: number;
+  capabilities: QuestMutationCapabilities;
+  revision_workflow: QuestRevisionWorkflowReadiness;
+  tasks: QuestEffectiveTask[];
+}
+
+export interface CreateQuestRevisionPayload {
+  request_key: string;
+  expected_campaign_revision: number;
+  expected_config_revision: number;
+  start_date: string;
+  end_date: string;
+  reason: string;
+}
+
+export interface PublishQuestRevisionPayload {
+  request_key: string;
+  expected_campaign_revision: number;
+  expected_config_revision: number;
+}
+
+export interface QuestRevisionWarning {
+  code: string;
+  message: string;
+}
+
+export interface QuestRevisionResponse {
+  quest: ResponseQuestDate;
+  revision_workflow: QuestRevisionWorkflowReadiness;
+  warnings: QuestRevisionWarning[];
+  blocked_decisions: string[];
+}
+
+export interface PublishQuestRevisionResponse {
+  quest: ResponseQuestDate;
+  published: true;
+  revision_workflow: QuestRevisionWorkflowReadiness;
+}
+
 export interface QuestReward {
   rank: number;
   reward: number;
@@ -150,6 +270,12 @@ export interface QuestLeaderboardResponse {
 
 export interface ResponseQuestDate {
   _id: string;
+  revision_of?: string | { _id: string };
+  revision_number?: number;
+  revision_reason?: string;
+  publication_status?: "draft" | "published";
+  published_at?: Date | string;
+  blocked_decisions?: string[];
   campaign_revision?: number;
   config_revision?: number;
   reward_model?: QuestRewardModel;

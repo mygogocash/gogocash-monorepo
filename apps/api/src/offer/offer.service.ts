@@ -46,6 +46,7 @@ import { parseProductTypeRowsField } from './product-type.util';
 import { resolvePublicOfferLogo } from './offer-logo.util';
 import { Quest, QuestTask } from 'src/point/schemas/quest.schema';
 import { effectiveQuestRewardModel } from 'src/point/quest-task.contract';
+import { activeQuestFilter } from 'src/point/quest-active-filter';
 import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schema';
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
 import { SearchBlacklist } from 'src/admin/search/schemas/blacklist.schema';
@@ -115,28 +116,6 @@ function commandOwnedOfferAssets(
     assets.set(asset.object_key, asset);
   }
   return [...assets.values()];
-}
-
-function activeQuestFilter(now = new Date()) {
-  return {
-    status: 'open',
-    $and: [
-      {
-        $or: [
-          { start_date: { $exists: false } },
-          { start_date: null },
-          { start_date: { $lte: now } },
-        ],
-      },
-      {
-        $or: [
-          { end_date: { $exists: false } },
-          { end_date: null },
-          { end_date: { $gte: now } },
-        ],
-      },
-    ],
-  };
 }
 
 const PUBLIC_OFFER_DETAIL_FIELDS = [
@@ -1841,7 +1820,10 @@ export class OfferService implements OnApplicationBootstrap {
   }
 
   async getOfferExtraPoint() {
-    const quest = await this.questModel.findOne(activeQuestFilter()).lean();
+    const quest = await this.questModel
+      .findOne(activeQuestFilter())
+      .sort({ start_date: -1, _id: -1 })
+      .lean();
     const tasks = ((quest as any)?.tasks ?? [])
       .filter(
         (task: Partial<QuestTask>) =>

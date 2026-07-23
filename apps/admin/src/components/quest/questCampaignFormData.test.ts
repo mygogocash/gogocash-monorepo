@@ -26,7 +26,6 @@ describe("questCampaignFormData", () => {
       questId: "quest-1",
       startDate: "2026-07-01T02:30:00.000Z",
       endDate: "2026-07-31T15:15:00.000Z",
-      status: "scheduled",
       facebookPage: "",
       facebookPost: "",
       line: "",
@@ -37,6 +36,8 @@ describe("questCampaignFormData", () => {
     expect(form.get("campaign_revision")).toBe("4");
     expect(form.get("expected_config_revision")).toBe("7");
     expect(form.get("_id")).toBe("quest-1");
+    expect(form.has("status")).toBe(false);
+    expect(form.has("reward_status")).toBe(false);
     expect(form.get("banner_en")).toBe(banners.bannerEn);
     expect(form.get("banner_th")).toBe(banners.bannerTh);
     expect(form.get("sub_banner_en")).toBe(banners.subBannerEn);
@@ -58,7 +59,6 @@ describe("questCampaignFormData", () => {
       questId: "quest-1",
       startDate: "2026-07-01T02:30:00.000Z",
       endDate: "2026-07-31T15:15:00.000Z",
-      status: "scheduled",
       facebookPage: "undefined",
       facebookPost: "  null  ",
       line: "   ",
@@ -80,7 +80,6 @@ describe("questCampaignFormData", () => {
       configRevision: 0,
       startDate: "2026-07-01T02:30:00.000Z",
       endDate: "2026-07-31T15:15:00.000Z",
-      status: "scheduled",
       facebookPage: "  GoGoCashTH  ",
       facebookPost: "https://fb.com/post/123",
       line: "@gogocash",
@@ -112,7 +111,6 @@ describe("questCampaignFormData", () => {
         configRevision: 0,
         startDate: "2026-07-01T02:30:00.000Z",
         endDate: "2026-07-31T15:15:00.000Z",
-        status: "scheduled",
         facebookPage: "",
         facebookPost: "",
         line: "",

@@ -33,6 +33,14 @@ export class QuestTask {
   @Prop({ required: false })
   merchant_id?: number;
 
+  /**
+   * Internal revision-recovery marker. A frozen source can reference an Offer
+   * that was later retired; cloning it disabled lets Admin replace/remove the
+   * row while publish preflight remains fail-closed.
+   */
+  @Prop({ required: false, default: false })
+  source_offer_remediation_required?: boolean;
+
   @Prop({ required: false, min: 2, max: 10000 })
   extra_point?: number;
 
@@ -138,6 +146,52 @@ export const QuestBannerAssetsSchema =
 
 @Schema({ timestamps: true })
 export class Quest {
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Quest', required: false })
+  revision_of?: Types.ObjectId;
+
+  @Prop({ type: Number, required: false, min: 1 })
+  revision_number?: number;
+
+  @Prop({ type: Number, required: false, min: 0 })
+  revision_source_campaign_revision?: number;
+
+  @Prop({ type: Number, required: false, min: 0 })
+  revision_source_config_revision?: number;
+
+  @Prop({ type: String, required: false, maxlength: 500 })
+  revision_reason?: string;
+
+  @Prop({ type: String, required: false })
+  revision_created_by?: string;
+
+  @Prop({ type: String, required: false })
+  revision_request_key?: string;
+
+  @Prop({ type: String, required: false, match: /^[a-f0-9]{64}$/ })
+  revision_payload_hash?: string;
+
+  @Prop({
+    type: String,
+    required: false,
+    enum: ['draft', 'published'],
+  })
+  publication_status?: 'draft' | 'published';
+
+  @Prop({ type: Date, required: false })
+  published_at?: Date;
+
+  @Prop({ type: String, required: false })
+  published_by?: string;
+
+  @Prop({ type: String, required: false })
+  publish_request_key?: string;
+
+  @Prop({ type: String, required: false, match: /^[a-f0-9]{64}$/ })
+  publish_payload_hash?: string;
+
+  @Prop({ type: [String], required: true, default: [] })
+  blocked_decisions: string[];
+
   @Prop({ required: true, default: 0, min: 0 })
   campaign_revision: number;
 
@@ -273,3 +327,11 @@ export class Quest {
 }
 
 export const QuestSchema = SchemaFactory.createForClass(Quest);
+
+QuestSchema.index({ revision_request_key: 1 }, { unique: true, sparse: true });
+QuestSchema.index({ publish_request_key: 1 }, { unique: true, sparse: true });
+QuestSchema.index(
+  { revision_of: 1, revision_number: 1 },
+  { unique: true, sparse: true },
+);
+QuestSchema.index({ publication_status: 1, start_date: 1, end_date: 1 });

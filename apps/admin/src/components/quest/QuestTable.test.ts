@@ -11,6 +11,8 @@ import {
   toBangkokDateTimeInput,
 } from "./questDateTime";
 import {
+  adoptCommittedQuestTaskKeys,
+  adoptSavedQuestTaskKeys,
   buildQuestTaskPayloads,
   defaultQuestTaskPoints,
   normalizeQuestTaskPoints,
@@ -19,6 +21,137 @@ import {
 } from "./questTaskEditor";
 
 describe("QuestTable task helpers", () => {
+  it("adopts rotated keys by stable task identity when drafts are inserted and reordered", () => {
+    const payloads = [
+      {
+        task_type: "friend_referral" as const,
+        completion_rule: "account_created" as const,
+        points: 75,
+        enabled: true,
+        wording: "New referral",
+        wording_en: "New referral",
+        wording_th: "",
+        notes: "",
+      },
+      {
+        task_key: "task_old_second_1234",
+        task_type: "spend_target" as const,
+        spend_scope: "any_shop_via_ggc" as const,
+        target_thb_minor: 100_000,
+        points: 100,
+        enabled: true,
+        wording: "Spend",
+        wording_en: "Spend",
+        wording_th: "",
+        notes: "",
+      },
+      {
+        task_key: "task_old_first_1234",
+        task_type: "brand_purchase" as const,
+        offer: "offer-a",
+        points: 50,
+        enabled: true,
+        wording: "Shop",
+        wording_en: "Shop",
+        wording_th: "",
+        notes: "",
+      },
+    ];
+    const previousTasks = [
+      {
+        task_key: "task_old_first_1234",
+        task_type: "brand_purchase" as const,
+        offer: "offer-a",
+        offer_id: 1,
+        merchant_id: 10,
+        points: 50,
+        sort_order: 0,
+        enabled: true,
+      },
+      {
+        task_key: "task_old_second_1234",
+        task_type: "spend_target" as const,
+        spend_scope: "any_shop_via_ggc" as const,
+        target_thb_minor: 100_000,
+        points: 100,
+        sort_order: 1,
+        enabled: true,
+      },
+    ];
+    const committedTasks = [
+      {
+        ...previousTasks[0],
+        task_key: "task_rotated_first_1234",
+      },
+      {
+        ...previousTasks[1],
+        task_key: "task_rotated_second_1234",
+      },
+    ];
+
+    expect(
+      adoptCommittedQuestTaskKeys(payloads, previousTasks, committedTasks).map(
+        (task) => task.task_key,
+      ),
+    ).toEqual([
+      undefined,
+      "task_rotated_second_1234",
+      "task_rotated_first_1234",
+    ]);
+  });
+
+  it("adopts canonical keys returned by the exact task-save order", () => {
+    const payloads = [
+      {
+        task_type: "friend_referral" as const,
+        completion_rule: "account_created" as const,
+        points: 50,
+        enabled: true,
+        wording: "Invite",
+        wording_en: "Invite",
+        wording_th: "",
+        notes: "",
+      },
+      {
+        task_key: "task_schedule_rotated_1234",
+        task_type: "brand_purchase" as const,
+        offer: "offer-a",
+        points: 75,
+        enabled: true,
+        wording: "Shop",
+        wording_en: "Shop",
+        wording_th: "",
+        notes: "",
+      },
+    ];
+    const savedTasks = [
+      {
+        task_key: "task_new_referral_1234",
+        task_type: "friend_referral" as const,
+        completion_rule: "account_created" as const,
+        points: 50,
+        sort_order: 0,
+        enabled: true,
+      },
+      {
+        task_key: "task_points_rotated_1234",
+        task_type: "brand_purchase" as const,
+        offer: "offer-a",
+        offer_id: 1,
+        merchant_id: 10,
+        points: 75,
+        sort_order: 1,
+        enabled: true,
+      },
+    ];
+
+    expect(
+      adoptSavedQuestTaskKeys(payloads, savedTasks).map(
+        (task) => task.task_key,
+      ),
+    ).toEqual(["task_new_referral_1234", "task_points_rotated_1234"]);
+  });
+
   it("buildQuestTaskPayloads emits only fields valid for each task type", () => {
     const payload = buildQuestTaskPayloads([
       {

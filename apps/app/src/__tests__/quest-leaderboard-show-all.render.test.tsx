@@ -21,8 +21,19 @@ vi.mock("react-native", async () => {
 // The Tasks panels need the task hooks; this suite is about the LEADERBOARD, so stub the
 // task resource to empty-but-ready so the screen mounts on any tab without throwing.
 vi.mock("@mobile/quest/questTaskResource", () => ({
-  useQuestTaskRows: () => ({ error: null, retry: vi.fn(), rows: [], status: "ready" }),
-  useQuestBrandTasks: () => ({ error: null, retry: vi.fn(), rows: [], status: "ready" }),
+  mergeQuestTaskCatalogProgress: (rows: unknown[]) => rows,
+  useQuestTaskCatalog: () => ({
+    error: null,
+    retry: vi.fn(),
+    rows: [],
+    status: "ready",
+  }),
+  useQuestTaskRows: () => ({
+    error: null,
+    retry: vi.fn(),
+    rows: [],
+    status: "ready",
+  }),
 }));
 
 // Drive the leaderboard with a controllable, larger-than-top-5 set. This isolates the

@@ -244,11 +244,10 @@ function buildMockCreatedConversions(): CreatedConversionItem[] {
 const createdConversionsList: CreatedConversionItem[] =
   buildMockCreatedConversions();
 
-type MockQuestTask = {
-  offer: string | MockOffer;
-  offer_id: number;
-  merchant_id: number;
-  extra_point: number;
+type MockQuestTaskBase = {
+  task_key: string;
+  task_type: "brand_purchase" | "friend_referral" | "spend_target";
+  points: number;
   sort_order: number;
   enabled: boolean;
   wording?: string;
@@ -256,6 +255,30 @@ type MockQuestTask = {
   wording_th?: string;
   notes?: string;
 };
+
+type MockBrandPurchaseQuestTask = MockQuestTaskBase & {
+  task_type: "brand_purchase";
+  offer: string | MockOffer;
+  offer_id: number;
+  merchant_id: number;
+  extra_point: number;
+};
+
+type MockFriendReferralQuestTask = MockQuestTaskBase & {
+  task_type: "friend_referral";
+  completion_rule: "account_created" | "first_earning_conversion";
+};
+
+type MockSpendTargetQuestTask = MockQuestTaskBase & {
+  task_type: "spend_target";
+  spend_scope: "any_shop_via_ggc";
+  target_thb_minor: number;
+};
+
+type MockQuestTask =
+  | MockBrandPurchaseQuestTask
+  | MockFriendReferralQuestTask
+  | MockSpendTargetQuestTask;
 
 type MockQuestReward = {
   rank: number;
@@ -267,6 +290,21 @@ type MockQuestRewardDistributionMode = "manual" | "campaign_end" | "after_days";
 
 type MockQuest = {
   _id: string;
+  revision_of?: string;
+  revision_number?: number;
+  revision_reason?: string;
+  publication_status?: "draft" | "published";
+  published_at?: string;
+  blocked_decisions?: string[];
+  campaign_revision?: number;
+  config_revision?: number;
+  reward_model?: "legacy_v1" | "task_v2";
+  timezone?: "Asia/Bangkok";
+  audience?: { kind: "all" } | { kind: "membership_tiers"; tier_ids: string[] };
+  reward_caps?: {
+    max_awards_per_user: number | null;
+    max_referrals_per_user: number | null;
+  };
   status: string;
   reward_status: boolean;
   reward_distribution_mode: MockQuestRewardDistributionMode;
@@ -288,12 +326,71 @@ type MockQuest = {
   __v: number;
 };
 
+const mockQuestRevisionCommands = new Map<
+  string,
+  { signature: string; questId: string }
+>();
+
+function mockQuestRevisionWorkflowEnabled() {
+  return (
+    process.env.NEXT_PUBLIC_MOCK_QUEST_REVISION_WORKFLOW_ENABLED === "true"
+  );
+}
+
+function mockQuestTaskV2Enabled() {
+  return process.env.NEXT_PUBLIC_MOCK_QUEST_TASK_V2_ENABLED === "true";
+}
+
+function mockQuestRevisionWorkflow(quest: MockQuest) {
+  const workflowEnabled = mockQuestRevisionWorkflowEnabled();
+  const taskV2Enabled = mockQuestTaskV2Enabled();
+  const isDraft = quest.publication_status === "draft";
+  const blockers = ["QUEST_REVISION_PUBLISH_NOT_READY"];
+  if (!workflowEnabled) blockers.push("QUEST_REVISION_WORKFLOW_DISABLED");
+  if (!taskV2Enabled) blockers.push("QUEST_TASK_V2_UNAVAILABLE");
+  if (!isDraft) blockers.push("QUEST_REVISION_NOT_DRAFT");
+  if (isDraft) blockers.push("QUEST_REVISION_PREFLIGHT_REQUIRED");
+  if (
+    quest.reward_model !== "task_v2" ||
+    !quest.tasks.some((task) => task.enabled !== false)
+  ) {
+    blockers.push("QUEST_REVISION_TASKS_REQUIRED");
+  }
+  if (quest.rewards.length === 0) {
+    blockers.push("QUEST_REVISION_REWARDS_REQUIRED");
+  }
+  if (
+    ![
+      quest.banner_en,
+      quest.banner_th,
+      quest.sub_banner_en,
+      quest.sub_banner_th,
+    ].every((value) => value.trim())
+  ) {
+    blockers.push("QUEST_REVISION_MEDIA_REQUIRED");
+  }
+  if ((quest.blocked_decisions ?? []).length > 0) {
+    blockers.push("QUEST_REVISION_DECISION_REQUIRED");
+  }
+  return {
+    workflow_enabled: workflowEnabled,
+    task_v2_enabled: taskV2Enabled,
+    publish_ready: false,
+    can_create_revision: workflowEnabled && !isDraft,
+    can_publish: false,
+    blockers,
+  };
+}
+
 function mockQuestTaskFromOffer(
   offer: MockOffer,
   extraPoint: number,
   sortOrder: number,
 ): MockQuestTask {
   return {
+    task_key: `task_mock_brand_${offer._id}_${sortOrder}`,
+    task_type: "brand_purchase",
+    points: extraPoint,
     offer,
     offer_id: offer.offer_id,
     merchant_id: offer.merchant_id,
@@ -303,6 +400,38 @@ function mockQuestTaskFromOffer(
     wording:
       offer.offer_name_display || offer.offer_name || `Offer ${offer.offer_id}`,
     notes: "",
+  };
+}
+
+let mockQuestTaskKeySequence = 0;
+
+function newMockQuestTaskKey() {
+  mockQuestTaskKeySequence += 1;
+  return `task_mock_generated_${Date.now().toString(36)}_${mockQuestTaskKeySequence.toString(36)}`;
+}
+
+function mockQuestTaskIdentity(task: MockQuestTask) {
+  const common = {
+    task_type: task.task_type,
+    points: task.points,
+    enabled: task.enabled,
+  };
+  if (task.task_type === "brand_purchase") {
+    return {
+      ...common,
+      offer:
+        typeof task.offer === "string" ? task.offer : String(task.offer._id),
+      offer_id: task.offer_id,
+      merchant_id: task.merchant_id,
+    };
+  }
+  if (task.task_type === "friend_referral") {
+    return { ...common, completion_rule: task.completion_rule };
+  }
+  return {
+    ...common,
+    spend_scope: task.spend_scope,
+    target_thb_minor: task.target_thb_minor,
   };
 }
 
@@ -323,6 +452,15 @@ const mockQuestStore: MockQuest[] = [
   {
     _id: "q_open_2026_06",
     status: "open",
+    campaign_revision: 0,
+    config_revision: 0,
+    reward_model: "legacy_v1",
+    timezone: "Asia/Bangkok",
+    audience: { kind: "all" },
+    reward_caps: {
+      max_awards_per_user: null,
+      max_referrals_per_user: null,
+    },
     reward_status: false,
     reward_distribution_mode: "after_days",
     reward_distribution_delay_days: 7,
@@ -562,12 +700,10 @@ const DEFAULT_TOP_BRANDS: TopBrandConfigEntry[] = [
   { offerId: "o3", cashback: "Travel deals" },
   { offerId: "o5", cashback: "Limited time" },
 ];
-let topBrandHomepageBrandsDesktop: TopBrandConfigEntry[] = DEFAULT_TOP_BRANDS.map(
-  (entry) => ({ ...entry }),
-);
-let topBrandHomepageBrandsMobile: TopBrandConfigEntry[] = DEFAULT_TOP_BRANDS.map(
-  (entry) => ({ ...entry }),
-);
+let topBrandHomepageBrandsDesktop: TopBrandConfigEntry[] =
+  DEFAULT_TOP_BRANDS.map((entry) => ({ ...entry }));
+let topBrandHomepageBrandsMobile: TopBrandConfigEntry[] =
+  DEFAULT_TOP_BRANDS.map((entry) => ({ ...entry }));
 
 const MAX_LANDING_RAILS = 12;
 
@@ -611,9 +747,7 @@ function normalizeMockTopBrands(raw: unknown): TopBrandConfigEntry[] {
   const brands = Array.isArray(raw)
     ? raw.map((entry) => ({
         cashback: "",
-        offerId: String(
-          (entry as { offerId?: unknown }).offerId ?? "",
-        ).trim(),
+        offerId: String((entry as { offerId?: unknown }).offerId ?? "").trim(),
       }))
     : [];
   const seen = new Set<string>();
@@ -890,9 +1024,177 @@ function handleMockGET(
     return ok(
       mockQuestStore.map((quest) => ({
         ...quest,
-        status: deriveQuestStatus(quest.start_date, quest.end_date),
+        status:
+          quest.status === "close"
+            ? "close"
+            : deriveQuestStatus(quest.start_date, quest.end_date),
       })),
     );
+  }
+
+  if (joined === "point/admin-quest-capabilities") {
+    const revisionWorkflowEnabled = mockQuestRevisionWorkflowEnabled();
+    return ok({
+      revision_workflow_enabled: revisionWorkflowEnabled,
+      direct_create_enabled: !revisionWorkflowEnabled,
+    });
+  }
+
+  if (
+    path[0] === "point" &&
+    path[1] === "admin-quest" &&
+    path[3] === "effective-tasks"
+  ) {
+    const quest = mockQuestStore.find((q) => q._id === path[2]);
+    if (!quest) return jsonErr(404, { message: "Quest not found" });
+
+    const derivedStatus =
+      quest.status === "close"
+        ? "close"
+        : deriveQuestStatus(quest.start_date, quest.end_date);
+    const isPublishedRevision = Boolean(
+      quest.revision_of && quest.publication_status === "published",
+    );
+    const economicsEditable =
+      derivedStatus === "scheduled" && !isPublishedRevision;
+    const hasStoredTasks = quest.tasks.length > 0;
+    const allowLegacyCompatibility =
+      derivedStatus === "open" && quest.publication_status !== "draft";
+    const isLegacyQuest = (quest.reward_model ?? "legacy_v1") !== "task_v2";
+    const useLegacyOfferCompatibility =
+      !hasStoredTasks && isLegacyQuest && allowLegacyCompatibility;
+    const canonicalTasks = quest.tasks
+      .filter((task) => task.enabled !== false)
+      .map((task) => {
+        const offer =
+          task.task_type === "brand_purchase"
+            ? typeof task.offer === "string"
+              ? mockOffers.find((item) => item._id === task.offer)
+              : task.offer
+            : undefined;
+        const target =
+          task.task_type === "brand_purchase"
+            ? { kind: "purchase" as const, required_purchases: 1 as const }
+            : task.task_type === "friend_referral"
+              ? {
+                  kind: "referral" as const,
+                  completion_rule: task.completion_rule,
+                }
+              : {
+                  kind: "spend_thb_minor" as const,
+                  spend_scope: task.spend_scope,
+                  target_thb_minor: task.target_thb_minor,
+                };
+        return {
+          task_key: task.task_key,
+          task_kind: task.task_type,
+          points: task.points,
+          sort_order: task.sort_order,
+          target,
+          offer: offer
+            ? {
+                id: offer._id,
+                name:
+                  offer.offer_name_display || offer.offer_name || "Merchant",
+                href: `/shop/${offer._id}`,
+              }
+            : undefined,
+          wording_en: task.wording_en ?? task.wording,
+          wording_th: task.wording_th ?? "",
+          source: "quest_task",
+          editable_fields: economicsEditable
+            ? [
+                "task_type",
+                "offer",
+                "points",
+                "sort_order",
+                "enabled",
+                "wording_en",
+                "wording_th",
+                "notes",
+              ]
+            : ["wording_en", "wording_th", "notes"],
+        };
+      });
+    const legacyOfferTasks = !useLegacyOfferCompatibility
+      ? []
+      : (mockOffers as MockOffer[])
+          .filter(
+            (offer) =>
+              offer.disabled !== true && Number(offer.extra_point ?? 0) > 1,
+          )
+          .map((offer, index) => ({
+            task_key: `legacy:offer:${offer._id}`,
+            task_kind: "brand_purchase",
+            points: Number(offer.extra_point),
+            sort_order: index,
+            target: { kind: "purchase", required_purchases: 1 },
+            offer: {
+              id: offer._id,
+              name: offer.offer_name_display || offer.offer_name,
+              href: `/shop/${offer._id}`,
+            },
+            wording_en: `Shop at ${offer.offer_name_display || offer.offer_name}`,
+            wording_th: "",
+            source: "legacy_offer_fallback",
+            editable_fields: [],
+          }));
+    const legacySystemTasks =
+      !isLegacyQuest || !allowLegacyCompatibility
+        ? []
+        : [
+            {
+              task_key: "legacy:points-threshold:300",
+              task_kind: "points_threshold_bonus",
+              points: 50,
+              sort_order:
+                [...canonicalTasks, ...legacyOfferTasks].reduce(
+                  (highest, task) => Math.max(highest, Number(task.sort_order)),
+                  -1,
+                ) + 1,
+              target: {
+                kind: "quest_points_threshold",
+                threshold_points: 300,
+              },
+              wording_en: "Reach 300 quest points",
+              wording_th: "สะสมคะแนนเควสต์ให้ครบ 300 คะแนน",
+              source: "legacy_system_rule",
+              editable_fields: [],
+            },
+          ];
+    const effectiveTasks = [
+      ...canonicalTasks,
+      ...legacyOfferTasks,
+      ...legacySystemTasks,
+    ];
+
+    return ok({
+      contract_version: 1,
+      quest_id: quest._id,
+      config_revision: Number(quest.config_revision ?? 0),
+      catalog_source: hasStoredTasks
+        ? "canonical"
+        : effectiveTasks.length > 0
+          ? "legacy_compatibility"
+          : "none",
+      stored_task_count: quest.tasks.length,
+      effective_task_count: effectiveTasks.length,
+      capabilities: {
+        can_edit_campaign_economics: economicsEditable,
+        can_edit_task_economics: economicsEditable,
+        can_edit_rewards: economicsEditable,
+        can_edit_presentation: true,
+        can_create_revision:
+          mockQuestRevisionWorkflow(quest).can_create_revision,
+        freeze_reason: economicsEditable
+          ? null
+          : isPublishedRevision
+            ? "QUEST_REVISION_PUBLISHED"
+            : "QUEST_ALREADY_STARTED",
+      },
+      revision_workflow: mockQuestRevisionWorkflow(quest),
+      tasks: effectiveTasks,
+    });
   }
 
   if (
@@ -904,7 +1206,10 @@ function handleMockGET(
     if (!quest) return jsonErr(404, { message: "Quest not found" });
     return ok({
       data: quest.tasks
-        .filter((task) => task.enabled)
+        .filter(
+          (task): task is MockBrandPurchaseQuestTask =>
+            task.task_type === "brand_purchase" && task.enabled,
+        )
         .map((task) => {
           const offer =
             typeof task.offer === "string"
@@ -917,7 +1222,7 @@ function handleMockGET(
             merchant_id: task.merchant_id,
             offer_name:
               offer?.offer_name_display || offer?.offer_name || "Merchant",
-            extra_point: task.extra_point,
+            extra_point: task.points,
             sort_order: task.sort_order,
             tracking_link: offer?.tracking_link ?? "",
             customer_path: `/shop/${offerId}`,
@@ -945,7 +1250,7 @@ function handleMockGET(
         0,
         quest.tasks
           .filter((task) => task.enabled !== false)
-          .reduce((sum, task) => sum + task.extra_point, 0) -
+          .reduce((sum, task) => sum + task.points, 0) -
           index * 20,
       );
       return {
@@ -1326,8 +1631,185 @@ async function handleMockPOST(
     });
   }
 
+  if (
+    path[0] === "point" &&
+    path[1] === "admin-quest" &&
+    path[2] &&
+    path[3] === "revisions"
+  ) {
+    if (!mockQuestRevisionWorkflowEnabled()) {
+      return jsonErr(503, {
+        code: "QUEST_REVISION_WORKFLOW_DISABLED",
+        message: "Quest revision workflow is disabled.",
+      });
+    }
+    const source = mockQuestStore.find((quest) => quest._id === path[2]);
+    if (!source) return jsonErr(404, { message: "Quest not found" });
+    if (source.publication_status === "draft") {
+      return jsonErr(400, {
+        message:
+          "Create a revision from a published or legacy quest, not a draft.",
+      });
+    }
+    const input = (body ?? {}) as Record<string, unknown>;
+    const requestKey = String(input.request_key ?? "").trim();
+    const startDate = String(input.start_date ?? "");
+    const endDate = String(input.end_date ?? "");
+    const reason = String(input.reason ?? "").trim();
+    const signature = JSON.stringify({
+      source: source._id,
+      expected_campaign_revision: Number(input.expected_campaign_revision ?? 0),
+      expected_config_revision: Number(input.expected_config_revision ?? 0),
+      start_date: startDate,
+      end_date: endDate,
+      reason,
+    });
+    const replay = mockQuestRevisionCommands.get(requestKey);
+    if (replay) {
+      if (replay.signature !== signature) {
+        return jsonErr(409, {
+          message:
+            "request_key was already used for a different quest revision",
+        });
+      }
+      const replayQuest = mockQuestStore.find(
+        (quest) => quest._id === replay.questId,
+      );
+      if (!replayQuest) {
+        return jsonErr(409, {
+          message: "Quest revision creation lost its idempotency fence",
+        });
+      }
+      return ok({
+        quest: replayQuest,
+        revision_workflow: mockQuestRevisionWorkflow(replayQuest),
+        warnings: [],
+        blocked_decisions: replayQuest.blocked_decisions ?? [],
+      });
+    }
+    if (
+      Number(input.expected_campaign_revision ?? 0) !==
+        Number(source.campaign_revision ?? 0) ||
+      Number(input.expected_config_revision ?? 0) !==
+        Number(source.config_revision ?? 0)
+    ) {
+      return jsonErr(409, {
+        code: "QUEST_CONFIG_REVISION_CONFLICT",
+        message: "Quest changed. Reload and try again.",
+      });
+    }
+    const startTime = new Date(startDate).getTime();
+    const endTime = new Date(endDate).getTime();
+    if (
+      !Number.isFinite(startTime) ||
+      !Number.isFinite(endTime) ||
+      startTime <= Date.now() ||
+      endTime <= startTime
+    ) {
+      return jsonErr(400, {
+        message: "Quest revision requires a valid future, non-empty window.",
+      });
+    }
+    if (reason.length < 4 || reason.length > 500 || requestKey.length < 8) {
+      return jsonErr(400, { message: "Invalid quest revision request." });
+    }
+    const blockedDecisions =
+      (source.reward_model ?? "legacy_v1") === "legacy_v1"
+        ? ["legacy_points_threshold_semantics"]
+        : [];
+    const clonedTasks =
+      source.tasks.length > 0
+        ? source.tasks
+            .filter((task) => task.enabled !== false)
+            .map((task) => ({ ...task }))
+        : (mockOffers as MockOffer[])
+            .filter(
+              (offer) =>
+                offer.disabled !== true && Number(offer.extra_point ?? 0) > 1,
+            )
+            .map((offer, index) =>
+              mockQuestTaskFromOffer(offer, Number(offer.extra_point), index),
+            );
+    const revisionId = `q_revision_${requestKey
+      .replace(/[^A-Za-z0-9]/g, "")
+      .slice(-32)}`;
+    const nextRevisionNumber =
+      Math.max(
+        Number(source.revision_number ?? 0),
+        ...mockQuestStore
+          .filter((quest) => quest.revision_of === source._id)
+          .map((quest) => Number(quest.revision_number ?? 0)),
+      ) + 1;
+    const revision: MockQuest = {
+      ...source,
+      _id: revisionId,
+      revision_of: source._id,
+      revision_number: nextRevisionNumber,
+      revision_reason: reason,
+      publication_status: "draft",
+      blocked_decisions: blockedDecisions,
+      campaign_revision: 0,
+      config_revision: 0,
+      reward_model: "task_v2",
+      status: "scheduled",
+      reward_status: false,
+      start_date: new Date(startTime).toISOString(),
+      end_date: new Date(endTime).toISOString(),
+      tasks: clonedTasks,
+      rewards: source.rewards.map((reward) => ({ ...reward })),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      __v: 0,
+    };
+    mockQuestStore.unshift(revision);
+    mockQuestRevisionCommands.set(requestKey, {
+      signature,
+      questId: revision._id,
+    });
+    return ok({
+      quest: revision,
+      revision_workflow: mockQuestRevisionWorkflow(revision),
+      warnings: blockedDecisions.length
+        ? [
+            {
+              code: "LEGACY_POINTS_THRESHOLD_NOT_MATERIALIZED",
+              message:
+                "The legacy 300-point bonus was not copied because its future business semantics are unconfirmed.",
+            },
+          ]
+        : [],
+      blocked_decisions: blockedDecisions,
+    });
+  }
+
+  if (
+    path[0] === "point" &&
+    path[1] === "admin-quest" &&
+    path[2] &&
+    path[3] === "publish"
+  ) {
+    if (!mockQuestRevisionWorkflowEnabled()) {
+      return jsonErr(503, {
+        code: "QUEST_REVISION_WORKFLOW_DISABLED",
+        message: "Quest revision workflow is disabled.",
+      });
+    }
+    return jsonErr(503, {
+      code: "QUEST_REVISION_PUBLISH_NOT_READY",
+      message:
+        "Quest revision publication is disabled until the publication lock rollout is accepted.",
+    });
+  }
+
   if (joined === "point/create-quest") {
     const id = mockBodyField(body, "_id");
+    if (!id && mockQuestRevisionWorkflowEnabled()) {
+      return jsonErr(409, {
+        code: "QUEST_DIRECT_CREATE_DISABLED",
+        message:
+          "Direct Quest creation is disabled while revision workflow is enabled. Create a future revision from an existing Quest.",
+      });
+    }
     const existing = id ? mockQuestStore.find((q) => q._id === id) : undefined;
     const now = new Date().toISOString();
     const quest: MockQuest = existing ?? {
@@ -1355,12 +1837,9 @@ async function handleMockPOST(
 
     quest.start_date = mockBodyField(body, "start_date") || quest.start_date;
     quest.end_date = mockBodyField(body, "end_date") || quest.end_date;
-    quest.status = deriveQuestStatus(quest.start_date, quest.end_date);
-    const rewardStatus = mockBodyField(body, "reward_status");
-    quest.reward_status =
-      rewardStatus === ""
-        ? Boolean(quest.reward_status)
-        : rewardStatus === "true";
+    if (!existing) {
+      quest.status = deriveQuestStatus(quest.start_date, quest.end_date);
+    }
     quest.facebook_page = mockBodyField(body, "facebook_page");
     quest.facebook_post = mockBodyField(body, "facebook_post");
     quest.line = mockBodyField(body, "line");
@@ -2297,8 +2776,7 @@ async function handleMockPUT(
           .filter(Boolean)
           .filter((offerId) => {
             const offer = mockOffers.find((row) => row._id === offerId) as
-              | { disabled?: boolean; status?: string }
-              | undefined;
+              { disabled?: boolean; status?: string } | undefined;
             if (!offer || offer.disabled === true) return true;
             const status = String(offer.status ?? "")
               .trim()
@@ -2313,9 +2791,7 @@ async function handleMockPUT(
       });
     }
     if (hasDeviceLists) {
-      const nextDesktop = normalizeMockTopBrands(
-        b?.brandsDesktop ?? b?.brands,
-      );
+      const nextDesktop = normalizeMockTopBrands(b?.brandsDesktop ?? b?.brands);
       const nextMobile = normalizeMockTopBrands(b?.brandsMobile ?? b?.brands);
       topBrandHomepageBrandsDesktop = nextDesktop;
       topBrandHomepageBrandsMobile = nextMobile;
@@ -2598,60 +3074,191 @@ async function handleMockPATCH(
   ) {
     const quest = mockQuestStore.find((q) => q._id === path[2]);
     if (!quest) return jsonErr(404, { message: "Quest not found" });
+    const expectedConfigRevision = Number(b.expected_config_revision);
+    const currentConfigRevision = Number(quest.config_revision ?? 0);
+    if (
+      !Number.isSafeInteger(expectedConfigRevision) ||
+      expectedConfigRevision < 0 ||
+      expectedConfigRevision !== currentConfigRevision
+    ) {
+      return jsonErr(409, {
+        code: "QUEST_CONFIG_REVISION_CONFLICT",
+        message: "Quest task configuration changed. Reload and try again.",
+      });
+    }
+    const rewardModel = String(
+      b.reward_model ?? quest.reward_model ?? "legacy_v1",
+    );
+    if (rewardModel !== "legacy_v1" && rewardModel !== "task_v2") {
+      return jsonErr(400, { message: "Invalid quest reward model" });
+    }
+    const timezone = String(b.timezone ?? quest.timezone ?? "Asia/Bangkok");
+    if (timezone !== "Asia/Bangkok") {
+      return jsonErr(400, { message: "Quest timezone must be Asia/Bangkok" });
+    }
     const rawTasks = Array.isArray((b as { tasks?: unknown[] }).tasks)
       ? ((b as { tasks: unknown[] }).tasks as Array<Record<string, unknown>>)
       : [];
-    const seen = new Set<string>();
+    const existingTasksByKey = new Map(
+      quest.tasks.map((task) => [task.task_key, task]),
+    );
+    const seenOffers = new Set<string>();
+    const seenTaskKeys = new Set<string>();
     const tasks: MockQuestTask[] = [];
     for (const raw of rawTasks) {
-      const offerId = String(raw.offer ?? "");
-      const offer = mockOffers.find((o) => o._id === offerId);
-      if (!offer) {
-        return jsonErr(400, { message: "Quest task offer is not valid" });
-      }
-      if (seen.has(offerId)) {
-        return jsonErr(400, { message: "Duplicate quest task offer" });
-      }
-      seen.add(offerId);
-      const extraPoint = Number(raw.extra_point);
+      const taskType = String(raw.task_type ?? "");
       if (
-        !Number.isInteger(extraPoint) ||
-        extraPoint < 2 ||
-        extraPoint > 10000
+        taskType !== "brand_purchase" &&
+        taskType !== "friend_referral" &&
+        taskType !== "spend_target"
       ) {
+        return jsonErr(400, { message: "Quest task_type is invalid" });
+      }
+      if (rewardModel === "legacy_v1" && taskType !== "brand_purchase") {
+        return jsonErr(400, {
+          message: "legacy_v1 quests support only brand_purchase tasks",
+        });
+      }
+      const points = Number(raw.points ?? raw.extra_point);
+      if (!Number.isSafeInteger(points) || points < 2 || points > 10000) {
         return jsonErr(400, { message: "Invalid quest task points" });
       }
-      tasks.push({
-        offer,
-        offer_id: Number(raw.offer_id),
-        merchant_id: Number(raw.merchant_id),
-        extra_point: extraPoint,
+      const requestedTaskKey = String(raw.task_key ?? "").trim();
+      const existingTask = requestedTaskKey
+        ? existingTasksByKey.get(requestedTaskKey)
+        : undefined;
+      if (requestedTaskKey && !existingTask) {
+        return jsonErr(400, {
+          message:
+            "Quest task task_key is server-owned and does not belong to this quest",
+        });
+      }
+      if (requestedTaskKey && seenTaskKeys.has(requestedTaskKey)) {
+        return jsonErr(400, { message: "Duplicate quest task key" });
+      }
+
+      const wordingEn = String(raw.wording_en ?? raw.wording ?? "").trim();
+      const wordingTh = String(raw.wording_th ?? "").trim();
+      if (!wordingEn && !wordingTh) {
+        return jsonErr(400, {
+          message:
+            "Quest task requires customer-visible wording in English or Thai",
+        });
+      }
+      const common = {
+        task_key: requestedTaskKey || newMockQuestTaskKey(),
+        points,
         sort_order: tasks.length,
         enabled: raw.enabled !== false,
-        wording: String(raw.wording ?? ""),
-        wording_en: String(raw.wording_en ?? raw.wording ?? ""),
-        wording_th: String(raw.wording_th ?? ""),
-        notes: String(raw.notes ?? ""),
-      });
+        wording: wordingEn || wordingTh,
+        wording_en: wordingEn,
+        wording_th: wordingTh,
+        notes: String(raw.notes ?? "").trim(),
+      };
+
+      let normalizedTask: MockQuestTask;
+      if (taskType === "brand_purchase") {
+        const offerId = String(raw.offer ?? "");
+        const offer = (mockOffers as MockOffer[]).find(
+          (item) => item._id === offerId && item.disabled !== true,
+        );
+        if (!offer) {
+          return jsonErr(400, {
+            message: "Quest task offer is not valid",
+          });
+        }
+        if (seenOffers.has(offerId)) {
+          return jsonErr(400, { message: "Duplicate quest task offer" });
+        }
+        seenOffers.add(offerId);
+        normalizedTask = {
+          ...common,
+          task_type: "brand_purchase",
+          offer,
+          offer_id: Number(offer.offer_id),
+          merchant_id: Number(offer.merchant_id),
+          extra_point: points,
+        };
+      } else if (taskType === "friend_referral") {
+        const completionRule = String(raw.completion_rule ?? "");
+        if (
+          completionRule !== "account_created" &&
+          completionRule !== "first_earning_conversion"
+        ) {
+          return jsonErr(400, {
+            message: "Quest referral completion_rule is invalid",
+          });
+        }
+        normalizedTask = {
+          ...common,
+          task_type: "friend_referral",
+          completion_rule: completionRule,
+        };
+      } else {
+        const target = Number(raw.target_thb_minor);
+        if (
+          raw.spend_scope !== "any_shop_via_ggc" ||
+          !Number.isSafeInteger(target) ||
+          target < 1
+        ) {
+          return jsonErr(400, { message: "Quest spend target is invalid" });
+        }
+        normalizedTask = {
+          ...common,
+          task_type: "spend_target",
+          spend_scope: "any_shop_via_ggc",
+          target_thb_minor: target,
+        };
+      }
+
+      if (
+        existingTask &&
+        JSON.stringify(mockQuestTaskIdentity(existingTask)) !==
+          JSON.stringify(mockQuestTaskIdentity(normalizedTask))
+      ) {
+        normalizedTask.task_key = newMockQuestTaskKey();
+      }
+      if (seenTaskKeys.has(normalizedTask.task_key)) {
+        return jsonErr(400, { message: "Duplicate quest task key" });
+      }
+      seenTaskKeys.add(normalizedTask.task_key);
+      tasks.push(normalizedTask);
     }
 
     const previousTaskOfferIds = new Set(
-      quest.tasks.map((task) =>
-        typeof task.offer === "string" ? task.offer : task.offer._id,
-      ),
+      quest.tasks
+        .filter(
+          (task): task is MockBrandPurchaseQuestTask =>
+            task.task_type === "brand_purchase",
+        )
+        .map((task) =>
+          typeof task.offer === "string" ? task.offer : task.offer._id,
+        ),
     );
     for (const offer of mockOffers as MockOffer[]) {
       if (previousTaskOfferIds.has(offer._id)) offer.extra_point = 1;
     }
-    for (const task of tasks) {
+    for (const task of tasks.filter(
+      (item): item is MockBrandPurchaseQuestTask =>
+        item.task_type === "brand_purchase",
+    )) {
       const offer =
         typeof task.offer === "string"
           ? (mockOffers as MockOffer[]).find((o) => o._id === task.offer)
           : task.offer;
-      if (offer && task.enabled) offer.extra_point = task.extra_point;
+      if (offer && task.enabled) offer.extra_point = task.points;
     }
 
     quest.tasks = tasks;
+    quest.reward_model = rewardModel;
+    quest.timezone = "Asia/Bangkok";
+    if (b.audience && typeof b.audience === "object") {
+      quest.audience = b.audience as MockQuest["audience"];
+    }
+    if (b.reward_caps && typeof b.reward_caps === "object") {
+      quest.reward_caps = b.reward_caps as MockQuest["reward_caps"];
+    }
+    quest.config_revision = currentConfigRevision + 1;
     quest.updatedAt = new Date().toISOString();
     return ok(quest);
   }
