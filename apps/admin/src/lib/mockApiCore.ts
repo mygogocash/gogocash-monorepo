@@ -86,6 +86,11 @@ const mockSpecificPageBanners: Record<string, Record<string, unknown>> = {
   "all-shops": mockBannerAllShopsPage,
   "product-discovery": mockBannerProductDiscoveryPage,
 };
+const archivedMockCouponIds = new Set<string>();
+
+export function __resetCouponArchivesForTest() {
+  archivedMockCouponIds.clear();
+}
 
 function resolveMockSpecificPageBanner(
   path: string[],
@@ -1014,7 +1019,11 @@ function handleMockGET(
 
   if (path[0] === "offer" && path[1] === "get-coupon-id") {
     const offerId = path[2];
-    const coupons = mockCoupons.filter((c) => c.offer_id._id === offerId);
+    const coupons = mockCoupons.filter(
+      (coupon) =>
+        coupon.offer_id._id === offerId &&
+        !archivedMockCouponIds.has(coupon._id),
+    );
     return ok(coupons);
   }
 
@@ -1048,7 +1057,9 @@ function handleMockGET(
   }
 
   if (joined === "offer/get-coupon") {
-    let filtered = [...mockCoupons];
+    let filtered = mockCoupons.filter(
+      (coupon) => !archivedMockCouponIds.has(coupon._id),
+    );
     if (search) {
       const s = search.toLowerCase();
       filtered = filtered.filter(
@@ -2868,6 +2879,24 @@ async function handleMockPATCH(
 }
 
 function handleMockDELETE(path: string[], joined: string): MockApiResult {
+  if (path[0] === "offer" && path[1] === "coupons" && path.length === 3) {
+    const id = path[2];
+    const coupon = mockCoupons.find((item) => item._id === id);
+    if (!coupon) {
+      return jsonErr(404, { message: "Coupon not found." });
+    }
+    const alreadyArchived = archivedMockCouponIds.has(id);
+    archivedMockCouponIds.add(id);
+    return ok({
+      alreadyArchived,
+      archived: true,
+      id,
+      message: alreadyArchived
+        ? "Coupon was already deleted."
+        : "Coupon deleted successfully.",
+    });
+  }
+
   if (path[0] === "offer" && path.length === 2) {
     const id = path[1];
     const idx = mockOffers.findIndex((o) => o._id === id);
@@ -3044,6 +3073,11 @@ function requiredWritePermission(
   // Fee settings.
   if (p0 === "admin" && p1 === "update-fee-rate") return "fee:manage";
 
+  // Coupon creation/update/archive is separate from general brand management.
+  if (p0 === "offer" && (p1 === "coupons" || p1 === "update-coupon")) {
+    return "coupon:manage";
+  }
+
   if (p0 === "point" && (p1 === "create-quest" || p1 === "admin-quest")) {
     return "quest:manage";
   }
@@ -3089,6 +3123,17 @@ export async function handleMockApiRequest(
   // RBAC: enforce the write permission BEFORE any handler dispatch (including
   // the admin-features module) so no mutating route can run ungated.
   const callerRoleId = input.role ?? "viewer";
+  if (
+    m === "DELETE" &&
+    path[0] === "offer" &&
+    path[1] === "coupons" &&
+    !["admin", "super_admin"].includes(callerRoleId)
+  ) {
+    return jsonErr(403, {
+      message:
+        'Forbidden: coupon deletion requires an "admin" or "super_admin" role.',
+    });
+  }
   const writePermission = requiredWritePermission(m, path, joined);
   if (writePermission && !roleCan(callerRoleId, writePermission)) {
     return jsonErr(403, {

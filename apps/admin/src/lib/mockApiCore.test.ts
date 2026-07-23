@@ -1,8 +1,15 @@
 import { beforeEach, describe, it, expect } from "vitest";
-import { handleMockApiRequest, type MockApiResult } from "@/lib/mockApiCore";
+import {
+  __resetCouponArchivesForTest,
+  handleMockApiRequest,
+  type MockApiResult,
+} from "@/lib/mockApiCore";
 import { __resetRolesForTest } from "@/lib/rbac/roleStore";
 
-beforeEach(() => __resetRolesForTest());
+beforeEach(() => {
+  __resetRolesForTest();
+  __resetCouponArchivesForTest();
+});
 
 const call = (
   method: string,
@@ -32,6 +39,61 @@ describe("pagination clamping", () => {
     expect(Number.isFinite(body.pagination.totalPages)).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
   });
+});
+
+describe("coupon archive parity", () => {
+  it("archives a coupon from admin history and the customer offer response", async () => {
+    const before = await call("GET", ["offer", "get-coupon"], {
+      query: { limit: "550", page: "1" },
+    });
+    const coupons = (
+      before.body as {
+        data: Array<{ _id: string; offer_id: { _id: string } }>;
+      }
+    ).data;
+    const coupon = coupons.find((item) => item._id === "cp1");
+    expect(coupon).toBeDefined();
+
+    const deleted = await call("DELETE", ["offer", "coupons", "cp1"], {
+      role: "admin",
+    });
+    expect(deleted).toMatchObject({
+      status: 200,
+      body: { archived: true, id: "cp1" },
+    });
+
+    const history = await call("GET", ["offer", "get-coupon"], {
+      query: { limit: "550", page: "1" },
+    });
+    expect(
+      (history.body as { data: Array<{ _id: string }> }).data,
+    ).not.toContainEqual(expect.objectContaining({ _id: "cp1" }));
+
+    const customerCoupons = await call("GET", [
+      "offer",
+      "get-coupon-id",
+      coupon!.offer_id._id,
+    ]);
+    expect(customerCoupons.body).not.toContainEqual(
+      expect.objectContaining({ _id: "cp1" }),
+    );
+  });
+
+  it.each(["editor", "support", "viewer"])(
+    "rejects coupon archive for the lower %s tier",
+    async (role) => {
+      const response = await call("DELETE", ["offer", "coupons", "cp1"], {
+        role,
+      });
+
+      expect(response).toMatchObject({
+        status: 403,
+        body: {
+          message: expect.stringContaining("admin"),
+        },
+      });
+    },
+  );
 });
 
 describe("policy category create (mock parity with POST /admin/create-category)", () => {

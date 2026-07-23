@@ -1734,25 +1734,25 @@ export class OfferService implements OnApplicationBootstrap {
   }
 
   async getCoupon(page: number, limit: number, search: string) {
-    const filter =
-      search.trim().length > 0
-        ? {
-            $or: [
-              {
-                name: {
-                  $regex: escapeRegexLiteral(search),
-                  $options: 'i',
-                },
-              },
-              {
-                code: {
-                  $regex: escapeRegexLiteral(search),
-                  $options: 'i',
-                },
-              },
-            ],
-          }
-        : {};
+    const filter: Record<string, unknown> = {
+      archived_at: { $exists: false },
+    };
+    if (search.trim().length > 0) {
+      filter.$or = [
+        {
+          name: {
+            $regex: escapeRegexLiteral(search),
+            $options: 'i',
+          },
+        },
+        {
+          code: {
+            $regex: escapeRegexLiteral(search),
+            $options: 'i',
+          },
+        },
+      ];
+    }
     const data = await this.couponModel
       .find(filter)
       .populate('offer_id', ['offer_name'])
@@ -1766,10 +1766,57 @@ export class OfferService implements OnApplicationBootstrap {
     return { page, limit, total, totalPages, data };
   }
 
+  async archiveCoupon(
+    id: string,
+    actor: { adminEmail?: string; adminId: string },
+  ) {
+    const couponId = requireObjectId(id, 'coupon id');
+    const archivedAt = new Date();
+    const archived = await this.couponModel.findOneAndUpdate(
+      {
+        _id: couponId,
+        archived_at: { $exists: false },
+      },
+      mongoSetUpdate({
+        archived_at: archivedAt,
+        archived_by_admin_id: actor.adminId,
+        ...(actor.adminEmail
+          ? { archived_by_admin_email: actor.adminEmail }
+          : {}),
+        disabled: true,
+      }),
+      { new: true },
+    );
+
+    if (archived) {
+      return {
+        alreadyArchived: false,
+        archived: true,
+        id: couponId.toHexString(),
+        message: 'Coupon deleted successfully.',
+      };
+    }
+
+    const existingCoupon = await this.couponModel.exists({ _id: couponId });
+    if (!existingCoupon) {
+      throw new NotFoundException('Coupon not found.');
+    }
+
+    return {
+      alreadyArchived: true,
+      archived: true,
+      id: couponId.toHexString(),
+      message: 'Coupon was already deleted.',
+    };
+  }
+
   async getCouponId(id: string, now = new Date()) {
     const offerId = requireObjectId(id, 'offer id');
     const coupons = (await this.couponModel
-      .find({ offer_id: offerId })
+      .find({
+        archived_at: { $exists: false },
+        offer_id: offerId,
+      })
       .populate('offer_id', [
         'offer_name',
         'offer_name_display',
