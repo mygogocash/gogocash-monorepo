@@ -202,8 +202,19 @@ export function resolveApiLandingRails<TSection extends HomePromoSection>(
     cards: filterCompactBrandCardsByRegion(section.cards, regionCode, source),
   });
 
-  if (source !== "backend" || !isLandingRailsResponse(data)) {
+  // Backend mode = the admin back office is the ONLY source of rail brands.
+  // The fixture brands are demo content (webHomePromoSections) and must never
+  // stand in for un-curated admin data, or the storefront advertises cashback
+  // for merchants that do not exist in Brands Management. An empty rail renders
+  // no cards; CustomerHomeScreen drops zero-card sections, so the rail vanishes.
+  const withNoCards = (section: TSection): TSection => ({ ...section, cards: [] });
+
+  if (source !== "backend") {
     return fallbackSections.map(withFixtureCards);
+  }
+
+  if (!isLandingRailsResponse(data)) {
+    return fallbackSections.map(withNoCards);
   }
 
   const apiByRailId = new Map<string, LandingRailApiEntry>();
@@ -217,15 +228,11 @@ export function resolveApiLandingRails<TSection extends HomePromoSection>(
   return fallbackSections.map((section) => {
     const apiRail = apiByRailId.get(section.id);
     if (!apiRail) {
-      return withFixtureCards(section);
+      return withNoCards(section);
     }
 
     const apiCards = apiRail.dataDesktop ?? apiRail.data ?? [];
-    // Empty curated rail ⇒ fall back to the fixture cards so no rail is blank.
-    const cards =
-      apiCards.length > 0
-        ? apiCards.map(mapLandingRailCard)
-        : filterCompactBrandCardsByRegion(section.cards, regionCode, source);
+    const cards = apiCards.map(mapLandingRailCard);
 
     const title = String(apiRail.title ?? "").trim() || section.title;
     const link = String(apiRail.link ?? "").trim() || section.link;

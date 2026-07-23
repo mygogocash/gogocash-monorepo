@@ -158,12 +158,12 @@ describe("brand catalog resource", () => {
     ]);
   });
 
-  it("resolveApiLandingRails > given an unavailable API payload > falls back to fixture rails", () => {
+  it("resolveApiLandingRails > given an unavailable API payload > renders no fixture brands", () => {
     const sections = resolveApiLandingRails("backend", null, fallbackSections);
     expect(sections.map((s) => s.id)).toEqual(["trending", "travel", "makeup"]);
-    expect(sections.find((s) => s.id === "trending")?.cards).toEqual([
-      expect.objectContaining({ brand: "Fixture Trend" }),
-    ]);
+    for (const section of sections) {
+      expect(section.cards).toEqual([]);
+    }
   });
 
   it("resolveApiLandingRails > given backend rails with cards > prefers the curated rail and overlays title/link/icon", () => {
@@ -177,20 +177,16 @@ describe("brand catalog resource", () => {
     ]);
   });
 
-  it("resolveApiLandingRails > given a rail the API does not curate > keeps that fixture rail", () => {
+  it("resolveApiLandingRails > given a rail the API does not curate > renders that rail with no cards", () => {
     const sections = resolveApiLandingRails("backend", landingRailsPayload, fallbackSections);
-    expect(sections.find((s) => s.id === "trending")?.cards).toEqual([
-      expect.objectContaining({ brand: "Fixture Trend" }),
-    ]);
+    expect(sections.find((s) => s.id === "trending")?.cards).toEqual([]);
   });
 
-  it("resolveApiLandingRails > given an empty curated rail > falls back to that rail's fixture cards", () => {
+  it("resolveApiLandingRails > given an empty curated rail > renders that rail with no cards", () => {
     const emptyRail = {
       data: [{ railId: "makeup", title: "Makeup Must Have!", link: "/x", data: [], dataDesktop: [], dataMobile: [] }],
     };
     const sections = resolveApiLandingRails("backend", emptyRail, fallbackSections);
-    expect(sections.find((s) => s.id === "makeup")?.cards).toEqual([
-      expect.objectContaining({ brand: "Fixture Beauty" }),
-    ]);
+    expect(sections.find((s) => s.id === "makeup")?.cards).toEqual([]);
   });
 });
