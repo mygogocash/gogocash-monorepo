@@ -669,9 +669,9 @@ export default function QuestTable({
   const tasksBaseline = useMemo(
     () => ({
       ...buildTaskConfigPayload(makeTaskConfigDraft(selectedQuest)),
-      tasks: buildQuestTaskPayloads(makeTaskDrafts(selectedQuest)),
+      tasks: buildQuestTaskPayloads(makeTaskDrafts(selectedQuest), offersById),
     }),
-    [selectedQuest],
+    [selectedQuest, offersById],
   );
   const taskConfigPayload = useMemo(
     () => buildTaskConfigPayload(taskConfigDraft),
@@ -680,9 +680,9 @@ export default function QuestTable({
   const currentTaskPayloads = useMemo(
     () =>
       taskDrafts.every((task) => task.task_type)
-        ? buildQuestTaskPayloads(taskDrafts)
+        ? buildQuestTaskPayloads(taskDrafts, offersById)
         : null,
-    [taskDrafts],
+    [taskDrafts, offersById],
   );
   const rewardsBaseline = useMemo(
     () =>
@@ -706,7 +706,8 @@ export default function QuestTable({
   );
   const rewardsDirty = !sameJson(rewardsPayload, rewardsBaseline);
   const taskValidationError =
-    validateQuestTasks(taskDrafts) ?? validateTaskConfig(taskConfigDraft);
+    validateQuestTasks(taskDrafts, offersById) ??
+    validateTaskConfig(taskConfigDraft);
   const rewardValidationError =
     validateQuestRewards(rewardDrafts) ??
     validateQuestRewardDistribution(rewardDistributionDraft);
@@ -794,7 +795,7 @@ export default function QuestTable({
       }
 
       const draftTaskPayloads =
-        currentTaskPayloads ?? buildQuestTaskPayloads(taskDrafts);
+        currentTaskPayloads ?? buildQuestTaskPayloads(taskDrafts, offersById);
       const campaignTaskPayloads = draftTaskPayloads.map((task, index) => {
         const committedTaskKey = campaign.tasks?.[index]?.task_key;
         return committedTaskKey
