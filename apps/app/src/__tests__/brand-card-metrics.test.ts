@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { getBrandCardLargeHeight } from "@mobile/components/brandCardMetrics";
-import { getDirectoryStoreCardHeight } from "@mobile/screens/discovery/directoryVirtualizedGrid";
 
 /**
  * Measured in a browser from a rendered size-"L" BrandCard (Expo web export):
@@ -26,12 +25,13 @@ describe("brand card metrics", () => {
     expect(slack).toBeLessThanOrEqual(4);
   });
 
-  it("getBrandCardLargeHeight > given the unified card > reserves less than the legacy bespoke card", () => {
-    // BrandCard has a single-line name; the legacy ShopDirectoryStoreCard reserves
-    // a two-line name (minHeight 38) plus a taller cashback row.
-    expect(getBrandCardLargeHeight(MEASURED_CARD_WIDTH)).toBeLessThan(
-      getDirectoryStoreCardHeight(MEASURED_CARD_WIDTH),
-    );
+  it("getBrandCardLargeHeight > given the unified card > reserves less than the retired bespoke formula", () => {
+    // The retired getDirectoryStoreCardHeight was `cardWidth + spacing.sm * 2 + 72`:
+    // a two-line name (minHeight 38) plus a taller cashback row, for a card that
+    // no longer exists. Kept as a regression floor so the reserve cannot creep back.
+    const retiredFormula = MEASURED_CARD_WIDTH + 10 * 2 + 72;
+
+    expect(getBrandCardLargeHeight(MEASURED_CARD_WIDTH)).toBeLessThan(retiredFormula);
   });
 
   it("getBrandCardLargeHeight > given a wider card > grows 1:1 because the logo tile is square", () => {
