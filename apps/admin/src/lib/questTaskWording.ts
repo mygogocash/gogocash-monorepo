@@ -31,6 +31,20 @@ export function defaultQuestTaskWording(
   return expandQuestWordingTemplate(template, brand);
 }
 
+// Editor helper copy under the wording fields. Only brand_purchase tasks (whose offer has a
+// resolvable default) may truly be left blank — the save path fills the brand default. For
+// tasks with no brand fallback, blank would drop the task from the customer page, so the copy
+// must say wording is required rather than making a false "leave blank" promise.
+export function questWordingHelperText(
+  offer: OfferLike | null | undefined,
+): string {
+  const base =
+    "Shown on the customer Quest page by language. Search presets or type custom copy. ";
+  return defaultQuestTaskWording(offer, "en")
+    ? `${base}Leave blank to use the brand default for that language.`
+    : `${base}Enter English or Thai wording — required for this task.`;
+}
+
 export function buildQuestWordingOptions(
   locale: QuestWordingLocale,
   brandLabel: string,
