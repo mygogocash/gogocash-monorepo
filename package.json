@@ -29,7 +29,7 @@
     "e2e:seed": "mkdir -p .e2e && MONGO_URI=mongodb://localhost:27017/gogocash-e2e?replicaSet=rs0 JWT_SECRET=e2e-local-jwt-secret-change-me JWT_ADMIN_SECRET=e2e-local-admin-jwt-secret-change-me E2E_SEED_OUT=$PWD/.e2e/seed.json npm run seed:e2e -w gogocash-api",
     "e2e:stack": "bash scripts/e2e-stack.sh",
     "e2e:stack:stop": "bash scripts/e2e-stack.sh stop",
-    "e2e": "npm run e2e:up && npm run e2e:seed && npm run e2e:stack && bash scripts/e2e-wait-api.sh && bash scripts/e2e-run-tests.sh",
+    "e2e": "npm run e2e:up && npm run e2e:seed && npm run e2e:stack && bash scripts/e2e-wait-api.sh && bash scripts/e2e-wait-web.sh && bash scripts/e2e-run-tests.sh",
     "test:dependency-hygiene": "node --test scripts/dependency-hygiene.test.mjs"
   },
   "devDependencies": {
