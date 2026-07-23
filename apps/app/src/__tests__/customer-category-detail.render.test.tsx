@@ -79,8 +79,12 @@ describe("CustomerCategoryDetailScreen — Wave B foundations adopted (source si
     // imported from @mobile/lib/haptics and called inside the pill's onPress.
     expect(categorySource).toContain("@mobile/lib/haptics");
     expect(categorySource).toContain("haptics.impact()");
-    // Wired into the sort selection handler that also sets sortBy.
-    expect(categorySource).toMatch(/onPress=\{\(\)\s*=>\s*\{[\s\S]*haptics\.impact\(\)[\s\S]*setSortBy\(/);
+    // Wired into the sort selection handler that also sets sortBy. The pills now live
+    // in the shared DirectorySearchPanel, so the handler is its onSelectSort prop
+    // rather than an inline onPress.
+    expect(categorySource).toMatch(
+      /onSelectSort=\{\([\s\S]*?\)\s*=>\s*\{[\s\S]*haptics\.impact\(\)[\s\S]*setSortBy\(/,
+    );
   });
 
   it("uses canonical shop hrefs for brand cards instead of deriving display-name slugs", () => {

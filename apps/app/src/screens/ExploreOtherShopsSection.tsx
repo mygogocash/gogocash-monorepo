@@ -52,7 +52,13 @@ export function ExploreOtherShopsSection({ contentWidth }: { contentWidth: numbe
     return null;
   }
 
-  const gridMetrics = getShopDirectoryGridMetrics({ contentWidth, viewportWidth });
+  // This rail renders BrandCard size "S", so it may pack tighter than the
+  // directories' "L" grids before hitting its width floor.
+  const gridMetrics = getShopDirectoryGridMetrics({
+    cardSize: "S",
+    contentWidth,
+    viewportWidth,
+  });
   const scaledCard = getScaledCompactBrandCardMetrics(gridMetrics.cardWidth);
   const cardsPerPage = getResponsiveHomeLayoutMetrics(viewportWidth).compactBrandCardsPerPage;
   const visibleCards = cards.slice(0, cardsPerPage);

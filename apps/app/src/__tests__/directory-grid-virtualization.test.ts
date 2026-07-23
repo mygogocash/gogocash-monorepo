@@ -27,10 +27,10 @@ describe("directory grid virtualization (Wave 1 perf)", () => {
     expect(discoverySource).toContain("DirectoryVirtualizedGrid");
     expect(discoverySource).toContain("<DirectoryVirtualizedGrid");
     expect(discoverySource).not.toMatch(
-      /visibleBrands\.map\(\(store\) =>[\s\S]*?<BrandDirectoryStoreCard/
+      /visibleBrands\.map\(\(store\) =>[\s\S]*?<BrandCard/
     );
     expect(discoverySource).not.toMatch(
-      /visibleStores\.map\(\(store\) =>[\s\S]*?<ShopDirectoryStoreCard/
+      /visibleStores\.map\(\(store\) =>[\s\S]*?<BrandCard/
     );
     expect(discoverySource).not.toMatch(
       /visibleProducts\.map\(\(product\) =>[\s\S]*?<ProductDiscoveryCard/
@@ -40,8 +40,9 @@ describe("directory grid virtualization (Wave 1 perf)", () => {
   it("CustomerDiscoveryScreen > given directory row cards > then store and product cards use React.memo", () => {
     const discoverySource = readDiscoverySources(mobileRoot);
 
-    expect(discoverySource).toMatch(/const BrandDirectoryStoreCard = memo\(/);
-    expect(discoverySource).toMatch(/const ShopDirectoryStoreCard = memo\(/);
+    // Both directories render the shared BrandCard, which is memoised at source.
+    const brandCard = readMobileFile("src/components/BrandCard.tsx");
+    expect(brandCard).toMatch(/export const BrandCard = memo\(/);
     expect(discoverySource).toMatch(/const ProductDiscoveryCard = memo\(/);
   });
 
