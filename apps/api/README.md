@@ -101,7 +101,7 @@ A money/auth hardening pass landed — see [`/SECURITY_HARDENING.md`](../../SECU
 ## 2. Tech Stack
 
 - **Framework**: NestJS
-- **Runtime**: Node.js 24 LTS (`engines.node >= 24`; Docker image `node:24-alpine`)
+- **Runtime**: Node.js 26 (`engines.node >= 24`; Docker image `node:26-alpine`)
 - **Language**: TypeScript
 - **DB**: MongoDB via Mongoose (mongoose 9)
 - **Scheduler**: `@nestjs/schedule` cron jobs

@@ -181,6 +181,11 @@ describe("Expo auth design parity", () => {
       'fontWeight: "400"',
       "lineHeight: 20",
     ]);
+    expectStyleBlock(authFile, "socialLabelRow", [
+      "fontSize: 15",
+      'fontWeight: "400"',
+      "lineHeight: 20",
+    ]);
     expectStyleBlock(authFile, "privacyLink", [
       'pickThemed(colors, "#3E3E3E", colors.link)',
       "fontSize: 13",

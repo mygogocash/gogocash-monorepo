@@ -98,11 +98,14 @@ export type NormalizedLandingRail = NormalizedLandingRailMeta & {
  * and admin panel curate by the same key.
  */
 export function normalizeLandingRailId(value: unknown): string {
-  return String(value ?? '')
+  const slug = String(value ?? '')
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]+/g, '-');
+  const withoutLeadingDash = slug.startsWith('-') ? slug.slice(1) : slug;
+  return withoutLeadingDash.endsWith('-')
+    ? withoutLeadingDash.slice(0, -1)
+    : withoutLeadingDash;
 }
 
 function toTrimmedString(value: unknown): string {

@@ -33,7 +33,7 @@ records changes only the claim workflow fields.
 
 ## 1. Runtime and target preflight
 
-Run from `apps/api` with Node 24. Build first; the operational entry is emitted
+Run from `apps/api` with Node 26. Build first; the operational entry is emitted
 inside `dist` and runs with plain Node.js, without `@swc-node/register` or any
 other TypeScript loader:
 
