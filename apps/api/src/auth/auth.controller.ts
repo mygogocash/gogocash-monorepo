@@ -234,7 +234,8 @@ export class AuthController {
   @ApiBody({ type: TelegramAuthDto })
   @ApiResponse({ status: 201, description: 'User login successfully' })
   async loginTelegram(@Req() req: Request, @Body() body: TelegramAuthDto) {
-    // The guard has already validated the token and added the user payload to the request
+    // The global pipe enforces the signed-field allowlist; AuthService verifies
+    // the Telegram HMAC and freshness before any account lookup or mutation.
     const user = await this.auth.signInTelegram(body);
     return { message: 'Login successful!', ...user };
   }

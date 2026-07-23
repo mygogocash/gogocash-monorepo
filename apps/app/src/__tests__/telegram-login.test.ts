@@ -17,7 +17,7 @@ describe("telegram login > exchangeTelegramAuth", () => {
     user: { _id: "user-1", provider: "telegram", username: "gogo_user" },
   };
 
-  it("posts the Telegram widget payload to /auth/log-in/telegram", async () => {
+  it("posts only the exact Telegram-signed payload to /auth/log-in/telegram", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       json: () => Promise.resolve(okResponse),
       ok: true,
@@ -29,14 +29,11 @@ describe("telegram login > exchangeTelegramAuth", () => {
       country: "TH",
       fetchImpl,
       payload: telegramPayload,
-    });
+    } as Parameters<typeof exchangeTelegramAuth>[0] & { country: string });
 
     const [url, init] = fetchImpl.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("https://api.dev.gogocash.co/auth/log-in/telegram");
-    expect(JSON.parse(String(init.body))).toMatchObject({
-      ...telegramPayload,
-      country: "TH",
-    });
+    expect(JSON.parse(String(init.body))).toEqual(telegramPayload);
   });
 
   it("maps the backend provider into the persisted session", async () => {
