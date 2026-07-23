@@ -22,6 +22,7 @@ import {
 } from "@mobile/account/directoryCatalogResource";
 import { useCategoryOfferBrowse } from "@mobile/account/useCategoryOfferBrowse";
 import { BrandCard } from "@mobile/components/BrandCard";
+import { getCategoryGridMetrics } from "@mobile/screens/categoryDetailGrid";
 import { getMobileEnv } from "@mobile/config/env";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
@@ -33,7 +34,6 @@ import { useLocale } from "@mobile/i18n/LocaleProvider";
 import {
   getDesktopShellOffset,
   getResponsiveHomeLayoutMetrics,
-  getScaledCompactBrandCardMetrics,
   mobileShellLayout,
   type WebCategoryExploreSort,
   webCategoryExploreHealthBeauty,
@@ -83,42 +83,6 @@ function getVisibleStoreCountLabel(count: number) {
   }
 
   return `${count} ${count === 1 ? "brand" : "brands"}`;
-}
-
-function getCategoryGridMetrics({
-  contentWidth,
-  isDesktop,
-  viewportWidth,
-}: {
-  contentWidth: number;
-  isDesktop: boolean;
-  viewportWidth: number;
-}) {
-  const layoutGap = isDesktop ? 32 : 0;
-  const sidebarWidth = isDesktop ? 280 : 0;
-  const gridWidth = Math.max(0, contentWidth - sidebarWidth - layoutGap);
-  const gap = isDesktop || viewportWidth >= 640 ? 16 : 12;
-  const preferredColumns = isDesktop
-    ? 5
-    : viewportWidth >= 768
-      ? 4
-      : viewportWidth >= 640
-        ? 3
-        : 2;
-  const columns = Math.max(1, preferredColumns);
-  const cardWidth = (gridWidth - gap * Math.max(0, columns - 1)) / columns;
-  const scaledCard = getScaledCompactBrandCardMetrics(cardWidth);
-
-  return {
-    cardHeight: scaledCard.cardHeight,
-    cardWidth,
-    logoVisualHeight: scaledCard.logoVisualHeight,
-    columns,
-    gap,
-    gridWidth,
-    layoutGap,
-    sidebarWidth,
-  };
 }
 
 export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: string }) {

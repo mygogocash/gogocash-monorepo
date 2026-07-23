@@ -3,7 +3,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { BRAND_CARD_MIN_WIDTH } from "@mobile/components/brandCardMetrics";
 import * as webDesignParity from "@mobile/design/webDesignParity";
+import { getCategoryGridMetrics } from "@mobile/screens/categoryDetailGrid";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(testDir, "../..");
@@ -171,7 +173,12 @@ describe("Category detail parity", () => {
 
     expect(screenFile).toContain('import { BrandCard } from "@mobile/components/BrandCard"');
     expect(screenFile).toContain('size="S"');
-    expect(screenFile).toContain("getScaledCompactBrandCardMetrics");
+    // Scaled compact metrics moved to categoryDetailGrid.ts with the rest of the sizing.
+    const gridFile = fs.readFileSync(
+      path.join(mobileRoot, "src/screens/categoryDetailGrid.ts"),
+      "utf8"
+    );
+    expect(gridFile).toContain("getScaledCompactBrandCardMetrics");
     expect(screenFile).toContain("category-result-card");
     expect(screenFile).not.toContain("Grab Coupon");
     expect(screenFile).not.toContain("favoriteButton");
@@ -191,15 +198,25 @@ describe("Category detail parity", () => {
     expect(screenFile).toMatch(/<BrandCard[\s\S]*?href=\{store\.href\}[\s\S]*?\/>/);
   });
 
-  it("category detail grid > given desktop width >= 1024 > then it uses 5 columns matching brand/shop directories", () => {
-    const screenFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),
-      "utf8"
-    );
+  it("category detail grid > given a wide desktop grid > then it uses 5 columns matching brand/shop directories", () => {
+    // Metrics moved to categoryDetailGrid.ts so this can assert behaviour rather
+    // than source text. 5 is the preferred desktop density…
+    expect(
+      getCategoryGridMetrics({ contentWidth: 1440, isDesktop: true, viewportWidth: 1440 }).columns
+    ).toBe(5);
+  });
 
-    expect(screenFile).toContain("isDesktop");
-    expect(screenFile).toMatch(/isDesktop\s*\?\s*5/);
-    expect(screenFile).not.toMatch(/viewportWidth >= 1280[\s\S]*?6/);
+  it("category detail grid > given the 280px aside narrowing it > then it drops columns rather than shrink cards", () => {
+    // …but the grid sits beside a 280px aside, so at 1100px the 5-up would scale
+    // the small card down to ~105px and clip its cashback caption to "Cash…".
+    const narrowed = getCategoryGridMetrics({
+      contentWidth: 900,
+      isDesktop: true,
+      viewportWidth: 1100,
+    });
+
+    expect(narrowed.columns).toBeLessThan(5);
+    expect(narrowed.cardWidth).toBeGreaterThanOrEqual(BRAND_CARD_MIN_WIDTH.S);
   });
 
   it("category detail copy > given the rendered subtitle and count > then they say 'brands' (not 'stores') and the subtitle matches the fixture", () => {
