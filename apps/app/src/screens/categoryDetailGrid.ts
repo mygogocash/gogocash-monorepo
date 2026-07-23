@@ -4,8 +4,10 @@
  * Extracted from CustomerCategoryDetailScreen so the sizing contract is unit
  * testable — same split as favoriteBrandGrid.ts.
  */
-import { fitBrandCardColumns } from "@mobile/components/brandCardMetrics";
-import { getScaledCompactBrandCardMetrics } from "@mobile/design/webDesignParity";
+import {
+  fitBrandCardColumns,
+  getBrandCardLargeHeight,
+} from "@mobile/components/brandCardMetrics";
 
 export function getCategoryGridMetrics({
   contentWidth,
@@ -29,21 +31,21 @@ export function getCategoryGridMetrics({
       : viewportWidth >= 640
         ? 3
         : 2;
-  // The desktop 5-up is chosen from the viewport, but this grid sits beside a
-  // 280px category aside — so the card has to be checked against its own floor
-  // or it scales down into an illegible third design.
+  // Same setup as the All Brands page: the big card. This grid used to render a
+  // scaled size "S", which at desktop widths stretched to 185.3 wide — wider
+  // than the big card on /brand (180). The desktop 5-up is chosen from the
+  // viewport, so it still has to be checked against the card's width floor
+  // because this grid sits beside a 280px category aside.
   const { cardWidth, columns } = fitBrandCardColumns({
     contentWidth: gridWidth,
     gap,
     maxColumns: preferredColumns,
-    size: "S",
+    size: "L",
   });
-  const scaledCard = getScaledCompactBrandCardMetrics(cardWidth);
 
   return {
-    cardHeight: scaledCard.cardHeight,
+    cardHeight: getBrandCardLargeHeight(cardWidth),
     cardWidth,
-    logoVisualHeight: scaledCard.logoVisualHeight,
     columns,
     gap,
     gridWidth,
