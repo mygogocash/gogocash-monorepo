@@ -47,6 +47,7 @@ describe("Expo auth design parity", () => {
     expect(webAuthPage.socialProviders.map((provider) => provider.label)).toEqual([
       "Facebook",
       "Gmail",
+      "LINE",
       "Telegram",
       "Apple",
       "X",
@@ -60,9 +61,13 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("authDesktopPageHorizontalPadding");
     expect(authFile).toContain("authHeroImage");
     expect(authFile).toContain("resolveAuthSocialProviders");
-    expect(authFile).toContain("authSocialProviders.slice(0, 4)");
-    expect(authFile).toContain("authSocialProviders.slice(4)");
+    expect(authFile).toContain("styles.socialStackDesktop");
+    expect(authFile).toContain('variant="row"');
     expect(authFile).toContain("PhoneOtpBoxes");
+    expect(authFile).toContain("LineBrandIcon");
+    expect(authFile).toContain("requestLineLogin");
+    expect(authFile).toContain("exchangeLineAuth");
+    expect(authFile).toContain("canAttemptPhoneOtpSend");
     expect(authFile).not.toContain('placeholder="Email"');
     expect(authFile).not.toContain('placeholder="Password"');
   });
@@ -70,14 +75,16 @@ describe("Expo auth design parity", () => {
   it("auth behavior contract > given phone privacy and OTP flow > then state labels and CTA rules are present", () => {
     const authFile = readMobileFile("src/screens/CustomerAuthScreen.tsx");
 
-    expect(authFile).toContain("privacyAccepted && phoneDigits.length >= 9");
+    expect(authFile).toContain("canAttemptPhoneOtpSend");
+    expect(authFile).toContain("privacyAccepted");
+    expect(authFile).toContain("phoneDigits.length");
     expect(authFile).toContain('setAuthPhase("otp")');
     expect(authFile).toContain('setAuthPhase("phone")');
     expect(authFile).toContain('setOtpInput("")');
     expect(authFile).toContain("webAuthPage.privacyPolicyLabel");
     expect(authFile).toContain("webAuthPage.otp.changeNumber");
     expect(authFile).toContain("webAuthPage.otp.resend");
-    expect(authFile).toContain("accessibilityLabel={provider.label}");
+    expect(authFile).toContain("accessibilityLabel={label}");
   });
 
   it("auth social icons > given Next CI brand assets > then Expo uses SVG marks instead of placeholder letters", () => {
@@ -86,6 +93,7 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain('from "react-native-svg"');
     expect(authFile).toContain("FacebookBrandIcon");
     expect(authFile).toContain("GoogleBrandIcon");
+    expect(authFile).toContain("LineBrandIcon");
     expect(authFile).toContain("TelegramBrandIcon");
     expect(authFile).toContain("AppleBrandIcon");
     expect(authFile).toContain("XBrandIcon");
@@ -94,6 +102,7 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("WalletConnectBrandIcon");
     expect(authFile).toContain('fill="#1877F2"');
     expect(authFile).toContain('fill="#FBBB00"');
+    expect(authFile).toContain('fill="#00C500"');
     expect(authFile).toContain('stopColor="#2AABEE"');
     expect(authFile).toContain('fill="#3B99FC"');
     expect(authFile).not.toContain('facebook: "f"');
@@ -167,6 +176,11 @@ describe("Expo auth design parity", () => {
       'fontWeight: "500"',
       "lineHeight: 12.5",
     ]);
+    expectStyleBlock(authFile, "socialLabelRow", [
+      "fontSize: 15",
+      'fontWeight: "400"',
+      "lineHeight: 20",
+    ]);
     expectStyleBlock(authFile, "privacyLink", [
       'pickThemed(colors, "#3E3E3E", colors.link)',
       "fontSize: 13",
@@ -194,10 +208,20 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("styles.socialGridMobile");
     expect(authFile).toContain("styles.socialButtonMobile");
     expect(authFile).toContain("authSocialProviders.map");
-    expect(authFile).toContain("usesMobileFormLayout ? dividerText.toUpperCase() : dividerText");
+    expect(authFile).toContain("usesMobileFormLayout ? tc(dividerText).toUpperCase() : tc(dividerText)");
     expect(authFile).toContain("<CustomerCookieConsentBanner isDesktop={isDesktopShell} />");
-    expectStyleBlock(authFile, "pageAuthMobile", ["paddingHorizontal: 24"]);
-    expectStyleBlock(authFile, "cardInnerMobile", ["paddingHorizontal: 16", "paddingTop: 24"]);
+    // Founder 2026-07-13: the social grid sat flush against the card edge and
+    // the floating bottom nav. The page clears the nav like sibling detail
+    // screens (clearance + 24) and the card keeps inner bottom breathing room.
+    expectStyleBlock(authFile, "pageAuthMobile", [
+      "paddingBottom: mobileShellLayout.bottomNavClearance + 24",
+      "paddingHorizontal: 24",
+    ]);
+    expectStyleBlock(authFile, "cardInnerMobile", [
+      "paddingBottom: 24",
+      "paddingHorizontal: 16",
+      "paddingTop: 24",
+    ]);
     expectStyleBlock(authFile, "brandBlockMobile", ["gap: 8", "paddingBottom: 32"]);
     expectStyleBlock(authFile, "countryRowMobile", [
       'alignItems: "stretch"',
@@ -214,7 +238,7 @@ describe("Expo auth design parity", () => {
     expectStyleBlock(authFile, "socialButtonMobile", ["height: 72", 'width: "48%"']);
   });
 
-  it("auth tablet parity > given the 768-1023 band > then Expo uses the centered tablet frame and desktop social rows", () => {
+  it("auth tablet parity > given the 768-1023 band > then Expo uses the centered tablet frame and desktop social stack", () => {
     const authFile = readMobileFile("src/screens/CustomerAuthScreen.tsx");
 
     expect(authFile).toContain("getDeviceClass");
@@ -225,6 +249,11 @@ describe("Expo auth design parity", () => {
     expect(authFile).toContain("styles.cardStackedTablet");
     expect(authFile).toContain("usesDesktopSocialLayout");
     expect(authFile).toContain("usesFullWidthPrimaryAction");
+    expect(authFile).toContain("styles.socialStackDesktop");
+    expect(authFile).toContain("styles.socialButtonRow");
+    expect(authFile).toContain("Continue with ${provider.label}");
+    // Row buttons expose the same Continue-with copy to assistive tech.
+    expect(authFile).toContain("accessibilityLabel={label}");
     expectStyleBlock(authFile, "tabletFrame", [
       "maxWidth: mobileShellLayout.tabletContentMaxWidth",
       'alignSelf: "center"',
@@ -233,5 +262,15 @@ describe("Expo auth design parity", () => {
       "paddingHorizontal: mobileShellLayout.tabletContentHorizontalPadding",
     ]);
     expectStyleBlock(authFile, "cardInnerTablet", ["paddingHorizontal: 32", "paddingTop: 28"]);
+    expectStyleBlock(authFile, "socialStackDesktop", [
+      'flexDirection: "row"',
+      "gap: 10",
+      'width: "100%"',
+    ]);
+    expectStyleBlock(authFile, "socialButtonRow", [
+      "flex: 1",
+      'flexDirection: "row"',
+      "height: 52",
+    ]);
   });
 });

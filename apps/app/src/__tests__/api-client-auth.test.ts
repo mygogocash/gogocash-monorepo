@@ -97,4 +97,71 @@ describe("createMobileApiClient auth token selection", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(sessionStore.clearSession).not.toHaveBeenCalled();
   });
+
+  it("given Firebase token returns 401 on a multipart upload > then retries once with the backend JWT", async () => {
+    const fetchImpl = vi.fn(
+      async (_url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+        const auth = (init?.headers as Record<string, string> | undefined)?.Authorization;
+
+        if (auth === "Bearer firebase-id-token") {
+          return {
+            ok: false,
+            status: 401,
+            text: async () => JSON.stringify({ message: "Invalid Firebase token" }),
+          } as Response;
+        }
+
+        return {
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({ ok: true }),
+        } as Response;
+      },
+    );
+    const sessionStore = makeStore("backend-jwt");
+
+    const client = createMobileApiClient({
+      baseUrl: "https://api.dev.gogocash.co",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      getPreferredAuthToken: async () => "firebase-id-token",
+      sessionStore,
+    });
+
+    const formData = { append: () => {} } as unknown as FormData;
+    await expect(client.postFormData("/user/profile/avatar", formData)).resolves.toEqual({
+      ok: true,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const retryInit = fetchImpl.mock.calls[1]?.[1] as RequestInit;
+    expect((retryInit.headers as Record<string, string>).Authorization).toBe(
+      "Bearer backend-jwt",
+    );
+    expect(sessionStore.clearSession).not.toHaveBeenCalled();
+  });
+
+  it("given a multipart 401 on the backend JWT itself > then the session is cleared once", async () => {
+    const fetchImpl = vi.fn(
+      async (): Promise<Response> =>
+        ({
+          ok: false,
+          status: 401,
+          text: async () => JSON.stringify({ message: "expired" }),
+        }) as Response,
+    );
+    const sessionStore = makeStore("backend-jwt");
+
+    const client = createMobileApiClient({
+      baseUrl: "https://api.dev.gogocash.co",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      getPreferredAuthToken: async () => null,
+      sessionStore,
+    });
+
+    const formData = { append: () => {} } as unknown as FormData;
+    await expect(
+      client.postFormData("/user/profile/avatar", formData),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(sessionStore.clearSession).toHaveBeenCalledTimes(1);
+  });
 });

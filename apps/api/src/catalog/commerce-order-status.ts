@@ -51,10 +51,10 @@ export function validateAdminOrderStatusTransition(
       }
       return;
     default: {
+      // Exhaustiveness guard: unreachable for valid, typed transitions.
       const exhaustive: never = next;
-      throw new BadRequestException(
-        `Unsupported status transition: ${exhaustive}`,
-      );
+      void exhaustive;
+      throw new BadRequestException("This order status change isn't allowed.");
     }
   }
 }

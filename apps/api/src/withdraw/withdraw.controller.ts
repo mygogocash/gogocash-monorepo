@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Headers,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -16,29 +17,78 @@ import {
   GETSignDTO,
   GetWithdrawTransactionsDTO,
   MarkWithdrawPaidDto,
+  PreviewWithdrawFeeDto,
   RequestCreateRewardList,
 } from './dto/create-withdraw.dto';
 import {
   CreateWithdrawMethod,
   UpdateWithdrawDto,
 } from './dto/update-withdraw.dto';
+import {
+  SendUserContactOtpDto,
+  UpdateWithdrawUserDto,
+  VerifyUserContactOtpDto,
+} from './dto/user-contact-otp.dto';
+import { UserContactOtpService } from './user-contact-otp.service';
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
-// import { extractAnalyticsContext } from 'src/analytics/analytics-context';
+import { extractAnalyticsContext } from 'src/analytics/analytics-context';
+import { AnalyticsService } from 'src/analytics/analytics.service';
+import { amountBand } from 'src/analytics/amount-band';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { RolesGuard } from 'src/admin/roles.guard';
+import { Roles } from 'src/admin/roles.decorator';
+import { requireAdminActor } from 'src/admin/activity/admin-activity.actor';
 import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
+import { RateLimitGuard } from 'src/auth/rate-limit.guard';
+import { RateLimit } from 'src/auth/rate-limit.decorator';
 @Controller('withdraw')
 export class WithdrawController {
-  constructor(private readonly withdrawService: WithdrawService) {}
+  constructor(
+    private readonly withdrawService: WithdrawService,
+    private readonly analytics: AnalyticsService,
+    private readonly userContactOtpService: UserContactOtpService,
+  ) {}
+
+  // #424 — admin withdraw-detail contact OTP (was mock-only → Cannot POST on beta).
+  @UseGuards(AuthAdminGuard, RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: SendUserContactOtpDto })
+  @Post('send-user-contact-otp')
+  sendUserContactOtp(@Body() body: SendUserContactOtpDto) {
+    return this.userContactOtpService.sendOtp(body);
+  }
+
+  @UseGuards(AuthAdminGuard, RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 10 })
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: VerifyUserContactOtpDto })
+  @Post('verify-user-contact-otp')
+  verifyUserContactOtp(@Body() body: VerifyUserContactOtpDto) {
+    return this.userContactOtpService.verifyOtp(body);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: UpdateWithdrawUserDto })
+  @Post('update-withdraw-user')
+  updateWithdrawUser(@Body() body: UpdateWithdrawUserDto) {
+    return this.userContactOtpService.updateWithdrawUser(body);
+  }
 
   @UseGuards(FirebaseAuthGuard)
   @ApiBody({ type: GETSignDTO })
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('signature')
-  getSign(@Body() createWithdrawDto: GETSignDTO) {
-    return this.withdrawService.getSign(createWithdrawDto);
+  getSign(@Req() req: Request, @Body() createWithdrawDto: GETSignDTO) {
+    const user = req['user'] as { sub?: string } | undefined;
+    return this.withdrawService.getSign(createWithdrawDto, user?.sub);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -105,13 +155,42 @@ export class WithdrawController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post()
-  create(@Req() req: Request, @Body() createWithdrawDto: CreateWithdrawDto) {
+  create(
+    @Req() req: Request,
+    @Body() createWithdrawDto: CreateWithdrawDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    // const analyticsContext = extractAnalyticsContext(req, {
-    //   userId: id,
-    // });
-    return this.withdrawService.create(createWithdrawDto, id);
+    return this.captureWithdrawRequested(
+      req,
+      id,
+      createWithdrawDto,
+      this.withdrawService.create(createWithdrawDto, id, idempotencyKey),
+    );
+  }
+
+  /**
+   * PDPA-safe withdraw funnel event. Fires `withdraw_requested` only AFTER the
+   * underlying create resolves (a rejected create never emits a success event),
+   * and carries only the method type + coarse amount band + currency — never
+   * the bank/account/wallet details on the DTO.
+   */
+  private async captureWithdrawRequested<T>(
+    req: Request,
+    userId: string | undefined,
+    dto: CreateWithdrawDto,
+    work: Promise<T>,
+    methodFallback?: string,
+  ): Promise<T> {
+    const result = await work;
+    const ctx = extractAnalyticsContext(req, { userId });
+    void this.analytics.capture('withdraw_requested', ctx, {
+      method: dto.method ?? methodFallback,
+      amount_band: amountBand(dto.amount_total ?? dto.amount_net),
+      currency: dto.currency,
+    });
+    return result;
   }
 
   /**
@@ -137,7 +216,8 @@ export class WithdrawController {
    * Admin action: mark a manual withdraw request as paid. Takes the on-chain
    * tx hash of the admin-side payout and stamps `paid_by` + `paid_at`.
    */
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('approver')
   @ApiBody({ type: MarkWithdrawPaidDto })
   @ApiSecurity('access-token')
   @ApiBearerAuth()
@@ -147,9 +227,11 @@ export class WithdrawController {
     @Param('id') id: string,
     @Body() body: MarkWithdrawPaidDto,
   ) {
-    const admin = req['user'] as { sub?: string } | undefined;
-    const adminId = admin?.sub ?? 'unknown';
-    return this.withdrawService.markWithdrawPaid(id, body, adminId);
+    return this.withdrawService.markWithdrawPaid(
+      id,
+      body,
+      requireAdminActor(req),
+    );
   }
 
   /**
@@ -157,14 +239,27 @@ export class WithdrawController {
    * settlement). Replaces the removed client-tx_hash -> 'approved' self-promotion
    * in POST /withdraw.
    */
-  @UseGuards(AuthAdminGuard)
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('approver')
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @Patch(':id/approve')
   approveWithdraw(@Req() req: Request, @Param('id') id: string) {
-    const admin = req['user'] as { sub?: string } | undefined;
-    const adminId = admin?.sub ?? 'unknown';
-    return this.withdrawService.approveWithdrawRequest(id, adminId);
+    return this.withdrawService.approveWithdrawRequest(
+      id,
+      requireAdminActor(req),
+    );
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiBody({ type: PreviewWithdrawFeeDto })
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Post('preview-fee')
+  previewWithdrawFee(@Req() req: Request, @Body() body: PreviewWithdrawFeeDto) {
+    const user = req['user'] as { sub?: string };
+    const id = user?.sub;
+    return this.withdrawService.previewWithdrawFee(body, id as string);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -175,13 +270,21 @@ export class WithdrawController {
   createBankTransfer(
     @Req() req: Request,
     @Body() createWithdrawDto: CreateWithdrawDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
   ) {
     const user = req['user'] as any;
     const id = user?.sub;
-    // const analyticsContext = extractAnalyticsContext(req, {
-    //   userId: id,
-    // });
-    return this.withdrawService.createBankTransfer(createWithdrawDto, id);
+    return this.captureWithdrawRequested(
+      req,
+      id,
+      createWithdrawDto,
+      this.withdrawService.createBankTransfer(
+        createWithdrawDto,
+        id,
+        idempotencyKey,
+      ),
+      'bank_transfer',
+    );
   }
 
   @UseGuards(FirebaseAuthGuard)

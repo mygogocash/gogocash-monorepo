@@ -5,6 +5,7 @@ export type SendErrorKind =
   | "rate-limit"
   | "security-check"
   | "invalid-phone"
+  | "unlinked-phone"
   | "not-configured"
   | "generic";
 
@@ -12,6 +13,7 @@ export const sendErrorCopy: Record<SendErrorKind, string> = {
   "rate-limit": authSendErrorMessages.rateLimit,
   "security-check": authSendErrorMessages.securityCheck,
   "invalid-phone": authSendErrorMessages.invalidPhone,
+  "unlinked-phone": authSendErrorMessages.unlinkedPhone,
   "not-configured": authSendErrorMessages.notConfigured,
   generic: authSendErrorMessages.generic,
 };
@@ -46,4 +48,17 @@ export function toSendErrorKind(error: unknown): SendErrorKind {
   }
 
   return "generic";
+}
+
+const OTP_CODE_ERROR_CODES = new Set([
+  "auth/invalid-verification-code",
+  "auth/code-expired",
+  "auth/missing-verification-code",
+]);
+
+/** True only when the failure is genuinely about the entered code — anything
+ * else (backend exchange, network, session persist) must not blame the input. */
+export function isOtpCodeError(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "string" && OTP_CODE_ERROR_CODES.has(code);
 }

@@ -35,6 +35,8 @@ export function sourceForAffiliateNetwork(
       return 'involve';
     case 'optimise':
       return 'optimise';
+    case 'accesstrade':
+      return 'accesstrade';
     default:
       return null;
   }
@@ -44,6 +46,7 @@ export function affiliateNetworkIdForSource(
   source: string,
 ): AffiliateNetworkId {
   if (source === 'optimise') return 'optimise';
+  if (source === 'accesstrade') return 'accesstrade';
   if (source === 'involve') return 'involve_asia';
   return 'involve_asia';
 }
@@ -60,6 +63,14 @@ export function listAffiliateNetworks(): AffiliateNetworkDto[] {
         ? Boolean(process.env.INVOLVE_SECRET?.trim())
         : n.id === 'optimise'
           ? Boolean(process.env.OPTIMISE_API_KEY?.trim())
-          : false,
+          : n.id === 'accesstrade'
+            ? // Matches AccesstradeAffiliateProvider.isEnabled — the provider
+              // authenticates via the username+password provisioning flow, so
+              // "connected" tracks those, not the legacy ACCESSTRADE_API_KEY.
+              Boolean(
+                process.env.ACCESSTRADE_USERNAME?.trim() &&
+                process.env.ACCESSTRADE_PASSWORD?.trim(),
+              )
+            : false,
   }));
 }

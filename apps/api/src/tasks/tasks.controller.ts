@@ -1,11 +1,7 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Logger, Param, UseGuards } from '@nestjs/common';
 import { TasksService } from './tasks.service';
-import { InvolveService } from 'src/involve/involve.service';
-import { rateCurrencyUSD } from 'src/utils/helper';
-import { InjectModel } from '@nestjs/mongoose';
-import { Conversion } from 'src/withdraw/schemas/conversion.schema';
-import { Model } from 'mongoose';
-import { PointService } from 'src/point/point.service';
+import { AffiliateProviderRegistry } from 'src/affiliate/affiliate-provider.registry';
+import { syncEnabledAffiliateProviders } from 'src/affiliate/affiliate-sync.util';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { WithdrawService } from 'src/withdraw/withdraw.service';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
@@ -25,13 +21,13 @@ function isFirebaseCronSecret(id: string): boolean {
 @RateLimit({ windowMs: 60_000, max: 10 })
 @Controller('tasks')
 export class TasksController {
+  private readonly logger = new Logger(TasksController.name);
+
   constructor(
     private readonly tasksService: TasksService,
-    private readonly involveService: InvolveService,
-    private readonly pointService: PointService,
+    private readonly registry: AffiliateProviderRegistry,
     private readonly jobService: JobService,
     private readonly withdrawService: WithdrawService,
-    @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
   ) {}
 
   @Get('update-offers/:id')
@@ -39,7 +35,9 @@ export class TasksController {
     if (!isFirebaseCronSecret(id)) {
       return { message: 'error' };
     }
-    await this.involveService.findAll();
+    // Break-glass manual trigger of the offer-sync that the monthly cron runs.
+    // Same registry dispatch, error-isolated per provider.
+    await syncEnabledAffiliateProviders(this.registry, this.logger);
   }
 
   @Get('update-points/:id')
@@ -48,40 +46,7 @@ export class TasksController {
       return { message: 'error' };
     }
 
-    const filterApproved = await this.conversionModel
-      .find({
-        aff_sub1: { $regex: '^user_id:' },
-        datetime_conversion: {
-          $gte: new Date(new Date().setDate(new Date().getDate() - 30)),
-          $lt: new Date(),
-        },
-        payout: { $gt: 0 },
-        // Idempotency: only award approved conversions that have NOT already
-        // been pointed — without these, every call re-awards (double credit).
-        conversion_status: 'approved',
-        add_point: { $exists: false },
-      })
-      .lean();
-    const rate = await rateCurrencyUSD();
-
-    for (const conversion of filterApproved) {
-      const userId = conversion.aff_sub1.split('user_id:')[1];
-      let calculatedPoints = 0;
-      if (conversion.currency === 'USD') {
-        calculatedPoints = Math.floor(conversion.sale_amount * rate['THB']);
-      } else {
-        calculatedPoints = Math.floor(conversion.sale_amount);
-      }
-      await this.pointService.addPointsToUser(
-        userId,
-        calculatedPoints,
-        conversion.conversion_id,
-      );
-      await this.conversionModel.updateOne(
-        { _id: conversion._id },
-        { $set: { add_point: true } },
-      );
-    }
+    return this.tasksService.awardApprovedConversionPoints();
   }
 
   @Get('update-conversions/:id')
@@ -97,7 +62,7 @@ export class TasksController {
     if (!isFirebaseCronSecret(id)) {
       return { message: 'error' };
     }
-    this.withdrawService.adminAddRewardConversionForQuest();
+    await this.withdrawService.adminAddRewardConversionForQuest();
   }
 
   @Get('update-conversions-paid-to-approved/:id')

@@ -9,17 +9,18 @@ import {
   DASHBOARD_INSIGHTS_QUERY_KEY,
   fetchDashboardInsights,
 } from "@/lib/query/dashboardQueries";
-import {
-  getSummaryTotalsFromBundle,
-  STATISTICS_MOCK_BY_TAB,
-} from "./statisticsChartMockData";
+import { getSummaryTotalsFromBundle } from "./statisticsChartMockData";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import {
   STATISTICS_CHART_HEIGHT,
   STATISTICS_SERIES_COLORS,
   STATISTICS_SUMMARY_CARD_ACCENTS,
 } from "@/constants/statisticsChartTheme";
 import { useHtmlDarkClass } from "@/hooks/useHtmlDarkClass";
-import type { DashboardInsightRangeValue } from "@/types/api";
+import type {
+  DashboardInsightRangeValue,
+  DashboardInsightsResponse,
+} from "@/types/api";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
   ssr: false,
@@ -48,30 +49,38 @@ export type StatisticsChartProps = {
   insightRange?: DashboardInsightRangeValue;
 };
 
-export default function StatisticsChart({ insightRange = "30d" }: StatisticsChartProps = {}) {
+function StatisticsChartContent({
+  insights,
+}: {
+  insights: DashboardInsightsResponse;
+}) {
   const [timeRange, setTimeRange] = useState<ChartTabId>("month");
   const [chartKind, setChartKind] = useState<ChartKind>("line");
   const isDarkChart = useHtmlDarkClass();
 
-  const { data: insights } = useQuery({
-    queryKey: [...DASHBOARD_INSIGHTS_QUERY_KEY, insightRange],
-    queryFn: () => fetchDashboardInsights(insightRange),
-    staleTime: 60_000,
-  });
+  const bundle = insights.statistics[timeRange];
+  const clicksAvailable = insights.availability.clicks.available;
+  const displayedSeries = useMemo(
+    () =>
+      clicksAvailable
+        ? bundle.series
+        : bundle.series.filter((row) => row.name !== "Clicks"),
+    [bundle.series, clicksAvailable],
+  );
 
-  const bundle = useMemo(() => {
-    const fromApi = insights?.statistics?.[timeRange];
-    return fromApi ?? STATISTICS_MOCK_BY_TAB[timeRange];
-  }, [insights?.statistics, timeRange]);
-
-  const summaryTotals = useMemo(() => getSummaryTotalsFromBundle(bundle), [bundle]);
+  const summaryTotals = useMemo(
+    () => getSummaryTotalsFromBundle(bundle),
+    [bundle],
+  );
 
   const summaryCards = useMemo(
     () =>
       [
         {
           label: "Clicks",
-          value: summaryTotals.clicks.toLocaleString("en-US"),
+          value: clicksAvailable
+            ? summaryTotals.clicks.toLocaleString("en-US")
+            : "Unavailable",
           accent: STATISTICS_SUMMARY_CARD_ACCENTS[0],
         },
         {
@@ -90,14 +99,16 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
           accent: STATISTICS_SUMMARY_CARD_ACCENTS[3],
         },
       ] as const,
-    [summaryTotals],
+    [clicksAvailable, summaryTotals],
   );
 
   const isBar = chartKind === "column";
 
   const options: ApexOptions = useMemo(() => {
     const tab = bundle;
-    const seriesColors = [...STATISTICS_SERIES_COLORS];
+    const seriesColors = [...STATISTICS_SERIES_COLORS].filter(
+      (_color, index) => clicksAvailable || index !== 0,
+    );
     const legendLabelColor = isDarkChart ? "#D1D5DB" : "#374151";
     const axisMuted = isDarkChart ? "#9CA3AF" : "#4B5563";
     const gridColor = isDarkChart ? "#374151" : "#E5E7EB";
@@ -209,7 +220,11 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
         y: {
           formatter: (val: number, opts?: { seriesIndex?: number }) => {
             const idx = opts?.seriesIndex ?? 0;
-            if (idx === 2 || idx === 3) {
+            const seriesName = displayedSeries[idx]?.name;
+            if (
+              seriesName === "Sale Amount" ||
+              seriesName === "Estimated Earnings"
+            ) {
               return formatThb(val);
             }
             return Number(val).toLocaleString("en-US");
@@ -238,67 +253,68 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
           enabled: false,
         },
       },
-      yaxis: [
-        {
-          seriesName: "Clicks",
-          title: {
-            text: "Clicks / conversions",
-            style: { fontSize: "11px", color: isDarkChart ? "#9CA3AF" : "#6B7280" },
-          },
-          labels: {
-            style: {
-              fontSize: "12px",
-              colors: [isDarkChart ? "#9CA3AF" : "#6B7280"],
-            },
-            formatter: (v: number) => Number(v).toLocaleString("en-US"),
-          },
-        },
-        {
-          seriesName: "Conversions",
-          show: false,
-        },
-        {
-          seriesName: "Sale Amount",
-          opposite: true,
-          title: {
-            text: "Sale & earnings (THB)",
-            style: { fontSize: "11px", color: isDarkChart ? "#9CA3AF" : "#6B7280" },
-          },
-          labels: {
-            style: {
-              fontSize: "12px",
-              colors: [isDarkChart ? "#9CA3AF" : "#6B7280"],
-            },
-            formatter: (v: number) => formatThb(v),
-          },
-        },
-        {
-          seriesName: "Estimated Earnings",
-          show: false,
-        },
-      ],
+      yaxis: displayedSeries.map((row) => {
+        const isMoney =
+          row.name === "Sale Amount" || row.name === "Estimated Earnings";
+        const isPrimaryCount = clicksAvailable
+          ? row.name === "Clicks"
+          : row.name === "Conversions";
+        const isPrimaryMoney = row.name === "Sale Amount";
+        return {
+          seriesName: row.name,
+          show: isPrimaryCount || isPrimaryMoney,
+          ...(isPrimaryMoney ? { opposite: true } : {}),
+          ...(isPrimaryCount || isPrimaryMoney
+            ? {
+                title: {
+                  text: isMoney
+                    ? "Sale & earnings (THB)"
+                    : clicksAvailable
+                      ? "Clicks / conversions"
+                      : "Conversions",
+                  style: {
+                    fontSize: "11px",
+                    color: isDarkChart ? "#9CA3AF" : "#6B7280",
+                  },
+                },
+                labels: {
+                  style: {
+                    fontSize: "12px",
+                    colors: [isDarkChart ? "#9CA3AF" : "#6B7280"],
+                  },
+                  formatter: (value: number) =>
+                    isMoney
+                      ? formatThb(value)
+                      : Number(value).toLocaleString("en-US"),
+                },
+              }
+            : {}),
+        };
+      }),
     };
-  }, [isBar, isDarkChart, bundle]);
+  }, [bundle, clicksAvailable, displayedSeries, isBar, isDarkChart]);
 
-  const series = useMemo(() => bundle.series, [bundle]);
+  const series = displayedSeries;
   return (
-    <div className="min-w-0 max-w-full rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 transition-shadow duration-300 ease-out dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
+    <div className="max-w-full min-w-0 rounded-2xl border border-gray-200 bg-white px-5 pt-5 pb-5 transition-shadow duration-300 ease-out sm:px-6 sm:pt-6 dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="mb-6 flex min-w-0 flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         {/*
           Avoid w-full + flex-row: the title column can shrink to ~0px (min-w-0), which makes
           the subtitle render one character per line. Use flex-1 min-w-0 for the text block and
           shrink-0 for the tab control.
         */}
-        <div className="min-w-0 w-full sm:flex-1 sm:basis-0">
+        <div className="w-full min-w-0 sm:flex-1 sm:basis-0">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
             Statistics
           </h3>
-          <p className="mt-1 max-w-full text-pretty text-gray-500 text-theme-sm leading-relaxed dark:text-gray-400">
-            Clicks, conversions, sale amount & estimated earnings
+          <p className="text-theme-sm mt-1 max-w-full leading-relaxed text-pretty text-gray-500 dark:text-gray-400">
+            {clicksAvailable
+              ? "Clicks, conversions, sale amount & estimated earnings"
+              : "Conversions, sale amount & estimated earnings (click analytics unavailable)"}
             <span className="text-gray-400 dark:text-gray-500">
               {" "}
               — {bundle.description}
-              {insights?.statistics?.[timeRange] ? " (from conversion data)" : ""}
+              {" (from conversion data)"}
             </span>
           </p>
         </div>
@@ -312,7 +328,7 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
         role="region"
         aria-label="Statistics summary"
       >
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
           Summary
         </p>
 
@@ -320,19 +336,21 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
           {summaryCards.map((card) => (
             <div
               key={card.label}
-              className={`rounded-xl border border-gray-100 border-l-4 p-4 transition-all duration-200 ease-out hover:shadow-sm dark:border-gray-800 ${card.accent}`}
+              className={`rounded-xl border border-l-4 border-gray-100 p-4 transition-all duration-200 ease-out hover:shadow-sm dark:border-gray-800 ${card.accent}`}
             >
               <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                 {card.label}
               </p>
-              <p className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">{card.value}</p>
+              <p className="text-title-sm mt-2 font-bold text-gray-800 dark:text-white/90">
+                {card.value}
+              </p>
             </div>
           ))}
         </div>
       </div>
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
           Chart type
         </p>
         <div
@@ -346,9 +364,9 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
               type="button"
               aria-pressed={chartKind === key}
               onClick={() => setChartKind(key)}
-              className={`rounded-md px-2.5 py-2 text-left text-theme-sm font-medium transition-all duration-200 ease-out active:scale-[0.97] sm:px-3 ${
+              className={`text-theme-sm rounded-md px-2.5 py-2 text-left font-medium transition-all duration-200 ease-out active:scale-[0.97] sm:px-3 ${
                 chartKind === key
-                  ? "bg-white text-gray-900 shadow-theme-xs dark:bg-gray-800 dark:text-white"
+                  ? "shadow-theme-xs bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
                   : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
               }`}
             >
@@ -358,7 +376,7 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
         </div>
       </div>
 
-      <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain custom-scrollbar">
+      <div className="custom-scrollbar max-w-full min-w-0 overflow-x-auto overscroll-x-contain">
         <div
           className={`w-full min-w-0 ${
             timeRange === "day"
@@ -367,7 +385,10 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
           }`}
         >
           <div className="w-full min-w-0 rounded-xl bg-slate-50/90 p-2 ring-1 ring-slate-200/80 dark:bg-gray-900/40 dark:ring-gray-700/80">
-            <div className="w-full min-w-0" style={{ minHeight: STATISTICS_CHART_HEIGHT }}>
+            <div
+              className="w-full min-w-0"
+              style={{ minHeight: STATISTICS_CHART_HEIGHT }}
+            >
               <ReactApexChart
                 key={`${chartKind}-${timeRange}-${isBar ? "bar" : "line"}`}
                 options={options}
@@ -382,4 +403,40 @@ export default function StatisticsChart({ insightRange = "30d" }: StatisticsChar
       </div>
     </div>
   );
+}
+
+export default function StatisticsChart({
+  insightRange = "30d",
+}: StatisticsChartProps = {}) {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: [...DASHBOARD_INSIGHTS_QUERY_KEY, insightRange],
+    queryFn: () => fetchDashboardInsights(insightRange),
+    staleTime: 60_000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white px-5 py-8 dark:border-gray-800 dark:bg-white/[0.03]">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Loading dashboard statistics…
+        </p>
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <p
+        role="alert"
+        className="border-error-200 bg-error-50 text-error-800 dark:border-error-800 dark:bg-error-950/30 dark:text-error-200 rounded-xl border px-4 py-3 text-sm"
+      >
+        {getApiErrorMessage(
+          error,
+          "Could not load dashboard statistics. Refresh the page or check your connection.",
+        )}
+      </p>
+    );
+  }
+
+  return <StatisticsChartContent insights={data} />;
 }

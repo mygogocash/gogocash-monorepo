@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_POLICY_TEMPLATES,
+  NEW_POLICY_TERMS_REQUIRED_MESSAGE,
   asNonEmptyParsed,
+  buildUnifiedPolicySavePlan,
+  NEW_CATEGORY_BANNER_REQUIRED_MESSAGE,
   buildSavePayload,
   emptyParsedPolicy,
   getTemplateBody,
@@ -111,6 +114,96 @@ describe("buildSavePayload", () => {
   it("given neither > emits payload with only category_id", () => {
     const out = buildSavePayload({ categoryId: CATEGORY_ID });
     expect(out).toEqual({ category_id: CATEGORY_ID });
+  });
+
+  it("given explicit clear flags > emits server-side unset intent", () => {
+    const out = buildSavePayload({
+      categoryId: CATEGORY_ID,
+      clearTerms: true,
+      clearBanner: true,
+    });
+    expect(out).toEqual({
+      category_id: CATEGORY_ID,
+      clear_terms: true,
+      clear_banner: true,
+    });
+  });
+});
+
+describe("buildUnifiedPolicySavePlan", () => {
+  it("rejects a first policy save without non-empty terms", () => {
+    expect(
+      buildUnifiedPolicySavePlan({
+        categoryId: CATEGORY_ID,
+        isNewPolicy: true,
+        termsDirty: false,
+        bannerDirty: true,
+        bannerParsed: makeParsed({ translations: { en: "Banner" } }),
+      }),
+    ).toEqual({ ok: false, message: NEW_POLICY_TERMS_REQUIRED_MESSAGE });
+  });
+
+  it("creates a new policy with required terms and optional banner text together", () => {
+    const plan = buildUnifiedPolicySavePlan({
+      categoryId: CATEGORY_ID,
+      isNewPolicy: true,
+      termsDirty: true,
+      bannerDirty: true,
+      termsParsed: makeParsed({ translations: { en: "Terms" } }),
+      bannerParsed: makeParsed({ translations: { en: "Banner" } }),
+    });
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) throw new Error("expected a save plan");
+    expect(plan.payload.terms?.translations.en).toBe("Terms");
+    expect(plan.payload.banner?.translations.en).toBe("Banner");
+  });
+
+  it("requires localized banner text when the save creates the category", () => {
+    expect(
+      buildUnifiedPolicySavePlan({
+        categoryId: "__new__",
+        isNewPolicy: true,
+        requireBannerText: true,
+        termsDirty: true,
+        bannerDirty: false,
+        termsParsed: makeParsed({ translations: { en: "Terms" } }),
+      }),
+    ).toEqual({
+      ok: false,
+      message: NEW_CATEGORY_BANNER_REQUIRED_MESSAGE,
+    });
+  });
+
+  it("keeps existing-policy partial updates scoped to dirty blocks", () => {
+    const plan = buildUnifiedPolicySavePlan({
+      categoryId: CATEGORY_ID,
+      isNewPolicy: false,
+      termsDirty: false,
+      bannerDirty: true,
+      termsParsed: makeParsed({ translations: { en: "Unchanged terms" } }),
+      bannerParsed: makeParsed({ translations: { en: "Changed banner" } }),
+    });
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) throw new Error("expected a save plan");
+    expect(plan.payload.banner?.translations.en).toBe("Changed banner");
+    expect(plan.payload).not.toHaveProperty("terms");
+  });
+
+  it("turns emptied existing blocks into explicit clear operations", () => {
+    const plan = buildUnifiedPolicySavePlan({
+      categoryId: CATEGORY_ID,
+      isNewPolicy: false,
+      termsDirty: true,
+      bannerDirty: true,
+    });
+    expect(plan).toEqual({
+      ok: true,
+      payload: {
+        category_id: CATEGORY_ID,
+        clear_terms: true,
+        clear_banner: true,
+      },
+    });
   });
 });
 

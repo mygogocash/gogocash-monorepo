@@ -33,6 +33,18 @@ export function isDesktopSelfChromePathname(pathname: string) {
   });
 }
 
+/**
+ * Founder request (2026-07-22): the global desktop header search must be available on
+ * EVERY desktop stage, so it is never hidden. This intentionally overrides #436/#463/#495,
+ * which hid it on the directory pages (/category, /brand, /shops, /discover) that own a
+ * page-scoped search — those pages now show BOTH the global header search and their own
+ * page-scoped search. Kept as a seam (the RouteChrome -> CustomerDesktopHeader wiring is
+ * unchanged) so per-route hiding can be reintroduced by returning true for a route here.
+ */
+export function shouldHideDesktopHeaderSearch(_pathname: string): boolean {
+  return false;
+}
+
 export function CustomerDesktopRouteChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
@@ -45,7 +57,10 @@ export function CustomerDesktopRouteChrome({ children }: { children: ReactNode }
 
   return (
     <View style={styles.desktopViewport} testID="desktop-route-chrome">
-      <CustomerDesktopHeader viewportWidth={width} />
+      <CustomerDesktopHeader
+        hideSearch={shouldHideDesktopHeaderSearch(pathname)}
+        viewportWidth={width}
+      />
       <View style={styles.routeContent}>{children}</View>
     </View>
   );

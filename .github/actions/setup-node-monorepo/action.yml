@@ -1,7 +1,7 @@
-# Composite: setup Node 22 + npm ci (monorepo root lockfile).
+# Composite: setup Node 24 LTS + npm ci (monorepo root lockfile).
 # Callers MUST run actions/checkout before this action (local actions need files on disk).
 name: Setup Node monorepo
-description: Checkout, setup Node 22 with npm cache, npm ci at repo root
+description: Checkout, setup Node 24 LTS with npm cache, npm ci at repo root
 
 inputs:
   node-options:
@@ -14,11 +14,17 @@ runs:
   steps:
     - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
       with:
-        node-version: "22"
+        node-version: "24"
         cache: npm
+
+    - name: Use repository npm version
+      shell: bash
+      run: npm install --global npm@10.9.8
 
     - name: Install (root, workspace-aware)
       shell: bash
       env:
         NODE_OPTIONS: ${{ inputs.node-options }}
-      run: npm ci
+        # Force devDependencies even if a runner/image injects NODE_ENV=production
+        # (same class of bug as Railway Docker builds omitting typescript).
+      run: npm ci --include=dev

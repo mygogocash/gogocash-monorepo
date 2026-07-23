@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf, Markup } from 'telegraf';
 import { JwtService } from '@nestjs/jwt';
@@ -392,34 +392,15 @@ export class TelegramBotService {
     telegramId: number,
     username?: string,
   ): Promise<any> {
-    try {
-      // Check if user already exists
-      const existingUser = await this.userModel.findOne({
-        $or: [{ email }, { mobile }],
-      });
-
-      if (existingUser) {
-        throw new Error('User with this email or mobile already exists');
-      }
-
-      // Create user with Telegram ID as Firebase ID
-      const firebaseId = `telegram_${telegramId}`;
-
-      const newUser = await this.userModel.create({
-        id_firebase: firebaseId,
-        email: email || undefined,
-        mobile: mobile || undefined,
-        username: username || `user_${telegramId}`,
-        provider: 'telegram',
-        country: 'Thailand', // Default
-      });
-
-      this.logger.log(`User registered via Telegram: ${newUser._id}`);
-      return newUser;
-    } catch (error) {
-      this.logger.error('Error registering user:', error);
-      throw error;
-    }
+    void email;
+    void mobile;
+    void telegramId;
+    void username;
+    throw new ForbiddenException({
+      code: 'REGISTRATION_SOURCE_DISABLED',
+      source: 'telegram_bot',
+      message: 'The Telegram bot may not create customer accounts directly.',
+    });
   }
 
   /**

@@ -87,17 +87,23 @@ export function createGototrackClient(config: GototrackMcpConfig) {
   };
 }
 
+function readTrimmedEnv(env: NodeJS.ProcessEnv, key: string): string {
+  const value = env[key]?.trim();
+  return value ? value : '';
+}
+
 export function resolveGototrackMcpConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): GototrackMcpConfig {
   const apiUrl =
-    env.GOGOCASH_API_URL?.trim() ||
-    env.EXPO_PUBLIC_API_URL?.trim() ||
+    readTrimmedEnv(env, 'GOGOCASH_API_URL') ||
+    readTrimmedEnv(env, 'EXPO_PUBLIC_API_URL') ||
     'https://api.dev.gogocash.co';
   const authToken =
-    env.GOGOTRACK_AUTH_TOKEN?.trim() ||
-    env.GOTOTRACK_AUTH_TOKEN?.trim() ||
-    env.GOGOSENSE_AUTH_TOKEN?.trim();
+    readTrimmedEnv(env, 'GOGOTRACK_AUTH_TOKEN') ||
+    readTrimmedEnv(env, 'GOTOTRACK_AUTH_TOKEN') ||
+    readTrimmedEnv(env, 'GOGOSENSE_AUTH_TOKEN') ||
+    undefined;
 
   return { apiUrl, authToken };
 }

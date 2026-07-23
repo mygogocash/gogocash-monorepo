@@ -6,7 +6,7 @@ import { readMembershipTier } from "@mobile/lib/membershipTier";
 export type ProfileWalletSummary = {
   amount: string;
   currency: string;
-  lastUpdated: string;
+  lastUpdated: string | null;
   maskedId: string;
   tier: string;
   userId: string;

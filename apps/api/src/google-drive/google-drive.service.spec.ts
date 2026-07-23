@@ -114,7 +114,7 @@ describe('GoogleDriveService', () => {
         HttpStatus.SERVICE_UNAVAILABLE,
       );
       expect((err as HttpException).message).toContain(
-        'Google Drive is not configured',
+        'Image uploads are temporarily unavailable',
       );
       expect(filesCreate).not.toHaveBeenCalled();
     } finally {

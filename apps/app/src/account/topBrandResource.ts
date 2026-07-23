@@ -11,29 +11,41 @@ import type { AccountDataSource } from "@mobile/auth/routeGuard";
 import { isCustomerVisibleOffer, mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
 import { resolvePublicOfferLogo } from "@mobile/api/offerLogo";
-import { resolveRemoteImageUri } from "@mobile/api/mediaUrl";
+import { resolveOfferMediaUrl } from "@mobile/api/mediaUrl";
+import { BRAND_LOGO_IMAGE_WIDTH } from "@mobile/api/optimizedImageUrl";
 import { resolveFixtureBrandCountries } from "@mobile/i18n/fixtureRegionCountries";
 import { offerMatchesRegion } from "@mobile/i18n/regionCatalogFilter";
 import type { RegionCode } from "@mobile/i18n/regionTypes";
 import { DEFAULT_REGION } from "@mobile/i18n/regionTypes";
 
+function normalizeTopBrandCashbackLabel(cashback: string): string {
+  return cashback.trim().replace(/^up to\s+/i, "");
+}
+
+type TopBrandPayloadItem = {
+  _id?: string;
+  offer_id: number;
+  brand: string;
+  disabled?: boolean;
+  logo?: string;
+  logo_desktop?: string;
+  logo_mobile?: string;
+  logo_circle?: string;
+  cashback: string;
+  status?: string;
+  countries?: string;
+  is_global?: boolean;
+};
+
 /** Raw payload from GET /offer/top-brands. */
 export type TopBrandsPayload = {
-  data?: {
-    _id?: string;
-    offer_id: number;
-    brand: string;
-    disabled?: boolean;
-    logo?: string;
-    logo_desktop?: string;
-    logo_mobile?: string;
-    logo_circle?: string;
-    cashback: string;
-    status?: string;
-    countries?: string;
-    is_global?: boolean;
-  }[];
+  /** Legacy / desktop-compat list. */
+  data?: TopBrandPayloadItem[];
+  dataDesktop?: TopBrandPayloadItem[];
+  dataMobile?: TopBrandPayloadItem[];
 } | null;
+
+export type TopBrandDevice = "desktop" | "mobile";
 
 /** Home top-brand card (matches webTopBrandCards). */
 export type TopBrandCard = {
@@ -61,8 +73,13 @@ const TOP_BRAND_TINTS = ["#6366F1", "#2563EB", "#0EA5E9", "#10B981", "#F59E0B", 
 export function mapBackendTopBrands(
   payload: TopBrandsPayload,
   regionCode: RegionCode = DEFAULT_REGION,
+  apiBaseUrl?: string,
+  device: TopBrandDevice = "desktop",
 ): TopBrandCard[] {
-  const items = payload?.data ?? [];
+  const items =
+    device === "mobile"
+      ? (payload?.dataMobile ?? payload?.data ?? [])
+      : (payload?.dataDesktop ?? payload?.data ?? []);
   return items
     .filter(isCustomerVisibleOffer)
     .filter(
@@ -71,12 +88,14 @@ export function mapBackendTopBrands(
     )
     .map((item, index) => ({
       brand: item.brand,
-      cashback: item.cashback,
+      cashback: normalizeTopBrandCashbackLabel(item.cashback),
       href: item._id ? `/shop/${item._id}` : undefined,
       id: item._id ?? String(item.offer_id),
       label: "Grab Coupon",
       logoUri:
-        resolveRemoteImageUri(resolvePublicOfferLogo(item) ?? item.logo) ?? "",
+        resolveOfferMediaUrl(resolvePublicOfferLogo(item) ?? item.logo, apiBaseUrl, {
+          width: BRAND_LOGO_IMAGE_WIDTH,
+        }) ?? "",
       showGrabCoupon: false,
       tint: TOP_BRAND_TINTS[index % TOP_BRAND_TINTS.length],
     }));
@@ -110,9 +129,16 @@ export function resolveTopBrands(
   fallback: readonly TopBrandCard[],
   _catalogData?: unknown,
   regionCode: RegionCode = DEFAULT_REGION,
+  apiBaseUrl?: string,
+  device: TopBrandDevice = "desktop",
 ): TopBrandCard[] {
   if (source === "backend") {
-    return mapBackendTopBrands(data as TopBrandsPayload, regionCode);
+    return mapBackendTopBrands(
+      data as TopBrandsPayload,
+      regionCode,
+      apiBaseUrl,
+      device,
+    );
   }
   return fallback.filter((card) =>
     offerMatchesRegion(resolveFixtureBrandCountries(card.brand), regionCode),

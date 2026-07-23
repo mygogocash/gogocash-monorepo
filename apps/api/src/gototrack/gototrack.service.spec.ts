@@ -76,6 +76,11 @@ function makeService() {
     findOne: jest.fn().mockReturnValue(makeQueryResult(null)),
     create: jest.fn(async (doc) => ({ _id: 'activation-1', ...doc })),
     find: jest.fn().mockReturnValue(makeQueryResult([])),
+    findByIdAndUpdate: jest.fn(async (id, update) => ({
+      _id: id,
+      ...update,
+    })),
+    deleteOne: jest.fn(async () => ({ deletedCount: 1 })),
   };
   const screenshotJobModel = {
     create: jest.fn(async (doc) => ({
@@ -386,9 +391,89 @@ describe('GototrackService detection and activation', () => {
         user_id: '507f1f77bcf86cd799439011',
         detection_event_id: '507f1f77bcf86cd799439012',
         merchant_id: 'merchant-shopee',
-        deeplink: 'https://track.gogocash.co/shopee',
+        deeplink: '',
       }),
     );
+    expect(activationEventModel.findByIdAndUpdate).toHaveBeenCalledWith(
+      'activation-1',
+      { deeplink: 'https://track.gogocash.co/shopee' },
+      { new: true },
+    );
+    const createOrder = activationEventModel.create.mock.invocationCallOrder[0];
+    const involveOrder =
+      involveService.createAffiliate.mock.invocationCallOrder[0];
+    expect(createOrder).toBeLessThan(involveOrder);
+  });
+
+  // Staging incident 2026-07-10: an Involve failure outside the mapped
+  // 400/404/422 band (e.g. a 500, or a 401 from a bad INVOLVE_SECRET) rethrew
+  // raw and Nest rendered a bare 500. Unmapped upstream failures must surface
+  // as a 502 with the upstream status — and still roll back the reserved row.
+  it('activation > given affiliate network fails with an unmapped upstream status > then surfaces 502 with upstreamStatusCode and rolls back', async () => {
+    const { activationEventModel, involveService, service } = makeService();
+    const error = new Error('Request failed with status code 500') as Error & {
+      response: { status: number; data: { status_code: number } };
+    };
+    error.response = { status: 500, data: { status_code: 500 } };
+    involveService.createAffiliate.mockRejectedValueOnce(error);
+
+    try {
+      await service.activate('507f1f77bcf86cd799439011', {
+        detectionEventId: '507f1f77bcf86cd799439012',
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gototrack',
+      });
+      throw new Error('Expected GoGoTrack activation to fail');
+    } catch (caught) {
+      expect(caught).toBeInstanceOf(HttpException);
+      expect((caught as HttpException).getStatus()).toBe(502);
+      expect((caught as HttpException).getResponse()).toEqual(
+        expect.objectContaining({
+          code: 'GOGOSENSE_UPSTREAM_UNAVAILABLE',
+          upstreamStatusCode: 500,
+        }),
+      );
+    }
+
+    expect(activationEventModel.deleteOne).toHaveBeenCalledWith({
+      _id: 'activation-1',
+    });
+  });
+
+  // Errors already shaped as HttpExceptions (e.g. InvolveService.signIn's 502
+  // GOGOSENSE_UPSTREAM_AUTH_FAILED) must pass through unwrapped — no
+  // double-mapping into a second 502 that loses the auth-failure code.
+  it('activation > given the affiliate call throws an HttpException > then it passes through unchanged and rolls back', async () => {
+    const { activationEventModel, involveService, service } = makeService();
+    const upstreamAuthFailure = new HttpException(
+      {
+        message:
+          "We couldn't complete your request right now. Please try again in a moment or contact support if it keeps happening.",
+        code: 'GOGOSENSE_UPSTREAM_AUTH_FAILED',
+        upstreamStatusCode: 401,
+      },
+      502,
+    );
+    involveService.createAffiliate.mockRejectedValueOnce(upstreamAuthFailure);
+
+    try {
+      await service.activate('507f1f77bcf86cd799439011', {
+        detectionEventId: '507f1f77bcf86cd799439012',
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gototrack',
+      });
+      throw new Error('Expected GoGoTrack activation to fail');
+    } catch (caught) {
+      expect(caught).toBe(upstreamAuthFailure);
+    }
+
+    expect(activationEventModel.deleteOne).toHaveBeenCalledWith({
+      _id: 'activation-1',
+    });
   });
 
   it('activation > given affiliate network rejects merchant mapping > then surfaces a clear 422 without recording activation', async () => {
@@ -431,7 +516,11 @@ describe('GototrackService detection and activation', () => {
       network_merchant_id: 201,
       matched: true,
     });
-    expect(activationEventModel.create).not.toHaveBeenCalled();
+    expect(activationEventModel.create).toHaveBeenCalled();
+    expect(activationEventModel.deleteOne).toHaveBeenCalledWith({
+      _id: 'activation-1',
+    });
+    expect(activationEventModel.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 
   it('activation > given detection event was already activated > rejects before deeplink creation', async () => {
@@ -460,6 +549,27 @@ describe('GototrackService detection and activation', () => {
     });
     expect(involveService.createAffiliate).not.toHaveBeenCalled();
     expect(activationEventModel.create).not.toHaveBeenCalled();
+  });
+
+  it('activation > given duplicate key on create > then rejects as already activated', async () => {
+    const { activationEventModel, involveService, service } = makeService();
+    const duplicateKeyError = Object.assign(new Error('duplicate key'), {
+      code: 11000,
+    });
+    activationEventModel.create.mockRejectedValueOnce(duplicateKeyError);
+
+    await expect(
+      service.activate('507f1f77bcf86cd799439011', {
+        detectionEventId: '507f1f77bcf86cd799439012',
+        merchantId: 'merchant-shopee',
+        offerId: 101,
+        networkMerchantId: 201,
+        source: 'gototrack',
+      }),
+    ).rejects.toThrow('GoGoTrack detection event has already been activated');
+
+    expect(involveService.createAffiliate).not.toHaveBeenCalled();
+    expect(activationEventModel.create).toHaveBeenCalled();
   });
 
   it('activation > given disabled GoGoTrack setting > then rejects gototrack activation', async () => {

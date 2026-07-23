@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // The withdraw mode now renders inside AccountPageShell, whose chrome reaches
@@ -18,6 +18,7 @@ import {
   CustomerMoneyActionScreen,
   evaluateWithdraw,
   parseWithdrawAmount,
+  resolveWithdrawAvailableBalance,
 } from "@mobile/screens/CustomerMoneyActionScreen";
 
 // Bug-hunt fixes for CustomerMoneyActionScreen:
@@ -73,6 +74,31 @@ describe("parseWithdrawAmount", () => {
   });
 });
 
+describe("resolveWithdrawAvailableBalance", () => {
+  it("backend mode > given wallet query netAmountTHB > then returns that balance (not a hardcoded seed)", () => {
+    expect(
+      resolveWithdrawAvailableBalance("backend", {
+        netAmount: 1250.5,
+        netAmountTHB: 1250.5,
+        totalPayoutTHB: 0,
+        totalPayoutUSD: 0,
+      }),
+    ).toBe(1250.5);
+  });
+
+  it("backend mode > given wallet query not ready > then returns zero instead of fixture seed", () => {
+    expect(resolveWithdrawAvailableBalance("backend", null)).toBe(0);
+  });
+
+  it("fixtures mode > given no local deduction > then returns fixture net amount", () => {
+    expect(resolveWithdrawAvailableBalance("fixtures", null, 0, 3180.24)).toBe(3180.24);
+  });
+
+  it("fixtures mode > given local deduction after submit > then subtracts from fixture only", () => {
+    expect(resolveWithdrawAvailableBalance("fixtures", null, 500, 3180.24)).toBe(2680.24);
+  });
+});
+
 describe("evaluateWithdraw", () => {
   it("approves a valid amount within balance with a selected method", () => {
     expect(evaluateWithdraw("500.00", 3180.24, true, false)).toEqual({ ok: true, amount: 500 });
@@ -99,10 +125,12 @@ describe("evaluateWithdraw", () => {
 
   it("rejects an amount below the minimum withdrawal (web parity: 300 THB floor)", () => {
     // Assert the specific min-floor error so the test fails if the `amount < min` branch is
-    // removed (a bare `ok:false` could pass via another guard and false-green).
+    // removed (a bare `ok:false` could pass via another guard and false-green). The error is a
+    // parameterized template ({min} placeholder) so tc() can reverse-resolve it to Thai; the screen
+    // interpolates the amount AFTER translation.
     expect(evaluateWithdraw("100", 3180.24, true, false, 300)).toEqual({
       ok: false,
-      error: "Minimum withdrawal is 300.00 THB.",
+      error: "Minimum withdrawal is {min} THB.",
     });
   });
 
@@ -117,6 +145,22 @@ describe("withdraw confirm button is guarded after success (source)", () => {
   });
 });
 
+describe("withdraw success refreshes shared wallet cache (source)", () => {
+  it("invalidates wallet queries after a successful backend bank transfer", () => {
+    expect(moneyActionSource).toContain("invalidateCustomerWalletQueries");
+  });
+
+  it("does not keep a parallel balance useState seeded at 3180.24", () => {
+    expect(moneyActionSource).not.toContain("useState(3180.24)");
+    expect(moneyActionSource).toContain("resolveWithdrawAvailableBalance");
+    expect(moneyActionSource).not.toMatch(/setBalance\(\s*walletResource/);
+  });
+
+  it("backend withdraw success does not locally decrement balance (wallet query is source of truth)", () => {
+    expect(moneyActionSource).not.toContain("setBalance((current) => Math.max(0, current - decision.amount))");
+  });
+});
+
 describe("CustomerMoneyActionScreen (render)", () => {
   it("mounts the withdraw form without throwing", () => {
     expect(() => renderWithdrawScreen()).not.toThrow();
@@ -127,6 +171,18 @@ describe("CustomerMoneyActionScreen (render)", () => {
   it("renders the withdrawal amount field so the keyboard-avoidance wrapper has a target", () => {
     renderWithdrawScreen();
     expect(screen.getAllByPlaceholderText("0.00").length).toBeGreaterThan(0);
+  });
+
+  it("interpolates the minimum-withdrawal amount into the error AFTER translation (no bare {min})", () => {
+    // tc() is a passthrough in the render harness, so the localized template still carries {min};
+    // the screen must substitute the real floor so the banner never shows the raw placeholder.
+    renderWithdrawScreen();
+    const amountInput = screen.getAllByPlaceholderText("0.00")[0];
+    fireEvent.change(amountInput, { target: { value: "100" } });
+    fireEvent.click(screen.getByRole("button", { name: "Withdraw" }));
+
+    expect(screen.getByText(/Minimum withdrawal is 300\.00 THB\./)).toBeTruthy();
+    expect(screen.queryByText(/\{min\}/)).toBeNull();
   });
 });
 

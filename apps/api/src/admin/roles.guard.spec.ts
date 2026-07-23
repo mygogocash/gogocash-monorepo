@@ -31,7 +31,7 @@ describe('RolesGuard', () => {
     ).toBe(true);
   });
 
-  it('rejects an under-privileged role with a message naming the required and actual role', () => {
+  it('rejects an under-privileged role with leak-free, actionable copy', () => {
     const guard = guardRequiring(['superadmin']);
     expect(() => guard.canActivate(makeContext('viewer'))).toThrow(
       ForbiddenException,
@@ -41,8 +41,12 @@ describe('RolesGuard', () => {
       throw new Error('expected ForbiddenException');
     } catch (e) {
       const msg = (e as ForbiddenException).message;
-      expect(msg).toContain('superadmin');
-      expect(msg).toContain('viewer');
+      expect(msg).toBe(
+        "You don't have permission for this action. Ask an administrator if you need access.",
+      );
+      // Internal role names must never reach the client.
+      expect(msg).not.toContain('superadmin');
+      expect(msg).not.toContain('viewer');
     }
   });
 

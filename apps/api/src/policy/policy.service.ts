@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, QueryFilter, Types } from 'mongoose';
 import { Category } from 'src/offer/schemas/category.schema';
 import {
   ALLOWED_POLICY_LOCALES,
@@ -19,6 +19,18 @@ import { PolicyContentDto, UpsertPolicyDto } from './dto/upsert-policy.dto';
  * larger than the editor allows.
  */
 const MAX_TRANSLATION_LENGTH = 50_000;
+
+function activeCategoryFilter(
+  categoryId?: Types.ObjectId,
+): QueryFilter<Category> {
+  return {
+    ...(categoryId ? { _id: categoryId } : {}),
+    $or: [
+      { lifecycle_status: 'active' },
+      { lifecycle_status: { $exists: false } },
+    ],
+  };
+}
 
 @Injectable()
 export class PolicyService {
@@ -38,32 +50,69 @@ export class PolicyService {
     if (!Types.ObjectId.isValid(categoryId)) {
       throw new BadRequestException('Invalid category id');
     }
-    return this.policyModel
-      .findOne({ category_id: new Types.ObjectId(categoryId) })
+    const id = new Types.ObjectId(categoryId);
+    const activeCategory = await this.categoryModel
+      .exists(activeCategoryFilter(id))
       .lean();
+    if (!activeCategory) return null;
+    return this.policyModel.findOne({ category_id: id }).lean();
   }
 
   /** Public read — list all policies. Used by the Admin index view to show
    *  which categories have policies authored. Plain documents only — no
    *  joins; the Admin already has Category metadata locally. */
   async list() {
-    return this.policyModel.find().sort({ updatedAt: -1 }).lean();
+    const categories = await this.categoryModel
+      .find(activeCategoryFilter(), { _id: 1 })
+      .lean();
+    const categoryIds = categories.map((category) => category._id);
+    if (categoryIds.length === 0) return [];
+    return this.policyModel
+      .find({ category_id: { $in: categoryIds } })
+      .sort({ updatedAt: -1 })
+      .lean();
   }
 
   /** Admin write — upsert (create-or-replace) the policy for a category.
    *
    *  Validation order (fail fast on cheapest checks):
    *  1. category_id refers to a real Category (404 if not)
-   *  2. banner.translations / terms.translations only use allow-listed locales
-   *  3. each provided block has at least one non-empty translation
-   *  4. each translation is within MAX_TRANSLATION_LENGTH
+   *  2. a first policy write includes terms; clear flags do not conflict
+   *  3. banner.translations / terms.translations only use allow-listed locales
+   *  4. each provided block has at least one non-empty translation
+   *  5. each translation is within MAX_TRANSLATION_LENGTH
    */
-  async upsert(dto: UpsertPolicyDto) {
-    const categoryExists = await this.categoryModel
-      .exists({ _id: new Types.ObjectId(dto.category_id) })
-      .lean();
+  async upsert(dto: UpsertPolicyDto, session?: ClientSession) {
+    const categoryId = new Types.ObjectId(dto.category_id);
+    let categoryExistsQuery = this.categoryModel.exists(
+      activeCategoryFilter(categoryId),
+    );
+    if (session) categoryExistsQuery = categoryExistsQuery.session(session);
+    const categoryExists = await categoryExistsQuery.lean();
     if (!categoryExists) {
       throw new NotFoundException('Category not found');
+    }
+
+    if (dto.terms && dto.clear_terms) {
+      throw new BadRequestException(
+        'terms and clear_terms cannot be sent together',
+      );
+    }
+    if (dto.banner && dto.clear_banner) {
+      throw new BadRequestException(
+        'banner and clear_banner cannot be sent together',
+      );
+    }
+
+    let existingPolicyQuery = this.policyModel.exists({
+      category_id: categoryId,
+    });
+    if (session) existingPolicyQuery = existingPolicyQuery.session(session);
+    const existingPolicy = await existingPolicyQuery;
+    if (!existingPolicy && (!dto.terms || dto.clear_terms)) {
+      throw new BadRequestException(
+        'Terms & conditions are required for a new policy.',
+      );
     }
 
     if (dto.banner) this.validateContent(dto.banner, 'banner');
@@ -72,13 +121,21 @@ export class PolicyService {
     const $set: Partial<Policy> = {};
     if (dto.banner) $set.banner = this.normaliseContent(dto.banner);
     if (dto.terms) $set.terms = this.normaliseContent(dto.terms);
+    const $unset: { banner?: 1; terms?: 1 } = {};
+    if (dto.clear_banner) $unset.banner = 1;
+    if (dto.clear_terms) $unset.terms = 1;
+    const update = {
+      $set,
+      ...(Object.keys($unset).length > 0 ? { $unset } : {}),
+    };
 
     return this.policyModel
-      .findOneAndUpdate(
-        { category_id: new Types.ObjectId(dto.category_id) },
-        { $set },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
-      )
+      .findOneAndUpdate({ category_id: categoryId }, update, {
+        upsert: !existingPolicy,
+        new: true,
+        setDefaultsOnInsert: true,
+        ...(session ? { session } : {}),
+      })
       .lean();
   }
 

@@ -11,9 +11,24 @@ import {
 const REF = new Date("2026-06-15T12:00:00");
 
 describe("bannerSlotStatus", () => {
-  it("treats empty slot as Empty and hides badge on banner table", () => {
-    expect(getBannerSlotStatus({ hasSlotContent: false, now: REF }).status).toBe("Empty");
-    expect(getBannerTableStatusCell({ hasSlotContent: false, now: REF }).kind).toBe("inactive");
+  it("shows Empty as a distinct banner-table status", () => {
+    expect(
+      getBannerSlotStatus({ hasSlotContent: false, now: REF }).status,
+    ).toBe("Empty");
+    expect(
+      getBannerTableStatusCell({ hasSlotContent: false, now: REF }).label,
+    ).toBe("Empty");
+  });
+
+  it("marks a link-only slot as needing an image instead of active", () => {
+    const cell = getBannerTableStatusCell({
+      hasSlotContent: true,
+      hasImage: false,
+      enabled: true,
+      now: REF,
+    });
+
+    expect(cell.label).toBe("Needs image");
   });
 
   it("marks future start as Scheduled on the table", () => {
@@ -23,11 +38,10 @@ describe("bannerSlotStatus", () => {
       enabled: true,
       now: REF,
     });
-    expect(cell.kind).toBe("live");
-    if (cell.kind === "live") expect(cell.label).toBe("Scheduled");
+    expect(cell.label).toBe("Scheduled");
   });
 
-  it("marks past end as Ended and inactive on the table", () => {
+  it("marks past end as Ended on the table", () => {
     expect(
       getBannerSlotStatus({
         hasSlotContent: true,
@@ -42,17 +56,24 @@ describe("bannerSlotStatus", () => {
         enabled: true,
         end_date: "2026-01-01",
         now: REF,
-      }).kind,
-    ).toBe("inactive");
+      }).label,
+    ).toBe("Ended");
   });
 
-  it("treats disabled slots as inactive while keeping other fields", () => {
+  it("shows Disabled separately from an expired schedule", () => {
     const status = getBannerSlotStatus({
       hasSlotContent: true,
       enabled: false,
       now: REF,
     });
-    expect(status.status).toBe("Ended");
+    expect(status.status).toBe("Disabled");
+    expect(
+      getBannerTableStatusCell({
+        hasSlotContent: true,
+        enabled: false,
+        now: REF,
+      }).label,
+    ).toBe("Disabled");
   });
 
   it("lists inactive slots for popup history section", () => {

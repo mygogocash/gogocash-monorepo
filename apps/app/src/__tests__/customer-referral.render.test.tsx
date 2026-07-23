@@ -17,6 +17,7 @@ vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
 }));
 
+import { FavoriteBrandsProvider } from "@mobile/account/FavoriteBrandsProvider";
 import { ToastProvider } from "@mobile/components/Toast";
 import { CustomerReferralScreen } from "@mobile/screens/CustomerReferralScreen";
 
@@ -56,7 +57,11 @@ function renderScreen() {
     createElement(
       QueryClientProvider,
       { client: queryClient },
-      createElement(ToastProvider, {}, createElement(CustomerReferralScreen)),
+      createElement(
+        FavoriteBrandsProvider,
+        {},
+        createElement(ToastProvider, {}, createElement(CustomerReferralScreen)),
+      ),
     ),
   );
 }
@@ -100,14 +105,14 @@ describe("CustomerReferralScreen (render)", () => {
     expect(screen.queryByText(/localhost/i)).toBeNull();
   });
 
-  it("explore-shop cards: brand-tint monogram art + human favorite labels (no raw i18n key)", () => {
+  it("explore-shop cards > given the shared section > then standard BrandCards render (no clone)", () => {
     renderScreen();
-    // The heart's accessible name is real copy, not the leaked "favoritePageAddFavorite" key.
-    expect(screen.queryByLabelText("favoritePageAddFavorite")).toBeNull();
-    expect(screen.getByLabelText("Save brand: Orbit Airways")).toBeTruthy();
-    // The banner carries a brand monogram instead of rendering as an empty gray box.
-    expect(referralSource).toContain("exploreCardMonogram");
-    expect(referralSource).toContain("shop.tint");
+    // Founder feedback 2026-07-11: the referral-local clone (single-letter
+    // monogram banner, heart beside the name, wrapping cashback caption) is
+    // replaced by the shared ExploreOtherShopsSection -> BrandCard rows.
+    expect(screen.getByText("Explore other Shops")).toBeTruthy();
+    expect(screen.getAllByText("Cashback upto").length).toBeGreaterThanOrEqual(4);
+    expect(referralSource).not.toContain("exploreCardMonogram");
     expect(referralSource).not.toContain("favoritePageAddFavorite");
   });
 });
@@ -143,8 +148,33 @@ describe("CustomerReferralScreen — Wave B foundations adopted (source signals)
   it("does not replace the whole page when referral activity is empty", () => {
     expect(referralSource).toContain("isReferralResourceBlocking");
     expect(referralSource).toContain('referralResource.status === "empty"');
-    expect(referralSource).toContain("referralEmptyInvitesTitle");
+    expect(referralSource).toContain("styles.tableEmptyState");
     expect(referralSource).not.toContain('emptyTitle={tc("No referral activity yet")');
+  });
+
+  it("empty invites copy > given tc's English-value lookup > then no raw catalog keys leak", () => {
+    // Field bug 2026-07-11: the empty table rendered the literal strings
+    // "referralEmptyInvitesTitle/Subtitle" — tc() translates English VALUES
+    // via the reverse index, not catalog keys.
+    expect(referralSource).not.toContain('tc("referralEmptyInvitesTitle")');
+    expect(referralSource).not.toContain('tc("referralEmptyInvitesSubtitle")');
+    expect(referralSource).toContain("It's been a while since your last invite.");
+    expect(referralSource).toContain("Share with friends and earn rewards together!");
+  });
+
+  it("explore shops > given the shared section > then the local mock shops are gone", () => {
+    // The referral-only fake shops (Orbit Airways et al.) rendered a bespoke
+    // card no other screen used; the shared section shows the real promo
+    // fixture / live catalog instead.
+    expect(referralSource).not.toContain("Orbit Airways");
+    expect(referralSource).not.toContain("exploreCardMonogram");
+  });
+
+  it("invitation tabs > given three labels on a phone > then normal weight and no ellipsis truncation", () => {
+    // Founder feedback 2026-07-11: "All Invitatio…"/"Created Ac…" truncated at
+    // bold weight. Tabs are normal weight and may wrap to a second line.
+    expect(referralSource).toMatch(/tabText:[\s\S]*?fontWeight: typography\.bodyWeight/);
+    expect(referralSource).not.toMatch(/accessibilityRole="tab"[\s\S]*?numberOfLines=\{1\}/);
   });
 
   it("passes a loadingSkeleton to the shared resource state guard", () => {

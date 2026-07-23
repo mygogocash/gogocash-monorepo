@@ -5,10 +5,21 @@ import {
   ThemeProvider as NavThemeProvider,
 } from "expo-router";
 
+import { redirectStagingWebAliasToCanonicalHost } from "@mobile/auth/canonicalWebOrigin";
+import { redirectLineAuthReturnToCallbackRoute } from "@mobile/auth/lineLogin";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { CustomerDesktopRouteChrome } from "@mobile/components/CustomerDesktopRouteChrome";
 import { AppProviders } from "@mobile/providers/AppProviders";
 import { ThemedStatusBar, useThemeColors } from "@mobile/theme/ThemeProvider";
+
+// Alias hosts (e.g. staging.gogocash.co) share this Railway service but not
+// localStorage / LIFF Endpoint URL with app-staging — bounce before auth UI.
+redirectStagingWebAliasToCanonicalHost();
+
+// LINE often returns to the LIFF Endpoint URL (`/`) with OAuth params instead
+// of our `/auth/line-callback` handoff — capture + re-route before the shell
+// treats it as a normal home visit.
+redirectLineAuthReturnToCallbackRoute();
 
 // Authenticated-only routes — the `requiresAuth: true` entries from
 // `mobileParityRoutes` (src/navigation/routes.ts). Listed as expo-router screen

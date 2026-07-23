@@ -23,12 +23,24 @@ export type ToastErrorMessage = (typeof toastErrorMessages)[keyof typeof toastEr
 
 /** Auth OTP send failures — specific actionable copy outside the Could-not pattern. */
 export const authSendErrorMessages = {
-  rateLimit: "Too many attempts. Please wait a few minutes and try again.",
-  securityCheck: "Security check failed. Please refresh the page and try again.",
+  // Firebase's abuse backoff can last hours — never promise a short wait.
+  rateLimit: "Too many attempts. Please try again later.",
+  securityCheck: "Security check failed. Please close and reopen the app, then try again.",
   invalidPhone: "That phone number doesn't look valid. Check it and try again.",
+  unlinkedPhone: "We can't sign you in with this phone number yet. Sign in with the method you used when creating your account, then link your phone from Profile > Verify Phone.",
   notConfigured: "Sign-in is temporarily unavailable. Please try again later.",
-  webOnly: "Social sign-in is available on Expo web. Use your browser to continue.",
+  webOnly: "Social sign-in isn't available in the app yet. Open GoGoCash in your web browser to continue.",
   generic: toastErrorMessages.requestFailed,
+} as const;
+
+/** Email/password sign-in failures — see emailPasswordAuth.toEmailAuthErrorKind. */
+export const authEmailErrorMessages = {
+  // One message for wrong-password AND unknown-user: distinct copy would let
+  // an attacker probe which emails have accounts.
+  invalidCredentials: "Email or password is incorrect. Check them and try again.",
+  emailInUse: "That email already has an account. Sign in instead.",
+  weakPassword: "Password must be at least 6 characters.",
+  invalidEmail: "That email doesn't look valid. Check it and try again.",
 } as const;
 
 /** Approved messages that intentionally break the "Could not … Please try again." pattern. */
@@ -36,8 +48,13 @@ export const approvedNonStandardErrorMessages = [
   authSendErrorMessages.rateLimit,
   authSendErrorMessages.securityCheck,
   authSendErrorMessages.invalidPhone,
+  authSendErrorMessages.unlinkedPhone,
   authSendErrorMessages.notConfigured,
   authSendErrorMessages.webOnly,
+  authEmailErrorMessages.invalidCredentials,
+  authEmailErrorMessages.emailInUse,
+  authEmailErrorMessages.weakPassword,
+  authEmailErrorMessages.invalidEmail,
 ] as const;
 
 /** Validates a user-facing error string follows the house pattern. */

@@ -1,8 +1,13 @@
 import {
+  API_CORS_ALLOWED_HEADERS,
   parseExtraOrigins,
   buildCorsAllowSet,
   isCorsOriginAllowed,
 } from './cors-origins';
+
+it('allows the bank-withdraw idempotency header through browser preflight', () => {
+  expect(API_CORS_ALLOWED_HEADERS).toContain('Idempotency-Key');
+});
 
 describe('cors-origins', () => {
   describe('parseExtraOrigins', () => {

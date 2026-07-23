@@ -1,5 +1,4 @@
-import { Image } from "expo-image";
-import { memo, useState } from "react";
+import { memo } from "react";
 import { useFavoriteBrands } from "@mobile/account/FavoriteBrandsProvider";
 import { resolveFavoriteOfferId } from "@mobile/account/resolveFavoriteOfferId";
 import { Link } from "expo-router";
@@ -16,6 +15,7 @@ import lazadaLogo from "../../assets/partner-lazada.png";
 import sheinLogo from "../../assets/partner-shein.png";
 import shopeeLogo from "../../assets/partner-shopee.png";
 import type { TopBrandCard } from "@mobile/account/topBrandResource";
+import { BrandLogoTile, brandInitials } from "@mobile/components/BrandLogoTile";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { getTopBrandHref, mobileShellLayout } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -42,10 +42,15 @@ export type CompactBrandCardContent = {
 };
 
 export type BrandCardProps =
-  | (TopBrandCard & {
+  // Coupon label + logo are optional: promo-section cards carry neither, and
+  // the L branch already renders a tinted fallback tile / hides the chip.
+  | (Omit<TopBrandCard, "label" | "logoUri" | "showGrabCoupon"> & {
       readonly size: "L";
       readonly cardHeight: number;
       readonly cardWidth: number;
+      readonly label?: string;
+      readonly logoUri?: string;
+      readonly showGrabCoupon?: boolean;
       readonly accessibilityLabel?: string;
       readonly onPress?: () => void;
       readonly testID?: string;
@@ -56,7 +61,14 @@ export type BrandCardProps =
       readonly cardWidth: number;
       readonly logoVisualHeight: number;
       readonly accessibilityLabel?: string;
+      /** Stable offer id for the favorite heart (falls back to href/brand). */
+      readonly id?: string;
       readonly onPress?: () => void;
+      /** Render the same favorite heart the L card carries. */
+      readonly showFavoriteHeart?: boolean;
+      /** #496 — the offer/tag chip the L card carries, pinned to the image top-left. */
+      readonly label?: string;
+      readonly showGrabCoupon?: boolean;
       readonly testID?: string;
     });
 
@@ -64,31 +76,9 @@ function brandHref(brand: string) {
   return getTopBrandHref(brand);
 }
 
-function brandInitials(brand: string): string {
-  const parts = brand
-    .replace(/&/g, " ")
-    .split(/[^A-Za-z0-9]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (parts.length === 0) {
-    return "GO";
-  }
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
 function resolveCompactLogoSource(
-  props: Extract<BrandCardProps, { size: "S" }>,
-  logoFailed: boolean
+  props: Extract<BrandCardProps, { size: "S" }>
 ): ImageSourcePropType | null {
-  if (logoFailed) {
-    return null;
-  }
-
   if (props.logoUri) {
     return { uri: props.logoUri };
   }
@@ -107,38 +97,41 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
   const { brand, cashback, href, tint } = props;
   const wide = props.size === "L" && props.cardWidth >= 200;
   const { isFavorite: isBrandFavorite, toggleFavorite } = useFavoriteBrands();
-  const favoriteOfferId =
+  const wantsFavoriteHeart =
+    props.size === "L" || (props.size === "S" && props.showFavoriteHeart === true);
+  const favoriteOfferId = wantsFavoriteHeart
+    ? resolveFavoriteOfferId({
+        id: props.id,
+        href: href ?? brandHref(brand),
+        brand,
+      })
+    : "";
+  const isFavorite = wantsFavoriteHeart ? isBrandFavorite(favoriteOfferId) : false;
+  const logoSourceKey =
     props.size === "L"
-      ? resolveFavoriteOfferId({
-          id: props.id,
-          href: href ?? brandHref(brand),
-          brand,
-        })
-      : "";
-  const isFavorite = props.size === "L" ? isBrandFavorite(favoriteOfferId) : false;
-  const [logoFailed, setLogoFailed] = useState(false);
+      ? props.logoUri
+      : props.logoUri ?? props.logoAsset ?? props.logoFallbackText;
   const onToggleFavorite = (event: GestureResponderEvent) => {
     event.stopPropagation?.();
     event.preventDefault?.();
-    if (props.size === "L") {
+    if (wantsFavoriteHeart) {
       toggleFavorite(favoriteOfferId);
     }
   };
-  const onLogoError = () => {
-    setLogoFailed(true);
-  };
   const compactLogoSource =
-    props.size === "S" ? resolveCompactLogoSource(props, logoFailed) : null;
-  const hasCompactLogoSource =
-    props.size === "S" && Boolean(props.logoUri || props.logoAsset) && !logoFailed;
-  const brandVisualBackground =
-    props.size === "L"
-      ? props.logoUri && !logoFailed
-        ? colors.card
-        : tint
-      : hasCompactLogoSource
-        ? colors.card
-        : tint;
+    props.size === "S" ? resolveCompactLogoSource(props) : null;
+
+  // #496 — one chip definition for both sizes: the L and S branches rendered the same
+  // markup, and only L had it. Both cards pin it to the image top-left.
+  const couponChip =
+    props.showGrabCoupon && props.label ? (
+      <View style={styles.couponChip}>
+        <Text style={styles.couponIcon}>🧧</Text>
+        <Text numberOfLines={1} style={styles.couponText}>
+          {tc(props.label)}
+        </Text>
+      </View>
+    ) : null;
 
   const card = (
     <MotionPressable
@@ -152,20 +145,14 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
       testID={props.testID}
     >
         {props.size === "L" ? (
-          <View
-            style={[
-              styles.brandVisual,
-              { backgroundColor: brandVisualBackground },
-            ]}
+          <BrandLogoTile
+            brand={brand}
+            containerStyle={styles.brandVisual}
+            source={props.logoUri ? { uri: props.logoUri } : null}
+            sourceKey={logoSourceKey}
+            tint={tint}
           >
-            {props.showGrabCoupon ? (
-              <View style={styles.couponChip}>
-                <Text style={styles.couponIcon}>🧧</Text>
-                <Text numberOfLines={1} style={styles.couponText}>
-                  {props.label}
-                </Text>
-              </View>
-            ) : null}
+            {couponChip}
             <Pressable
               accessibilityLabel={
                 isFavorite
@@ -185,54 +172,41 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
                 strokeWidth={isFavorite ? 0 : 2}
               />
             </Pressable>
-            {props.logoUri && !logoFailed ? (
-              <Image
-                accessibilityLabel={`${brand} logo`}
-                cachePolicy="memory-disk"
-                contentFit="cover"
-                onError={onLogoError}
-                recyclingKey={props.logoUri ?? `${brand}-logo`}
-                source={{ uri: props.logoUri }}
-                style={styles.brandLogoFill}
-              />
-            ) : (
-              <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
-                {brandInitials(brand)}
-              </Text>
-            )}
-          </View>
+          </BrandLogoTile>
         ) : (
-          <View
-            style={[
-              styles.compactBrandVisual,
-              {
-                backgroundColor: brandVisualBackground,
-                height: props.logoVisualHeight,
-              },
-            ]}
+          <BrandLogoTile
+            brand={brand}
+            containerStyle={[styles.compactBrandVisual, { height: props.logoVisualHeight }]}
+            fallbackText={props.logoFallbackText ?? brandInitials(brand)}
+            fallbackTextStyle={styles.compactBrandLogoFallback}
+            imageSquare={props.logoVisualHeight}
+            source={props.logoFallbackText ? null : compactLogoSource}
+            sourceKey={logoSourceKey}
+            tint={tint}
           >
-            {props.logoFallbackText ? (
-              <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
-                {props.logoFallbackText}
-              </Text>
-            ) : compactLogoSource ? (
-              <Image
-                accessibilityLabel={`${brand} logo`}
-                cachePolicy="memory-disk"
-                contentFit="cover"
-                onError={onLogoError}
-                recyclingKey={
-                  props.logoUri ?? props.logoAsset ?? props.logoFallbackText ?? `${brand}-logo`
+            {couponChip}
+            {props.showFavoriteHeart ? (
+              <Pressable
+                accessibilityLabel={
+                  isFavorite
+                    ? `${tc("Remove from saved brands")}: ${brand}`
+                    : `${tc("Save brand")}: ${brand}`
                 }
-                source={compactLogoSource}
-                style={styles.compactBrandLogoFill}
-              />
-            ) : (
-              <Text numberOfLines={2} style={styles.compactBrandLogoFallback}>
-                {brandInitials(brand)}
-              </Text>
-            )}
-          </View>
+                accessibilityRole="button"
+                accessibilityState={{ selected: isFavorite }}
+                hitSlop={8}
+                onPress={onToggleFavorite}
+                style={styles.heartCircle}
+              >
+                <HeartIcon
+                  color={isFavorite ? colors.primary : colors.primaryDark}
+                  fill={isFavorite ? colors.primary : undefined}
+                  size={18}
+                  strokeWidth={isFavorite ? 0 : 2}
+                />
+              </Pressable>
+            ) : null}
+          </BrandLogoTile>
         )}
         <Text
           numberOfLines={1}
@@ -283,12 +257,7 @@ function createBrandCardStyles(colors: ThemeColors) {
       boxShadow: shadows.cardCss,
     },
     brandVisual: {
-      alignItems: "center",
       aspectRatio: 1,
-      borderRadius: radii.sm,
-      justifyContent: "center",
-      overflow: "hidden",
-      position: "relative",
     },
     couponChip: {
       alignItems: "center",
@@ -328,9 +297,6 @@ function createBrandCardStyles(colors: ThemeColors) {
       width: 28,
       zIndex: 2,
     },
-    brandLogoFill: {
-      ...StyleSheet.absoluteFill,
-    },
     lShopCardTitle: {
       color: colors.ink,
       fontFamily: typography.family,
@@ -355,6 +321,7 @@ function createBrandCardStyles(colors: ThemeColors) {
     },
     brandCashback: {
       color: colors.primaryDark,
+      flexShrink: 0,
       fontFamily: typography.family,
       fontSize: 18,
       fontWeight: "700",
@@ -375,15 +342,7 @@ function createBrandCardStyles(colors: ThemeColors) {
       boxShadow: shadows.cardCss,
     },
     compactBrandVisual: {
-      alignItems: "center",
-      borderRadius: radii.sm,
       height: mobileShellLayout.compactBrandLogoVisualHeight,
-      justifyContent: "center",
-      overflow: "hidden",
-      width: "100%",
-    },
-    compactBrandLogoFill: {
-      ...StyleSheet.absoluteFill,
     },
     compactBrandLogoFallback: {
       color: colors.accent,
@@ -400,7 +359,6 @@ function createBrandCardStyles(colors: ThemeColors) {
       fontSize: 14,
       fontWeight: typography.labelWeight,
       lineHeight: 17.5,
-      marginTop: 2,
     },
     compactCashbackRow: {
       alignItems: "baseline",
@@ -411,6 +369,7 @@ function createBrandCardStyles(colors: ThemeColors) {
     },
     compactCashbackCaption: {
       color: colors.muted,
+      flex: 1,
       fontFamily: typography.family,
       fontSize: 10,
       fontWeight: typography.bodyWeight,
@@ -418,6 +377,7 @@ function createBrandCardStyles(colors: ThemeColors) {
     },
     compactCashbackValue: {
       color: colors.primaryDark,
+      flexShrink: 0,
       fontFamily: typography.family,
       fontSize: 16,
       fontWeight: "700",

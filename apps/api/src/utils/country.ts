@@ -54,4 +54,66 @@ export function toIso2Server(value: string | null | undefined): string {
   return trimmed.toUpperCase();
 }
 
+const ISO2_TO_LABELS: Readonly<Record<string, readonly string[]>> =
+  Object.entries(LABEL_TO_ISO2).reduce<Record<string, string[]>>(
+    (acc, [label, iso2]) => {
+      (acc[iso2] ??= []).push(label);
+      return acc;
+    },
+    {},
+  );
+
+function escapeRegexToken(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Every lowercase spelling a user-supplied country may appear as inside the
+ * comma-separated `offer.countries` field: the raw input, its ISO-2 code, and
+ * all known full English names. Empty array for blank input. Internal —
+ * callers match through `countryFilterRegex` so every path shares one matcher.
+ */
+function countryMatchTokens(
+  value: string | null | undefined,
+): readonly string[] {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  const iso2 = toIso2Server(trimmed);
+  return [
+    ...new Set(
+      [trimmed, iso2, ...(ISO2_TO_LABELS[iso2] ?? [])]
+        .filter(Boolean)
+        .map((token) => token.toLowerCase()),
+    ),
+  ];
+}
+
+/**
+ * Token-anchored `$regex` source for filtering the comma-separated
+ * `offer.countries` field by a user-supplied country (ISO-2 or full English
+ * name). Returns `null` for blank input (no filter).
+ *
+ * Field bug 2026-07-10: the customer app sends ISO-2 (`country=MY`) but
+ * Involve-synced offers store full names, so the old substring regex matched
+ * only TH/PH by accident and could false-match IN inside "INdonesia". This
+ * expands the input to every known spelling and anchors each to a whole list
+ * token: `(^|,)\s*(MY|malaysia)\s*(,|$)`.
+ */
+export function countryFilterRegex(
+  value: string | null | undefined,
+): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const alternation = countryMatchTokens(trimmed)
+    .map(escapeRegexToken)
+    .join('|');
+  return `(^|,)\\s*(${alternation})\\s*(,|$)`;
+}
+
 export { LABEL_TO_ISO2 };

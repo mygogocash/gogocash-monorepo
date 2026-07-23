@@ -1,3 +1,5 @@
+import type { OfferDisplayTags } from "@mobile/api/offerDisplayCategory";
+
 // Backend DTO for GET /offer/:id (public): a single offer doc. Shape verified
 // against the live staging response (2026-06-12): detail docs carry neither
 // offer_name_display nor commission_store; the headline rate lives in
@@ -12,7 +14,26 @@ export type MerchantOfferResponse = {
   offer_name: string;
   banner?: string;
   categories?: string;
+  /** Affiliate-network ids — Shop Now needs both to mint a per-user link. */
+  offer_id?: number;
+  merchant_id?: number;
   commission_store?: number | string;
+  /** Per-product cashback rows (`Offer.product_type`) — headline fallback (#428). */
+  product_type?: Array<Record<string, unknown>>;
+  /**
+   * When true, shop detail shows a single headline rate (not the product-type
+   * list). Absent on older APIs — treat missing as "show rows if present".
+   */
+  all_product_types?: boolean;
+  /** Upsize event fields from public GET /offer/:id (#471). */
+  upsize_start_date?: string | null;
+  upsize_end_date?: string | null;
+  upsize_start_time?: string | null;
+  upsize_end_time?: string | null;
+  upsize_special_commission?: number | null;
+  upsize_max_cap?: number | null;
+  upsize_all_product_types?: boolean;
+  upsize_product_types?: Array<Record<string, unknown>>;
   commissions?: MerchantCommission[];
   custom_terms?: string;
   logo?: string;
@@ -20,9 +41,21 @@ export type MerchantOfferResponse = {
   logo_desktop?: string;
   logo_mobile?: string;
   note_to_user?: string;
+  /** Admin-controlled customer category override; partner `categories` remains the feed snapshot. */
+  offer_display_tags?: OfferDisplayTags | null;
   offer_name_display?: string;
   policy_category_id?: string;
   tracking_link?: string;
+  /** API-derived tracking windows (GET /offer/:id attaches this; raw config stays admin-only). */
+  tracking_period?: {
+    tracking_days?: number;
+    confirm_days?: number;
+    /** 'two_step' collapses Tracking+Confirm into one step; absent = three_step (older API). */
+    flow_type?: string;
+    /** Per-step captions (admin-editable; API sends defaults when unset). */
+    tracking_subtitle?: string;
+    confirm_subtitle?: string;
+  };
 };
 
 /** Narrow an unknown backend payload to a single offer doc. */

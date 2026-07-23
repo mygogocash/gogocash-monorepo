@@ -55,6 +55,14 @@ describe("CustomerWalletScreen (render)", () => {
     expect(() => renderScreen()).not.toThrow();
   });
 
+  it("exposes a locale-invariant wallet-dashboard testID (Maestro anchor that empty-state / login redirect lack)", () => {
+    // The authenticated dashboard is the only branch that renders WalletCashbackSummary.
+    // Maestro flows must key on this structural id, not the word "Wallet" (which also shows
+    // on the empty-state screen and on the /wallet->/login "Connect Wallet" redirect).
+    renderScreen();
+    expect(screen.getByTestId("wallet-dashboard")).toBeTruthy();
+  });
+
   it("renders the cashback summary header + the transactions area", () => {
     renderScreen();
     // The screen header title appears (WalletHeader + AccountPageShell title both use it).
@@ -62,6 +70,24 @@ describe("CustomerWalletScreen (render)", () => {
     // The transactions area now mounts with mock rows on the default "All" tab — a row brand
     // proves it mounted (the empty-state copy still lives in source for the filtered-to-zero case).
     expect(screen.getByText("Glow Theory")).toBeTruthy();
+  });
+
+  it("help icon toggles an explanation panel for the three cashback metrics", () => {
+    // The "?" on the Cashback Summary card was a bare icon — tapping it did
+    // nothing (user report 2026-07-10). It now toggles a help panel, mirroring
+    // the withdraw screen's pattern, using the withdrawHelpTooltipLine1-3 copy
+    // that already ships Thai translations.
+    renderScreen();
+    const helpButton = screen.getByLabelText("Explain total, pending, and withdrawn cashback");
+    expect(screen.queryByText(/Total cashback you've earned/)).toBeNull();
+    fireEvent.click(helpButton);
+    expect(screen.getByText(/Total cashback you've earned from all transactions/)).toBeTruthy();
+    expect(screen.getByText(/Cashback waiting for approval before you can use it/)).toBeTruthy();
+    expect(
+      screen.getByText(/Cashback you've already withdrawn to your wallet or bank/),
+    ).toBeTruthy();
+    fireEvent.click(helpButton);
+    expect(screen.queryByText(/Total cashback you've earned/)).toBeNull();
   });
 
   it("tabs are functional: switching to Earning filters out withdraw rows", () => {
@@ -180,6 +206,63 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     );
   });
 
+  it("right-aligns cashback metric amounts at the card bottom across the three-up row", () => {
+    const metricCardBlock = walletSource.slice(
+      walletSource.indexOf("function WalletMetricCard"),
+      walletSource.indexOf("function FilterPill"),
+    );
+    expect(metricCardBlock).toContain("metricAmountRow");
+    expect(metricCardBlock).not.toContain("metricAmountWrap");
+    expect(walletSource).toContain("walletMetricRow");
+    expect(walletSource).toMatch(/metricAmountRow:[\s\S]*justifyContent: "flex-end"/);
+    expect(walletSource).toMatch(/metricAmountRow:[\s\S]*marginTop: "auto"/);
+    expect(walletSource).toMatch(/metricAmountRow:[\s\S]*width: "100%"/);
+  });
+
+  it("stacks cashback metrics one per row on mobile with an inline right-aligned amount", () => {
+    // Mobile (compact) previously squeezed the three metric cards into one
+    // 3-column row — Thai labels wrapped to two lines and the amounts clipped
+    // ("0…" THB at 400px). Compact now stacks the cards vertically; each card
+    // is a single row of icon → label → amount, so amounts always fit. Desktop
+    // keeps the three-up row.
+    expect(walletSource).toMatch(/compact \? styles\.walletMetricColumn : styles\.walletMetricRow/);
+    expect(walletSource).toMatch(/walletMetricColumn:[\s\S]*?flexDirection: "column"/);
+    expect(walletSource).toMatch(/metricCardCompact:[\s\S]*?flexDirection: "row"/);
+    expect(walletSource).toMatch(/metricAmountRowCompact:[\s\S]*?marginLeft: "auto"/);
+    // The compact card must not reuse the bottom-anchored amount row (marginTop:
+    // "auto" + width 100% belong to the desktop stacked card only).
+    expect(walletSource).toMatch(
+      /compact \? styles\.metricAmountRowCompact : styles\.metricAmountRow/,
+    );
+    // Row hierarchy: the label reads normal-weight; only the amount + currency
+    // stay bold (design feedback 2026-07-10). Desktop labels keep their 700.
+    expect(walletSource).toMatch(/metricLabelCompact:[\s\S]*?fontWeight: "400"/);
+  });
+
+  it("transaction status pill labels read normal weight", () => {
+    // Design feedback 2026-07-10: สำเร็จ / รอดำเนินการ pills carried a 600
+    // weight that competed with the amounts; the pill's tinted background
+    // already provides the emphasis.
+    expect(walletSource).toMatch(/txStatusText:[\s\S]*?fontWeight: "400"/);
+  });
+
+  it("transaction tab labels read normal weight — the underline carries the emphasis", () => {
+    // Design feedback 2026-07-10, same treatment as the quest tab strip.
+    // Block-scoped ([^}]*) so the assertion cannot skip into a later style.
+    expect(walletSource).toMatch(/tabButtonText: \{[^}]*fontWeight: "400"/);
+  });
+
+  it("compacts the LINE support contact card on mobile so the title fits one line", () => {
+    // At phone width the desktop-sized card (48px badge, 18px bold title,
+    // 72px min-height, 16px gaps) squeezed the Thai title
+    // "ติดต่อฝ่ายสนับสนุน" onto two lines. Mobile gets a compact variant —
+    // smaller badge/type/gaps — so the title fits on one line.
+    expect(walletSource).toMatch(/WalletSupportBanner compact=\{!isDesktop\}/);
+    expect(walletSource).toMatch(/supportContactCardCompact:[\s\S]*?minHeight: 60/);
+    expect(walletSource).toMatch(/lineBadgeCompact:[\s\S]*?height: 40/);
+    expect(walletSource).toMatch(/supportContactTitleCompact:[\s\S]*?fontSize: 15/);
+  });
+
   it("has state-driven transaction tabs + mock rows (all cases) + working Search/Status/Date filters", () => {
     // Tabs switch via state (not hardcoded index 0) and filter the mock rows by kind.
     expect(walletSource).toContain("setActiveTab");
@@ -198,5 +281,16 @@ describe("CustomerWalletScreen — Wave B foundations adopted (source signals)",
     expect(walletSource).toContain('outlineColor: "transparent"');
     // Empty-state copy stays in source for the filtered-to-zero case.
     expect(walletSource).toContain("webWalletEmptyState.title");
+  });
+
+  it("wires the transaction list to REAL backend data (list-check), mock only as fixtures fallback", () => {
+    // Backend mode must render the customer's actual earnings + withdrawals, not
+    // the demo rows. The screen fetches the walletTransactions resource and maps
+    // the /withdraw/list-check payload; WALLET_TX_ROWS is now only the fixtureData.
+    expect(walletSource).toContain('resourceId: "walletTransactions"');
+    expect(walletSource).toContain("mapListCheckToWalletTxRows");
+    // The transactions list consumes mapped rows via a prop (not the module-level mock).
+    expect(walletSource).toContain("rows={txRows}");
+    expect(walletSource).toContain("fixtureData: WALLET_TX_ROWS");
   });
 });

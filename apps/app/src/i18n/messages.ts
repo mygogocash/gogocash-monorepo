@@ -1,5 +1,5 @@
-import enCatalog from "@mobile/messages/en.json";
-import thCatalog from "@mobile/messages/th.json";
+import enCatalog from "@gogocash/i18n/messages/en.json";
+import thCatalog from "@gogocash/i18n/messages/th.json";
 import overlayEn from "@mobile/messages/mobile-overlay.en.json";
 import overlayTh from "@mobile/messages/mobile-overlay.th.json";
 import type { Locale } from "@mobile/i18n/locales";

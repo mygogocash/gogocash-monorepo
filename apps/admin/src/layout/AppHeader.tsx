@@ -6,8 +6,6 @@ import UserDropdown from "@/components/header/UserDropdown";
 import { useSidebar } from "@/context/SidebarContext";
 import { useApi } from "@/hooks/useApi";
 import type { DataWithdrawsList, RegularUser, Offer } from "@/types/api";
-import { useDataSession } from "@/hooks/useDataSession";
-import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect, useRef, startTransition, useCallback, type FormEvent } from "react";
@@ -38,8 +36,6 @@ const AppHeader: React.FC = () => {
   useEffect(() => {
     previewOpenRef.current = previewOpen;
   }, [previewOpen]);
-  const dataSession = useDataSession();
-  const token = dataSession.accessToken ?? DEFAULT_MOCK_ACCESS_TOKEN;
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
   const handleToggle = () => {
@@ -100,11 +96,9 @@ const AppHeader: React.FC = () => {
         gO({ search: searchQuery.trim(), limit: PREVIEW_LIMIT, page: 1 }).then((r) =>
           searchCancelledRef.current ? [] : r.data ?? []
         ),
-        token
-          ? gW({ search: searchQuery.trim(), limit: PREVIEW_LIMIT, page: 1 }, token).then(
-              (r) => (searchCancelledRef.current ? [] : r.data ?? [])
-            )
-          : Promise.resolve([]),
+        gW({ search: searchQuery.trim(), limit: PREVIEW_LIMIT, page: 1 }).then(
+          (r) => (searchCancelledRef.current ? [] : r.data ?? [])
+        ),
       ])
         .then(([users, offers, withdraws]) => {
           if (!searchCancelledRef.current) {
@@ -125,7 +119,7 @@ const AppHeader: React.FC = () => {
       clearTimeout(t);
       searchCancelledRef.current = true;
     };
-  }, [searchQuery, token]);
+  }, [searchQuery]);
 
   // Close preview on click outside (use ref to avoid stale closure and only set when open)
   useEffect(() => {

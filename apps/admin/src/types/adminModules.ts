@@ -104,37 +104,13 @@ export interface Referral {
   qualifyingTransactionId: string | null;
 }
 
-export interface MissingOrderClaim {
-  id: string;
-  userId: string;
-  userName: string;
-  email: string;
-  phone: string;
-  merchantId: string;
-  merchantName: string;
-  orderId: string;
-  orderAmount: number;
-  purchaseDate: string;
-  expectedCashback: number;
-  overrideCashback: number | null;
-  submittedDate: string;
-  remarks: string;
-  status:
-    | "pending"
-    | "under_review"
-    | "approved"
-    | "rejected"
-    | "info_requested";
-  assignedTo: string | null;
-  evidence: string[];
-  notes: {
-    adminId: string;
-    adminName: string;
-    note: string;
-    timestamp: string;
-  }[];
-  rejectionReason: string | null;
-}
+// Missing Conversions contract lives in @gogocash/contracts (#19 P4-1);
+// re-exported here so existing "@/types/adminModules" import sites keep working.
+export { MISSING_ORDER_STATUSES } from "@gogocash/contracts";
+export type {
+  MissingOrderClaim,
+  MissingOrderStatus,
+} from "@gogocash/contracts";
 
 export interface UserWallet {
   userId: string;
@@ -151,7 +127,7 @@ export interface WalletAdjustment {
   walletId: string;
   type: "credit" | "debit";
   amount: number;
-  currency: "GGC" | "cashback" | "points";
+  currency: "THB" | "USD";
   reason: string;
   adminId: string;
   timestamp: string;
@@ -175,10 +151,7 @@ export interface Transaction {
 }
 
 export type DiscoverSectionType =
-  | "hero_banner"
-  | "featured_merchant"
-  | "featured_category"
-  | "trending_offer";
+  "hero_banner" | "featured_merchant" | "featured_category" | "trending_offer";
 
 export interface DiscoverItem {
   id: string;
@@ -220,6 +193,28 @@ export interface BlacklistKeyword {
   addedDate: string;
   notes: string;
 }
+
+export type SearchRuleTreatment = "pinned" | "boost" | "blocked";
+
+export interface SearchRule {
+  id: string;
+  offer_id: string;
+  offer_name?: string;
+  treatment: SearchRuleTreatment;
+  keywords: string[];
+  weight?: number;
+  is_active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type SearchRuleInput = {
+  offer_id: string;
+  treatment: SearchRuleTreatment;
+  keywords: string[];
+  weight?: number;
+  is_active: boolean;
+};
 
 export type Paginated<T> = {
   data: T[];

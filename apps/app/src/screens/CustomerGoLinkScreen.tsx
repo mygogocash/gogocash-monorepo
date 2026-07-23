@@ -8,6 +8,7 @@ import {
   X as CloseIcon,
 } from "@mobile/theme/icons";
 import {
+  ActivityIndicator,
   Animated,
   Image,
   Pressable,
@@ -38,6 +39,23 @@ import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
 import { haptics } from "@mobile/lib/haptics";
 import { getGoLinkSourceHost, isValidGoLinkUrl } from "@mobile/features/golink";
+import { type GoLinkOfferLike } from "@mobile/features/golinkResolve";
+import {
+  openGoLinkTracked,
+  useGoLinkResolution,
+  type GoLinkResolutionState,
+} from "@mobile/features/useGoLinkResolution";
+import {
+  hasGoLinkProductPreview,
+  type GoLinkProductPreview,
+} from "@mobile/api/golinkPreview";
+import { getMobileEnv } from "@mobile/config/env";
+import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
+import { buildLoginRedirectWithCallback } from "@mobile/auth/routeGuard";
+import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
+import { resolveOfferMediaUrl } from "@mobile/api/mediaUrl";
+import { resolvePublicOfferLogo } from "@mobile/api/offerLogo";
+import { BRAND_LOGO_IMAGE_WIDTH } from "@mobile/api/optimizedImageUrl";
 import { motion } from "@mobile/theme/motion";
 import { pickThemed, type ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -59,6 +77,8 @@ const guidelineSteps = [
   },
 ] as const;
 
+// Fixtures-mode Shop Now target (design parity). Backend mode opens the real
+// per-user tracking link for the matched merchant instead.
 const goLinkShopNowRoute = "/shop/brand-orbit-airways-1003?golinkContinue=1";
 
 type GoLinkPresentation = "route" | "homeSheet";
@@ -170,6 +190,24 @@ export function CustomerGoLinkScreen({
   const [goLinkResultOpen, setGoLinkResultOpen] = useState(false);
   const [goLinkResultHref, setGoLinkResultHref] = useState("");
   const [guidelineOpen, setGuidelineOpen] = useState(false);
+  // Live merchant resolution for the pasted link (backend mode only): fixtures
+  // mode keeps the design-parity demo product + fixture Shop Now route. The
+  // hook is shared with the home hero card so every dialog caller resolves.
+  const env = getMobileEnv();
+  const { isAuthed } = useAuthGuardSession();
+  const session = useMobileSessionSnapshot();
+  const {
+    live: liveGoLink,
+    match: goLinkMatch,
+    productPreview: goLinkProductPreview,
+  } = useGoLinkResolution(goLinkResultOpen, goLinkResultHref);
+
+  const openGoLinkTrackedUrl = (offer: GoLinkOfferLike, pastedUrl: string) =>
+    openGoLinkTracked(offer, pastedUrl, {
+      accessToken:
+        typeof session?.access_token === "string" ? session.access_token : undefined,
+      apiUrl: env.apiUrl,
+    });
   const dismissGoLink = useCallback(() => {
     if (onClose) {
       onClose();
@@ -363,15 +401,31 @@ export function CustomerGoLinkScreen({
       {goLinkResultOpen && goLinkResultHref ? (
         <GoLinkResultDialog
           href={goLinkResultHref}
+          live={liveGoLink}
+          match={goLinkMatch}
           onClose={() => {
             setGoLinkResultOpen(false);
             setGoLinkResultHref("");
           }}
           onShopNow={() => {
+            const pastedUrl = goLinkResultHref;
+            const offer = goLinkMatch.offer;
             setGoLinkResultOpen(false);
             setGoLinkResultHref("");
-            router.push(goLinkShopNowRoute);
+            if (!liveGoLink) {
+              router.push(goLinkShopNowRoute);
+              return;
+            }
+            if (!offer) {
+              return;
+            }
+            if (!isAuthed) {
+              router.push(buildLoginRedirectWithCallback("/golink") as never);
+              return;
+            }
+            void openGoLinkTrackedUrl(offer, pastedUrl);
           }}
+          productPreview={goLinkProductPreview}
         />
       ) : null}
     </View>
@@ -446,19 +500,61 @@ export function GoLinkGuidelineDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+function goLinkCashbackLabel(offer: GoLinkOfferLike): string {
+  const value =
+    typeof offer.commission_store === "number"
+      ? String(offer.commission_store)
+      : offer.commission_store?.trim();
+  if (!value) {
+    return "0%";
+  }
+  return value.endsWith("%") ? value : `${value}%`;
+}
+
 export function GoLinkResultDialog({
   href,
+  live,
+  match,
   onClose,
   onShopNow,
+  productPreview,
 }: {
   href: string;
+  /**
+   * REQUIRED on purpose: every caller must wire useGoLinkResolution. When
+   * these were optional, the home hero card silently fell back to the demo
+   * product in backend mode.
+   */
+  live: boolean;
+  match: GoLinkResolutionState;
   onClose: () => void;
   onShopNow: () => void;
+  /** Live OG fields from POST /golink/preview — empty when unavailable. */
+  productPreview: GoLinkProductPreview;
 }) {
   const styles = useThemedStyles(createGoLinkScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
   const sourceHost = getGoLinkSourceHost(href);
+  const matchedOffer = live && match.status === "matched" ? match.offer : null;
+  const merchantLogoUri = matchedOffer
+    ? resolveOfferMediaUrl(resolvePublicOfferLogo(matchedOffer), getMobileEnv().apiUrl, {
+        width: BRAND_LOGO_IMAGE_WIDTH,
+      })
+    : undefined;
+  const showProductPreview = Boolean(matchedOffer && hasGoLinkProductPreview(productPreview));
+  const productTitle =
+    (showProductPreview && productPreview.title?.trim()) ||
+    matchedOffer?.offer_name_display?.trim() ||
+    matchedOffer?.offer_name ||
+    "";
+  const productImageUri =
+    showProductPreview && productPreview.imageUrl?.trim()
+      ? productPreview.imageUrl.trim()
+      : undefined;
+  const productPriceLabel =
+    showProductPreview && productPreview.price?.trim() ? productPreview.price.trim() : null;
+  const showShopActions = !live || matchedOffer !== null;
   const [termsPanelOpen, setTermsPanelOpen] = useState(false);
   const { contentTranslateY, isClosing, overlayOpacity, runExitAnimation } =
     useDismissableOverlayMotion({ onDismiss: onClose });
@@ -502,44 +598,128 @@ export function GoLinkResultDialog({
             contentContainerStyle={styles.resultScrollerContent}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.resultProductWrap}>
-              <Image
-                alt={tc("Example product image for illustration")}
-                accessibilityIgnoresInvertColors
-                resizeMode="cover"
-                source={golinkResultProductImage}
-                style={styles.resultProductImage}
-              />
-              <Image
-                alt={tc("Example marketplace badge")}
-                accessibilityIgnoresInvertColors
-                resizeMode="contain"
-                source={golinkResultShopBadgeImage}
-                style={styles.resultShopBadge}
-              />
-            </View>
-
-            <View style={styles.resultDetails}>
-              <Text style={styles.resultTitle}>
-                LA GLACE Pads ลากลาส โทนเนอร์แพด 160ml (Acne Care/Moisturizing/Skin Barrier/Vit C)
-              </Text>
-              {sourceHost ? (
-                <Text numberOfLines={1} style={styles.resultHost}>
-                  {tc("Link from")} {sourceHost}
-                </Text>
-              ) : null}
-              <View style={styles.resultPriceRow}>
-                <Text style={styles.resultPriceAmount}>290</Text>
-                <Text style={styles.resultPriceCurrency}>THB</Text>
+            {live && match.status === "loading" ? (
+              <View style={styles.resultResolvingWrap}>
+                <ActivityIndicator color={colors.primary} size="large" />
+                <Text style={styles.resultHost}>{tc("Checking store…")}</Text>
               </View>
-            </View>
+            ) : null}
+            {live && match.status === "unmatched" ? (
+              <View style={styles.resultResolvingWrap}>
+                <Text style={styles.resultTitle}>
+                  {tc("This store isn't supported by GoGoLink yet.")}
+                </Text>
+                {sourceHost ? (
+                  <Text numberOfLines={1} style={styles.resultHost}>
+                    {tc("Link from")} {sourceHost}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+            {matchedOffer ? (
+              <>
+                <View style={styles.resultProductWrap}>
+                  {productImageUri ? (
+                    <Image
+                      alt={productTitle}
+                      accessibilityIgnoresInvertColors
+                      resizeMode="cover"
+                      source={{ uri: productImageUri }}
+                      style={styles.resultProductImage}
+                    />
+                  ) : merchantLogoUri ? (
+                    <Image
+                      alt={matchedOffer.offer_name_display ?? matchedOffer.offer_name ?? ""}
+                      accessibilityIgnoresInvertColors
+                      resizeMode="contain"
+                      source={{ uri: merchantLogoUri }}
+                      style={styles.resultMerchantLogo}
+                    />
+                  ) : null}
+                  {productImageUri && merchantLogoUri ? (
+                    <Image
+                      alt={matchedOffer.offer_name_display ?? matchedOffer.offer_name ?? ""}
+                      accessibilityIgnoresInvertColors
+                      resizeMode="contain"
+                      source={{ uri: merchantLogoUri }}
+                      style={styles.resultShopBadge}
+                    />
+                  ) : null}
+                </View>
+                <View style={styles.resultDetails}>
+                  <Text style={styles.resultTitle}>{productTitle}</Text>
+                  {sourceHost ? (
+                    <Text numberOfLines={1} style={styles.resultHost}>
+                      {tc("Link from")} {sourceHost}
+                    </Text>
+                  ) : null}
+                  <Text numberOfLines={1} style={styles.resultHost}>
+                    {href}
+                  </Text>
+                  {productPriceLabel ? (
+                    <View style={styles.resultPriceRow}>
+                      <Text style={styles.resultPriceAmount}>{productPriceLabel}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </>
+            ) : null}
+            {!live ? (
+              <>
+                <View style={styles.resultProductWrap}>
+                  <Image
+                    alt={tc("Example product image for illustration")}
+                    accessibilityIgnoresInvertColors
+                    resizeMode="cover"
+                    source={golinkResultProductImage}
+                    style={styles.resultProductImage}
+                  />
+                  <Image
+                    alt={tc("Example marketplace badge")}
+                    accessibilityIgnoresInvertColors
+                    resizeMode="contain"
+                    source={golinkResultShopBadgeImage}
+                    style={styles.resultShopBadge}
+                  />
+                </View>
 
+                <View style={styles.resultDetails}>
+                  <Text style={styles.resultTitle}>
+                    LA GLACE Pads ลากลาส โทนเนอร์แพด 160ml (Acne Care/Moisturizing/Skin
+                    Barrier/Vit C)
+                  </Text>
+                  {sourceHost ? (
+                    <Text numberOfLines={1} style={styles.resultHost}>
+                      {tc("Link from")} {sourceHost}
+                    </Text>
+                  ) : null}
+                  <View style={styles.resultPriceRow}>
+                    <Text style={styles.resultPriceAmount}>290</Text>
+                    <Text style={styles.resultPriceCurrency}>THB</Text>
+                  </View>
+                </View>
+              </>
+            ) : null}
+
+            {showShopActions ? (
             <View style={styles.resultCashbackBox}>
               <View style={styles.resultCashbackLine}>
-                <Text style={styles.resultCashbackText}>{tc("Earn cashback")}</Text>
-                <Text style={styles.resultCashbackText}>5.80</Text>
-                <Text style={styles.resultCashbackText}>THB</Text>
-                <Text style={styles.resultCashbackText}>(2%)</Text>
+                {matchedOffer ? (
+                  <>
+                    <Text style={styles.resultCashbackText}>{tc("Earn cashback")}</Text>
+                    <Text style={styles.resultCashbackText}>{tc("up to")}</Text>
+                    <Text style={styles.resultCashbackText}>
+                      {goLinkCashbackLabel(matchedOffer)}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.resultCashbackText}>{tc("Earn cashback")}</Text>
+                    <Text style={styles.resultCashbackText}>5.80</Text>
+                    <Text style={styles.resultCashbackText}>THB</Text>
+                    <Text style={styles.resultCashbackText}>(2%)</Text>
+                  </>
+                )}
               </View>
               <MotionPressable
                 accessibilityRole="button"
@@ -567,40 +747,49 @@ export function GoLinkResultDialog({
                 />
               </MotionPressable>
             </View>
+            ) : null}
 
-            <Text style={styles.resultDisclaimer}>
-              {tc(
-                "Product image, price, and cashback shown here are examples only. Actual rewards depend on the shop and offer terms."
-              )}
-            </Text>
+            {showShopActions ? (
+              <Text style={styles.resultDisclaimer}>
+                {tc(
+                  matchedOffer
+                    ? "Cashback rate shown is the store's current maximum. Final approval depends on the store and offer terms."
+                    : "Product image, price, and cashback shown here are examples only. Actual rewards depend on the shop and offer terms."
+                )}
+              </Text>
+            ) : null}
 
-            <View style={styles.successBar}>
-              <CheckCircleIcon
-                color={colors.primary}
-                size={18}
-                strokeWidth={typography.iconStrokeWidth}
-              />
-              <Text style={styles.successText}>{tc("Link pasted successfully!")}</Text>
-              <MotionPressable
-                accessibilityLabel={tc("Dismiss success message")}
-                accessibilityRole="button"
-                hitSlop={10}
-                onPress={() => undefined}
-                pressScale={motion.scale.subtlePress}
-                style={styles.successDismissButton}
-              >
-                <CloseIcon color="rgba(255, 255, 255, 0.85)" size={16} />
-              </MotionPressable>
-            </View>
+            {showShopActions ? (
+              <>
+                <View style={styles.successBar}>
+                  <CheckCircleIcon
+                    color={colors.primary}
+                    size={18}
+                    strokeWidth={typography.iconStrokeWidth}
+                  />
+                  <Text style={styles.successText}>{tc("Link pasted successfully!")}</Text>
+                  <MotionPressable
+                    accessibilityLabel={tc("Dismiss success message")}
+                    accessibilityRole="button"
+                    hitSlop={10}
+                    onPress={() => undefined}
+                    pressScale={motion.scale.subtlePress}
+                    style={styles.successDismissButton}
+                  >
+                    <CloseIcon color="rgba(255, 255, 255, 0.85)" size={16} />
+                  </MotionPressable>
+                </View>
 
-            <MotionPressable
-              accessibilityRole="button"
-              onPress={() => runExitAnimation(onShopNow)}
-              pressScale={motion.scale.press}
-              style={styles.shopNowButton}
-            >
-              <Text style={styles.shopNowText}>{tc("Shop Now")}</Text>
-            </MotionPressable>
+                <MotionPressable
+                  accessibilityRole="button"
+                  onPress={() => runExitAnimation(onShopNow)}
+                  pressScale={motion.scale.press}
+                  style={styles.shopNowButton}
+                >
+                  <Text style={styles.shopNowText}>{tc("Shop Now")}</Text>
+                </MotionPressable>
+              </>
+            ) : null}
           </ScrollView>
         )}
       </Animated.View>
@@ -940,6 +1129,17 @@ function createGoLinkScreenStyles(colors: ThemeColors) {
     overflow: "hidden",
     position: "relative",
     width: 200,
+  },
+  resultMerchantLogo: {
+    height: "100%",
+    width: "100%",
+  },
+  resultResolvingWrap: {
+    alignItems: "center",
+    gap: spacing.md,
+    justifyContent: "center",
+    minHeight: 200,
+    paddingHorizontal: spacing.lg,
   },
   resultProductImage: {
     height: "100%",

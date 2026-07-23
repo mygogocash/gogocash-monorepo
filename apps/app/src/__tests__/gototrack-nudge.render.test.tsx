@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createElement } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
@@ -12,9 +12,14 @@ vi.mock("@mobile/gototrack/useGoGoTrackApi", () => ({
   useGoGoTrackApi: () => useGoGoTrackApiMock(),
 }));
 
+import { ApiError } from "@mobile/api/client";
 import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 import type { GoGoTrackDetector } from "@mobile/gototrack/detector";
 import { GoGoTrackDetectionBanner } from "@mobile/gototrack/GoGoTrackDetectionBanner";
+import {
+  configureGoGoTrackPromptCoordinator,
+  resetGoGoTrackPromptCoordinatorForTests,
+} from "@mobile/gototrack/promptCoordinatorInstance";
 import type { GoGoTrackHookApi } from "@mobile/gototrack/useGoGoTrack";
 
 function detector(pkg: string | null): GoGoTrackDetector {
@@ -159,6 +164,99 @@ describe("GoGoTrackDetectionBanner incomplete activation matches", () => {
   });
 });
 
+describe("GoGoTrackDetectionBanner prompt coordinator subscription", () => {
+  beforeEach(() => {
+    resetGoGoTrackPromptCoordinatorForTests();
+  });
+
+  it("matched detection > given native prompt becomes active > then hides banner without repolling", async () => {
+    const api: GoGoTrackHookApi = {
+      detect: vi.fn(async () => ({
+        matched: true,
+        merchantId: "shopee",
+        merchantName: "Shopee",
+        offerId: 101,
+        networkMerchantId: 201,
+        detectionEventId: "det-1",
+        recommendedAction: "activate" as const,
+      })),
+      activate: vi.fn(),
+    };
+    const coordinator = configureGoGoTrackPromptCoordinator({ activate: vi.fn() });
+
+    await act(async () => {
+      render(
+        createElement(GoGoTrackDetectionBanner, {
+          detector: detector("com.shopee.th"),
+          api,
+          openUrl: vi.fn(),
+        }),
+      );
+    });
+
+    expect(await screen.findByText("Activate cashback")).toBeTruthy();
+
+    act(() => {
+      coordinator.showNativePrompt({
+        packageName: "com.shopee.th",
+        detectionEventId: "det-1",
+        merchantId: "shopee",
+        merchantName: "Shopee",
+        offerId: 101,
+        networkMerchantId: 201,
+      });
+    });
+
+    expect(screen.queryByText("Activate cashback")).toBeNull();
+  });
+
+  it("matched detection > given native prompt dismissed > then shows banner again", async () => {
+    const api: GoGoTrackHookApi = {
+      detect: vi.fn(async () => ({
+        matched: true,
+        merchantId: "shopee",
+        merchantName: "Shopee",
+        offerId: 101,
+        networkMerchantId: 201,
+        detectionEventId: "det-1",
+        recommendedAction: "activate" as const,
+      })),
+      activate: vi.fn(),
+    };
+    const coordinator = configureGoGoTrackPromptCoordinator({ activate: vi.fn() });
+    const payload = {
+      packageName: "com.shopee.th",
+      detectionEventId: "det-1",
+      merchantId: "shopee",
+      merchantName: "Shopee",
+      offerId: 101,
+      networkMerchantId: 201,
+    };
+
+    await act(async () => {
+      render(
+        createElement(GoGoTrackDetectionBanner, {
+          detector: detector("com.shopee.th"),
+          api,
+          openUrl: vi.fn(),
+        }),
+      );
+    });
+
+    expect(await screen.findByText("Activate cashback")).toBeTruthy();
+
+    act(() => {
+      coordinator.showNativePrompt(payload);
+    });
+    expect(screen.queryByText("Activate cashback")).toBeNull();
+
+    act(() => {
+      coordinator.dismissFromNative(payload);
+    });
+    expect(await screen.findByText("Activate cashback")).toBeTruthy();
+  });
+});
+
 describe("GoGoTrackDetectionBanner activation failures", () => {
   it("matched detection > given activation rejects > does not open a stale deeplink", async () => {
     const activate = vi
@@ -206,6 +304,42 @@ describe("GoGoTrackDetectionBanner activation failures", () => {
     expect(api.activate).toHaveBeenCalledTimes(2);
     expect(openUrl).toHaveBeenCalledWith("https://track.gogocash.co/retry");
     expect(screen.queryByText(toastErrorMessages.cashbackActivationFailed)).toBeNull();
+  });
+
+  it("matched detection > given activation rejects with an ApiError > shows the localized copy, never the raw upstream text", async () => {
+    // Regression: the catch block rendered `error.message` verbatim, so an upstream failure like
+    // "Request failed with status 500" leaked into the on-screen banner. It must show the already-
+    // localized activation-failure copy instead — never the raw status string.
+    const rawUpstream = "Request failed with status 500";
+    const activate = vi.fn().mockRejectedValue(new ApiError(rawUpstream, 500));
+    const api: GoGoTrackHookApi = {
+      detect: vi.fn(async () => ({
+        matched: true,
+        merchantId: "shopee",
+        merchantName: "Shopee",
+        offerId: 101,
+        networkMerchantId: 201,
+        recommendedAction: "activate" as const,
+      })),
+      activate,
+    };
+
+    render(
+      createElement(GoGoTrackDetectionBanner, {
+        api,
+        detector: detector("com.shopee.th"),
+        openUrl: vi.fn(),
+      })
+    );
+
+    await act(async () => {});
+    const button = await screen.findByText("Activate cashback");
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(await screen.findByText(toastErrorMessages.cashbackActivationFailed)).toBeTruthy();
+    expect(screen.queryByText(rawUpstream)).toBeNull();
   });
 
   it("activation in flight > ignores rapid duplicate taps until the request settles", async () => {

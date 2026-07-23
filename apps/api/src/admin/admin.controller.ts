@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -16,7 +17,9 @@ import {
   ValidationPipe,
   Res,
 } from '@nestjs/common';
+import { coerceOptionalDayCount } from 'src/offer/tracking-period.util';
 import { Request, Response } from 'express';
+import { coerceOptionalPolicyCategoryId } from './policy-category-id';
 import { AdminService } from './admin.service';
 import {
   CreateAdminDto,
@@ -25,14 +28,22 @@ import {
 } from './dto/create-admin.dto';
 import {
   ApproveOfferDto,
+  CreateCategoryDto,
+  GetConversionInWithdrawDto,
   RejectOfferDto,
+  SaveTopBrandsDto,
+  SaveLandingRailsDto,
   UpdateAdminDto,
   UpdateBannerHomeBodyDto,
   UpdateBannerHomeDto,
+  UpdateSpecificPageBannerBodyDto,
+  UpdateSpecificPageBannerDto,
+  UpdateCategoryBodyDto,
   UpdateFeeRateDto,
   UpdateOfferAdminDto,
   UpdateRequestWithdrawDto,
   UpdateUserDto,
+  ListMyCashbackUsersDto,
 } from './dto/update-admin.dto';
 import { UserAdminService } from './user-admin/user-admin-service';
 import { AdminInviteService } from './admin-invite.service';
@@ -44,9 +55,14 @@ import {
 } from './dto/admin-auth.dto';
 import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { parseOfferDisplayTagsField } from 'src/offer/offer-display-tags.util';
+import {
+  requireProductTypeRowsField,
+  resolveProductTypeUpdate,
+} from 'src/offer/product-type.util';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
+import { requireAdminActor } from './activity/admin-activity.actor';
 import { Public } from './public.decorator';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 import { RateLimit } from 'src/auth/rate-limit.decorator';
@@ -55,8 +71,8 @@ import {
   FileInterceptor,
 } from '@nestjs/platform-express';
 
-// Strip unknown fields + coerce types on the unauthenticated admin-auth
-// endpoints (no global ValidationPipe in this app).
+// Strip unknown fields + coerce types (no global ValidationPipe in this app).
+// Shared by unauthenticated admin-auth bodies and validated admin list bodies.
 const adminAuthValidation = new ValidationPipe({
   transform: true,
   whitelist: true,
@@ -83,6 +99,120 @@ function coerceOptionalNumber(value: unknown): number | undefined {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
+}
+
+/**
+ * Multipart optional text: absent or the "undefined" sentinel stays undefined
+ * (partial saves must not touch the field). An empty string passes through —
+ * it is an explicit clear from the admin form.
+ */
+function coerceOptionalText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  if (value.trim() === 'undefined') return undefined;
+  return value;
+}
+
+/**
+ * Multipart nullable string: absent/"undefined" = no change; "" = clear to null.
+ */
+function coerceOptionalNullableString(
+  value: unknown,
+): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string') return undefined;
+  if (value.trim() === 'undefined') return undefined;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+/**
+ * Multipart nullable number: absent = no change; "" = clear to null.
+ */
+function coerceOptionalNullableNumber(
+  value: unknown,
+): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  return coerceOptionalNumber(value);
+}
+
+type BannerUploadFiles = {
+  image_1?: Express.Multer.File[];
+  image_2?: Express.Multer.File[];
+  image_3?: Express.Multer.File[];
+  image_4?: Express.Multer.File[];
+  image_5?: Express.Multer.File[];
+};
+
+type SpecificPageBannerUploadFiles = Pick<
+  BannerUploadFiles,
+  'image_1' | 'image_2' | 'image_3'
+>;
+
+function buildBannerUpdateDto(
+  files: BannerUploadFiles,
+  body: UpdateBannerHomeBodyDto,
+): UpdateBannerHomeDto {
+  return {
+    image_1: files?.image_1?.[0] ?? null,
+    image_2: files?.image_2?.[0] ?? null,
+    image_3: files?.image_3?.[0] ?? null,
+    image_4: files?.image_4?.[0] ?? null,
+    image_5: files?.image_5?.[0] ?? null,
+    link_1: body.link_1 ?? null,
+    link_2: body.link_2 ?? null,
+    link_3: body.link_3 ?? null,
+    link_4: body.link_4 ?? null,
+    link_5: body.link_5 ?? null,
+    enabled_1: coerceOptionalBoolean(body.enabled_1),
+    enabled_2: coerceOptionalBoolean(body.enabled_2),
+    enabled_3: coerceOptionalBoolean(body.enabled_3),
+    enabled_4: coerceOptionalBoolean(body.enabled_4),
+    enabled_5: coerceOptionalBoolean(body.enabled_5),
+    start_date_1: body.start_date_1,
+    start_date_2: body.start_date_2,
+    start_date_3: body.start_date_3,
+    start_date_4: body.start_date_4,
+    start_date_5: body.start_date_5,
+    end_date_1: body.end_date_1,
+    end_date_2: body.end_date_2,
+    end_date_3: body.end_date_3,
+    end_date_4: body.end_date_4,
+    end_date_5: body.end_date_5,
+    clear_image_1: coerceOptionalBoolean(body.clear_image_1),
+    clear_image_2: coerceOptionalBoolean(body.clear_image_2),
+    clear_image_3: coerceOptionalBoolean(body.clear_image_3),
+    clear_image_4: coerceOptionalBoolean(body.clear_image_4),
+    clear_image_5: coerceOptionalBoolean(body.clear_image_5),
+  };
+}
+
+function buildSpecificPageBannerUpdateDto(
+  files: SpecificPageBannerUploadFiles,
+  body: UpdateSpecificPageBannerBodyDto,
+): UpdateSpecificPageBannerDto {
+  return {
+    image_1: files?.image_1?.[0] ?? null,
+    image_2: files?.image_2?.[0] ?? null,
+    image_3: files?.image_3?.[0] ?? null,
+    link_1: body.link_1 ?? null,
+    link_2: body.link_2 ?? null,
+    link_3: body.link_3 ?? null,
+    enabled_1: coerceOptionalBoolean(body.enabled_1),
+    enabled_2: coerceOptionalBoolean(body.enabled_2),
+    enabled_3: coerceOptionalBoolean(body.enabled_3),
+    start_date_1: body.start_date_1,
+    start_date_2: body.start_date_2,
+    start_date_3: body.start_date_3,
+    end_date_1: body.end_date_1,
+    end_date_2: body.end_date_2,
+    end_date_3: body.end_date_3,
+    clear_image_1: coerceOptionalBoolean(body.clear_image_1),
+    clear_image_2: coerceOptionalBoolean(body.clear_image_2),
+    clear_image_3: coerceOptionalBoolean(body.clear_image_3),
+  };
 }
 
 type AdminRoleDef = {
@@ -195,8 +325,15 @@ export class AdminController {
   @ApiBearerAuth()
   @ApiBody({ type: InviteAdminUserDto })
   @Post('invite')
-  invite(@Body(adminAuthValidation) body: InviteAdminUserDto) {
-    return this.adminInviteService.invite(body.email, body.role);
+  invite(
+    @Body(adminAuthValidation) body: InviteAdminUserDto,
+    @Req() req: Request,
+  ) {
+    return this.adminInviteService.invite(
+      body.email,
+      body.role,
+      requireAdminActor(req),
+    );
   }
 
   @Public()
@@ -277,10 +414,27 @@ export class AdminController {
   // so it must not be reachable by a read-only viewer.
   @Roles('approver')
   @Put('top-brands')
-  saveTopBrands(
-    @Body() body: { brands: { offerId: string; cashback: string }[] },
-  ) {
-    return this.adminService.saveTopBrands(body.brands);
+  saveTopBrands(@Body() body: SaveTopBrandsDto) {
+    return this.adminService.saveTopBrands(body);
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('landing-rails')
+  getLandingRails() {
+    return this.adminService.getLandingRails();
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  // Homepage curated rails — a mutation, so it must not be reachable by a
+  // read-only viewer (mirrors the Top brands write gate).
+  @Roles('approver')
+  @Put('landing-rails')
+  saveLandingRails(@Body() body: SaveLandingRailsDto) {
+    return this.adminService.saveLandingRails(body);
   }
 
   // Creating an admin account is a superadmin action (parallels the gated
@@ -292,8 +446,11 @@ export class AdminController {
   @ApiBearerAuth()
   @ApiBody({ type: RegisterAdminDto })
   @Post('register')
-  register(@Body() createAdminDto: RegisterAdminDto) {
-    return this.userAdminService.register(createAdminDto);
+  register(@Body() createAdminDto: RegisterAdminDto, @Req() req: Request) {
+    return this.userAdminService.register(
+      createAdminDto,
+      requireAdminActor(req),
+    );
   }
 
   @UseGuards(AuthAdminGuard)
@@ -324,9 +481,17 @@ export class AdminController {
     @Query('limit') limit?: number,
     @Query('page') page?: number,
     @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('method') method?: string,
   ) {
     // return this.adminService.findAll(page, limit, search);
-    return this.adminService.getWithdrawAll(page, limit, search);
+    return this.adminService.getWithdrawAll(
+      page,
+      limit,
+      search,
+      status,
+      method,
+    );
   }
 
   @UseGuards(AuthAdminGuard)
@@ -341,8 +506,11 @@ export class AdminController {
     @Query('key') key?: string,
   ) {
     return this.adminService.getConversionAll(
-      Number(page),
-      Number(limit),
+      // NaN-guard: Number(undefined) is NaN, which defeats the service's
+      // default params and reaches the aggregation as { $skip: NaN } (Mongo
+      // 500). Same fallback pattern as findAll above.
+      Number(page) || 1,
+      Number(limit) || 10,
       search,
       key,
       status,
@@ -353,7 +521,7 @@ export class AdminController {
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
   @Post('getConversionInWithdraw')
-  getConversionInWithdraw(@Body() body: { data: number[] }) {
+  getConversionInWithdraw(@Body() body: GetConversionInWithdrawDto) {
     return this.adminService.getConversionInWithdraw(body.data);
   }
 
@@ -363,6 +531,14 @@ export class AdminController {
   @Get('get-fee-rate')
   getFeeRate() {
     return this.adminService.getFeeRate();
+  }
+
+  // Public: the customer app reads only the referral bonus % (not the rest of
+  // the admin-guarded fee singleton) to render the dynamic Share & Earn copy.
+  @Public()
+  @Get('referral-bonus-percent')
+  getReferralBonusPercent() {
+    return this.adminService.getReferralBonusPercent();
   }
 
   @UseGuards(AuthAdminGuard)
@@ -390,8 +566,13 @@ export class AdminController {
   updateRequestWithdraw(
     @UploadedFile() file: Express.Multer.File,
     @Body() updateAdminDto: UpdateRequestWithdrawDto,
+    @Req() req: Request,
   ) {
-    return this.adminService.updateRequestWithdraw(updateAdminDto, file);
+    return this.adminService.updateRequestWithdraw(
+      updateAdminDto,
+      file,
+      requireAdminActor(req),
+    );
   }
 
   // Admin-account management (change role / delete). Superadmin-only: these
@@ -402,8 +583,12 @@ export class AdminController {
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAdminDto: UpdateAdminDto) {
-    return this.adminService.update(id, updateAdminDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateAdminDto: UpdateAdminDto,
+    @Req() req: Request,
+  ) {
+    return this.adminService.update(id, updateAdminDto, requireAdminActor(req));
   }
 
   @UseGuards(AuthAdminGuard, RolesGuard)
@@ -411,8 +596,8 @@ export class AdminController {
   @ApiSecurity('access-token')
   @ApiBearerAuth()
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.adminService.remove(id);
+  remove(@Param('id') id: string, @Req() req: Request) {
+    return this.adminService.remove(id, requireAdminActor(req));
   }
 
   @UseGuards(AuthAdminGuard)
@@ -479,7 +664,58 @@ export class AdminController {
         updateAdminDto.tracking_link.toString() !== 'undefined'
           ? updateAdminDto.tracking_link
           : undefined,
-      product_type: updateAdminDto.product_type,
+      product_type: resolveProductTypeUpdate({
+        product_types: updateAdminDto.product_types,
+        product_type: updateAdminDto.product_type,
+      }),
+      all_product_types: coerceOptionalBoolean(
+        updateAdminDto.all_product_types,
+      ),
+      upsize_start_date: coerceOptionalNullableString(
+        updateAdminDto.upsize_start_date,
+      ),
+      upsize_end_date: coerceOptionalNullableString(
+        updateAdminDto.upsize_end_date,
+      ),
+      upsize_start_time: coerceOptionalNullableString(
+        updateAdminDto.upsize_start_time,
+      ),
+      upsize_end_time: coerceOptionalNullableString(
+        updateAdminDto.upsize_end_time,
+      ),
+      upsize_special_commission: coerceOptionalNullableNumber(
+        updateAdminDto.upsize_special_commission,
+      ),
+      upsize_max_cap: coerceOptionalNullableNumber(
+        updateAdminDto.upsize_max_cap,
+      ),
+      upsize_all_product_types: coerceOptionalBoolean(
+        updateAdminDto.upsize_all_product_types,
+      ),
+      upsize_product_types:
+        updateAdminDto.upsize_product_types !== undefined
+          ? requireProductTypeRowsField(
+              updateAdminDto.upsize_product_types,
+              'upsize_product_types',
+            )
+          : undefined,
+      tracking_period_mode: updateAdminDto.tracking_period_mode,
+      tracking_days: coerceOptionalDayCount(
+        updateAdminDto.tracking_days,
+        'tracking_days',
+      ),
+      confirm_days: coerceOptionalDayCount(
+        updateAdminDto.confirm_days,
+        'confirm_days',
+      ),
+      flow_type: updateAdminDto.flow_type,
+      tracking_subtitle: coerceOptionalText(updateAdminDto.tracking_subtitle),
+      confirm_subtitle: coerceOptionalText(updateAdminDto.confirm_subtitle),
+      policy_category_id: coerceOptionalPolicyCategoryId(
+        updateAdminDto.policy_category_id,
+      ),
+      custom_terms: coerceOptionalText(updateAdminDto.custom_terms),
+      note_to_user: coerceOptionalText(updateAdminDto.note_to_user),
     });
   }
 
@@ -515,18 +751,50 @@ export class AdminController {
     return this.adminService.rejectOffer(id, adminId, body.reason);
   }
 
-  @UseInterceptors(FileFieldsInterceptor([{ name: 'image', maxCount: 1 }]))
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token')
   @ApiBearerAuth()
+  @ApiBody({ type: CreateCategoryDto })
+  @Roles('support')
+  @Post('create-category')
+  createCategory(@Body() body: CreateCategoryDto) {
+    // fetcherPost's tuple quirk sends `{ data: { name } }`; accept flat too.
+    const rawName = body?.data?.name ?? body?.name;
+    const name = typeof rawName === 'string' ? rawName.trim() : '';
+    if (!name) {
+      throw new BadRequestException('name is required');
+    }
+    return this.adminService.createCategory(name);
+  }
+
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'image', maxCount: 1 },
+      { name: 'banner', maxCount: 1 },
+    ]),
+  )
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: UpdateCategoryBodyDto })
   @Roles('support')
   @Patch('update-category/:id')
   updateCategory(
     @Param('id') id: string,
-    @UploadedFiles() files: { image?: Express.Multer.File[] },
+    @Body() body: UpdateCategoryBodyDto,
+    @UploadedFiles()
+    files: {
+      image?: Express.Multer.File[];
+      banner?: Express.Multer.File[];
+    },
   ) {
+    // Optional rename; works for both the JSON PATCH the UI sends and
+    // multipart. Absent/blank/"undefined" sentinel = keep the current name.
+    const name = coerceOptionalText(body?.name)?.trim() || undefined;
     return this.adminService.updateCategory(id, {
+      name,
       image: files?.image ? files?.image?.[0] : null,
+      banner: files?.banner ? files?.banner?.[0] : null,
     });
   }
 
@@ -549,6 +817,27 @@ export class AdminController {
     return this.adminService.getMyCashBackUser(id);
   }
 
+  // Admin MyCashBack users table (apps/admin MyCashbackUsersTable).
+  // Class-level AuthAdminGuard + RolesGuard already apply; no @Roles so any
+  // authenticated admin (including viewer) may read — matches RBAC contract.
+  // POST kept for the current UI client; GET is the preferred list shape.
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: ListMyCashbackUsersDto })
+  @Post('list-mycashback-users')
+  listMyCashbackUsers(@Body(adminAuthValidation) body: ListMyCashbackUsersDto) {
+    return this.adminService.listMyCashbackUsers(body ?? {});
+  }
+
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('list-mycashback-users')
+  listMyCashbackUsersGet(
+    @Query(adminAuthValidation) query: ListMyCashbackUsersDto,
+  ) {
+    return this.adminService.listMyCashbackUsers(query ?? {});
+  }
+
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'image_1', maxCount: 1 },
@@ -566,48 +855,12 @@ export class AdminController {
   @Post('banner-home')
   updateBannerHome(
     @UploadedFiles()
-    files: {
-      image_1?: Express.Multer.File[];
-      image_2?: Express.Multer.File[];
-      image_3?: Express.Multer.File[];
-      image_4?: Express.Multer.File[];
-      image_5?: Express.Multer.File[];
-    },
+    files: BannerUploadFiles,
     @Body() body: UpdateBannerHomeBodyDto,
   ) {
-    const filesDto: UpdateBannerHomeDto = {
-      image_1: files?.image_1 ? (files?.image_1?.[0] as any) : null,
-      image_2: files?.image_2 ? (files?.image_2?.[0] as any) : null,
-      image_3: files?.image_3 ? (files?.image_3?.[0] as any) : null,
-      image_4: files?.image_4 ? (files?.image_4?.[0] as any) : null,
-      image_5: files?.image_5 ? (files?.image_5?.[0] as any) : null,
-      link_1: body.link_1 ?? null,
-      link_2: body.link_2 ?? null,
-      link_3: body.link_3 ?? null,
-      link_4: body.link_4 ?? null,
-      link_5: body.link_5 ?? null,
-      enabled_1: coerceOptionalBoolean(body.enabled_1),
-      enabled_2: coerceOptionalBoolean(body.enabled_2),
-      enabled_3: coerceOptionalBoolean(body.enabled_3),
-      enabled_4: coerceOptionalBoolean(body.enabled_4),
-      enabled_5: coerceOptionalBoolean(body.enabled_5),
-      start_date_1: body.start_date_1,
-      start_date_2: body.start_date_2,
-      start_date_3: body.start_date_3,
-      start_date_4: body.start_date_4,
-      start_date_5: body.start_date_5,
-      end_date_1: body.end_date_1,
-      end_date_2: body.end_date_2,
-      end_date_3: body.end_date_3,
-      end_date_4: body.end_date_4,
-      end_date_5: body.end_date_5,
-      clear_image_1: coerceOptionalBoolean(body.clear_image_1),
-      clear_image_2: coerceOptionalBoolean(body.clear_image_2),
-      clear_image_3: coerceOptionalBoolean(body.clear_image_3),
-      clear_image_4: coerceOptionalBoolean(body.clear_image_4),
-      clear_image_5: coerceOptionalBoolean(body.clear_image_5),
-    };
-    return this.adminService.updateBannerHome(filesDto);
+    return this.adminService.updateBannerHome(
+      buildBannerUpdateDto(files, body),
+    );
   }
 
   @UseGuards(AuthAdminGuard)
@@ -616,6 +869,70 @@ export class AdminController {
   @Get('banner-home')
   getBannerHome() {
     return this.adminService.getBannerHome();
+  }
+
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'image_1', maxCount: 1 },
+      { name: 'image_2', maxCount: 1 },
+      { name: 'image_3', maxCount: 1 },
+    ]),
+  )
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: UpdateSpecificPageBannerBodyDto })
+  @Roles('support')
+  @Post('banner-specific-page/:target')
+  updateSpecificPageBanner(
+    @Param('target') target: string,
+    @UploadedFiles() files: SpecificPageBannerUploadFiles,
+    @Body() body: UpdateSpecificPageBannerBodyDto,
+  ) {
+    return this.adminService.updateSpecificPageBanner(
+      target,
+      buildSpecificPageBannerUpdateDto(files, body),
+    );
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('banner-specific-page/:target')
+  getSpecificPageBanner(@Param('target') target: string) {
+    return this.adminService.getSpecificPageBanner(target);
+  }
+
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'image_1', maxCount: 1 },
+      { name: 'image_2', maxCount: 1 },
+      { name: 'image_3', maxCount: 1 },
+      { name: 'image_4', maxCount: 1 },
+      { name: 'image_5', maxCount: 1 },
+    ]),
+  )
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: UpdateBannerHomeBodyDto })
+  @Roles('support')
+  @Post('banner-all-brand-page')
+  updateAllBrandBanner(
+    @UploadedFiles() files: BannerUploadFiles,
+    @Body() body: UpdateBannerHomeBodyDto,
+  ) {
+    return this.adminService.updateAllBrandBanner(
+      buildBannerUpdateDto(files, body),
+    );
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('banner-all-brand-page')
+  getAllBrandBanner() {
+    return this.adminService.getAllBrandBanner();
   }
 
   @UseGuards(AuthAdminGuard)

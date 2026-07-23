@@ -27,12 +27,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  // @UseGuards(FirebaseAuthGuard)
-  // @Post()
-  // create(@Body() createUserDto: CreateUserDto) {
-  //   return this.userService.createFromCrossmint(createUserDto);
-  // }
-
   @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
@@ -44,6 +38,26 @@ export class UserController {
     const user = req['user'] as any;
     const id = user?.sub;
     return this.userService.updateCountry(updateCountryDto, id);
+  }
+
+  // ── Account deletion (Google Play policy) ──
+  // POST (not DELETE) for both verbs: the mobile client exposes get/post/patch.
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Post('account-deletion')
+  requestAccountDeletion(@Req() req: Request) {
+    const user = req['user'] as any;
+    return this.userService.requestAccountDeletion(user?.sub);
+  }
+
+  @UseGuards(FirebaseAuthGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Post('account-deletion/cancel')
+  cancelAccountDeletion(@Req() req: Request) {
+    const user = req['user'] as any;
+    return this.userService.cancelAccountDeletion(user?.sub);
   }
 
   @UseGuards(FirebaseAuthGuard)

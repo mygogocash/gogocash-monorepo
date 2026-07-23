@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { createHmac } from 'crypto';
 
 import { normalizeSlugSegment } from 'src/common/mongo-query';
@@ -8,6 +8,8 @@ import { CreateMediaUploadDto } from './dto/catalog.dto';
 
 @Injectable()
 export class CatalogMediaService {
+  private readonly logger = new Logger(CatalogMediaService.name);
+
   createSignedUpload(dto: CreateMediaUploadDto) {
     const safeName = normalizeSlugSegment(dto.filename, 120);
     if (!safeName) {
@@ -17,8 +19,17 @@ export class CatalogMediaService {
     const bucket = process.env.R2_BUCKET?.trim();
     const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL?.trim();
     if (!bucket || !publicBaseUrl) {
+      const missing = [
+        ['R2_BUCKET', bucket],
+        ['R2_PUBLIC_BASE_URL', publicBaseUrl],
+      ]
+        .filter(([, value]) => !value)
+        .map(([name]) => name);
+      this.logger.error(
+        `Catalog media uploads are not configured (missing: ${missing.join(', ')}).`,
+      );
       throw new BadRequestException(
-        'Catalog media uploads require R2_BUCKET and R2_PUBLIC_BASE_URL',
+        'Media uploads are temporarily unavailable. Please try again later or contact an administrator.',
       );
     }
 

@@ -18,10 +18,14 @@ describe("backendIntegrationScope", () => {
     );
   });
 
-  it("resolveAuthSocialProviders > backend > omits Connect Wallet and Telegram", () => {
+  it("resolveAuthSocialProviders > backend > keeps Google, LINE, Facebook, Telegram", () => {
+    // Founder (2026-07-12): Apple, X, Microsoft disabled for launch; Wallet has no backend.
+    // Facebook + Telegram RE-ENABLED 2026-07-22 (founder) — both sign-in seams were already
+    // built (Facebook: Firebase FacebookAuthProvider; Telegram: /auth/log-in/telegram +
+    // Login Widget). Order follows webAuthPage.socialProviders.
     expect(
       resolveAuthSocialProviders(webAuthPage.socialProviders, "backend").map((p) => p.id),
-    ).toEqual(["facebook", "google", "apple", "x", "microsoft"]);
+    ).toEqual(["facebook", "google", "line", "telegram"]);
   });
 
   it("resolveAuthSocialProviders > fixtures > keeps Connect Wallet for parity UI", () => {

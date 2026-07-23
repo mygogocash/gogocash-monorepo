@@ -34,7 +34,10 @@ function createOfferServiceMock(): OfferServiceMock {
   return {
     getOfferExtraPoint: jest.fn().mockResolvedValue({ point: 1 }),
     getBannerHome: jest.fn().mockResolvedValue({ banner: 'home' }),
+    getAllBrandBanner: jest.fn().mockResolvedValue({ banner: 'all-brand' }),
+    getSpecificPageBanner: jest.fn().mockResolvedValue({ banner: 'specific' }),
     getDisplayTopBrands: jest.fn().mockResolvedValue({ data: [] }),
+    getDisplayLandingRails: jest.fn().mockResolvedValue({ data: [] }),
     createAdminOffer: jest.fn().mockResolvedValue({ _id: 'offer-new' }),
     getCoupon: jest.fn().mockResolvedValue({ data: [], total: 0 }),
     getCouponId: jest.fn().mockResolvedValue({ _id: 'coupon-1' }),
@@ -109,10 +112,35 @@ describe('OfferController', () => {
     });
   });
 
+  describe('getAllBrandBanner', () => {
+    it('getAllBrandBanner > then delegates to the separate banner service', async () => {
+      await expect(controller.getAllBrandBanner()).resolves.toEqual({
+        banner: 'all-brand',
+      });
+      expect(service.getAllBrandBanner).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getSpecificPageBanner', () => {
+    it('getSpecificPageBanner > then delegates the stable target key', async () => {
+      await expect(
+        controller.getSpecificPageBanner('all-shops'),
+      ).resolves.toEqual({ banner: 'specific' });
+      expect(service.getSpecificPageBanner).toHaveBeenCalledWith('all-shops');
+    });
+  });
+
   describe('getTopBrands', () => {
     it('getTopBrands > given a request > then delegates to OfferService.getDisplayTopBrands', async () => {
       await expect(controller.getTopBrands()).resolves.toEqual({ data: [] });
       expect(service.getDisplayTopBrands).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getLandingRails', () => {
+    it('getLandingRails > given a request > then delegates to OfferService.getDisplayLandingRails', async () => {
+      await expect(controller.getLandingRails()).resolves.toEqual({ data: [] });
+      expect(service.getDisplayLandingRails).toHaveBeenCalledTimes(1);
     });
   });
 

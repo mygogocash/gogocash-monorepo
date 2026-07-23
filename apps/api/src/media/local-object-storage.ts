@@ -1,5 +1,4 @@
-import { createReadStream } from 'fs';
-import { mkdir, unlink, writeFile } from 'fs/promises';
+import { mkdir, open, unlink, writeFile } from 'fs/promises';
 import path from 'path';
 
 import { buildLocalMediaRef, parseLocalMediaRef } from './stored-media.util';
@@ -62,7 +61,7 @@ export async function deleteLocalMediaRef(stored: string): Promise<void> {
   }
 }
 
-export function getLocalMediaReadStream(stored: string) {
+export async function getLocalMediaReadStream(stored: string) {
   const objectKey = parseLocalMediaRef(stored);
   if (!objectKey) {
     throw new Error('Invalid local media reference');
@@ -79,8 +78,9 @@ export function getLocalMediaReadStream(stored: string) {
           : extension === 'gif'
             ? 'image/gif'
             : 'application/octet-stream';
+  const file = await open(absolutePath, 'r');
   return {
-    stream: createReadStream(absolutePath),
+    stream: file.createReadStream(),
     contentType,
   };
 }

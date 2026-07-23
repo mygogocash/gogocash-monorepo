@@ -50,6 +50,42 @@ describe("catalog mapper > mapOffersToCatalogBrands", () => {
     });
   });
 
+  it("#316 > given an enabled admin brand-category override > then catalog uses the override", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          ...sampleResponse.data[0],
+          categories: "Shopping",
+          offer_display_tags: {
+            brand_category_enabled: true,
+            brand_category_label: "Digital Services",
+          },
+        },
+      ],
+    });
+
+    expect(brand.category).toBe("Digital Services");
+  });
+
+  it("#316 > given a disabled category override > then catalog keeps the partner feed category", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          ...sampleResponse.data[0],
+          categories: "Shopping",
+          offer_display_tags: {
+            brand_category_enabled: false,
+            brand_category_label: "Digital Services",
+          },
+        },
+      ],
+    });
+
+    expect(brand.category).toBe("Shopping");
+  });
+
   it("given logo_desktop from admin > then prefers it over legacy logo", () => {
     const [brand] = mapOffersToCatalogBrands({
       ...sampleResponse,
@@ -67,6 +103,26 @@ describe("catalog mapper > mapOffersToCatalogBrands", () => {
     });
 
     expect(brand.logo).toBe("https://cdn.example/desktop.png");
+  });
+
+  it("given a staging media logo > then routes it through the image transform", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          _id: "media-offer",
+          offer_name: "Media Brand TH",
+          commission_store: 2,
+          logo: "https://media-staging.gogocash.co/brands/media-logo.png",
+          disabled: false,
+          status: "approved",
+        },
+      ],
+    });
+
+    expect(brand.logo).toBe(
+      "https://media-staging.gogocash.co/cdn-cgi/image/width=320,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/media-logo.png",
+    );
   });
 
   it("given a sparse record > then falls back to offer_name, Others category, no coupon, no logo", () => {
@@ -96,6 +152,48 @@ describe("catalog mapper > mapOffersToCatalogBrands", () => {
     });
 
     expect(brand.cashback).toBe("8.5%");
+  });
+
+  // #428 — product-type rows saved but headline commission_store missing.
+  it("given missing commission_store but product_type rates > then uses the highest product rate", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          _id: "pt-fallback",
+          offer_name: "Product Type Shop",
+          disabled: false,
+          status: "approved",
+          product_type: [
+            { name: "Fashion", pay_in: "cashback", commission_info: "3.5" },
+            { name: "Beauty", pay_in: "cashback", commission_info: "7" },
+            { name: "Heading", is_tagline: true, commission_info: "99" },
+          ],
+        },
+      ],
+    });
+
+    expect(brand.cashback).toBe("7%");
+  });
+
+  it("given commission_store 0 with product_type rates > then uses the highest product rate", () => {
+    const [brand] = mapOffersToCatalogBrands({
+      ...sampleResponse,
+      data: [
+        {
+          _id: "pt-zero-store",
+          offer_name: "Zero Store Shop",
+          commission_store: 0,
+          disabled: false,
+          status: "approved",
+          product_type: [
+            { name: "Beauty", pay_in: "cashback", commission_info: "6.5" },
+          ],
+        },
+      ],
+    });
+
+    expect(brand.cashback).toBe("6.5%");
   });
 
   it("given any record > then derives a stable tint from the brand name", () => {

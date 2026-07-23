@@ -181,8 +181,21 @@ export class MembershipService {
     const membership = await this.membershipModel
       .findOneAndUpdate(
         { user_id: userObjectId },
-        { $set: { tier_id: tierObjectId } },
-        { new: true },
+        [
+          {
+            $set: {
+              tier_id: tierObjectId,
+              tier_assignment_started_at: {
+                $cond: [
+                  { $eq: ['$tier_id', tierObjectId] },
+                  '$tier_assignment_started_at',
+                  '$$NOW',
+                ],
+              },
+            },
+          },
+        ],
+        { new: true, updatePipeline: true },
       )
       .populate('tier_id', 'name price currency')
       .lean()

@@ -29,6 +29,19 @@ import {
 } from '../src/user/schemas/user-my-cashback.schema';
 import { InvolveService } from '../src/involve/involve.service';
 import { PointService } from '../src/point/point.service';
+import {
+  WithdrawFeeCoupon,
+  WithdrawFeeCouponSchema,
+} from '../src/withdraw/schemas/withdraw-fee-coupon.schema';
+import {
+  WithdrawFeeCouponRedemption,
+  WithdrawFeeCouponRedemptionSchema,
+} from '../src/withdraw/schemas/withdraw-fee-coupon-redemption.schema';
+import {
+  WalletAdjustment,
+  WalletAdjustmentSchema,
+} from '../src/admin/wallets/schemas/wallet-adjustment.schema';
+import { AdminActivityService } from '../src/admin/activity/admin-activity.service';
 
 /**
  * Integration test for the withdraw balance aggregation (checkWithdraw) against
@@ -50,8 +63,18 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
   let conversionModel: Model<Conversion>;
   let feeRateModel: Model<FeeRate>;
   let withdrawModel: Model<Withdraw>;
+  const chainEnv = {
+    CHAIN_ID_WITHDRAW_POLYGON: '137',
+    CONTRACT_WITHDRAW_ADDRESS_POLYGON: `0x${'1'.repeat(40)}`,
+    PRIVATE_KEY_WITHDRAW: `0x${'2'.repeat(64)}`,
+    RPC_URL_POLYGON: 'https://polygon.invalid',
+  };
+  const originalChainEnv = Object.fromEntries(
+    Object.keys(chainEnv).map((key) => [key, process.env[key]]),
+  );
 
   beforeAll(async () => {
+    Object.assign(process.env, chainEnv);
     const moduleRef = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(MONGO_URI as string),
@@ -65,12 +88,33 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
           { name: Quest.name, schema: QuestSchema },
           { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
           { name: UserMyCashback.name, schema: UserMyCashbackSchema },
+          {
+            name: WithdrawFeeCoupon.name,
+            schema: WithdrawFeeCouponSchema,
+          },
+          {
+            name: WithdrawFeeCouponRedemption.name,
+            schema: WithdrawFeeCouponRedemptionSchema,
+          },
+          {
+            name: WalletAdjustment.name,
+            schema: WalletAdjustmentSchema,
+          },
         ]),
       ],
       providers: [
         WithdrawService,
         { provide: InvolveService, useValue: {} },
         { provide: PointService, useValue: {} },
+        {
+          provide: AdminActivityService,
+          useValue: {
+            append: jest.fn().mockResolvedValue(undefined),
+            // Bank-transfer create audits inside the serialized txn via
+            // appendRequired; a missing mock aborts both racers as TypeError.
+            appendRequired: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -126,6 +170,10 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
   afterAll(async () => {
     await cleanupWithdrawTestData();
     if (app) await app.close();
+    for (const [key, value] of Object.entries(originalChainEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   });
 
   beforeEach(async () => {
@@ -169,6 +217,7 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
       datetime_conversion: new Date(),
     }));
     await conversionModel.create(docs);
+    return docs.map((doc) => doc.conversion_id);
   };
 
   it('reconciles approved THB conversions minus the system fee into netAmountTHB', async () => {
@@ -249,16 +298,30 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
       await seedApprovedThb(userId, 105, 1); // ~99.75 available after the 5% fee
 
       // Two simultaneous 60-THB requests: 60 fits, but 60+60=120 does not.
-      const dto = { amount_net: 60, amount_total: 60, currency: 'THB' };
+      const dto = {
+        account_name: 'Integration User',
+        account_number: '0012345678',
+        amount_net: 60,
+        amount_total: 60,
+        bank_name: 'KBANK',
+        currency: 'THB',
+      };
       const results = await Promise.allSettled([
-        service.createBankTransfer(dto as never, userId),
-        service.createBankTransfer(dto as never, userId),
+        service.createBankTransfer(dto as never, userId, 'bank-race-a'),
+        service.createBankTransfer(dto as never, userId, 'bank-race-b'),
       ]);
 
       const fulfilled = results.filter((r) => r.status === 'fulfilled');
       const rejected = results.filter((r) => r.status === 'rejected');
       expect(fulfilled).toHaveLength(1); // exactly one wins
       expect(rejected).toHaveLength(1); // the other is refused (over balance)
+      // Loser must be a balance/validation refusal — not a harness TypeError
+      // (e.g. missing adminActivity.appendRequired) that aborts both racers.
+      const loser = rejected[0] as PromiseRejectedResult;
+      expect(loser.reason).toBeInstanceOf(Error);
+      expect(String((loser.reason as Error).message)).not.toMatch(
+        /is not a function/i,
+      );
 
       const count = await withdrawModel.countDocuments({
         user_id: new Types.ObjectId(userId),
@@ -279,19 +342,19 @@ suite('checkWithdraw — real Mongo aggregation (#36)', () => {
         email: 'onchain-tx@gogocash.co',
       });
       const userId = user._id.toString();
-      await seedApprovedThb(userId, 105, 1); // ~99.75 available after the 5% fee
+      const [conversionId] = await seedApprovedThb(userId, 105, 1); // ~99.75 available after the 5% fee
 
       const dto = {
         amount_net: 60,
         amount_total: 60,
         currency: 'THB',
         chain: 137,
-        conversion_ids: [1],
+        conversion_ids: [conversionId],
         method: 'metamask',
       };
       const results = await Promise.allSettled([
-        service.create(dto as never, userId),
-        service.create(dto as never, userId),
+        service.create(dto as never, userId, 'onchain-race-a'),
+        service.create(dto as never, userId, 'onchain-race-b'),
       ]);
 
       const fulfilled = results.filter((r) => r.status === 'fulfilled');

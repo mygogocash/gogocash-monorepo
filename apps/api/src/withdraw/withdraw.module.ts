@@ -5,7 +5,13 @@ import { JwtService } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CacheModule } from '@nestjs/cache-manager';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
+import { EmailModule } from 'src/email/email.module';
 import { InvolveModule } from 'src/involve/involve.module';
+import {
+  UserContactOtp,
+  UserContactOtpSchema,
+} from './schemas/user-contact-otp.schema';
+import { UserContactOtpService } from './user-contact-otp.service';
 import { Offer, OfferSchema } from 'src/offer/schemas/offer.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import { Withdraw, WithdrawSchema } from './schemas/withdraw.schema';
@@ -29,19 +35,35 @@ import {
   SocialRewardSchema,
 } from 'src/point/schemas/social-reward.schema';
 import { RewardList, RewardListSchema } from './schemas/rewardList.schema';
+import {
+  WithdrawFeeCoupon,
+  WithdrawFeeCouponSchema,
+} from './schemas/withdraw-fee-coupon.schema';
+import {
+  WithdrawFeeCouponRedemption,
+  WithdrawFeeCouponRedemptionSchema,
+} from './schemas/withdraw-fee-coupon-redemption.schema';
 import { GoogleDriveService } from 'src/google-drive/google-drive.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { PointModule } from 'src/point/point.module';
+import { AdminActivityModule } from 'src/admin/activity/admin-activity.module';
+import {
+  WalletAdjustment,
+  WalletAdjustmentSchema,
+} from 'src/admin/wallets/schemas/wallet-adjustment.schema';
 
 @Module({
   imports: [
     CacheModule.register(),
     PointModule,
     InvolveModule,
+    AdminActivityModule,
+    EmailModule,
     MongooseModule.forFeature([
       { name: Offer.name, schema: OfferSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
       { name: User.name, schema: UserSchema },
+      { name: UserContactOtp.name, schema: UserContactOtpSchema },
       { name: Withdraw.name, schema: WithdrawSchema },
       { name: FeeRate.name, schema: FeeRateSchema },
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
@@ -52,11 +74,18 @@ import { PointModule } from 'src/point/point.module';
       { name: Point.name, schema: PointSchema },
       { name: SocialReward.name, schema: SocialRewardSchema },
       { name: RewardList.name, schema: RewardListSchema },
+      { name: WithdrawFeeCoupon.name, schema: WithdrawFeeCouponSchema },
+      {
+        name: WithdrawFeeCouponRedemption.name,
+        schema: WithdrawFeeCouponRedemptionSchema,
+      },
+      { name: WalletAdjustment.name, schema: WalletAdjustmentSchema },
     ]),
   ],
   controllers: [WithdrawController],
   providers: [
     WithdrawService,
+    UserContactOtpService,
     JwtService,
     TasksService,
     JobService,

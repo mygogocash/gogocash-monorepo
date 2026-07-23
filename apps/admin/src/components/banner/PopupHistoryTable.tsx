@@ -11,7 +11,7 @@ import { formatDateTime } from "@/lib/dateFormat";
 
 function scheduleSummary(b: AppOpenPopupStoredBanner): string {
   const start = (b.startDate ?? "").trim();
-  const forever = b.endForever !== false;
+  const forever = b.endForever ?? true;
   const end = (b.endDate ?? "").trim();
   const startPart = start ? `Starts ${start}` : "Start: not set";
   if (forever) return `${startPart} · End: forever`;

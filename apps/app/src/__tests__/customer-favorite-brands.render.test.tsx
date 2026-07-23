@@ -62,6 +62,10 @@ const screenSource = readFileSync(
   resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerFavoriteBrandsScreen.tsx"),
   "utf8",
 );
+const heroSource = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), "../components/FavoriteBrandsHero.tsx"),
+  "utf8",
+);
 
 describe("CustomerFavoriteBrandsScreen (render)", () => {
   it("mounts without throwing", () => {
@@ -70,8 +74,9 @@ describe("CustomerFavoriteBrandsScreen (render)", () => {
 
   it("renders the page + hero copy from the fixture", () => {
     renderScreen();
-    // "Favorite Brands" is the shell topbar title AND the page title -> appears multiple times.
-    expect(screen.getAllByText("Favorite Brands").length).toBeGreaterThanOrEqual(2);
+    // Hero redesign 2026-07-11: the title renders exactly ONCE — top bar on
+    // mobile, 32pt page title on desktop — never both (the old duplicate). -> appears multiple times.
+    expect(screen.getAllByText("Favorite Brands").length).toBe(1);
     expect(screen.getByText("Find Your Brands")).toBeTruthy();
     expect(screen.getByText("Recently Visited Brands")).toBeTruthy();
   });
@@ -87,7 +92,9 @@ describe("CustomerFavoriteBrandsScreen (render)", () => {
     renderScreen();
     // Pocket Pantry is in Recently Visited but NOT pre-saved → appears once.
     expect(screen.getAllByText("Pocket Pantry").length).toBe(1);
-    fireEvent.click(screen.getByLabelText("Save brand: Pocket Pantry"));
+    // The brand appears with a favorite heart in more than one home section
+    // (Top Brands + promo rails since #263) — any heart saves the brand.
+    fireEvent.click(screen.getAllByLabelText("Save brand: Pocket Pantry")[0]);
     // After saving, it also renders in the Favorites section → twice.
     expect(screen.getAllByText("Pocket Pantry").length).toBe(2);
   });
@@ -114,7 +121,9 @@ describe("CustomerFavoriteBrandsScreen (render)", () => {
       );
 
     const { rerender } = render(createElement(CustomerHomeScreen), { wrapper: SharedProviders });
-    fireEvent.click(screen.getByLabelText("Save brand: Pocket Pantry"));
+    // The brand appears with a favorite heart in more than one home section
+    // (Top Brands + promo rails since #263) — any heart saves the brand.
+    fireEvent.click(screen.getAllByLabelText("Save brand: Pocket Pantry")[0]);
     rerender(createElement(CustomerFavoriteBrandsScreen));
     expect(screen.getAllByText("Pocket Pantry").length).toBeGreaterThanOrEqual(2);
   });
@@ -127,7 +136,16 @@ describe("CustomerFavoriteBrandsScreen — Wave B treatments (source signals)", 
 
   it("truncates the hero title with numberOfLines so Thai copy does not overflow", () => {
     // Anchor the assertion to the hero title style so it tracks the real element, not just
-    // the brand-card names that already truncate.
-    expect(screenSource).toMatch(/numberOfLines=\{1\}[\s\S]*?style=\{styles\.heroTitle\}/);
+    // the brand-card names that already truncate. (Hero extracted 2026-07-11.)
+    expect(heroSource).toMatch(/numberOfLines=\{1\}[\s\S]*?styles\.heroTitle/);
+  });
+
+  it("cards ARE the shared BrandCard (design alignment, final form)", () => {
+    // Design feedback 2026-07-10/11: after two rounds of mirroring the shared
+    // card by hand, the favorites grid now renders the real BrandCard — the
+    // anatomy can no longer drift because there is nothing to mirror.
+    expect(screenSource).toContain("<BrandCard");
+    expect(screenSource).toContain("getScaledCompactBrandCardMetrics");
+    expect(screenSource).not.toContain("FavoriteBrandCard");
   });
 });

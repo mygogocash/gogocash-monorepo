@@ -2,13 +2,10 @@
  * Mock REST handlers for new admin feature modules (credit score, membership, etc.).
  * Routed from `handleMockApiRequest` when path starts with `admin/<feature>/...`.
  */
-import {
-  addManualCashbackConversion,
-  mockUsers,
-  setManualCashbackStatus,
-} from "@/app/api/mock/data";
+import { mockUsers, setManualCashbackStatus } from "@/app/api/mock/data";
 import { tierFromScore } from "@/lib/creditTier";
 import { sortMembers, type MemberSortKey } from "@/lib/memberSort";
+import type { MissingOrderStatus } from "@/types/adminModules";
 
 /** Same shape as `MockApiInput` in mockApiCore (avoid circular import). */
 export type AdminFeatureMockInput = {
@@ -323,12 +320,7 @@ type MissingClaim = {
   overrideCashback: number | null;
   submittedDate: string;
   remarks: string;
-  status:
-    | "pending"
-    | "under_review"
-    | "approved"
-    | "rejected"
-    | "info_requested";
+  status: MissingOrderStatus;
   assignedTo: string | null;
   evidence: string[];
   notes: {
@@ -440,10 +432,7 @@ let transactions: TxRow[] = Array.from({ length: 60 }, (_, i) => ({
 }));
 
 type DiscoverType =
-  | "hero_banner"
-  | "featured_merchant"
-  | "featured_category"
-  | "trending_offer";
+  "hero_banner" | "featured_merchant" | "featured_category" | "trending_offer";
 
 type DiscoverItem = {
   id: string;
@@ -571,6 +560,32 @@ let blacklist: BlackRow[] = [
     addedBy: "a1",
     addedDate: "2026-03-01",
     notes: "Fraud pattern",
+  },
+];
+
+type SearchRuleRow = {
+  id: string;
+  offer_id: string;
+  offer_name?: string;
+  treatment: "pinned" | "boost" | "blocked";
+  keywords: string[];
+  weight?: number;
+  is_active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+let searchRules: SearchRuleRow[] = [
+  {
+    id: "sr1",
+    offer_id: "o1",
+    offer_name: "GadgetHub CPS",
+    treatment: "boost",
+    keywords: [],
+    weight: 5,
+    is_active: true,
+    createdAt: "2026-04-01T00:00:00.000Z",
+    updatedAt: "2026-04-01T00:00:00.000Z",
   },
 ];
 
@@ -765,10 +780,18 @@ export function tryMockAdminFeaturesRequest(
   if (path[1] === "subscription") {
     if (m === "GET" && path[2] === "stats") {
       return ok({
-        totalVolumeToday: 1_250_000,
-        totalVolumeMtd: 28_400_000,
-        avgTransactionValue: 1820,
-        flaggedCount: transactions.filter((t) => t.isFlagged).length,
+        by_status: {
+          active: subscriptions.filter((item) => item.status === "active")
+            .length,
+          paused: subscriptions.filter((item) => item.status === "paused")
+            .length,
+          cancelled: subscriptions.filter((item) => item.status === "cancelled")
+            .length,
+        },
+        total_revenue: subscriptionPlans.reduce(
+          (total, plan) => total + plan.price * plan.subscriberCount,
+          0,
+        ),
       });
     }
     if (m === "GET" && path[2] === "plans")
@@ -1052,39 +1075,26 @@ export function tryMockAdminFeaturesRequest(
         amount?: number;
         currency?: string;
         reason?: string;
-        adminId?: string;
       };
       const uid = path[2];
       const adj = {
         walletId: uid,
         type: (b.type === "debit" ? "debit" : "credit") as "credit" | "debit",
         amount: Number(b.amount ?? 0),
-        currency: String(b.currency || "cashback"),
+        currency: (b.currency === "USD" ? "USD" : "THB") as "THB" | "USD",
         reason: String(b.reason || ""),
-        adminId: String(b.adminId || "admin"),
+        adminId: "verified-admin",
         timestamp: new Date().toISOString(),
       };
       walletAdjustments[uid] = [...(walletAdjustments[uid] ?? []), adj];
-      const isCashbackRequest =
-        adj.type === "credit" && adj.currency === "cashback";
-      if (isCashbackRequest) {
-        // Pending approval — the balance is credited only when a super-admin
-        // approves the request (surfaced as a pending conversion).
-        addManualCashbackConversion(uid, adj.amount, adj.reason);
-      } else {
-        wallets = wallets.map((w) => {
-          if (w.userId !== uid) return w;
-          const mul = adj.type === "credit" ? 1 : -1;
-          if (adj.currency === "GGC")
-            return { ...w, ggcBalance: w.ggcBalance + mul * adj.amount };
-          if (adj.currency === "points")
-            return { ...w, pointsBalance: w.pointsBalance + mul * adj.amount };
-          return {
-            ...w,
-            cashbackBalance: w.cashbackBalance + mul * adj.amount,
-          };
-        });
-      }
+      wallets = wallets.map((w) => {
+        if (w.userId !== uid) return w;
+        const mul = adj.type === "credit" ? 1 : -1;
+        return {
+          ...w,
+          cashbackBalance: w.cashbackBalance + mul * adj.amount,
+        };
+      });
       return ok({ success: true, adjustment: adj });
     }
     if (m === "POST" && path[2] === "cashback-request" && path[3]) {
@@ -1245,6 +1255,58 @@ export function tryMockAdminFeaturesRequest(
 
   /* ---------- Search ---------- */
   if (path[1] === "search") {
+    if (m === "GET" && path[2] === "rules") {
+      return ok({ data: searchRules });
+    }
+    if (m === "POST" && path[2] === "rules") {
+      const b = body as Omit<SearchRuleRow, "id" | "createdAt" | "updatedAt">;
+      const now = new Date().toISOString();
+      const row: SearchRuleRow = {
+        ...b,
+        id: `sr_${Date.now()}`,
+        keywords: [
+          ...new Set(
+            (b.keywords ?? [])
+              .map((k) => k.trim().toLowerCase())
+              .filter(Boolean),
+          ),
+        ],
+        is_active: b.is_active !== false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      searchRules = [...searchRules, row];
+      return ok(row);
+    }
+    if (m === "PUT" && path[2] === "rules" && path[3]) {
+      const id = path[3];
+      const b = body as Partial<SearchRuleRow>;
+      searchRules = searchRules.map((rule) =>
+        rule.id === id
+          ? {
+              ...rule,
+              ...b,
+              id,
+              keywords:
+                b.keywords === undefined
+                  ? rule.keywords
+                  : [
+                      ...new Set(
+                        b.keywords
+                          .map((k) => k.trim().toLowerCase())
+                          .filter(Boolean),
+                      ),
+                    ],
+              updatedAt: new Date().toISOString(),
+            }
+          : rule,
+      );
+      return ok(searchRules.find((rule) => rule.id === id));
+    }
+    if (m === "DELETE" && path[2] === "rules" && path[3]) {
+      searchRules = searchRules.filter((rule) => rule.id !== path[3]);
+      return ok({ success: true });
+    }
     if (m === "GET" && path[2] === "featured-terms")
       return ok({ data: featuredTerms });
     if (m === "POST" && path[2] === "featured-terms") {

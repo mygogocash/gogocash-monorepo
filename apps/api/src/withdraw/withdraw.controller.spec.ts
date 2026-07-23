@@ -1,8 +1,13 @@
 import 'reflect-metadata';
+import { Logger, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import type { Request } from 'express';
 import { WithdrawController } from './withdraw.controller';
 import { WithdrawService } from './withdraw.service';
+import { UserContactOtpService } from './user-contact-otp.service';
+import { AnalyticsService } from 'src/analytics/analytics.service';
 import {
   CreateManualWithdrawRequestDto,
   CreateWithdrawDto,
@@ -17,7 +22,10 @@ import {
 } from './dto/update-withdraw.dto';
 import { RequestCreateConversionReward } from 'src/user/dto/create-conversion-reward.dto';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
+import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { RolesGuard } from 'src/admin/roles.guard';
+import { ROLES_KEY } from 'src/admin/roles.decorator';
 
 /**
  * The controller is a thin authorization/identity boundary in front of
@@ -62,24 +70,102 @@ function makeService(): jest.Mocked<Partial<WithdrawService>> {
 function reqWithUser(sub: string | undefined): Request {
   return {
     user: sub === undefined ? undefined : { sub },
+    // Real Express requests always carry a headers object; analytics context
+    // extraction reads it, so the fixture must model that.
+    headers: {},
   } as unknown as Request;
 }
+
+describe('CreateWithdrawMethod account-number boundary', () => {
+  const methodDto = (accountNo: unknown) =>
+    plainToInstance(CreateWithdrawMethod, {
+      account_no: accountNo,
+      account_name: 'QA Shopper',
+      bank_name: 'KBANK',
+      bank_code: '004',
+      is_default: false,
+    });
+
+  it('preserves a leading-zero digit string exactly', async () => {
+    const dto = methodDto('0012345678');
+
+    expect(await validate(dto)).toHaveLength(0);
+    expect(dto.account_no).toBe('0012345678');
+  });
+
+  it.each([
+    [42, '42'],
+    [1e3, '1000'],
+  ])(
+    'accepts safe legacy JSON number %p and normalizes it to %s',
+    async (input, expected) => {
+      const dto = methodDto(input);
+
+      expect(await validate(dto)).toHaveLength(0);
+      expect(dto.account_no).toBe(expected);
+    },
+  );
+
+  it.each([
+    1.5,
+    -1,
+    Number.MAX_SAFE_INTEGER + 1,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    '1e3',
+    '12-34',
+    ' 1234',
+  ])('rejects invalid account-number input %p', async (input) => {
+    const errors = await validate(methodDto(input));
+
+    expect(errors.some((error) => error.property === 'account_no')).toBe(true);
+  });
+
+  it('records only a redacted compatibility counter for a legacy number', async () => {
+    const logger = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    const dto = methodDto(987654321);
+
+    expect(await validate(dto)).toHaveLength(0);
+    expect(logger).toHaveBeenCalledWith({
+      count: 1,
+      event: 'withdraw_method_legacy_account_number',
+    });
+    expect(JSON.stringify(logger.mock.calls)).not.toContain('987654321');
+  });
+});
 
 describe('WithdrawController', () => {
   let controller: WithdrawController;
   let service: jest.Mocked<Partial<WithdrawService>>;
+  let analytics: { capture: jest.Mock };
 
   beforeEach(async () => {
     service = makeService();
+    analytics = { capture: jest.fn().mockResolvedValue(undefined) };
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [WithdrawController],
-      providers: [{ provide: WithdrawService, useValue: service }],
+      providers: [
+        { provide: WithdrawService, useValue: service },
+        { provide: AnalyticsService, useValue: analytics },
+        {
+          provide: UserContactOtpService,
+          useValue: {
+            sendOtp: jest.fn(),
+            verifyOtp: jest.fn(),
+            updateWithdrawUser: jest.fn(),
+          },
+        },
+      ],
     })
       // Guards carry real Mongoose/JWT dependencies; we test controller
       // delegation logic, not the guards themselves, so stub them to allow.
       .overrideGuard(FirebaseAuthGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(AuthAdminGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RateLimitGuard)
       .useValue({ canActivate: () => true })
       .compile();
 
@@ -88,6 +174,107 @@ describe('WithdrawController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  describe('withdraw_requested analytics (PDPA-safe funnel)', () => {
+    const withdrawDto = () =>
+      plainToInstance(CreateWithdrawDto, {
+        amount_total: 750,
+        method: 'bank',
+        currency: 'THB',
+        account_no: '0012345678',
+        account_name: 'QA Shopper',
+        bank_name: 'KBANK',
+      });
+
+    it('captures withdraw_requested with method + amount band after a successful create', async () => {
+      await controller.create(reqWithUser('user-self'), withdrawDto());
+
+      expect(analytics.capture).toHaveBeenCalledWith(
+        'withdraw_requested',
+        expect.objectContaining({ userId: 'user-self' }),
+        expect.objectContaining({
+          method: 'bank',
+          amount_band: '500-1000',
+          currency: 'THB',
+        }),
+      );
+    });
+
+    it('never leaks bank/account/wallet PII into the event properties', async () => {
+      await controller.create(reqWithUser('user-self'), withdrawDto());
+
+      const props = analytics.capture.mock.calls[0]?.[2] ?? {};
+      for (const banned of [
+        'account_no',
+        'account_number',
+        'account_name',
+        'bank_name',
+        'address',
+      ]) {
+        expect(props).not.toHaveProperty(banned);
+      }
+    });
+
+    it('does not capture when the underlying create fails', async () => {
+      (service.create as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+
+      await expect(
+        controller.create(reqWithUser('user-self'), withdrawDto()),
+      ).rejects.toThrow('boom');
+      expect(analytics.capture).not.toHaveBeenCalled();
+    });
+
+    it('captures withdraw_requested (method bank_transfer) after a successful bank transfer', async () => {
+      const dto = plainToInstance(CreateWithdrawDto, {
+        amount_total: 250,
+        currency: 'THB',
+        account_no: '0012345678',
+        account_name: 'QA Shopper',
+        bank_name: 'KBANK',
+      });
+
+      await controller.createBankTransfer(
+        reqWithUser('user-self'),
+        dto,
+        'idem-1',
+      );
+
+      expect(analytics.capture).toHaveBeenCalledWith(
+        'withdraw_requested',
+        expect.objectContaining({ userId: 'user-self' }),
+        expect.objectContaining({
+          method: 'bank_transfer',
+          amount_band: '100-500',
+          currency: 'THB',
+        }),
+      );
+      const props = analytics.capture.mock.calls[0]?.[2] ?? {};
+      for (const banned of [
+        'account_no',
+        'account_number',
+        'account_name',
+        'bank_name',
+        'address',
+      ]) {
+        expect(props).not.toHaveProperty(banned);
+      }
+    });
+
+    it('does not capture when the underlying bank transfer fails', async () => {
+      (service.createBankTransfer as jest.Mock).mockRejectedValueOnce(
+        new Error('boom'),
+      );
+
+      await expect(
+        controller.createBankTransfer(
+          reqWithUser('user-self'),
+          withdrawDto(),
+          'idem-1',
+        ),
+      ).rejects.toThrow('boom');
+      expect(analytics.capture).not.toHaveBeenCalled();
+    });
   });
 
   describe('checkWithdraw (self-service)', () => {
@@ -151,12 +338,20 @@ describe('WithdrawController', () => {
     // A withdrawal moves money: the body must be paired with the AUTHENTICATED
     // caller's id, never a body-supplied owner, to prevent withdrawing on
     // behalf of another account.
-    it('create > given a withdraw body and authed user > then service.create is called with (body, callerSub)', async () => {
+    it('create > given a withdraw body and command key > then service receives the authenticated owner and key', async () => {
       const body: CreateWithdrawDto = { amount_net: 50, currency: 'USDT' };
 
-      const result = await controller.create(reqWithUser('owner-1'), body);
+      const result = await controller.create(
+        reqWithUser('owner-1'),
+        body,
+        'onchain-command-1',
+      );
 
-      expect(service.create).toHaveBeenCalledWith(body, 'owner-1');
+      expect(service.create).toHaveBeenCalledWith(
+        body,
+        'owner-1',
+        'onchain-command-1',
+      );
       expect(result).toEqual({ _id: 'w1' });
     });
   });
@@ -164,19 +359,26 @@ describe('WithdrawController', () => {
   describe('approveWithdraw (admin, V-2b)', () => {
     it('approveWithdraw > given a withdraw id + admin > then service.approveWithdrawRequest is called with (id, adminSub)', () => {
       controller.approveWithdraw(reqWithUser('admin-9'), 'w-1');
-      expect(service.approveWithdrawRequest).toHaveBeenCalledWith(
-        'w-1',
-        'admin-9',
-      );
+      expect(service.approveWithdrawRequest).toHaveBeenCalledWith('w-1', {
+        id: 'admin-9',
+        label: 'admin-9',
+      });
     });
 
-    it('approveWithdraw > is protected by AuthAdminGuard', () => {
+    it('approveWithdraw > requires current approver authorization', () => {
       const guards =
         (Reflect.getMetadata(
           '__guards__',
           WithdrawController.prototype.approveWithdraw,
         ) as unknown[]) ?? [];
       expect(guards).toContain(AuthAdminGuard);
+      expect(guards).toContain(RolesGuard);
+      expect(
+        Reflect.getMetadata(
+          ROLES_KEY,
+          WithdrawController.prototype.approveWithdraw,
+        ),
+      ).toEqual(['approver']);
     });
   });
 
@@ -211,23 +413,31 @@ describe('WithdrawController', () => {
       expect(service.markWithdrawPaid).toHaveBeenCalledWith(
         'withdraw-1',
         body,
-        'admin-7',
+        { id: 'admin-7', label: 'admin-7' },
       );
     });
 
-    // Audit fields must never be silently empty: a missing sub is stamped as
-    // the literal 'unknown' rather than undefined, so the record stays
-    // queryable and the gap is visible.
-    it("markPaid > given no admin sub on the request > then it stamps 'unknown' as the admin id", () => {
+    it('markPaid > given no admin identity > then it fails closed', () => {
       const body: MarkWithdrawPaidDto = { tx_hash: '0x' + 'b'.repeat(64) };
 
-      controller.markPaid(reqWithUser(undefined), 'withdraw-1', body);
+      expect(() =>
+        controller.markPaid(reqWithUser(undefined), 'withdraw-1', body),
+      ).toThrow(UnauthorizedException);
+      expect(service.markWithdrawPaid).not.toHaveBeenCalled();
+    });
 
-      expect(service.markWithdrawPaid).toHaveBeenCalledWith(
-        'withdraw-1',
-        body,
-        'unknown',
+    it('markPaid > requires current approver authorization', () => {
+      const guards =
+        (Reflect.getMetadata(
+          '__guards__',
+          WithdrawController.prototype.markPaid,
+        ) as unknown[]) ?? [];
+      expect(guards).toEqual(
+        expect.arrayContaining([AuthAdminGuard, RolesGuard]),
       );
+      expect(
+        Reflect.getMetadata(ROLES_KEY, WithdrawController.prototype.markPaid),
+      ).toEqual(['approver']);
     });
   });
 
@@ -239,9 +449,17 @@ describe('WithdrawController', () => {
         currency: 'THB',
       };
 
-      await controller.createBankTransfer(reqWithUser('owner-1'), body);
+      await controller.createBankTransfer(
+        reqWithUser('owner-1'),
+        body,
+        'idem-1',
+      );
 
-      expect(service.createBankTransfer).toHaveBeenCalledWith(body, 'owner-1');
+      expect(service.createBankTransfer).toHaveBeenCalledWith(
+        body,
+        'owner-1',
+        'idem-1',
+      );
     });
   });
 
@@ -361,19 +579,34 @@ describe('WithdrawController', () => {
   });
 
   describe('signature', () => {
-    it('getSign > given a sign DTO > then it delegates the DTO unchanged to service.getSign', () => {
+    it('getSign > given a sign DTO > then it binds the request to the authenticated subject', () => {
       const dto: GETSignDTO = {
         userid: 'u1',
-        userAddress: '0xabc',
+        userAddress: '0x' + 'a'.repeat(40),
         totalCashbackAmount: '100',
-        conversionIdHashes: ['0xhash'],
-        expireAt: '2026-01-01',
+        conversionIdHashes: ['1'],
+        expireAt: String(Math.floor(Date.now() / 1000) + 300),
         chain: 42220,
       };
 
-      controller.getSign(dto);
+      controller.getSign(reqWithUser('u1'), dto);
 
-      expect(service.getSign).toHaveBeenCalledWith(dto);
+      expect(service.getSign).toHaveBeenCalledWith(dto, 'u1');
+    });
+
+    it('getSign > given no authenticated subject > then it forwards no fallback identity', () => {
+      const dto = {
+        userid: 'attacker-controlled',
+        userAddress: '0x' + 'a'.repeat(40),
+        totalCashbackAmount: '100',
+        conversionIdHashes: ['1'],
+        expireAt: String(Math.floor(Date.now() / 1000) + 300),
+        chain: 42220,
+      } as GETSignDTO;
+
+      controller.getSign(reqWithUser(undefined), dto);
+
+      expect(service.getSign).toHaveBeenCalledWith(dto, undefined);
     });
   });
 

@@ -1,0 +1,7 @@
+command=adb reverse --list
+ok=true
+status=0
+--- stdout ---
+UsbFfs localabstract:screen-sharing-agent-57328 tcp:57328
+--- stderr ---
+

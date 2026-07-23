@@ -4,9 +4,9 @@ import { Types } from 'mongoose';
 import { escapeRegexLiteral } from './escape-regex';
 
 /** Validate and coerce a user-supplied id before it reaches a Mongo query. */
-export function requireObjectId(id: string, label = 'id'): Types.ObjectId {
-  if (!Types.ObjectId.isValid(id)) {
-    throw new BadRequestException(`Invalid ${label}`);
+export function requireObjectId(id: unknown, label = 'id'): Types.ObjectId {
+  if (typeof id !== 'string' || !Types.ObjectId.isValid(id)) {
+    throw new BadRequestException(`The ${label} you provided is not valid.`);
   }
   return new Types.ObjectId(id);
 }
@@ -29,20 +29,23 @@ export function requireOneOf<T extends string>(
   label: string,
 ): T {
   if (!allowed.includes(value as T)) {
-    throw new BadRequestException(`Invalid ${label}`);
+    throw new BadRequestException(`The ${label} you provided is not valid.`);
   }
   return value as T;
 }
 
 /** Non-empty trimmed string safe for Mongo literal comparisons. */
 export function requireTrimmedString(
-  value: string,
+  value: unknown,
   maxLength = 500,
   label = 'value',
 ): string {
+  if (typeof value !== 'string') {
+    throw new BadRequestException(`The ${label} you provided is not valid.`);
+  }
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > maxLength) {
-    throw new BadRequestException(`Invalid ${label}`);
+    throw new BadRequestException(`The ${label} you provided is not valid.`);
   }
   return trimmed;
 }
@@ -51,7 +54,7 @@ export function requireTrimmedString(
 export function requireFiniteNumber(value: unknown, label = 'value'): number {
   const num = Number(value);
   if (!Number.isFinite(num)) {
-    throw new BadRequestException(`Invalid ${label}`);
+    throw new BadRequestException(`The ${label} you provided is not valid.`);
   }
   return num;
 }

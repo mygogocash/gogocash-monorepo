@@ -5,7 +5,7 @@ import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 import Checkbox from "@/components/form/input/Checkbox";
 import { PointTransactionSummaryTable } from "@/components/points/PointTransactionSummaryTable";
-import { useDataSession } from "@/hooks/useDataSession";
+import { useSession } from "next-auth/react";
 import {
   ADMIN_PAYOUT_STATUS_HELP_POINTS,
   ADMIN_PAYOUT_STATUS_OPTIONS,
@@ -20,7 +20,7 @@ import {
 } from "@/lib/pointTransactionStorage";
 
 export default function CreatePointsForm() {
-  const session = useDataSession();
+  const { status } = useSession();
   const [pointName, setPointName] = useState("");
   const [pointAmount, setPointAmount] = useState("");
   const [pointUser, setPointUser] = useState("");
@@ -55,8 +55,7 @@ export default function CreatePointsForm() {
       return;
     }
 
-    const token = session.accessToken;
-    if (!token) {
+    if (status !== "authenticated") {
       setSubmitError("You must be signed in to create points.");
       return;
     }
@@ -68,14 +67,11 @@ export default function CreatePointsForm() {
 
     if (!skipApi) {
       try {
-        await apiClient.createAdminPoint(
-          {
-            point_name: trimmedName,
-            point_amount: amount,
-            user: trimmedUser,
-          },
-          token,
-        );
+        await apiClient.createAdminPoint({
+          point_name: trimmedName,
+          point_amount: amount,
+          user: trimmedUser,
+        });
         apiSuccess = true;
       } catch (error) {
         errorMessage = getApiErrorMessage(error, "Failed to create points");

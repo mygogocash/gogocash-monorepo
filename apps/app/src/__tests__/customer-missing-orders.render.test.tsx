@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // CustomerMissingOrdersScreen -> AccountPageShell -> CustomerDesktopHeader ->
 // CustomerLocaleRegionControl -> i18n/LocaleProvider pulls in expo-localization
@@ -17,7 +17,13 @@ vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
 }));
 
+vi.mock("@mobile/api/sharedClient", () => ({
+  getSharedMobileApiClient: vi.fn(),
+}));
+
 import { CustomerMissingOrdersScreen } from "@mobile/screens/CustomerMissingOrdersScreen";
+import { ApiError } from "@mobile/api/client";
+import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
 
 // Wave B (cluster B2) per-screen UX adoption for the missing-order CLAIM form. This is
 // the RENDER suite: it MOUNTS the screen (react-native -> react-native-web, happy-dom)
@@ -28,12 +34,17 @@ import { CustomerMissingOrdersScreen } from "@mobile/screens/CustomerMissingOrde
 // buttons). Skeleton/RefreshControl are intentionally NOT adopted here — this is a form,
 // not a data list.
 const missingOrdersSource = readFileSync(
-  resolve(dirname(fileURLToPath(import.meta.url)), "../screens/CustomerMissingOrdersScreen.tsx"),
-  "utf8"
+  resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../screens/CustomerMissingOrdersScreen.tsx",
+  ),
+  "utf8",
 );
 
 function renderMissingOrders() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
     createElement(
       QueryClientProvider,
@@ -42,6 +53,60 @@ function renderMissingOrders() {
     ),
   );
 }
+
+function backendClient({
+  catalog = {
+    data: [
+      {
+        _id: "live-offer-1",
+        offer_name_display: "Live Merchant",
+        source: "involve",
+      },
+    ],
+    limit: 20,
+    page: 1,
+    total: 1,
+    totalPages: 1,
+  },
+  catalogError,
+  catalogPending = false,
+  claims = { data: [], limit: 10, page: 1, total: 0, totalPages: 0 },
+  claimsError,
+  claimsPending = false,
+}: {
+  catalog?: unknown;
+  catalogError?: Error;
+  catalogPending?: boolean;
+  claims?: unknown;
+  claimsError?: Error;
+  claimsPending?: boolean;
+} = {}) {
+  const get = vi.fn((path: string) => {
+    if (path.startsWith("/offer?")) {
+      if (catalogPending) return new Promise(() => undefined);
+      if (catalogError) return Promise.reject(catalogError);
+      return Promise.resolve(catalog);
+    }
+    return Promise.resolve({ id: "live-user-1" });
+  });
+  const post = vi.fn(() => {
+    if (claimsPending) return new Promise(() => undefined);
+    if (claimsError) return Promise.reject(claimsError);
+    return Promise.resolve(claims);
+  });
+  const client = { get, post, postFormData: vi.fn() };
+  vi.mocked(getSharedMobileApiClient).mockResolvedValue(client as never);
+  return client;
+}
+
+beforeEach(() => {
+  vi.mocked(getSharedMobileApiClient).mockReset();
+  backendClient();
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("CustomerMissingOrdersScreen (render)", () => {
   it("mounts the claim form without throwing", () => {
@@ -68,7 +133,9 @@ describe("CustomerMissingOrdersScreen (render)", () => {
   it("store field is a dropdown select (web parity): opening it and picking a shop fills the field", () => {
     renderMissingOrders();
     // The store field shows its label as the placeholder while empty.
-    fireEvent.click(screen.getByText("Store or marketplace"));
+    // The field is `required`, so MissingOrdersSelectField renders the label as
+    // "Store or marketplace *". Match the label without pinning the asterisk.
+    fireEvent.click(screen.getByText(/^Store or marketplace/));
     // Pick a shop from the dropdown menu.
     fireEvent.click(screen.getByRole("button", { name: "Lazada" }));
     // The chosen shop now shows in the field.
@@ -98,11 +165,178 @@ describe("CustomerMissingOrdersScreen (render)", () => {
     fireEvent.click(screen.getAllByText("Submit claim")[0]);
     expect(screen.getByRole("alert")).toBeTruthy();
   });
+
+  it("backend mode allows metadata-only claims and hides the insecure evidence picker", () => {
+    vi.stubEnv("EXPO_PUBLIC_ACCOUNT_DATA_SOURCE", "backend");
+    try {
+      renderMissingOrders();
+      expect(
+        screen.getByText(
+          "Secure evidence uploads are temporarily unavailable. Submit this claim without attachments.",
+        ),
+      ).toBeTruthy();
+      expect(screen.queryByLabelText("Add images")).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("backend mode shows explicit catalog and claim loading states without fixture merchants", async () => {
+    vi.stubEnv("EXPO_PUBLIC_ACCOUNT_DATA_SOURCE", "backend");
+    backendClient({ catalogPending: true, claimsPending: true });
+
+    renderMissingOrders();
+
+    expect(await screen.findByText("Loading merchant catalog")).toBeTruthy();
+    expect(await screen.findByText("Loading missing conversions")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Lazada" })).toBeNull();
+  });
+
+  it("backend catalog error exposes exact detail and retries instead of falling back to fixtures", async () => {
+    vi.stubEnv("EXPO_PUBLIC_ACCOUNT_DATA_SOURCE", "backend");
+    const client = backendClient({
+      catalogError: new ApiError("Catalog unavailable", 503),
+    });
+
+    renderMissingOrders();
+
+    expect(await screen.findByText("Catalog unavailable")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Lazada" })).toBeNull();
+    const callsBeforeRetry = client.get.mock.calls.filter(([path]) =>
+      String(path).startsWith("/offer?"),
+    ).length;
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => {
+      const callsAfterRetry = client.get.mock.calls.filter(([path]) =>
+        String(path).startsWith("/offer?"),
+      ).length;
+      expect(callsAfterRetry).toBeGreaterThan(callsBeforeRetry);
+    });
+  });
+
+  it("backend true-empty catalog and claim history stay empty without fixture rows", async () => {
+    vi.stubEnv("EXPO_PUBLIC_ACCOUNT_DATA_SOURCE", "backend");
+    backendClient({
+      catalog: { data: [], limit: 20, page: 1, total: 0, totalPages: 0 },
+      claims: { data: [], limit: 10, page: 1, total: 0, totalPages: 0 },
+    });
+
+    renderMissingOrders();
+
+    expect(await screen.findByText("No merchants available")).toBeTruthy();
+    expect(await screen.findByText("No missing conversions yet")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Lazada" })).toBeNull();
+  });
+
+  it("renders the real customer claim list with every canonical workflow status", async () => {
+    vi.stubEnv("EXPO_PUBLIC_ACCOUNT_DATA_SOURCE", "backend");
+    backendClient({
+      claims: {
+        data: [
+          {
+            id: "c1",
+            merchantName: "One",
+            orderId: "ORDER-PENDING",
+            orderAmount: 1,
+            currency: "THB",
+            purchaseDate: "2026-07-01T00:00:00.000Z",
+            remarks: "",
+            status: "pending",
+            submittedDate: "2026-07-01T01:00:00.000Z",
+            resolvedAt: null,
+          },
+          {
+            id: "c2",
+            merchantName: "Two",
+            orderId: "ORDER-REVIEW",
+            orderAmount: 2,
+            currency: "THB",
+            purchaseDate: "2026-07-01T00:00:00.000Z",
+            remarks: "",
+            status: "under_review",
+            submittedDate: "2026-07-01T01:00:00.000Z",
+            resolvedAt: null,
+          },
+          {
+            id: "c3",
+            merchantName: "Three",
+            orderId: "ORDER-APPROVED",
+            orderAmount: 3,
+            currency: "THB",
+            purchaseDate: "2026-07-01T00:00:00.000Z",
+            remarks: "",
+            status: "approved",
+            submittedDate: "2026-07-01T01:00:00.000Z",
+            resolvedAt: "2026-07-02T01:00:00.000Z",
+          },
+          {
+            id: "c4",
+            merchantName: "Four",
+            orderId: "ORDER-REJECTED",
+            orderAmount: 4,
+            currency: "THB",
+            purchaseDate: "2026-07-01T00:00:00.000Z",
+            remarks: "",
+            status: "rejected",
+            submittedDate: "2026-07-01T01:00:00.000Z",
+            resolvedAt: "2026-07-02T01:00:00.000Z",
+          },
+        ],
+        limit: 10,
+        page: 1,
+        total: 4,
+        totalPages: 1,
+      },
+    });
+
+    renderMissingOrders();
+
+    for (const orderId of [
+      "ORDER-PENDING",
+      "ORDER-REVIEW",
+      "ORDER-APPROVED",
+      "ORDER-REJECTED",
+    ]) {
+      expect(await screen.findByText(orderId)).toBeTruthy();
+    }
+    for (const status of ["Pending", "Under review", "Approved", "Rejected"]) {
+      expect(screen.getByText(status)).toBeTruthy();
+    }
+  });
+
+  it("renders exact claim-list errors with retry and uses field validation copy unrelated to attachments", async () => {
+    vi.stubEnv("EXPO_PUBLIC_ACCOUNT_DATA_SOURCE", "backend");
+    const client = backendClient({
+      claimsError: new ApiError("Claim history unavailable", 503),
+    });
+
+    renderMissingOrders();
+
+    expect(
+      await screen.findByText("HTTP 503: Claim history unavailable"),
+    ).toBeTruthy();
+    const callsBeforeRetry = client.post.mock.calls.length;
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry claim history" }),
+    );
+    await waitFor(() =>
+      expect(client.post.mock.calls.length).toBeGreaterThan(callsBeforeRetry),
+    );
+
+    fireEvent.click(screen.getAllByText("Submit claim")[0]);
+    expect(
+      screen.getByText(
+        "User ID, Brand, Order ID, Amount, and Purchase date are required.",
+      ),
+    ).toBeTruthy();
+  });
 });
 
 describe("CustomerMissingOrdersScreen — Wave B foundations adopted (source signals)", () => {
   it("wraps the long form in KeyboardAwareScreen so the keyboard never covers the focused field", () => {
-    expect(missingOrdersSource).toContain('from "@mobile/components/KeyboardAwareScreen"');
+    expect(missingOrdersSource).toContain(
+      'from "@mobile/components/KeyboardAwareScreen"',
+    );
     expect(missingOrdersSource).toContain("<KeyboardAwareScreen");
   });
 
@@ -112,10 +346,19 @@ describe("CustomerMissingOrdersScreen — Wave B foundations adopted (source sig
     expect(missingOrdersSource).toContain("haptics.error(");
   });
 
+  it("surfaces the exact canonical API failure instead of replacing it with attachment copy", () => {
+    expect(missingOrdersSource).toContain("formatMissingOrderApiError");
+    expect(missingOrdersSource).toContain("catch (error)");
+    expect(missingOrdersSource).toContain(
+      "setSubmitError(formatMissingOrderApiError(error))",
+    );
+  });
+
   it("gives the icon-only buttons (<44px) a hitSlop so the tap target reaches 44px", () => {
     // The back-nav chevron and the attachment add-image trigger are icon-only and
     // shorter than 44px; hitSlop expands their tappable area.
-    const hitSlopCount = (missingOrdersSource.match(/hitSlop=\{/g) ?? []).length;
+    const hitSlopCount = (missingOrdersSource.match(/hitSlop=\{/g) ?? [])
+      .length;
     expect(hitSlopCount).toBeGreaterThanOrEqual(2);
   });
 

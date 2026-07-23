@@ -26,7 +26,8 @@ const baseCoupon: CouponData = {
 
 describe("couponForm", () => {
   it("COUPON_FORM_DEFAULTS > has expected create shape", () => {
-    expect(COUPON_FORM_DEFAULTS.discount_type).toBe("percent");
+    expect(COUPON_FORM_DEFAULTS.discount_type).toBeUndefined();
+    expect(COUPON_FORM_DEFAULTS.discount_currency).toBe("");
     expect(COUPON_FORM_DEFAULTS.unlimited_amount_enabled).toBe(true);
   });
 
@@ -55,5 +56,46 @@ describe("couponForm", () => {
       offer_id: { _id: "", offer_name: "Brand A" },
     });
     expect(form.offer_id).toBe("");
+  });
+
+  it("couponDataToForm > preserves unknown legacy money semantics", () => {
+    const form = couponDataToForm({
+      ...baseCoupon,
+      discount_type: undefined,
+      discount_currency: undefined,
+      min_spend: "",
+      min_spend_currency: undefined,
+      max_cap: undefined,
+      max_cap_enabled: undefined,
+      max_cap_currency: undefined,
+    });
+
+    expect(form.discount_type).toBeUndefined();
+    expect(form.discount_currency).toBe("");
+    expect(form.min_spend_currency).toBe("");
+    expect(form.max_cap_enabled).toBeUndefined();
+    expect(form.max_cap_currency).toBe("");
+  });
+
+  it("couponDataToForm > preserves sparse legacy redemption semantics", () => {
+    const form = couponDataToForm({
+      ...baseCoupon,
+      one_time_use_enabled: undefined,
+      usage_per_user: undefined,
+    });
+
+    expect(form.one_time_use_enabled).toBeUndefined();
+    expect(form.usage_per_user).toBe("");
+  });
+
+  it("couponDataToForm > preserves an explicit one-use value for round-trip", () => {
+    const form = couponDataToForm({
+      ...baseCoupon,
+      one_time_use_enabled: true,
+      usage_per_user: 1,
+    });
+
+    expect(form.one_time_use_enabled).toBe(true);
+    expect(form.usage_per_user).toBe("1");
   });
 });

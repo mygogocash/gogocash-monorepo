@@ -291,6 +291,11 @@ export function asNonEmptyParsed(
 
 type PolicyContentWire = ReturnType<typeof buildPolicyContentForSave>;
 
+export const NEW_POLICY_TERMS_REQUIRED_MESSAGE =
+  "Terms & conditions are required for a new policy.";
+export const NEW_CATEGORY_BANNER_REQUIRED_MESSAGE =
+  "Localized policy banner text is required for a new category.";
+
 /**
  * Build the wire payload for `PUT /policy`. Centralises the rule that
  * empty banner / terms blocks are omitted (rather than sent as nulls)
@@ -298,7 +303,7 @@ type PolicyContentWire = ReturnType<typeof buildPolicyContentForSave>;
  * when the admin only edits one block at a time.
  *
  * Backend contract (gogocash_api/src/policy/policy.controller.ts):
- *   PUT /policy { category_id, banner?, terms? }
+ *   PUT /policy { category_id, banner?, terms?, clear_banner?, clear_terms? }
  *
  * Extracted from PolicyTable so the wire shape is testable as a pure function.
  */
@@ -306,15 +311,21 @@ export function buildSavePayload(input: {
   categoryId: string;
   bannerParsed?: ParsedPolicy;
   termsParsed?: ParsedPolicy;
+  clearBanner?: boolean;
+  clearTerms?: boolean;
 }): {
   category_id: string;
   banner?: PolicyContentWire;
   terms?: PolicyContentWire;
+  clear_banner?: boolean;
+  clear_terms?: boolean;
 } {
   const out: {
     category_id: string;
     banner?: PolicyContentWire;
     terms?: PolicyContentWire;
+    clear_banner?: boolean;
+    clear_terms?: boolean;
   } = { category_id: input.categoryId };
   if (input.bannerParsed) {
     out.banner = buildPolicyContentForSave(input.bannerParsed);
@@ -322,7 +333,57 @@ export function buildSavePayload(input: {
   if (input.termsParsed) {
     out.terms = buildPolicyContentForSave(input.termsParsed);
   }
+  if (input.clearBanner) out.clear_banner = true;
+  if (input.clearTerms) out.clear_terms = true;
   return out;
+}
+
+type UnifiedPolicySavePlanInput = {
+  categoryId: string;
+  isNewPolicy: boolean;
+  requireBannerText?: boolean;
+  termsDirty: boolean;
+  bannerDirty: boolean;
+  termsParsed?: ParsedPolicy;
+  bannerParsed?: ParsedPolicy;
+};
+
+export type UnifiedPolicySavePlan =
+  | { ok: false; message: string }
+  | { ok: true; payload: ReturnType<typeof buildSavePayload> };
+
+/**
+ * Plan the single editor-level policy write.
+ *
+ * New policy rows must carry terms. Existing rows remain patch-like: only dirty
+ * blocks are sent, and deleting every translation becomes an explicit clear
+ * flag rather than silently omitting the block and pretending it was saved.
+ */
+export function buildUnifiedPolicySavePlan(
+  input: UnifiedPolicySavePlanInput,
+): UnifiedPolicySavePlan {
+  if (input.isNewPolicy && !input.termsParsed) {
+    return { ok: false, message: NEW_POLICY_TERMS_REQUIRED_MESSAGE };
+  }
+  if (input.requireBannerText && !input.bannerParsed) {
+    return { ok: false, message: NEW_CATEGORY_BANNER_REQUIRED_MESSAGE };
+  }
+
+  return {
+    ok: true,
+    payload: buildSavePayload({
+      categoryId: input.categoryId,
+      termsParsed:
+        input.isNewPolicy || input.termsDirty ? input.termsParsed : undefined,
+      bannerParsed:
+        input.requireBannerText || input.bannerDirty
+          ? input.bannerParsed
+          : undefined,
+      clearTerms: !input.isNewPolicy && input.termsDirty && !input.termsParsed,
+      clearBanner:
+        !input.isNewPolicy && input.bannerDirty && !input.bannerParsed,
+    }),
+  };
 }
 
 /** Total character footprint across all locales — used for the editor's

@@ -4,6 +4,8 @@ import type { Permission } from "@/lib/rbac/permissions";
 export interface LoginRequest {
   email: string;
   password: string;
+  /** "Keep me logged in" → the API issues a 30-day token instead of 7 days. */
+  rememberMe?: boolean;
 }
 
 export interface LoginResponse {
@@ -21,6 +23,10 @@ export interface ApiError {
   message: string;
   status: number;
   errors?: Record<string, string[]>;
+  /** Nest machine code when present (e.g. POLICY_TRANSACTIONS_UNSUPPORTED). */
+  code?: string;
+  /** Nest ops-actionable detail appended by getApiErrorMessage for POLICY_* gates. */
+  reason?: string;
 }
 
 export interface User {
@@ -61,7 +67,6 @@ export interface AdminUsersResponse {
 export interface DataAdminUsers {
   _id: string;
   username: string;
-  password: string;
   email: string;
   /** Role id — a built-in tier (`super_admin`…) or a custom role id. */
   role?: string;
@@ -69,6 +74,18 @@ export interface DataAdminUsers {
   createdAt: Date;
   updatedAt: Date;
   __v: number;
+}
+
+export interface AdminDeleteResponse {
+  acknowledged: true;
+  deletedCount: 1;
+}
+
+export interface AdminCreateInput {
+  username: string;
+  email: string;
+  password: string;
+  role?: string;
 }
 
 /** A role definition (built-in tier or custom) with its granted permissions. */
@@ -154,6 +171,9 @@ export interface DashboardWithdrawStatusBucket {
 }
 
 export interface DashboardSummaryResponse {
+  /** Currency used by every scalar financial total in this response. */
+  currency: "THB";
+  /** Count of commercial conversions across currencies and statuses. */
   conversionCount: number;
   conversionTotalPayout: number;
   /** Sum of sale amounts for conversions in scope (when provided by API). */
@@ -174,10 +194,7 @@ export interface DashboardSummaryResponse {
 
 /** One Apex-style statistics bundle (matches `statisticsChartMockData` shape). */
 export type DashboardStatisticsSeriesName =
-  | "Clicks"
-  | "Conversions"
-  | "Sale Amount"
-  | "Estimated Earnings";
+  "Clicks" | "Conversions" | "Sale Amount" | "Estimated Earnings";
 
 export interface DashboardStatisticsBundle {
   categories: string[];
@@ -219,10 +236,15 @@ export interface DashboardTopOfferRow {
   offerId: number;
   offerName: string;
   merchantId: number;
+  /** Affiliate network namespace for offerId. */
+  networkId: string;
+  /** Publisher/account namespace within the affiliate network. */
+  providerAccount: string;
   conversions: number;
   gmv: number;
   payout: number;
-  currency: string;
+  /** Financial values are fail-closed to THB; conversions span currencies. */
+  currency: "THB";
 }
 
 export interface DashboardNetworkRow {
@@ -232,12 +254,25 @@ export interface DashboardNetworkRow {
   conversions: number;
   gmv: number;
   payout: number;
+  /** Network totals are intentionally scoped to the dashboard currency. */
+  currency: "THB";
 }
 
 export interface DashboardCommissionHealth {
   missingAdminCap: number;
   missingPartnerCap: number;
   adminOverPartner: number;
+}
+
+export interface DashboardDataAvailability {
+  available: boolean;
+  reason: string;
+}
+
+export interface DashboardAnalyticsAvailability {
+  clicks: DashboardDataAvailability;
+  commissionHealth: DashboardDataAvailability;
+  quests: DashboardDataAvailability;
 }
 
 export type DashboardAlertSeverity = "low" | "medium" | "high";
@@ -366,6 +401,9 @@ export interface DashboardQuestMetrics {
 export interface DashboardInsightsResponse {
   lastUpdated: string;
   range: DashboardInsightRange | string;
+  /** Financial values are THB-only; commercial conversion counts span currencies. */
+  currency: "THB";
+  availability: DashboardAnalyticsAvailability;
   period: { from: string; to: string };
   kpis: DashboardKpiBlock;
   withdrawByStatus: DashboardSummaryResponse["withdrawByStatus"];
@@ -381,48 +419,18 @@ export interface DashboardInsightsResponse {
   quests: DashboardQuestMetrics;
 }
 
-/** Admin-controlled offer card / listing tags (app merchandising). */
-export interface OfferDisplayTags {
-  /** Show a “brand category” style tag. */
-  brand_category_enabled: boolean;
-  /** System category name from Category Management list, or empty to use partner `categories`. */
-  brand_category_label: string;
-  extra_cashback_tag: boolean;
-  grab_coupon_tag: boolean;
-  /** When true, show “Expire in {n} days” using `expire_in_days`. */
-  expire_in_days_enabled: boolean;
-  expire_in_days: number | null;
-}
+/**
+ * Admin-controlled offer card / listing tags (app merchandising).
+ * Canonical contract + normalizer live in @gogocash/contracts (#19 P4-1);
+ * re-exported here so existing "@/types/api" import sites keep working.
+ */
+import type { OfferDisplayTags } from "@gogocash/contracts";
 
-export const DEFAULT_OFFER_DISPLAY_TAGS: OfferDisplayTags = {
-  brand_category_enabled: false,
-  brand_category_label: "",
-  extra_cashback_tag: false,
-  grab_coupon_tag: false,
-  expire_in_days_enabled: false,
-  expire_in_days: null,
-};
-
-export function normalizeOfferDisplayTags(value: unknown): OfferDisplayTags {
-  if (!value || typeof value !== "object") {
-    return { ...DEFAULT_OFFER_DISPLAY_TAGS };
-  }
-  const o = value as Record<string, unknown>;
-  const rawDays = o.expire_in_days;
-  let expire: number | null = null;
-  if (rawDays !== "" && rawDays != null && !Number.isNaN(Number(rawDays))) {
-    const n = Math.floor(Number(rawDays));
-    if (n >= 1) expire = n;
-  }
-  return {
-    brand_category_enabled: Boolean(o.brand_category_enabled),
-    brand_category_label: String(o.brand_category_label ?? "").trim(),
-    extra_cashback_tag: Boolean(o.extra_cashback_tag),
-    grab_coupon_tag: Boolean(o.grab_coupon_tag),
-    expire_in_days_enabled: Boolean(o.expire_in_days_enabled),
-    expire_in_days: expire,
-  };
-}
+export type { OfferDisplayTags };
+export {
+  DEFAULT_OFFER_DISPLAY_TAGS,
+  normalizeOfferDisplayTags,
+} from "@gogocash/contracts";
 
 /** One product-type row on an offer (display name + commission details for admins). */
 export interface OfferProductTypeEntry {
@@ -431,6 +439,13 @@ export interface OfferProductTypeEntry {
   pay_in?: "cashback" | "cash";
   /** Cashback %: saved net commission (after −30% fee), as a string. */
   commission_info: string;
+  /**
+   * The same rate under the key the affiliate feed and the API's `ProductTypeDto`
+   * use. Read as a fallback for `commission_info` on load and written alongside it
+   * on save (#516) — the API stores `product_type` as a free-form string map with
+   * no row validation, so a key the admin omits is dropped from the document.
+   */
+  minimum?: string;
   /** Raw partner number the admin typed; editing-only, derived from `commission_info` on load and dropped on save. */
   commission_raw?: string;
   /** Cash pay-in: fixed amount paid out. */
@@ -469,7 +484,12 @@ export function normalizeOfferProductTypes(
       return {
         name: String(o.name ?? "").trim(),
         pay_in: o.pay_in === "cash" ? "cash" : "cashback",
-        commission_info: String(o.commission_info ?? "").trim(),
+        // The affiliate feed writes the rate as `minimum`; the admin form models
+        // the same value as `commission_info` (#516). Read either, preferring the
+        // admin key so an edited value is never overwritten by a stale feed one.
+        commission_info: String(
+          o.commission_info ?? (o as { minimum?: unknown }).minimum ?? "",
+        ).trim(),
         amount:
           typeof amountNum === "number" && Number.isFinite(amountNum)
             ? amountNum
@@ -477,6 +497,12 @@ export function normalizeOfferProductTypes(
         currency: String(o.currency ?? "").trim(),
         deeplink: String(o.deeplink ?? "").trim(),
         description: String(o.description ?? "").trim(),
+        // Non-empty saved description ⇒ rewrite was on (#467 load).
+        ...(o.description_rewrite === true ||
+        String(o.description ?? "").trim()
+          ? { description_rewrite: true }
+          : {}),
+        ...(o.is_others === true ? { is_others: true } : {}),
         ...(o.is_tagline === true ? { is_tagline: true } : {}),
       };
     }
@@ -525,7 +551,9 @@ export interface Offer {
   __v: number;
   categories: string;
   commission_tracking: string;
-  commissions: string[];
+  // Involve-style partner rows ({ Commission: "2.80%" }) or legacy plain strings —
+  // collectPercentsFromPartnerRates handles both shapes.
+  commissions: Array<string | Record<string, string>>;
   countries: string;
   currency: string;
   datetime_created: Date;
@@ -544,6 +572,27 @@ export interface Offer {
   tracking_link: string;
   tracking_type: string;
   validation_terms: number;
+  /** Cashback tracking-period config ('auto' derives from validation_terms). */
+  tracking_period_mode?: "auto" | "manual";
+  tracking_days?: number | null;
+  confirm_days?: number | null;
+  /** Step-strip flow: 3-step (Purchase→Tracking→Confirm) or combined 2-step. */
+  flow_type?: "three_step" | "two_step";
+  /** Editable step captions; blank falls back to the platform defaults. */
+  tracking_subtitle?: string | null;
+  confirm_subtitle?: string | null;
+  /**
+   * API-derived windows (public GET /offer/:id attaches this and STRIPS the
+   * raw fields above — the /brands/[id] route seeds from it instead).
+   */
+  tracking_period?: {
+    tracking_days: number;
+    confirm_days: number;
+    source: "partner" | "manual" | "default";
+    flow_type?: "three_step" | "two_step";
+    tracking_subtitle?: string;
+    confirm_subtitle?: string;
+  };
   logo_desktop: string;
   logo_mobile: string;
   banner: string;
@@ -578,8 +627,13 @@ export interface Offer {
   upsize_all_product_types?: boolean;
   /** Per–product-line commission copy for the upsize promo period (optional). */
   upsize_product_types?: OfferProductTypeEntry[];
-  /** Product types for this offer (optional, from API) */
+  /** Product types for this offer (optional, from API / mock). */
   product_types?: OfferProductTypeEntry[];
+  /**
+   * Persisted API field (singular). Admin edit form maps this into
+   * `product_types` when the plural key is absent (#428).
+   */
+  product_type?: OfferProductTypeEntry[];
   /** When true, admin treats this offer as covering all product lines (single tracking link / commission setup). */
   all_product_types?: boolean;
   /** Admin-entered commission notes or tiers (e.g. internal deals); separate from partner feed. */
@@ -649,6 +703,15 @@ export interface OfferRequestForm {
   /** Advertiser / market for tracking link targeting (see `DEEPLINK_STORE_OPTIONS`). */
   deeplink_store_id: string;
   offer_display_tags: OfferDisplayTags;
+  /** Cashback tracking-period config ('auto' derives from partner validation_terms). */
+  tracking_period_mode: "auto" | "manual";
+  tracking_days: number | null;
+  confirm_days: number | null;
+  /** Step-strip flow: 3-step (Purchase→Tracking→Confirm) or combined 2-step. */
+  flow_type: "three_step" | "two_step";
+  /** Editable step captions; null/empty saves clear back to the defaults. */
+  tracking_subtitle: string | null;
+  confirm_subtitle: string | null;
 }
 
 export interface OffersQuery {
@@ -696,14 +759,74 @@ export interface TopBrandConfigEntry {
 
 /** Curated homepage top-brand rail (admin). Mock: in-memory ordered entries. */
 export interface TopBrandsAdminResponse {
+  /** Legacy alias of desktop order. */
   order: string[];
+  orderDesktop: string[];
+  orderMobile: string[];
+  /** Legacy alias of brandsDesktop. */
   brands: TopBrandConfigEntry[];
+  brandsDesktop: TopBrandConfigEntry[];
+  brandsMobile: TopBrandConfigEntry[];
   items: Offer[];
+  maxBrands: number;
+}
+
+export interface SaveTopBrandsPayload {
+  brandsDesktop: TopBrandConfigEntry[];
+  brandsMobile: TopBrandConfigEntry[];
 }
 
 export interface SaveTopBrandsResponse {
   success: boolean;
   brands: TopBrandConfigEntry[];
+  brandsDesktop?: TopBrandConfigEntry[];
+  brandsMobile?: TopBrandConfigEntry[];
+  message?: string;
+}
+
+/** One curated homepage landing rail (admin view). */
+export interface LandingRailAdmin {
+  railId: string;
+  title: string;
+  emoji: string;
+  link: string;
+  cardVariant: string;
+  position: number;
+  enabled: boolean;
+  orderDesktop: string[];
+  orderMobile: string[];
+  brandsDesktop: TopBrandConfigEntry[];
+  brandsMobile: TopBrandConfigEntry[];
+}
+
+export interface LandingRailsAdminResponse {
+  rails: LandingRailAdmin[];
+  /** Resolved offer catalog for every curated offerId across all rails. */
+  items: Offer[];
+  maxRails: number;
+  maxBrands: number;
+}
+
+/** One rail in a save payload. Brand lists reuse the Top brands entry shape. */
+export interface SaveLandingRailPayload {
+  railId: string;
+  title?: string;
+  emoji?: string;
+  link?: string;
+  cardVariant?: string;
+  position?: number;
+  enabled?: boolean;
+  brandsDesktop?: TopBrandConfigEntry[];
+  brandsMobile?: TopBrandConfigEntry[];
+}
+
+export interface SaveLandingRailsPayload {
+  rails: SaveLandingRailPayload[];
+}
+
+export interface SaveLandingRailsResponse {
+  success: boolean;
+  rails: LandingRailAdmin[];
   message?: string;
 }
 
@@ -742,6 +865,11 @@ export interface DataWithdrawsList {
   chain?: string;
   paid_by?: string;
   paid_at?: string | Date;
+  /** Server-computed bank-transfer fee breakdown (optional on legacy rows). */
+  withdraw_fee_base?: number;
+  withdraw_fee_discount?: number;
+  withdraw_fee_final?: number;
+  coupon_code?: string;
 }
 
 export interface ResponseConversion {
@@ -791,7 +919,7 @@ export interface DataConversion {
 /** Max-cap mode for global or per-region fee rules. */
 export type GlobalMaxCapMode = "percent" | "fixed";
 
-/** Per-country (or territory) withdrawal fee rules; legacy THB/USD columns mirror common pairs. */
+/** Shared per-country fee rule: cashback cap plus withdrawal override. */
 export interface FeeWithdrawRegion {
   id: string;
   /** ISO 3166-1 alpha-2 */
@@ -828,6 +956,12 @@ export interface ResponseFee {
   global_max_cap_amount?: number;
   /** ISO 4217; used when mode is `fixed`. */
   global_max_cap_currency?: string;
+  /** Global withdrawal defaults used when no country override applies. */
+  global_withdraw_fee?: number;
+  global_minimum_withdraw?: number;
+  global_withdraw_currency?: string;
+  /** Referrer earns this % of a referred friend's approved cashback (0-100). */
+  referral_bonus_percent?: number;
 }
 
 export interface FeeSettingsForm {
@@ -844,4 +978,9 @@ export interface FeeSettingsForm {
   global_max_cap_percent: number;
   global_max_cap_amount: number;
   global_max_cap_currency: string;
+  global_withdraw_fee: number;
+  global_minimum_withdraw: number;
+  global_withdraw_currency: string;
+  /** Referrer earns this % of a referred friend's approved cashback (0-100). */
+  referral_bonus_percent: number;
 }

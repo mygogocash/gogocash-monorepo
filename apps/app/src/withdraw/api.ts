@@ -9,21 +9,62 @@ export type WithdrawMethodRecord = {
   is_default?: boolean;
 };
 
+export type CreateWithdrawMethodRequest = {
+  account_no: string;
+  account_name: string;
+  bank_name: string;
+  bank_code: string;
+  is_default: boolean;
+};
+
+export type CreateWithdrawMethodResponse = {
+  message: string;
+  data: WithdrawMethodRecord;
+  status: string;
+};
+
 export type WithdrawBankTransferRequest = {
   accountName: string;
   accountNumber: string;
   amountNet: number;
   bankName: string;
   currency?: "THB" | "USD";
+  couponCode?: string;
 };
 
-export type WithdrawBankTransferResponse = {
+export type WithdrawFeePreviewResponse = {
+  available_balance: number;
+  min_withdraw: number;
+  base_fee: number;
+  discount: number;
+  final_fee: number;
+  you_will_receive: number;
+  remaining_cashback: number;
+  currency: string;
+  coupon?: { code: string; name: string; id?: string };
+};
+
+export type WithdrawBankTransferRecord = {
   _id: string;
   status: string;
 };
 
+export type WithdrawBankTransferResponse =
+  | WithdrawBankTransferRecord
+  | {
+      message: string;
+      data: WithdrawBankTransferRecord;
+      status: "success";
+      reused: boolean;
+    };
+
 export type WithdrawBaseClient = {
   get<TResponse = unknown>(path: string): Promise<TResponse>;
+  patch<TResponse = unknown>(
+    path: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+  ): Promise<TResponse>;
   post<TResponse = unknown>(
     path: string,
     body?: unknown,
@@ -41,7 +82,37 @@ export function createWithdrawApi(client: WithdrawBaseClient) {
     listMethods() {
       return client.get<WithdrawMethodRecord[]>("/withdraw/methods-list");
     },
-    async submitBankTransfer(request: WithdrawBankTransferRequest, idempotencyKey: string) {
+    createMethod(body: CreateWithdrawMethodRequest) {
+      return client.post<CreateWithdrawMethodResponse>(
+        "/withdraw/methods",
+        body,
+      );
+    },
+    updateMethod(id: string, body: Partial<CreateWithdrawMethodRequest>) {
+      return client.patch<CreateWithdrawMethodResponse>(
+        `/withdraw/methods/${id}`,
+        body,
+      );
+    },
+    previewFee(body: {
+      amount: number;
+      currency?: "THB" | "USD";
+      method?: string;
+      couponCode?: string;
+    }) {
+      return client.post<WithdrawFeePreviewResponse>("/withdraw/preview-fee", {
+        amount: body.amount,
+        currency: body.currency ?? "THB",
+        method: body.method ?? "bank_transfer",
+        ...(body.couponCode?.trim()
+          ? { coupon_code: body.couponCode.trim().toUpperCase() }
+          : {}),
+      });
+    },
+    async submitBankTransfer(
+      request: WithdrawBankTransferRequest,
+      idempotencyKey: string,
+    ) {
       if (!idempotencyKey) {
         throw new Error("submitBankTransfer requires an Idempotency-Key");
       }
@@ -50,7 +121,9 @@ export function createWithdrawApi(client: WithdrawBaseClient) {
       const accountNumber = request.accountNumber.trim();
       const bankName = request.bankName.trim();
       if (!accountName || !accountNumber || !bankName) {
-        throw new Error("submitBankTransfer requires account name, number, and bank");
+        throw new Error(
+          "submitBankTransfer requires account name, number, and bank",
+        );
       }
       if (!(request.amountNet > 0)) {
         throw new Error("submitBankTransfer requires a positive amount");
@@ -67,6 +140,9 @@ export function createWithdrawApi(client: WithdrawBaseClient) {
           conversion_ids: [],
           currency: request.currency ?? "THB",
           percent_fee: 0,
+          ...(request.couponCode?.trim()
+            ? { coupon_code: request.couponCode.trim().toUpperCase() }
+            : {}),
         },
         {
           "Idempotency-Key": idempotencyKey,

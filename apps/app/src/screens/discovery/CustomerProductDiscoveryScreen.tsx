@@ -9,11 +9,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "@mobile/theme/icons";
+import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { useSpecificPageBanner } from "@mobile/account/specificPageBannerResource";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
-import { filterDirectoryStoresByRegion } from "@mobile/account/directoryCatalogResource";
+import {
+  filterDirectoryStoresByRegion,
+  resolveCategoryIconImages,
+  resolveCategoryIconKeys,
+} from "@mobile/account/directoryCatalogResource";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { haptics } from "@mobile/lib/haptics";
@@ -46,6 +52,7 @@ import { ProductDiscoveryMobileFilters } from "./ProductDiscoveryMobileFilters";
 import { ProductDiscoverySidebar } from "./ProductDiscoverySidebar";
 import { ProductDiscoveryTermsDialog } from "./ProductDiscoveryTermsDialog";
 import { ShopDirectoryPagination } from "./ShopDirectoryPagination";
+import { SpecificPageBannerCarousel } from "./SpecificPageBannerCarousel";
 
 export function CustomerProductDiscoveryScreen() {
   const styles = useThemedStyles(createDiscoveryScreenStyles);
@@ -75,6 +82,19 @@ export function CustomerProductDiscoveryScreen() {
     contentWidth: gridContentWidth,
     viewportWidth: width,
   });
+  const specificPageBanner = useSpecificPageBanner("discover", webProductDiscovery.promo);
+  const categoryResource = useCustomerAccountResource({
+    fixtureData: webProductDiscovery.categories.map((category) => category.label),
+    resourceId: "categoryList",
+  });
+  const directoryCategoryIconKeys = resolveCategoryIconKeys(
+    categoryResource.source,
+    categoryResource.data,
+  );
+  const directoryCategoryIconImages = resolveCategoryIconImages(
+    categoryResource.source,
+    categoryResource.data,
+  );
   const productResults = useMemo(
     () =>
       filterDirectoryStoresByRegion(
@@ -91,7 +111,7 @@ export function CustomerProductDiscoveryScreen() {
   const totalPages = Math.max(1, Math.ceil(productResults.length / pageSize));
   const activePage = Math.min(currentPage, totalPages);
   const visibleProducts = productResults.slice((activePage - 1) * pageSize, activePage * pageSize);
-  const resultsLabel = `${productResults.length} ${webProductDiscovery.resultsUnit}`;
+  const resultsLabel = `${productResults.length} ${tc(webProductDiscovery.resultsUnit)}`;
 
   const updateSearchQuery = (value: string) => {
     setSearchQuery(value);
@@ -111,8 +131,9 @@ export function CustomerProductDiscoveryScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setCurrentPage(1);
+    specificPageBanner.retry();
     requestAnimationFrame(() => setRefreshing(false));
-  }, []);
+  }, [specificPageBanner]);
   const openTerms = useCallback(() => {
     setTermsClosing(false);
     setTermsVisible(true);
@@ -150,7 +171,7 @@ export function CustomerProductDiscoveryScreen() {
       <View style={styles.searchPill}>
         <SearchIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
         <Text numberOfLines={1} style={styles.searchText}>
-          {webHomeSearchPlaceholder}
+          {tc(webHomeSearchPlaceholder)}
         </Text>
       </View>
     </View>
@@ -158,6 +179,15 @@ export function CustomerProductDiscoveryScreen() {
 
   const productContent = (
     <>
+      {specificPageBanner.promo ? (
+        <SpecificPageBannerCarousel
+          contentWidth={homeLayout.contentWidth}
+          isDesktop={homeLayout.isDesktop}
+          pageTarget={specificPageBanner.target}
+          promo={specificPageBanner.promo}
+        />
+      ) : null}
+
       <View style={styles.productDiscoveryHeader}>
         <Text
           style={[
@@ -180,6 +210,8 @@ export function CustomerProductDiscoveryScreen() {
         {homeLayout.isDesktop ? (
           <ProductDiscoverySidebar
             activeCategory={selectedCategory}
+            categoryIconImages={directoryCategoryIconImages}
+            categoryIconKeys={directoryCategoryIconKeys}
             onSelectCategory={updateCategory}
             width={sidebarWidth}
           />

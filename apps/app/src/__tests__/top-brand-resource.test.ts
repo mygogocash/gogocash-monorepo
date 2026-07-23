@@ -24,7 +24,27 @@ describe("mapBackendTopBrands", () => {
     expect(mapBackendTopBrands(null)).toEqual([]);
   });
 
-  it("given admin logo_desktop without resolved logo field > then maps logoUri from desktop upload", () => {
+  it("#378 > given divergent device lists > then picks the list for the active device", () => {
+    const payload: TopBrandsPayload = {
+      data: [{ offer_id: 1, brand: "DesktopOnly", cashback: "1%", _id: "d1" }],
+      dataDesktop: [
+        { offer_id: 1, brand: "DesktopOnly", cashback: "1%", _id: "d1" },
+      ],
+      dataMobile: [
+        { offer_id: 2, brand: "MobileOnly", cashback: "2%", _id: "m1" },
+      ],
+    };
+    expect(
+      mapBackendTopBrands(payload, "TH", undefined, "mobile").map((b) => b.brand),
+    ).toEqual(["MobileOnly"]);
+    expect(
+      mapBackendTopBrands(payload, "TH", undefined, "desktop").map(
+        (b) => b.brand,
+      ),
+    ).toEqual(["DesktopOnly"]);
+  });
+
+  it("given admin logo_desktop without resolved logo field > then maps logoUri through the image transform", () => {
     const payload: TopBrandsPayload = {
       data: [
         {
@@ -40,7 +60,29 @@ describe("mapBackendTopBrands", () => {
     expect(mapBackendTopBrands(payload)).toEqual([
       expect.objectContaining({
         brand: "Shopee",
-        logoUri: "https://media-staging.gogocash.co/brands/1783241514085-logo.png",
+        logoUri:
+          "https://media-staging.gogocash.co/cdn-cgi/image/width=320,quality=78,fit=scale-down,format=auto,onerror=redirect/brands/1783241514085-logo.png",
+      }),
+    ]);
+  });
+
+  it("given Up to cashback label > then compacts for card layout", () => {
+    expect(
+      mapBackendTopBrands({
+        data: [
+          {
+            _id: "lazada-id",
+            offer_id: 1,
+            brand: "Lazada",
+            logo: "https://cdn/lazada.png",
+            cashback: "Up to 2.02%",
+          },
+        ],
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        brand: "Lazada",
+        cashback: "2.02%",
       }),
     ]);
   });

@@ -5,11 +5,13 @@ import {
   defaultQuestTaskWording,
   filterQuestWordingOptions,
   normalizeQuestTaskWordingDraft,
+  questWordingHelperText,
   resolveQuestTaskWording,
 } from "./questTaskWording";
 
 describe("questTaskWording", () => {
   const offer = {
+    _id: "offer-1",
     offer_name: "Poplook #85",
     offer_name_display: "Poplook (MY)",
   };
@@ -53,5 +55,17 @@ describe("questTaskWording", () => {
       wording_en: "Make an order on Klook Travel",
       wording_th: "",
     });
+  });
+
+  it("questWordingHelperText > given a brand offer > then it says leaving blank uses the brand default", () => {
+    const text = questWordingHelperText(offer);
+    expect(text).toContain("Leave blank");
+    expect(text).toContain("brand default");
+  });
+
+  it("questWordingHelperText > given no offer/brand > then it says wording is required (no false blank promise)", () => {
+    const text = questWordingHelperText(null);
+    expect(text).toContain("required");
+    expect(text).not.toContain("Leave blank");
   });
 });

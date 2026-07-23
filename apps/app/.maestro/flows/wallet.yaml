@@ -1,8 +1,24 @@
-# Wallet flow requires authenticated session — run against staging with a test account
+# Wallet flow requires an authenticated session — run against staging with a test account
 # or local stack after manual login. Document-only until JWT injection is scripted.
+# Asserts the wallet-dashboard testID (authenticated-only) and the absence of the login
+# screen, so an unauthenticated run fails instead of false-passing on "Wallet" text.
 appId: co.gogocash.app
 ---
 - launchApp
+# Let the app settle on Home before firing the link: a deep link that arrives
+# during startup hydration is dropped (known issue — the warm path is what
+# this flow verifies; the hydrate-window drop is tracked separately).
+- extendedWaitUntil:
+    visible: "Hi!"
+    timeout: 30000
 - openLink: gogocash://wallet
+# Wait out the wallet resource skeleton — the dashboard testID only renders
+# once POST /withdraw/check resolves (mirrors wallet-authenticated.yaml).
+- extendedWaitUntil:
+    visible:
+      id: "wallet-dashboard"
+    timeout: 30000
 - assertVisible:
-    text: "Wallet"
+    id: "wallet-dashboard"
+- assertNotVisible:
+    id: "login-screen"

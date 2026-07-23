@@ -84,8 +84,13 @@ describe("TopBrandManagementPanel Autocomplete", () => {
   beforeEach(() => {
     apiClientMock.getTopBrands.mockResolvedValue({
       brands: [],
+      brandsDesktop: [],
+      brandsMobile: [],
       items: [],
       order: [],
+      orderDesktop: [],
+      orderMobile: [],
+      maxBrands: 16,
     });
     fetchOffersListMock.mockResolvedValue({
       data: [shopeeOffer],
@@ -120,5 +125,30 @@ describe("TopBrandManagementPanel Autocomplete", () => {
     await waitFor(() => {
       expect(screen.getByRole("option", { name: /Shopee/i })).toBeInTheDocument();
     });
+  });
+
+  it("#479 given a disabled offer in search results > then it is not listed as a picker option", async () => {
+    const user = userEvent.setup();
+    fetchOffersListMock.mockResolvedValue({
+      data: [{ ...shopeeOffer, disabled: true }],
+      limit: 100,
+      page: 1,
+      total: 1,
+      totalPages: 1,
+    });
+
+    renderPanel();
+
+    const input = await screen.findByRole("combobox", {
+      name: "Search offers to add",
+    });
+    await user.click(input);
+    await user.type(input, "Shopee");
+
+    await waitFor(() => {
+      expect(fetchOffersListMock).toHaveBeenCalled();
+    });
+    expect(screen.queryByRole("option", { name: /Shopee/i })).toBeNull();
+    expect(await screen.findByText(/No matching offers found/i)).toBeInTheDocument();
   });
 });

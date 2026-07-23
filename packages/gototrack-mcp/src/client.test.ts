@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGototrackClient } from './client.js';
+import { createGototrackClient, resolveGototrackMcpConfig } from './client.js';
 
 describe('createGototrackClient', () => {
   it('searchMerchants > given query > calls public search endpoint', async () => {
@@ -41,5 +41,14 @@ describe('createGototrackClient', () => {
       (init.headers as Record<string, string>).Authorization,
       'Bearer customer-jwt',
     );
+  });
+});
+
+describe('resolveGototrackMcpConfig', () => {
+  it('resolveGototrackMcpConfig > given typo auth env > then falls back to GOTOTRACK_AUTH_TOKEN', () => {
+    const config = resolveGototrackMcpConfig({
+      GOTOTRACK_AUTH_TOKEN: 'typo-token',
+    });
+    assert.equal(config.authToken, 'typo-token');
   });
 });

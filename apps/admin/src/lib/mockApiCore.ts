@@ -13,6 +13,8 @@ import {
   mockBanner,
   mockBannerHomeSmall,
   mockBannerAllBrandPage,
+  mockBannerAllShopsPage,
+  mockBannerProductDiscoveryPage,
   mockCategories,
   mockCoupons,
   mockMyCashback,
@@ -34,7 +36,9 @@ import {
 import {
   bestPercentFromPartnerRates,
   buildSuggestedAppDeeplink,
+  resolveTopBrandCashbackLabel,
 } from "@/lib/offerDeeplink";
+import { CATEGORY_ICON_KEYS } from "@/components/policy/CategoryIcon";
 import {
   normalizeOfferDisplayTags,
   normalizeOfferProductTypes,
@@ -63,6 +67,7 @@ import {
   buildDashboardSummaryExtended,
 } from "@/lib/dashboardInsightsBuilder";
 import { tryMockAdminFeaturesRequest } from "@/lib/mockAdminFeatures";
+import { deriveQuestStatus } from "@/lib/questStatus";
 
 export type MockApiInput = {
   method: string;
@@ -76,11 +81,32 @@ export type MockApiInput = {
 
 export type MockApiResult = { status: number; body: unknown };
 
+const mockSpecificPageBanners: Record<string, Record<string, unknown>> = {
+  "all-brands": mockBannerAllBrandPage,
+  "all-shops": mockBannerAllShopsPage,
+  "product-discovery": mockBannerProductDiscoveryPage,
+};
+
+function resolveMockSpecificPageBanner(
+  path: string[],
+  joined: string,
+): Record<string, unknown> | null {
+  if (joined === "admin/banner-all-brand-page") {
+    return mockSpecificPageBanners["all-brands"] ?? null;
+  }
+  if (path[0] !== "admin" || path[1] !== "banner-specific-page") {
+    return null;
+  }
+  return mockSpecificPageBanners[path[2] ?? ""] ?? null;
+}
+
 const ok = (body: unknown): MockApiResult => ({ status: 200, body });
 const jsonErr = (status: number, body: unknown): MockApiResult => ({
   status,
   body,
 });
+
+const MAX_TOP_BRANDS = 16;
 
 const OFFER_NAMES: Record<number, string> = {
   1001: "Banana IT TH - CPS",
@@ -324,7 +350,17 @@ const mockQuestStore: MockQuest[] = [
 const policyStore = new Map<string, { banner?: unknown; terms?: unknown }>();
 // Categories created via Policy Management "Create New" (in-memory; resets on
 // server restart, like the rest of the mock). Merged into get-category/list.
-const createdCategories: (typeof mockCategories)[number][] = [];
+type MockPolicyCategory = (typeof mockCategories)[number] & {
+  icon_key?: string;
+  name_normalized?: string;
+  lifecycle_status?: "active" | "retired" | "purging";
+  revision?: number;
+};
+const createdCategories: MockPolicyCategory[] = [];
+const policyAggregateCommands = new Map<
+  string,
+  { signature: string; response: Record<string, unknown> }
+>();
 
 /** Mock OTP for admin verification when adding emails / phones on withdraw user (internal demo). */
 const MOCK_USER_CONTACT_OTP = "123456";
@@ -386,7 +422,7 @@ function buildWithdrawDetailUser(userId: string) {
   const edits = withdrawDetailUserEdits[userId];
   const u = mockUsers.find((x) => x._id === userId);
   if (!u) {
-    return { ...base, _id: userId, ...(edits ?? {}) };
+    return { ...base, _id: userId, ...edits };
   }
   const genderLabel =
     u.gender === "female" ? "Female" : u.gender === "male" ? "Male" : "";
@@ -406,7 +442,7 @@ function buildWithdrawDetailUser(userId: string) {
     subscriptionPlan: u.subscriptionPlan,
     creditScore: u.creditScore,
   };
-  return { ...next, ...(edits ?? {}) };
+  return { ...next, ...edits };
 }
 
 function emptyWithdrawDetailForDeletedUser(userId: string) {
@@ -514,13 +550,93 @@ function mockWithdrawDetailForUser(userId: string) {
 /** Admin-set app tracking link per offer (commission management). */
 const commissionAppDeeplinkByOfferId = new Map<string, string>();
 
-/** Homepage top-brand rail: ordered offer `_id`s + cashback labels (mock; in-memory). */
-let topBrandHomepageBrands: TopBrandConfigEntry[] = [
+/** Homepage top-brand rails (mock; in-memory). Dual lists for #378 Phase 2. */
+const DEFAULT_TOP_BRANDS: TopBrandConfigEntry[] = [
   { offerId: "o1", cashback: "Up to 12%" },
   { offerId: "o2", cashback: "Up to 10%" },
   { offerId: "o3", cashback: "Travel deals" },
   { offerId: "o5", cashback: "Limited time" },
 ];
+let topBrandHomepageBrandsDesktop: TopBrandConfigEntry[] = DEFAULT_TOP_BRANDS.map(
+  (entry) => ({ ...entry }),
+);
+let topBrandHomepageBrandsMobile: TopBrandConfigEntry[] = DEFAULT_TOP_BRANDS.map(
+  (entry) => ({ ...entry }),
+);
+
+const MAX_LANDING_RAILS = 12;
+
+/** In-memory landing rails for mock mode, seeded from the customer fixture. */
+type MockLandingRail = {
+  railId: string;
+  title: string;
+  emoji: string;
+  link: string;
+  cardVariant: string;
+  position: number;
+  enabled: boolean;
+  brandsDesktop: TopBrandConfigEntry[];
+  brandsMobile: TopBrandConfigEntry[];
+};
+
+let mockLandingRails: MockLandingRail[] = [
+  { railId: "trending", title: "Trending Brands", emoji: "", link: "/brand" },
+  {
+    railId: "travel",
+    title: "Travel Deals are Here!",
+    emoji: "✈️",
+    link: "/category/Travel",
+  },
+  {
+    railId: "makeup",
+    title: "Makeup Must Have!",
+    emoji: "💄",
+    link: "/category/Health & Beauty",
+  },
+].map((rail, index) => ({
+  ...rail,
+  cardVariant: "brandLogoBadge",
+  position: index,
+  enabled: true,
+  brandsDesktop: [] as TopBrandConfigEntry[],
+  brandsMobile: [] as TopBrandConfigEntry[],
+}));
+
+function normalizeMockTopBrands(raw: unknown): TopBrandConfigEntry[] {
+  const brands = Array.isArray(raw)
+    ? raw.map((entry) => ({
+        cashback: "",
+        offerId: String(
+          (entry as { offerId?: unknown }).offerId ?? "",
+        ).trim(),
+      }))
+    : [];
+  const seen = new Set<string>();
+  const next: TopBrandConfigEntry[] = [];
+  for (const entry of brands) {
+    if (
+      !entry.offerId ||
+      !mockOffers.some((o) => o._id === entry.offerId) ||
+      seen.has(entry.offerId)
+    ) {
+      continue;
+    }
+    seen.add(entry.offerId);
+    next.push({ offerId: entry.offerId, cashback: "" });
+    if (next.length >= MAX_TOP_BRANDS) break;
+  }
+  return next;
+}
+
+function liveMockTopBrands(entries: TopBrandConfigEntry[]) {
+  return entries.map((entry) => {
+    const offer = mockOffers.find((row) => row._id === entry.offerId);
+    return {
+      offerId: entry.offerId,
+      cashback: resolveTopBrandCashbackLabel(offer, ""),
+    };
+  });
+}
 
 function allocateNewOfferIds(): {
   _id: string;
@@ -626,13 +742,62 @@ function handleMockGET(
   }
 
   if (joined === "admin/top-brands") {
-    const items = topBrandHomepageBrands
-      .map((entry) => mockOffers.find((o) => o._id === entry.offerId))
+    const orderDesktop = topBrandHomepageBrandsDesktop.map(
+      (entry) => entry.offerId,
+    );
+    const orderMobile = topBrandHomepageBrandsMobile.map(
+      (entry) => entry.offerId,
+    );
+    const unionIds = [...new Set([...orderDesktop, ...orderMobile])];
+    const items = unionIds
+      .map((id) => mockOffers.find((o) => o._id === id))
+      .filter((o) => o != null);
+    const brandsDesktop = liveMockTopBrands(topBrandHomepageBrandsDesktop);
+    const brandsMobile = liveMockTopBrands(topBrandHomepageBrandsMobile);
+    return ok({
+      order: orderDesktop,
+      orderDesktop,
+      orderMobile,
+      brands: brandsDesktop,
+      brandsDesktop,
+      brandsMobile,
+      items,
+      maxBrands: MAX_TOP_BRANDS,
+    });
+  }
+
+  if (joined === "admin/landing-rails") {
+    const unionIds = [
+      ...new Set(
+        mockLandingRails.flatMap((rail) => [
+          ...rail.brandsDesktop.map((e) => e.offerId),
+          ...rail.brandsMobile.map((e) => e.offerId),
+        ]),
+      ),
+    ];
+    const items = unionIds
+      .map((id) => mockOffers.find((o) => o._id === id))
       .filter((o) => o != null);
     return ok({
-      order: topBrandHomepageBrands.map((entry) => entry.offerId),
-      brands: topBrandHomepageBrands.map((entry) => ({ ...entry })),
+      rails: mockLandingRails
+        .slice()
+        .sort((a, b2) => a.position - b2.position)
+        .map((rail) => ({
+          railId: rail.railId,
+          title: rail.title,
+          emoji: rail.emoji,
+          link: rail.link,
+          cardVariant: rail.cardVariant,
+          position: rail.position,
+          enabled: rail.enabled,
+          orderDesktop: rail.brandsDesktop.map((e) => e.offerId),
+          orderMobile: rail.brandsMobile.map((e) => e.offerId),
+          brandsDesktop: rail.brandsDesktop.map((e) => ({ ...e })),
+          brandsMobile: rail.brandsMobile.map((e) => ({ ...e })),
+        })),
       items,
+      maxRails: MAX_LANDING_RAILS,
+      maxBrands: MAX_TOP_BRANDS,
     });
   }
 
@@ -717,7 +882,12 @@ function handleMockGET(
   }
 
   if (joined === "point/admin-get-quest") {
-    return ok(mockQuestStore);
+    return ok(
+      mockQuestStore.map((quest) => ({
+        ...quest,
+        status: deriveQuestStatus(quest.start_date, quest.end_date),
+      })),
+    );
   }
 
   if (
@@ -809,7 +979,12 @@ function handleMockGET(
   }
 
   if (joined === "offer/get-category/list") {
-    let filtered = [...mockCategories, ...createdCategories];
+    let filtered = [...mockCategories, ...createdCategories].filter(
+      (category) =>
+        !("lifecycle_status" in category) ||
+        category.lifecycle_status == null ||
+        category.lifecycle_status === "active",
+    );
     if (search) {
       const s = search.toLowerCase();
       filtered = filtered.filter((c) => c.name.toLowerCase().includes(s));
@@ -841,6 +1016,35 @@ function handleMockGET(
     const offerId = path[2];
     const coupons = mockCoupons.filter((c) => c.offer_id._id === offerId);
     return ok(coupons);
+  }
+
+  if (path[0] === "offer" && path[1] === "coupons" && path[3] === "insights") {
+    const coupon = mockCoupons.find((item) => item._id === path[2]);
+    if (!coupon) return jsonErr(404, { message: "Coupon not found." });
+    return ok({
+      coupon: {
+        code: coupon.code,
+        discount: coupon.discount,
+        id: coupon._id,
+        name: coupon.name,
+        offerName:
+          coupon.offer_id.offer_name_display ?? coupon.offer_id.offer_name,
+      },
+      metrics: {
+        codeCopies: 0,
+        copyRate: 0,
+        detailViews: 0,
+        usageAmount: coupon.quantity_used ?? 0,
+        usageUnit: "redemptions",
+      },
+      redemptions: {
+        data: [],
+        limit,
+        page,
+        total: 0,
+        totalPages: 0,
+      },
+    });
   }
 
   if (joined === "offer/get-coupon") {
@@ -949,8 +1153,9 @@ function handleMockGET(
     return ok(mockBannerHomeSmall);
   }
 
-  if (joined === "admin/banner-all-brand-page") {
-    return ok(mockBannerAllBrandPage);
+  const specificPageBanner = resolveMockSpecificPageBanner(path, joined);
+  if (specificPageBanner) {
+    return ok(specificPageBanner);
   }
 
   if (path[0] === "admin" && path[1] === "get-mycashback-user") {
@@ -1057,7 +1262,9 @@ async function handleMockPOST(
   joined: string,
   body: unknown,
 ): Promise<MockApiResult> {
-  if (joined === "offer/create-category") {
+  const specificPageBanner = resolveMockSpecificPageBanner(path, joined);
+  // Mirrors POST /admin/create-category (PolicyTable's "New category" flow).
+  if (joined === "admin/create-category") {
     const b = body as { data?: { name?: string }; name?: string } | null;
     const name = (b?.data?.name ?? b?.name ?? "").trim();
     if (!name) return jsonErr(400, { message: "name is required" });
@@ -1110,9 +1317,7 @@ async function handleMockPOST(
 
   if (joined === "point/create-quest") {
     const id = mockBodyField(body, "_id");
-    const existing = id
-      ? mockQuestStore.find((q) => q._id === id)
-      : undefined;
+    const existing = id ? mockQuestStore.find((q) => q._id === id) : undefined;
     const now = new Date().toISOString();
     const quest: MockQuest = existing ?? {
       _id: `q_${Date.now()}`,
@@ -1139,7 +1344,7 @@ async function handleMockPOST(
 
     quest.start_date = mockBodyField(body, "start_date") || quest.start_date;
     quest.end_date = mockBodyField(body, "end_date") || quest.end_date;
-    quest.status = mockBodyField(body, "status") || quest.status || "open";
+    quest.status = deriveQuestStatus(quest.start_date, quest.end_date);
     const rewardStatus = mockBodyField(body, "reward_status");
     quest.reward_status =
       rewardStatus === ""
@@ -1403,14 +1608,14 @@ async function handleMockPOST(
   if (
     joined === "admin/banner-home" ||
     joined === "admin/banner-home-small" ||
-    joined === "admin/banner-all-brand-page"
+    specificPageBanner != null
   ) {
     const target =
       joined === "admin/banner-home"
         ? mockBanner
         : joined === "admin/banner-home-small"
           ? mockBannerHomeSmall
-          : mockBannerAllBrandPage;
+          : specificPageBanner!;
     const raw = (body && typeof body === "object" ? body : {}) as Record<
       string,
       unknown
@@ -1468,8 +1673,10 @@ async function handleMockPOST(
       if (clearImageValue) {
         (target as Record<string, unknown>)[ik] = null;
       } else if (isUploadBlob(imageValue)) {
-        (target as Record<string, unknown>)[ik] =
-          mockDriveIdFromUpload(ik, imageValue);
+        (target as Record<string, unknown>)[ik] = mockDriveIdFromUpload(
+          ik,
+          imageValue,
+        );
       } else if (typeof imageValue === "string") {
         const s = imageValue.trim();
         (target as Record<string, unknown>)[ik] = s.length > 0 ? s : null;
@@ -1657,6 +1864,33 @@ async function handleMockPOST(
         active_policy: activePolicy,
         custom_terms: customTerms,
       };
+
+      const trackingPeriodMode = String(b.tracking_period_mode ?? "").trim();
+      if (trackingPeriodMode === "auto" || trackingPeriodMode === "manual") {
+        newOffer.tracking_period_mode = trackingPeriodMode;
+      }
+      if (trackingPeriodMode === "manual") {
+        const parseDay = (v: unknown): number | undefined => {
+          const n = Number(v);
+          if (Number.isInteger(n) && n >= 1 && n <= 365) return n;
+          return undefined;
+        };
+        const td = parseDay(b.tracking_days);
+        const cd = parseDay(b.confirm_days);
+        if (td !== undefined) newOffer.tracking_days = td;
+        if (cd !== undefined) newOffer.confirm_days = cd;
+      }
+      const flowType = String(b.flow_type ?? "").trim();
+      if (flowType === "two_step" || flowType === "three_step") {
+        newOffer.flow_type = flowType;
+      }
+      if (typeof b.tracking_subtitle === "string") {
+        newOffer.tracking_subtitle = b.tracking_subtitle.trim();
+      }
+      if (typeof b.confirm_subtitle === "string") {
+        newOffer.confirm_subtitle = b.confirm_subtitle.trim();
+      }
+
       const pickPath = (key: string) => {
         const v = b[key];
         return typeof v === "string" && v.trim().length > 0
@@ -1866,36 +2100,286 @@ async function handleMockPUT(
     content?: string;
   };
 
-  if (joined === "admin/top-brands") {
-    const raw = b?.brands;
-    const brands = Array.isArray(raw)
-      ? raw.map((entry) => ({
-          cashback: String(
-            (entry as { cashback?: unknown }).cashback ?? "",
-          ).trim(),
-          offerId: String(
-            (entry as { offerId?: unknown }).offerId ?? "",
-          ).trim(),
-        }))
-      : [];
-    const seen = new Set<string>();
-    const next: TopBrandConfigEntry[] = [];
-    for (const entry of brands) {
-      if (
-        !entry.offerId ||
-        !mockOffers.some((o) => o._id === entry.offerId) ||
-        seen.has(entry.offerId)
-      ) {
-        continue;
-      }
-      seen.add(entry.offerId);
-      next.push(entry);
+  if (joined === "policy/aggregate") {
+    const requestKey = mockBodyField(body, "request_key");
+    const categoryIdInput = mockBodyField(body, "category_id");
+    const categoryName = mockBodyField(body, "category_name")
+      .normalize("NFKC")
+      .trim()
+      .replace(/\s+/g, " ");
+    const iconKey = mockBodyField(body, "icon_key");
+    const rawPolicy = mockBodyField(body, "policy");
+    const formValue = (key: string): unknown =>
+      body &&
+      typeof body === "object" &&
+      "get" in body &&
+      typeof (body as { get: (name: string) => unknown }).get === "function"
+        ? (body as { get: (name: string) => unknown }).get(key)
+        : (b as Record<string, unknown>)[key];
+    const defaultBanner = formValue("default_banner");
+    if (!requestKey || !categoryName || !rawPolicy) {
+      return jsonErr(400, {
+        message: "request_key, category_name, and policy are required",
+      });
     }
-    topBrandHomepageBrands = next;
+    // Single admin allow-list — keep API category.schema.ts + app categoryIcons
+    // in sync (enforced by CategoryIcon.sync.test.ts).
+    if (!(CATEGORY_ICON_KEYS as readonly string[]).includes(iconKey)) {
+      return jsonErr(400, { message: "icon_key is invalid" });
+    }
+    let policy: Record<string, unknown>;
+    try {
+      const decoded = JSON.parse(rawPolicy) as unknown;
+      if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) {
+        throw new Error("invalid policy");
+      }
+      policy = decoded as Record<string, unknown>;
+    } catch {
+      return jsonErr(400, { message: "policy must contain valid JSON" });
+    }
+    const fileIdentity =
+      typeof File !== "undefined" && defaultBanner instanceof File
+        ? {
+            name: defaultBanner.name,
+            size: defaultBanner.size,
+            type: defaultBanner.type,
+            lastModified: defaultBanner.lastModified,
+          }
+        : null;
+    const signature = JSON.stringify({
+      category_id: categoryIdInput || null,
+      category_name: categoryName,
+      icon_key: iconKey,
+      policy,
+      default_banner: fileIdentity,
+    });
+    const replay = policyAggregateCommands.get(requestKey);
+    if (replay) {
+      return replay.signature === signature
+        ? ok(replay.response)
+        : jsonErr(409, {
+            message:
+              "request_key was already used for a different policy payload",
+          });
+    }
+
+    const normalizedName = categoryName.toLocaleLowerCase("en-US");
+    const allCategories = [
+      ...(mockCategories as MockPolicyCategory[]),
+      ...createdCategories,
+    ];
+    let category = categoryIdInput
+      ? allCategories.find((item) => item._id === categoryIdInput)
+      : undefined;
+    if (categoryIdInput && !category) {
+      return jsonErr(404, { message: "Category not found or inactive" });
+    }
+    if (
+      allCategories.some(
+        (item) =>
+          item._id !== categoryIdInput &&
+          item.name
+            .normalize("NFKC")
+            .trim()
+            .replace(/\s+/g, " ")
+            .toLocaleLowerCase("en-US") === normalizedName,
+      )
+    ) {
+      return jsonErr(409, {
+        message: `A category named "${categoryName}" already exists.`,
+      });
+    }
+    const categoryId = categoryIdInput || `cat_${Date.now()}`;
+    const existingPolicy = policyStore.get(categoryId);
+    if (!existingPolicy && (!policy.terms || policy.clear_terms)) {
+      return jsonErr(400, {
+        message: "Terms & conditions are required for a new policy.",
+      });
+    }
+    if (!categoryIdInput && (!policy.banner || policy.clear_banner)) {
+      return jsonErr(400, {
+        message: "Localized policy banner text is required for a new category.",
+      });
+    }
+    if (
+      (policy.terms !== undefined && policy.clear_terms) ||
+      (policy.banner !== undefined && policy.clear_banner)
+    ) {
+      return jsonErr(400, {
+        message: "A policy block and its clear flag cannot be sent together.",
+      });
+    }
+
+    const now = new Date().toISOString();
+    const banner =
+      typeof File !== "undefined" && defaultBanner instanceof File
+        ? `category-banner/${categoryId}/${defaultBanner.name}`
+        : (category?.banner ?? "");
+    if (!category) {
+      category = {
+        _id: categoryId,
+        name: categoryName,
+        image: "",
+        banner,
+        icon_key: iconKey,
+        name_normalized: normalizedName,
+        lifecycle_status: "active",
+        revision: 1,
+        createdAt: now,
+        updatedAt: now,
+      } as MockPolicyCategory;
+      createdCategories.push(category);
+    } else {
+      Object.assign(category, {
+        name: categoryName,
+        name_normalized: normalizedName,
+        icon_key: iconKey,
+        lifecycle_status: "active",
+        revision: (category.revision ?? 1) + 1,
+        ...(banner ? { banner } : {}),
+        updatedAt: now,
+      });
+    }
+
+    const savedPolicy = { ...existingPolicy };
+    if (policy.banner !== undefined) savedPolicy.banner = policy.banner;
+    if (policy.terms !== undefined) savedPolicy.terms = policy.terms;
+    if (policy.clear_banner) delete savedPolicy.banner;
+    if (policy.clear_terms) delete savedPolicy.terms;
+    policyStore.set(categoryId, savedPolicy);
+    const response = {
+      request_key: requestKey,
+      category: { ...category },
+      policy: { category_id: categoryId, ...savedPolicy },
+    };
+    policyAggregateCommands.set(requestKey, { signature, response });
+    return ok(response);
+  }
+
+  if (joined === "admin/top-brands") {
+    const hasDeviceLists =
+      b?.brandsDesktop !== undefined || b?.brandsMobile !== undefined;
+    if (
+      (Array.isArray(b?.brandsDesktop) &&
+        b.brandsDesktop.length > MAX_TOP_BRANDS) ||
+      (Array.isArray(b?.brandsMobile) &&
+        b.brandsMobile.length > MAX_TOP_BRANDS) ||
+      (Array.isArray(b?.brands) && b.brands.length > MAX_TOP_BRANDS)
+    ) {
+      return jsonErr(400, {
+        message: `Top brands is limited to ${MAX_TOP_BRANDS} offers.`,
+      });
+    }
+    // #479 — mirror API: refuse disabled / missing offers instead of silently
+    // persisting them in mock mode.
+    const rawEntries = [
+      ...(Array.isArray(b?.brandsDesktop) ? b.brandsDesktop : []),
+      ...(Array.isArray(b?.brandsMobile) ? b.brandsMobile : []),
+      ...(Array.isArray(b?.brands) ? b.brands : []),
+    ];
+    const badIds = [
+      ...new Set(
+        rawEntries
+          .map((entry) =>
+            String((entry as { offerId?: unknown }).offerId ?? "").trim(),
+          )
+          .filter(Boolean)
+          .filter((offerId) => {
+            const offer = mockOffers.find((row) => row._id === offerId) as
+              | { disabled?: boolean; status?: string }
+              | undefined;
+            if (!offer || offer.disabled === true) return true;
+            const status = String(offer.status ?? "")
+              .trim()
+              .toLowerCase();
+            return status === "pending_review" || status === "rejected";
+          }),
+      ),
+    ];
+    if (badIds.length > 0) {
+      return jsonErr(400, {
+        message: `Disabled or missing offers cannot be top brands: ${badIds.join(", ")}`,
+      });
+    }
+    if (hasDeviceLists) {
+      const nextDesktop = normalizeMockTopBrands(
+        b?.brandsDesktop ?? b?.brands,
+      );
+      const nextMobile = normalizeMockTopBrands(b?.brandsMobile ?? b?.brands);
+      topBrandHomepageBrandsDesktop = nextDesktop;
+      topBrandHomepageBrandsMobile = nextMobile;
+      return ok({
+        success: true,
+        brands: nextDesktop.map((entry) => ({ ...entry })),
+        brandsDesktop: nextDesktop.map((entry) => ({ ...entry })),
+        brandsMobile: nextMobile.map((entry) => ({ ...entry })),
+        message: "Top brand homepage config saved (mock).",
+      });
+    }
+    const next = normalizeMockTopBrands(b?.brands);
+    topBrandHomepageBrandsDesktop = next;
+    topBrandHomepageBrandsMobile = next.map((entry) => ({ ...entry }));
     return ok({
       success: true,
       brands: next.map((entry) => ({ ...entry })),
+      brandsDesktop: next.map((entry) => ({ ...entry })),
+      brandsMobile: next.map((entry) => ({ ...entry })),
       message: "Top brand homepage config saved (mock).",
+    });
+  }
+
+  if (joined === "admin/landing-rails") {
+    const rawRails = Array.isArray(b?.rails) ? b.rails : [];
+    if (rawRails.length > MAX_LANDING_RAILS) {
+      return jsonErr(400, {
+        message: `You can create up to ${MAX_LANDING_RAILS} rails.`,
+      });
+    }
+    const seen = new Set<string>();
+    const next: MockLandingRail[] = [];
+    rawRails.forEach((rail: Record<string, unknown>, index: number) => {
+      const railId = String(rail?.railId ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      if (!railId || seen.has(railId)) return;
+      seen.add(railId);
+      const desktop = normalizeMockTopBrands(
+        (rail?.brandsDesktop as unknown) ?? rail?.brands,
+      );
+      const mobile = normalizeMockTopBrands(
+        (rail?.brandsMobile as unknown) ?? rail?.brands,
+      );
+      next.push({
+        railId,
+        title: String(rail?.title ?? "").trim(),
+        emoji: String(rail?.emoji ?? "").trim(),
+        link: String(rail?.link ?? "").trim(),
+        cardVariant: String(rail?.cardVariant ?? "").trim() || "brandLogoBadge",
+        position: Number(rail?.position ?? index) || index,
+        enabled: rail?.enabled !== false,
+        brandsDesktop: desktop,
+        brandsMobile: mobile,
+      });
+    });
+    mockLandingRails = next.sort((a, b2) => a.position - b2.position);
+    return ok({
+      success: true,
+      rails: mockLandingRails.map((rail) => ({
+        railId: rail.railId,
+        title: rail.title,
+        emoji: rail.emoji,
+        link: rail.link,
+        cardVariant: rail.cardVariant,
+        position: rail.position,
+        enabled: rail.enabled,
+        orderDesktop: rail.brandsDesktop.map((e) => e.offerId),
+        orderMobile: rail.brandsMobile.map((e) => e.offerId),
+        brandsDesktop: rail.brandsDesktop.map((e) => ({ ...e })),
+        brandsMobile: rail.brandsMobile.map((e) => ({ ...e })),
+      })),
+      message: "Landing rails saved (mock).",
     });
   }
 
@@ -1933,7 +2417,8 @@ async function handleMockPUT(
   }
 
   if (joined === "policy") {
-    // `fetcherPut` wraps the payload as `{ data: { category_id, banner?, terms? } }`.
+    // Real admin sends the DTO flat. Retain legacy `data` unwrapping so older
+    // static builds can still exercise mock mode during a staged rollout.
     const payload = (
       b && typeof b === "object" && "data" in b
         ? (b as { data: unknown }).data
@@ -1943,18 +2428,37 @@ async function handleMockPUT(
       categoryId?: string;
       banner?: unknown;
       terms?: unknown;
+      clear_banner?: boolean;
+      clear_terms?: boolean;
     } | null;
     const categoryId = payload?.category_id ?? payload?.categoryId;
     if (!categoryId) {
       return jsonErr(400, { message: "category_id is required" });
     }
+    const existing = policyStore.get(String(categoryId));
+    if (!existing && (!payload?.terms || payload.clear_terms)) {
+      return jsonErr(400, {
+        message: "Terms & conditions are required for a new policy.",
+      });
+    }
+    if (
+      (payload?.terms !== undefined && payload.clear_terms) ||
+      (payload?.banner !== undefined && payload.clear_banner)
+    ) {
+      return jsonErr(400, {
+        message: "A policy block and its clear flag cannot be sent together.",
+      });
+    }
     // Merge so an omitted block keeps its previously-saved value.
-    const existing = policyStore.get(String(categoryId)) ?? {};
+    const merged = existing ?? {};
     policyStore.set(String(categoryId), {
-      ...existing,
+      ...merged,
       ...(payload?.banner !== undefined ? { banner: payload.banner } : {}),
       ...(payload?.terms !== undefined ? { terms: payload.terms } : {}),
     });
+    const saved = policyStore.get(String(categoryId));
+    if (payload?.clear_banner) delete saved?.banner;
+    if (payload?.clear_terms) delete saved?.terms;
     return ok({ success: true, message: "Policy saved", categoryId });
   }
 
@@ -2157,15 +2661,32 @@ async function handleMockPATCH(
     if (!cat) {
       return jsonErr(404, { message: "Category not found" });
     }
-    const body = b as { image?: string; banner?: string; name?: string };
-    if (typeof body.name === "string" && body.name.trim().length > 0) {
-      cat.name = body.name.trim();
+    const readCategoryField = (key: "name" | "image" | "banner") => {
+      const value =
+        body &&
+        typeof body === "object" &&
+        "get" in body &&
+        typeof (body as { get: (name: string) => unknown }).get === "function"
+          ? (body as { get: (name: string) => unknown }).get(key)
+          : (b as Record<string, unknown>)[key];
+      if (typeof File !== "undefined" && value instanceof File) {
+        return value.size > 0
+          ? `${key === "banner" ? "category-banner" : "category"}/${categoryId}/${Date.now()}-${value.name}`
+          : "";
+      }
+      return typeof value === "string" ? value : "";
+    };
+    const name = readCategoryField("name");
+    const image = readCategoryField("image");
+    const banner = readCategoryField("banner");
+    if (name.trim().length > 0) {
+      cat.name = name.trim();
     }
-    if (typeof body.image === "string" && body.image.length > 0) {
-      cat.image = body.image;
+    if (image.length > 0) {
+      cat.image = image;
     }
-    if (typeof body.banner === "string" && body.banner.length > 0) {
-      cat.banner = body.banner;
+    if (banner.length > 0) {
+      cat.banner = banner;
     }
     cat.updatedAt = new Date().toISOString();
     return ok({
@@ -2178,8 +2699,7 @@ async function handleMockPATCH(
   if (path[0] === "admin" && path[1] === "update-offer" && path[2]) {
     const offerId = path[2];
     const offer = mockOffers.find((o) => o._id === offerId) as
-      | Offer
-      | undefined;
+      Offer | undefined;
     if (!offer) {
       return jsonErr(404, { message: "Offer not found" });
     }
@@ -2285,6 +2805,19 @@ async function handleMockPATCH(
       const t = (b.note_to_user ?? "").trim();
       offer.note_to_user = t.length > 0 ? t : null;
     }
+    // Cashback tracking period (mirrors the real API: absent key = no change).
+    if (b.tracking_period_mode !== undefined) {
+      offer.tracking_period_mode =
+        b.tracking_period_mode === "manual" ? "manual" : "auto";
+    }
+    if (b.tracking_days !== undefined) {
+      const n = Number(b.tracking_days);
+      if (Number.isInteger(n) && n >= 1 && n <= 365) offer.tracking_days = n;
+    }
+    if (b.confirm_days !== undefined) {
+      const n = Number(b.confirm_days);
+      if (Number.isInteger(n) && n >= 1 && n <= 365) offer.confirm_days = n;
+    }
     if (b.affiliate_network_id !== undefined) {
       const id = (b.affiliate_network_id ?? "").trim();
       if (id && AFFILIATE_NETWORKS.some((n) => n.id === id)) {
@@ -2342,9 +2875,14 @@ function handleMockDELETE(path: string[], joined: string): MockApiResult {
       return jsonErr(404, { message: "Offer not found" });
     }
     mockOffers.splice(idx, 1);
-    for (let i = topBrandHomepageBrands.length - 1; i >= 0; i -= 1) {
-      if (topBrandHomepageBrands[i].offerId === id) {
-        topBrandHomepageBrands.splice(i, 1);
+    for (let i = topBrandHomepageBrandsDesktop.length - 1; i >= 0; i -= 1) {
+      if (topBrandHomepageBrandsDesktop[i].offerId === id) {
+        topBrandHomepageBrandsDesktop.splice(i, 1);
+      }
+    }
+    for (let i = topBrandHomepageBrandsMobile.length - 1; i >= 0; i -= 1) {
+      if (topBrandHomepageBrandsMobile[i].offerId === id) {
+        topBrandHomepageBrandsMobile.splice(i, 1);
       }
     }
     return ok({ message: "Offer deleted successfully" });
@@ -2514,14 +3052,15 @@ function requiredWritePermission(
   if (
     joined === "admin/banner-home" ||
     joined === "admin/banner-home-small" ||
-    joined === "admin/banner-all-brand-page"
+    joined === "admin/banner-all-brand-page" ||
+    (p0 === "admin" && p1 === "banner-specific-page")
   ) {
     return "banner:manage";
   }
 
   // Brands domain: offers, categories, top brands, commission management,
   // policy, missing orders, discover & search config.
-  if (p0 === "offer" || joined === "policy") return "brands:manage";
+  if (p0 === "offer" || p0 === "policy") return "brands:manage";
   if (
     p0 === "admin" &&
     (p1 === "top-brands" ||

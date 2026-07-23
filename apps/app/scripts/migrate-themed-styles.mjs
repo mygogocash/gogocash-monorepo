@@ -100,7 +100,6 @@ function migrateFile(relPath) {
   }
 
   const stylesName = toStylesName(relPath);
-  const base = path.basename(relPath, ".tsx");
 
   content = content.replace(
     /import\s*\{([^}]+)\}\s*from\s*"@mobile\/theme\/tokens";/,

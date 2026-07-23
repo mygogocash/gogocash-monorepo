@@ -23,12 +23,15 @@ import {
   insightRangeLabel,
   insightRangeShortLabel,
 } from "@/components/ecommerce/DashboardInsightRangeControl";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { withdrawListHref } from "@/lib/withdrawStatusFilter";
 
-function formatPayoutAmount(value: number): string {
-  return value.toLocaleString(undefined, {
+function formatPayoutAmount(value: number, currency = "THB"): string {
+  const amount = value.toLocaleString(undefined, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
+  return `${amount} ${currency}`;
 }
 
 function DeltaText({
@@ -65,7 +68,7 @@ type ExecutiveSummaryProps = {
 export function ExecutiveSummary({
   range = "30d",
 }: ExecutiveSummaryProps = {}) {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: [...DASHBOARD_INSIGHTS_QUERY_KEY, range],
     queryFn: () => fetchDashboardInsights(range),
     staleTime: 60_000,
@@ -90,9 +93,14 @@ export function ExecutiveSummary({
 
   if (isError || !data) {
     return (
-      <p className="border-error-200 bg-error-50 text-error-800 dark:border-error-800 dark:bg-error-950/30 dark:text-error-200 rounded-xl border px-4 py-3 text-sm">
-        Could not load dashboard insights. Refresh the page or check your
-        connection.
+      <p
+        role="alert"
+        className="border-error-200 bg-error-50 text-error-800 dark:border-error-800 dark:bg-error-950/30 dark:text-error-200 rounded-xl border px-4 py-3 text-sm"
+      >
+        {getApiErrorMessage(
+          error,
+          "Could not load dashboard insights. Refresh the page or check your connection.",
+        )}
       </p>
     );
   }
@@ -133,8 +141,12 @@ export function ExecutiveSummary({
       href: "/users/mycashback",
     },
     {
+      // Live/scheduled/ended are derived from campaign schedules and are always
+      // known, so this card is never "Unavailable". Deeper quest engagement /
+      // attribution analytics remain gated separately (see the quest analytics
+      // section, which keys off availability.quests).
       label: "Quests live",
-      sublabel: `${insights.quests.overlappingSelectedRange} in window · ${insights.quests.engagement.pointsIssuedInOverlapping.toLocaleString()} pts (mock)`,
+      sublabel: `${insights.quests.scheduled} scheduled · ${insights.quests.ended} ended`,
       value: String(insights.quests.liveNow),
       icon: (
         <TrophyIcon className="size-6 text-amber-600 dark:text-amber-400" />
@@ -144,6 +156,7 @@ export function ExecutiveSummary({
     },
     {
       label: `Conversions (${insightRangeShortLabel(range)})`,
+      sublabel: "Commercial conversions across currencies",
       value: k.conversionCount.toLocaleString(),
       icon: <BoxIconLine className="size-6 text-gray-800 dark:text-white/90" />,
       bgIcon: "bg-gray-100 dark:bg-gray-800",
@@ -152,7 +165,7 @@ export function ExecutiveSummary({
     },
     {
       label: `GMV (${insightRangeShortLabel(range)})`,
-      value: formatPayoutAmount(k.conversionTotalSaleAmount),
+      value: formatPayoutAmount(k.conversionTotalSaleAmount, insights.currency),
       icon: (
         <DollarLineIcon className="size-6 text-gray-800 dark:text-white/90" />
       ),
@@ -165,7 +178,7 @@ export function ExecutiveSummary({
     },
     {
       label: `Cashback / payout (${insightRangeShortLabel(range)})`,
-      value: formatPayoutAmount(k.conversionTotalPayout),
+      value: formatPayoutAmount(k.conversionTotalPayout, insights.currency),
       icon: (
         <DollarLineIcon className="text-success-600 dark:text-success-400 size-6" />
       ),
@@ -178,13 +191,13 @@ export function ExecutiveSummary({
     },
     {
       label: "Pending withdrawals",
-      sublabel: `${pending.count} requests · ${formatPayoutAmount(pending.total)}`,
+      sublabel: `${pending.count} requests · ${formatPayoutAmount(pending.total, insights.currency)}`,
       value: String(pending.count),
       icon: (
         <DollarLineIcon className="text-warning-600 dark:text-warning-400 size-6" />
       ),
       bgIcon: "bg-warning-50 dark:bg-warning-500/10",
-      href: "/withdraw?status=pending",
+      href: withdrawListHref("pending"),
     },
   ];
 

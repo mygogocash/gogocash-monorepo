@@ -16,15 +16,16 @@ export const COUPON_FORM_DEFAULTS: CouponRequestForm = {
   eligibility: "",
   min_spend: "",
   min_spend_enabled: false,
-  min_spend_currency: "THB",
+  min_spend_currency: "",
   max_cap: "",
-  max_cap_enabled: false,
-  max_cap_currency: "THB",
+  max_cap_enabled: undefined,
+  max_cap_currency: "",
   discount: 0,
-  discount_type: "percent",
-  discount_currency: "THB",
+  discount_type: undefined,
+  discount_currency: "",
   start_time: "",
   end_time: "",
+  terms_and_conditions: "",
 };
 
 export function couponDataToForm(list: CouponData): CouponRequestForm {
@@ -32,14 +33,10 @@ export function couponDataToForm(list: CouponData): CouponRequestForm {
     name: list.name,
     description: list.description,
     code: list.code,
-    code_enabled: Boolean(list.code?.trim()),
-    one_time_use_enabled:
-      list.one_time_use_enabled ??
-      (list.usage_per_user == null || Number(list.usage_per_user) <= 1),
+    code_enabled: list.code_enabled ?? Boolean(list.code?.trim()),
+    one_time_use_enabled: list.one_time_use_enabled,
     usage_per_user:
-      list.usage_per_user != null && Number(list.usage_per_user) > 1
-        ? String(list.usage_per_user)
-        : "",
+      list.usage_per_user != null ? String(list.usage_per_user) : "",
     unlimited_amount_enabled:
       list.unlimited_amount_enabled ??
       (list.quantity == null || list.quantity === 0),
@@ -54,14 +51,15 @@ export function couponDataToForm(list: CouponData): CouponRequestForm {
     eligibility: list.eligibility,
     min_spend: list.min_spend,
     min_spend_enabled: Boolean(list.min_spend?.trim()),
-    min_spend_currency: list.min_spend_currency ?? "THB",
-    max_cap: list.max_cap ?? "",
-    max_cap_enabled: Boolean(list.max_cap?.trim()),
-    max_cap_currency: list.max_cap_currency ?? "THB",
+    min_spend_currency: list.min_spend_currency ?? "",
+    max_cap: list.max_cap != null ? String(list.max_cap) : "",
+    max_cap_enabled: list.max_cap_enabled,
+    max_cap_currency: list.max_cap_currency ?? "",
     discount: list.discount,
-    discount_type: list.discount_type ?? "percent",
-    discount_currency: list.discount_currency ?? "THB",
+    discount_type: list.discount_type,
+    discount_currency: list.discount_currency ?? "",
     id: list._id,
     link: list.link,
+    terms_and_conditions: list.terms_and_conditions,
   };
 }

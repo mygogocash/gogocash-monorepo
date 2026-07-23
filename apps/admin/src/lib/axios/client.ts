@@ -1,6 +1,7 @@
-import type { DataSession } from "@/types/authSession";
 import { handleMockApiRequest } from "@/lib/mockApiCore";
 import { isStaticHostingClient } from "@/lib/isStaticHostingClient";
+import { resolveAdminApiBaseURL } from "@/lib/backendProxy";
+import { isAdminApiConfigured, normalizeAdminApiUrl } from "@/lib/adminApiMode";
 import { stripDefaultJsonContentTypeForFormData } from "@/lib/multipartFormHeaders";
 import axios, {
   AxiosRequestConfig,
@@ -8,11 +9,15 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 import xhrAdapter from "axios/lib/adapters/xhr.js";
-import { getSession } from "next-auth/react";
 
-// Use real API when NEXT_PUBLIC_API_URL is set; fall back to local mock.
-const baseURL = process.env.NEXT_PUBLIC_API_URL || "/api/mock";
-const isRealApi = !!process.env.NEXT_PUBLIC_API_URL;
+// Real API in the browser goes through the same-origin BFF so the Nest JWT
+// never reaches client JS. Mock mode is unchanged.
+const publicApiUrl = normalizeAdminApiUrl(process.env.NEXT_PUBLIC_API_URL);
+const isRealApi = isAdminApiConfigured(publicApiUrl);
+const baseURL = resolveAdminApiBaseURL({
+  realApiUrl: publicApiUrl,
+  isBrowser: true,
+});
 
 const firebaseStaticMockAdapter: AxiosAdapter = async (
   config: InternalAxiosRequestConfig,
@@ -22,7 +27,9 @@ const firebaseStaticMockAdapter: AxiosAdapter = async (
   const mockMarker = "/api/mock";
   const idx = u.pathname.indexOf(mockMarker);
   if (idx === -1) {
-    return Promise.reject(new Error("Static mock: expected URL under /api/mock"));
+    return Promise.reject(
+      new Error("Static mock: expected URL under /api/mock"),
+    );
   }
   const rest = u.pathname.slice(idx + mockMarker.length).replace(/^\/+/, "");
   const pathSegments = rest ? rest.split("/").filter(Boolean) : [];
@@ -52,7 +59,6 @@ const firebaseStaticMockAdapter: AxiosAdapter = async (
 };
 
 const hybridAdapter: AxiosAdapter = (config) => {
-  // Skip mock adapter when connected to real API
   if (isRealApi) {
     if (typeof xhrAdapter !== "function") {
       return Promise.reject(new Error("XHR adapter unavailable"));
@@ -81,9 +87,20 @@ if (typeof window !== "undefined") {
 
 client.interceptors.request.use(
   async (config) => {
-    const session = (await getSession()) as unknown as DataSession;
-    if (session?.accessToken) {
-      config.headers.Authorization = `Bearer ${session.accessToken}`;
+    // Auth is attached by `/api/backend` from the NextAuth JWT cookie.
+    if (isRealApi && config.headers) {
+      const headers = config.headers as {
+        delete?: (name: string) => void;
+        Authorization?: unknown;
+        authorization?: unknown;
+      };
+      if (typeof headers.delete === "function") {
+        headers.delete("Authorization");
+        headers.delete("authorization");
+      } else {
+        delete headers.Authorization;
+        delete headers.authorization;
+      }
     }
     stripDefaultJsonContentTypeForFormData(
       config.headers as Record<string, unknown>,
@@ -94,10 +111,26 @@ client.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+/** Shared with lib/api.ts — see sessionRedirect.ts for the extraction note. */
+export { SIGN_IN_PATH, shouldRedirectToSignInOn401 } from "./sessionRedirect";
+import { SIGN_IN_PATH, shouldRedirectToSignInOn401 } from "./sessionRedirect";
+
 client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
+      if (
+        typeof window !== "undefined" &&
+        shouldRedirectToSignInOn401({
+          status: error.response.status,
+          realApi: isRealApi,
+          isBrowser: true,
+          pathname: window.location.pathname,
+          data: error.response.data,
+        })
+      ) {
+        window.location.assign(SIGN_IN_PATH);
+      }
       return Promise.reject(error.response);
     }
     if (error.code === "ECONNABORTED") {
@@ -106,9 +139,13 @@ client.interceptors.response.use(
       );
     }
     if (error.request) {
-      throw new Error("No response from server");
+      throw new Error(
+        "Couldn't reach the server. Check your connection and try again.",
+      );
     }
-    throw new Error("An error occurred while setting up the request");
+    throw new Error(
+      "Something went wrong sending your request. Please try again.",
+    );
   },
 );
 
@@ -116,9 +153,7 @@ export default client;
 
 export const fetcher = async (args: string | [string, AxiosRequestConfig]) => {
   const [url, config] = Array.isArray(args) ? args : [args];
-
   const res = await client.get(url, { ...config });
-
   return res.data;
 };
 
@@ -126,9 +161,7 @@ export const fetcherPost = async (
   args: string | [string, AxiosRequestConfig],
 ) => {
   const [url, config] = Array.isArray(args) ? args : [args];
-
   const res = await client.post(url, { ...config });
-
   return res.data;
 };
 
@@ -136,8 +169,6 @@ export const fetcherPut = async (
   args: string | [string, AxiosRequestConfig],
 ) => {
   const [url, config] = Array.isArray(args) ? args : [args];
-
   const res = await client.put(url, { ...config });
-
   return res.data;
 };

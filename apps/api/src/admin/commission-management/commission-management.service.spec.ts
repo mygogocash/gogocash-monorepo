@@ -2,13 +2,20 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CommissionManagementService } from './commission-management.service';
 
 describe('CommissionManagementService', () => {
-  const involveService = {
-    findOfferByOfferId: jest.fn(),
-  };
   const offerModel = {
     find: jest.fn(),
     findById: jest.fn(),
     updateOne: jest.fn(),
+  };
+  // Registry mock for the affiliate seam. Production injects the
+  // AffiliateProviderRegistry in the 2nd constructor slot, and mergePartnerFeed
+  // dispatches through registry.providerFor(source).refreshOffer(); the whole
+  // suite constructs with this registry (not a bare involveService) so the
+  // involve-behavior tests actually exercise the dispatch, not the
+  // no-provider fallthrough.
+  const registry = {
+    providerFor: jest.fn(),
+    enabledProviders: jest.fn(),
   };
 
   let service: CommissionManagementService;
@@ -17,7 +24,7 @@ describe('CommissionManagementService', () => {
     jest.clearAllMocks();
     service = new CommissionManagementService(
       offerModel as any,
-      involveService as any,
+      registry as any,
     );
   });
 
@@ -88,7 +95,15 @@ describe('CommissionManagementService', () => {
         commission_tracking: 'CPS',
       }),
     });
-    involveService.findOfferByOfferId.mockResolvedValue(null);
+    // Enabled involve provider whose live refresh yields nothing, so fetchBest
+    // falls back to the offer's own stored commissions (6.5%). This genuinely
+    // exercises the registry dispatch (providerFor -> refreshOffer), which the
+    // old stale involveService mock silently skipped.
+    registry.providerFor.mockReturnValue({
+      source: 'involve',
+      isEnabled: jest.fn().mockReturnValue(true),
+      refreshOffer: jest.fn().mockResolvedValue(null),
+    });
 
     const result = await service.fetchBest({
       offerId: '507f1f77bcf86cd799439011',
@@ -128,5 +143,116 @@ describe('CommissionManagementService', () => {
       { $set: { app_deeplink: 'https://gogocash.app/open/shop-a?bestRate=5' } },
     );
     expect(result.success).toBe(true);
+  });
+
+  // New: mergePartnerFeed now dispatches through the affiliate provider seam
+  // instead of calling InvolveService directly.
+  describe('mergePartnerFeed dispatch (affiliate seam)', () => {
+    let seamService: CommissionManagementService;
+
+    beforeEach(() => {
+      seamService = new CommissionManagementService(
+        offerModel as any,
+        registry as any,
+      );
+    });
+
+    it('fetchBest > given an enabled provider for the network > then it refreshes via the registry and persists the returned patch', async () => {
+      const provider = {
+        source: 'involve',
+        isEnabled: jest.fn().mockReturnValue(true),
+        refreshOffer: jest.fn().mockResolvedValue({
+          commissions: [{ Commission: '9%' }],
+          tracking_link: 'https://track.example/fresh',
+          commission_tracking: 'CPS',
+        }),
+      };
+      registry.providerFor.mockReturnValue(provider);
+      offerModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          _id: '507f1f77bcf86cd799439011',
+          offer_id: 1001,
+          offer_name: 'Shop A',
+          offer_name_display: 'Shop A',
+          lookup_value: 'shop-a',
+          source: 'involve',
+          commissions: [{ Commission: '5%' }],
+          currency: 'THB',
+        }),
+      });
+
+      const result = await seamService.fetchBest({
+        offerId: '507f1f77bcf86cd799439011',
+        affiliateNetworkId: 'involve_asia',
+      });
+
+      expect(registry.providerFor).toHaveBeenCalledWith('involve');
+      expect(provider.refreshOffer).toHaveBeenCalledTimes(1);
+      expect(offerModel.updateOne).toHaveBeenCalledWith(
+        { _id: '507f1f77bcf86cd799439011' },
+        {
+          $set: {
+            commissions: [{ Commission: '9%' }],
+            tracking_link: 'https://track.example/fresh',
+            commission_tracking: 'CPS',
+          },
+        },
+      );
+      // Patch's 9% partner rate wins over the offer's stale 5%.
+      expect(result.bestRatePercent).toBe(9);
+    });
+
+    it('fetchBest > given optimise (no provider registered yet) > then it falls through to the unsupported path and never persists', async () => {
+      registry.providerFor.mockReturnValue(null);
+      offerModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          _id: '507f1f77bcf86cd799439012',
+          offer_id: 2002,
+          offer_name: 'Shop B',
+          source: 'optimise',
+          commissions: [{ Commission: '4%' }],
+          currency: 'THB',
+        }),
+      });
+
+      const result = await seamService.fetchBest({
+        offerId: '507f1f77bcf86cd799439012',
+        affiliateNetworkId: 'optimise',
+      });
+
+      expect(registry.providerFor).toHaveBeenCalledWith('optimise');
+      expect(offerModel.updateOne).not.toHaveBeenCalled();
+      // Falls back to the stored offer's own 4% — nothing refreshed.
+      expect(result.bestRatePercent).toBe(4);
+      expect(result.affiliateNetworkId).toBe('optimise');
+    });
+
+    it('fetchBest > given a disabled provider > then it falls through to not-connected and never refreshes or persists', async () => {
+      const provider = {
+        source: 'involve',
+        isEnabled: jest.fn().mockReturnValue(false),
+        refreshOffer: jest.fn(),
+      };
+      registry.providerFor.mockReturnValue(provider);
+      offerModel.findById.mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          _id: '507f1f77bcf86cd799439011',
+          offer_id: 1001,
+          offer_name: 'Shop A',
+          source: 'involve',
+          commissions: [{ Commission: '6.5%' }],
+          currency: 'THB',
+        }),
+      });
+
+      const result = await seamService.fetchBest({
+        offerId: '507f1f77bcf86cd799439011',
+        affiliateNetworkId: 'involve_asia',
+      });
+
+      expect(provider.refreshOffer).not.toHaveBeenCalled();
+      expect(offerModel.updateOne).not.toHaveBeenCalled();
+      expect(result.bestRatePercent).toBe(6.5);
+    });
   });
 });

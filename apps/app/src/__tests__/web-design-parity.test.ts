@@ -86,7 +86,9 @@ describe("GoGoCash web design parity", () => {
       "trending",
       "categoryHome",
     ]);
-    expect(spacing.homeStackGap).toBe(16);
+    // Issue #256: 16px between home sections read as cramped; bump for clearer
+    // section separation on mobile (desktop keeps desktopHomeStackGap: 40).
+    expect(spacing.homeStackGap).toBe(24);
     expect(mobileShellLayout).toMatchObject({
       contentMaxWidth: 1440,
       contentHorizontalPadding: 16,
@@ -271,31 +273,30 @@ describe("GoGoCash web design parity", () => {
   });
 
   it("desktop shell parity > given the Next desktop nav reference > then Expo keeps the same category nav order and cookie copy", () => {
+    // Founder request 2026-07-22: Explore Shops + Explore Products were hidden from the
+    // header nav and replaced with the Digital Services + Fashion category shortcuts.
     expect(webDesktopHeaderNavItems.map((item) => item.label)).toEqual([
       "Top Brands",
-      "All Brands",
-      "All Shops",
-      "Product Discovery",
+      "Explore Brand",
+      "Digital Services",
+      "Fashion",
       "Travel",
       "Electronics",
       "Health & Beauty",
     ]);
+    // #483 — Top Brands uses the same Phosphor icon treatment as other tabs.
     expect(webDesktopHeaderNavItems[0]).toMatchObject({
       active: true,
-      showFire: true,
+      icon: "fire",
     });
-    expect(webDesktopHeaderNavItems[3]).toMatchObject({
-      label: "Product Discovery",
-      menuTypography: "lead",
-    });
-    expect(webDesktopHeaderNavItems[5]).toMatchObject({
-      label: "Electronics",
-      menuTypography: "lead",
-    });
-    expect(webDesktopHeaderNavItems[6]).toMatchObject({
-      label: "Health & Beauty",
-      menuTypography: "lead",
-    });
+    expect(webDesktopHeaderNavItems.every((item) => typeof item.icon === "string")).toBe(
+      true,
+    );
+    expect(
+      webDesktopHeaderNavItems.every(
+        (item) => !("showFire" in item) && !("menuTypography" in item),
+      ),
+    ).toBe(true);
     expect(webCookieConsentBanner).toMatchObject({
       allow: "Accept all cookies",
       decline: "Cookie settings",
@@ -561,16 +562,31 @@ describe("GoGoCash web design parity", () => {
   });
 
   it("browse shortcuts > given web MobileBrowseShortcuts > then labels and routes match", () => {
+    // #497 — the mobile bar is now DERIVED from the desktop nav so the two cannot drift.
+    // Pinned explicitly rather than by re-deriving, so a change to either list is visible here.
     expect(webBrowseShortcuts).toEqual([
-      { id: "all-brands", label: "All Brands", href: "/brand", icon: "shop" },
-      { id: "all-shops", label: "All Shops", href: "/shops", icon: "shops" },
+      { id: "top-brands", label: "Top Brands", href: "/", icon: "fire" },
+      { id: "all-brands", label: "Explore Brand", href: "/brand", icon: "shop" },
       {
-        id: "product-discover",
-        label: "Product Discovery",
-        href: "/discover",
-        icon: "promotion",
+        id: "digital-services",
+        label: "Digital Services",
+        href: "/category/Digital%20Services",
+        icon: "digital",
       },
-      { id: "categories", label: "Categories", href: "/category", icon: "education" },
+      { id: "fashion", label: "Fashion", href: "/category/Fashion", icon: "fashion" },
+      { id: "travel", label: "Travel", href: "/category/Travel", icon: "travel" },
+      {
+        id: "electronics",
+        label: "Electronics",
+        href: "/category/Electronics",
+        icon: "electronics",
+      },
+      {
+        id: "health-beauty",
+        label: "Health & Beauty",
+        href: "/category/Health%20%26%20Beauty",
+        icon: "health",
+      },
     ]);
   });
 
@@ -610,10 +626,14 @@ describe("GoGoCash web design parity", () => {
         ],
       },
       {
-        title: "Products",
+        title: "Company",
         items: [
-          { label: "Business Inquiries", href: "https://lin.ee/7om5sAr", external: true },
-          { label: "Careers", href: "https://lin.ee/7om5sAr", external: true },
+          { label: "Business Inquiries", href: "mailto:info@gogocash.co", external: true },
+          {
+            label: "Careers",
+            href: "https://www.linkedin.com/company/gogocash",
+            external: true,
+          },
         ],
       },
       {
@@ -638,6 +658,15 @@ describe("GoGoCash web design parity", () => {
             href: "https://gogocash.co/privacy-policy",
             external: true,
           },
+        ],
+      },
+      {
+        title: "Agents",
+        items: [
+          { label: "sitemap.md", href: "https://gogocash.co/sitemap.md", external: true },
+          { label: "llms.txt", href: "https://gogocash.co/llms.txt", external: true },
+          { label: "skills.md", href: "https://gogocash.co/skills.md", external: true },
+          { label: "rss.xml", href: "https://gogocash.co/rss.xml", external: true },
         ],
       },
     ]);

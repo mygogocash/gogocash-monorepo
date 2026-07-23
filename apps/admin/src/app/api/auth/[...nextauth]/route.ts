@@ -6,8 +6,8 @@ import { apiClient } from "@/lib/api";
 import { devError } from "@/lib/devConsole";
 import { isMockAdminPasswordAllowed } from "@/lib/mockAuthPolicy";
 import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
+import { resolveAdminAuthRoleClaims } from "@/lib/adminAuthRoleClaims";
 import { mockRoleForEmail, resolveTokenRole } from "@/lib/mockAdminRole";
-import { fromApiRole } from "@/lib/rbac";
 
 const authOptions: NextAuthOptions = {
   providers: [
@@ -16,23 +16,30 @@ const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        rememberMe: { label: "Remember", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
         const { email, password } = credentials;
+        // "Keep me logged in" — credentials arrive as strings.
+        const rememberMe = credentials.rememberMe === "true";
 
         if (password === "1234" && isMockAdminPasswordAllowed()) {
           const mockEmail =
             (email ?? "").trim().toLowerCase() || "admin@gogocash.co";
+          const roleClaims = resolveAdminAuthRoleClaims(
+            mockRoleForEmail(mockEmail),
+          );
           return {
             id: "a1",
             name: "admin",
             email: mockEmail,
             image: undefined,
             accessToken: DEFAULT_MOCK_ACCESS_TOKEN,
-            role: mockRoleForEmail(mockEmail),
+            rememberMe,
+            ...roleClaims,
           };
         }
 
@@ -40,17 +47,22 @@ const authOptions: NextAuthOptions = {
           const userData = await apiClient.login({
             email: credentials.email,
             password: credentials.password,
+            // Forwarded so the API signs a 30-day (vs 7-day) admin token.
+            rememberMe,
           });
+          const apiRole = (userData as { role?: string }).role;
+          const roleClaims = resolveAdminAuthRoleClaims(apiRole);
           return {
             id: userData._id,
             name: userData.username,
             email: userData.email,
             image: undefined,
             accessToken: userData.token,
+            rememberMe,
             // Translate the API role vocabulary (superadmin/approver/support)
             // into the frontend Role the UI gates on. The API token above still
             // carries the original role for API-side guards.
-            role: fromApiRole((userData as { role?: string }).role),
+            ...roleClaims,
           };
         } catch (error) {
           const message =
@@ -75,9 +87,11 @@ const authOptions: NextAuthOptions = {
     }) {
       if (user) {
         token.accessToken = user.accessToken;
+        token.apiRole = user.apiRole;
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
+        token.rememberMe = user.rememberMe === true;
         if (user.role) token.role = user.role;
       }
       // Backfill a role only when missing (preserves custom role ids). Against
@@ -91,10 +105,15 @@ const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken;
+      // Keep Nest JWT on the encrypted NextAuth JWT only — never expose
+      // accessToken via getSession() / client JS. Browser API calls go through
+      // `/api/backend`, which attaches Bearer via getToken().
       if (token.id) session.user.id = token.id;
       if (token.name) session.user.name = token.name;
       if (token.email) session.user.email = token.email;
+      if (typeof token.apiRole === "string") {
+        session.user.apiRole = token.apiRole;
+      }
       session.user.role =
         typeof token.role === "string" ? token.role : "viewer";
       return session;
@@ -103,14 +122,14 @@ const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
-    // P1-SESS: tightened from 30d -> 7d idle window for an admin panel that gates
-    // money/user data. The session still rolls forward on activity (updateAge),
-    // so active admins stay signed in; an idle/leaked session now expires in 7d
-    // instead of 30d (shrinks stolen-token blast radius). NOTE: the backend
-    // accessToken is still attached to the client session below — eliminating
-    // that exposure needs a server-side relay (BFF) and is tracked separately;
-    // revocation (token-version vs denylist) is an open owner decision.
-    maxAge: 7 * 24 * 60 * 60,
+    // "Keep me logged in" support: the cookie window is the 30-day maximum, but
+    // the EFFECTIVE session is bounded by the embedded Nest accessToken, which the
+    // API signs for 30 days only when rememberMe was checked and 7 days otherwise
+    // (user-admin-service.login). So a NON-remember session still loses backend
+    // access at 7d (calls 401 -> redirect to /signin, per apiClient), preserving
+    // the P1-SESS blast-radius bound; a remember session stays usable for 30d.
+    // Nest accessToken stays server-side (BFF); revocation via session_version.
+    maxAge: 30 * 24 * 60 * 60,
     updateAge: 60 * 60,
   },
   pages: {

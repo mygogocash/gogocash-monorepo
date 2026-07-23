@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { Link, Redirect } from "expo-router";
 import {
   Check as CheckIcon,
   ChevronLeft as ChevronLeftIcon,
@@ -11,6 +11,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { isGoGoPassEnabled } from "@mobile/config/featureFlags";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
 import { mobileShellLayout, webMembershipLanding } from "@mobile/design/webDesignParity";
@@ -60,6 +61,13 @@ export function CustomerMembershipScreen() {
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const [billingAnnual, setBillingAnnual] = useState(true);
   const [openFaq, setOpenFaq] = useState(0);
+
+  // GoGoPass rollout flag: when hidden this landing is unreachable — bounce to
+  // the profile hub. The guard sits BELOW the hooks so the hook order stays
+  // unconditional (the flag is a build-time constant, but rules-of-hooks first).
+  if (!isGoGoPassEnabled()) {
+    return <Redirect href="/profile" />;
+  }
 
   return (
     <AccountPageShell activeRouteId="profile" showTitle={false} title={tc("GoGoPass")}>
@@ -129,7 +137,9 @@ export function CustomerMembershipScreen() {
             </View>
             <View style={styles.disabledNotice}>
               <SparklesIcon color={colors.primaryDark} size={18} strokeWidth={2} />
-              <Text style={styles.disabledText}>{tc("Online checkout is not available.")}</Text>
+              <Text style={styles.disabledText}>
+                {tc("Online checkout isn't available right now. Please try again later.")}
+              </Text>
             </View>
             <Link asChild href="/pricing">
               <Pressable

@@ -15,7 +15,10 @@ const read = (rel: string): string => fs.readFileSync(path.join(mobileRoot, rel)
 
 describe("Profile link sections — same coming-soon flow as the Next.js web app", () => {
   const panel = read("src/components/ProfileInfoPanel.tsx");
-  const enCatalog = JSON.parse(read("src/messages/en.json")) as Record<string, string>;
+  // Base catalogs live in the shared package since #19 (P4-2); overlays stay app-local.
+  const enCatalog = JSON.parse(
+    read("../../packages/i18n/messages/en.json"),
+  ) as Record<string, string>;
   const comingSoon = enCatalog.authFeatureComingSoon;
 
   it("link flow > given Link/Unlink placeholders > then fires the web's authFeatureComingSoon toast copy", () => {
@@ -28,5 +31,13 @@ describe("Profile link sections — same coming-soon flow as the Next.js web app
 
   it("link flow > given the MyCashBack CTA > then routes to /link-mycashback (web parity)", () => {
     expect(panel).toContain('href="/link-mycashback"');
+  });
+
+  // Issue #411: Link Email / Phone must seed from session identity helpers, not hardcoded mocks.
+  it("link contact fields > given Personal Information > then seeds email/phone via profileIdentity (no hardcoded mocks)", () => {
+    expect(panel).toContain("resolveProfileEmail");
+    expect(panel).toContain("resolveProfilePhone");
+    expect(panel).not.toContain('useState("mock.user@gogocash.test")');
+    expect(panel).not.toContain('useState("+66123456789")');
   });
 });

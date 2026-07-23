@@ -13,6 +13,8 @@
  * `BUILD_FOR_FIREBASE=1`, which works in every toolchain.
  */
 
+import { isAdminApiConfigured } from "@/lib/adminApiMode";
+
 function hasStaticExportMeta(): boolean {
   if (typeof window === "undefined") return false;
   try {
@@ -34,6 +36,6 @@ export function isStaticExportBuild(): boolean {
 export function isStaticHostingClient(): boolean {
   if (typeof window === "undefined") return false;
   // Real API configured → not in static-mock mode regardless of build flags.
-  if (process.env.NEXT_PUBLIC_API_URL) return false;
+  if (isAdminApiConfigured(process.env.NEXT_PUBLIC_API_URL)) return false;
   return isStaticExportBuild();
 }

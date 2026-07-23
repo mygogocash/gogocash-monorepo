@@ -6,10 +6,11 @@
 # whole workspace, then build only the gogocash-api workspace.
 
 # ── Stage 1: build ───────────────────────────────────────────────────────────
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
-# nest build (tsc) exceeds Node's default container heap
+# Build is `swc src -d dist` (native, ~100ms) since the TS 7 upgrade — the old
+# nest-build heap ceiling no longer applies, but keep headroom for npm ci.
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Install deps from the root lockfile. .npmrc carries legacy-peer-deps=true
@@ -17,17 +18,25 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 # pass it explicitly too as a guard against an unread .npmrc. Ignore lifecycle
 # scripts because the root postinstall patches admin assets that are not copied
 # into this API-only image.
+# --include=dev: Railway/Cloud Run may inject NODE_ENV=production into the
+# build stage; without this, npm omits build tools (typescript/@swc/cli).
 COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json ./apps/api/package.json
-RUN npm ci --legacy-peer-deps --ignore-scripts
+# Shared workspace packages (#19): npm ci must see every workspace dir that the
+# api declares (@gogocash/contracts, @gogocash/tsconfig) or it fails to link.
+# contracts is types-only for the api — nothing from packages/ is loaded at
+# runtime, so the runtime stage deliberately does not copy it.
+COPY packages ./packages
+RUN npm install --global npm@10.9.8 \
+ && npm ci --legacy-peer-deps --ignore-scripts --include=dev
 
-# Copy the api source and build only its workspace (@nestjs/cli is a devDep,
-# already installed above).
+# Copy the api source and build only its workspace (@swc/cli + .swcrc drive the
+# build; type-checking is a separate native `tsc --noEmit` gate in CI).
 COPY apps/api ./apps/api
 RUN npm run build -w gogocash-api
 
 # ── Stage 2: production runtime ──────────────────────────────────────────────
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
 
 # Carry over the build stage's fully-resolved workspace node_modules (hoisted

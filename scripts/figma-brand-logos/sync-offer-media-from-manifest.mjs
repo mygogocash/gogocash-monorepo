@@ -1,36 +1,45 @@
 #!/usr/bin/env node
 /**
- * Sync admin offer "Logos & media" from docs/assets/brand-logos manifest:
- *   logo-circle       → logo_desktop + logo_mobile (Logo)
- *   shop-page-banner  → logo_circle (Brand cover)
+ * Sync Offer legacy media aliases from the checked-in Figma manifest.
  *
- * Requires Mongo + R2 (same env as gogocash-api):
- *   MONGO_URI, R2_BUCKET, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_BASE_URL
+ * Safety classification: this is a legacy-untracked/nondeletable writer. It
+ * may replace only raw legacy URL fields. Any structured owner proof or any
+ * policy_media_asset_registry row (active, deleting, or deleted) makes the
+ * entire run fail closed before the first R2 Put. New URLs are deliberately
+ * left without structured proof and therefore can never be automatically
+ * physically deleted by the policy cleanup worker. Object keys include the
+ * manifest content hash, so a crash/retry reuses the same planned object
+ * instead of accumulating random orphan uploads.
  *
- * Usage:
- *   node scripts/figma-brand-logos/sync-offer-media-from-manifest.mjs --dry-run
- *   node scripts/figma-brand-logos/sync-offer-media-from-manifest.mjs --slug=agoda
- *   node scripts/figma-brand-logos/sync-offer-media-from-manifest.mjs --apply
+ * Default mode is dry-run. Mutation requires an explicit --apply.
  */
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import mongoose from "mongoose";
 
 import {
   buildAssetsBySlug,
-  lookupMatchesSlug,
+  normalizeLookupSlug,
   planOfferMediaUpdates,
 } from "./offer-media-field-map.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
-const MANIFEST_PATH = path.join(REPO_ROOT, "docs/assets/brand-logos/manifest.json");
+const MANIFEST_PATH = path.join(
+  REPO_ROOT,
+  "docs/assets/brand-logos/manifest.json",
+);
 const BRANDS_FOLDER = "brands";
+const STRUCTURED_PROOF_FIELDS = ["logo_asset", "banner_asset"];
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
+  if (argv.includes("--apply") && argv.includes("--dry-run")) {
+    throw new Error("Choose either --apply or --dry-run, not both");
+  }
   const dryRun = !argv.includes("--apply");
   const slugFilter = argv
     .find((arg) => arg.startsWith("--slug="))
@@ -40,15 +49,13 @@ function parseArgs(argv) {
   return { dryRun, slugFilter };
 }
 
-function assertEnv(name) {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`${name} is required`);
-  }
+function requiredEnv(env, name) {
+  const value = env[name]?.trim();
+  if (!value) throw new Error(`${name} is required`);
   return value;
 }
 
-function buildMediaObjectKey(folder, originalName) {
+export function buildMediaObjectKey(folder, originalName, nonce) {
   const trimmed = (originalName || "logo.png").trim();
   const dotIndex = trimmed.lastIndexOf(".");
   const baseName = dotIndex > 0 ? trimmed.slice(0, dotIndex) : trimmed;
@@ -68,77 +75,204 @@ function buildMediaObjectKey(folder, originalName) {
       .replace(/[^a-z0-9._-]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 80) || "uploads";
-  return `${safeFolder}/${Date.now()}-${safeName}`;
+  const unique = String(nonce || `${Date.now()}-${randomUUID()}`)
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .slice(0, 100);
+  return `${safeFolder}/${unique}-${safeName}`;
 }
 
-function buildR2PublicUrl(publicBaseUrl, objectKey) {
+export function buildR2PublicUrl(publicBaseUrl, objectKey) {
   const base = publicBaseUrl.replace(/\/+$/, "");
   return `${base}/${objectKey.replace(/^\/+/, "")}`;
 }
 
-function createR2Client() {
-  const endpoint = assertEnv("R2_ENDPOINT");
-  const accessKeyId = assertEnv("R2_ACCESS_KEY_ID");
-  const secretAccessKey = assertEnv("R2_SECRET_ACCESS_KEY");
+export function policyMediaUrlHash(value) {
+  return createHash("sha256").update(String(value).trim()).digest("hex");
+}
+
+function createR2Client(env) {
   return new S3Client({
     region: "auto",
-    endpoint,
-    credentials: { accessKeyId, secretAccessKey },
+    endpoint: requiredEnv(env, "R2_ENDPOINT"),
+    credentials: {
+      accessKeyId: requiredEnv(env, "R2_ACCESS_KEY_ID"),
+      secretAccessKey: requiredEnv(env, "R2_SECRET_ACCESS_KEY"),
+    },
   });
 }
 
-async function uploadPngToR2(client, absolutePath, bucket, publicBaseUrl) {
-  const buffer = await fs.readFile(absolutePath);
-  if (!buffer.length) {
-    throw new Error(`Empty file: ${absolutePath}`);
-  }
-  const objectKey = buildMediaObjectKey(BRANDS_FOLDER, path.basename(absolutePath));
-  await client.send(
-    new PutObjectCommand({
-      Bucket: bucket,
-      Key: objectKey,
-      Body: buffer,
-      ContentType: "image/png",
-      CacheControl: "public, max-age=31536000",
-    }),
-  );
-  return buildR2PublicUrl(publicBaseUrl, objectKey);
+function hasOwn(value, field) {
+  return Object.prototype.hasOwnProperty.call(value, field);
 }
 
-async function main() {
-  const { dryRun, slugFilter } = parseArgs(process.argv.slice(2));
-  const mongoUri = assertEnv("MONGO_URI");
+function normalizeUrl(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
 
-  const manifest = JSON.parse(await fs.readFile(MANIFEST_PATH, "utf8"));
+async function registryRowsForUrls(registryCollection, urls) {
+  const normalized = [...new Set(urls.map(normalizeUrl).filter(Boolean))];
+  if (normalized.length === 0) return [];
+  const hashes = normalized.map(policyMediaUrlHash);
+  const rows = await registryCollection
+    .find({ url_hash: { $in: hashes } })
+    .toArray();
+  const urlByHash = new Map(
+    normalized.map((url) => [policyMediaUrlHash(url), url]),
+  );
+  for (const row of rows) {
+    const expected = urlByHash.get(row.url_hash);
+    if (!expected || expected !== row.url) {
+      throw new Error(
+        `Policy media registry hash collision for ${expected || row.url_hash}`,
+      );
+    }
+  }
+  return rows;
+}
+
+function assertNoStructuredProof(work) {
+  for (const { offer } of work) {
+    for (const field of STRUCTURED_PROOF_FIELDS) {
+      if (hasOwn(offer, field)) {
+        throw new Error(
+          `Offer ${String(offer._id)} has ${field}; refusing legacy raw replacement`,
+        );
+      }
+    }
+  }
+}
+
+function currentTargetUrls(work) {
+  const urls = [];
+  for (const { offer, plans } of work) {
+    for (const plan of plans) {
+      for (const field of plan.offerFields) {
+        const url = normalizeUrl(offer[field]);
+        if (url) urls.push(url);
+      }
+    }
+  }
+  return urls;
+}
+
+async function assertNoTrackedUrls(registryCollection, urls, stage) {
+  const rows = await registryRowsForUrls(registryCollection, urls);
+  if (rows.length > 0) {
+    const row = rows[0];
+    throw new Error(
+      `Refusing ${stage}: URL ${row.url} is tracked in policy_media_asset_registry (${row.state})`,
+    );
+  }
+}
+
+function buildOfferCasFilter(offer, plans) {
+  const filter = {
+    _id: offer._id,
+    logo_asset: { $exists: false },
+    banner_asset: { $exists: false },
+  };
+  for (const plan of plans) {
+    for (const field of plan.offerFields) {
+      filter[field] = hasOwn(offer, field) ? offer[field] : { $exists: false };
+    }
+  }
+  return filter;
+}
+
+function normalizedManifestSlug(slug) {
+  return String(slug || "")
+    .trim()
+    .toLowerCase();
+}
+
+export function resolveManifestSlug(lookupValue, slugs) {
+  const rawLookup = normalizedManifestSlug(lookupValue);
+  if (!rawLookup) return null;
+
+  const candidates = slugs.map((slug) => ({
+    slug,
+    normalized: normalizedManifestSlug(slug),
+  }));
+  const rawExact = candidates.filter(
+    (candidate) => candidate.normalized === rawLookup,
+  );
+  if (rawExact.length === 1) return rawExact[0].slug;
+  if (rawExact.length > 1) {
+    throw new Error(
+      `Ambiguous manifest slugs for lookup "${String(lookupValue)}": ${rawExact.map((candidate) => candidate.slug).join(", ")}`,
+    );
+  }
+
+  const normalizedLookup = normalizeLookupSlug(rawLookup);
+  const normalizedExact = candidates.filter(
+    (candidate) => candidate.normalized === normalizedLookup,
+  );
+  if (normalizedExact.length === 1) return normalizedExact[0].slug;
+  if (normalizedExact.length > 1) {
+    throw new Error(
+      `Ambiguous manifest slugs for lookup "${String(lookupValue)}": ${normalizedExact.map((candidate) => candidate.slug).join(", ")}`,
+    );
+  }
+
+  const boundary = candidates.filter(
+    (candidate) =>
+      rawLookup.startsWith(`${candidate.normalized}_`) ||
+      rawLookup.startsWith(`${candidate.normalized}-`),
+  );
+  if (boundary.length === 0) return null;
+  const longestLength = Math.max(
+    ...boundary.map((candidate) => candidate.normalized.length),
+  );
+  const longest = boundary.filter(
+    (candidate) => candidate.normalized.length === longestLength,
+  );
+  if (longest.length !== 1) {
+    throw new Error(
+      `Ambiguous manifest slugs for lookup "${String(lookupValue)}": ${longest.map((candidate) => candidate.slug).join(", ")}`,
+    );
+  }
+  return longest[0].slug;
+}
+
+/**
+ * Testable sync core. All file/proof/registry checks finish before putObject is
+ * called. Database updates use an exact compare-and-set filter so a concurrent
+ * structured writer cannot be overwritten.
+ */
+export async function runOfferMediaSync({
+  manifest,
+  dryRun,
+  slugFilter,
+  repoRoot,
+  offersCollection,
+  registryCollection,
+  readFile,
+  publicBaseUrl,
+  putObject,
+  logger = console,
+}) {
   const assetsBySlug = buildAssetsBySlug(manifest);
-
-  const slugs = [...assetsBySlug.entries()]
-    .filter(([slug, assets]) => {
-      if (slugFilter && slug !== slugFilter) return false;
-      return assets["logo-circle"] && assets["shop-page-banner"];
-    })
+  const manifestSlugs = [
+    ...new Set(
+      manifest.map((row) => String(row.slug || "").trim()).filter(Boolean),
+    ),
+  ].sort();
+  const syncableSlugs = [...assetsBySlug.entries()]
+    .filter(([, assets]) => assets["logo-circle"] && assets["shop-page-banner"])
     .map(([slug]) => slug)
     .sort();
-
-  if (slugs.length === 0) {
-    console.error(
+  const selectedSlugs = slugFilter
+    ? syncableSlugs.filter(
+        (slug) => normalizedManifestSlug(slug) === slugFilter,
+      )
+    : syncableSlugs;
+  if (selectedSlugs.length === 0) {
+    throw new Error(
       slugFilter
         ? `No manifest slug "${slugFilter}" with logo-circle + shop-page-banner`
         : "No slugs with both logo-circle and shop-page-banner in manifest",
     );
-    process.exit(1);
   }
-
-  console.log(
-    `[sync-offer-media] ${dryRun ? "DRY RUN" : "APPLY"} — ${slugs.length} brand slug(s)`,
-  );
-
-  await mongoose.connect(mongoUri);
-  const offersCollection = mongoose.connection.db.collection("offers");
-
-  const r2Bucket = dryRun ? null : assertEnv("R2_BUCKET");
-  const r2PublicBaseUrl = dryRun ? null : assertEnv("R2_PUBLIC_BASE_URL");
-  const r2Client = dryRun ? null : createR2Client();
 
   const allOffers = await offersCollection
     .find({
@@ -152,114 +286,220 @@ async function main() {
       logo_desktop: 1,
       logo_mobile: 1,
       logo_circle: 1,
+      logo_asset: 1,
+      banner_asset: 1,
     })
     .toArray();
 
+  const work = [];
+  const matchedSlugs = new Set();
+  const selectedSlugSet = new Set(selectedSlugs);
+  for (const offer of allOffers) {
+    const slug = resolveManifestSlug(offer.lookup_value, manifestSlugs);
+    if (!slug || !selectedSlugSet.has(slug)) continue;
+    const plans = planOfferMediaUpdates(assetsBySlug.get(slug));
+    matchedSlugs.add(slug);
+    work.push({ slug, plans, offer });
+  }
+  const unmatchedSlugs = selectedSlugs.filter(
+    (slug) => !matchedSlugs.has(slug),
+  );
+  for (const slug of unmatchedSlugs) {
+    logger.warn(`[skip] ${slug} - no offer matched lookup_value`);
+  }
+  const skippedNoOffer = unmatchedSlugs.length;
+
+  assertNoStructuredProof(work);
+  const fileByPath = new Map();
+  for (const item of work) {
+    for (const plan of item.plans) {
+      const absolutePath = path.join(repoRoot, plan.relativePath);
+      if (!fileByPath.has(absolutePath)) {
+        const buffer = await readFile(absolutePath);
+        if (!buffer?.length) throw new Error(`Empty file: ${absolutePath}`);
+        fileByPath.set(absolutePath, buffer);
+      }
+    }
+  }
+  await assertNoTrackedUrls(
+    registryCollection,
+    currentTargetUrls(work),
+    "legacy media replacement",
+  );
+
   const stats = {
-    slugsProcessed: 0,
-    offersMatched: 0,
+    dryRun,
+    slugsProcessed: selectedSlugs.length,
+    offersMatched: work.length,
     offersUpdated: 0,
     uploadsPlanned: 0,
     uploadsApplied: 0,
-    skippedNoOffer: 0,
-    errors: [],
+    fieldUpdatesPlanned: 0,
+    skippedNoOffer,
+    legacyUrlsClassifiedNondeletable: new Set(currentTargetUrls(work)).size,
   };
 
-  for (const slug of slugs) {
-    stats.slugsProcessed += 1;
-    const assets = assetsBySlug.get(slug);
-    const plans = planOfferMediaUpdates(assets);
+  const uniquePlans = new Map();
+  for (const item of work) {
+    for (const plan of item.plans) {
+      const key = `${item.slug}:${plan.category}`;
+      if (!uniquePlans.has(key))
+        uniquePlans.set(key, { slug: item.slug, ...plan });
+      stats.fieldUpdatesPlanned += plan.offerFields.length;
+    }
+  }
+  stats.uploadsPlanned = uniquePlans.size;
 
-    const matched = allOffers.filter((offer) =>
-      lookupMatchesSlug(offer.lookup_value, slug),
+  if (!publicBaseUrl) {
+    throw new Error(
+      "R2 public URL is required to plan deterministic media URLs",
     );
+  }
+  if (!dryRun && typeof putObject !== "function") {
+    throw new Error("Apply mode requires putObject");
+  }
+  const prepared = new Map();
+  for (const [key, plan] of uniquePlans) {
+    const absolutePath = path.join(repoRoot, plan.relativePath);
+    const buffer = fileByPath.get(absolutePath);
+    const contentSha256 = createHash("sha256").update(buffer).digest("hex");
+    const originalName = `${plan.slug}-${plan.category}-${path.basename(absolutePath)}`;
+    const objectKey = buildMediaObjectKey(
+      BRANDS_FOLDER,
+      originalName,
+      `manifest-${contentSha256}`,
+    );
+    prepared.set(key, {
+      ...plan,
+      absolutePath,
+      buffer,
+      contentSha256,
+      objectKey,
+      publicUrl: buildR2PublicUrl(publicBaseUrl, objectKey),
+    });
+  }
 
-    if (matched.length === 0) {
-      stats.skippedNoOffer += 1;
-      console.warn(`[skip] ${slug} — no offer matched lookup_value`);
-      continue;
-    }
+  // Prospective URLs are checked too. This is still before the first Put.
+  await assertNoTrackedUrls(
+    registryCollection,
+    [...prepared.values()].map((entry) => entry.publicUrl),
+    "new legacy media upload",
+  );
 
-    for (const offer of matched) {
-      stats.offersMatched += 1;
-      /** @type {Record<string, string>} */
-      const fieldUpdates = {};
-
-      for (const plan of plans) {
-        const absolutePath = path.join(REPO_ROOT, plan.relativePath);
-        try {
-          await fs.access(absolutePath);
-        } catch {
-          stats.errors.push({
-            slug,
-            offerId: String(offer._id),
-            error: `Missing file ${plan.relativePath}`,
-          });
-          continue;
-        }
-
+  if (dryRun) {
+    for (const item of work) {
+      for (const plan of item.plans) {
         for (const field of plan.offerFields) {
-          stats.uploadsPlanned += 1;
-          if (dryRun) {
-            console.log(
-              `[plan] ${slug} → offer ${offer._id} (${offer.lookup_value}) set ${field} ← ${plan.category}`,
-            );
-            continue;
-          }
-
-          try {
-            const publicUrl = await uploadPngToR2(
-              r2Client,
-              absolutePath,
-              r2Bucket,
-              r2PublicBaseUrl,
-            );
-            fieldUpdates[field] = publicUrl;
-            stats.uploadsApplied += 1;
-          } catch (error) {
-            stats.errors.push({
-              slug,
-              offerId: String(offer._id),
-              error:
-                error instanceof Error
-                  ? `${field}: ${error.message}`
-                  : String(error),
-            });
-          }
+          logger.log(
+            `[plan] ${item.slug} -> offer ${String(item.offer._id)} set ${field} <- ${plan.category}`,
+          );
         }
       }
-
-      if (!dryRun && Object.keys(fieldUpdates).length > 0) {
-        await offersCollection.updateOne(
-          { _id: offer._id },
-          { $set: fieldUpdates },
-        );
-        stats.offersUpdated += 1;
-        console.log(
-          `[ok] ${slug} → offer ${offer._id} (${offer.lookup_value}) updated ${Object.keys(fieldUpdates).join(", ")}`,
-        );
-      }
     }
+    return stats;
   }
 
-  console.log("[sync-offer-media] done");
-  console.table(stats);
-
-  if (stats.errors.length > 0) {
-    console.log("\nErrors:");
-    for (const err of stats.errors.slice(0, 20)) {
-      console.log(`  - ${err.slug} / ${err.offerId}: ${err.error}`);
-    }
-    if (stats.errors.length > 20) {
-      console.log(`  … ${stats.errors.length - 20} more`);
-    }
+  for (const item of prepared.values()) {
+    await putObject(item);
+    stats.uploadsApplied += 1;
   }
 
-  await mongoose.disconnect();
-  process.exit(stats.errors.length > 0 ? 2 : 0);
+  for (const item of work) {
+    const fieldUpdates = {};
+    for (const plan of item.plans) {
+      const uploaded = prepared.get(`${item.slug}:${plan.category}`);
+      for (const field of plan.offerFields)
+        fieldUpdates[field] = uploaded.publicUrl;
+    }
+    // Re-read for this exact owner immediately before compare-and-set. A
+    // tracked row created while uploads or earlier offer updates were running
+    // must block this owner too, not merely the first owner in the batch.
+    await assertNoTrackedUrls(
+      registryCollection,
+      [...currentTargetUrls([item]), ...Object.values(fieldUpdates)],
+      "final legacy media replacement",
+    );
+    const result = await offersCollection.updateOne(
+      buildOfferCasFilter(item.offer, item.plans),
+      {
+        $set: fieldUpdates,
+      },
+    );
+    if (result.matchedCount !== 1) {
+      throw new Error(
+        `Offer ${String(item.offer._id)} changed after safety checks; refusing overwrite`,
+      );
+    }
+    stats.offersUpdated += 1;
+    logger.log(
+      `[ok] ${item.slug} -> offer ${String(item.offer._id)} updated ${Object.keys(fieldUpdates).join(", ")}`,
+    );
+  }
+  return stats;
 }
 
-main().catch((error) => {
-  console.error("[sync-offer-media] fatal:", error);
-  process.exit(1);
-});
+async function main(argv = process.argv.slice(2), env = process.env) {
+  const { dryRun, slugFilter } = parseArgs(argv);
+  const mongoUri = requiredEnv(env, "MONGO_URI");
+  const manifest = JSON.parse(await fs.readFile(MANIFEST_PATH, "utf8"));
+  loggerMode(dryRun, slugFilter);
+
+  await mongoose.connect(mongoUri);
+  try {
+    const db = mongoose.connection.db;
+    if (!db) throw new Error("Mongo connection failed");
+    let r2Client;
+    let r2Bucket;
+    const publicBaseUrl = requiredEnv(env, "R2_PUBLIC_BASE_URL");
+    if (!dryRun) {
+      r2Bucket = requiredEnv(env, "R2_BUCKET");
+      r2Client = createR2Client(env);
+    }
+    const stats = await runOfferMediaSync({
+      manifest,
+      dryRun,
+      slugFilter,
+      repoRoot: REPO_ROOT,
+      offersCollection: db.collection("offers"),
+      registryCollection: db.collection("policy_media_asset_registry"),
+      readFile: (absolutePath) => fs.readFile(absolutePath),
+      publicBaseUrl,
+      putObject: dryRun
+        ? undefined
+        : async ({ buffer, objectKey }) => {
+            await r2Client.send(
+              new PutObjectCommand({
+                Bucket: r2Bucket,
+                Key: objectKey,
+                Body: buffer,
+                ContentType: "image/png",
+                CacheControl: "public, max-age=31536000",
+              }),
+            );
+          },
+    });
+    console.log("[sync-offer-media] done");
+    console.table(stats);
+    return 0;
+  } finally {
+    await mongoose.disconnect();
+  }
+}
+
+function loggerMode(dryRun, slugFilter) {
+  console.log(
+    `[sync-offer-media] ${dryRun ? "DRY RUN" : "APPLY"}${slugFilter ? ` - ${slugFilter}` : ""}`,
+  );
+}
+
+const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
+if (invokedPath === fileURLToPath(import.meta.url)) {
+  main()
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((error) => {
+      console.error("[sync-offer-media] fatal:", error);
+      process.exitCode = 1;
+    });
+}

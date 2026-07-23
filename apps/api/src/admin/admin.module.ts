@@ -11,6 +11,10 @@ import { UserAdminService } from './user-admin/user-admin-service';
 import { AdminInviteService } from './admin-invite.service';
 import { EmailModule } from 'src/email/email.module';
 import { AdminToken, AdminTokenSchema } from './schemas/admin-token.schema';
+import {
+  AdminInviteState,
+  AdminInviteStateSchema,
+} from './schemas/admin-invite-state.schema';
 import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardService } from './dashboard/dashboard.service';
 
@@ -49,6 +53,17 @@ import { SearchController } from './search/search.controller';
 import { SearchService } from './search/search.service';
 import { CommissionManagementController } from './commission-management/commission-management.controller';
 import { CommissionManagementService } from './commission-management/commission-management.service';
+import { WithdrawFeeCouponsController } from './withdraw-fee-coupons/withdraw-fee-coupons.controller';
+import { WithdrawFeeCouponsService } from './withdraw-fee-coupons/withdraw-fee-coupons.service';
+import { AdminActivityModule } from './activity/admin-activity.module';
+import {
+  WithdrawFeeCoupon,
+  WithdrawFeeCouponSchema,
+} from 'src/withdraw/schemas/withdraw-fee-coupon.schema';
+import {
+  WithdrawFeeCouponRedemption,
+  WithdrawFeeCouponRedemptionSchema,
+} from 'src/withdraw/schemas/withdraw-fee-coupon-redemption.schema';
 
 import {
   UserAdmin,
@@ -67,11 +82,25 @@ import {
   UserMyCashback,
   UserMyCashbackSchema,
 } from 'src/user/schemas/user-my-cashback.schema';
-import { Banner, BannerSchema } from 'src/offer/schemas/banner.schema';
+import {
+  ALL_BRAND_BANNER_COLLECTION,
+  ALL_BRAND_BANNER_MODEL,
+  Banner,
+  BannerSchema,
+} from 'src/offer/schemas/banner.schema';
+import {
+  SPECIFIC_PAGE_BANNER_COLLECTION,
+  SPECIFIC_PAGE_BANNER_MODEL,
+  SpecificPageBannerSchema,
+} from 'src/offer/schemas/specific-page-banner.schema';
 import {
   TopBrandConfig,
   TopBrandConfigSchema,
 } from 'src/offer/schemas/top-brand-config.schema';
+import {
+  LandingRailConfig,
+  LandingRailConfigSchema,
+} from 'src/offer/schemas/landing-rail-config.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import {
   WithdrawMethod,
@@ -93,9 +122,9 @@ import {
   WalletAdjustmentSchema,
 } from './wallets/schemas/wallet-adjustment.schema';
 import {
-  MissingOrder,
-  MissingOrderSchema,
-} from './missing-orders/schemas/missing-order.schema';
+  MissionOrder,
+  MissionOrderSchema,
+} from 'src/offer/schemas/missing-order.schema';
 import {
   ReferralConfig,
   ReferralConfigSchema,
@@ -142,24 +171,32 @@ import {
 } from './search/schemas/blacklist.schema';
 
 import { InvolveModule } from 'src/involve/involve.module';
+import { AffiliateModule } from 'src/affiliate/affiliate.module';
 import { UserService } from 'src/user/user.service';
 import { MediaModule } from 'src/media/media.module';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { PointModule } from 'src/point/point.module';
 import { WithdrawService } from 'src/withdraw/withdraw.service';
 import { AnalyticsModule } from 'src/analytics/analytics.module';
+import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
 
 @Module({
   imports: [
     CacheModule.register(),
     AnalyticsModule,
+    CategoryIntegrityModule,
     EmailModule,
     MediaModule,
     PointModule,
+    // InvolveModule stays: JobService / WithdrawService (providers here) inject
+    // InvolveService. AffiliateModule adds the seam CommissionManagementService
+    // dispatches offer-refresh through.
     InvolveModule,
+    AffiliateModule,
     MongooseModule.forFeature([
       { name: UserAdmin.name, schema: UserAdminSchema },
       { name: AdminToken.name, schema: AdminTokenSchema },
+      { name: AdminInviteState.name, schema: AdminInviteStateSchema },
       { name: User.name, schema: UserSchema },
       { name: Withdraw.name, schema: WithdrawSchema },
       { name: FeeRate.name, schema: FeeRateSchema },
@@ -168,7 +205,18 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
       { name: Conversion.name, schema: ConversionSchema },
       { name: UserMyCashback.name, schema: UserMyCashbackSchema },
       { name: Banner.name, schema: BannerSchema },
+      {
+        name: ALL_BRAND_BANNER_MODEL,
+        schema: BannerSchema,
+        collection: ALL_BRAND_BANNER_COLLECTION,
+      },
+      {
+        name: SPECIFIC_PAGE_BANNER_MODEL,
+        schema: SpecificPageBannerSchema,
+        collection: SPECIFIC_PAGE_BANNER_COLLECTION,
+      },
       { name: TopBrandConfig.name, schema: TopBrandConfigSchema },
+      { name: LandingRailConfig.name, schema: LandingRailConfigSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
       { name: Coupon.name, schema: CouponSchema },
@@ -179,7 +227,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
       // Phase 2B
       { name: WalletAdjustment.name, schema: WalletAdjustmentSchema },
       // Phase 3A
-      { name: MissingOrder.name, schema: MissingOrderSchema },
+      { name: MissionOrder.name, schema: MissionOrderSchema },
       // Phase 3B
       { name: ReferralConfig.name, schema: ReferralConfigSchema },
       // Phase 4A
@@ -196,11 +244,17 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
       { name: FeaturedSearchTerm.name, schema: FeaturedSearchTermSchema },
       { name: SearchBoostRule.name, schema: SearchBoostRuleSchema },
       { name: SearchBlacklist.name, schema: SearchBlacklistSchema },
+      { name: WithdrawFeeCoupon.name, schema: WithdrawFeeCouponSchema },
+      {
+        name: WithdrawFeeCouponRedemption.name,
+        schema: WithdrawFeeCouponRedemptionSchema,
+      },
     ]),
     JwtModule.register({
       secret: process.env.JWT_ADMIN_SECRET,
       signOptions: { expiresIn: '7d' },
     }),
+    AdminActivityModule,
   ],
   controllers: [
     AdminController,
@@ -215,6 +269,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     DiscoverController,
     SearchController,
     CommissionManagementController,
+    WithdrawFeeCouponsController,
   ],
   providers: [
     AdminService,
@@ -231,6 +286,7 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     DiscoverService,
     SearchService,
     CommissionManagementService,
+    WithdrawFeeCouponsService,
     JwtService,
     UserService,
     JobService,
@@ -238,6 +294,6 @@ import { AnalyticsModule } from 'src/analytics/analytics.module';
     RateLimitGuard,
     RolesGuard,
   ],
-  exports: [AdminService, UserAdminService],
+  exports: [AdminService, UserAdminService, AdminActivityModule],
 })
 export class AdminModule {}

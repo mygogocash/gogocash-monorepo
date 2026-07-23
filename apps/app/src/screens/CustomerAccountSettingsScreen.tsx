@@ -6,7 +6,7 @@ import {
   Trash as TrashIcon,
 } from "@mobile/theme/icons";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Image,
   type ImageSourcePropType,
@@ -19,11 +19,20 @@ import {
 } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { isGoGoPassEnabled } from "@mobile/config/featureFlags";
 import { AppearanceSection } from "@mobile/components/AppearanceSection";
+import { LanguageRegionSection } from "@mobile/components/LanguageRegionSection";
 import { LineAppIcon } from "@mobile/components/LineAppIcon";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { getSharedMobileApiClient } from "@mobile/api/sharedClient";
+import { getSharedSessionStore } from "@mobile/auth/sharedSessionStore";
+import { getMobileEnv } from "@mobile/config/env";
 import { useCopy } from "@mobile/i18n/useCopy";
+import { useLocale } from "@mobile/i18n/LocaleProvider";
+import { toastErrorMessages, userErrorMessageFromUnknown } from "@mobile/i18n/toastMessages";
 import { useToast } from "@mobile/hooks/useToast";
+import { useMobileLogout } from "@mobile/auth/useMobileLogout";
+import { createPdpaApi } from "@mobile/pdpa/api";
 import { mobileShellLayout, webAccountSettingsPage } from "@mobile/design/webDesignParity";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
@@ -77,8 +86,11 @@ export function CustomerAccountSettingsScreen() {
           (web parity: the SubPage topbar is md:hidden). */}
       {isDesktop ? null : <AccountSettingsTopBar />}
       <View style={styles.content}>
+        <LanguageRegionSection />
         <AppearanceSection />
-        <SubscriptionSection />
+        {/* GoGoPass rollout flag: the Stripe subscription card is a GoGoPass
+            surface — hidden builds drop it, neighbouring sections stay. */}
+        {isGoGoPassEnabled() ? <SubscriptionSection /> : null}
         <NotificationSection />
         <CommunitySection />
         <PdpaDataRightsSection />
@@ -191,6 +203,7 @@ function NotificationRow({
         accessibilityLabel={tc(row.label)}
         disabled
         ios_backgroundColor={colors.border}
+        style={styles.switchDisabled}
         thumbColor={colors.white}
         trackColor={{ false: colors.border, true: colors.primary }}
         value={enabled}
@@ -250,16 +263,88 @@ function CommunityCard({
 // Web parity accent for PDPA delete actions (web: text-[#c45c00]).
 const PDPA_DANGER = "#C45C00";
 
-// PDPA data portability + erasure (web parity: PdpaDataRightsSection). Copy comes from the synced
-// i18n catalog via tc(). The web POSTs to /api/pdpa/data-subject-requests then toasts on success;
-// this build has no backend wired here, so both actions confirm via the same success toast.
+function maskEmailForDisplay(email: string): string {
+  const trimmed = email.trim();
+  const atIndex = trimmed.indexOf("@");
+  if (atIndex <= 0) {
+    return "****";
+  }
+  return `${trimmed.slice(0, 1)}***${trimmed.slice(atIndex)}`;
+}
+
+// PDPA data portability + erasure (web parity: PdpaDataRightsSection).
+// Export posts to Nest POST /pdpa/data-export. Deletion is REAL (Google Play
+// policy, 2026-07-11): a two-tap confirm POSTs /user/account-deletion — the
+// backend schedules a 30-day anonymizing purge (cancellable by support within
+// the window) — then the session signs out.
 function PdpaDataRightsSection() {
   const styles = useThemedStyles(createAccountSettingsScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const { locale } = useLocale();
   const toast = useToast();
+  const { logout } = useMobileLogout();
+  const [confirmingDeletion, setConfirmingDeletion] = useState(false);
+  const [deletionPending, setDeletionPending] = useState(false);
+  const [exportPending, setExportPending] = useState(false);
+  const exportPendingRef = useRef(false);
 
-  const submitRequest = () => toast.show(tc("Request submitted"));
+  const submitExportRequest = async () => {
+    if (exportPendingRef.current) {
+      return;
+    }
+    exportPendingRef.current = true;
+    setExportPending(true);
+    try {
+      const env = getMobileEnv();
+      const client = await getSharedMobileApiClient(env.apiUrl);
+      if (!client) {
+        toast.show(tc(toastErrorMessages.submitRequestFailed));
+        return;
+      }
+      await createPdpaApi(client).requestDataExport({ locale });
+      const sessionStore = await getSharedSessionStore();
+      const session = await sessionStore?.getSession();
+      const email =
+        typeof session?.email === "string" ? session.email.trim() : "";
+      const masked = email ? maskEmailForDisplay(email) : null;
+      toast.show(
+        masked
+          ? `${tc("Request submitted")} — we'll email ${masked}`
+          : tc("Request submitted")
+      );
+    } catch (error) {
+      toast.show(tc(userErrorMessageFromUnknown(error, toastErrorMessages.submitRequestFailed)));
+    } finally {
+      exportPendingRef.current = false;
+      setExportPending(false);
+    }
+  };
+
+  const requestAccountDeletion = async () => {
+    if (!confirmingDeletion) {
+      setConfirmingDeletion(true);
+      return;
+    }
+    if (deletionPending) {
+      return;
+    }
+    setDeletionPending(true);
+    try {
+      const client = await getSharedMobileApiClient(getMobileEnv().apiUrl);
+      if (!client) {
+        throw new Error("No session client");
+      }
+      await client.post("/user/account-deletion");
+      toast.show(tc("Deletion scheduled. Your account will be permanently removed in 30 days."));
+      await logout();
+    } catch {
+      toast.show(tc("Could not complete your request. Please try again."));
+    } finally {
+      setDeletionPending(false);
+      setConfirmingDeletion(false);
+    }
+  };
 
   return (
     <View style={styles.pdpaSection}>
@@ -277,7 +362,15 @@ function PdpaDataRightsSection() {
               "We’ll send your data export to the email address you provided. This may take a little time depending on how much data we store.",
             )}
           </Text>
-          <Pressable accessibilityRole="button" onPress={submitRequest} style={styles.pdpaPrimaryButton}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: exportPending }}
+            disabled={exportPending}
+            onPress={() => {
+              void submitExportRequest();
+            }}
+            style={styles.pdpaPrimaryButton}
+          >
             <Text style={styles.pdpaPrimaryButtonText}>{tc("Request data export")}</Text>
           </Pressable>
           <Text style={styles.pdpaFootnote}>
@@ -295,8 +388,15 @@ function PdpaDataRightsSection() {
               "Deletion is permanent for data we are allowed to erase. Some records must be kept or anonymized where the law requires (for example tax or fraud rules).",
             )}
           </Text>
-          <Pressable accessibilityRole="button" onPress={submitRequest} style={styles.pdpaDangerButton}>
-            <Text style={styles.pdpaDangerButtonText}>{tc("Request account deletion")}</Text>
+          <Pressable
+            accessibilityRole="button"
+            disabled={deletionPending}
+            onPress={() => void requestAccountDeletion()}
+            style={styles.pdpaDangerButton}
+          >
+            <Text style={styles.pdpaDangerButtonText}>
+              {tc(confirmingDeletion ? "Tap again to permanently delete" : "Request account deletion")}
+            </Text>
           </Pressable>
           <Text style={styles.pdpaFootnote}>
             {tc("Some records may be anonymized instead of deleted where the law requires retention.")}
@@ -395,6 +495,11 @@ function createAccountSettingsScreenStyles(colors: ThemeColors) {
   },
   notificationStack: {
     gap: 8,
+  },
+  // Coming-soon switches are functionally disabled; dim them so they READ as
+  // disabled instead of inviting taps (user report 2026-07-10).
+  switchDisabled: {
+    opacity: 0.5,
   },
   notificationRow: {
     alignItems: "center",

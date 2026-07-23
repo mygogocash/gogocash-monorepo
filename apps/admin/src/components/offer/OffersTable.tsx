@@ -13,7 +13,6 @@ import {
 import { apiClient } from "@/lib/api";
 import { appLinks } from "@/lib/appLinks";
 import { isUpsizeActiveNow } from "@/lib/upsizeStatus";
-import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import {
   Offer,
@@ -26,9 +25,9 @@ import {
 } from "@/lib/offerEditForm";
 import { pathImage } from "@/utils/helper";
 import { resolveAdminOfferLogoPath } from "@/lib/offerDisplay";
+import { getOfferAvailabilityDisplay } from "@/lib/offerAvailabilityDisplay";
 import { devError } from "@/lib/devConsole";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
-import { useDataSession } from "@/hooks/useDataSession";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import FormOffer from "./FormOffer";
 import { useRouter } from "next/navigation";
@@ -93,10 +92,7 @@ export default function OffersTable({
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const [form, setForm] = useState<OfferRequestForm>(emptyOfferRequestForm());
-  const session = useDataSession();
   const queryClient = useQueryClient();
-  const token = session.accessToken ?? DEFAULT_MOCK_ACCESS_TOKEN;
-
   const [query, setQuery] = useState<OffersQuery>({
     search: "",
     limit: 10,
@@ -132,7 +128,14 @@ export default function OffersTable({
   const brandGroups = useMemo(() => {
     const map = new Map<
       string,
-      { key: string; name: string; variants: Offer[]; isAnyGlobal: boolean }
+      {
+        key: string;
+        name: string;
+        variants: Offer[];
+        isAnyGlobal: boolean;
+        globalFallbackCountry: string | null;
+        availabilityClarification: string | null;
+      }
     >();
     const order: string[] = [];
     for (const o of offers) {
@@ -143,12 +146,19 @@ export default function OffersTable({
           name: brandGroupDisplayName(o),
           variants: [],
           isAnyGlobal: false,
+          globalFallbackCountry: null,
+          availabilityClarification: null,
         });
         order.push(key);
       }
       const g = map.get(key)!;
       g.variants.push(o);
-      if (o.is_global) g.isAnyGlobal = true;
+      const availability = getOfferAvailabilityDisplay(o);
+      if (availability.isGlobal) {
+        g.isAnyGlobal = true;
+        g.globalFallbackCountry ??= availability.fallbackCountry;
+      }
+      g.availabilityClarification ??= availability.clarification;
     }
     return order.map((k) => map.get(k)!);
   }, [offers]);
@@ -183,13 +193,13 @@ export default function OffersTable({
   };
 
   const deleteOfferMutation = useMutation({
-    mutationFn: (offerId: string) => apiClient.deleteOffer(offerId, token),
+    mutationFn: (offerId: string) => apiClient.deleteOffer(offerId),
     onSuccess: invalidateOffersList,
     onError: (err) => devError("Failed to delete offer:", err),
   });
 
   const updateListMutation = useMutation({
-    mutationFn: () => apiClient.updateListOffer(token),
+    mutationFn: () => apiClient.updateListOffer(),
     onSuccess: invalidateOffersList,
     onError: (err) => devError("Failed to update offer list:", err),
   });
@@ -451,7 +461,7 @@ export default function OffersTable({
                         Max Cap
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
-                        Country
+                        Availability / country
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
                         Actions
@@ -461,6 +471,7 @@ export default function OffersTable({
                   <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                     {offers.map((offer, index) => {
                       const logoDesktopSrc = pathImage(resolveAdminOfferLogoPath(offer));
+                      const availability = getOfferAvailabilityDisplay(offer);
                       const has = (s: string) =>
                         typeof s === "string" && s.length > 0;
                       const rowNumber =
@@ -493,7 +504,7 @@ export default function OffersTable({
                                   }}
                                   className="flex w-full items-center justify-between gap-3 text-left"
                                 >
-                                  <span className="flex items-center gap-2">
+                                  <span className="flex flex-wrap items-center gap-2">
                                     <span
                                       aria-hidden
                                       className="inline-block w-4 text-gray-500 dark:text-gray-400"
@@ -504,10 +515,25 @@ export default function OffersTable({
                                       {group.name}
                                     </span>
                                     {group.isAnyGlobal && (
-                                      <span className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                                      <span
+                                        className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase"
+                                        title={`Visible worldwide; default/fallback: ${group.globalFallbackCountry ?? "Not configured"}`}
+                                      >
                                         Global
                                       </span>
                                     )}
+                                    {group.isAnyGlobal && (
+                                      <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                                        Default/fallback:{" "}
+                                        {group.globalFallbackCountry ??
+                                          "Not configured"}
+                                      </span>
+                                    )}
+                                    {group.availabilityClarification ? (
+                                      <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                                        {group.availabilityClarification}
+                                      </span>
+                                    ) : null}
                                     <span className="text-xs text-gray-500 dark:text-gray-400">
                                       {group.variants.length}{" "}
                                       {group.variants.length === 1
@@ -575,10 +601,10 @@ export default function OffersTable({
                                         {offer.offer_name_display ||
                                           offer.offer_name}
                                       </span>
-                                      {offer.is_global && (
+                                      {availability.isGlobal && (
                                         <span
                                           className="bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase"
-                                          title={`Visible to customers in every country${offer.default_country ? ` (default: ${offer.default_country})` : ""}`}
+                                          title={`Visible to customers in every country (default/fallback: ${availability.fallbackCountry})`}
                                         >
                                           Global
                                         </span>
@@ -632,14 +658,16 @@ export default function OffersTable({
                               {/* Country */}
                               <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">
                                 <div className="max-w-[140px] text-sm break-words text-gray-900 dark:text-gray-100">
-                                  {offer.countries
-                                    ? offer.countries
-                                        .split(",")
-                                        .map((c) => c.trim())
-                                        .filter(Boolean)
-                                        .join(", ")
-                                    : "—"}
+                                  {availability.configuredCountry}
                                 </div>
+                                <div className="mt-0.5 max-w-[180px] text-xs text-gray-500 dark:text-gray-400">
+                                  {availability.tableContextLabel}
+                                </div>
+                                {availability.clarification ? (
+                                  <div className="mt-1 max-w-[180px] text-xs font-medium text-amber-700 dark:text-amber-300">
+                                    {availability.clarification}
+                                  </div>
+                                ) : null}
                               </td>
                               <td className="relative px-4 py-3 text-sm font-medium whitespace-nowrap sm:px-6 sm:py-4">
                                 <div
@@ -695,18 +723,6 @@ export default function OffersTable({
                                         className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                                       >
                                         Edit
-                                      </button>
-                                      <button
-                                        type="button"
-                                        role="menuitem"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          router.push(`/brands/${offer._id}`);
-                                          setOpenActionsId(null);
-                                        }}
-                                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                                      >
-                                        View detail
                                       </button>
                                       <button
                                         type="button"

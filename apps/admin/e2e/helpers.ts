@@ -12,8 +12,16 @@ export async function adminSignIn(
   await page.waitForURL(/\/(dashboard|brands)/, { timeout: 45_000 });
 }
 
-export async function expectRouteLoads(page: Page, path: string, hint: RegExp): Promise<void> {
+export async function expectRouteLoads(
+  page: Page,
+  path: string,
+  hint: RegExp,
+  options: { heading?: boolean } = {},
+): Promise<void> {
   await page.goto(path);
   await page.waitForLoadState("networkidle");
-  await page.getByText(hint).first().waitFor({ state: "visible", timeout: 45_000 });
+  const target = options.heading
+    ? page.getByRole("heading", { name: hint }).first()
+    : page.getByText(hint).first();
+  await target.waitFor({ state: "visible", timeout: 45_000 });
 }

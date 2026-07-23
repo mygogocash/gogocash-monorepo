@@ -15,6 +15,7 @@ import { AdminController } from './admin.controller';
 import { PointController } from 'src/point/point.controller';
 import { OfferController } from 'src/offer/offer.controller';
 import { BrandController } from 'src/brand/brand.controller';
+import { PolicyController } from 'src/policy/policy.controller';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
 
 const GUARDS = '__guards__';
@@ -85,7 +86,10 @@ describe('Admin money/sensitive controllers enforce roles', () => {
     expect(rolesOnClass(SubscriptionsController)).toContain('superadmin');
     expect(rolesOnClass(MembershipController)).toContain('superadmin');
     expect(rolesOnClass(DiscoverController)).toContain('support');
-    expect(rolesOnClass(SearchController)).toContain('support');
+    // SearchController deliberately has NO class-level tier since #279 —
+    // reads are viewer-open, writes are support-gated per route
+    // (pinned in search/search.controller.spec.ts).
+    expect(rolesOnClass(SearchController)).toEqual([]);
     expect(rolesOnClass(CommissionManagementController)).toContain('support');
   });
 });
@@ -174,6 +178,12 @@ describe('Admin Phase-2 RBAC gap closures', () => {
     }
   });
 
+  it('policy category create requires support+ (mutation; a viewer must not mint categories)', () => {
+    expect(rolesOnMethod(AdminController, 'createCategory')).toContain(
+      'support',
+    );
+  });
+
   it('update banner home requires support+ to align with admin banner:manage', () => {
     expect(rolesOnMethod(AdminController, 'updateBannerHome')).toContain(
       'support',
@@ -181,6 +191,15 @@ describe('Admin Phase-2 RBAC gap closures', () => {
     expect(rolesOnMethod(AdminController, 'updateBannerHome')).not.toContain(
       'superadmin',
     );
+  });
+
+  it('update specific page banner requires support+ to align with admin banner:manage', () => {
+    expect(
+      rolesOnMethod(AdminController, 'updateSpecificPageBanner'),
+    ).toContain('support');
+    expect(
+      rolesOnMethod(AdminController, 'updateSpecificPageBanner'),
+    ).not.toContain('superadmin');
   });
 
   it('create offer requires approver+ to align with admin brands:manage', () => {
@@ -200,5 +219,17 @@ describe('Admin Phase-2 RBAC gap closures', () => {
     expect(
       rolesOnMethod(CommissionManagementController, 'updateDeeplink'),
     ).toContain('approver');
+  });
+
+  it('#377: policy authoring routes attach RolesGuard and require support+', () => {
+    // upsert and aggregate previously attached only AuthAdminGuard —
+    // without RolesGuard they fail open to ANY authenticated admin,
+    // including viewer, contradicting the viewer=read-only contract.
+    for (const method of ['upsert', 'aggregate']) {
+      expect(methodGuards(PolicyController, method)).toEqual(
+        expect.arrayContaining([AuthAdminGuard, RolesGuard]),
+      );
+      expect(rolesOnMethod(PolicyController, method)).toContain('support');
+    }
   });
 });

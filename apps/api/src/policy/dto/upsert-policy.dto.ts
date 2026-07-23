@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsIn,
+  IsBoolean,
   IsMongoId,
   IsObject,
   IsOptional,
@@ -54,10 +55,10 @@ export class PolicyContentDto {
 }
 
 /**
- * Upsert payload — at least one of `banner` or `terms` should be present.
- * Both being absent is allowed (no-op upsert) but pointless; the service
- * doesn't reject it because partial saves (e.g. "save banner only") are a
- * valid editor flow.
+ * Upsert payload. The first write for a category must include non-empty terms;
+ * after that, banner-only partial updates and explicit block clears are valid.
+ * The service owns this state-aware rule because DTO decorators cannot know
+ * whether a policy row already exists.
  */
 export class UpsertPolicyDto {
   @ApiProperty()
@@ -75,4 +76,19 @@ export class UpsertPolicyDto {
   @ValidateNested()
   @Type(() => PolicyContentDto)
   terms?: PolicyContentDto;
+
+  @ApiPropertyOptional({
+    description: 'Explicitly remove the saved banner-text block.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  clear_banner?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Explicitly remove the saved terms block from an existing policy.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  clear_terms?: boolean;
 }

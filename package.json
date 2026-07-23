@@ -7,9 +7,9 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
-  "packageManager": "npm@10.9.0",
+  "packageManager": "npm@10.9.8",
   "scripts": {
     "build": "turbo run build",
     "lint": "turbo run lint",
@@ -17,35 +17,41 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "knip": "knip --no-progress",
+    "test:workflow-contracts": "node --test scripts/ci-workflow-contract.test.mjs scripts/dependency-hygiene.test.mjs",
+    "validate:eas-workflows": "cd apps/app && npx --yes eas-cli@21.0.1 workflow:validate .eas/workflows/build-preview-android.yml --non-interactive",
     "firebase:staging:auth-setup": "node scripts/firebase-staging-auth-setup.mjs",
     "figma:brand-logos": "node scripts/figma-brand-logos/download-brand-logos.mjs",
     "figma:brand-logos:dry-run": "node scripts/figma-brand-logos/download-brand-logos.mjs --dry-run",
     "figma:brand-logos:sync-offers": "node scripts/figma-brand-logos/sync-offer-media-from-manifest.mjs --dry-run",
     "figma:brand-logos:sync-offers:apply": "node scripts/figma-brand-logos/sync-offer-media-from-manifest.mjs --apply",
-    "test:figma-brand-logos": "node --test scripts/figma-brand-logos/offer-media-field-map.test.mjs",
+    "test:figma-brand-logos": "node --test scripts/figma-brand-logos/offer-media-field-map.test.mjs scripts/figma-brand-logos/parse-metadata-xml.test.mjs scripts/figma-brand-logos/sync-offer-media-from-manifest.test.mjs",
     "e2e:up": "docker compose -f docker-compose.e2e.yml up -d && bash scripts/e2e-init-mongo-rs.sh",
     "e2e:seed": "mkdir -p .e2e && MONGO_URI=mongodb://localhost:27017/gogocash-e2e?replicaSet=rs0 JWT_SECRET=e2e-local-jwt-secret-change-me JWT_ADMIN_SECRET=e2e-local-admin-jwt-secret-change-me E2E_SEED_OUT=$PWD/.e2e/seed.json npm run seed:e2e -w gogocash-api",
     "e2e:stack": "bash scripts/e2e-stack.sh",
     "e2e:stack:stop": "bash scripts/e2e-stack.sh stop",
-    "e2e": "npm run e2e:up && npm run e2e:seed && npm run e2e:stack && bash scripts/e2e-wait-api.sh && bash scripts/e2e-run-tests.sh"
+    "e2e": "npm run e2e:up && npm run e2e:seed && npm run e2e:stack && bash scripts/e2e-wait-api.sh && bash scripts/e2e-run-tests.sh",
+    "test:dependency-hygiene": "node --test scripts/dependency-hygiene.test.mjs"
   },
   "devDependencies": {
-    "@mui/material": "^9.1.2",
-    "@mui/system": "^9.1.1",
-    "@nestjs/common": "11.1.27",
-    "@nestjs/core": "11.1.27",
-    "@nestjs/platform-express": "11.1.27",
+    "@mui/material": "^9.2.0",
+    "@mui/system": "^9.2.0",
+    "@nestjs/common": "11.1.28",
+    "@nestjs/core": "11.1.28",
+    "@nestjs/platform-express": "11.1.28",
     "@playwright/test": "^1.55.0",
+    "@swc/core": "^1.15.43",
     "cache-manager": "^7.2.9",
-    "eslint": "^10.6.0",
-    "expo": "^57.0.0",
-    "mongoose": "9.7.3",
+    "happy-dom": "^20.10.6",
+    "knip": "^6.26.0",
+    "expo": "^57.0.4",
+    "mongoose": "9.7.4",
     "react": "19.2.7",
     "react-dom": "19.2.7",
+    "react-native-screens": "4.25.2",
     "react-test-renderer": "19.2.7",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
-    "turbo": "^2.10.2"
+    "turbo": "^2.10.5"
   },
   "overrides": {
     "undici": "^6.27.0",
@@ -69,6 +75,9 @@
     },
     "viem@2.33.1": {
       "ws": "8.21.0"
+    },
+    "next": {
+      "postcss": "8.5.19"
     }
   }
 }

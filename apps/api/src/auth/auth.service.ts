@@ -1,12 +1,17 @@
 import {
+  BadGatewayException,
+  ConflictException,
+  ForbiddenException,
+  HttpException,
   Injectable,
+  InternalServerErrorException,
+  Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import * as https from 'https';
-// Crossmint deprecated — auth now flows via Firebase + SIWE only.
 import { UserService } from 'src/user/user.service';
 import {
   LineAuthDto,
@@ -19,20 +24,31 @@ import { ethers } from 'ethers';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Point, PointDocument } from 'src/point/schemas/point.schema';
-import { getAdminAuth } from './firebase-admin.provider';
+import { getAdminAuth, verifyFirebaseIdToken } from './firebase-admin.provider';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { SiweNonce, SiweNonceDocument } from './schemas/siwe-nonce.schema';
 import { UserDocument } from 'src/user/schemas/user.schema';
 import { toIso2Server } from 'src/utils/country';
+import { AccountRegistrationService } from 'src/quest-task-engine/account-registration.service';
+import { assertRegistrationSourceEnabled } from 'src/quest-task-engine/registration-source.manifest';
+import { verifyTelegramInitData } from './telegram-initdata';
+
+type FirebaseSignInOptions = {
+  allowPhoneRegistration?: boolean;
+};
+
+function phoneLoginLookupCandidates(phoneE164: string): string[] {
+  const thaiLegacyPhone = /^\+66\d{8,9}$/.test(phoneE164)
+    ? `0${phoneE164.slice(3)}`
+    : null;
+
+  return thaiLegacyPhone ? [phoneE164, thaiLegacyPhone] : [phoneE164];
+}
+
 @Injectable()
 export class AuthService {
-  private baseUrl: string;
-  private projectId: string;
-  private secret: string;
-  private httpsAgent: https.Agent;
-  private crossmint: any;
-  private crossmintAuth: any;
+  private readonly logger = new Logger(AuthService.name);
 
   constructor(
     private readonly config: ConfigService,
@@ -41,132 +57,109 @@ export class AuthService {
     @InjectModel(Point.name) private pointModel: Model<PointDocument>,
     @InjectModel(SiweNonce.name)
     private siweNonceModel: Model<SiweNonceDocument>,
-  ) {
-    this.baseUrl = this.config.get<string>('env.CROSSMINT_BASE_URL') ?? '';
-    this.projectId = this.config.get<string>('env.CROSSMINT_PROJECT_ID') ?? '';
-    this.secret = this.config.get<string>('env.CROSSMINT_SECRET') ?? '';
-    this.httpsAgent = new https.Agent({ rejectUnauthorized: true });
-    // Crossmint SDK removed; signIn() path will throw if invoked.
-    this.crossmint = null;
-    this.crossmintAuth = null;
-  }
-
-  private headers() {
-    return { Authorization: `Bearer ${this.secret}` };
-  }
-
-  async signUp(email: string, password: string) {
-    const res = await axios.post(
-      `${this.baseUrl}/signup`,
-      { email, password, projectId: this.projectId },
-      { headers: this.headers() },
-    );
-    return res.data;
-  }
+    private readonly accountRegistration: AccountRegistrationService,
+  ) {}
 
   async signIn(payload: SignInDto): Promise<never> {
-    // Crossmint deprecated. Callers should use Firebase or SIWE sign-in flows.
+    // Retained only so old clients fail closed instead of falling through to an
+    // unverified identity path. Do not perform provider or database access.
     void payload;
     throw new UnauthorizedException(
-      'Crossmint sign-in is disabled. Use /auth/log-in (Firebase) or /auth/minipay-siwe instead.',
+      'This sign-in method is no longer available. Please sign in with your usual method.',
     );
-    // unreachable code preserved below for reference during migration
-    /*
-    const data = await this.crossmintAuth.getUser(payload.id_crossmint);
-    // console.log('data', data);
-    if (!data.id) {
-      throw new Error('User not found in Crossmint');
-    }
-    // console.log('payload', data.id);
-    const userExist = await this.userService.findOne({
-      id_crossmint: data.id,
-    });
-    // console.log('userExist', userExist);
-    if (userExist) {
-      if (userExist.address) {
-        const user = await this.userService.update(userExist._id, {
-          email: data.email,
-          username: data?.twitter
-            ? data.twitter.username
-            : data?.email?.split('@')[0],
-          id_twitter: data?.twitter ? data.twitter.id : '',
-          address: payload.address,
-        });
-        return user;
-      }
-      return userExist;
-    }
-    const user = await this.userService.createFromCrossmint({
-      address: payload.address,
-      id_crossmint: data.id,
-      email: data.email,
-      username: data?.twitter
-        ? data.twitter.username
-        : data?.email?.split('@')[0],
-      id_twitter: data?.twitter ? data.twitter.id : '',
-    });
-
-    if (
-      payload.referral_id &&
-      payload?.referral_id != 'undefined' &&
-      payload?.referral_id != 'null'
-    ) {
-      const refData = await this.userService.findOne({
-        _id: new Types.ObjectId(payload.referral_id),
-      });
-      if (refData && user._id?.toString() !== payload.referral_id?.toString()) {
-        await this.updatePoint({
-          user_id: user._id.toString(),
-          referral_id: payload.referral_id,
-        });
-      }
-    }
-    // Update points for referral if referral_id is provided
-    return user; // { accessToken, refreshToken, user }
-    */
   }
 
-  async signInFirebase(token: string, payload: SignInFirebaseDto) {
+  async signInFirebase(
+    token: string,
+    payload: SignInFirebaseDto,
+    options: FirebaseSignInOptions = {},
+  ) {
+    let data: Awaited<
+      ReturnType<ReturnType<typeof getAdminAuth>['verifyIdToken']>
+    >;
     try {
-      const data = await getAdminAuth().verifyIdToken(token);
-      if (!data) {
-        throw new Error('User not found in Gogocash');
-      }
+      data = await verifyFirebaseIdToken(token);
+    } catch (error: any) {
+      this.logger.warn(
+        `Firebase sign-in verification failed: ${error?.message ?? 'unknown error'}`,
+      );
+      throw new UnauthorizedException(
+        "Your sign-in couldn't be verified. Please sign in again.",
+      );
+    }
+
+    if (!data) {
+      throw new UnauthorizedException(
+        "Your sign-in couldn't be verified. Please sign in again.",
+      );
+    }
+
+    try {
+      const isPhoneSignIn = data.firebase?.sign_in_provider === 'phone';
       // console.log('payload', data.id);
       let userExist = await this.userService.findOne({
         id_firebase: data.uid,
       });
-      if (!userExist && data.email) {
+      if (!userExist && data.email && data.email_verified === true) {
         userExist = await this.userService.findOne({
           email: data.email,
         });
       }
       if (!userExist && data.phone_number) {
-        userExist = await this.userService.findOne({
-          mobile: data.phone_number,
-        });
+        userExist = await this.findUserByPhone(data.phone_number);
       }
 
       if (userExist) {
-        const user = await this.userService.update(userExist._id, {
-          email: userExist?.email || data.email,
-          username: userExist?.username
-            ? userExist?.username
+        if (userExist.disabled) {
+          throw new ForbiddenException(
+            'This account is disabled. Contact support.',
+          );
+        }
+
+        // A verified phone is an additional sign-in method for an existing
+        // account. Do not replace the original Firebase/social identity or
+        // provider when the account was resolved by its linked phone number.
+        const preserveOriginalIdentity =
+          isPhoneSignIn && Boolean(userExist.id_firebase);
+
+        // Firebase has already proved ownership of this E.164 number. Claim it
+        // through the database's sparse unique index before issuing a session;
+        // this closes the check-then-update race across API replicas and also
+        // backfills legacy mobile-only accounts as they sign in.
+        const verifiedPhoneUser =
+          isPhoneSignIn && data.phone_number
+            ? (await this.userService.claimVerifiedPhone(
+                userExist._id,
+                data.phone_number,
+              )) || userExist
+            : userExist;
+
+        const user = await this.userService.update(verifiedPhoneUser._id, {
+          email: verifiedPhoneUser?.email || data.email,
+          username: verifiedPhoneUser?.username
+            ? verifiedPhoneUser?.username
             : data?.twitter
               ? data.twitter.username
               : data?.name || data?.email?.split('@')[0],
           id_twitter:
-            userExist?.id_twitter || (data?.twitter ? data.twitter.id : ''),
+            verifiedPhoneUser?.id_twitter ||
+            (data?.twitter ? data.twitter.id : ''),
           address:
             payload?.address && payload?.address !== 'undefined'
               ? payload?.address
               : '',
-          id_firebase: data.uid,
+          id_firebase: preserveOriginalIdentity
+            ? verifiedPhoneUser.id_firebase
+            : data.uid,
           country: toIso2Server(payload?.country),
-          provider: data?.firebase?.sign_in_provider,
+          provider: preserveOriginalIdentity
+            ? verifiedPhoneUser.provider || 'phone'
+            : data?.firebase?.sign_in_provider,
         });
         if (user?.disabled) {
-          throw new Error('Your account has been disabled');
+          throw new ForbiddenException(
+            'This account is disabled. Contact support.',
+          );
         }
         const accessToken = await this.generateToken({
           userId: user._id.toString(),
@@ -179,7 +172,24 @@ export class AuthService {
           auth_flow: 'login' as const,
         };
       }
-      const user = await this.userService.createFromFirebase({
+
+      if (isPhoneSignIn && options.allowPhoneRegistration !== true) {
+        throw new UnauthorizedException({
+          code: 'PHONE_LINK_REQUIRED',
+          message:
+            'This phone number is not linked to your GoGoCash account. Sign in with your original method, then link it from Profile.',
+        });
+      }
+
+      const registrationSource = `firebase:${String(
+        data.firebase?.sign_in_provider ?? '',
+      )}`;
+      // The registration-source policy is independent of the task-v2 rollout
+      // flag. Existing accounts may continue to log in, but a newly verified
+      // identity from an unlisted provider must fail closed in both modes.
+      assertRegistrationSourceEnabled(registrationSource);
+
+      const newUser = {
         address:
           payload?.address && payload?.address !== 'undefined'
             ? payload?.address
@@ -193,25 +203,23 @@ export class AuthService {
         id_firebase: data.uid,
         country: toIso2Server(payload?.country),
         mobile: data?.phone_number ? data.phone_number : '',
+        ...(isPhoneSignIn && data.phone_number
+          ? { verified_phone_e164: data.phone_number }
+          : {}),
         provider: data?.firebase?.sign_in_provider,
-      });
-      if (payload?.referral_id && payload.referral_id !== 'undefined') {
-        const refData = await this.userService.findOne({
-          _id: new Types.ObjectId(payload?.referral_id),
-        });
-        if (
-          refData &&
-          user._id?.toString() !== payload.referral_id?.toString()
-        ) {
-          await this.updatePoint({
-            user_id: user._id.toString(),
-            referral_id: payload.referral_id,
-          });
-        }
-      }
+      };
+      const user = (
+        await this.accountRegistration.registerVerified({
+          source: registrationSource,
+          user: newUser,
+          referral_id: payload?.referral_id,
+        })
+      ).user as UserDocument;
 
       if (user?.disabled) {
-        throw new Error('Your account has been disabled');
+        throw new ForbiddenException(
+          'This account is disabled. Contact support.',
+        );
       }
       const accessToken = await this.generateToken({
         userId: user._id.toString(),
@@ -224,10 +232,37 @@ export class AuthService {
         auth_flow: 'register' as const,
       };
     } catch (error: any) {
-      throw new UnauthorizedException(
-        error?.message || 'Invalid Firebase token',
+      if (error instanceof HttpException) throw error;
+
+      // The identity token was already verified above, so failures here are
+      // account-system failures rather than bad credentials.
+      this.logger.error(
+        `Firebase account sign-in failed: ${error?.message ?? 'unknown error'}`,
+        error?.stack,
+      );
+      throw new InternalServerErrorException(
+        "We couldn't finish signing you in. Please try again or contact support.",
       );
     }
+  }
+
+  async isPhoneLoginEligible(phoneE164: string): Promise<boolean> {
+    const user = await this.findUserByPhone(phoneE164);
+    return Boolean(user && user.disabled !== true);
+  }
+
+  private async findUserByPhone(phoneE164: string) {
+    const canonicalUser = await this.userService.findOne({
+      verified_phone_e164: phoneE164,
+    });
+    if (canonicalUser) return canonicalUser;
+
+    for (const mobile of phoneLoginLookupCandidates(phoneE164)) {
+      const user = await this.userService.findOne({ mobile });
+      if (user) return user;
+    }
+
+    return null;
   }
 
   async signInTelegram(payload: TelegramAuthDto) {
@@ -250,87 +285,111 @@ export class AuthService {
       if (!Number.isFinite(ageSeconds) || ageSeconds < 0 || ageSeconds > 60) {
         throw new UnauthorizedException('Telegram auth payload expired');
       }
-      const data = payload;
 
-      let userExist = await this.userService.findOne({
-        id_telegram: data.id.toString(),
+      return await this.finalizeTelegramLogin(payload);
+    } catch (error: any) {
+      // Preserve UnauthorizedException so 401 reaches the client; wrap
+      // anything else in a 401 too so we never leak DB/SDK details.
+      if (error instanceof UnauthorizedException) throw error;
+      throw new UnauthorizedException('Telegram login failed');
+    }
+  }
+
+  /**
+   * Telegram Mini App auto-login. Verifies the raw `initData` query string with
+   * the WebAppData-keyed HMAC (see `verifyTelegramInitData`) — this is the
+   * algorithm the Login Widget's SHA256(bot_token) secret CANNOT satisfy — then
+   * reuses the exact same find-or-create-by-id_telegram + session-mint path as
+   * the widget login via {@link finalizeTelegramLogin}.
+   *
+   * initData carries no email/country (Telegram doesn't share them), so those
+   * are left undefined and the shared path falls back accordingly.
+   */
+  async signInTelegramMiniApp(initData: string) {
+    try {
+      if (!process.env.TELEGRAM_BOT_TOKEN) {
+        throw new UnauthorizedException(
+          'Telegram login is not configured on this server',
+        );
+      }
+      const maxAgeSeconds =
+        Number(process.env.TELEGRAM_INITDATA_MAX_AGE_SECONDS) || 86_400;
+      const result = verifyTelegramInitData(
+        initData,
+        process.env.TELEGRAM_BOT_TOKEN,
+        { maxAgeSeconds },
+      );
+      if (!result.valid) {
+        throw new UnauthorizedException('Invalid Telegram initData');
+      }
+      const tgUser = result.user as
+        { id?: number | string; username?: string } | null | undefined;
+      if (tgUser?.id === undefined || tgUser?.id === null) {
+        throw new UnauthorizedException('Invalid Telegram initData');
+      }
+
+      return await this.finalizeTelegramLogin({
+        id: tgUser.id,
+        username: tgUser.username || '',
       });
+    } catch (error: any) {
+      if (error instanceof UnauthorizedException) throw error;
+      throw new UnauthorizedException('Telegram login failed');
+    }
+  }
 
-      // Cross-provider collision guard: if no user matches by Telegram ID
-      // but the email matches an existing record from a DIFFERENT provider
-      // (Firebase, MiniPay, etc.), refuse to merge silently. An attacker
-      // with a Telegram account using the victim's email could otherwise
-      // hijack the victim's record. Require the user to verify ownership
-      // through the original provider (or an OTP linking flow we don't
-      // ship yet) before linking accounts.
-      if (!userExist && data.email) {
-        const emailMatch = await this.userService.findOne({
-          email: data.email,
-        });
-        const alreadyLinkedToTelegram =
-          emailMatch &&
-          (emailMatch.id_telegram === data.id.toString() ||
-            emailMatch.provider === 'telegram');
-        if (emailMatch && !alreadyLinkedToTelegram) {
-          throw new UnauthorizedException(
-            'An account already exists for this email under a different sign-in method. ' +
-              'Please sign in with your original method, then link Telegram from your profile.',
-          );
-        }
-        userExist = emailMatch;
-      }
+  /**
+   * Shared find-or-create-by-id_telegram + session-mint logic used by BOTH the
+   * Login Widget path ({@link signInTelegram}) and the Mini App path
+   * ({@link signInTelegramMiniApp}). Callers are responsible for verifying the
+   * Telegram signature + auth_date freshness BEFORE calling this.
+   */
+  private async finalizeTelegramLogin(data: {
+    id: number | string;
+    email?: string;
+    username?: string;
+    country?: string;
+    referral_id?: string;
+  }) {
+    let userExist = await this.userService.findOne({
+      id_telegram: data.id.toString(),
+    });
 
-      if (userExist) {
-        const user = await this.userService.update(userExist._id, {
-          email: userExist?.email || data.email,
-          username: userExist.username || data?.username || '',
-          id_twitter: userExist?.id_twitter || '',
-          id_telegram: data.id.toString(),
-          address: userExist?.address || '',
-          id_firebase: userExist?.id_firebase || `telegram_${data.id}`,
-          country: toIso2Server(userExist?.country || data?.country),
-          provider: userExist?.provider || 'telegram',
-        });
-        if (user?.disabled) {
-          throw new Error('Your account has been disabled');
-        }
-        const accessToken = await this.generateToken({
-          userId: user._id.toString(),
-          firebaseId: user.id_firebase,
-        });
-        return {
-          user,
-          token: accessToken,
-          is_new_user: false,
-          auth_flow: 'login' as const,
-        };
+    // Cross-provider collision guard: if no user matches by Telegram ID
+    // but the email matches an existing record from a DIFFERENT provider
+    // (Firebase, MiniPay, etc.), refuse to merge silently. An attacker
+    // with a Telegram account using the victim's email could otherwise
+    // hijack the victim's record. Require the user to verify ownership
+    // through the original provider (or an OTP linking flow we don't
+    // ship yet) before linking accounts.
+    if (!userExist && data.email) {
+      const emailMatch = await this.userService.findOne({
+        email: data.email,
+      });
+      const alreadyLinkedToTelegram =
+        emailMatch &&
+        (emailMatch.id_telegram === data.id.toString() ||
+          emailMatch.provider === 'telegram');
+      if (emailMatch && !alreadyLinkedToTelegram) {
+        throw new UnauthorizedException(
+          'An account already exists for this email under a different sign-in method. ' +
+            'Please sign in with your original method, then link Telegram from your profile.',
+        );
       }
-      const user = await this.userService.createFromFirebase({
-        email: data?.email,
-        username: data?.username || '',
+      userExist = emailMatch;
+    }
+
+    if (userExist) {
+      const user = await this.userService.update(userExist._id, {
+        email: userExist?.email || data.email,
+        username: userExist.username || data?.username || '',
         id_twitter: userExist?.id_twitter || '',
         id_telegram: data.id.toString(),
-        address: '',
+        address: userExist?.address || '',
         id_firebase: userExist?.id_firebase || `telegram_${data.id}`,
         country: toIso2Server(userExist?.country || data?.country),
         provider: userExist?.provider || 'telegram',
-        id_crossmint: userExist?.id_crossmint || '',
       });
-      if (payload?.referral_id && payload.referral_id !== 'undefined') {
-        const refData = await this.userService.findOne({
-          _id: new Types.ObjectId(payload?.referral_id),
-        });
-        if (
-          refData &&
-          user._id?.toString() !== payload.referral_id?.toString()
-        ) {
-          await this.updatePoint({
-            user_id: user._id.toString(),
-            referral_id: payload.referral_id,
-          });
-        }
-      }
-
       if (user?.disabled) {
         throw new Error('Your account has been disabled');
       }
@@ -341,15 +400,47 @@ export class AuthService {
       return {
         user,
         token: accessToken,
-        is_new_user: true,
-        auth_flow: 'register' as const,
+        is_new_user: false,
+        auth_flow: 'login' as const,
       };
-    } catch (error: any) {
-      // Preserve UnauthorizedException so 401 reaches the client; wrap
-      // anything else in a 401 too so we never leak DB/SDK details.
-      if (error instanceof UnauthorizedException) throw error;
-      throw new UnauthorizedException('Telegram login failed');
     }
+    assertRegistrationSourceEnabled('telegram');
+    const user = await this.userService.createFromFirebase({
+      email: data?.email,
+      username: data?.username || '',
+      id_twitter: userExist?.id_twitter || '',
+      id_telegram: data.id.toString(),
+      address: '',
+      id_firebase: userExist?.id_firebase || `telegram_${data.id}`,
+      country: toIso2Server(userExist?.country || data?.country),
+      provider: userExist?.provider || 'telegram',
+      id_crossmint: userExist?.id_crossmint || '',
+    });
+    if (data?.referral_id && data.referral_id !== 'undefined') {
+      const refData = await this.userService.findOne({
+        _id: new Types.ObjectId(data?.referral_id),
+      });
+      if (refData && user._id?.toString() !== data.referral_id?.toString()) {
+        await this.updatePoint({
+          user_id: user._id.toString(),
+          referral_id: data.referral_id,
+        });
+      }
+    }
+
+    if (user?.disabled) {
+      throw new Error('Your account has been disabled');
+    }
+    const accessToken = await this.generateToken({
+      userId: user._id.toString(),
+      firebaseId: user.id_firebase,
+    });
+    return {
+      user,
+      token: accessToken,
+      is_new_user: true,
+      auth_flow: 'register' as const,
+    };
   }
 
   async verifyTelegramAuth(data: any): Promise<boolean> {
@@ -425,55 +516,63 @@ export class AuthService {
     });
     return res;
   }
-  async signOut(refreshToken: string) {
-    const res = await axios.post(
-      `${this.baseUrl}/signout`,
-      { refreshToken },
-      { headers: this.headers() },
-    );
-    return res.data;
-  }
-
-  async refresh(refreshToken: string) {
-    const res = await axios.post(
-      `${this.baseUrl}/refresh`,
-      { refreshToken, projectId: this.projectId },
-      { headers: this.headers() },
-    );
-    return res.data; // { accessToken, refreshToken }
-  }
-
   async verifyPhone(token: string, id: string) {
+    let decoded: Awaited<
+      ReturnType<ReturnType<typeof getAdminAuth>['verifyIdToken']>
+    >;
+    try {
+      decoded = await verifyFirebaseIdToken(token);
+    } catch (error: any) {
+      this.logger.warn(
+        `Phone verification token failed: ${error?.message ?? 'unknown error'}`,
+      );
+      throw new UnauthorizedException(
+        'Your phone verification expired. Request a new code and try again.',
+      );
+    }
+
+    if (
+      decoded.firebase?.sign_in_provider !== 'phone' ||
+      typeof decoded.phone_number !== 'string' ||
+      !/^\+[1-9]\d{7,14}$/.test(decoded.phone_number)
+    ) {
+      throw new BadRequestException(
+        'Verify this phone number with a new code before linking it.',
+      );
+    }
+
     try {
       const user = await this.userService.findOne({
         _id: new Types.ObjectId(id),
       });
       if (!user) {
-        throw new UnauthorizedException('user not found');
+        throw new UnauthorizedException(
+          'Your session has expired. Sign in again before linking a phone number.',
+        );
       }
-      // console.log('token', token);
-      // const admin = getAdminAuth();
-      const decoded = await getAdminAuth().verifyIdToken(token); // const decoded = verifyIdToken(token);
-      // console.log('decode', decoded);
-      // console.log('user', user);
-      const checkMobileDup = await this.userService.findOne({
-        mobile: decoded.phone_number,
-      });
-      if (
-        checkMobileDup &&
-        checkMobileDup._id.toString() !== user._id.toString()
-      ) {
-        throw new UnauthorizedException('Mobile number already in use');
+
+      const phoneOwner = await this.findUserByPhone(decoded.phone_number);
+      if (phoneOwner && phoneOwner._id.toString() !== user._id.toString()) {
+        throw new ConflictException(
+          'This phone number is already linked to another account. Use a different number or contact support.',
+        );
       }
-      const userUpdate = await this.userService.update(user._id, {
-        mobile: decoded.phone_number,
-      });
-      // console.log('userUpdate', userUpdate);
+
+      const userUpdate = await this.userService.claimVerifiedPhone(
+        user._id,
+        decoded.phone_number,
+      );
 
       return { uid: decoded.uid, user: userUpdate };
     } catch (error: any) {
-      throw new UnauthorizedException(
-        error?.message || 'Invalid Firebase token',
+      if (error instanceof HttpException) throw error;
+
+      this.logger.error(
+        `Phone account linking failed: ${error?.message ?? 'unknown error'}`,
+        error?.stack,
+      );
+      throw new InternalServerErrorException(
+        "We couldn't link this phone number right now. Please try again or contact support.",
       );
     }
   }
@@ -524,7 +623,9 @@ export class AuthService {
     try {
       recovered = ethers.verifyMessage(message, signature);
     } catch {
-      throw new UnauthorizedException('Invalid SIWE signature');
+      throw new UnauthorizedException(
+        "We couldn't verify your wallet. Please reconnect your wallet and try again.",
+      );
     }
     if (recovered.toLowerCase() !== address.toLowerCase()) {
       throw new UnauthorizedException('Signature does not match address');
@@ -539,7 +640,9 @@ export class AuthService {
     if (expectedDomain) {
       const domainMatch = /^(\S+) wants you to sign in/m.exec(message);
       if (!domainMatch || domainMatch[1] !== expectedDomain) {
-        throw new UnauthorizedException('SIWE domain mismatch');
+        throw new UnauthorizedException(
+          "We couldn't verify your wallet sign-in. Please reconnect your wallet and try again.",
+        );
       }
       const uriMatch = /^URI:\s*(\S+)/m.exec(message);
       let uriHost: string | null = null;
@@ -565,7 +668,9 @@ export class AuthService {
     const ageMs = Date.now() - issuedAt.getTime();
     // Accept 60 s of client clock skew; 5 min freshness window past that.
     if (ageMs < -60_000 || ageMs > 5 * 60_000) {
-      throw new UnauthorizedException('SIWE message expired or in the future');
+      throw new UnauthorizedException(
+        'Your wallet sign-in request expired. Please reconnect your wallet and try again.',
+      );
     }
 
     // Single-use nonce — atomically consume so replay of the same message
@@ -603,6 +708,7 @@ export class AuthService {
       user = updated;
       isNewUser = false;
     } else {
+      assertRegistrationSourceEnabled('minipay_siwe');
       const created = (await this.userService.createFromFirebase({
         address: address.toLowerCase(),
         id_crossmint: '',
@@ -696,24 +802,37 @@ export class AuthService {
     try {
       // STEP 0: Verify LINE access token and user identity
       // CRITICAL: Must verify token belongs to the claimed user ID
-      if (accessToken) {
-        try {
-          // First, verify the token is valid
-          await this.verifyLineAccessToken(accessToken);
+      if (!accessToken) {
+        throw new UnauthorizedException(
+          'Your LINE sign-in session is missing. Start LINE sign-in again.',
+        );
+      }
 
-          // CRITICAL: Verify the token belongs to the claimed LINE user ID
-          // This prevents attackers from using their valid token with someone else's LINE ID
-          const lineProfile = await this.getLineProfile(accessToken);
-          if (lineProfile.userId !== payload.id_line) {
-            throw new Error(
-              'LINE User ID mismatch - token does not belong to claimed user',
-            );
-          }
-        } catch (verifyError: any) {
-          throw new Error(verifyError?.message || 'Invalid LINE access token');
-        }
-      } else {
-        throw new Error('LINE access token is required for authentication');
+      // First, verify the token is valid and was issued for GoGoCash's
+      // environment-specific LINE Login channel. A token from another LINE
+      // channel is valid LINE identity, but not valid GoGoCash identity.
+      const verifiedLineToken = await this.verifyLineAccessToken(accessToken);
+      const expectedLineChannelId = this.config
+        .get<string>('env.LINE_CHANNEL_ID')
+        ?.trim();
+      if (!expectedLineChannelId) {
+        throw new ServiceUnavailableException(
+          'LINE sign-in is not configured. Please try another sign-in method.',
+        );
+      }
+      if (verifiedLineToken?.client_id !== expectedLineChannelId) {
+        throw new UnauthorizedException(
+          "We couldn't verify this LINE sign-in session. Start LINE sign-in again.",
+        );
+      }
+
+      // CRITICAL: Verify the token belongs to the claimed LINE user ID.
+      // This prevents attackers from using their valid token with someone else's LINE ID.
+      const lineProfile = await this.getLineProfile(accessToken);
+      if (lineProfile.userId !== payload.id_line) {
+        throw new UnauthorizedException(
+          "We couldn't verify this LINE account. Start LINE sign-in again.",
+        );
       }
 
       // STEP 1: Verify temporary OTP token if email is provided
@@ -759,16 +878,32 @@ export class AuthService {
       }
 
       if (userExist) {
+        if (userExist.disabled) {
+          throw new ForbiddenException(
+            'This account is disabled. Contact support.',
+          );
+        }
+
         // Update existing user - link LINE ID to account if not already linked
         const user = await this.userService.update(userExist._id, {
           username: userExist.username || payload.username,
           id_line: payload.id_line, // Link LINE ID to account
+          // Backend JWTs are bound to both the Mongo user id and this identity
+          // by FirebaseAuthGuard. Persist the same synthetic value used in the
+          // JWT for legacy LINE rows that predate id_firebase population.
+          id_firebase: userExist.id_firebase || `line_${payload.id_line}`,
           provider: userExist.provider || 'line',
           email_verified: payload.email ? true : userExist.email_verified,
+          // Keep the LINE profile photo when the account has none yet.
+          ...(payload.picture_url && !userExist.avatar_url
+            ? { avatar_url: payload.picture_url }
+            : {}),
         });
 
         if (user?.disabled) {
-          throw new Error('Your account has been disabled');
+          throw new ForbiddenException(
+            'This account is disabled. Contact support.',
+          );
         }
 
         const jwtToken = await this.generateToken({
@@ -780,7 +915,7 @@ export class AuthService {
       }
 
       // Create new user - frontend enforces email requirement
-      const user = await this.userService.createFromFirebase({
+      const newUser = {
         email: payload.email,
         username: payload.username || 'LINE User',
         id_line: payload.id_line,
@@ -791,26 +926,20 @@ export class AuthService {
         id_crossmint: '',
         id_twitter: '',
         email_verified: !!payload.email,
-      });
-
-      // Handle referral
-      if (payload?.referral_id && payload.referral_id !== 'undefined') {
-        const refData = await this.userService.findOne({
-          _id: new Types.ObjectId(payload.referral_id),
-        });
-        if (
-          refData &&
-          user._id?.toString() !== payload.referral_id?.toString()
-        ) {
-          await this.updatePoint({
-            user_id: user._id.toString(),
-            referral_id: payload.referral_id,
-          });
-        }
-      }
+        ...(payload.picture_url ? { avatar_url: payload.picture_url } : {}),
+      };
+      const user = (
+        await this.accountRegistration.registerVerified({
+          source: 'line',
+          user: newUser,
+          referral_id: payload.referral_id,
+        })
+      ).user as UserDocument;
 
       if (user?.disabled) {
-        throw new Error('Your account has been disabled');
+        throw new ForbiddenException(
+          'This account is disabled. Contact support.',
+        );
       }
 
       const jwtToken = await this.generateToken({
@@ -819,8 +948,16 @@ export class AuthService {
       });
 
       return { user, token: jwtToken };
-    } catch (error) {
-      throw new Error(error?.message || 'LINE login failed');
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+
+      this.logger.error(
+        `LINE account sign-in failed: ${error?.message ?? 'unknown error'}`,
+        error?.stack,
+      );
+      throw new InternalServerErrorException(
+        "We couldn't finish LINE sign-in. Try another sign-in method or contact support.",
+      );
     }
   }
 
@@ -837,8 +974,16 @@ export class AuthService {
         },
       );
       return response.data;
-    } catch {
-      throw new Error('Invalid LINE access token');
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (status === 400 || status === 401) {
+        throw new UnauthorizedException(
+          'Your LINE sign-in session expired. Start LINE sign-in again.',
+        );
+      }
+      throw new BadGatewayException(
+        'LINE sign-in is temporarily unavailable. Please try again later.',
+      );
     }
   }
 
@@ -853,8 +998,16 @@ export class AuthService {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       return response.data;
-    } catch {
-      throw new Error('Failed to verify LINE user identity');
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (status === 400 || status === 401) {
+        throw new UnauthorizedException(
+          'Your LINE sign-in session expired. Start LINE sign-in again.',
+        );
+      }
+      throw new BadGatewayException(
+        'LINE sign-in is temporarily unavailable. Please try again later.',
+      );
     }
   }
 
@@ -891,6 +1044,8 @@ export class AuthService {
 
         return { user, token: accessToken };
       }
+
+      assertRegistrationSourceEnabled('email_otp');
 
       // Create new user - email already verified via OTP
       const user = await this.userService.createFromFirebase({

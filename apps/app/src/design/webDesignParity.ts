@@ -243,7 +243,15 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
   const designFrame = homeDesignVersions[designVersion];
   const contentMaxWidth = mobileShellLayout.contentMaxWidth;
   const contentWidth = getProfileContentFrameWidth(viewportWidth, designVersion);
-  const contentHorizontalPadding = getProfileHorizontalPadding(viewportWidth, contentWidth);
+  // The content sections render inside a `maxWidth: contentMaxWidth` cap that is
+  // already centered in the viewport. This padding centers `contentWidth` *within*
+  // that cap, so it must be measured against the cap's rendered width — not the raw
+  // viewport. Past the cap, the raw viewport would over-pad and collapse the content
+  // to a thin center strip on wide desktops.
+  const contentHorizontalPadding = getProfileHorizontalPadding(
+    Math.min(viewportWidth, contentMaxWidth),
+    contentWidth
+  );
   const brandSectionFrameWidth = isDesktop
     ? contentWidth
     : roundLayoutValue(
@@ -305,6 +313,7 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
   return {
     brandSectionFrameWidth,
     compactBrandCardHeight,
+    compactBrandRowsPerPage,
     compactBrandCardWidth,
     compactBrandCardsPerPage,
     compactBrandColumns: compactBrandColumnsPerRow,
@@ -328,6 +337,11 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
       ? mobileShellLayout.topBrandMobilePageCardCount
       : topBrandColumnsPerRow * topBrandRowsPerPage,
     topBrandColumns: topBrandColumnsPerRow,
+    // Per-design-version columns-per-row (6 desktop / 4 tablet / 2 mobile). Distinct from
+    // topBrandColumns, which is the 8-wide mobile paging group off-desktop. Sections that
+    // must fit one on-screen page (e.g. the two-row Trending cap) size off this instead.
+    topBrandDesignColumns: designFrame.topBrandColumns,
+    topBrandRowsPerPage,
     topBrandDotCount: isMobileTopBrandGrid
       ? mobileShellLayout.topBrandMobileDotCount
       : mobileShellLayout.topBrandDesktopDotCount,
@@ -597,6 +611,7 @@ export const webAuthPage = {
   socialProviders: [
     { id: "facebook", label: "Facebook" },
     { id: "google", label: "Gmail" },
+    { id: "line", label: "LINE" },
     { id: "telegram", label: "Telegram" },
     { id: "apple", label: "Apple" },
     { id: "x", label: "X" },
@@ -1135,51 +1150,35 @@ export const webPrivacyPolicyPage = {
   firstSectionTitle: "1. Who We Are",
 } as const;
 
-export const webBrowseShortcuts = [
-  { id: "all-brands", label: "All Brands", href: "/brand", icon: "shop" },
-  { id: "all-shops", label: "All Shops", href: "/shops", icon: "shops" },
-  {
-    id: "product-discover",
-    label: "Product Discovery",
-    href: "/discover",
-    icon: "promotion",
-  },
-  { id: "categories", label: "Categories", href: "/category", icon: "education" },
-] as const;
-
+// #483 — one icon system + one text size for every desktop header nav item.
 export const webDesktopHeaderNavItems = [
   {
     id: "top-brands",
     label: "Top Brands",
     href: "/",
-    icon: "none",
+    icon: "fire",
     active: true,
-    showFire: true,
   },
   {
     id: "all-brands",
-    label: "All Brands",
+    label: "Explore Brand",
     href: "/brand",
     icon: "shop",
     active: false,
-    showFire: false,
   },
   {
-    id: "all-shops",
-    label: "All Shops",
-    href: "/shops",
-    icon: "shops",
+    id: "digital-services",
+    label: "Digital Services",
+    href: "/category/Digital%20Services",
+    icon: "digital",
     active: false,
-    showFire: false,
   },
   {
-    id: "product-discovery",
-    label: "Product Discovery",
-    href: "/discover",
-    icon: "promotion",
+    id: "fashion",
+    label: "Fashion",
+    href: "/category/Fashion",
+    icon: "fashion",
     active: false,
-    showFire: false,
-    menuTypography: "lead",
   },
   {
     id: "travel",
@@ -1187,7 +1186,6 @@ export const webDesktopHeaderNavItems = [
     href: "/category/Travel",
     icon: "travel",
     active: false,
-    showFire: false,
   },
   {
     id: "electronics",
@@ -1195,8 +1193,6 @@ export const webDesktopHeaderNavItems = [
     href: "/category/Electronics",
     icon: "electronics",
     active: false,
-    showFire: false,
-    menuTypography: "lead",
   },
   {
     id: "health-beauty",
@@ -1204,10 +1200,18 @@ export const webDesktopHeaderNavItems = [
     href: "/category/Health%20%26%20Beauty",
     icon: "health",
     active: false,
-    showFire: false,
-    menuTypography: "lead",
   },
 ] as const;
+
+// #497 — the mobile explore bar must reach the same destinations as the desktop nav
+// ("taps route to the same destinations as desktop"), so it is DERIVED from that list
+// rather than maintained in parallel. Derived below it so the two can never drift apart.
+export const webBrowseShortcuts = webDesktopHeaderNavItems.map((item) => ({
+  id: item.id,
+  label: item.label,
+  href: item.href,
+  icon: item.icon,
+}));
 
 export const webLocaleRegionPanel = {
   ariaLabel: "Choose language and region",
@@ -1276,10 +1280,14 @@ export const webDesktopFooter = {
       ],
     },
     {
-      title: "Products",
+      title: "Company",
       items: [
-        { label: "Business Inquiries", href: "https://lin.ee/7om5sAr", external: true },
-        { label: "Careers", href: "https://lin.ee/7om5sAr", external: true },
+        { label: "Business Inquiries", href: "mailto:info@gogocash.co", external: true },
+        {
+          label: "Careers",
+          href: "https://www.linkedin.com/company/gogocash",
+          external: true,
+        },
       ],
     },
     {
@@ -1304,6 +1312,15 @@ export const webDesktopFooter = {
           href: "https://gogocash.co/privacy-policy",
           external: true,
         },
+      ],
+    },
+    {
+      title: "Agents",
+      items: [
+        { label: "sitemap.md", href: "https://gogocash.co/sitemap.md", external: true },
+        { label: "llms.txt", href: "https://gogocash.co/llms.txt", external: true },
+        { label: "skills.md", href: "https://gogocash.co/skills.md", external: true },
+        { label: "rss.xml", href: "https://gogocash.co/rss.xml", external: true },
       ],
     },
   ],
@@ -1447,7 +1464,7 @@ export const webTopBrandCards = [
     brand: "Grocery Galaxy",
     cashback: "12.5%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+    logoUri: "https://cdn.simpleicons.org/instacart",
     showGrabCoupon: true,
     tint: "#6366F1",
   },
@@ -1455,7 +1472,7 @@ export const webTopBrandCards = [
     brand: "Pocket Pantry",
     cashback: "10.0%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+    logoUri: "https://cdn.simpleicons.org/instacart",
     showGrabCoupon: true,
     tint: "#6366F1",
   },
@@ -1463,7 +1480,7 @@ export const webTopBrandCards = [
     brand: "Orbit Airways",
     cashback: "8.5%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
+    logoUri: "https://cdn.simpleicons.org/americanairlines",
     showGrabCoupon: false,
     tint: "#2563EB",
   },
@@ -1471,7 +1488,7 @@ export const webTopBrandCards = [
     brand: "PixelPort",
     cashback: "6.5%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/apple/ffffff",
+    logoUri: "https://cdn.simpleicons.org/apple",
     showGrabCoupon: false,
     tint: "#2563EB",
   },
@@ -1479,7 +1496,7 @@ export const webTopBrandCards = [
     brand: "Glow Theory",
     cashback: "14.0%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+    logoUri: "https://cdn.simpleicons.org/shopify",
     showGrabCoupon: true,
     tint: "#6366F1",
   },
@@ -1487,7 +1504,7 @@ export const webTopBrandCards = [
     brand: "Bloom & Beam",
     cashback: "15.0%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/nike/ffffff",
+    logoUri: "https://cdn.simpleicons.org/nike",
     showGrabCoupon: true,
     tint: "#7F1D1D",
   },
@@ -1495,7 +1512,7 @@ export const webTopBrandCards = [
     brand: "Urban Checkout",
     cashback: "11.0%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+    logoUri: "https://cdn.simpleicons.org/shopify",
     showGrabCoupon: true,
     tint: "#0F766E",
   },
@@ -1503,7 +1520,7 @@ export const webTopBrandCards = [
     brand: "Nova Travel Club",
     cashback: "9.2%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+    logoUri: "https://cdn.simpleicons.org/tripadvisor",
     showGrabCoupon: false,
     tint: "#1D4ED8",
   },
@@ -1511,7 +1528,7 @@ export const webTopBrandCards = [
     brand: "Circuit Nest",
     cashback: "7.0%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/samsung/ffffff",
+    logoUri: "https://cdn.simpleicons.org/samsung",
     showGrabCoupon: false,
     tint: "#2563EB",
   },
@@ -1519,7 +1536,7 @@ export const webTopBrandCards = [
     brand: "Mint Mirror",
     cashback: "16.5%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/target/ffffff",
+    logoUri: "https://cdn.simpleicons.org/target",
     showGrabCoupon: true,
     tint: "#0EA5E9",
   },
@@ -1527,7 +1544,7 @@ export const webTopBrandCards = [
     brand: "Daily Harvest Box",
     cashback: "9.8%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/apple/ffffff",
+    logoUri: "https://cdn.simpleicons.org/apple",
     showGrabCoupon: true,
     tint: "#2563EB",
   },
@@ -1535,7 +1552,7 @@ export const webTopBrandCards = [
     brand: "Sound Loft",
     cashback: "5.8%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/spotify/ffffff",
+    logoUri: "https://cdn.simpleicons.org/spotify",
     showGrabCoupon: false,
     tint: "#0F766E",
   },
@@ -1543,7 +1560,7 @@ export const webTopBrandCards = [
     brand: "Silk Society",
     cashback: "13.2%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/x/ffffff",
+    logoUri: "https://cdn.simpleicons.org/x",
     showGrabCoupon: true,
     tint: "#9F1239",
   },
@@ -1551,7 +1568,7 @@ export const webTopBrandCards = [
     brand: "Horizon Escapes",
     cashback: "8.8%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/meta/ffffff",
+    logoUri: "https://cdn.simpleicons.org/meta",
     showGrabCoupon: false,
     tint: "#1F3E5F",
   },
@@ -1559,7 +1576,7 @@ export const webTopBrandCards = [
     brand: "Gadget Grove",
     cashback: "7.5%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/android/ffffff",
+    logoUri: "https://cdn.simpleicons.org/android",
     showGrabCoupon: false,
     tint: "#2563EB",
   },
@@ -1567,7 +1584,7 @@ export const webTopBrandCards = [
     brand: "Pure Ritual",
     cashback: "18.0%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+    logoUri: "https://cdn.simpleicons.org/shopee",
     showGrabCoupon: true,
     tint: "#0F766E",
   },
@@ -1575,7 +1592,7 @@ export const webTopBrandCards = [
     brand: "Luxe Lane Beauty",
     cashback: "17.2%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+    logoUri: "https://cdn.simpleicons.org/shopify",
     showGrabCoupon: true,
     tint: "#F97316",
   },
@@ -1583,7 +1600,7 @@ export const webTopBrandCards = [
     brand: "CloudNine Travel",
     cashback: "10.3%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+    logoUri: "https://cdn.simpleicons.org/tripadvisor",
     showGrabCoupon: false,
     tint: "#EAB308",
   },
@@ -1591,7 +1608,7 @@ export const webTopBrandCards = [
     brand: "Volt Market",
     cashback: "6.9%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/apple/ffffff",
+    logoUri: "https://cdn.simpleicons.org/apple",
     showGrabCoupon: false,
     tint: "#2563EB",
   },
@@ -1599,7 +1616,7 @@ export const webTopBrandCards = [
     brand: "Cozy Cart",
     cashback: "9.1%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+    logoUri: "https://cdn.simpleicons.org/instacart",
     showGrabCoupon: true,
     tint: "#0F9F6E",
   },
@@ -1607,7 +1624,7 @@ export const webTopBrandCards = [
     brand: "Radiant Lab",
     cashback: "12.9%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/nike/ffffff",
+    logoUri: "https://cdn.simpleicons.org/nike",
     showGrabCoupon: true,
     tint: "#7F1D1D",
   },
@@ -1615,7 +1632,7 @@ export const webTopBrandCards = [
     brand: "StayMint Hotels",
     cashback: "11.4%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/airbnb/ffffff",
+    logoUri: "https://cdn.simpleicons.org/airbnb",
     showGrabCoupon: false,
     tint: "#0EA5E9",
   },
@@ -1623,7 +1640,7 @@ export const webTopBrandCards = [
     brand: "Echo Devices",
     cashback: "6.1%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/samsung/ffffff",
+    logoUri: "https://cdn.simpleicons.org/samsung",
     showGrabCoupon: false,
     tint: "#2563EB",
   },
@@ -1631,7 +1648,7 @@ export const webTopBrandCards = [
     brand: "Fresh Basket",
     cashback: "10.8%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+    logoUri: "https://cdn.simpleicons.org/instacart",
     showGrabCoupon: true,
     tint: "#0F9F6E",
   },
@@ -1639,7 +1656,7 @@ export const webTopBrandCards = [
     brand: "Amber Apothecary",
     cashback: "14.4%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/target/ffffff",
+    logoUri: "https://cdn.simpleicons.org/target",
     showGrabCoupon: true,
     tint: "#7F1D1D",
   },
@@ -1647,7 +1664,7 @@ export const webTopBrandCards = [
     brand: "Trailhead Outfitters",
     cashback: "9.6%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+    logoUri: "https://cdn.simpleicons.org/tripadvisor",
     showGrabCoupon: false,
     tint: "#0F766E",
   },
@@ -1655,7 +1672,7 @@ export const webTopBrandCards = [
     brand: "Nimbus Tech",
     cashback: "7.3%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/android/ffffff",
+    logoUri: "https://cdn.simpleicons.org/android",
     showGrabCoupon: false,
     tint: "#2563EB",
   },
@@ -1663,7 +1680,7 @@ export const webTopBrandCards = [
     brand: "Harvest & Hearth",
     cashback: "11.2%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/apple/ffffff",
+    logoUri: "https://cdn.simpleicons.org/apple",
     showGrabCoupon: true,
     tint: "#0F9F6E",
   },
@@ -1671,7 +1688,7 @@ export const webTopBrandCards = [
     brand: "Velvet Vanity",
     cashback: "13.6%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/target/ffffff",
+    logoUri: "https://cdn.simpleicons.org/target",
     showGrabCoupon: true,
     tint: "#9F1239",
   },
@@ -1679,7 +1696,7 @@ export const webTopBrandCards = [
     brand: "Skyline Suites",
     cashback: "12.1%",
     label: "Grab Coupon",
-    logoUri: "https://cdn.simpleicons.org/airbnb/ffffff",
+    logoUri: "https://cdn.simpleicons.org/airbnb",
     showGrabCoupon: false,
     tint: "#0E7490",
   },
@@ -2038,7 +2055,12 @@ export const webShopDirectory = {
 } as const;
 
 export type WebShopDirectoryStore = (typeof webShopDirectory.stores)[number];
-export type WebBrandDirectorySort = "highest_cashback" | "lowest_cashback" | "popular" | "newest";
+export type WebBrandDirectorySort =
+  | "all"
+  | "highest_cashback"
+  | "lowest_cashback"
+  | "popular"
+  | "newest";
 
 export const webBrandDirectory = {
   categoryHeading: "Categories",
@@ -2054,6 +2076,7 @@ export const webBrandDirectory = {
   searchPlaceholder: "Search by store or product…",
   sortLabel: "Sort by:",
   sortPills: [
+    { label: "All", value: "all" },
     { label: "Popular", value: "popular" },
     { label: "Latest", value: "newest" },
     { label: "Highest Cashback", value: "highest_cashback" },
@@ -2147,7 +2170,7 @@ export function getShopDirectoryGridMetrics({
 export function getBrandDirectoryResults({
   category = "All",
   query = "",
-  sortBy = "highest_cashback",
+  sortBy = "all",
 }: {
   category?: string;
   query?: string;
@@ -2170,6 +2193,11 @@ export function getBrandDirectoryResults({
       return matchesCategory && matchesQuery;
     })
     .sort((a, b) => {
+      // #464 — "All" preserves catalog insertion order (mirror #437 category sort).
+      if (sortBy === "all") {
+        return a.position - b.position;
+      }
+
       if (sortBy === "popular") {
         return a.popularity - b.popularity || a.position - b.position;
       }
@@ -2206,54 +2234,54 @@ export const webHomePromoSections = [
       {
         brand: "Grocery Galaxy",
         cashback: "12.5%",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
         tint: "#6366F1",
       },
       {
         brand: "Pocket Pantry",
         cashback: "10.0%",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
         tint: "#6366F1",
       },
       {
         brand: "Orbit Airways",
         cashback: "8.5%",
-        logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
+        logoUri: "https://cdn.simpleicons.org/americanairlines",
         tint: "#2563EB",
       },
       {
         brand: "PixelPort",
         cashback: "6.5%",
-        logoUri: "https://cdn.simpleicons.org/apple/ffffff",
+        logoUri: "https://cdn.simpleicons.org/apple",
         tint: "#2563EB",
       },
       {
         brand: "Glow Theory",
         cashback: "14.0%",
-        logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopify",
         tint: "#6366F1",
       },
       {
         brand: "Bloom & Beam",
         cashback: "15.0%",
-        logoUri: "https://cdn.simpleicons.org/nike/ffffff",
+        logoUri: "https://cdn.simpleicons.org/nike",
         tint: "#7F1D1D",
       },
       {
         brand: "Fresh Cart",
         cashback: "11.6%",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
         tint: "#0F9F6E",
       },
-      { brand: "Stellar Mart", cashback: "9.0%", logoUri: "https://cdn.simpleicons.org/spotify/ffffff", tint: "#6366F1" },
-      { brand: "Cloud Pantry", cashback: "7.5%", logoUri: "https://cdn.simpleicons.org/instacart/ffffff", tint: "#2563EB" },
-      { brand: "Velvet Threads", cashback: "13.0%", logoUri: "https://cdn.simpleicons.org/ebay/ffffff", tint: "#0EA5E9" },
-      { brand: "Pixel Bazaar", cashback: "6.0%", logoUri: "https://cdn.simpleicons.org/ikea/ffffff", tint: "#10B981" },
-      { brand: "Lumen Living", cashback: "8.0%", logoUri: "https://cdn.simpleicons.org/instacart/ffffff", tint: "#F59E0B" },
-      { brand: "Verdant Grocer", cashback: "10.5%", logoUri: "https://cdn.simpleicons.org/nike/ffffff", tint: "#EF4444" },
-      { brand: "Crimson Couture", cashback: "16.0%", logoUri: "https://cdn.simpleicons.org/target/ffffff", tint: "#7F1D1D" },
-      { brand: "Harbor Goods", cashback: "5.5%", logoUri: "https://cdn.simpleicons.org/sony/ffffff", tint: "#0F9F6E" },
-      { brand: "Aurora Beauty", cashback: "17.0%", logoUri: "https://cdn.simpleicons.org/etsy/ffffff", tint: "#8B5CF6" },
+      { brand: "Stellar Mart", cashback: "9.0%", logoUri: "https://cdn.simpleicons.org/spotify", tint: "#6366F1" },
+      { brand: "Cloud Pantry", cashback: "7.5%", logoUri: "https://cdn.simpleicons.org/instacart", tint: "#2563EB" },
+      { brand: "Velvet Threads", cashback: "13.0%", logoUri: "https://cdn.simpleicons.org/ebay", tint: "#0EA5E9" },
+      { brand: "Pixel Bazaar", cashback: "6.0%", logoUri: "https://cdn.simpleicons.org/ikea", tint: "#10B981" },
+      { brand: "Lumen Living", cashback: "8.0%", logoUri: "https://cdn.simpleicons.org/instacart", tint: "#F59E0B" },
+      { brand: "Verdant Grocer", cashback: "10.5%", logoUri: "https://cdn.simpleicons.org/nike", tint: "#EF4444" },
+      { brand: "Crimson Couture", cashback: "16.0%", logoUri: "https://cdn.simpleicons.org/target", tint: "#7F1D1D" },
+      { brand: "Harbor Goods", cashback: "5.5%", logoUri: "https://cdn.simpleicons.org/sony", tint: "#0F9F6E" },
+      { brand: "Aurora Beauty", cashback: "17.0%", logoUri: "https://cdn.simpleicons.org/etsy", tint: "#8B5CF6" },
     ],
   },
   {
@@ -2267,97 +2295,97 @@ export const webHomePromoSections = [
       {
         brand: "Orbit Airways",
         cashback: "8.5%",
-        logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
+        logoUri: "https://cdn.simpleicons.org/americanairlines",
         tint: "#2563EB",
       },
       {
         brand: "Nova Travel Club",
         cashback: "9.2%",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+        logoUri: "https://cdn.simpleicons.org/tripadvisor",
         tint: "#1D4ED8",
       },
       {
         brand: "Horizon Escapes",
         cashback: "8.8%",
-        logoUri: "https://cdn.simpleicons.org/meta/ffffff",
+        logoUri: "https://cdn.simpleicons.org/meta",
         tint: "#1F3E5F",
       },
       {
         brand: "CloudNine Travel",
         cashback: "10.3%",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+        logoUri: "https://cdn.simpleicons.org/tripadvisor",
         tint: "#EAB308",
       },
       {
         brand: "StayMint Hotels",
         cashback: "11.4%",
-        logoUri: "https://cdn.simpleicons.org/airbnb/ffffff",
+        logoUri: "https://cdn.simpleicons.org/airbnb",
         tint: "#0EA5E9",
       },
       {
         brand: "Trailhead Outfitters",
         cashback: "9.6%",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+        logoUri: "https://cdn.simpleicons.org/tripadvisor",
         tint: "#0F766E",
       },
       {
         brand: "Skyward Suites",
         cashback: "10.9%",
-        logoUri: "https://cdn.simpleicons.org/airbnb/ffffff",
+        logoUri: "https://cdn.simpleicons.org/airbnb",
         tint: "#0E7490",
       },
       {
         brand: "Coastal Commute",
         cashback: "8.1%",
-        logoUri: "https://cdn.simpleicons.org/meta/ffffff",
+        logoUri: "https://cdn.simpleicons.org/meta",
         tint: "#2563EB",
       },
       {
         brand: "Alpine Air Pass",
         cashback: "12.1%",
-        logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
+        logoUri: "https://cdn.simpleicons.org/americanairlines",
         tint: "#334155",
       },
       {
         brand: "Voyage Parade",
         cashback: "7.4%",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+        logoUri: "https://cdn.simpleicons.org/tripadvisor",
         tint: "#0E7490",
       },
       {
         brand: "Driftline Cruises",
         cashback: "9.9%",
-        logoUri: "https://cdn.simpleicons.org/airbnb/ffffff",
+        logoUri: "https://cdn.simpleicons.org/airbnb",
         tint: "#1D4ED8",
       },
       {
         brand: "Wanderloop",
         cashback: "6.8%",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+        logoUri: "https://cdn.simpleicons.org/tripadvisor",
         tint: "#0F766E",
       },
       {
         brand: "Passport Haus",
         cashback: "10.2%",
-        logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
+        logoUri: "https://cdn.simpleicons.org/americanairlines",
         tint: "#7C2D12",
       },
       {
         brand: "Island Atlas",
         cashback: "8.3%",
-        logoUri: "https://cdn.simpleicons.org/airbnb/ffffff",
+        logoUri: "https://cdn.simpleicons.org/airbnb",
         tint: "#0EA5E9",
       },
       {
         brand: "Northline Rail",
         cashback: "5.9%",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+        logoUri: "https://cdn.simpleicons.org/tripadvisor",
         tint: "#1F3E5F",
       },
       {
         brand: "Resortly",
         cashback: "12.5%",
-        logoUri: "https://cdn.simpleicons.org/airbnb/ffffff",
+        logoUri: "https://cdn.simpleicons.org/airbnb",
         tint: "#9F1239",
       },
     ],
@@ -2373,80 +2401,80 @@ export const webHomePromoSections = [
       {
         brand: "Bloom & Beam",
         cashback: "15.0%",
-        logoUri: "https://cdn.simpleicons.org/nike/ffffff",
+        logoUri: "https://cdn.simpleicons.org/nike",
         tint: "#7F1D1D",
       },
       {
         brand: "Mint Mirror",
         cashback: "16.5%",
-        logoUri: "https://cdn.simpleicons.org/target/ffffff",
+        logoUri: "https://cdn.simpleicons.org/target",
         tint: "#0EA5E9",
       },
       {
         brand: "Pure Ritual",
         cashback: "18.0%",
-        logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopee",
         tint: "#0F766E",
       },
       {
         brand: "Luxe Lane Beauty",
         cashback: "17.2%",
-        logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopify",
         tint: "#F97316",
       },
       {
         brand: "Amber Apothecary",
         cashback: "14.4%",
         logoFallbackText: "Amber Apothecary",
-        logoUri: "https://cdn.simpleicons.org/target/ffffff",
+        logoUri: "https://cdn.simpleicons.org/target",
         tint: "#7F1D1D",
       },
       {
         brand: "Pearl Polish",
         cashback: "17.8%",
-        logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopee",
         tint: "#6366F1",
       },
       {
         brand: "Brush & Bloom",
         cashback: "14.7%",
-        logoUri: "https://cdn.simpleicons.org/target/ffffff",
+        logoUri: "https://cdn.simpleicons.org/target",
         tint: "#0EA5E9",
       },
       {
         brand: "Aurum Glow",
         cashback: "15.5%",
-        logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopify",
         tint: "#9F1239",
       },
       {
         brand: "Noble Nurture",
         cashback: "17.0%",
-        logoUri: "https://cdn.simpleicons.org/target/ffffff",
+        logoUri: "https://cdn.simpleicons.org/target",
         tint: "#2563EB",
       },
       {
         brand: "Dew Drop Labs",
         cashback: "16.9%",
-        logoUri: "https://cdn.simpleicons.org/nike/ffffff",
+        logoUri: "https://cdn.simpleicons.org/nike",
         tint: "#0EA5E9",
       },
       {
         brand: "Lush Legacy",
         cashback: "15.1%",
-        logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopee",
         tint: "#0F766E",
       },
       {
         brand: "Harbor Herbs",
         cashback: "11.9%",
-        logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopee",
         tint: "#0F766E",
       },
       {
         brand: "Vitaline Spa",
         cashback: "13.8%",
-        logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopify",
         tint: "#14B8A6",
       },
     ],
@@ -2616,6 +2644,7 @@ export const webProductDiscovery = {
   pagination: {
     pageSize: 60,
   },
+  promo: webShopDirectory.promo,
   priceHint: "Price",
   products: webShopDirectory.stores.map((store, index) => {
     const seed = getProductDiscoverySeed(store, index);
@@ -2720,7 +2749,12 @@ export function getProductDiscoveryGridMetrics({
   };
 }
 
-export type WebCategoryExploreSort = "highest_cashback" | "lowest_cashback" | "popular" | "newest";
+export type WebCategoryExploreSort =
+  | "all"
+  | "highest_cashback"
+  | "lowest_cashback"
+  | "popular"
+  | "newest";
 
 export const webCategoryExploreHealthBeauty = {
   category: "Health & Beauty",
@@ -2729,7 +2763,7 @@ export const webCategoryExploreHealthBeauty = {
     "Find cashback deals from brands in Health & Beauty. Search and sort to narrow results.",
   searchPlaceholder: "Search within Health & Beauty",
   sortLabel: "Sort by:",
-  storeCountLabel: "13 brands in this category",
+  storeCountLabel: "13 brands",
   categories: [
     "All",
     "Digital Services",
@@ -2747,6 +2781,7 @@ export const webCategoryExploreHealthBeauty = {
     "Others",
   ],
   sortPills: [
+    { label: "All", value: "all" },
     { label: "Popular", value: "popular" },
     { label: "Latest", value: "newest" },
     { label: "Highest Cashback", value: "highest_cashback" },
@@ -2756,79 +2791,79 @@ export const webCategoryExploreHealthBeauty = {
     {
       brand: "Pure Ritual",
       cashback: "18.0%",
-      logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+      logoUri: "https://cdn.simpleicons.org/shopee",
       tint: "#0F766E",
     },
     {
       brand: "Pearl Polish",
       cashback: "17.8%",
-      logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+      logoUri: "https://cdn.simpleicons.org/shopee",
       tint: "#6366F1",
     },
     {
       brand: "Luxe Lane Beauty",
       cashback: "17.2%",
-      logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+      logoUri: "https://cdn.simpleicons.org/shopify",
       tint: "#F97316",
     },
     {
       brand: "Noble Nurture",
       cashback: "17.0%",
-      logoUri: "https://cdn.simpleicons.org/target/ffffff",
+      logoUri: "https://cdn.simpleicons.org/target",
       tint: "#2563EB",
     },
     {
       brand: "Dew Drop Labs",
       cashback: "16.9%",
-      logoUri: "https://cdn.simpleicons.org/nike/ffffff",
+      logoUri: "https://cdn.simpleicons.org/nike",
       tint: "#0EA5E9",
     },
     {
       brand: "Mint Mirror",
       cashback: "16.5%",
-      logoUri: "https://cdn.simpleicons.org/target/ffffff",
+      logoUri: "https://cdn.simpleicons.org/target",
       tint: "#0EA5E9",
     },
     {
       brand: "Aurum Glow",
       cashback: "15.5%",
-      logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+      logoUri: "https://cdn.simpleicons.org/shopify",
       tint: "#9F1239",
     },
     {
       brand: "Lush Legacy",
       cashback: "15.1%",
-      logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+      logoUri: "https://cdn.simpleicons.org/shopee",
       tint: "#0F766E",
     },
     {
       brand: "Bloom & Beam",
       cashback: "15.0%",
-      logoUri: "https://cdn.simpleicons.org/nike/ffffff",
+      logoUri: "https://cdn.simpleicons.org/nike",
       tint: "#7F1D1D",
     },
     {
       brand: "Brush & Bloom",
       cashback: "14.7%",
-      logoUri: "https://cdn.simpleicons.org/target/ffffff",
+      logoUri: "https://cdn.simpleicons.org/target",
       tint: "#0EA5E9",
     },
     {
       brand: "Amber Apothecary",
       cashback: "14.4%",
-      logoUri: "https://cdn.simpleicons.org/target/ffffff",
+      logoUri: "https://cdn.simpleicons.org/target",
       tint: "#7F1D1D",
     },
     {
       brand: "Vitaline Spa",
       cashback: "13.8%",
-      logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+      logoUri: "https://cdn.simpleicons.org/shopify",
       tint: "#14B8A6",
     },
     {
       brand: "Harbor Herbs",
       cashback: "11.9%",
-      logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+      logoUri: "https://cdn.simpleicons.org/shopee",
       tint: "#0F766E",
     },
   ],
@@ -2871,7 +2906,7 @@ function getCategoryExploreBaseStores(category: string): CategoryExploreStore[] 
 export function getCategoryExploreResults({
   category = webCategoryExploreHealthBeauty.category,
   query = "",
-  sortBy = "highest_cashback",
+  sortBy = "all",
 }: {
   category?: string;
   query?: string;
@@ -2884,6 +2919,9 @@ export function getCategoryExploreResults({
     : [...baseStores];
 
   switch (sortBy) {
+    case "all":
+      // Preserve catalog / fixture insertion order — no forced cashback ranking.
+      return filteredStores;
     case "lowest_cashback":
       return filteredStores.sort(
         (left, right) => categoryExploreCashbackValue(left) - categoryExploreCashbackValue(right)
@@ -2905,10 +2943,11 @@ export function getCategoryExploreResults({
         return 0;
       });
     case "highest_cashback":
-    default:
       return filteredStores.sort(
         (left, right) => categoryExploreCashbackValue(right) - categoryExploreCashbackValue(left)
       );
+    default:
+      return filteredStores;
   }
 }
 
@@ -2920,6 +2959,8 @@ export const webShopDetailGroceryGalaxy = {
   category: "others",
   cashback: "26.5%",
   extraCashback: "14%",
+  /** Fixture demos the Extra Cashback badge (#472). Live offers require admin tag on. */
+  showExtraCashbackTag: true,
   shopNowLabel: "Shop Now",
   disclaimer:
     "The cashback rates shown above are the maximum possible amounts. Actual rates vary by merchant and specific order conditions. Final approval is at the sole discretion of the merchant; GoGoCash acts as a platform provider for your convenience.",
@@ -3011,9 +3052,11 @@ export const webShopDetailGroceryGalaxy = {
     ],
   },
   terms: {
-    eyebrow: "💡",
-    title: "Cashback Tips",
-    subtitle: "Terms and exclusions",
+    // #426 — legal/policy card (left rail). Keep "Cashback Tips" for the
+    // separate guidance panel only.
+    eyebrow: "📋",
+    title: "Terms & Conditions",
+    subtitle: "Rules and exclusions",
     exclusionsTitle: "Exclusions",
     bullets: [
       "You will not earn cashback if you visit the merchant directly instead of using GoGoCash.",

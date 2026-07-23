@@ -1,3 +1,5 @@
+import type { OfferDisplayTags } from "@mobile/api/offerDisplayCategory";
+
 // Backend DTOs for the public offer catalog (GET /offer on the GoGoCash API).
 // Shape verified against the live production response (2026-06): NestJS envelope
 // { page, limit, total, totalPages, data: OfferRecord[] }. Only the fields the
@@ -11,8 +13,15 @@ export type OfferRecord = {
   offer_name?: string;
   /** Single category label, e.g. "Travel". */
   categories?: string;
+  /** Admin-controlled customer category override; partner `categories` remains the feed snapshot. */
+  offer_display_tags?: OfferDisplayTags | null;
   /** Headline cashback percentage as a number, e.g. 3.5. */
   commission_store?: number | string;
+  /**
+   * Per-product cashback rows from the API (`Offer.product_type`). Used as a
+   * headline fallback when `commission_store` is missing (#428).
+   */
+  product_type?: Array<Record<string, unknown>>;
   /** Absolute logo URL when the merchant has one. */
   logo?: string;
   logo_desktop?: string;

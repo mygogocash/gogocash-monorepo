@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "729804769570",
+    "project_id": "gogocash-staging",
+    "storage_bucket": "gogocash-staging.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:729804769570:android:0a72c806295c3e8aac7d7b",
+        "android_client_info": {
+          "package_name": "co.gogocash.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "729804769570-lpl80ir2sojj82iq5icq578uqmjh1o3d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "co.gogocash.app",
+            "certificate_hash": "e920b13adfb0e80052187a4ebe8769d20ec09e8b"
+          }
+        },
+        {
+          "client_id": "729804769570-jlg4fpajbbvur587dcv9qpocfhn6aots.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFuiezLRHKhM2T6-UBB9i2l6EMUTM4FCY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "729804769570-jlg4fpajbbvur587dcv9qpocfhn6aots.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "729804769570-nq27k2po2ugkirfhallc2emjidr7i1s3.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "co.gogocash.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

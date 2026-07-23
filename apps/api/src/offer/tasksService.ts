@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { isLegacyCronEnabled } from 'src/common/legacy-cron-gate';
 import { OfferService } from './offer.service';
-import { InvolveService } from 'src/involve/involve.service';
+import { AffiliateProviderRegistry } from 'src/affiliate/affiliate-provider.registry';
+import { syncEnabledAffiliateProviders } from 'src/affiliate/affiliate-sync.util';
 
 @Injectable()
 export class TasksService {
@@ -9,7 +11,7 @@ export class TasksService {
 
   constructor(
     private readonly offerService: OfferService,
-    private readonly involveService: InvolveService,
+    private readonly registry: AffiliateProviderRegistry,
   ) {}
   // @Cron('45 * * * * *')
   // @Cron(CronExpression.EVERY_.10_SECONDS)
@@ -27,12 +29,12 @@ export class TasksService {
   // @Cron(CronExpression.EVERY_30_SECONDS)
   @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_NOON)
   async handleCron() {
+    if (!isLegacyCronEnabled()) return;
     this.logger.debug(
       'Called when the current time is 12:00 PM on the 1st day of the month',
     );
-    const allOffers = await this.involveService.findAll();
-    console.log('allOffers', allOffers?.length);
-    // await this.offerService.writeJJsonToFile(allOffers.data);
-    // await delay(1000);
+    // Sync every enabled affiliate network through the seam. Error-isolated per
+    // provider so one network being down never blocks the others.
+    await syncEnabledAffiliateProviders(this.registry, this.logger);
   }
 }

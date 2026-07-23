@@ -151,7 +151,8 @@ describe("GoGoCash mobile launch contract", () => {
     };
 
     expect(easConfig.build.production.env).toMatchObject({
-      EXPO_PUBLIC_ACCOUNT_DATA_SOURCE: "disabled",
+      // Play launch 2026-07-11: production ships live backend account data.
+      EXPO_PUBLIC_ACCOUNT_DATA_SOURCE: "backend",
       EXPO_PUBLIC_API_URL: "https://api.gogocash.co",
       EXPO_PUBLIC_APP_ENV: "production",
       EXPO_PUBLIC_FRONTEND_URL: "https://app.gogocash.co",
@@ -184,6 +185,30 @@ describe("GoGoCash mobile launch contract", () => {
       EXPO_PUBLIC_FRONTEND_URL: "https://app-staging.gogocash.co",
     });
     expect(easConfig.build.preview.env?.SENTRY_DISABLE_AUTO_UPLOAD).toBe("true");
+  });
+
+  it("EAS launch contract > given every build profile > then it inlines EXPO_PUBLIC_EAS_PROJECT_ID for OTA", () => {
+    const easConfig = JSON.parse(fs.readFileSync(path.join(mobileRoot, "eas.json"), "utf8")) as {
+      build: Record<string, { env?: Record<string, string> }>;
+    };
+    const easProjectId = "0039c25f-f88e-491d-8da9-85b8d6e66558";
+
+    for (const profile of Object.values(easConfig.build)) {
+      expect(profile.env?.EXPO_PUBLIC_EAS_PROJECT_ID).toBe(easProjectId);
+    }
+  });
+
+  it("EAS launch contract > given eas.json env blocks > then Firebase keys are not literal $ placeholders", () => {
+    const easJson = fs.readFileSync(path.join(mobileRoot, "eas.json"), "utf8");
+
+    expect(easJson).not.toMatch(/\$EXPO_PUBLIC_FIREBASE_/);
+  });
+
+  it("EAS launch contract > given eas.json env blocks > then observability keys are not literal $ placeholders", () => {
+    const easJson = fs.readFileSync(path.join(mobileRoot, "eas.json"), "utf8");
+
+    expect(easJson).not.toMatch(/\$EXPO_PUBLIC_SENTRY_/);
+    expect(easJson).not.toMatch(/\$EXPO_PUBLIC_POSTHOG_/);
   });
 
   it("production env guard > given cleartext production URLs > then startup rejects the config", () => {
@@ -239,7 +264,7 @@ describe("GoGoCash mobile launch contract", () => {
   });
 
   it("gototrack config > given Android UsageStats MVP > then declares Usage Access and FGS monitor permissions", () => {
-    const appConfigSource = fs.readFileSync(path.join(mobileRoot, "app.config.ts"), "utf8");
+    const appConfigSource = fs.readFileSync(path.join(mobileRoot, "app.config.js"), "utf8");
     const pluginSource = fs.readFileSync(
       path.join(mobileRoot, "plugins/withGototrackUsageAccess.js"),
       "utf8",

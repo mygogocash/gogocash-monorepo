@@ -122,7 +122,10 @@ export default function MembershipManagement() {
       void qc.invalidateQueries({ queryKey: qk.tiers });
       setTierModal(false);
     },
-    onError: () => toast.error("Save failed"),
+    onError: () =>
+      toast.error(
+        "Couldn't save the membership tier. Please try again, or contact an administrator if it continues.",
+      ),
   });
 
   const delTier = useMutation({
@@ -131,7 +134,10 @@ export default function MembershipManagement() {
       toast.success("Tier removed");
       void qc.invalidateQueries({ queryKey: qk.tiers });
     },
-    onError: () => toast.error("Delete failed"),
+    onError: () =>
+      toast.error(
+        "Couldn't remove the membership tier. Please try again, or contact an administrator if it continues.",
+      ),
   });
 
   if (statsQ.isLoading || tiersQ.isLoading) return <AdminTableSkeleton />;
@@ -166,10 +172,19 @@ export default function MembershipManagement() {
                 value: String(stats.newThisMonth),
                 sub: "This month",
               },
-              { label: "Churn %", value: String(stats.churnRate) },
+              {
+                label: "Churn %",
+                value:
+                  stats.churnRate === null
+                    ? "Unavailable"
+                    : String(stats.churnRate),
+              },
               {
                 label: "Revenue MTD (THB)",
-                value: stats.revenueMtd.toLocaleString(),
+                value:
+                  stats.revenueMtd === null
+                    ? "Unavailable"
+                    : stats.revenueMtd.toLocaleString(),
               },
             ] as { label: string; value: string; sub?: string }[]
           ).map((c) => (
@@ -287,7 +302,9 @@ export default function MembershipManagement() {
           <AdminTableSkeleton rows={5} />
         ) : usersQ.isError ? (
           <p className="mt-4 text-sm text-red-600 dark:text-red-400">
-            Failed to load members.
+            {
+              "Couldn't load members. Please refresh the page, or contact an administrator if it continues."
+            }
           </p>
         ) : !usersQ.data?.data.length ? (
           <NoData className="mt-8">No members match.</NoData>

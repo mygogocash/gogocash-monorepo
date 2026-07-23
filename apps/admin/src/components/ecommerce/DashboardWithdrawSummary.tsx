@@ -5,19 +5,32 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRightIcon } from "@/icons";
 import { formatDateTime } from "@/lib/dateFormat";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import {
   MOCK_DASHBOARD_SUMMARY,
   fetchDashboardWithdrawSummary,
+  isRealApiConfigured,
 } from "@/lib/query/dashboardQueries";
+import {
+  withdrawListHref,
+  type WithdrawStatusFilter,
+} from "@/lib/withdrawStatusFilter";
 
 export function DashboardWithdrawSummary() {
-  const { data: summary, isLoading } = useQuery({
+  const hasRealApi = isRealApiConfigured();
+  const {
+    data: summary,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["dashboard", "withdraw-summary"],
     queryFn: fetchDashboardWithdrawSummary,
     staleTime: 60_000,
   });
 
-  const displaySummary = summary ?? MOCK_DASHBOARD_SUMMARY;
+  const displaySummary =
+    summary ?? (hasRealApi ? null : MOCK_DASHBOARD_SUMMARY);
   const pendingCount = displaySummary?.withdrawByStatus?.pending?.count ?? 0;
   const showAttention = pendingCount > 0;
 
@@ -37,13 +50,34 @@ export function DashboardWithdrawSummary() {
     );
   }
 
+  if (hasRealApi && isError) {
+    return (
+      <p
+        role="alert"
+        className="border-error-200 bg-error-50 text-error-800 dark:border-error-800 dark:bg-error-950/30 dark:text-error-200 rounded-xl border px-4 py-3 text-sm"
+      >
+        {getApiErrorMessage(
+          error,
+          "Could not load withdraw summary. Refresh the page or check your connection.",
+        )}
+      </p>
+    );
+  }
+
   const byStatus = displaySummary?.withdrawByStatus ?? {
     pending: { count: 0, total: 0 },
     approved: { count: 0, total: 0 },
     rejected: { count: 0, total: 0 },
   };
 
-  const rows = [
+  const rows: Array<{
+    label: string;
+    count: number;
+    total: number;
+    status: WithdrawStatusFilter;
+    color: string;
+    bg: string;
+  }> = [
     {
       label: "Pending",
       count: byStatus.pending.count,
@@ -74,7 +108,7 @@ export function DashboardWithdrawSummary() {
     <div className="space-y-4">
       {showAttention && (
         <Link
-          href="/withdraw"
+          href={withdrawListHref("pending")}
           className="border-warning-200 bg-warning-50 hover:border-warning-300 dark:border-warning-800 dark:bg-warning-500/10 dark:hover:border-warning-700 flex items-center justify-between rounded-xl border px-4 py-3 transition-all duration-200 ease-out hover:shadow-sm"
         >
           <span className="text-warning-800 dark:text-warning-200 text-sm font-medium">
@@ -92,7 +126,10 @@ export function DashboardWithdrawSummary() {
               </span>
             ) : null}
           </span>
-          <ArrowRightIcon className="text-warning-600 dark:text-warning-400 size-5 shrink-0" />
+          <ArrowRightIcon
+            aria-hidden
+            className="text-warning-600 dark:text-warning-400 size-5 shrink-0"
+          />
         </Link>
       )}
 
@@ -107,19 +144,20 @@ export function DashboardWithdrawSummary() {
             </p>
           </div>
           <Link
-            href="/withdraw"
+            href={withdrawListHref()}
             className="text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 inline-flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 ease-out"
           >
             View all
-            <ArrowRightIcon className="size-4" />
+            <ArrowRightIcon aria-hidden className="size-4" />
           </Link>
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {rows.map((row) => (
-            <div
+            <Link
               key={row.status}
-              className={`rounded-xl border border-gray-100 p-4 transition-all duration-200 ease-out hover:shadow-sm dark:border-gray-800 ${row.bg}`}
+              href={withdrawListHref(row.status)}
+              className={`rounded-xl border border-gray-100 p-4 transition-all duration-200 ease-out hover:shadow-sm focus-visible:ring-brand-500/40 focus-visible:ring-2 focus-visible:outline-none dark:border-gray-800 ${row.bg}`}
             >
               <p className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
                 {row.label}
@@ -132,9 +170,9 @@ export function DashboardWithdrawSummary() {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}{" "}
-                total
+                {displaySummary?.currency ?? "THB"} total
               </p>
-            </div>
+            </Link>
           ))}
         </div>
       </div>

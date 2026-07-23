@@ -1,10 +1,15 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
+import {
+  CategoryMediaAsset,
+  CategoryMediaAssetSchema,
+} from './category.schema';
+
 export type OfferDocument = HydratedDocument<Offer>;
 
 /** Affiliate network the offer was ingested from (or `'manual'` for admin-created brands). */
-export type OfferSource = 'involve' | 'optimise' | 'manual';
+export type OfferSource = 'involve' | 'optimise' | 'manual' | 'accesstrade';
 
 /** Admin curation state. `'approved'` is the default so legacy Involve offers stay visible. */
 export type OfferStatus = 'pending_review' | 'approved' | 'rejected';
@@ -40,6 +45,10 @@ export class Offer {
   @Prop()
   logo: string;
 
+  /** Exact durable owner proof for admin-uploaded logo aliases. */
+  @Prop({ type: CategoryMediaAssetSchema, required: false })
+  logo_asset?: CategoryMediaAsset;
+
   @Prop()
   lookup_value: string;
 
@@ -48,6 +57,40 @@ export class Offer {
 
   @Prop()
   payment_terms: number;
+
+  /**
+   * Cashback tracking-period config (customer "Tracking/Confirm within N day"
+   * strip). 'auto' derives the confirm window from validation_terms; 'manual'
+   * uses the admin-entered day counts below. Resolution lives in
+   * tracking-period.util.ts — these raw fields never reach public payloads.
+   */
+  @Prop({ type: String, enum: ['auto', 'manual'], default: 'auto' })
+  tracking_period_mode: 'auto' | 'manual';
+
+  @Prop()
+  tracking_days?: number;
+
+  @Prop()
+  confirm_days?: number;
+
+  /**
+   * Step-strip flow: 'three_step' (Purchase → Tracking → Confirm) or
+   * 'two_step' (Purchase → combined "Tracking and confirm"). Subtitles are
+   * the editable per-step captions; blank falls back to the defaults in
+   * tracking-period.util.ts.
+   */
+  @Prop({
+    type: String,
+    enum: ['three_step', 'two_step'],
+    default: 'three_step',
+  })
+  flow_type: 'three_step' | 'two_step';
+
+  @Prop()
+  tracking_subtitle?: string;
+
+  @Prop()
+  confirm_subtitle?: string;
 
   @Prop()
   datetime_updated: Date;
@@ -60,6 +103,10 @@ export class Offer {
 
   @Prop()
   categories: string;
+
+  /** Canonical NFKC identity for exact legacy category-reference scans. */
+  @Prop({ type: String, required: false })
+  categories_normalized?: string | null;
 
   @Prop()
   countries: string;
@@ -94,6 +141,10 @@ export class Offer {
   @Prop()
   banner: string;
 
+  /** Exact durable owner proof for admin-uploaded banner aliases. */
+  @Prop({ type: CategoryMediaAssetSchema, required: false })
+  banner_asset?: CategoryMediaAsset;
+
   @Prop()
   logo_circle: string;
 
@@ -125,11 +176,79 @@ export class Offer {
   product_type: { [key: string]: string }[];
 
   /**
+   * When true, admin treats this offer as covering all product lines (single
+   * commission). When false, `product_type` rows are the source of truth for
+   * the Cashback Management table. Optional for legacy documents.
+   */
+  @Prop({ required: false })
+  all_product_types?: boolean;
+
+  /** Upsize event window (YYYY-MM-DD); null/absent = open-ended on that side. */
+  @Prop({ required: false, type: String, default: null })
+  upsize_start_date?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  upsize_end_date?: string | null;
+
+  /** Optional HH:MM bounds for the upsize window. */
+  @Prop({ required: false, type: String, default: null })
+  upsize_start_time?: string | null;
+
+  @Prop({ required: false, type: String, default: null })
+  upsize_end_time?: string | null;
+
+  /** All-product upsize headline commission (net, after platform fee). */
+  @Prop({ required: false, type: Number, default: null })
+  upsize_special_commission?: number | null;
+
+  @Prop({ required: false, type: Number, default: null })
+  upsize_max_cap?: number | null;
+
+  /**
+   * When true, upsize uses `upsize_special_commission` for all products.
+   * When false, `upsize_product_types` rows drive the promo list.
+   */
+  @Prop({ required: false })
+  upsize_all_product_types?: boolean;
+
+  /** Per-product upsize cashback rows (same shape as `product_type`). */
+  @Prop({ type: Array, required: false })
+  upsize_product_types?: { [key: string]: string }[];
+
+  /**
    * Affiliate network of origin. `'involve'` default keeps every pre-existing
    * document valid without a backfill migration.
    */
-  @Prop({ default: 'involve', enum: ['involve', 'optimise', 'manual'] })
+  // 'accesstrade' added ahead of the Accesstrade provider so its sync can write
+  // offers without a second schema migration once that adapter lands; existing
+  // documents keep the 'involve' default and stay valid.
+  @Prop({
+    type: String,
+    default: 'involve',
+    enum: ['involve', 'optimise', 'manual', 'accesstrade'],
+  })
   source: OfferSource;
+
+  /**
+   * Affiliate network this brand line belongs to (`involve_asia`, `optimise`,
+   * `accesstrade`). Distinct from `source`, which records where the row was
+   * imported from — they usually agree, but an offer can be re-homed to a
+   * different network without rewriting its import provenance.
+   *
+   * Absent on legacy rows; the admin falls back to deriving it from `source`
+   * (#517/#518). Previously the admin submitted this key and nothing persisted
+   * it, so `forbidNonWhitelisted` rejected the whole partner-info save (#516).
+   */
+  @Prop({ required: false, type: String, default: null })
+  affiliate_network_id?: string | null;
+
+  /**
+   * Selected advertiser line within the network (e.g. `shopee_cps` vs
+   * `shopee_cps_new`), emitted as `store=` on the generated app deeplink.
+   * `global` / absent means no specific line.
+   */
+  @Prop({ required: false, type: String, default: null })
+  deeplink_store_id?: string | null;
 
   /**
    * Admin curation state. `'approved'` default preserves visibility of every
@@ -137,6 +256,7 @@ export class Offer {
    * Optimise sync writes `'pending_review'` on newly-seen offers.
    */
   @Prop({
+    type: String,
     default: 'approved',
     enum: ['pending_review', 'approved', 'rejected'],
   })
@@ -223,6 +343,8 @@ OfferSchema.index({ source: 1, offer_id: 1 }, { unique: true });
 /** Fast lookups for admin Pending tab and customer-app visibility filter. */
 OfferSchema.index({ status: 1 });
 OfferSchema.index({ source: 1, status: 1 });
+OfferSchema.index({ policy_category_id: 1 });
+OfferSchema.index({ categories_normalized: 1 });
 
 /** Brand-grouping queries: list every variant of a brand, or filter by brand+country. */
 OfferSchema.index({ brand_id: 1 });

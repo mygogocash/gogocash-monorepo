@@ -4,7 +4,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { mapOfferCatalogToCompactBrandCards } from "@mobile/account/brandCatalogResource";
-import { resolveSearchSuggestionItem } from "@mobile/account/searchSuggestionResource";
+import {
+  rankPopularLiveBrandTerms,
+  resolveSearchSuggestionItem,
+} from "@mobile/account/searchSuggestionResource";
 import type { OfferListResponse } from "@mobile/api/catalogTypes";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
@@ -55,7 +58,7 @@ describe("resolveSearchSuggestionItem", () => {
         brand: "Grocery Galaxy",
         cashback: "12.5%",
         logoBackground: "#EAF3FB",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
       }),
     );
   });
@@ -83,6 +86,31 @@ describe("search suggestion UI wiring", () => {
     expect(gridSource).not.toContain("function resolveSuggestionItem");
   });
 
+  it("CustomerSearchScreen > given an empty featured endpoint > then live brands feed trending + suggestions (issue #248)", () => {
+    // Staging's /offer/search/featured returns {"data":[]}; without the live
+    // fallback the screen rendered fixture demo brands (Grocery Galaxy, ...).
+    const searchScreen = readMobileFile("src/screens/CustomerSearchScreen.tsx");
+
+    expect(searchScreen).toMatch(/useFeaturedSearchTerms\(\s*liveFallbackTerms\s*\)/);
+    expect(searchScreen).toContain("rankPopularLiveBrandTerms(");
+  });
+
+  it("SearchSuggestionsGrid > given a live logo > then the real logo wins over the fallback initials (issue #248)", () => {
+    // BrandCard's compact branch suppresses the image whenever logoFallbackText
+    // is provided; the grid passed one unconditionally, so live brands rendered
+    // as tinted initials even with a valid logo URL.
+    const gridSource = readMobileFile("src/screens/search/SearchSuggestionsGrid.tsx");
+
+    expect(gridSource).toContain("logoFallbackText={item.logoUri ? undefined : logoFallbackText}");
+  });
+
+  it("SearchSuggestionsGrid > given its own subtitle > then it no longer duplicates the popular-banner sentence (issue #248)", () => {
+    const gridSource = readMobileFile("src/screens/search/SearchSuggestionsGrid.tsx");
+
+    expect(gridSource).not.toContain("webHomeSearchPopularPanel.subtitle");
+    expect(gridSource).toContain('tc("Tap a brand to search its cashback deals.")');
+  });
+
   it("CustomerSearchScreen > given brand catalog resource > then passes live cards to the grid", () => {
     const searchScreen = readMobileFile("src/screens/CustomerSearchScreen.tsx");
 
@@ -96,5 +124,49 @@ describe("search suggestion UI wiring", () => {
 
     expect(popover).toContain("resolveSearchSuggestionItem");
     expect(popover).toContain("liveCards");
+  });
+});
+
+describe("rankPopularLiveBrandTerms", () => {
+  // Staging 2026-07-13: the popular panel's live fallback took the first
+  // catalog brands verbatim, which all displayed 0% cashback — a weak
+  // "Popular right now" list. Brands with real rates must rank first.
+  const card = (brand: string, cashback: string) =>
+    ({ brand, cashback, category: "Marketplace", href: "/shop/x", tint: "#EAF3FB" }) as const;
+
+  it("given mixed cashback rates > then higher rates rank first", () => {
+    const terms = rankPopularLiveBrandTerms([
+      card("King Power", "0%"),
+      card("Shopee", "0.29%"),
+      card("Lazada", "2.02%"),
+      card("KTC Credit Card (TH)", "0%"),
+    ]);
+
+    expect(terms).toEqual(["Lazada", "Shopee", "King Power", "KTC Credit Card (TH)"]);
+  });
+
+  it("given equal rates > then the catalog order is preserved (stable)", () => {
+    const terms = rankPopularLiveBrandTerms([
+      card("Alpha", "1.0%"),
+      card("Beta", "1.0%"),
+      card("Gamma", "1.0%"),
+    ]);
+
+    expect(terms).toEqual(["Alpha", "Beta", "Gamma"]);
+  });
+
+  it("given unparseable cashback copy > then it ranks as zero instead of crashing", () => {
+    const terms = rankPopularLiveBrandTerms([
+      card("Mystery", "up to —"),
+      card("Shopee", "0.29%"),
+    ]);
+
+    expect(terms).toEqual(["Shopee", "Mystery"]);
+  });
+
+  it("the popover ranks its live fallback terms by cashback", () => {
+    const popover = readMobileFile("src/screens/home/HomeSearchPopularPopover.tsx");
+
+    expect(popover).toContain("rankPopularLiveBrandTerms(");
   });
 });

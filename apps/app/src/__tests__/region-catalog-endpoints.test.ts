@@ -23,6 +23,12 @@ describe("customer account resource > region-aware endpoints", () => {
       "/offer?limit=20&page=1",
     );
   });
+
+  it("landingRails > then resolves the public curated-rails endpoint", () => {
+    expect(resolveCustomerAccountResourceEndpoint({ resourceId: "landingRails", regionCode: "TH" })).toBe(
+      "/offer/landing-rails",
+    );
+  });
 });
 
 describe("searchResource > buildOfferSearchPath", () => {
@@ -30,5 +36,22 @@ describe("searchResource > buildOfferSearchPath", () => {
     expect(
       buildOfferSearchPath({ limit: 20, page: 1, query: "shopee", regionCode: "TW" }),
     ).toBe("/offer?limit=20&page=1&search=shopee&country=TW");
+  });
+
+  it("given category > then includes category query for category-detail browse (#438)", () => {
+    expect(
+      buildOfferSearchPath({
+        category: "Electronics",
+        limit: 80,
+        page: 1,
+        regionCode: "TH",
+      }),
+    ).toBe("/offer?limit=80&page=1&category=Electronics&country=TH");
+  });
+
+  it("given category All > then omits category param", () => {
+    expect(
+      buildOfferSearchPath({ category: "All", limit: 80, page: 1 }),
+    ).toBe("/offer?limit=80&page=1");
   });
 });

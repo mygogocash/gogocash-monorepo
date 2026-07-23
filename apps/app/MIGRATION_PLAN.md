@@ -13,7 +13,7 @@
 > targets and audit verdicts are otherwise unchanged and preserved as written.
 >
 > **Update (2026-06-22):** Customer-app **dark mode** (System / Light / Dark) shipped
-> in `apps/app` — see `docs/dark-mode.md`. Stack is Expo SDK 56 + **RN 0.86** +
+> in `apps/app` — see `docs/dark-mode.md`. Stack is Expo SDK 57 + **RN 0.86** +
 > react-native-web 0.21.2 (not 0.85).
 >
 > **Update (2026-06-24):** Desktop home layout polish — scrollable full-bleed footer

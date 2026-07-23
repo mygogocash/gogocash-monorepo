@@ -4,6 +4,7 @@ import { InteractionManager } from "react-native";
 
 import { buildProtectedLoginRedirect } from "@mobile/auth/routeGuard";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
+import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import { CustomerProfileScreen } from "@mobile/screens/CustomerProfileScreen";
 
 export default function ProfileRoute() {
@@ -26,8 +27,25 @@ export default function ProfileRoute() {
     return () => task.cancel();
   }, [ready, isAuthed, loginHref, router]);
 
-  if (!ready || !isAuthed) {
-    return null;
+  // While the native session is still hydrating, show a neutral loading state — never the
+  // "Sign in required" card (a logged-in user would see a false auth-failure flash on cold
+  // start) and never a blank tab (the original Android logged-out bottom-nav dead end).
+  if (!ready) {
+    return <CustomerRouteState testID="profile-loading" variant="loading" />;
+  }
+
+  if (!isAuthed) {
+    return (
+      <CustomerRouteState
+        action={{
+          href: loginHref,
+          label: "Sign in",
+        }}
+        testID="profile-auth-guard"
+        title="Sign in required"
+        variant="unauthenticated"
+      />
+    );
   }
 
   return <CustomerProfileScreen />;

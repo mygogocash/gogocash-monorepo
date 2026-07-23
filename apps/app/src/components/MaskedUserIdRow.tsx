@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View, type TextStyle, type ViewStyle } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
 
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useToast } from "@mobile/hooks/useToast";
@@ -13,11 +21,16 @@ type MaskedUserIdRowProps = {
   maskedId: string;
   textStyle: TextStyle;
   userId: string;
-  rowStyle?: ViewStyle;
+  /** Optional kicker rendered before the value (e.g. "User ID"). */
+  label?: string;
+  labelStyle?: TextStyle;
+  rowStyle?: StyleProp<ViewStyle>;
 };
 
 export function MaskedUserIdRow({
   iconColor,
+  label,
+  labelStyle,
   maskedId,
   rowStyle,
   textStyle,
@@ -37,6 +50,11 @@ export function MaskedUserIdRow({
 
   return (
     <View style={[styles.row, rowStyle]}>
+      {label ? (
+        <Text numberOfLines={1} style={labelStyle}>
+          {label}
+        </Text>
+      ) : null}
       <Text numberOfLines={1} style={[textStyle, styles.idText]}>
         {displayValue}
       </Text>
@@ -50,9 +68,9 @@ export function MaskedUserIdRow({
         style={styles.iconButton}
       >
         {revealed ? (
-          <EyeSlashIcon color={iconColor} size={16} strokeWidth={typography.iconStrokeWidth} />
+          <EyeSlashIcon color={iconColor} size={14} strokeWidth={typography.iconStrokeWidth} />
         ) : (
-          <EyeIcon color={iconColor} size={16} strokeWidth={typography.iconStrokeWidth} />
+          <EyeIcon color={iconColor} size={14} strokeWidth={typography.iconStrokeWidth} />
         )}
       </Pressable>
       <Pressable
@@ -61,7 +79,7 @@ export function MaskedUserIdRow({
         onPress={() => void copyUserId()}
         style={styles.iconButton}
       >
-        <CopyIcon color={iconColor} size={16} strokeWidth={typography.iconStrokeWidth} />
+        <CopyIcon color={iconColor} size={14} strokeWidth={typography.iconStrokeWidth} />
       </Pressable>
     </View>
   );
@@ -83,9 +101,9 @@ function createStyles() {
     iconButton: {
       alignItems: "center",
       borderRadius: 6,
-      height: 28,
+      height: 24,
       justifyContent: "center",
-      width: 28,
+      width: 24,
     },
   });
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatCouponAudienceLabel,
   formatCouponCodeLabel,
+  formatCouponDiscount,
   formatCouponMaxCapLabel,
   formatCouponMinSpendLabel,
   getCouponTableStatus,
@@ -190,5 +191,29 @@ describe("couponStatus", () => {
         max_cap_currency: "THB",
       }),
     ).toBe("No max cap");
+  });
+
+  it("legacy money labels never infer percent, THB, or an enabled cap", () => {
+    expect(
+      formatCouponDiscount({
+        discount: 10,
+        discount_type: undefined,
+        discount_currency: undefined,
+      }),
+    ).toBe("Discount type unknown");
+    expect(
+      formatCouponMinSpendLabel({
+        min_spend: "500",
+        min_spend_enabled: true,
+        min_spend_currency: undefined,
+      }),
+    ).toBe("Min spend 500 (currency unknown)");
+    expect(
+      formatCouponMaxCapLabel({
+        max_cap: "200",
+        max_cap_enabled: undefined,
+        max_cap_currency: undefined,
+      }),
+    ).toBe("Max cap unknown");
   });
 });

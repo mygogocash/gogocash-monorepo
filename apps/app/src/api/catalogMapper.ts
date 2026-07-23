@@ -1,6 +1,10 @@
 import type { OfferListResponse, OfferRecord } from "@mobile/api/catalogTypes";
+import { getMobileEnv } from "@mobile/config/env";
+import { formatCatalogCashback } from "@mobile/api/offerCashbackFormat";
 import { resolvePublicOfferLogo } from "@mobile/api/offerLogo";
-import { resolveRemoteImageUri } from "@mobile/api/mediaUrl";
+import { resolveOfferMediaUrl } from "@mobile/api/mediaUrl";
+import { BRAND_LOGO_IMAGE_WIDTH } from "@mobile/api/optimizedImageUrl";
+import { resolveOfferDisplayCategory } from "@mobile/api/offerDisplayCategory";
 
 // View-model the brand cards consume — the same field shape as the
 // webFavoriteBrandsPage.recentBrands fixture rows, plus the live-only extras
@@ -37,16 +41,11 @@ export function deriveCatalogTint(name: string): string {
   return CATALOG_TINT_PALETTE[hash % CATALOG_TINT_PALETTE.length];
 }
 
-function formatCashback(commission: OfferRecord["commission_store"]): string {
-  const value = typeof commission === "number" ? String(commission) : commission?.trim();
-  if (!value) {
-    return "0%";
-  }
-  return value.endsWith("%") ? value : `${value}%`;
-}
-
-function resolveLogo(offer: OfferRecord): string | undefined {
-  return resolveRemoteImageUri(resolvePublicOfferLogo(offer));
+function resolveLogo(offer: OfferRecord, apiBaseUrl?: string): string | undefined {
+  const baseUrl = apiBaseUrl ?? getMobileEnv().apiUrl;
+  return resolveOfferMediaUrl(resolvePublicOfferLogo(offer), baseUrl, {
+    width: BRAND_LOGO_IMAGE_WIDTH,
+  });
 }
 
 export function isCustomerVisibleOffer({
@@ -79,8 +78,8 @@ export function mapOffersToCatalogBrands(response: OfferListResponse): CatalogBr
       {
         id: offer._id,
         name,
-        category: offer.categories?.trim() || "Others",
-        cashback: formatCashback(offer.commission_store),
+        category: resolveOfferDisplayCategory(offer, "Others"),
+        cashback: formatCatalogCashback(offer),
         href: `/shop/${offer._id}`,
         showGrabCoupon: Boolean(offer.extra_store),
         logo: resolveLogo(offer),

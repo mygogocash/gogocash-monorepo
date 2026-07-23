@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -24,7 +25,8 @@ import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { appLinks } from "@/lib/appLinks";
 import { formatDate } from "@/lib/dateFormat";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
-import { isActiveGoGoCashOffer } from "@/lib/isActiveGoGoCashOffer";
+import { pathImage } from "@/utils/helper";
+import { getMembershipTiers } from "@/lib/api/adminModulesApi";
 import {
   defaultQuestTaskWording,
   normalizeQuestTaskWordingDraft,
@@ -32,7 +34,7 @@ import {
   shouldReplaceQuestWording,
 } from "@/lib/questTaskWording";
 import {
-  QUEST_STATUS_VALUES,
+  deriveQuestStatus,
   questStatusBadgeColor,
   questStatusLabel,
 } from "@/lib/questStatus";
@@ -50,10 +52,15 @@ import {
   saveQuestTasks,
 } from "@/lib/query/questQueries";
 import type { Offer, OffersQuery } from "@/types/api";
+import type { MembershipTier } from "@/types/adminModules";
 import type {
+  QuestAudience,
   QuestReward,
+  QuestRewardModel,
   QuestTask,
+  QuestTaskConfigSavePayload,
   QuestTaskDeeplinkSummary,
+  QuestTaskType,
   ResponseQuestDate,
 } from "@/types/quest";
 import {
@@ -75,14 +82,23 @@ import {
   validateQuestTasks,
   defaultQuestTaskPoints,
   normalizeQuestTaskPoints,
+  switchQuestTaskType,
 } from "./questTaskEditor";
 import { QuestTaskBrandSelect } from "./QuestTaskBrandSelect";
+import { QuestTaskTypeSelect } from "./QuestTaskTypeSelect";
 import { QuestTaskWordingFields } from "./QuestTaskWordingFields";
+import {
+  buildQuestCampaignFormData,
+  hasCompleteQuestBannerSet,
+  nextQuestCampaignRequest,
+  questCampaignFingerprint,
+  sanitizeQuestCampaignText,
+  type QuestCampaignRequest,
+} from "./questCampaignFormData";
 
 type CampaignDraft = {
   startDate: string;
   endDate: string;
-  status: string;
   facebookPage: string;
   facebookPost: string;
   line: string;
@@ -92,6 +108,16 @@ type CampaignDraft = {
   subBannerTh: File | null;
 };
 
+type TaskConfigDraft = {
+  audienceKind: QuestAudience["kind"];
+  tierIds: string[];
+  maxAwardsPerUser: string;
+  maxReferralsPerUser: string;
+};
+
+const QUEST_BANNERS_REQUIRED_MESSAGE =
+  "Upload Banner EN, Banner TH, Sub banner EN, and Sub banner TH before creating the quest.";
+
 const OFFERS_QUERY: OffersQuery = {
   search: "",
   limit: 300,
@@ -100,6 +126,7 @@ const OFFERS_QUERY: OffersQuery = {
 };
 const EMPTY_QUESTS: ResponseQuestDate[] = [];
 const EMPTY_OFFERS: Offer[] = [];
+const EMPTY_MEMBERSHIP_TIERS: MembershipTier[] = [];
 
 type QuestDetailTab = "tasks" | "leaderboard" | "rewards";
 
@@ -257,10 +284,12 @@ function RewardDistributionSelect({
 }
 
 function getTaskOfferId(task: QuestTask): string {
+  if (!task.offer) return "";
   return typeof task.offer === "string" ? task.offer : task.offer._id;
 }
 
 function getTaskOffer(task: QuestTask): Offer | null {
+  if (!task.offer) return null;
   return typeof task.offer === "string" ? null : task.offer;
 }
 
@@ -293,15 +322,105 @@ function makeCampaignDraft(quest?: ResponseQuestDate | null): CampaignDraft {
   return {
     startDate: toBangkokDateTimeInput(quest?.start_date),
     endDate: toBangkokDateTimeInput(quest?.end_date),
-    status: quest?.status ?? "open",
-    facebookPage: quest?.facebook_page ?? "",
-    facebookPost: quest?.facebook_post ?? "",
-    line: quest?.line ?? "",
+    facebookPage: sanitizeQuestCampaignText(quest?.facebook_page),
+    facebookPost: sanitizeQuestCampaignText(quest?.facebook_post),
+    line: sanitizeQuestCampaignText(quest?.line),
     bannerEn: null,
     bannerTh: null,
     subBannerEn: null,
     subBannerTh: null,
   };
+}
+
+function makeTaskConfigDraft(
+  quest?: ResponseQuestDate | null,
+): TaskConfigDraft {
+  return {
+    audienceKind: quest?.audience?.kind ?? "all",
+    tierIds:
+      quest?.audience?.kind === "membership_tiers"
+        ? [...new Set(quest.audience.tier_ids)].sort()
+        : [],
+    maxAwardsPerUser:
+      quest?.reward_caps?.max_awards_per_user == null
+        ? ""
+        : String(quest.reward_caps.max_awards_per_user),
+    maxReferralsPerUser:
+      quest?.reward_caps?.max_referrals_per_user == null
+        ? ""
+        : String(quest.reward_caps.max_referrals_per_user),
+  };
+}
+
+function optionalPositiveInteger(value: string): number | null {
+  if (!value.trim()) return null;
+  return Number(value);
+}
+
+function buildTaskConfigPayload(
+  draft: TaskConfigDraft,
+): Pick<QuestTaskConfigSavePayload, "audience" | "reward_caps"> {
+  const tierIds = [...new Set(draft.tierIds.map((value) => value.trim()))]
+    .filter(Boolean)
+    .sort();
+  return {
+    audience:
+      draft.audienceKind === "membership_tiers"
+        ? { kind: "membership_tiers", tier_ids: tierIds }
+        : { kind: "all" },
+    reward_caps: {
+      max_awards_per_user: optionalPositiveInteger(draft.maxAwardsPerUser),
+      max_referrals_per_user: optionalPositiveInteger(
+        draft.maxReferralsPerUser,
+      ),
+    },
+  };
+}
+
+function validateTaskConfig(draft: TaskConfigDraft): string | null {
+  const { audience } = buildTaskConfigPayload(draft);
+  if (
+    draft.audienceKind === "membership_tiers" &&
+    audience.kind === "membership_tiers" &&
+    audience.tier_ids.length === 0
+  ) {
+    return "Add at least one membership tier for the selected audience.";
+  }
+  for (const [label, value] of [
+    ["Max awards per user", draft.maxAwardsPerUser],
+    ["Max referrals per user", draft.maxReferralsPerUser],
+  ] as const) {
+    if (
+      value.trim() &&
+      (!Number.isSafeInteger(Number(value)) || Number(value) < 1)
+    ) {
+      return `${label} must be a positive whole number or left blank.`;
+    }
+  }
+  return null;
+}
+
+function questTaskSaveErrorMessage(error: unknown): string {
+  const responseData =
+    error && typeof error === "object" && "response" in error
+      ? (error as { response?: { data?: { code?: unknown } } }).response?.data
+      : undefined;
+  if (responseData?.code === "QUEST_TASK_CONFIG_FROZEN") {
+    return "Quest economics are frozen because the campaign started or progress exists. Only customer wording and notes can be edited; create a future quest revision for economic changes.";
+  }
+  if (
+    responseData?.code === "QUEST_CONFIG_REVISION_CONFLICT" ||
+    responseData?.code === "QUEST_TASK_CONFIG_REVISION_CONFLICT"
+  ) {
+    return "Quest task settings changed in another session. Reload the quest, review the latest settings, and retry.";
+  }
+  if (responseData?.code === "QUEST_TASK_V2_UNAVAILABLE") {
+    return "Referral and spend tasks are not available in this environment. Save a brand-only legacy quest, or enable the task-v2 worker and replica-set transaction topology first.";
+  }
+  return getApiErrorMessage(
+    error,
+    "Couldn't save the complete quest. The campaign may have been created, so review the settings and retry to finish it.",
+  );
 }
 
 function makeTaskDrafts(quest?: ResponseQuestDate | null): TaskDraft[] {
@@ -311,12 +430,11 @@ function makeTaskDrafts(quest?: ResponseQuestDate | null): TaskDraft[] {
       const offer = getTaskOffer(task);
       const wording = normalizeQuestTaskWordingDraft(task);
       return {
-        clientId: `${getTaskOfferId(task)}-${index}`,
-        offer: getTaskOfferId(task),
-        offer_id: Number(task.offer_id),
-        merchant_id: Number(task.merchant_id),
-        extra_point: normalizeQuestTaskPoints(
-          Number(task.extra_point),
+        clientId: task.task_key || `${task.task_type}-${index}`,
+        task_key: task.task_key,
+        task_type: task.task_type ?? "brand_purchase",
+        points: normalizeQuestTaskPoints(
+          Number(task.points ?? task.extra_point),
           offer,
         ),
         sort_order: index,
@@ -324,6 +442,22 @@ function makeTaskDrafts(quest?: ResponseQuestDate | null): TaskDraft[] {
         wording_en: wording.wording_en,
         wording_th: wording.wording_th,
         notes: task.notes ?? "",
+        ...(task.task_type === "friend_referral"
+          ? { completion_rule: task.completion_rule ?? "account_created" }
+          : {}),
+        ...(task.task_type === "spend_target"
+          ? {
+              spend_scope: "any_shop_via_ggc" as const,
+              target_thb_minor: Number(task.target_thb_minor ?? 0),
+            }
+          : {}),
+        ...(task.task_type === "brand_purchase" || !task.task_type
+          ? {
+              offer: getTaskOfferId(task),
+              offer_id: Number(task.offer_id),
+              merchant_id: Number(task.merchant_id),
+            }
+          : {}),
       };
     });
 }
@@ -401,31 +535,55 @@ function summaryForTask(
   summaries: QuestTaskDeeplinkSummary[],
   task: TaskDraft,
 ): QuestTaskDeeplinkSummary | undefined {
+  if (task.task_type !== "brand_purchase") return undefined;
   return summaries.find(
     (s) => s.offer_id === task.offer_id && s.merchant_id === task.merchant_id,
   );
 }
 
-export default function QuestTable() {
+export type QuestTableView = "list" | "create" | "edit";
+
+export default function QuestTable({
+  view = "list",
+  questId,
+}: {
+  view?: QuestTableView;
+  questId?: string;
+}) {
   const queryClient = useQueryClient();
   const { role } = usePermissions();
   const canEditCampaign = role === "super_admin";
   const canEditTasks = role === "super_admin";
 
-  const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
-  const [creatingNew, setCreatingNew] = useState(false);
+  const [selectedQuestId, setSelectedQuestId] = useState<string | null>(
+    questId ?? null,
+  );
+  const [creatingNew, setCreatingNew] = useState(view === "create");
   const [campaignDraft, setCampaignDraft] = useState<CampaignDraft>(
     makeCampaignDraft(null),
   );
   const [taskDrafts, setTaskDrafts] = useState<TaskDraft[]>([]);
+  const [taskConfigDraft, setTaskConfigDraft] = useState<TaskConfigDraft>(
+    makeTaskConfigDraft(null),
+  );
   const [rewardDrafts, setRewardDrafts] = useState<RewardDraft[]>([]);
   const [rewardDistributionDraft, setRewardDistributionDraft] =
     useState<RewardDistributionDraft>(makeRewardDistributionDraft(null));
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [hasIncompleteSettingsSave, setHasIncompleteSettingsSave] =
+    useState(false);
   const [offerLookup, setOfferLookup] = useState<Record<string, Offer>>({});
   const [activeDetailTab, setActiveDetailTab] =
     useState<QuestDetailTab>("tasks");
+  const campaignRequestRef = useRef<QuestCampaignRequest | null>(null);
+  const committedCampaignRef = useRef<{
+    draftFingerprint: string;
+    quest: ResponseQuestDate;
+    taskFingerprint?: string;
+    taskQuest?: ResponseQuestDate;
+    taskRewardModel?: QuestRewardModel;
+  } | null>(null);
 
   const questsQuery = useQuery({
     queryKey: questListQueryKey,
@@ -434,25 +592,28 @@ export default function QuestTable() {
   const quests = questsQuery.data ?? EMPTY_QUESTS;
 
   const selectedQuest = useMemo(() => {
+    if (view === "list") return null;
     if (creatingNew) return null;
     if (selectedQuestId) {
       return quests.find((quest) => quest._id === selectedQuestId) ?? null;
     }
-    // selectedQuestId is null in this branch (the truthy case returns above),
-    // so the previous find() always missed — fall back to the first quest.
-    return quests[0] ?? null;
-  }, [creatingNew, quests, selectedQuestId]);
+    return null;
+  }, [creatingNew, quests, selectedQuestId, view]);
 
   const offersQuery = useQuery({
     queryKey: offersListQueryKey(OFFERS_QUERY),
     queryFn: () => fetchOffersList(OFFERS_QUERY),
+    enabled: view !== "list",
     staleTime: 30_000,
   });
   const offers = offersQuery.data?.data ?? EMPTY_OFFERS;
-  const activeOffers = useMemo(
-    () => offers.filter(isActiveGoGoCashOffer),
-    [offers],
-  );
+  const membershipTiersQuery = useQuery({
+    queryKey: ["admin", "membership", "tiers", "quest-audience"],
+    queryFn: getMembershipTiers,
+    enabled: view !== "list",
+    staleTime: 30_000,
+  });
+  const membershipTiers = membershipTiersQuery.data ?? EMPTY_MEMBERSHIP_TIERS;
   const offersById = useMemo(() => {
     const map = new Map<string, Offer>();
     for (const offer of offers) {
@@ -473,14 +634,14 @@ export default function QuestTable() {
   const deeplinkSummaryQuery = useQuery({
     queryKey: questTaskDeeplinkSummaryQueryKey(selectedQuest?._id ?? ""),
     queryFn: () => fetchQuestTaskDeeplinkSummary(selectedQuest?._id ?? ""),
-    enabled: Boolean(selectedQuest?._id),
+    enabled: view !== "list" && Boolean(selectedQuest?._id),
   });
   const deeplinkSummaries = deeplinkSummaryQuery.data?.data ?? [];
 
   const leaderboardQuery = useQuery({
     queryKey: questLeaderboardQueryKey(selectedQuest?._id ?? ""),
     queryFn: () => fetchQuestLeaderboard(selectedQuest?._id ?? ""),
-    enabled: Boolean(selectedQuest?._id),
+    enabled: view === "edit" && Boolean(selectedQuest?._id),
   });
   const leaderboardRows = leaderboardQuery.data?.data ?? [];
   const leaderboardRewards = leaderboardQuery.data?.rewards ?? [];
@@ -495,6 +656,7 @@ export default function QuestTable() {
     setDraftSourceQuestId(activeQuestId);
     setCampaignDraft(makeCampaignDraft(selectedQuest));
     setTaskDrafts(makeTaskDrafts(selectedQuest));
+    setTaskConfigDraft(makeTaskConfigDraft(selectedQuest));
     setRewardDrafts(makeRewardDrafts(selectedQuest));
     setRewardDistributionDraft(makeRewardDistributionDraft(selectedQuest));
     setSaveError(null);
@@ -505,8 +667,22 @@ export default function QuestTable() {
     [selectedQuest],
   );
   const tasksBaseline = useMemo(
-    () => buildQuestTaskPayloads(makeTaskDrafts(selectedQuest)),
-    [selectedQuest],
+    () => ({
+      ...buildTaskConfigPayload(makeTaskConfigDraft(selectedQuest)),
+      tasks: buildQuestTaskPayloads(makeTaskDrafts(selectedQuest), offersById),
+    }),
+    [selectedQuest, offersById],
+  );
+  const taskConfigPayload = useMemo(
+    () => buildTaskConfigPayload(taskConfigDraft),
+    [taskConfigDraft],
+  );
+  const currentTaskPayloads = useMemo(
+    () =>
+      taskDrafts.every((task) => task.task_type)
+        ? buildQuestTaskPayloads(taskDrafts, offersById)
+        : null,
+    [taskDrafts, offersById],
   );
   const rewardsBaseline = useMemo(
     () =>
@@ -523,42 +699,172 @@ export default function QuestTable() {
   const campaignDirty =
     creatingNew || !sameJson(campaignDraft, campaignBaseline);
   const tasksDirty = !sameJson(
-    buildQuestTaskPayloads(taskDrafts),
+    currentTaskPayloads
+      ? { ...taskConfigPayload, tasks: currentTaskPayloads }
+      : { ...taskConfigPayload, drafts: taskDrafts },
     tasksBaseline,
   );
   const rewardsDirty = !sameJson(rewardsPayload, rewardsBaseline);
-  const taskValidationError = validateQuestTasks(taskDrafts);
+  const taskValidationError =
+    validateQuestTasks(taskDrafts, offersById) ??
+    validateTaskConfig(taskConfigDraft);
   const rewardValidationError =
     validateQuestRewards(rewardDrafts) ??
     validateQuestRewardDistribution(rewardDistributionDraft);
+  const bannerValidationError =
+    creatingNew && !hasCompleteQuestBannerSet(campaignDraft)
+      ? QUEST_BANNERS_REQUIRED_MESSAGE
+      : null;
+  const combinedDirty =
+    campaignDirty || tasksDirty || rewardsDirty || hasIncompleteSettingsSave;
+  const derivedCampaignStatus =
+    campaignDraft.startDate && campaignDraft.endDate
+      ? deriveQuestStatus(
+          bangkokDateTimeInputToISOString(campaignDraft.startDate),
+          bangkokDateTimeInputToISOString(campaignDraft.endDate),
+        )
+      : "scheduled";
 
-  const campaignMutation = useMutation({
+  const saveAllMutation = useMutation({
     mutationFn: async () => {
-      const fd = new FormData();
-      if (selectedQuest?._id) fd.append("_id", selectedQuest._id);
-      fd.append(
-        "start_date",
-        bangkokDateTimeInputToISOString(campaignDraft.startDate),
-      );
-      fd.append(
-        "end_date",
-        bangkokDateTimeInputToISOString(campaignDraft.endDate),
-      );
-      fd.append("status", campaignDraft.status);
-      fd.append("facebook_page", campaignDraft.facebookPage.trim());
-      fd.append("facebook_post", campaignDraft.facebookPost.trim());
-      fd.append("line", campaignDraft.line.trim());
-      if (campaignDraft.bannerEn)
-        fd.append("banner_en", campaignDraft.bannerEn);
-      if (campaignDraft.bannerTh)
-        fd.append("banner_th", campaignDraft.bannerTh);
-      if (campaignDraft.subBannerEn) {
-        fd.append("sub_banner_en", campaignDraft.subBannerEn);
+      const committedCampaign = committedCampaignRef.current;
+      const campaignIdentity = committedCampaign?.quest ?? selectedQuest;
+      const isInitialCreate = creatingNew && !committedCampaign;
+      const questIdForSave = isInitialCreate
+        ? null
+        : (campaignIdentity?._id ?? selectedQuestId);
+      const campaignInput = {
+        campaignRevision: isInitialCreate
+          ? 0
+          : (campaignIdentity?.campaign_revision ?? 0),
+        configRevision: isInitialCreate
+          ? 0
+          : (campaignIdentity?.config_revision ?? 0),
+        questId: questIdForSave,
+        startDate: bangkokDateTimeInputToISOString(campaignDraft.startDate),
+        endDate: bangkokDateTimeInputToISOString(campaignDraft.endDate),
+        // Kept during rollout for compatibility with older API revisions. The
+        // current API ignores this field and derives status from the dates.
+        status: derivedCampaignStatus,
+        facebookPage: campaignDraft.facebookPage,
+        facebookPost: campaignDraft.facebookPost,
+        line: campaignDraft.line,
+        bannerEn: campaignDraft.bannerEn,
+        bannerTh: campaignDraft.bannerTh,
+        subBannerEn: campaignDraft.subBannerEn,
+        subBannerTh: campaignDraft.subBannerTh,
+      };
+      const draftFingerprint = questCampaignFingerprint({
+        ...campaignInput,
+        campaignRevision: 0,
+        configRevision: 0,
+        questId: null,
+      });
+      let campaign =
+        committedCampaign?.draftFingerprint === draftFingerprint
+          ? committedCampaign.quest
+          : null;
+      if (!campaign) {
+        const fingerprint = questCampaignFingerprint(campaignInput);
+        campaignRequestRef.current = nextQuestCampaignRequest(
+          campaignRequestRef.current,
+          fingerprint,
+        );
+        const fd = buildQuestCampaignFormData({
+          ...campaignInput,
+          requestKey: campaignRequestRef.current.requestKey,
+        });
+        campaign = await saveQuestCampaign(fd);
+        committedCampaignRef.current = { draftFingerprint, quest: campaign };
+
+        // Adopt a committed create before saving its settings. Pinning both the
+        // draft source and id preserves in-progress task/reward drafts, while a
+        // later campaign change becomes an id+revision CAS update instead of a
+        // second deterministic create.
+        queryClient.setQueryData<ResponseQuestDate[]>(
+          questListQueryKey,
+          (current = []) => [
+            campaign!,
+            ...current.filter((item) => item._id !== campaign!._id),
+          ],
+        );
+        setSelectedQuestId(campaign._id);
+        setDraftSourceQuestId(campaign._id);
+        setCreatingNew(false);
+        setHasIncompleteSettingsSave(true);
       }
-      if (campaignDraft.subBannerTh) {
-        fd.append("sub_banner_th", campaignDraft.subBannerTh);
-      }
-      return saveQuestCampaign(fd);
+
+      const draftTaskPayloads =
+        currentTaskPayloads ?? buildQuestTaskPayloads(taskDrafts, offersById);
+      const campaignTaskPayloads = draftTaskPayloads.map((task, index) => {
+        const committedTaskKey = campaign.tasks?.[index]?.task_key;
+        return committedTaskKey
+          ? { ...task, task_key: committedTaskKey }
+          : task;
+      });
+      const taskRewardModel: QuestRewardModel =
+        taskDrafts.some(
+          (task) =>
+            task.task_type === "friend_referral" ||
+            task.task_type === "spend_target",
+        ) ||
+        taskConfigPayload.audience.kind !== "all" ||
+        taskConfigPayload.reward_caps.max_awards_per_user !== null ||
+        taskConfigPayload.reward_caps.max_referrals_per_user !== null
+          ? "task_v2"
+          : isInitialCreate
+            ? "legacy_v1"
+            : (committedCampaign?.taskRewardModel ??
+              campaign.reward_model ??
+              "legacy_v1");
+      const taskPayload: QuestTaskConfigSavePayload = {
+        reward_model: taskRewardModel,
+        expected_config_revision: Number(campaign.config_revision ?? 0),
+        timezone: "Asia/Bangkok",
+        audience: taskConfigPayload.audience,
+        reward_caps: taskConfigPayload.reward_caps,
+        // A schedule revision rotates task identities atomically in the
+        // campaign endpoint. Adopt those committed keys before the task save
+        // so its config CAS continues from the server's new identity set.
+        tasks: campaignTaskPayloads,
+      };
+      const taskFingerprint = JSON.stringify({
+        ...taskPayload,
+        expected_config_revision: 0,
+      });
+      const hasCommittedTaskStage = Boolean(
+        committedCampaign?.taskFingerprint === taskFingerprint &&
+        committedCampaign.taskQuest,
+      );
+      const mustSaveTaskStage =
+        isInitialCreate ||
+        tasksDirty ||
+        Boolean(committedCampaign && !committedCampaign.taskFingerprint);
+      const taskQuest = hasCommittedTaskStage
+        ? campaign
+        : mustSaveTaskStage
+          ? await saveQuestTasks(campaign._id, taskPayload)
+          : campaign;
+      committedCampaignRef.current = {
+        draftFingerprint,
+        quest: { ...campaign, ...taskQuest },
+        taskFingerprint,
+        taskQuest,
+        taskRewardModel,
+      };
+      const rewardQuest = await saveQuestRewards(campaign._id, {
+        ...rewardsPayload,
+        expected_config_revision: Number(
+          taskQuest.config_revision ?? campaign.config_revision ?? 0,
+        ),
+      });
+      return {
+        ...campaign,
+        ...taskQuest,
+        ...rewardQuest,
+        tasks: taskQuest.tasks ?? campaign.tasks,
+        rewards: rewardQuest.rewards ?? campaign.rewards,
+      };
     },
     onSuccess: (quest) => {
       queryClient.setQueryData<ResponseQuestDate[]>(
@@ -570,74 +876,30 @@ export default function QuestTable() {
       );
       setCreatingNew(false);
       setSelectedQuestId(quest._id);
+      setDraftSourceQuestId(null);
+      setHasIncompleteSettingsSave(false);
+      committedCampaignRef.current = null;
       setSaveError(null);
+      void queryClient.invalidateQueries({ queryKey: questListQueryKey });
+      void queryClient.invalidateQueries({
+        queryKey: questTaskDeeplinkSummaryQueryKey(quest._id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: questLeaderboardQueryKey(quest._id),
+      });
     },
     onError: (error) => {
-      setSaveError(getApiErrorMessage(error, "Save failed"));
+      setSaveError(questTaskSaveErrorMessage(error));
     },
   });
-
-  const taskMutation = useMutation({
-    mutationFn: () =>
-      saveQuestTasks(
-        selectedQuest?._id ?? "",
-        buildQuestTaskPayloads(taskDrafts),
-      ),
-    onSuccess: () => {
-      setSaveError(null);
-      queryClient.invalidateQueries({ queryKey: questListQueryKey });
-      if (selectedQuest?._id) {
-        queryClient.invalidateQueries({
-          queryKey: questTaskDeeplinkSummaryQueryKey(selectedQuest._id),
-        });
-      }
-    },
-    onError: (error) => {
-      setSaveError(getApiErrorMessage(error, "Save failed"));
-    },
-  });
-
-  const rewardMutation = useMutation({
-    mutationFn: () =>
-      saveQuestRewards(selectedQuest?._id ?? "", rewardsPayload),
-    onSuccess: () => {
-      setSaveError(null);
-      queryClient.invalidateQueries({ queryKey: questListQueryKey });
-      if (selectedQuest?._id) {
-        queryClient.invalidateQueries({
-          queryKey: questLeaderboardQueryKey(selectedQuest._id),
-        });
-      }
-    },
-    onError: (error) => {
-      setSaveError(getApiErrorMessage(error, "Save failed"));
-    },
-  });
-
-  const beginCreate = () => {
-    setCreatingNew(true);
-    setSelectedQuestId(null);
-    setDraftSourceQuestId(null);
-    setCampaignDraft(makeCampaignDraft(null));
-    setTaskDrafts([]);
-    setRewardDrafts([]);
-    setRewardDistributionDraft(makeRewardDistributionDraft(null));
-    setSaveError(null);
-    setActiveDetailTab("tasks");
-  };
 
   const addTask = () => {
-    const used = new Set(taskDrafts.map((task) => task.offer));
-    const offer = activeOffers.find((item) => !used.has(item._id));
-    if (!offer) return;
     setTaskDrafts((current) => [
       ...current,
       {
-        clientId: `new-${offer._id}-${Date.now()}`,
-        offer: offer._id,
-        offer_id: offer.offer_id,
-        merchant_id: offer.merchant_id,
-        extra_point: defaultQuestTaskPoints(offer),
+        clientId: `new-task-${Date.now()}`,
+        task_type: null,
+        points: 50,
         sort_order: current.length,
         enabled: true,
         wording_en: "",
@@ -647,12 +909,22 @@ export default function QuestTable() {
     ]);
   };
 
+  const updateTaskType = (index: number, taskType: QuestTaskType) => {
+    setTaskDrafts((current) =>
+      current.map((task, i) =>
+        i === index ? switchQuestTaskType(task, taskType) : task,
+      ),
+    );
+  };
+
   const updateTaskOffer = (index: number, offer: Offer) => {
     setOfferLookup((current) => ({ ...current, [offer._id]: offer }));
     setTaskDrafts((current) =>
       current.map((task, i) => {
         if (i !== index) return task;
-        const previousOffer = offersById.get(task.offer);
+        const previousOffer = task.offer
+          ? offersById.get(task.offer)
+          : undefined;
         const previousEnDefault = defaultQuestTaskWording(previousOffer, "en");
         const previousThDefault = defaultQuestTaskWording(previousOffer, "th");
         const replaceEn = shouldReplaceQuestWording(
@@ -665,12 +937,13 @@ export default function QuestTable() {
         );
         return {
           ...task,
+          task_type: "brand_purchase" as const,
           offer: offer._id,
           offer_id: offer.offer_id,
           merchant_id: offer.merchant_id,
-          extra_point:
-            Number(task.extra_point) >= 2 && Number(task.extra_point) <= 10000
-              ? Number(task.extra_point)
+          points:
+            Number(task.points) >= 2 && Number(task.points) <= 10000
+              ? Number(task.points)
               : defaultQuestTaskPoints(offer),
           wording_en: replaceEn ? "" : (task.wording_en ?? ""),
           wording_th: replaceTh ? "" : (task.wording_th ?? ""),
@@ -727,147 +1000,176 @@ export default function QuestTable() {
     setRewardDrafts((current) => current.filter((_, i) => i !== index));
   };
 
+  if (view === "list") {
+    return (
+      <div className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+          <div className="min-w-0">
+            <h3 className="truncate text-base font-medium text-gray-800 dark:text-white/90">
+              Quest Management
+            </h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Total: {quests.length}
+            </p>
+          </div>
+          <Link
+            href="/quest/create"
+            aria-disabled={!canEditCampaign}
+            className={`bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-9 items-center justify-center rounded-lg px-4 text-sm font-medium text-white transition ${
+              canEditCampaign ? "" : "pointer-events-none opacity-50"
+            }`}
+          >
+            Create quest
+          </Link>
+        </div>
+
+        <div className="overflow-x-auto border-t border-gray-100 dark:border-gray-700">
+          {questsQuery.isLoading ? (
+            <div className="p-6 text-sm text-gray-500">Loading quests...</div>
+          ) : questsQuery.isError ? (
+            <div role="alert" className="p-6 text-sm text-red-600">
+              {getApiErrorMessage(
+                questsQuery.error,
+                "Couldn't load quests. Please retry or contact an administrator.",
+              )}
+            </div>
+          ) : quests.length === 0 ? (
+            <NoData>No quests found.</NoData>
+          ) : (
+            <Table className="min-w-[760px]">
+              <TableHeader>
+                <TableRow>
+                  <TableCell isHeader className="px-5 py-3">
+                    Campaign
+                  </TableCell>
+                  <TableCell isHeader className="px-5 py-3">
+                    Schedule
+                  </TableCell>
+                  <TableCell isHeader className="px-5 py-3">
+                    Status
+                  </TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-right">
+                    Tasks
+                  </TableCell>
+                  <TableCell isHeader className="px-5 py-3 text-right">
+                    Action
+                  </TableCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {quests.map((quest) => {
+                  const status = deriveQuestStatus(
+                    quest.start_date,
+                    quest.end_date,
+                  );
+                  return (
+                    <TableRow key={quest._id}>
+                      <TableCell className="px-5 py-4 font-mono text-xs text-gray-600 dark:text-gray-300">
+                        {quest._id.slice(-8)}
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
+                        {formatDate(quest.start_date)} -{" "}
+                        {formatDate(quest.end_date)}
+                      </TableCell>
+                      <TableCell className="px-5 py-4">
+                        <Badge size="sm" color={questStatusBadgeColor(status)}>
+                          {questStatusLabel(status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-right text-sm text-gray-700 dark:text-gray-300">
+                        {quest.tasks?.length ?? 0}
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-right">
+                        <Link
+                          href={`/quest/${quest._id}/edit`}
+                          className="text-brand-600 hover:text-brand-700 dark:text-brand-400 text-sm font-medium hover:underline"
+                        >
+                          Edit
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "edit" && (questsQuery.isLoading || !selectedQuest)) {
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-white/[0.03]">
+        <p
+          role={!questsQuery.isLoading ? "alert" : undefined}
+          className="text-sm text-gray-600 dark:text-gray-300"
+        >
+          {questsQuery.isLoading
+            ? "Loading quest…"
+            : questsQuery.isError
+              ? getApiErrorMessage(
+                  questsQuery.error,
+                  "Couldn't load this quest. Please retry or return to the quest list.",
+                )
+              : "Quest not found. It may have been removed."}
+        </p>
+        {!questsQuery.isLoading && (
+          <Link
+            href="/quest"
+            className="text-brand-600 dark:text-brand-400 mt-4 inline-block text-sm font-medium hover:underline"
+          >
+            Back to quest list
+          </Link>
+        )}
+      </div>
+    );
+  }
+
   const selectedQuestLabel = selectedQuest
     ? `${formatDate(selectedQuest.start_date)} - ${formatDate(selectedQuest.end_date)}`
     : "New Quest";
+  const taskEconomicsFrozen = Boolean(
+    !creatingNew &&
+    selectedQuest &&
+    selectedQuest.reward_model === "task_v2" &&
+    (selectedQuest.task_v2_state_frozen_at ||
+      deriveQuestStatus(selectedQuest.start_date, selectedQuest.end_date) !==
+        "scheduled"),
+  );
+  const canEditTaskEconomics = canEditTasks && !taskEconomicsFrozen;
 
   return (
     <div className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-      <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-medium text-gray-800 dark:text-white/90">
-            Quest Management
-          </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Total: {quests.length}
-          </p>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="primary"
-          onClick={beginCreate}
-          disabled={!canEditCampaign}
-        >
-          New Quest
-        </Button>
-      </div>
-
       <div className="border-t border-gray-100 dark:border-gray-700">
-        <div
-          data-testid="quest-campaign-selector"
-          aria-label="Quest campaigns"
-          className="border-b border-gray-100 p-4 sm:p-5 dark:border-gray-700"
-        >
-          {questsQuery.isLoading ? (
-            <div className="text-sm text-gray-500">Loading quests...</div>
-          ) : !creatingNew && quests.length === 0 ? (
-            <div className="rounded-xl border border-gray-100 dark:border-gray-700">
-              <NoData>No quests found.</NoData>
-            </div>
-          ) : (
-            <div className="flex gap-3 overflow-x-auto pb-1">
-              {creatingNew && (
-                <button
-                  type="button"
-                  aria-pressed="true"
-                  className="border-brand-300 bg-brand-50 shadow-theme-xs dark:border-brand-500/40 dark:bg-brand-500/10 min-w-[240px] rounded-xl border p-4 text-left transition"
-                  onClick={() => {
-                    setCreatingNew(true);
-                    setSelectedQuestId(null);
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-brand-700 dark:text-brand-300 truncate font-mono text-xs">
-                        unsaved
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-                        New Quest draft
-                      </div>
-                    </div>
-                    <Badge size="sm" color="warning">
-                      draft
-                    </Badge>
-                  </div>
-                  <div className="text-brand-700 dark:text-brand-300 mt-3 text-xs">
-                    {campaignDraft.startDate && campaignDraft.endDate
-                      ? `${formatDate(campaignDraft.startDate)} - ${formatDate(campaignDraft.endDate)}`
-                      : "Set dates and save to create this campaign."}
-                  </div>
-                </button>
-              )}
-              {quests.map((quest) => {
-                const active = !creatingNew && selectedQuest?._id === quest._id;
-                return (
-                  <button
-                    key={quest._id}
-                    type="button"
-                    aria-pressed={active}
-                    className={`min-w-[240px] rounded-xl border p-4 text-left transition ${
-                      active
-                        ? "border-brand-300 bg-brand-50 shadow-theme-xs dark:border-brand-500/40 dark:bg-brand-500/10"
-                        : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30 dark:hover:bg-gray-900/70"
-                    }`}
-                    onClick={() => {
-                      setCreatingNew(false);
-                      setSelectedQuestId(quest._id);
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate font-mono text-xs text-gray-500">
-                          {quest._id.slice(-8)}
-                        </div>
-                        <div className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-                          {formatDate(quest.start_date)} -{" "}
-                          {formatDate(quest.end_date)}
-                        </div>
-                      </div>
-                      <Badge
-                        size="sm"
-                        color={questStatusBadgeColor(quest.status)}
-                      >
-                        {questStatusLabel(quest.status)}
-                      </Badge>
-                    </div>
-                    <div
-                      className={`mt-3 text-xs ${
-                        active
-                          ? "text-brand-700 dark:text-brand-300"
-                          : "text-gray-500 dark:text-gray-400"
-                      }`}
-                    >
-                      {quest.tasks?.length ?? 0} task
-                      {(quest.tasks?.length ?? 0) === 1 ? "" : "s"}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
         <div data-testid="quest-detail-editor" className="min-w-0 p-4 sm:p-6">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {selectedQuestLabel}
+                {creatingNew ? "Create quest" : selectedQuestLabel}
               </h4>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Campaign saves and task point values require super admin access.
+                Configure the campaign, tasks, and rewards, then save once.
               </p>
             </div>
-            {selectedQuest && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setDetailsOpen(true)}
+            <div className="flex items-center gap-2">
+              <Link
+                href="/quest"
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900"
               >
-                Preview
-              </Button>
-            )}
+                Back to quest list
+              </Link>
+              {selectedQuest && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setDetailsOpen(true)}
+                >
+                  Preview
+                </Button>
+              )}
+            </div>
           </div>
 
           {saveError && (
@@ -882,6 +1184,7 @@ export default function QuestTable() {
                 <DatePicker
                   id="quest-campaign-start-date"
                   label="Start date and time"
+                  required
                   ariaLabel="Quest start date and time"
                   hint={BANGKOK_TIMEZONE_LABEL}
                   enableTime
@@ -890,7 +1193,7 @@ export default function QuestTable() {
                   altFormat={ADMIN_DATETIME_ALT_FORMAT}
                   minuteIncrement={1}
                   value={campaignDraft.startDate}
-                  disabled={!canEditCampaign}
+                  disabled={!canEditCampaign || taskEconomicsFrozen}
                   onValueChange={(value) =>
                     setCampaignDraft((draft) => ({
                       ...draft,
@@ -903,6 +1206,7 @@ export default function QuestTable() {
                 <DatePicker
                   id="quest-campaign-end-date"
                   label="End date and time"
+                  required
                   ariaLabel="Quest end date and time"
                   hint={BANGKOK_TIMEZONE_LABEL}
                   enableTime
@@ -911,7 +1215,7 @@ export default function QuestTable() {
                   altFormat={ADMIN_DATETIME_ALT_FORMAT}
                   minuteIncrement={1}
                   value={campaignDraft.endDate}
-                  disabled={!canEditCampaign}
+                  disabled={!canEditCampaign || taskEconomicsFrozen}
                   onValueChange={(value) =>
                     setCampaignDraft((draft) => ({
                       ...draft,
@@ -921,26 +1225,18 @@ export default function QuestTable() {
                 />
               </div>
               <div>
-                <Label htmlFor="quest-campaign-status">Status</Label>
-                <select
-                  id="quest-campaign-status"
-                  name="status"
-                  value={campaignDraft.status}
-                  disabled={!canEditCampaign}
-                  onChange={(e) =>
-                    setCampaignDraft((draft) => ({
-                      ...draft,
-                      status: e.target.value,
-                    }))
-                  }
-                  className="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 focus:ring-3 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                <Label>Status derived from schedule</Label>
+                <div
+                  aria-label="Derived quest status"
+                  className="flex h-11 items-center rounded-lg border border-gray-200 bg-gray-50 px-4 dark:border-gray-700 dark:bg-gray-900"
                 >
-                  {QUEST_STATUS_VALUES.map((status) => (
-                    <option key={status} value={status}>
-                      {questStatusLabel(status)}
-                    </option>
-                  ))}
-                </select>
+                  <Badge
+                    size="sm"
+                    color={questStatusBadgeColor(derivedCampaignStatus)}
+                  >
+                    {questStatusLabel(derivedCampaignStatus)}
+                  </Badge>
+                </div>
               </div>
               <div>
                 <Label htmlFor="quest-campaign-facebook-page">
@@ -994,21 +1290,53 @@ export default function QuestTable() {
             </div>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {[
-                ["Banner EN", "bannerEn"],
-                ["Banner TH", "bannerTh"],
-                ["Sub banner EN", "subBannerEn"],
-                ["Sub banner TH", "subBannerTh"],
-              ].map(([label, key]) => {
+              {(
+                [
+                  ["Banner EN", "bannerEn", "banner_en"],
+                  ["Banner TH", "bannerTh", "banner_th"],
+                  ["Sub banner EN", "subBannerEn", "sub_banner_en"],
+                  ["Sub banner TH", "subBannerTh", "sub_banner_th"],
+                ] as const
+              ).map(([label, key, dbField]) => {
                 const fieldId = `quest-campaign-${key}`;
+                const resolvedBanner = pathImage(
+                  selectedQuest?.[dbField],
+                  "banner",
+                );
+                const hasExistingBanner =
+                  !creatingNew &&
+                  !!resolvedBanner &&
+                  !resolvedBanner.includes("placehold.co");
                 return (
                   <div key={key}>
-                    <Label htmlFor={fieldId}>{label}</Label>
+                    <Label htmlFor={fieldId}>
+                      {label}
+                      {creatingNew ? (
+                        <span className="ml-1 text-red-600" aria-hidden="true">
+                          *
+                        </span>
+                      ) : null}
+                    </Label>
+                    {hasExistingBanner ? (
+                      <div className="mb-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={resolvedBanner}
+                          alt={`Current ${label}`}
+                          className="h-20 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-700"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Current image — choose a file to replace.
+                        </p>
+                      </div>
+                    ) : null}
                     <input
                       id={fieldId}
                       name={key}
+                      aria-label={label}
                       type="file"
                       accept="image/*"
+                      required={creatingNew}
                       disabled={!canEditCampaign}
                       onChange={(e) => {
                         const file = e.target.files?.[0] ?? null;
@@ -1023,32 +1351,43 @@ export default function QuestTable() {
                 );
               })}
             </div>
-
-            <div className="mt-4 flex justify-end">
-              <Button
-                type="button"
-                size="sm"
-                variant="primary"
-                disabled={
-                  !canEditCampaign ||
-                  !campaignDirty ||
-                  !campaignDraft.startDate ||
-                  !campaignDraft.endDate ||
-                  campaignMutation.isPending
-                }
-                onClick={() => campaignMutation.mutate()}
+            {bannerValidationError ? (
+              <p
+                className="mt-2 text-xs text-red-600 dark:text-red-400"
+                role="alert"
               >
-                Save campaign
-              </Button>
-            </div>
+                {bannerValidationError}
+              </p>
+            ) : null}
           </section>
+
+          {!creatingNew &&
+          selectedQuest &&
+          selectedQuest.reward_model !== "task_v2" ? (
+            <div
+              role="note"
+              className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+            >
+              <span className="font-semibold">Legacy quest.</span> Brand tasks
+              are managed per-offer in the Offers module (each offer&rsquo;s{" "}
+              <code className="rounded bg-amber-100 px-1 dark:bg-amber-500/20">
+                extra_point
+              </code>
+              ). The Tasks and Rewards tabs below apply to task-v2 quests, so a
+              count of 0 here is expected.
+            </div>
+          ) : null}
 
           <div
             role="tablist"
             aria-label="Quest campaign management"
-            className="mb-5 grid gap-2 rounded-xl bg-gray-100 p-1 sm:grid-cols-3 dark:bg-gray-900"
+            className={`mb-5 grid gap-2 rounded-xl bg-gray-100 p-1 dark:bg-gray-900 ${
+              view === "create" ? "sm:grid-cols-2" : "sm:grid-cols-3"
+            }`}
           >
-            {QUEST_DETAIL_TABS.map((tab) => {
+            {QUEST_DETAIL_TABS.filter(
+              (tab) => view !== "create" || tab.key !== "leaderboard",
+            ).map((tab) => {
               const active = activeDetailTab === tab.key;
               const count =
                 tab.key === "tasks"
@@ -1098,39 +1437,212 @@ export default function QuestTable() {
                     </p>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={!canEditTasks || activeOffers.length === 0}
-                    onClick={addTask}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!canEditTaskEconomics}
+                  onClick={addTask}
+                >
+                  Add task
+                </Button>
+              </div>
+
+              {taskEconomicsFrozen && (
+                <p
+                  role="status"
+                  className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+                >
+                  Quest economics are frozen after the campaign starts or
+                  records progress. Customer wording and notes remain editable.
+                </p>
+              )}
+
+              <div className="mb-4 grid gap-4 rounded-xl border border-gray-100 bg-gray-50 p-4 md:grid-cols-2 xl:grid-cols-4 dark:border-gray-700 dark:bg-gray-900/40">
+                <div>
+                  <label
+                    htmlFor="quest-task-audience"
+                    className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
                   >
-                    Add brand
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="primary"
-                    disabled={
-                      !canEditTasks ||
-                      !selectedQuest ||
-                      !tasksDirty ||
-                      Boolean(taskValidationError) ||
-                      taskMutation.isPending
+                    Audience
+                  </label>
+                  <select
+                    id="quest-task-audience"
+                    aria-label="Quest audience"
+                    value={taskConfigDraft.audienceKind}
+                    disabled={!canEditTaskEconomics}
+                    onChange={(event) => {
+                      const audienceKind = event.currentTarget
+                        .value as QuestAudience["kind"];
+                      setTaskConfigDraft((current) => ({
+                        ...current,
+                        audienceKind,
+                      }));
+                    }}
+                    className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  >
+                    <option value="all">All customers</option>
+                    <option value="membership_tiers">Membership tiers</option>
+                  </select>
+                </div>
+                {taskConfigDraft.audienceKind === "membership_tiers" && (
+                  <fieldset
+                    className="rounded-lg border border-gray-200 bg-white p-3 md:col-span-2 dark:border-gray-700 dark:bg-gray-900"
+                    aria-describedby="quest-task-tier-help"
+                  >
+                    <legend className="px-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                      Membership tiers
+                    </legend>
+                    <p
+                      id="quest-task-tier-help"
+                      className="mb-2 text-xs text-gray-500 dark:text-gray-400"
+                    >
+                      Select active tiers. Saved inactive tiers remain visible
+                      but cannot be newly selected.
+                    </p>
+                    {membershipTiersQuery.isLoading ? (
+                      <p role="status" className="text-sm text-gray-500">
+                        Loading membership tiers…
+                      </p>
+                    ) : membershipTiersQuery.isError ? (
+                      <div role="alert" className="text-sm text-red-600">
+                        <p>Could not load membership tiers.</p>
+                        <button
+                          type="button"
+                          className="mt-1 underline"
+                          onClick={() => void membershipTiersQuery.refetch()}
+                        >
+                          Retry tier loading
+                        </button>
+                      </div>
+                    ) : membershipTiers.length === 0 &&
+                      taskConfigDraft.tierIds.length === 0 ? (
+                      <p role="status" className="text-sm text-gray-500">
+                        No active membership tiers are available.
+                      </p>
+                    ) : (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {[
+                          ...membershipTiers,
+                          ...taskConfigDraft.tierIds
+                            .filter(
+                              (tierId) =>
+                                !membershipTiers.some(
+                                  (tier) => tier.id === tierId,
+                                ),
+                            )
+                            .map((tierId): MembershipTier => ({
+                              id: tierId,
+                              name: `Unavailable tier (${tierId})`,
+                              description: "",
+                              monthlyPrice: 0,
+                              annualPrice: 0,
+                              color: "#64748b",
+                              icon: "star",
+                              benefits: [],
+                              cashbackRate: 0,
+                              maxCashbackPerMonth: 0,
+                              isActive: false,
+                              memberCount: 0,
+                            })),
+                        ].map((tier) => {
+                          const checked = taskConfigDraft.tierIds.includes(
+                            tier.id,
+                          );
+                          const inactive = !tier.isActive;
+                          return (
+                            <label
+                              key={tier.id}
+                              className="flex items-start gap-2 rounded-md border border-gray-100 px-2 py-2 text-sm dark:border-gray-800"
+                            >
+                              <input
+                                type="checkbox"
+                                name="quest-membership-tier"
+                                value={tier.id}
+                                checked={checked}
+                                disabled={
+                                  !canEditTaskEconomics ||
+                                  (inactive && !checked)
+                                }
+                                onChange={(event) => {
+                                  const checked = event.currentTarget.checked;
+                                  setTaskConfigDraft((current) => ({
+                                    ...current,
+                                    tierIds: checked
+                                      ? [...current.tierIds, tier.id]
+                                      : current.tierIds.filter(
+                                          (tierId) => tierId !== tier.id,
+                                        ),
+                                  }));
+                                }}
+                              />
+                              <span>
+                                {tier.name}
+                                {inactive ? " (inactive)" : ""}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </fieldset>
+                )}
+                <div>
+                  <label
+                    htmlFor="quest-task-max-awards"
+                    className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                  >
+                    Max awards per user
+                  </label>
+                  <Input
+                    id="quest-task-max-awards"
+                    name="quest-task-max-awards"
+                    type="number"
+                    min="1"
+                    value={taskConfigDraft.maxAwardsPerUser}
+                    disabled={!canEditTaskEconomics}
+                    placeholder="No cap"
+                    onChange={(event) =>
+                      setTaskConfigDraft((current) => ({
+                        ...current,
+                        maxAwardsPerUser: event.target.value,
+                      }))
                     }
-                    onClick={() => taskMutation.mutate()}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="quest-task-max-referrals"
+                    className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
                   >
-                    Save tasks
-                  </Button>
+                    Max referrals per user
+                  </label>
+                  <Input
+                    id="quest-task-max-referrals"
+                    name="quest-task-max-referrals"
+                    type="number"
+                    min="1"
+                    value={taskConfigDraft.maxReferralsPerUser}
+                    disabled={!canEditTaskEconomics}
+                    placeholder="No cap"
+                    onChange={(event) =>
+                      setTaskConfigDraft((current) => ({
+                        ...current,
+                        maxReferralsPerUser: event.target.value,
+                      }))
+                    }
+                  />
                 </div>
               </div>
 
               <div className="space-y-4">
                 {taskDrafts.map((task, index) => {
-                  const offer = offersById.get(task.offer);
+                  const offer = task.offer
+                    ? offersById.get(task.offer)
+                    : undefined;
                   const summary = summaryForTask(deeplinkSummaries, task);
                   const taskFieldPrefix = `quest-task-${index}`;
+                  const typeFieldId = `${taskFieldPrefix}-type`;
                   const brandFieldId = `${taskFieldPrefix}-brand`;
                   const pointsFieldId = `${taskFieldPrefix}-points`;
                   const enabledFieldId = `${taskFieldPrefix}-enabled`;
@@ -1145,33 +1657,53 @@ export default function QuestTable() {
                           <div className="bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
                             {index + 1}
                           </div>
-                          <RemoteOrBlobImage
-                            src={offerLogo(offer)}
-                            alt={offerLabel(offer)}
-                            width={44}
-                            height={44}
-                            className="h-11 w-11 shrink-0 rounded-full object-cover"
-                          />
                           <div className="min-w-0 flex-1">
-                            <label
-                              htmlFor={brandFieldId}
-                              className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
-                            >
-                              Brand
-                            </label>
-                            <QuestTaskBrandSelect
-                              id={brandFieldId}
-                              disabled={!canEditTasks}
-                              valueOfferId={task.offer}
-                              selectedOffer={offer}
-                              onSelect={(nextOffer) =>
-                                updateTaskOffer(index, nextOffer)
+                            <QuestTaskTypeSelect
+                              id={typeFieldId}
+                              value={task.task_type}
+                              disabled={!canEditTaskEconomics}
+                              onChange={(taskType) =>
+                                updateTaskType(index, taskType)
                               }
                             />
-                            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
-                              <span>Offer {task.offer_id}</span>
-                              <span>Brand {task.merchant_id}</span>
-                            </div>
+                            {task.task_type === "brand_purchase" && (
+                              <div className="mt-3">
+                                <label
+                                  htmlFor={brandFieldId}
+                                  className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                                >
+                                  Brand
+                                </label>
+                                <div className="flex items-center gap-3">
+                                  {offer && (
+                                    <RemoteOrBlobImage
+                                      src={offerLogo(offer)}
+                                      alt={offerLabel(offer)}
+                                      width={40}
+                                      height={40}
+                                      className="h-10 w-10 shrink-0 rounded-full object-cover"
+                                    />
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <QuestTaskBrandSelect
+                                      id={brandFieldId}
+                                      disabled={!canEditTaskEconomics}
+                                      valueOfferId={task.offer ?? ""}
+                                      selectedOffer={offer}
+                                      onSelect={(nextOffer) =>
+                                        updateTaskOffer(index, nextOffer)
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                {offer && (
+                                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                                    <span>Offer {task.offer_id}</span>
+                                    <span>Brand {task.merchant_id}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -1180,7 +1712,7 @@ export default function QuestTable() {
                             type="button"
                             size="sm"
                             variant="outline"
-                            disabled={!canEditTasks || index === 0}
+                            disabled={!canEditTaskEconomics || index === 0}
                             onClick={() => moveTask(index, -1)}
                           >
                             Up
@@ -1190,7 +1722,8 @@ export default function QuestTable() {
                             size="sm"
                             variant="outline"
                             disabled={
-                              !canEditTasks || index === taskDrafts.length - 1
+                              !canEditTaskEconomics ||
+                              index === taskDrafts.length - 1
                             }
                             onClick={() => moveTask(index, 1)}
                           >
@@ -1200,7 +1733,7 @@ export default function QuestTable() {
                             type="button"
                             size="sm"
                             variant="outline"
-                            disabled={!canEditTasks}
+                            disabled={!canEditTaskEconomics}
                             onClick={() => removeTask(index)}
                           >
                             Remove
@@ -1208,137 +1741,239 @@ export default function QuestTable() {
                         </div>
                       </div>
 
-                      <div className="mt-4 grid gap-4 lg:grid-cols-[140px_minmax(280px,1fr)] xl:grid-cols-[140px_minmax(360px,1fr)_minmax(240px,320px)]">
-                        <div>
-                          <label
-                            htmlFor={pointsFieldId}
-                            className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
-                          >
-                            Points
-                          </label>
-                          <input
-                            id={pointsFieldId}
-                            name={pointsFieldId}
-                            type="number"
-                            min={2}
-                            max={10000}
-                            value={task.extra_point}
-                            disabled={!canEditTasks}
-                            onChange={(e) =>
-                              setTaskDrafts((current) =>
-                                current.map((row, i) =>
-                                  i === index
-                                    ? {
-                                        ...row,
-                                        extra_point: Number(e.target.value),
-                                      }
-                                    : row,
-                                ),
-                              )
-                            }
-                            className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-center text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                          />
-                        </div>
+                      {task.task_type && (
+                        <>
+                          <div className="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                            {task.task_type === "friend_referral" && (
+                              <div>
+                                <label
+                                  htmlFor={`${taskFieldPrefix}-completion-rule`}
+                                  className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                                >
+                                  Complete invitation rule
+                                </label>
+                                <select
+                                  id={`${taskFieldPrefix}-completion-rule`}
+                                  aria-label="Complete invitation rule"
+                                  value={
+                                    task.completion_rule ?? "account_created"
+                                  }
+                                  disabled={!canEditTaskEconomics}
+                                  onChange={(event) => {
+                                    // Capture synchronously — same currentTarget-nulled
+                                    // crash as the spend-target field (React clears
+                                    // event.currentTarget before the updater runs).
+                                    const nextRule = event.target
+                                      .value as NonNullable<
+                                      TaskDraft["completion_rule"]
+                                    >;
+                                    setTaskDrafts((current) =>
+                                      current.map((row, i) =>
+                                        i === index
+                                          ? {
+                                              ...row,
+                                              completion_rule: nextRule,
+                                            }
+                                          : row,
+                                      ),
+                                    );
+                                  }}
+                                  className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                >
+                                  <option value="account_created">
+                                    Friend creates an account
+                                  </option>
+                                  <option value="first_earning_conversion">
+                                    Friend completes an earning conversion
+                                  </option>
+                                </select>
+                              </div>
+                            )}
+                            {task.task_type === "spend_target" && (
+                              <div>
+                                <label
+                                  htmlFor={`${taskFieldPrefix}-spend-target`}
+                                  className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                                >
+                                  Spend target (THB)
+                                </label>
+                                <input
+                                  id={`${taskFieldPrefix}-spend-target`}
+                                  aria-label="Spend target (THB)"
+                                  type="number"
+                                  min={0.01}
+                                  step={0.01}
+                                  value={
+                                    Number(task.target_thb_minor ?? 0) / 100
+                                  }
+                                  disabled={!canEditTaskEconomics}
+                                  onChange={(event) => {
+                                    // Capture the value SYNCHRONOUSLY. React nulls
+                                    // event.currentTarget after the handler returns, and
+                                    // the setTaskDrafts functional updater runs later (in
+                                    // the reducer) — reading event.currentTarget.value
+                                    // there threw "Cannot read properties of null" and
+                                    // crashed the editor. Guard NaN so a mid-edit value
+                                    // never poisons the draft.
+                                    const nextThb = Number(event.target.value);
+                                    const nextMinor = Number.isFinite(nextThb)
+                                      ? Math.round(nextThb * 100)
+                                      : 0;
+                                    setTaskDrafts((current) =>
+                                      current.map((row, i) =>
+                                        i === index
+                                          ? {
+                                              ...row,
+                                              target_thb_minor: nextMinor,
+                                            }
+                                          : row,
+                                      ),
+                                    );
+                                  }}
+                                  className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                />
+                              </div>
+                            )}
+                            <div>
+                              <label
+                                htmlFor={pointsFieldId}
+                                className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
+                              >
+                                Points
+                              </label>
+                              <input
+                                id={pointsFieldId}
+                                name={pointsFieldId}
+                                type="number"
+                                min={2}
+                                max={10000}
+                                value={task.points}
+                                disabled={!canEditTaskEconomics}
+                                onChange={(e) =>
+                                  setTaskDrafts((current) =>
+                                    current.map((row, i) =>
+                                      i === index
+                                        ? {
+                                            ...row,
+                                            points: Number(e.target.value),
+                                          }
+                                        : row,
+                                    ),
+                                  )
+                                }
+                                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-center text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                              />
+                            </div>
 
-                        <div>
-                          <div className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-                            Customer wording
+                            <div>
+                              <div className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                                Customer wording
+                              </div>
+                              <QuestTaskWordingFields
+                                idPrefix={taskFieldPrefix}
+                                disabled={!canEditTasks}
+                                offer={offer}
+                                value={{
+                                  wording_en: task.wording_en ?? "",
+                                  wording_th: task.wording_th ?? "",
+                                }}
+                                onChange={(next) =>
+                                  setTaskDrafts((current) =>
+                                    current.map((row, i) =>
+                                      i === index
+                                        ? {
+                                            ...row,
+                                            wording_en: next.wording_en,
+                                            wording_th: next.wording_th,
+                                          }
+                                        : row,
+                                    ),
+                                  )
+                                }
+                              />
+                            </div>
+
+                            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-300">
+                              <div className="mb-2 flex items-center justify-between gap-3">
+                                <label
+                                  htmlFor={enabledFieldId}
+                                  className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400"
+                                >
+                                  Enabled
+                                </label>
+                                <input
+                                  id={enabledFieldId}
+                                  name={enabledFieldId}
+                                  type="checkbox"
+                                  checked={task.enabled !== false}
+                                  disabled={!canEditTaskEconomics}
+                                  onChange={(e) =>
+                                    setTaskDrafts((current) =>
+                                      current.map((row, i) =>
+                                        i === index
+                                          ? {
+                                              ...row,
+                                              enabled: e.target.checked,
+                                            }
+                                          : row,
+                                      ),
+                                    )
+                                  }
+                                  className="h-4 w-4 rounded border-gray-300"
+                                />
+                              </div>
+                              <div>
+                                Generated: {summary?.generated_count ?? 0}
+                              </div>
+                              <div>
+                                Latest click:{" "}
+                                {summary?.latest_click
+                                  ? formatDate(summary.latest_click)
+                                  : "—"}
+                              </div>
+                              {task.task_type === "brand_purchase" &&
+                                task.offer && (
+                                  <a
+                                    href={
+                                      summary?.customer_path
+                                        ? appLinks.path(summary.customer_path)
+                                        : appLinks.offer(task.offer)
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-brand-600 dark:text-brand-400 mt-1 inline-block hover:underline"
+                                  >
+                                    Customer page
+                                  </a>
+                                )}
+                            </div>
                           </div>
-                          <QuestTaskWordingFields
-                            idPrefix={taskFieldPrefix}
-                            disabled={!canEditTasks}
-                            offer={offer}
-                            value={{
-                              wording_en: task.wording_en ?? "",
-                              wording_th: task.wording_th ?? "",
-                            }}
-                            onChange={(next) =>
-                              setTaskDrafts((current) =>
-                                current.map((row, i) =>
-                                  i === index
-                                    ? {
-                                        ...row,
-                                        wording_en: next.wording_en,
-                                        wording_th: next.wording_th,
-                                      }
-                                    : row,
-                                ),
-                              )
-                            }
-                          />
-                        </div>
 
-                        <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-300">
-                          <div className="mb-2 flex items-center justify-between gap-3">
+                          <div className="mt-4">
                             <label
-                              htmlFor={enabledFieldId}
-                              className="text-xs font-medium text-gray-500 uppercase dark:text-gray-400"
+                              htmlFor={notesFieldId}
+                              className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
                             >
-                              Enabled
+                              Notes
                             </label>
-                            <input
-                              id={enabledFieldId}
-                              name={enabledFieldId}
-                              type="checkbox"
-                              checked={task.enabled !== false}
+                            <Input
+                              id={notesFieldId}
+                              name={notesFieldId}
+                              value={task.notes ?? ""}
                               disabled={!canEditTasks}
                               onChange={(e) =>
                                 setTaskDrafts((current) =>
                                   current.map((row, i) =>
                                     i === index
-                                      ? { ...row, enabled: e.target.checked }
+                                      ? { ...row, notes: e.target.value }
                                       : row,
                                   ),
                                 )
                               }
-                              className="h-4 w-4 rounded border-gray-300"
                             />
                           </div>
-                          <div>Generated: {summary?.generated_count ?? 0}</div>
-                          <div>
-                            Latest click:{" "}
-                            {summary?.latest_click
-                              ? formatDate(summary.latest_click)
-                              : "—"}
-                          </div>
-                          <a
-                            href={
-                              summary?.customer_path
-                                ? appLinks.path(summary.customer_path)
-                                : appLinks.offer(task.offer)
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-brand-600 dark:text-brand-400 mt-1 inline-block hover:underline"
-                          >
-                            Customer page
-                          </a>
-                        </div>
-                      </div>
-
-                      <div className="mt-4">
-                        <label
-                          htmlFor={notesFieldId}
-                          className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400"
-                        >
-                          Notes
-                        </label>
-                        <Input
-                          id={notesFieldId}
-                          name={notesFieldId}
-                          value={task.notes ?? ""}
-                          disabled={!canEditTasks}
-                          onChange={(e) =>
-                            setTaskDrafts((current) =>
-                              current.map((row, i) =>
-                                i === index
-                                  ? { ...row, notes: e.target.value }
-                                  : row,
-                              ),
-                            )
-                          }
-                        />
-                      </div>
+                        </>
+                      )}
                     </article>
                   );
                 })}
@@ -1504,25 +2139,10 @@ export default function QuestTable() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={!canEditTasks}
+                    disabled={!canEditTaskEconomics}
                     onClick={addReward}
                   >
                     Add rank reward
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="primary"
-                    disabled={
-                      !canEditTasks ||
-                      !selectedQuest ||
-                      !rewardsDirty ||
-                      Boolean(rewardValidationError) ||
-                      rewardMutation.isPending
-                    }
-                    onClick={() => rewardMutation.mutate()}
-                  >
-                    Save rewards
                   </Button>
                 </div>
               </div>
@@ -1546,7 +2166,7 @@ export default function QuestTable() {
                         </div>
                         <RewardDistributionSelect
                           value={rewardDistributionDraft.mode}
-                          disabled={!canEditTasks}
+                          disabled={!canEditTaskEconomics}
                           onChange={(mode) => {
                             setRewardDistributionDraft((draft) => ({
                               mode,
@@ -1575,7 +2195,7 @@ export default function QuestTable() {
                               max={365}
                               aria-label="Reward distribution delay days"
                               value={rewardDistributionDraft.delayDays}
-                              disabled={!canEditTasks}
+                              disabled={!canEditTaskEconomics}
                               onChange={(e) =>
                                 setRewardDistributionDraft((draft) => ({
                                   ...draft,
@@ -1631,7 +2251,7 @@ export default function QuestTable() {
                             min={1}
                             max={1000}
                             value={reward.rank}
-                            disabled={!canEditTasks}
+                            disabled={!canEditTaskEconomics}
                             onChange={(e) =>
                               updateReward(index, {
                                 rank: Number(e.target.value),
@@ -1654,7 +2274,7 @@ export default function QuestTable() {
                             min={0}
                             max={1000000}
                             value={reward.reward}
-                            disabled={!canEditTasks}
+                            disabled={!canEditTaskEconomics}
                             onChange={(e) =>
                               updateReward(index, {
                                 reward: Number(e.target.value),
@@ -1674,7 +2294,7 @@ export default function QuestTable() {
                             id={currencyFieldId}
                             name={currencyFieldId}
                             value={reward.currency}
-                            disabled={!canEditTasks}
+                            disabled={!canEditTaskEconomics}
                             onChange={(e) =>
                               updateReward(index, {
                                 currency: e.target.value.toUpperCase(),
@@ -1686,7 +2306,7 @@ export default function QuestTable() {
                           type="button"
                           size="sm"
                           variant="outline"
-                          disabled={!canEditTasks}
+                          disabled={!canEditTaskEconomics}
                           onClick={() => removeReward(index)}
                         >
                           Remove
@@ -1705,6 +2325,35 @@ export default function QuestTable() {
               </div>
             </section>
           )}
+
+          <div className="mt-8 flex flex-col items-end gap-2 border-t border-gray-200 pt-6 dark:border-gray-700">
+            <Button
+              type="button"
+              size="sm"
+              variant="primary"
+              disabled={
+                !canEditCampaign ||
+                !canEditTasks ||
+                !combinedDirty ||
+                !campaignDraft.startDate ||
+                !campaignDraft.endDate ||
+                Boolean(bannerValidationError) ||
+                Boolean(taskValidationError) ||
+                Boolean(rewardValidationError) ||
+                saveAllMutation.isPending
+              }
+              onClick={() => saveAllMutation.mutate()}
+            >
+              {saveAllMutation.isPending
+                ? "Saving complete quest…"
+                : creatingNew
+                  ? "Save and create quest"
+                  : "Save quest changes"}
+            </Button>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              One action saves the campaign, tasks, and reward settings.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -1717,26 +2366,30 @@ export default function QuestTable() {
             {taskDrafts
               .filter((task) => task.enabled !== false)
               .map((task) => {
-                const offer = offersById.get(task.offer);
+                const offer = task.offer
+                  ? offersById.get(task.offer)
+                  : undefined;
                 return (
                   <div
                     key={`preview-${task.clientId}`}
                     className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3 dark:border-gray-700"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <RemoteOrBlobImage
-                        src={offerLogo(offer)}
-                        alt={offerLabel(offer)}
-                        width={40}
-                        height={40}
-                        className="h-10 w-10 rounded-full object-cover"
-                      />
+                      {task.task_type === "brand_purchase" && offer && (
+                        <RemoteOrBlobImage
+                          src={offerLogo(offer)}
+                          alt={offerLabel(offer)}
+                          width={40}
+                          height={40}
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      )}
                       <span className="truncate text-sm text-gray-900 dark:text-white">
                         {customerTaskWording(task, offer)}
                       </span>
                     </div>
                     <span className="shrink-0 rounded-full bg-emerald-500 px-3 py-1 text-sm font-semibold text-white">
-                      +{task.extra_point} Points
+                      +{task.points} Points
                     </span>
                   </div>
                 );

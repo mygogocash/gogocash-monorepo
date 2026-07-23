@@ -5,7 +5,6 @@ import { TasksService } from './tasksService';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from 'src/user/schemas/user.schema';
 import { Point, PointSchema } from './schemas/point.schema';
-import { InvolveService } from 'src/involve/involve.service';
 import { CacheModule } from '@nestjs/cache-manager';
 import { Offer, OfferSchema } from 'src/offer/schemas/offer.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
@@ -21,13 +20,34 @@ import {
   SocialReward,
   SocialRewardSchema,
 } from './schemas/social-reward.schema';
+import {
+  ReferralPayout,
+  ReferralPayoutSchema,
+} from './schemas/referral-payout.schema';
 import { MediaModule } from 'src/media/media.module';
 import { AnalyticsService } from 'src/analytics/analytics.service';
+import {
+  QuestMediaWriteCommand,
+  QuestMediaWriteCommandSchema,
+} from './schemas/quest-media-write-command.schema';
+import {
+  QuestMediaCleanup,
+  QuestMediaCleanupSchema,
+} from './schemas/quest-media-cleanup.schema';
+import { QuestMediaWriteService } from './quest-media-write.service';
+import { QuestMediaCleanupService } from './quest-media-cleanup.service';
+import { QuestMediaQaService } from './quest-media-qa.service';
+import { QuestTaskEngineModule } from 'src/quest-task-engine/quest-task-engine.module';
+import {
+  MembershipTier,
+  MembershipTierSchema,
+} from 'src/admin/membership/schemas/membership-tier.schema';
 
 @Module({
   imports: [
     CacheModule.register(),
     MediaModule,
+    QuestTaskEngineModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Point.name, schema: PointSchema },
@@ -37,17 +57,28 @@ import { AnalyticsService } from 'src/analytics/analytics.service';
       { name: Conversion.name, schema: ConversionSchema },
       { name: FeeRate.name, schema: FeeRateSchema },
       { name: Quest.name, schema: QuestSchema },
+      { name: MembershipTier.name, schema: MembershipTierSchema },
       { name: SocialReward.name, schema: SocialRewardSchema },
-      { name: Quest.name, schema: QuestSchema },
+      { name: ReferralPayout.name, schema: ReferralPayoutSchema },
+      {
+        name: QuestMediaWriteCommand.name,
+        schema: QuestMediaWriteCommandSchema,
+      },
+      { name: QuestMediaCleanup.name, schema: QuestMediaCleanupSchema },
     ]),
   ],
   controllers: [PointController],
+  // InvolveService removed: the point cron's only reference to it was
+  // fully commented-out dead code, so the provider (and its injection into
+  // TasksService) was vestigial.
   providers: [
     PointService,
     TasksService,
-    InvolveService,
     JwtService,
     AnalyticsService,
+    QuestMediaWriteService,
+    QuestMediaCleanupService,
+    QuestMediaQaService,
   ],
   exports: [PointService],
 })

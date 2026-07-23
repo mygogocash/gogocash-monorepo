@@ -47,19 +47,89 @@ export function chunkCompactBrandCards(
 const ONE_ROW_PROMO_SECTION_IDS = new Set(["travel", "makeup"]);
 const ONE_ROW_PROMO_MAX_CARDS = 16;
 
+// Founder request 2026-07-23: the Trending rail served ~20 backend cards across a
+// multi-page pager / long horizontal rail. Cap it to exactly two rows per breakpoint —
+// columns-per-row (6 desktop / 4 tablet / 2 mobile) x topBrandRowsPerPage — so it fills a
+// single on-screen page; the overflow stays reachable via the section's "View all" link.
+// Capping here (not at the render) means layoutMode, page size, columns and the grid all
+// read the same trimmed list.
+const TWO_ROW_PROMO_SECTION_ID = "trending";
+
 export function getPromoSectionCards(
   sectionId: string,
-  cards: readonly CompactBrandLogoOfferCardProps[]
+  cards: readonly CompactBrandLogoOfferCardProps[],
+  homeLayout: HomeLayoutMetrics
 ) {
-  return ONE_ROW_PROMO_SECTION_IDS.has(sectionId)
-    ? cards.slice(0, ONE_ROW_PROMO_MAX_CARDS)
-    : cards;
+  if (ONE_ROW_PROMO_SECTION_IDS.has(sectionId)) {
+    return cards.slice(0, ONE_ROW_PROMO_MAX_CARDS);
+  }
+  if (sectionId === TWO_ROW_PROMO_SECTION_ID) {
+    return cards.slice(
+      0,
+      homeLayout.topBrandDesignColumns * homeLayout.topBrandRowsPerPage
+    );
+  }
+  return cards;
 }
 
-export function getPromoSectionPageSize(homeLayout: HomeLayoutMetrics) {
-  // Every promo rail is a fixed 8-column x 2-row group (compactBrandCardsPerPage), matching
-  // Top Brands; the group slides as one unit and overflows narrow screens with a peek card.
-  return homeLayout.compactBrandCardsPerPage;
+export type HomeCarouselLayoutMode = "pager" | "scroll" | "grid";
+
+// Founder feedback 2026-07-11: mobile rails snapped by a whole 8-column group
+// (~4 screens wide) and a 4-card section hid half its cards behind a swipe.
+// Mobile sections whose cards all fit render a static 2-column grid; longer
+// rails free-scroll with natural momentum. Desktop keeps the web-parity pager.
+const PROMO_GRID_MAX_CARDS = 4;
+
+export function getPromoSectionLayoutMode(
+  isDesktop: boolean,
+  cardCount: number,
+): HomeCarouselLayoutMode {
+  if (isDesktop) {
+    return "pager";
+  }
+  return cardCount <= PROMO_GRID_MAX_CARDS ? "grid" : "scroll";
+}
+
+/** Fit-all grid: two columns filling the section frame exactly. */
+export function getPromoGridCardWidth(frameWidth: number, gap: number): number {
+  return Math.floor((frameWidth - gap) / 2);
+}
+
+/**
+ * #499 — row count is a SECTION property, not a viewport one. topBrandRowsPerPage is a
+ * global metric that TopBrandSection also reads, so specialising it there would resize Top
+ * Brands too. Travel and Makeup are one-row rails; everything else keeps the shared rhythm.
+ */
+export function getPromoSectionRowsPerPage(
+  sectionId: string,
+  homeLayout: HomeLayoutMetrics,
+): number {
+  return ONE_ROW_PROMO_SECTION_IDS.has(sectionId)
+    ? 1
+    : homeLayout.topBrandRowsPerPage;
+}
+
+/**
+ * Height for a section's rail. A one-row section is exactly one card tall with no gap
+ * term — reserving the second row plus its gap is the empty space #499 reports.
+ */
+export function getPromoSectionGridHeight(
+  sectionId: string,
+  homeLayout: HomeLayoutMetrics,
+): number {
+  const rows = getPromoSectionRowsPerPage(sectionId, homeLayout);
+  return rows * homeLayout.topBrandCardHeight + (rows - 1) * homeLayout.topBrandGap;
+}
+
+export function getPromoSectionPageSize(
+  sectionId: string,
+  homeLayout: HomeLayoutMetrics,
+) {
+  // Issue #253: promo rails match Top Brands page size (topBrandCardsPerPage).
+  // #499: a one-row section pages by a single row of columns instead.
+  return (
+    homeLayout.topBrandColumns * getPromoSectionRowsPerPage(sectionId, homeLayout)
+  );
 }
 
 export function getPagedScrollIndex(

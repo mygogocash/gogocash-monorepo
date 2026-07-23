@@ -15,6 +15,8 @@ import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { ApiKeyGuard } from 'src/common/api-key.guard';
 import { InvolvePostbackTokenGuard } from './involve-postback-token.guard';
+import { RateLimitGuard, RATE_LIMIT_KEY } from 'src/auth/rate-limit.guard';
+import { CREATE_AFFILIATE_RATE_LIMIT } from './involve.controller';
 
 /**
  * InvolveController is a thin HTTP boundary in front of InvolveService. The
@@ -86,6 +88,8 @@ describe('InvolveController', () => {
       .useValue({ canActivate: () => true })
       .overrideGuard(FirebaseAuthGuard)
       .useValue({ canActivate: () => true })
+      .overrideGuard(RateLimitGuard)
+      .useValue({ canActivate: () => true })
       .compile();
 
     controller = moduleRef.get<InvolveController>(InvolveController);
@@ -129,6 +133,19 @@ describe('InvolveController', () => {
 
     it('handlePostback > is protected by InvolvePostbackTokenGuard (fail-closed query token)', () => {
       expect(guardsOf('handlePostback')).toContain(InvolvePostbackTokenGuard);
+    });
+
+    it('createAffiliate > authenticates before enforcing the pinned mint budget', () => {
+      expect(guardsOf('createAffiliate')).toEqual([
+        FirebaseAuthGuard,
+        RateLimitGuard,
+      ]);
+      expect(
+        Reflect.getMetadata(
+          RATE_LIMIT_KEY,
+          InvolveController.prototype.createAffiliate,
+        ),
+      ).toEqual(CREATE_AFFILIATE_RATE_LIMIT);
     });
   });
 

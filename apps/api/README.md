@@ -39,7 +39,7 @@ This API lives in the `gogocash-monorepo` Turborepo alongside the apps that cons
 
 This service is a **modular NestJS monolith** that handles:
 
-- User authentication (Firebase, Crossmint, Telegram)
+- User authentication (Firebase, Telegram, LINE, email OTP, and MiniPay SIWE)
 - User profile and MyCashback balance lookup
 - Offer ingestion from Involve Asia and offer browsing
 - Affiliate deeplink generation per user
@@ -67,14 +67,45 @@ A money/auth hardening pass landed — see [`/SECURITY_HARDENING.md`](../../SECU
 - **FX** conversion is cached + timeout-bounded + fail-closed (no more silent-null that zeroed foreign-currency balances).
 - A real `checkWithdraw`↔Mongo integration test runs in CI (`test/withdraw-balance.e2e-spec.ts`).
 
+### Quest task-v2 rollout (2026-07-18)
+
+- `QUEST_TASK_V2_ENABLED=true` in Railway **dev AND staging** since 2026-07-18.
+  **Not yet enabled in production.**
+- Dev + staging Mongo are now authenticated single-node replica sets (`rs0`;
+  mongo 8.0.4 dev / 8.3.4 staging) — transactions commit. This conversion is
+  complete.
+- All 18 `QUEST_TASK_V2_REQUIRED_INDEXES` plus the canonical fence doc
+  `quest_source_config_fence` (`fence_key` `task-v2-source-config-v1`,
+  revision 0) are in place on both envs.
+- Index migration executed on both envs: `conversions.conversion_id_1` was
+  `unique:true` (legacy); the task-v2 contract requires it NON-unique, so it
+  was dropped and recreated non-unique. Identity uniqueness is now enforced
+  by the partial composite unique index `uniq_conversion_provider_identity`
+  on `(source, provider_account, provider_conversion_id)`. Staging pre-check
+  found 0 duplicate identity groups across 2907 string-identity conversions
+  (all `source=involve`).
+- Legacy quest backfill + membership reconciliation were no-ops at rollout
+  time (0 quests, 0 memberships, 0 membership tiers, 0 legacy reward
+  manifests/resolution commands/social rewards on both envs).
+- Exact-once acceptance passed 7/7 on BOTH envs on 2026-07-18:
+  `friend_referral` (account_created) credited the referrer 100 pts;
+  `spend_target` (THB) credited the buyer 200 pts; `brand_purchase`
+  completed=true with 0 pts (progress-only by design); replaying the same
+  conversion `source_event_id` credited ZERO additional points. GitHub issue
+  #353 closed 2026-07-18 with acceptance evidence.
+- Rollback: set `QUEST_TASK_V2_ENABLED=false` (the consumer no-ops
+  instantly). The added indexes are harmless while disabled, BUT
+  `conversion_id_1` must stay non-unique — the composite index now carries
+  the identity-uniqueness guarantee.
+
 ## 2. Tech Stack
 
 - **Framework**: NestJS
-- **Runtime**: Node.js 22 (`engines.node >= 22`; Docker image `node:22-alpine`)
+- **Runtime**: Node.js 24 LTS (`engines.node >= 24`; Docker image `node:24-alpine`)
 - **Language**: TypeScript
 - **DB**: MongoDB via Mongoose (mongoose 9)
 - **Scheduler**: `@nestjs/schedule` cron jobs
-- **Auth**: JWT, Firebase Admin SDK, Crossmint integration
+- **Auth**: backend JWT, Firebase Admin SDK, Telegram, LINE, email OTP, and MiniPay SIWE
 - **External APIs**: Involve Asia, Google Drive API, ExchangeRate API
 - **Bot**: Telegraf (`nestjs-telegraf`)
 - **API Docs**: Swagger (`/doc_68bf99fed9667685c1637607`)
@@ -162,9 +193,6 @@ These are referenced in code and should be defined in `.env` for local/prod:
 ### 5.2 Auth + Identity
 
 - `FIREBASE_PROJECT_ID`
-- `CROSSMINT_AUTH_BASE`
-- `CROSSMINT_PROJECT_ID`
-- `CROSSMINT_SECRET`
 - `TELEGRAM_BOT_TOKEN`
 - `WEB_APP_URL`
 - `API_BASE_URL`
@@ -212,6 +240,12 @@ These are referenced in code and should be defined in `.env` for local/prod:
 - `CONTRACT_WITHDRAW_ADDRESS_SONIC`
 - `CONTRACT_WITHDRAW_ADDRESS_CELO`
 
+### 5.7 Quest Task v2
+
+- `QUEST_TASK_V2_ENABLED` — enables the quest task-v2 consumer. `true` on
+  Railway dev + staging since 2026-07-18; NOT enabled in production. Setting
+  it to `false` is the instant rollback path (consumer no-ops).
+
 ## 6. Security Architecture
 
 ## 6.1 Product Analytics Contract
@@ -232,7 +266,8 @@ These are referenced in code and should be defined in `.env` for local/prod:
 - `AuthAdminGuard`
   - Verifies admin JWT with `JWT_ADMIN_SECRET`
 - `CrossmintAuthGuard`
-  - Currently decodes JWT payload (does not enforce remote signature verification)
+  - Retains the obsolete `/auth/sign-in` route as a fail-closed compatibility boundary
+  - Always returns `401` before provider, token, or user lookup logic can run
 
 ### 6.2 Token Issuance
 
@@ -245,7 +280,8 @@ These are referenced in code and should be defined in `.env` for local/prod:
 ### 7.1 Identity and Users
 
 - `users`
-  - Identity fields: `id_firebase` (unique), `id_crossmint`, `id_telegram`
+  - Identity fields: `id_firebase` (unique), `id_telegram`, and historical
+    `id_crossmint` values retained only for existing-record compatibility
   - Profile fields: `email`, `username`, `mobile`, `country`, `provider`, `disabled`
 - `useradmins`
   - `email` (unique), `username`, `password` (bcrypt hash)
@@ -267,7 +303,12 @@ These are referenced in code and should be defined in `.env` for local/prod:
 ### 7.3 Conversion/Finance Domain
 
 - `conversions`
-  - Involve conversion mirror keyed by `conversion_id`
+  - Involve conversion mirror looked up by `conversion_id` (the
+    `conversion_id_1` index is intentionally NON-unique since the 2026-07-18
+    task-v2 migration; identity uniqueness is enforced by the partial
+    composite unique index `uniq_conversion_provider_identity` on
+    `(source, provider_account, provider_conversion_id)` — do not re-add
+    uniqueness to `conversion_id_1`)
   - Includes `aff_sub1` (e.g. `user_id:<mongoId>`), `currency`, `payout`, `status`
 - `feerates`
   - Global system fee and minimum withdrawal rules
@@ -288,13 +329,13 @@ Key files:
 
 - `auth.controller.ts`
 - `auth.service.ts`
-- `jwt-auth.guard.ts` (Crossmint)
+- `jwt-auth.guard.ts` (fail-closed retired-auth compatibility guard)
 - `firebase-auth.guard.ts` (JWT user guard)
 - `firebase-admin.provider.ts`
 
 Important endpoints:
 
-- `POST /auth/sign-in` (Crossmint guard)
+- `POST /auth/sign-in` (retired compatibility route; always returns `401`)
 - `POST /auth/log-in` (Firebase token based)
 - `POST /auth/register`
 - `POST /auth/log-in/telegram`
@@ -572,8 +613,19 @@ flowchart LR
 - Swagger UI path is custom: `/doc_68bf99fed9667685c1637607`.
 - Some placeholder methods still return template strings (`create/update/remove` in several services).
 - Several endpoints are intentionally broad and rely on service-side checks rather than strict DTO validation.
-- `CrossmintAuthGuard` currently decodes token payload without strict remote signature validation logic.
+- The retired `/auth/sign-in` route intentionally always returns `401`; do not
+  re-enable it or add provider/network calls behind it.
 - Currency conversion uses public ExchangeRate API at runtime.
+- Quest task-v2: if any required index conflicts with a same-name legacy index
+  (e.g. `conversion_id_1` still unique), `createIndex` silently no-ops against
+  the same-name index, `QuestTaskTransactionService.assertReady()` throws
+  every tick, and the outbox consumer's drain loop swallows the error —
+  outbox rows sit `status: pending`, `attempts: 0` with NO error logs.
+- Quest task-v2: `affiliate_conversion` outbox payloads MUST carry top-level
+  `source` / `provider_account` / `provider_conversion_id` / `occurred_at`
+  (not only nested under `payload.current`), else
+  `canonicalConversionIdentity` throws "Conversion provider identity is
+  missing."
 
 ## 12. Local Development
 
@@ -639,5 +691,4 @@ docker run --env-file .env -p 8080:8080 gogocash-api
 - Centralize currency conversion and fee logic into shared domain service.
 - Move hardcoded Google Drive folder IDs to env config.
 - Add integration tests for withdraw and conversion sync pipelines.
-- Strengthen Crossmint token verification path.
 - Reduce commented legacy code blocks to improve maintainability.

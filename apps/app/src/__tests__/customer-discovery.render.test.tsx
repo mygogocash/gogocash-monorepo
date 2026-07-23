@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // CustomerDiscoveryScreen reaches i18n/LocaleProvider (-> CustomerLocaleRegionControl ->
@@ -72,6 +72,17 @@ describe("CustomerDiscoveryScreen (render)", () => {
 
   it("mounts the shop directory without throwing", () => {
     expect(() => renderDiscovery("shops")).not.toThrow();
+  });
+
+  it.each([
+    ["brand", "All Brands"],
+    ["shops", "All Shops"],
+    ["discover", "Product Discovery"],
+  ] as const)("renders the shared specific-page banner before the %s directory", (routeId, title) => {
+    renderDiscovery(routeId);
+
+    expect(screen.getByText("Promotion by Brands")).toBeTruthy();
+    expect(screen.getByText(title)).toBeTruthy();
   });
 });
 

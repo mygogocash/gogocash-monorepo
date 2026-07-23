@@ -3,6 +3,7 @@
 import React from "react";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { formatDateTime } from "@/lib/dateFormat";
+import { formatPartnerRatesMinMax } from "@/lib/offerDeeplink";
 import Button from "@/components/ui/button/Button";
 import {
   affiliateNetworkName,
@@ -11,7 +12,6 @@ import {
 import type { PendingOfferRow } from "@/data/mockPendingOffers";
 import type { Offer } from "@/types/api";
 import { pathImage } from "@/utils/helper";
-import { formatPartnerRatesMinMax } from "@/lib/offerDeeplink";
 import { hasNonEmptyString, OFFER_REVIEW_MEDIA_SIZES } from "./offerMedia";
 import { FormSectionJumpNav } from "@/components/form/FormSectionJumpNav";
 import { OfferFullscreenCardShell } from "./OfferFullscreenCardShell";
@@ -322,9 +322,8 @@ function PendingOfferDetailBody({ offer }: { offer: PendingOfferRow }) {
               : "—"}
           </DetailRow>
           <DetailRow label="Commissions (partner lines)">
-            {(offer.commissions ?? []).length
-              ? offer.commissions.join(" · ")
-              : "—"}
+            {/* Rows are objects from the real API — a raw .join printed [object Object]. */}
+            {formatPartnerRatesMinMax(offer)}
           </DetailRow>
           <DetailRow label="Tracking link">
             {offer.tracking_link ? (

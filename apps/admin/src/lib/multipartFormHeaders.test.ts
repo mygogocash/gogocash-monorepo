@@ -1,42 +1,26 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  multipartAuthHeaders,
   MULTIPART_UPLOAD_TIMEOUT_MS,
   multipartPostConfig,
   stripDefaultJsonContentTypeForFormData,
 } from "./multipartFormHeaders";
 
-describe("multipartAuthHeaders", () => {
-  it("given an access token > then returns Authorization without Content-Type", () => {
-    expect(multipartAuthHeaders("token-123")).toEqual({
-      Authorization: "Bearer token-123",
-    });
-    expect(multipartAuthHeaders("token-123")).not.toHaveProperty("Content-Type");
-  });
-
-  it("given no token > then returns empty headers", () => {
-    expect(multipartAuthHeaders(null)).toEqual({});
-    expect(multipartAuthHeaders(undefined)).toEqual({});
-  });
-});
-
 describe("multipartPostConfig", () => {
-  it("given an access token > then returns auth headers only", () => {
-    expect(multipartPostConfig("token-123")).toEqual({
+  it("given no extra config > then returns timeout without Authorization", () => {
+    expect(multipartPostConfig()).toEqual({
       timeout: MULTIPART_UPLOAD_TIMEOUT_MS,
-      headers: { Authorization: "Bearer token-123" },
+      headers: {},
     });
   });
 
   it("given extra config > then merges timeout override and headers", () => {
     expect(
-      multipartPostConfig("token-123", { timeout: 30_000, headers: { "X-Test": "1" } }),
+      multipartPostConfig({ timeout: 30_000, headers: { "X-Test": "1" } }),
     ).toEqual({
       timeout: 30_000,
       headers: {
         "X-Test": "1",
-        Authorization: "Bearer token-123",
       },
     });
   });
@@ -46,14 +30,17 @@ describe("stripDefaultJsonContentTypeForFormData", () => {
   it("given FormData payload > then removes default JSON Content-Type headers", () => {
     const headers: Record<string, unknown> = {
       "Content-Type": "application/json",
-      Authorization: "Bearer token",
+      Accept: "application/json",
     };
     const formData = new FormData();
-    formData.append("image_1", new File(["x"], "banner.png", { type: "image/png" }));
+    formData.append(
+      "image_1",
+      new File(["x"], "banner.png", { type: "image/png" }),
+    );
 
     stripDefaultJsonContentTypeForFormData(headers, formData);
 
-    expect(headers).toEqual({ Authorization: "Bearer token" });
+    expect(headers).toEqual({ Accept: "application/json" });
     expect(headers).not.toHaveProperty("Content-Type");
     expect(headers).not.toHaveProperty("content-type");
   });
@@ -69,7 +56,7 @@ describe("stripDefaultJsonContentTypeForFormData", () => {
   it("given FormData and AxiosHeaders-like object > then removes Content-Type via delete()", () => {
     const store = new Map<string, string>([
       ["Content-Type", "application/json"],
-      ["Authorization", "Bearer token"],
+      ["Accept", "application/json"],
     ]);
     const headers = {
       delete: (name: string) => store.delete(name),
@@ -84,7 +71,7 @@ describe("stripDefaultJsonContentTypeForFormData", () => {
     );
 
     expect(store.has("Content-Type")).toBe(false);
-    expect(store.get("Authorization")).toBe("Bearer token");
+    expect(store.get("Accept")).toBe("application/json");
   });
 
   it("given FormData and AxiosHeaders with setContentType > then disables Content-Type", () => {
@@ -96,7 +83,10 @@ describe("stripDefaultJsonContentTypeForFormData", () => {
       getContentType: () => contentType,
     };
     const formData = new FormData();
-    formData.append("image_1", new File(["x"], "banner.png", { type: "image/png" }));
+    formData.append(
+      "image_1",
+      new File(["x"], "banner.png", { type: "image/png" }),
+    );
 
     stripDefaultJsonContentTypeForFormData(
       headers as unknown as Record<string, unknown>,

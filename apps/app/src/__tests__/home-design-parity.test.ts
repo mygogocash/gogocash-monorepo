@@ -51,7 +51,7 @@ describe("Expo home design parity", () => {
     expect(homeRouter).toContain("horizontalPadding={desktopFooterHorizontalOffset}");
     expect(homeRouter).not.toContain("topMargin={0}");
     expect(homeFile).toContain("height: homeLayout.topBrandGridHeight");
-    expect(homeFile).toContain("height: homeLayout.compactBrandGridHeight");
+    expect(homeFile).toContain("height: homeLayout.topBrandGridHeight");
     expect(homeFile).toContain("CustomerMobileBottomNav");
     expect(homeFile).not.toContain('webHomeSectionOrder.includes("goLinkBanner")');
   });
@@ -63,11 +63,13 @@ describe("Expo home design parity", () => {
       "utf8"
     );
 
+    // Founder request 2026-07-22: Explore Shops + Explore Products hidden from the nav,
+    // replaced by the Digital Services + Fashion category shortcuts.
     expect(webDesktopHeaderNavItems.map((item) => item.label)).toEqual([
       "Top Brands",
-      "All Brands",
-      "All Shops",
-      "Product Discovery",
+      "Explore Brand",
+      "Digital Services",
+      "Fashion",
       "Travel",
       "Electronics",
       "Health & Beauty",
@@ -90,10 +92,13 @@ describe("Expo home design parity", () => {
     expect(lineFabFile).toContain("lineOfficialFabImage");
     expect(lineFabFile).toContain("webLineOfficialFab.href");
     expect(desktopHeaderFile).toContain("questHeaderImage");
-    expect(desktopHeaderFile).toContain("menuFireImage");
+    // #483 — Top Brands uses Phosphor Fire at 16px like other nav icons.
+    expect(desktopHeaderFile).toContain("fire: Fire");
+    expect(desktopHeaderFile).toContain("size={16}");
+    expect(desktopHeaderFile).not.toContain("menuFireImage");
+    expect(desktopHeaderFile).not.toContain("desktopCategoryNavItemLead");
     expect(homeFile).toContain("StyleSheet.flatten([");
     expect(desktopHeaderFile).toContain("styles.desktopCategoryNavItem");
-    expect(desktopHeaderFile).toContain("styles.desktopCategoryNavItemLead");
     // Desktop home renders a full-bleed header inside the `homeLayout.isDesktop`
     // branch so the header bar spans the full viewport (content stays capped at 1440).
     expect(homeFile).toContain("if (homeLayout.isDesktop) {");
@@ -134,8 +139,10 @@ describe("Expo home design parity", () => {
       expect(sourceFile).not.toContain("lucide-react-native");
       expect(sourceFile).not.toContain('from "phosphor-react-native');
       expect(sourceFile).toContain("Storefront");
-      expect(sourceFile).toContain("SquaresFour");
-      expect(sourceFile).toContain("Tag");
+      // Digital Services + Fashion nav shortcuts use the Cloud + Shirt phosphor glyphs
+      // (Explore Shops "SquaresFour" + Explore Products "Tag" were removed with those items).
+      expect(sourceFile).toContain("Cloud");
+      expect(sourceFile).toContain("Shirt");
       expect(sourceFile).toContain("AirplaneTilt");
       expect(sourceFile).toContain("DeviceMobile");
       expect(sourceFile).toContain("Heartbeat");
@@ -245,7 +252,9 @@ describe("Expo home design parity", () => {
       title: "GoGoLink – Easy to earn cashback by just copy, paste and shop!",
     });
     expect(homeFile).toContain("DesktopGoLinkBanner");
-    expect(homeFile).toContain("homeLayout.isDesktop ? (");
+    // GoLink 3-state: the desktop banner renders unless HIDDEN; coming-soon shows
+    // it visible-but-disabled via the comingSoon prop.
+    expect(homeFile).toContain('homeLayout.isDesktop && goLinkMode !== "hidden" ? (');
     expect(homeFile).toContain("MobileTabletHomeHeader");
     expect(homeFile).toContain('variant="mobileTabletHeader"');
     expect(homeFile).toContain("mobile-tablet-golink-banner");
@@ -369,25 +378,25 @@ describe("Expo home design parity", () => {
     expect(webTopBrandCards.slice(0, 4)).toEqual([
       expect.objectContaining({
         brand: "Grocery Galaxy",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
         showGrabCoupon: true,
         tint: "#6366F1",
       }),
       expect.objectContaining({
         brand: "Pocket Pantry",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
         showGrabCoupon: true,
         tint: "#6366F1",
       }),
       expect.objectContaining({
         brand: "Orbit Airways",
-        logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
+        logoUri: "https://cdn.simpleicons.org/americanairlines",
         showGrabCoupon: false,
         tint: "#2563EB",
       }),
       expect.objectContaining({
         brand: "PixelPort",
-        logoUri: "https://cdn.simpleicons.org/apple/ffffff",
+        logoUri: "https://cdn.simpleicons.org/apple",
         showGrabCoupon: false,
         tint: "#2563EB",
       }),
@@ -419,24 +428,28 @@ describe("Expo home design parity", () => {
     expect(homeFile).toContain("useWindowDimensions");
     expect(homeFile).toContain("getResponsiveHomeLayoutMetrics");
     expect(homeFile).toContain("styles.brandGrid");
-    expect(homeFile).toContain("activeIndex={activeTopBrandDot}");
-    expect(homeFile).toContain("topBrandPages");
-    expect(homeFile).toContain("homeLayout.topBrandCardsPerPage");
+    // #498 — Top Brands is one continuous column-major group now, so there are no pages
+    // and no dots. The two-row grid itself is unchanged.
+    expect(homeFile).toContain("topBrandColumns");
+    expect(homeFile).toContain("homeLayout.topBrandRowsPerPage");
     expect(homeFile).toContain("homeLayout.contentWidth");
     expect(homeFile).not.toContain("contentContainerStyle={styles.brandCardRow}");
   });
 
-  it("home design parity > given staging Top Brands mobile carousel > then Expo pages horizontally through card grids", () => {
+  it("home design parity > given staging Top Brands carousel > then desktop pages while mobile free-scrolls column flow", () => {
+    // Founder feedback 2026-07-11 gated snapping so mobile flowed columns freely while
+    // desktop kept a paged group. #498 removed the paged group entirely: the page boundary
+    // was the visible gap between cards, so BOTH now scroll one continuous column-major
+    // group and the dots became a proportional progress rail.
     const homeFile = readHomeFile();
 
     expect(homeFile).toContain("horizontal");
-    expect(homeFile).toContain("pagingEnabled");
-    expect(homeFile).toContain("snapToInterval={homeLayout.topBrandGroupWidth}");
-    expect(homeFile).toContain('decelerationRate="fast"');
-    expect(homeFile).toContain("disableIntervalMomentum");
+    expect(homeFile).toContain("getPromoSectionLayoutMode(homeLayout.isDesktop, topBrands.length)");
+    expect(homeFile).not.toContain("snapToInterval={isPager ? homeLayout.topBrandGroupWidth : undefined}");
+    expect(homeFile).not.toContain("topBrandPages.map");
     expect(homeFile).toContain("styles.topBrandScroll");
-    expect(homeFile).toContain("styles.topBrandPage");
-    expect(homeFile).toContain("topBrandPages.map");
+    expect(homeFile).toContain("topBrandColumns.map");
+    expect(homeFile).toContain("chunkTopBrandCards(topBrands, homeLayout.topBrandRowsPerPage)");
     expect(homeFile).not.toContain("webTopBrandCards.slice(0, 6)");
   });
 
@@ -445,8 +458,8 @@ describe("Expo home design parity", () => {
 
     expect(homeFile).toContain("homeLayout.showBottomNav");
     expect(homeFile).toContain("homeLayout.contentMaxWidth");
-    expect(homeFile).toContain("homeLayout.compactBrandCardWidth");
-    expect(homeFile).toContain("homeLayout.compactBrandCardHeight");
+    expect(homeFile).toContain("homeLayout.topBrandCardWidth");
+    expect(homeFile).toContain("homeLayout.topBrandCardHeight");
     expect(homeFile).toContain("homeLayout.pageBottomPadding");
     expect(homeFile).not.toContain('width: "31.4%"');
     expect(homeFile).not.toContain("paddingBottom: mobileShellLayout.bottomNavClearance + 24");
@@ -542,6 +555,28 @@ describe("Expo home design parity", () => {
     expect(homeFile).not.toContain("minWidth: 122");
   });
 
+  it("mounts the GoLink guideline + result dialogs on the MOBILE branch too", () => {
+    // User report 2026-07-10: tapping the GoLink banner's (i) on a phone did
+    // nothing. The handler set desktopGoLinkGuidelineOpen, but the dialogs
+    // were only mounted in the desktop return branch — the mobile tree never
+    // rendered them. Both dialogs must appear in BOTH return branches.
+    const homeScreenSource = readHomeFile();
+    expect((homeScreenSource.match(/<GoLinkGuidelineDialog/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect((homeScreenSource.match(/<GoLinkResultDialog/g) ?? []).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("centers the GoLink sheet toggle with alignSelf — left:50% mis-centers on native Yoga", () => {
+    // The collapse caret sat off-center on the Android app: RN resolves
+    // `left: "50%"` + negative margin differently from web. `alignSelf:
+    // "center"` on the absolutely-positioned child centers on both platforms.
+    const styles = readMobileFile("src/screens/home/customerHomeStyles.ts");
+    const toggleBlock =
+      styles.match(/mobileTabletSheetToggleButton:\s*\{[\s\S]*?\n\s*\}/)?.[0] ?? "";
+    expect(toggleBlock).toContain('alignSelf: "center"');
+    expect(toggleBlock).not.toContain('left: "50%"');
+    expect(toggleBlock).not.toContain("marginLeft");
+  });
+
   it("home search popover typography > given secondary copy and actions > then uses normal weight", () => {
     const styles = readMobileFile("src/screens/home/customerHomeStyles.ts");
     const subtitleBlock =
@@ -576,7 +611,10 @@ describe("Expo home design parity", () => {
     ]);
     expect(homeFile).toContain("webHomePromoSections");
     expect(homeFile).toContain('resourceId: "brandCatalog"');
-    expect(homeFile).toContain("resolveHomePromoSections");
+    // Homepage rails now prefer the admin-curated /offer/landing-rails config,
+    // falling back to the webHomePromoSections fixture (see resolveApiLandingRails).
+    expect(homeFile).toContain('resourceId: "landingRails"');
+    expect(homeFile).toContain("resolveApiLandingRails");
     expect(homeFile).not.toContain("Recommended Shops");
     expect(homeFile).not.toContain("Travel cashback stores");
     expect(homeFile).not.toContain("Beauty store rewards");
@@ -589,32 +627,32 @@ describe("Expo home design parity", () => {
     expect(trending?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Grocery Galaxy",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
         tint: "#6366F1",
       }),
       expect.objectContaining({
         brand: "Pocket Pantry",
-        logoUri: "https://cdn.simpleicons.org/instacart/ffffff",
+        logoUri: "https://cdn.simpleicons.org/instacart",
         tint: "#6366F1",
       }),
       expect.objectContaining({
         brand: "Orbit Airways",
-        logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
+        logoUri: "https://cdn.simpleicons.org/americanairlines",
         tint: "#2563EB",
       }),
       expect.objectContaining({
         brand: "PixelPort",
-        logoUri: "https://cdn.simpleicons.org/apple/ffffff",
+        logoUri: "https://cdn.simpleicons.org/apple",
         tint: "#2563EB",
       }),
       expect.objectContaining({
         brand: "Glow Theory",
-        logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopify",
         tint: "#6366F1",
       }),
       expect.objectContaining({
         brand: "Bloom & Beam",
-        logoUri: "https://cdn.simpleicons.org/nike/ffffff",
+        logoUri: "https://cdn.simpleicons.org/nike",
         tint: "#7F1D1D",
       }),
     ]);
@@ -627,32 +665,32 @@ describe("Expo home design parity", () => {
     expect(travel?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Orbit Airways",
-        logoUri: "https://cdn.simpleicons.org/americanairlines/ffffff",
+        logoUri: "https://cdn.simpleicons.org/americanairlines",
         tint: "#2563EB",
       }),
       expect.objectContaining({
         brand: "Nova Travel Club",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+        logoUri: "https://cdn.simpleicons.org/tripadvisor",
         tint: "#1D4ED8",
       }),
       expect.objectContaining({
         brand: "Horizon Escapes",
-        logoUri: "https://cdn.simpleicons.org/meta/ffffff",
+        logoUri: "https://cdn.simpleicons.org/meta",
         tint: "#1F3E5F",
       }),
       expect.objectContaining({
         brand: "CloudNine Travel",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+        logoUri: "https://cdn.simpleicons.org/tripadvisor",
         tint: "#EAB308",
       }),
       expect.objectContaining({
         brand: "StayMint Hotels",
-        logoUri: "https://cdn.simpleicons.org/airbnb/ffffff",
+        logoUri: "https://cdn.simpleicons.org/airbnb",
         tint: "#0EA5E9",
       }),
       expect.objectContaining({
         brand: "Trailhead Outfitters",
-        logoUri: "https://cdn.simpleicons.org/tripadvisor/ffffff",
+        logoUri: "https://cdn.simpleicons.org/tripadvisor",
         tint: "#0F766E",
       }),
     ]);
@@ -668,6 +706,29 @@ describe("Expo home design parity", () => {
     expect(desktopLayout.compactBrandCardsPerPage).toBe(14);
     // 16 cards need two 7x2 desktop pages (14 + 2).
     expect(Math.ceil(travelCards.length / desktopLayout.compactBrandCardsPerPage)).toBe(2);
+  });
+
+  it("desktop content cap > given a viewport wider than the content cap > then side padding never squeezes the capped frame below its content width", () => {
+    // The content sections render inside a `maxWidth: contentMaxWidth` cap that is
+    // centered in the viewport. `contentHorizontalPadding` is applied *inside* that
+    // cap, so it must be measured against the cap width — not the raw viewport.
+    // Regression: padding computed from the raw viewport grows unbounded past the
+    // cap, collapsing brand/banner content to a thin center strip on wide desktops
+    // (e.g. 2560px squeezed the 1440 cap down to ~80px of content).
+    for (const viewportWidth of [1440, 1512, 1920, 2560, 3440]) {
+      const layout = getResponsiveHomeLayoutMetrics(viewportWidth);
+      const contentAreaWithinCap =
+        layout.contentMaxWidth - layout.contentHorizontalPadding * 2;
+
+      expect(contentAreaWithinCap).toBe(layout.contentWidth);
+    }
+  });
+
+  it("desktop content cap > given a 2560px viewport > then content stays 1200 wide with symmetric 120px side padding", () => {
+    const layout = getResponsiveHomeLayoutMetrics(2560);
+
+    expect(layout.contentWidth).toBe(1200);
+    expect(layout.contentHorizontalPadding).toBe(120);
   });
 
   it("mobile brand sections > given the padded white sheet > then the brand groups overflow and scroll", () => {
@@ -694,33 +755,33 @@ describe("Expo home design parity", () => {
     expect(makeup?.cards.slice(0, 6)).toEqual([
       expect.objectContaining({
         brand: "Bloom & Beam",
-        logoUri: "https://cdn.simpleicons.org/nike/ffffff",
+        logoUri: "https://cdn.simpleicons.org/nike",
         tint: "#7F1D1D",
       }),
       expect.objectContaining({
         brand: "Mint Mirror",
-        logoUri: "https://cdn.simpleicons.org/target/ffffff",
+        logoUri: "https://cdn.simpleicons.org/target",
         tint: "#0EA5E9",
       }),
       expect.objectContaining({
         brand: "Pure Ritual",
-        logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopee",
         tint: "#0F766E",
       }),
       expect.objectContaining({
         brand: "Luxe Lane Beauty",
-        logoUri: "https://cdn.simpleicons.org/shopify/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopify",
         tint: "#F97316",
       }),
       expect.objectContaining({
         brand: "Amber Apothecary",
         logoFallbackText: "Amber Apothecary",
-        logoUri: "https://cdn.simpleicons.org/target/ffffff",
+        logoUri: "https://cdn.simpleicons.org/target",
         tint: "#7F1D1D",
       }),
       expect.objectContaining({
         brand: "Pearl Polish",
-        logoUri: "https://cdn.simpleicons.org/shopee/ffffff",
+        logoUri: "https://cdn.simpleicons.org/shopee",
         tint: "#6366F1",
       }),
     ]);
@@ -748,12 +809,13 @@ describe("Expo home design parity", () => {
     expect(getTopBrandHref("Vitaline Spa")).toBe("/shop/brand-vitaline-spa-1068");
   });
 
-  it("home design parity > given lower staging home rails > then Expo uses compact brand logo cards", () => {
+  it("home design parity > given lower staging home rails > then Expo uses Top Brands L cards (issue #253)", () => {
     const homeFile = readHomeFile();
 
-    // Secondary brand rails render the shared BrandCard at its small/compact size.
+    // Travel / Beauty / Trending rails match Top Brands: size="L" full-bleed + heart.
     expect(homeFile).toContain("BrandCard");
-    expect(homeFile).toContain('size="S"');
+    expect(homeFile).toContain('size="L"');
+    expect(homeFile).not.toContain('size="S"');
     expect(homeFile).toContain("activeIndex={activePromoDot}");
     const brandCardFile = fs.readFileSync(
       path.join(mobileRoot, "src/components/BrandCard.tsx"),
@@ -778,14 +840,22 @@ describe("Expo home design parity", () => {
     );
     expect(homeFile).toContain("chunkCompactBrandCards");
     expect(homeFile).toContain("promoPages.map");
-    expect(homeFile).toContain("homeLayout.compactBrandCardsPerPage");
+    // #498/#499 — promo page size is now section-aware (columns x rows) rather than the
+    // flat Top Brands per-page count.
+    expect(homeFile).toContain("getPromoSectionRowsPerPage");
     expect(homeFile).toContain("ONE_ROW_PROMO_MAX_CARDS");
     expect(homeFile).toContain("getPromoSectionPageSize");
     expect(homeFile).toContain("Math.max(promoPages.length, dotCount ?? 0)");
     expect(homeFile).toContain("styles.promoScroll");
     expect(homeFile).toContain("styles.promoPage");
     expect(homeFile).toContain("styles.promoPagerContent");
-    expect(homeFile).toContain("snapToInterval={homeLayout.compactBrandGroupWidth}");
+    // Founder feedback 2026-07-11: snap props gate on the desktop pager; mobile
+    // free-scrolls a column flow, and few-card sections render a fit-all grid.
+    expect(homeFile).toContain("snapToInterval={isPager ? pageWidth : undefined}");
+    expect(homeFile).toContain("getPromoSectionLayoutMode(homeLayout.isDesktop, sectionCards.length)");
+    expect(homeFile).toContain('layoutMode === "grid"');
+    expect(homeFile).toContain("getPromoGridCardWidth(");
+    expect(homeFile).toContain("promoColumns.map");
     expect(homeFile).not.toContain("<View style={styles.compactBrandGrid}>");
   });
 
@@ -794,8 +864,13 @@ describe("Expo home design parity", () => {
 
     // The rail scroller fills its section (100%) while each page is a fixed-width group that
     // overflows and scrolls with a peek; no per-page slide animation.
-    expect(homeFile).toContain("style={[styles.promoScroll, { height: homeLayout.compactBrandGridHeight }]}");
-    expect(homeFile).toContain("width: homeLayout.compactBrandGroupWidth,");
+    // #499 — was a verbatim source pin on `homeLayout.topBrandGridHeight`. Rail height is
+    // now per-section (travel/makeup are one row), so this asserts the BEHAVIOUR — the
+    // scroll view is sized from the section-aware helper — rather than one exact string,
+    // which broke on a legitimate change and told us nothing about what the user sees.
+    expect(homeFile).toContain("getPromoSectionGridHeight");
+    expect(homeFile).toContain("{ height: sectionGridHeight }");
+    expect(homeFile).toContain("width: pageWidth,");
     expect(homeFile).not.toContain("getCarouselPageMotionStyle");
   });
 
@@ -808,6 +883,21 @@ describe("Expo home design parity", () => {
     expect(homeFile).toMatch(/sectionEmoji:\s*\{[\s\S]*?fontSize:\s*18,[\s\S]*?lineHeight:\s*24,/);
     expect(homeFile).toMatch(/topBrandEmoji:\s*\{[\s\S]*?fontSize:\s*18,[\s\S]*?lineHeight:\s*24,/);
     expect(homeFile).toContain("flexShrink: 1");
+  });
+
+  it("home section titles > given dark mode > then Top Brands / promo titles match Sign in primary green", () => {
+    const homeFile = readHomeFile();
+    const signInGraphicFile = readMobileFile("src/components/CustomerSignInNavGraphic.tsx");
+
+    // Sign in pill uses colors.primary (#00CC99). Section titles must share that dark-mode
+    // token — not the cyan accent (#5EEAD4) — so Top Brands / promo rails match the header CTA.
+    expect(signInGraphicFile).toContain("backgroundColor: colors.primary");
+    expect(homeFile).toMatch(
+      /sectionTitle:\s*\{[\s\S]*?pickThemed\(colors, "#103522", colors\.primary\)/,
+    );
+    expect(homeFile).toMatch(
+      /sectionTitleSmall:\s*\{[\s\S]*?pickThemed\(colors, "#103522", colors\.primary\)/,
+    );
   });
 
   it("home design parity > given staging mobile icon weight > then Expo avoids heavier placeholder strokes", () => {
@@ -981,7 +1071,7 @@ describe("Expo home design parity", () => {
     expect(contentScrollStyle).toContain("borderTopRightRadius: 34");
     expect(homeScreenSource).toContain("paddingHorizontal: 24");
     expect(homeScreenSource).toContain("paddingTop: 24");
-    expect(homeScreenSource).toContain("homeLayout.compactBrandGroupWidth");
+    expect(homeScreenSource).toContain("homeLayout.topBrandGroupWidth");
     expect(homeScreenSource).not.toContain("styles.mobileTabletSectionFrame");
     expect(contentScrollStyle).not.toContain("marginHorizontal: 40");
     expect(contentScrollStyle).toContain("marginTop: -40");

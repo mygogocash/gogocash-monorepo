@@ -11,6 +11,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useRolesQuery } from "@/hooks/useRoles";
 import { roleBadgeClass } from "@/lib/rbac";
 import { isDirty } from "@/lib/isDirty";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
 export default function AdminUsersTable() {
   const {
@@ -35,6 +36,7 @@ export default function AdminUsersTable() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteRole, setInviteRole] = useState<string>("editor");
 
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
@@ -240,9 +242,10 @@ export default function AdminUsersTable() {
     if (!email) return;
     setInviteSubmitting(true);
     setInviteSuccess(null);
+    setInviteError(null);
     try {
       await inviteAdminUser(email, inviteRole);
-      setInviteSuccess(`Invitation sent to ${email}`);
+      setInviteSuccess(`Invitation accepted for delivery to ${email}`);
       setInviteEmail("");
       setTimeout(() => {
         setInviteModalOpen(false);
@@ -250,6 +253,15 @@ export default function AdminUsersTable() {
         fetchUsers();
       }, 1500);
     } catch (err) {
+      setInviteError(
+        getApiErrorMessage(
+          err,
+          "We couldn't send the invitation. Please try again, or contact an administrator if it continues.",
+        ),
+      );
+      // This operation owns an inline modal error. Avoid also rendering the
+      // shared page-level error behind the modal overlay.
+      clearError();
       devError("Failed to send invitation:", err);
     } finally {
       setInviteSubmitting(false);
@@ -278,6 +290,8 @@ export default function AdminUsersTable() {
                 setInviteModalOpen(true);
                 setInviteEmail("");
                 setInviteSuccess(null);
+                setInviteError(null);
+                clearError();
               }}
               className="inline-flex h-11 shrink-0 items-center justify-center rounded-lg border border-blue-600 bg-blue-600 px-4 text-sm font-medium whitespace-nowrap text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-blue-500 dark:bg-blue-600 dark:hover:bg-blue-700"
             >
@@ -354,6 +368,14 @@ export default function AdminUsersTable() {
               {inviteSuccess}
             </p>
           )}
+          {inviteError && (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
+            >
+              {inviteError}
+            </p>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -368,7 +390,11 @@ export default function AdminUsersTable() {
               disabled={inviteSubmitting || !inviteEmail.trim()}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
             >
-              {inviteSubmitting ? "Sending…" : "Send invitation"}
+              {inviteSubmitting
+                ? "Sending…"
+                : inviteError
+                  ? "Retry sending"
+                  : "Send invitation"}
             </button>
           </div>
         </form>

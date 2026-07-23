@@ -1,55 +1,54 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { isLegacyCronEnabled } from 'src/common/legacy-cron-gate';
 import { PointService } from './point.service';
-import { InvolveService } from 'src/involve/involve.service';
-import { delay } from 'rxjs';
 import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { rateCurrencyUSD } from 'src/utils/helper';
-import { parseUserIdFromAffSub1 } from 'src/withdraw/conversion-user-id.util';
+import {
+  awardReconciledPurchaseConversion,
+  legacyPurchaseReadyFilter,
+} from 'src/tasks/legacy-purchase-writer';
+import { Point } from './schemas/point.schema';
+import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
+import { ReferralPayout } from './schemas/referral-payout.schema';
+import { buildReferralBonusHook } from './referral-bonus-hook';
 
 @Injectable()
 export class TasksService {
   constructor(
     private readonly pointService: PointService,
-    private readonly involveService: InvolveService,
     @InjectModel(Conversion.name) private conversionModel: Model<Conversion>,
+    @InjectModel(Point.name) private pointModel: Model<Point>,
+    @InjectModel(FeeRate.name) private feeRateModel: Model<FeeRate>,
+    @InjectModel(ReferralPayout.name)
+    private referralPayoutModel: Model<ReferralPayout>,
   ) {}
   // @Cron('45 * * * * *')
   // @Cron(CronExpression.EVERY_MINUTE)
   // @Cron('0 31 0 7 * *')
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async scheduledHandleCron() {
+    if (!isLegacyCronEnabled()) return;
+    await this.handleCron();
+  }
+
+  // Also invoked manually via GET /point/save-points (superadmin) — keep the
+  // CRON_ENABLED gate on the scheduled wrapper only.
   async handleCron() {
-    // const conversions = await this.involveService.getConversionAll({
-    //   page: 1,
-    //   limit: 10,
-    // });
-
-    // let allConversions = conversions.data.data;
-    // let currentPage = 1;
-
-    // while (conversions.data.nextPage) {
-    //   currentPage++;
-    //   const nextConversions = await this.involveService.getConversionAll({
-    //     page: currentPage,
-    //     limit: 10,
-    //   });
-    //   allConversions = allConversions.concat(nextConversions.data.data);
-    //   conversions.data.nextPage = nextConversions.data.nextPage;
-    //   await delay(1000);
-    // }
-    // const filterAff = allConversions.filter((item) => {
-    //   return item.aff_sub1 && item.aff_sub1.startsWith('user_id:');
-    // });
-    // const filterApproved = filterAff.filter((item) => {
-    //   return item.conversion_status === 'approved';
-    // });
+    // Conversion points are awarded from conversions already ingested into the
+    // local store (the network pull lives in withdraw/cronjob/job.service.ts).
     const filterApproved = await this.conversionModel
       .find({
         conversion_status: 'approved',
         add_point: { $ne: true },
-        user_id: { $exists: true, $ne: null },
+        payout: { $gt: 0 },
+        ...legacyPurchaseReadyFilter,
+        $or: [
+          { user_id: { $exists: true, $ne: null } },
+          { aff_sub1: { $regex: '^user_id:' } },
+        ],
         datetime_conversion: {
           $gte: new Date(new Date().setDate(new Date().getDate() - 10)),
           $lt: new Date(),
@@ -58,41 +57,20 @@ export class TasksService {
       .lean();
     const rate = await rateCurrencyUSD();
 
+    const referralBonus = buildReferralBonusHook({
+      pointModel: this.pointModel,
+      feeRateModel: this.feeRateModel,
+      referralPayoutModel: this.referralPayoutModel,
+      pointService: this.pointService,
+    });
+
     for (const conversion of filterApproved) {
-      const userId =
-        conversion.user_id?.toString() ??
-        parseUserIdFromAffSub1(conversion.aff_sub1);
-      if (!userId) {
-        continue;
-      }
-      // console.log('conversion', conversion.datetime_conversion);
-      // const calculatedPoints = Math.floor(conversion.sale_amount / 100);
-      let calculatedPoints = 0;
-      if (conversion.currency === 'USD') {
-        // console.log('rate', rate['THB']);
-        calculatedPoints = Math.floor(conversion.sale_amount * rate['THB']);
-      } else {
-        calculatedPoints = Math.floor(conversion.sale_amount);
-      }
-      // console.log('calculatedPoints', calculatedPoints);
-      // console.log(
-      //   `User ID: ${userId}, ${conversion.conversion_id} Payout Amount: ${conversion.payout}, Calculated Points: ${calculatedPoints}`,
-      // );
-      await this.pointService.addPointsToUser(
-        userId,
-        calculatedPoints,
-        conversion.conversion_id,
-      );
-      await delay(1000);
-    }
-    const awardedIds = filterApproved
-      .map((conversion) => conversion._id)
-      .filter(Boolean);
-    if (awardedIds.length > 0) {
-      await this.conversionModel.updateMany(
-        { _id: { $in: awardedIds } },
-        { $set: { add_point: true } },
-      );
+      await awardReconciledPurchaseConversion(conversion, {
+        conversionModel: this.conversionModel as never,
+        pointService: this.pointService,
+        thbPerUsd: rate['THB'],
+        referralBonus,
+      });
     }
   }
 }

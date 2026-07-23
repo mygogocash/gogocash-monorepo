@@ -28,6 +28,13 @@ describe("resolveCustomerAccountResourceRequest", () => {
     });
   });
 
+  it("walletTransactions > then describes the transaction feed: POST /withdraw/list-check", () => {
+    expect(resolveCustomerAccountResourceRequest({ resourceId: "walletTransactions" })).toEqual({
+      method: "POST",
+      path: "/withdraw/list-check",
+    });
+  });
+
   it("brandCatalog > then requests a modest first page for faster home paint", () => {
     expect(resolveCustomerAccountResourceRequest({ resourceId: "brandCatalog" })).toEqual({
       method: "GET",
@@ -43,11 +50,43 @@ describe("resolveCustomerAccountResourceRequest", () => {
       path: "/offer/brand%20a",
     });
   });
+
+  it("merchantCoupons > then requests public coupons for the encoded merchant id", () => {
+    expect(
+      resolveCustomerAccountResourceRequest({
+        merchantId: "brand a",
+        resourceId: "merchantCoupons",
+      })
+    ).toEqual({
+      method: "GET",
+      path: "/offer/get-coupon-id/brand%20a",
+    });
+  });
+
+  it.each([
+    ["allBrandBanner", "/offer/banner-specific-page/all-brands"],
+    ["allShopBanner", "/offer/banner-specific-page/all-shops"],
+    ["productDiscoveryBanner", "/offer/banner-specific-page/product-discovery"],
+  ] as const)("%s > then requests its isolated public specific-page banner", (resourceId, path) => {
+    expect(resolveCustomerAccountResourceRequest({ resourceId })).toEqual({
+      method: "GET",
+      path,
+    });
+  });
 });
 
 describe("PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS", () => {
-  it("includes topBrand and homeBanner as public admin-curated resources", () => {
-    expect(PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS).toEqual(["topBrand", "homeBanner"]);
+  it("includes merchant coupons with the public admin-curated resources", () => {
+    expect(PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS).toEqual([
+      "allBrandBanner",
+      "allShopBanner",
+      "homeBanner",
+      "landingRails",
+      "merchant",
+      "merchantCoupons",
+      "productDiscoveryBanner",
+      "topBrand",
+    ]);
   });
 });
 
@@ -70,6 +109,28 @@ describe("shouldFetchCustomerAccountResourceFromBackend", () => {
       shouldFetchCustomerAccountResourceFromBackend({
         accountDataSource: "fixtures",
         resourceId: "homeBanner",
+        enabled: true,
+        apiUrl,
+      }),
+    ).toBe(true);
+  });
+
+  it("fixtures mode + merchant + apiUrl > then fetches from backend", () => {
+    expect(
+      shouldFetchCustomerAccountResourceFromBackend({
+        accountDataSource: "fixtures",
+        resourceId: "merchant",
+        enabled: true,
+        apiUrl,
+      }),
+    ).toBe(true);
+  });
+
+  it("fixtures mode + merchantCoupons + apiUrl > then fetches from backend", () => {
+    expect(
+      shouldFetchCustomerAccountResourceFromBackend({
+        accountDataSource: "fixtures",
+        resourceId: "merchantCoupons",
         enabled: true,
         apiUrl,
       }),

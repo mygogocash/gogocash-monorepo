@@ -94,6 +94,18 @@ describe("Account hub route parity", () => {
     expect(walletFile).not.toContain("Available cashback appears here after partner validation.");
   });
 
+  it("wallet hero compact overrides actually collapse the desktop min-heights", () => {
+    // User report 2026-07-10: the profile wallet hero showed a 72px dead gap
+    // under the name and 71px of empty gradient below the Withdraw button on
+    // mobile. Root cause: the compact overrides used `minHeight: undefined`,
+    // which RN style merging SKIPS — the desktop minHeight (86 header /
+    // 260 glass) silently survived. Overrides must use 0, not undefined.
+    const shellFile = readMobileFile("src/components/AccountPageShell.tsx");
+    expect(shellFile).not.toContain("minHeight: undefined");
+    expect(shellFile).toMatch(/walletHeroHeaderCompact:[\s\S]*?minHeight: 0/);
+    expect(shellFile).toMatch(/walletHeroGlassPanelCompact:[\s\S]*?minHeight: 0/);
+  });
+
   it("quest page > given migrated account screen > then it renders quest tabs, task detail, and bottom nav", () => {
     const questFile = readMobileFile("src/screens/CustomerQuestScreen.tsx");
     const shellFile = readMobileFile("src/components/AccountPageShell.tsx");
@@ -112,18 +124,22 @@ describe("Account hub route parity", () => {
     expect(questFile).toContain("questHowToEarnImage");
     expect(questFile).toContain("questPromoImage");
     expect(questFile).toContain("webQuestTabs");
-    expect(questFile).toContain("Explore other Shops");
-    expect(questFile).toContain("getResponsiveHomeLayoutMetrics");
-    expect(questFile).toContain("compactBrandCardsPerPage");
-    expect(questFile).toContain("getShopDirectoryGridMetrics");
-    expect(questFile).toContain("getScaledCompactBrandCardMetrics");
-    expect(questFile).toContain("chunkDirectoryGridRows");
-    expect(questFile).toContain("CompactExploreShopCard");
-    expect(questFile).toContain("brandVisualBackground");
-    expect(questFile).toContain("getTopBrandHref(card.brand)");
-    expect(questFile).toContain('resourceId: "brandCatalog"');
-    expect(questFile).toContain("resolveLiveBrandCards");
-    expect(questFile).not.toContain("exploreOtherShops.cards.slice(0, 4)");
+    // Explore-other-Shops is the SHARED section (2026-07-11, extracted after
+    // a third clone appeared on Referral) — grid metrics, BrandCard rows, and
+    // the live-catalog upgrade are pinned once, at the section.
+    expect(questFile).toContain("<ExploreOtherShopsSection");
+    expect(questFile).not.toContain("CompactExploreShopCard");
+    const exploreSection = readMobileFile("src/screens/ExploreOtherShopsSection.tsx");
+    expect(exploreSection).toContain("Explore other Shops");
+    expect(exploreSection).toContain("getResponsiveHomeLayoutMetrics");
+    expect(exploreSection).toContain("compactBrandCardsPerPage");
+    expect(exploreSection).toContain("getShopDirectoryGridMetrics");
+    expect(exploreSection).toContain("getScaledCompactBrandCardMetrics");
+    expect(exploreSection).toContain("chunkDirectoryGridRows");
+    expect(exploreSection).toContain("<BrandCard");
+    expect(exploreSection).toContain('resourceId: "brandCatalog"');
+    expect(exploreSection).toContain("resolveLiveBrandCards");
+    expect(exploreSection).not.toContain("cards.slice(0, 4)");
     expect(questFile).toContain("Let’s Got the Tasks Done!");
     expect(questFile).not.toContain("Earn extra rewards.");
   });
@@ -193,10 +209,13 @@ describe("Account hub route parity", () => {
     expect(designFile).toContain("Glow Theory");
     expect(designFile).toContain("+0 Points");
     expect(questFile).toContain("QuestTaskPanel");
+    // "Both": personal progress (useQuestTaskRows) + the public earn-list (useQuestBrandTasks).
     expect(questFile).toContain("useQuestTaskRows");
-    expect(questFile).toContain("questTasks.rows.map");
+    expect(questFile).toContain("useQuestBrandTasks");
+    expect(questFile).toContain(".rows.map");
     expect(questFile).toContain("TaskPointsPill");
     expect(questFile).not.toContain("Daily check-in");
+    // The hardcoded "Shop 300 Baht+" row lives in the mapper, not the screen source.
     expect(questFile).not.toContain("Shop 300 Baht+ on any shops");
     expect(questFile).not.toContain("Invite your Friends");
   });
@@ -228,7 +247,7 @@ describe("Account hub route parity", () => {
     expect(shellFile).toContain("CustomerMobileBottomNav");
     expect(shellFile).toContain("bottomInset={insets.bottom}");
     expect(shellFile).toContain("showTitle = true");
-    expect(shellFile).toContain('lastUpdated = "Last Updated: -"');
+    expect(shellFile).toContain('lastUpdated = null');
     expect(profileFile).toContain('activeRouteId="profile"');
     expect(profileFile).toContain("showTitle={false}");
     expect(profileFile).toContain("AccountPageShell");
@@ -236,7 +255,7 @@ describe("Account hub route parity", () => {
     expect(profileFile).toContain("webProfileWalletSummary");
     expect(profileFile).toContain("useMobileSessionSnapshot");
     expect(profileFile).toContain("getSessionWalletSummary");
-    expect(profileFile).toContain("session?.wallet");
+    expect(profileFile).toContain("useProfileWalletAmount");
     expect(profileFile).toContain("ProfilePanelHeader");
     expect(profileFile).toContain("InviteFriendsRow");
     expect(profileFile).toContain("copyInviteLink");
@@ -286,8 +305,7 @@ describe("Account hub route parity", () => {
     expect(profileFile).toContain("pickThemed(colors, \"#DCEBFF\", colors.primarySoft)");
     expect(profileFile).toContain("minHeight: 52");
     expect(profileFile).toContain("borderRadius: 18");
-    expect(profileFile).toContain("minWidth: 102");
-    expect(profileFile).toContain("height: 24");
+    expect(profileFile).toContain("height: 32");
     expect(profileFile).toContain("copyButtonIcon");
     expect(profileFile).toContain("fontWeight: typography.labelWeight");
   });
@@ -338,6 +356,18 @@ describe("Account hub route parity", () => {
     expect(shellFile).toContain("DESKTOP_WALLET_AVATAR_SIZE");
     expect(shellFile).toContain("walletHeroGlassPanelCompact");
     expect(shellFile).toContain("walletHeroIdRowCompact");
+    // Redesign 2026-07-11 (founder): the masked USER ID was 58%-alpha text
+    // floating on the green band — now a labeled high-contrast chip.
+    expect(shellFile).toContain("walletHeroIdChip");
+    expect(shellFile).toMatch(/walletHeroId:[\s\S]*?color: colors\.white/);
+    expect(shellFile).toContain('label={tc("User ID")}');
+    // Round 2 (founder): quieter chip — hugs its content (no full-width
+    // stretch), no border, small 13pt value.
+    expect(shellFile).not.toMatch(/walletHeroIdChip: \{[^}]*borderWidth/);
+    expect(shellFile).toMatch(/walletHeroId:[\s\S]*?fontSize: 13/);
+    expect(shellFile).not.toMatch(/walletHeroIdRowCompact: \{[^}]*width: "100%"/);
+    const maskedRow = readMobileFile("src/components/MaskedUserIdRow.tsx");
+    expect(maskedRow).toContain("label");
     expect(shellFile).toContain("profileContentMobile");
     expect(shellFile).toContain("profileContentDesktop");
     expect(shellFile).toContain("webProfileWalletHeroSurface.headerColor");
@@ -371,10 +401,14 @@ describe("Account hub route parity", () => {
     expect(profileFile).toContain("fontSize: 14");
     expect(profileFile).toContain("paddingHorizontal: 16");
     expect(profileFile).toMatch(/<InviteIcon[\s\S]{0,120}size=\{24\}/);
+    // Redesign 2026-07-11 (founder): the 52pt cap truncated "Invite your
+    // Frie…" — the card breathes now and the title may wrap to two lines.
     expect(profileFile).toMatch(
-      /inviteRow:[\s\S]*backgroundColor: pickThemed\(colors, "#DCEBFF", colors\.primarySoft\)[\s\S]*maxHeight: 52,[\s\S]*minHeight: 52/
+      /inviteRow:[\s\S]*backgroundColor: pickThemed\(colors, "#DCEBFF", colors\.primarySoft\)[\s\S]*minHeight: 64/
     );
-    expect(profileFile).toMatch(/copyButton:[\s\S]*height: 24,[\s\S]*minWidth: 102/);
+    expect(profileFile).not.toMatch(/inviteRow: \{[^}]*maxHeight/);
+    expect(profileFile).toMatch(/<Text numberOfLines=\{2\} style=\{styles\.inviteTitle\}/);
+    expect(profileFile).toMatch(/copyButton:[\s\S]*height: 32,/);
     expect(profileFile).toContain("height: 14");
     expect(bottomNavFile).toContain("ProfileAvatarImage");
     expect(bottomNavFile).toContain("bottomNavProfileAvatar");
@@ -420,10 +454,12 @@ describe("Account hub route parity", () => {
     expect(panelFile).toContain("Personal Information");
     expect(panelFile).toContain("AVAILABLE TO WITHDRAW");
     // The new hero replaces the generic AccountWalletHeroCard on this surface; the
-    // panel composes ProfileHeroCard, which carries the wallet-summary fallback.
+    // panel composes ProfileHeroCard. Its display name comes from the shared
+    // identity resolver (fixture fallback lives inside it, fixtures-mode only —
+    // live sessions must never render "Mock User"; field bug 2026-07-10).
     expect(panelFile).toContain("ProfileHeroCard");
     const heroFile = readMobileFile("src/components/ProfileHeroCard.tsx");
-    expect(heroFile).toContain("webProfileWalletSummary");
+    expect(heroFile).toContain("resolveProfileDisplayName");
   });
 
   it("profile desktop panel > given web responsive /profile > then CustomerProfileScreen renders ProfileInfoPanel on desktop and the hub otherwise", () => {
@@ -768,26 +804,37 @@ describe("Account hub route parity", () => {
 
     expect(favoriteFile).toContain("FavoriteBrandsSubPage");
     expect(favoriteFile).toContain("FavoriteBrandsTopBar");
-    expect(favoriteFile).toContain("FavoriteBrandsHero");
     expect(favoriteFile).toContain("RecentlyVisitedBrandsGrid");
-    expect(favoriteFile).toContain("FavoriteBrandCard");
-    expect(favoriteFile).toContain("favoriteHeroLogoImage");
-    expect(favoriteFile).toContain("favoriteHeroBagImage");
+    // Final-form alignment 2026-07-11: the grid renders the shared BrandCard
+    // (category chip + heart are BrandCard options), no local clone.
+    expect(favoriteFile).toContain("<BrandCard");
+    expect(favoriteFile).not.toContain("FavoriteBrandCard");
+    // Hero redesign 2026-07-11: the hero lives in its own component (the old
+    // inline hero + illustration filled a whole phone screen before any
+    // brands appeared), and the 32pt page title renders on DESKTOP only —
+    // mobile already shows the title in the top bar.
+    expect(favoriteFile).toContain('from "@mobile/components/FavoriteBrandsHero"');
+    expect(favoriteFile).toMatch(/\{isDesktop \? \(\s*<Text style=\{styles\.pageTitle\}/);
     expect(favoriteFile).toMatch(/pageTitle:[\s\S]*fontSize: 32,[\s\S]*lineHeight: 40/);
-    expect(favoriteFile).toMatch(/heroLogo:[\s\S]*height: 60,[\s\S]*width: 60/);
-    expect(favoriteFile).toMatch(/heroTitle:[\s\S]*fontSize: 24,[\s\S]*lineHeight: 31/);
-    expect(favoriteFile).toMatch(/heroDescription:[\s\S]*fontSize: 15,[\s\S]*lineHeight: 24/);
-    expect(favoriteFile).toMatch(/heroButton:[\s\S]*minHeight: 48/);
-    expect(favoriteFile).toMatch(/heroBag:[\s\S]*height: 200/);
     expect(favoriteFile).toContain("favoriteBrandsSurfaceBleed");
-    // Web parity: mint/white hero on a white surface (not the old blue placeholder) + desktop row layout.
     expect(favoriteFile).toContain("favoriteShell");
-    expect(favoriteFile).toContain("heroCardDesktop");
+
+    const heroFile = readMobileFile("src/components/FavoriteBrandsHero.tsx");
+    // Compact mobile banner: text + small illustration in ONE ROW (~ a third
+    // of the old height); desktop keeps the generous web-parity hero.
+    expect(heroFile).toContain("favoriteHeroLogoImage");
+    expect(heroFile).toContain("favoriteHeroBagImage");
+    expect(heroFile).toContain("heroCardDesktop");
+    expect(heroFile).toMatch(/heroCard: \{[\s\S]*?flexDirection: "row"/);
+    expect(heroFile).toMatch(/heroBag:[\s\S]*height: 96/);
+    expect(heroFile).toMatch(/heroBagDesktop:[\s\S]*height: 200/);
+    // The GO logo is desktop-only chrome; mobile spends the space on content.
+    expect(heroFile).toMatch(/\{isDesktop \? \(\s*<Image[\s\S]*?favoriteHeroLogoImage/);
     expect(favoriteFile).not.toContain('"#DCEEFF"');
     expect(favoriteFile).not.toContain("favoriteBlueShell");
     expect(favoriteFile).toContain('activeRouteId="profile"');
     expect(favoriteFile).toContain('href="/profile"');
-    expect(favoriteFile).toContain('href="/shops"');
+    expect(heroFile).toContain('href="/shops"');
     expect(favoriteFile).not.toContain("No favorite brands yet");
     expect(favoriteFile).not.toContain("Browse partners");
   });

@@ -43,31 +43,89 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
     expect(dotsSource).not.toContain("outputRange: [size, expandedWidth, size]");
   });
 
-  it("BrandCard > given partner logos > then expo-image is used with contentFit cover", () => {
-    const brandCard = readMobileFile("src/components/BrandCard.tsx");
+  it("BrandLogoTile > given partner logos > then expo-image is used with contentFit contain", () => {
+    // 2026-07-11 tile convergence: the expo-image usage every brand card
+    // shares lives once, in BrandLogoTile.
+    const tile = readMobileFile("src/components/BrandLogoTile.tsx");
 
-    expect(brandCard).toContain('from "expo-image"');
-    expect(brandCard).toContain('contentFit="cover"');
-    expect(brandCard).toContain("recyclingKey=");
-    expect(brandCard).toContain('cachePolicy="memory-disk"');
-    expect(brandCard).not.toMatch(
+    expect(tile).toContain('from "expo-image"');
+    expect(tile).toContain('contentFit="contain"');
+    expect(tile).toMatch(/logoImage: \{[\s\S]*?height: "100%"/);
+    expect(tile).toContain("recyclingKey=");
+    expect(tile).toContain('cachePolicy="memory-disk"');
+    expect(tile).not.toMatch(
       /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/
+    );
+
+    const brandCard = readMobileFile("src/components/BrandCard.tsx");
+    expect(brandCard).toContain("<BrandLogoTile");
+    expect(brandCard).not.toContain('height: "62%"');
+    expect(brandCard).not.toContain("brandLogoFill");
+  });
+
+  it("BrandLogoTile > given a remote logo > then the tile uses card background not tint", () => {
+    const tile = readMobileFile("src/components/BrandLogoTile.tsx");
+
+    expect(tile).toContain(
+      "showImage ? styles.tileCardBackground.backgroundColor : tint",
     );
   });
 
-  it("BrandCard > given remote logoUri > then large and compact visuals use card background not tint", () => {
+  it("BrandCard > given long cashback values > then caption truncates and value keeps full width", () => {
     const brandCard = readMobileFile("src/components/BrandCard.tsx");
 
-    expect(brandCard).toContain("const brandVisualBackground =");
     expect(brandCard).toMatch(
-      /brandVisual[\s\S]*backgroundColor: brandVisualBackground/,
+      /brandCashbackCaption:[\s\S]*flex:\s*1/,
     );
     expect(brandCard).toMatch(
-      /compactBrandVisual[\s\S]*backgroundColor: brandVisualBackground/,
+      /brandCashback:[\s\S]*flexShrink:\s*0/,
     );
-    expect(brandCard).not.toMatch(
-      /compactBrandVisual[\s\S]*backgroundColor: tint/,
+    expect(brandCard).toMatch(
+      /compactCashbackCaption:[\s\S]*flex:\s*1/,
     );
+    expect(brandCard).toMatch(
+      /compactCashbackValue:[\s\S]*flexShrink:\s*0/,
+    );
+    expect(brandCard).toMatch(
+      /brandCashbackRow[\s\S]*numberOfLines=\{1\}/,
+    );
+  });
+
+  it("directory store cards > given remote logos > then expo-image uses contain on card background", () => {
+    const shopCard = readMobileFile("src/screens/discovery/ShopDirectoryStoreCard.tsx");
+    // #461 — brand directory cards share BrandLogoTile (expo-image lives there).
+    const brandCard = readMobileFile("src/screens/discovery/BrandDirectoryStoreCard.tsx");
+    const tile = readMobileFile("src/components/BrandLogoTile.tsx");
+    const discoveryStyles = readMobileFile("src/screens/discovery/customerDiscoveryStyles.ts");
+
+    expect(shopCard).toContain('from "expo-image"');
+    expect(shopCard).toContain('contentFit="contain"');
+    expect(shopCard).toContain("store.logoUri");
+    expect(shopCard).toContain("colors.card");
+    expect(shopCard).not.toMatch(
+      /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/,
+    );
+
+    expect(brandCard).toContain("<BrandLogoTile");
+    expect(brandCard).toContain("shopDirectoryLogoTile");
+    expect(brandCard).toContain("store.logoUri");
+    expect(brandCard).not.toContain('from "expo-image"');
+    expect(tile).toContain('from "expo-image"');
+    expect(tile).toContain('contentFit="contain"');
+
+    expect(discoveryStyles).toMatch(/shopDirectoryLogoTile:[\s\S]*aspectRatio:\s*1/);
+    expect(discoveryStyles).not.toContain('height: "62%"');
+  });
+
+  it("shop detail related cards > given remote logos > then the shared BrandCard renders them", () => {
+    const shopDetail = readMobileFile("src/screens/CustomerShopDetailScreen.tsx");
+    expect(shopDetail).toContain("<BrandCard");
+
+    // contain + cache + card-vs-tint background live in the ONE shared tile.
+    const tile = readMobileFile("src/components/BrandLogoTile.tsx");
+    expect(tile).toContain('contentFit="contain"');
+    expect(tile).toContain('cachePolicy="memory-disk"');
+    expect(tile).toContain("showImage ? styles.tileCardBackground.backgroundColor : tint");
   });
 
   it("BrandCard > given custom onPress > then it skips Link so search suggestions stay on-screen", () => {
@@ -92,13 +150,34 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
 
   it("HomeSearchResultRow > given remote brand logos > then expo-image caches search hits", () => {
     const searchRow = readMobileFile("src/screens/home/HomeSearchResultRow.tsx");
+    const homeStyles = readMobileFile("src/screens/home/customerHomeStyles.ts");
 
     expect(searchRow).toContain('from "expo-image"');
     expect(searchRow).toContain('contentFit="contain"');
     expect(searchRow).toContain('cachePolicy="memory-disk"');
+    expect(searchRow).toContain("item.logoUri ? colors.card : item.logoBackground");
+    expect(searchRow).toContain("styles.searchResultLogoImage");
+    expect(homeStyles).toMatch(/searchResultLogoImage:[\s\S]*height: "100%"/);
+    expect(homeStyles).toMatch(/searchResultCashback:[\s\S]*flexShrink:\s*0/);
     expect(searchRow).not.toMatch(
       /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/
     );
+  });
+
+  it("favorite brand cards > given remote logos > then the shared BrandCard renders them", () => {
+    const favorites = readMobileFile("src/screens/CustomerFavoriteBrandsScreen.tsx");
+
+    expect(favorites).toContain("<BrandCard");
+    expect(favorites).toContain("logoUri={brand.logo}");
+  });
+
+  it("quest explore shop cards > given remote logos > then the shared BrandCard renders them", () => {
+    const quest = readMobileFile("src/screens/CustomerQuestScreen.tsx");
+    expect(quest).toContain("<ExploreOtherShopsSection");
+    expect(quest).not.toContain("ExpoImage");
+
+    const section = readMobileFile("src/screens/ExploreOtherShopsSection.tsx");
+    expect(section).toContain("<BrandCard");
   });
 
   it("AppProviders > given startup gate > then QueryClientProvider wraps the loading shell", () => {

@@ -1,3 +1,4 @@
+import { DEFAULT_PLATFORM_FEE_PERCENT } from "@/lib/commissionFee";
 import {
   netCommissionFromRaw,
   rawCommissionFromNet,
@@ -10,7 +11,7 @@ export type ProductTypeDraft = {
   /** Optional free-text subtitle shown under the name in the product-types table. */
   description: string;
   pay_in: "cashback" | "cash";
-  /** Cashback %: raw partner number (net = raw × 0.7). */
+  /** Cashback %: raw partner number (net = raw × (1 − fee/100)). */
   commission_raw: string;
   /** Cash: amount (string for clean typing). */
   amount: string;
@@ -33,6 +34,7 @@ export const EMPTY_PRODUCT_TYPE_DRAFT: ProductTypeDraft = {
 /** Build the persisted product-type row from a draft (name trimmed; cash amount coerced to a number or null). */
 export function productTypeDraftToEntry(
   draft: ProductTypeDraft,
+  feePercent: number = DEFAULT_PLATFORM_FEE_PERCENT,
 ): OfferProductTypeEntry {
   const name = draft.name.trim();
   const description = draft.description.trim();
@@ -53,7 +55,7 @@ export function productTypeDraftToEntry(
   return {
     name,
     pay_in: "cashback",
-    commission_info: netCommissionFromRaw(draft.commission_raw),
+    commission_info: netCommissionFromRaw(draft.commission_raw, feePercent),
     commission_raw: draft.commission_raw,
     deeplink: draft.deeplink,
     description,
@@ -63,13 +65,15 @@ export function productTypeDraftToEntry(
 /** Re-populate the draft frame from a saved row (for Edit); derives the raw % from the net when absent. */
 export function productTypeEntryToDraft(
   entry: OfferProductTypeEntry,
+  feePercent: number = DEFAULT_PLATFORM_FEE_PERCENT,
 ): ProductTypeDraft {
   return {
     name: entry.name,
     description: entry.description ?? "",
     pay_in: entry.pay_in === "cash" ? "cash" : "cashback",
     commission_raw:
-      entry.commission_raw ?? rawCommissionFromNet(entry.commission_info ?? ""),
+      entry.commission_raw ??
+      rawCommissionFromNet(entry.commission_info ?? "", feePercent),
     amount: entry.amount != null ? String(entry.amount) : "",
     currency: entry.currency || "THB",
     deeplink: entry.deeplink ?? "",
@@ -86,16 +90,25 @@ export function serializeOfferProductTypes(
   rows: OfferProductTypeEntry[],
 ): OfferProductTypeEntry[] {
   return rows
-    .map((row) => ({
-      name: row.name.trim(),
-      pay_in: row.pay_in ?? "cashback",
-      commission_info: row.commission_info.trim(),
-      amount: row.amount ?? null,
-      currency: (row.currency ?? "").trim(),
-      deeplink: (row.deeplink ?? "").trim(),
-      description: (row.description ?? "").trim(),
-      ...(row.is_tagline ? { is_tagline: true } : {}),
-    }))
+    .map((row) => {
+      const commission = (row.commission_info ?? "").trim();
+      return {
+        name: row.name.trim(),
+        pay_in: row.pay_in ?? "cashback",
+        commission_info: commission,
+        // Mirror the rate onto `minimum`, the key the affiliate feed and the API's
+        // ProductTypeDto use (#516). The API persists product_type as a free-form
+        // `{[key: string]: string}[]` with no row validation, so whichever key the
+        // admin omits is simply dropped — emitting only `commission_info` silently
+        // erased the partner rate on every feed-imported row.
+        minimum: commission,
+        amount: row.amount ?? null,
+        currency: (row.currency ?? "").trim(),
+        deeplink: (row.deeplink ?? "").trim(),
+        description: (row.description ?? "").trim(),
+        ...(row.is_tagline ? { is_tagline: true } : {}),
+      };
+    })
     .filter((row) => row.name.length > 0);
 }
 

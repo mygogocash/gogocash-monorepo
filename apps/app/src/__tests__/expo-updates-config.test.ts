@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-describe("expo updates config > app.config.ts", () => {
+describe("expo updates config > app.config.js", () => {
   const configSource = readFileSync(
-    resolve(__dirname, "../../app.config.ts"),
+    resolve(__dirname, "../../app.config.js"),
     "utf8",
   );
 

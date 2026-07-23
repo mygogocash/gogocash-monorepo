@@ -10,6 +10,11 @@ describe("toPhoneE164", () => {
     expect(toPhoneE164("+66", "812346789")).toBe("+66812346789");
   });
 
+  it("normalizes the reported 063 and 63 forms to the same Thai E.164 number", () => {
+    expect(toPhoneE164("+66", "0631234567")).toBe("+66631234567");
+    expect(toPhoneE164("+66", "631234567")).toBe("+66631234567");
+  });
+
   it("given multiple leading zeros > strips only one", () => {
     expect(toPhoneE164("+66", "00812346789")).toBe("+660812346789");
   });

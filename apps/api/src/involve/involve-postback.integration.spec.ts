@@ -68,7 +68,9 @@ describe('GET /involve/postback (integration)', () => {
     );
 
     expect(res.status).toBe(401);
-    expect(res.body.message).toMatch(/not configured/i);
+    // Client must get generic, leak-free copy (the real cause is logged server-side).
+    expect(res.body.message).toMatch(/temporarily unavailable/i);
+    expect(res.body.message).not.toMatch(/postback secret|not configured/i);
     expect(conversionIngestService.upsertFromPostback).not.toHaveBeenCalled();
   });
 

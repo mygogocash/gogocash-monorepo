@@ -15,6 +15,7 @@ import { useState } from "react";
 import client from "@/lib/axios/client";
 import { devError } from "@/lib/devConsole";
 import { isDirty } from "@/lib/isDirty";
+import { resolveBankPayoutAmount } from "@/lib/withdrawBankPayout";
 interface DataWithdrawsModal {
   openModal: DataWithdrawsList | boolean;
   setOpenModal: React.Dispatch<
@@ -63,7 +64,6 @@ const ModalWithdraw = ({
     client
       .patch(`/admin/update-request-withdraw`, formData, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       })
@@ -132,10 +132,9 @@ const ModalWithdraw = ({
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pb-4">
           {/* MiniPay / manual-payout admin action. Renders only when the row is
             `withdraw_mode === "manual"` and `status === "pending"`. */}
-          {session?.accessToken ? (
+          {session?.user ? (
             <ManualWithdrawMarkPaid
               withdraw={openModal as unknown as WithdrawList}
-              token={session.accessToken}
               onMarkedPaid={() => {
                 setOpenModal(false);
                 fetchData();
@@ -199,7 +198,7 @@ const ModalWithdraw = ({
               Total Payout
             </p>
             <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-              Amount to be paid for this withdrawal request.
+              Amount deducted from the customer wallet (before bank fee).
             </p>
             <p className="text-lg font-semibold text-gray-800 dark:text-white/90">
               {(openModal as DataWithdrawsList).currency !== "USDC" &&
@@ -209,6 +208,45 @@ const ModalWithdraw = ({
                   " " +
                   (openModal as DataWithdrawsList)?.currency}
             </p>
+            {typeof (openModal as DataWithdrawsList).withdraw_fee_final ===
+            "number" ? (
+              <div className="mt-3 space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                <p>
+                  Withdraw fee:{" "}
+                  {formatPrice(
+                    (openModal as DataWithdrawsList).withdraw_fee_base ?? 0,
+                  )}
+                  {(openModal as DataWithdrawsList).withdraw_fee_discount
+                    ? ` − ${formatPrice(
+                        (openModal as DataWithdrawsList).withdraw_fee_discount ??
+                          0,
+                      )} coupon`
+                    : ""}{" "}
+                  →{" "}
+                  {formatPrice(
+                    (openModal as DataWithdrawsList).withdraw_fee_final ?? 0,
+                  )}
+                </p>
+                {(openModal as DataWithdrawsList).coupon_code ? (
+                  <p>
+                    Coupon: {(openModal as DataWithdrawsList).coupon_code}
+                  </p>
+                ) : null}
+                <p className="text-base font-semibold text-gray-800 dark:text-white/90">
+                  Bank payout:{" "}
+                  {(openModal as DataWithdrawsList).currency !== "USDC" &&
+                  (openModal as DataWithdrawsList).currency !== "USDT"
+                    ? formatPrice(
+                        resolveBankPayoutAmount(
+                          openModal as DataWithdrawsList,
+                        ),
+                      )
+                    : `${resolveBankPayoutAmount(
+                        openModal as DataWithdrawsList,
+                      )} ${(openModal as DataWithdrawsList).currency}`}
+                </p>
+              </div>
+            ) : null}
           </div>
           <div>
             <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">

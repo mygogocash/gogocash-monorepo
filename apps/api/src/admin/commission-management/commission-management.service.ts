@@ -6,7 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, Model, Types } from 'mongoose';
 import { Offer } from 'src/offer/schemas/offer.schema';
-import { InvolveService } from 'src/involve/involve.service';
+import { AffiliateProviderRegistry } from 'src/affiliate/affiliate-provider.registry';
 import {
   affiliateNetworkIdForSource,
   affiliateNetworkName,
@@ -40,7 +40,7 @@ export type CommissionBrandRowDto = {
 export class CommissionManagementService {
   constructor(
     @InjectModel(Offer.name) private readonly offerModel: Model<Offer>,
-    private readonly involveService: InvolveService,
+    private readonly registry: AffiliateProviderRegistry,
   ) {}
 
   getNetworks() {
@@ -120,6 +120,7 @@ export class CommissionManagementService {
         commissionStore: adminCommission,
         affiliateNetworkId,
         bestRatePercent,
+        deeplinkStoreId: merged.deeplink_store_id,
       });
 
     return {
@@ -195,6 +196,7 @@ export class CommissionManagementService {
           commissionStore: adminCommission,
           affiliateNetworkId,
           bestRatePercent,
+          deeplinkStoreId: offer.deeplink_store_id,
         }),
       affiliateNetworkId,
       affiliateNetworkName: affiliateNetworkName(affiliateNetworkId),
@@ -205,34 +207,23 @@ export class CommissionManagementService {
     offer: Record<string, any>,
     affiliateNetworkId: string,
   ) {
-    if (
-      affiliateNetworkId !== 'involve_asia' ||
-      !process.env.INVOLVE_SECRET?.trim()
-    ) {
+    // Dispatch through the affiliate seam. The involve patch-building logic now
+    // lives in InvolveAffiliateProvider.refreshOffer; behavior for involve is
+    // unchanged (enabled + live offer -> same {commissions, tracking_link,
+    // commission_tracking} patch persisted). Networks without a registered/
+    // enabled provider (optimise today, disabled involve) fall through and
+    // return the stored offer untouched — the existing "not connected /
+    // unsupported" path.
+    const source = sourceForAffiliateNetwork(affiliateNetworkId);
+    // providerFor is called defensively (?.) so unit tests that construct this
+    // service with a partial registry stub still exercise the fallthrough.
+    const provider = source ? this.registry?.providerFor?.(source) : null;
+    if (!provider || !provider.isEnabled()) {
       return offer;
     }
 
-    const refreshed = await this.involveService.findOfferByOfferId(
-      Number(offer.offer_id),
-    );
-    if (!refreshed) {
-      return offer;
-    }
-
-    const patch: Record<string, unknown> = {};
-    if (Array.isArray(refreshed.commissions)) {
-      patch.commissions = refreshed.commissions;
-    }
-    if (
-      typeof refreshed.tracking_link === 'string' &&
-      refreshed.tracking_link
-    ) {
-      patch.tracking_link = refreshed.tracking_link;
-    }
-    if (typeof refreshed.commission_tracking === 'string') {
-      patch.commission_tracking = refreshed.commission_tracking;
-    }
-    if (Object.keys(patch).length === 0) {
+    const patch = await provider.refreshOffer(offer);
+    if (!patch || Object.keys(patch).length === 0) {
       return offer;
     }
 

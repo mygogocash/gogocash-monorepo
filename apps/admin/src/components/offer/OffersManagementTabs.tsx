@@ -22,6 +22,10 @@ export const OFFERS_MANAGEMENT_TABS = [
     id: "top-brands" as const,
     label: "Top brands",
   },
+  {
+    id: "landing-rails" as const,
+    label: "Landing rails",
+  },
 ] as const;
 
 export type OffersManagementTabId = (typeof OFFERS_MANAGEMENT_TABS)[number]["id"];
@@ -31,6 +35,7 @@ export function offersManagementTabFromSearch(tabParam: string | null): OffersMa
   if (tabParam === "deeplink") return "deeplink";
   if (tabParam === "commission") return "commission";
   if (tabParam === "top-brands") return "top-brands";
+  if (tabParam === "landing-rails") return "landing-rails";
   if (tabParam === "offers") return "brands";
   return "brands";
 }
@@ -102,7 +107,7 @@ export default function OffersManagementTabs() {
         aria-selected={missingOrdersActive}
         className={tabButtonClass(missingOrdersActive)}
       >
-        Missing orders
+        Missing conversions
       </Link>
       <Link
         href="/search-config"

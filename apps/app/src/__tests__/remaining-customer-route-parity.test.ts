@@ -55,7 +55,10 @@ describe("Remaining customer route parity", () => {
     const ratingRoute = readMobileFile("app/profile/my-rating.tsx");
 
     expect(ratingRoute).toContain("Redirect");
-    expect(ratingRoute).toContain('href="/credit-score"');
+    // Flag-aware alias: -> /credit-score when enabled, -> /profile when hidden.
+    expect(ratingRoute).toContain("isCreditScoreEnabled");
+    expect(ratingRoute).toContain("/credit-score");
+    expect(ratingRoute).toContain("/profile");
     expect(ratingRoute).not.toContain("CustomerProfileDetailScreen");
   });
 
@@ -100,21 +103,34 @@ describe("Remaining customer route parity", () => {
     expect(tabsLayout).toContain('name="profile"');
     expect(profileRoute).toContain("buildProtectedLoginRedirect");
     expect(profileRoute).toContain("router.replace");
-    expect(profileRoute).toContain("if (!ready || !isAuthed)");
+    // Profile splits the hydrate window (!ready -> neutral loading) from logged-out
+    // (ready && !isAuthed -> "Sign in required") so an authed user never sees a Sign-in
+    // flash on cold start. The combined `!ready || !isAuthed` guard is the regression.
+    expect(profileRoute).toContain("if (!ready)");
+    expect(profileRoute).toContain("if (!isAuthed)");
+    expect(profileRoute).toContain('variant="loading"');
+    expect(profileRoute).not.toContain("if (!ready || !isAuthed)");
+    // Wallet mirrors the loading treatment instead of a blank screen while hydrating.
     expect(walletRoute).toContain("if (!ready)");
+    expect(walletRoute).toContain('variant="loading"');
 
     const bottomNav = readMobileFile("src/components/CustomerMobileBottomNav.tsx");
-    expect(bottomNav).toContain("protectedBottomNavHrefs");
-    expect(bottomNav).toContain("buildProtectedLoginRedirect");
+    expect(bottomNav).toContain("queueProtectedBottomNavWhileSessionHydrates");
     expect(bottomNav).toContain("handleBottomNavPress");
+    // Native session hydrate is async (`ready: false`). Swallowing the press leaves Wallet/Profile
+    // dead until the next tap — push the protected href so the route self-guard can run.
+    expect(bottomNav).not.toMatch(/if\s*\(\s*!ready\s*\)\s*\{\s*return;\s*\}/);
 
     // Home uses its own bottom nav chrome; it must intercept wallet/profile the same way
     // as AccountPageShell — `<Link href="/profile">` mounts the tab and leaves a blank scene.
     const homeBottomNav = readMobileFile("src/screens/home/CustomerMobileBottomNav.tsx");
-    expect(homeBottomNav).toContain("protectedBottomNavHrefs");
-    expect(homeBottomNav).toContain("buildProtectedLoginRedirect");
+    expect(homeBottomNav).toContain("queueProtectedBottomNavWhileSessionHydrates");
     expect(homeBottomNav).toContain("handleBottomNavPress");
     expect(homeBottomNav).not.toMatch(/<Link[^>]+href=\{item\.href/);
+    expect(homeBottomNav).not.toMatch(/if\s*\(\s*!ready\s*\)\s*\{\s*return;\s*\}/);
+    // Profile tab must not paint a blank scene while the login redirect settles.
+    expect(profileRoute).toContain('variant="unauthenticated"');
+    expect(profileRoute).toContain("Sign in required");
 
     // The guard signal is synchronous-correct on web (localStorage) and async on native.
     expect(guardSession).toContain("createAvailableSessionStore");
@@ -219,9 +235,11 @@ describe("Remaining customer route parity", () => {
     expect(offerScreen).toContain("createdAt");
     expect(offerScreen).toContain("copyToClipboard");
 
-    expect(phoneScreen).toContain("Change Your Phone Number");
+    expect(phoneScreen).toContain("Link Your Phone Number");
     expect(phoneScreen).toContain("Verification Code");
     expect(phoneScreen).toContain("Invalid phone number");
+    expect(phoneScreen).toContain("sendPhoneOtpWithRecaptcha(phoneE164)");
+    expect(phoneScreen).toContain("linkVerifiedPhone");
     expect(phoneScreen).toContain("/profile/cf-phone");
     expect(phoneScreen).toContain("#00B14F");
   });

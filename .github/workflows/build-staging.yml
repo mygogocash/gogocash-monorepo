@@ -4,11 +4,23 @@
 # ci-staging.yml for the CI gate). This workflow builds Artifact Registry
 # images for manual Cloud Run release — operator-initiated only.
 #
-# Gating: the `ci` job reuses ci.yml when invoked manually.
+# Gating: the `ci` job reuses ci.yml. The operator's explicit `app` selection,
+# not change-detection outputs, controls which images build after CI succeeds.
 name: Build (staging) [GCP rollback]
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      app:
+        description: Which rollback image(s) to build
+        required: true
+        default: all
+        type: choice
+        options:
+          - api
+          - admin
+          - app-web
+          - all
 
 concurrency:
   group: build-staging-${{ github.ref }}
@@ -23,14 +35,28 @@ permissions:
   pull-requests: read
 
 jobs:
+  preflight:
+    name: reviewed ref gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require reviewed main branch
+        env:
+          TARGET_REF: ${{ github.ref }}
+        run: |
+          if [ "$TARGET_REF" != "refs/heads/main" ]; then
+            echo "::error::GCP rollback builds must be dispatched from refs/heads/main; got $TARGET_REF."
+            exit 1
+          fi
+
   ci:
     name: CI gate
+    needs: preflight
     uses: ./.github/workflows/ci.yml
 
   build-api:
     name: build api
     needs: ci
-    if: ${{ needs.ci.outputs.api == 'true' }}
+    if: ${{ needs.ci.result == 'success' && (inputs.app == 'api' || inputs.app == 'all') }}
     uses: ./.github/workflows/_build-push.yml
     with:
       service_name: gogocash-api-staging
@@ -40,7 +66,7 @@ jobs:
   build-admin:
     name: build admin
     needs: ci
-    if: ${{ needs.ci.outputs.admin == 'true' }}
+    if: ${{ needs.ci.result == 'success' && (inputs.app == 'admin' || inputs.app == 'all') }}
     uses: ./.github/workflows/_build-push.yml
     with:
       service_name: gogocash-admin
@@ -50,7 +76,7 @@ jobs:
   build-app-web:
     name: build app-web
     needs: ci
-    if: ${{ needs.ci.outputs.app == 'true' }}
+    if: ${{ needs.ci.result == 'success' && (inputs.app == 'app-web' || inputs.app == 'all') }}
     uses: ./.github/workflows/_build-push.yml
     secrets: inherit
     with:
@@ -60,3 +86,25 @@ jobs:
       # Expo web export runs before the image build; EXPO_PUBLIC_* env is set in
       # _build-push.yml Prebuild (backend mode + Firebase secrets).
       prebuild_command: npm run export:web -w @gogocash/mobile
+
+  build-summary:
+    name: require selected builds
+    needs: [preflight, ci, build-api, build-admin, build-app-web]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    outputs:
+      image_digests: ${{ steps.summary.outputs.image_digests }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "24"
+      - name: Require every selected image build
+        id: summary
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          SELECTED_APP: ${{ inputs.app }}
+          TARGET_SHA: ${{ github.sha }}
+        run: node scripts/deployment/gcp-build-summary.mjs

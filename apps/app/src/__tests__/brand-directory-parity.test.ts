@@ -92,6 +92,7 @@ describe("Brand directory parity", () => {
       "Others",
     ]);
     expect(parity.webBrandDirectory?.sortPills).toEqual([
+      { label: "All", value: "all" },
       { label: "Popular", value: "popular" },
       { label: "Latest", value: "newest" },
       { label: "Highest Cashback", value: "highest_cashback" },
@@ -160,22 +161,27 @@ describe("Brand directory parity", () => {
     expect(screenFile).toContain("useCustomerAccountResource");
     expect(screenFile).toContain("resolveLiveDirectoryStores");
     expect(screenFile).toContain("getBrandDirectoryGridMetrics");
-    expect(screenFile).toContain("BrandDirectoryStoreCard");
+    // #card-parity — the grid renders the SHARED BrandCard (size "L"), the same component
+    // the home rails / Top Brands / category surfaces use, so cards are visually consistent
+    // (was a bespoke BrandDirectoryStoreCard that drifted).
+    expect(screenFile).toContain("<BrandCard");
+    expect(screenFile).toContain('size="L"');
     expect(screenFile).toContain("brandDirectoryGrid");
     expect(screenFile).not.toContain(
       "Browse cashback partners and open the best available tracking route."
     );
   });
 
-  // Regression guard: directory category asides render a per-category icon via
-  // getCategoryIcon (web shows a distinct glyph per category), not a single
-  // uniform SlidersHorizontal filter glyph on every row.
-  it("category aside icons > given directory category rows > then each uses getCategoryIcon, not a uniform filter glyph", () => {
+  // Regression guard: directory category asides render a per-category glyph via
+  // CategoryGlyph (built-in icon_key / custom image), not a single uniform
+  // SlidersHorizontal filter glyph on every row.
+  it("category aside icons > given directory category rows > then each uses CategoryGlyph, not a uniform filter glyph", () => {
     const screenSource = readDiscoverySources(mobileRoot);
 
-    expect(screenSource).toContain('from "@mobile/theme/categoryIcons"');
-    const lookups = screenSource.match(/getCategoryIcon\(/g) ?? [];
-    expect(lookups.length).toBeGreaterThanOrEqual(3);
+    expect(screenSource).toContain('from "@mobile/components/CategoryGlyph"');
+    const lookups = screenSource.match(/<CategoryGlyph[\s\S]*?\/>/g) ?? [];
+    expect(lookups.length).toBeGreaterThanOrEqual(2);
+    expect(screenSource).toContain("categoryIconKeys");
     expect(screenSource).not.toContain("SlidersIcon");
   });
 });

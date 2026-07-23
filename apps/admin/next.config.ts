@@ -22,7 +22,14 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     optimizePackageImports: ["@mui/material", "@mui/x-data-grid"],
+    // #487 — default Next proxy buffer is 10MB; truncated multipart bodies
+    // surface as Nest "Multipart: Unexpected end of form". Keep in sync with
+    // MAX_PROXY_BODY_BYTES in apps/admin/src/lib/backendProxy.ts (32 MiB).
+    proxyClientMaxBodySize: 32 * 1024 * 1024,
   },
+  // @gogocash/contracts is a source-consumed (JIT) workspace package — Next
+  // must transpile its TS directly (#19 P4-1).
+  transpilePackages: ["@gogocash/contracts"],
   ...(basePath ? { basePath } : {}),
   ...(assetPrefix ? { assetPrefix } : {}),
   ...(process.env.BUILD_FOR_FIREBASE === "1"

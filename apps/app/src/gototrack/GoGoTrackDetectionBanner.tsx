@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AppState, StyleSheet, Text, View } from "react-native";
 
-import { ApiError } from "@mobile/api/client";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 import { useCopy } from "@mobile/i18n/useCopy";
@@ -13,7 +12,10 @@ import { radii, spacing } from "@mobile/theme/tokens";
 
 import type { GoGoTrackDetector } from "./detector";
 import { openAffiliateDeeplink } from "./openAffiliateDeeplink";
-import { getGoGoTrackPromptCoordinator } from "./promptCoordinatorInstance";
+import {
+  getGoGoTrackPromptCoordinatorSnapshot,
+  subscribeGoGoTrackPromptCoordinator,
+} from "./promptCoordinatorInstance";
 import { useGoGoTrack, type GoGoTrackHookApi } from "./useGoGoTrack";
 import { useGoGoTrackApi } from "./useGoGoTrackApi";
 
@@ -70,6 +72,11 @@ function GoGoTrackDetectionBannerLoaded({
     detector,
     api,
   });
+  const promptCoordinatorState = useSyncExternalStore(
+    subscribeGoGoTrackPromptCoordinator,
+    getGoGoTrackPromptCoordinatorSnapshot,
+    getGoGoTrackPromptCoordinatorSnapshot,
+  );
 
   useEffect(() => {
     void refreshPermission();
@@ -90,13 +97,10 @@ function GoGoTrackDetectionBannerLoaded({
   const matchKey = matchIsActionable
     ? `${match.packageName}:${match.response.detectionEventId ?? match.response.merchantId ?? ""}`
     : null;
-  const nativePromptActive =
-    getGoGoTrackPromptCoordinator()?.getState().nativePromptActive ?? false;
   const showNudge =
     matchIsActionable &&
     matchKey !== activatedMatchKey &&
-    !nativePromptActive &&
-    !(getGoGoTrackPromptCoordinator()?.shouldSuppressBanner(matchKey) ?? false);
+    !promptCoordinatorState.nativePromptActive;
 
   const onActivate = useCallback(() => {
     if (activationInFlightRef.current) return;
@@ -116,12 +120,10 @@ function GoGoTrackDetectionBannerLoaded({
           setActivatedMatchKey(matchKey);
         });
       })
-      .catch((error: unknown) => {
-        const message =
-          error instanceof ApiError && error.message
-            ? error.message
-            : tc(toastErrorMessages.cashbackActivationFailed);
-        setActivationError(message);
+      .catch(() => {
+        // Never surface the raw upstream error (e.g. "Request failed with status 500") in the
+        // on-screen banner — always show the already-localized activation-failure copy.
+        setActivationError(tc(toastErrorMessages.cashbackActivationFailed));
       })
       .finally(() => {
         activationInFlightRef.current = false;

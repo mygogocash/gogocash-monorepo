@@ -36,3 +36,17 @@ export const GototrackActivationEventSchema = SchemaFactory.createForClass(
 );
 
 GototrackActivationEventSchema.index({ user_id: 1, createdAt: -1 });
+
+/**
+ * Closes the activate() check-then-create race: at most one activation row per
+ * user + detection event when detection_event_id is populated.
+ */
+GototrackActivationEventSchema.index(
+  { user_id: 1, detection_event_id: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      detection_event_id: { $exists: true, $type: 'string' },
+    },
+  },
+);

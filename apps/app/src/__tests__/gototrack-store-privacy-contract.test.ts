@@ -9,7 +9,7 @@ const readAppFile = (relativePath: string) => fs.readFileSync(path.join(appRoot,
 
 describe("GoGoTrack store privacy contract", () => {
   it("matches the native detector permissions and platform support", () => {
-    const appConfigSource = readAppFile("app.config.ts");
+    const appConfigSource = readAppFile("app.config.js");
     const pluginSource = readAppFile("plugins/withGototrackUsageAccess.js");
     const moduleConfig = JSON.parse(readAppFile("modules/gototrack-detector/expo-module.config.json")) as {
       platforms?: string[];

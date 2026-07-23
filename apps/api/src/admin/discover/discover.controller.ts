@@ -13,6 +13,11 @@ import { AuthAdminGuard } from '../jwt-auth-admin.guard';
 import { RolesGuard } from '../roles.guard';
 import { Roles } from '../roles.decorator';
 import { DiscoverService } from './discover.service';
+import {
+  DiscoverAddItemDto,
+  DiscoverReorderDto,
+  DiscoverUpdateItemDto,
+} from './discover.dto';
 
 @ApiTags('Discover')
 @Controller('admin/discover')
@@ -29,15 +34,12 @@ export class DiscoverController {
   }
 
   @Put('sections/:type/reorder')
-  reorderItems(@Param('type') type: string, @Body() body: { order: string[] }) {
+  reorderItems(@Param('type') type: string, @Body() body: DiscoverReorderDto) {
     return this.discoverService.reorderItems(type, body.order);
   }
 
   @Post('sections/:type/items')
-  addItem(
-    @Param('type') type: string,
-    @Body() body: { offer_id: string; custom_title?: string },
-  ) {
+  addItem(@Param('type') type: string, @Body() body: DiscoverAddItemDto) {
     return this.discoverService.addItem(type, body);
   }
 
@@ -45,7 +47,7 @@ export class DiscoverController {
   updateItem(
     @Param('type') type: string,
     @Param('id') id: string,
-    @Body() body: { custom_title?: string; sort_order?: number },
+    @Body() body: DiscoverUpdateItemDto,
   ) {
     return this.discoverService.updateItem(type, id, body);
   }

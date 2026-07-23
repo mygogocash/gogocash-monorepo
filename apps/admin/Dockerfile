@@ -8,11 +8,12 @@
 # The single root package-lock.json drives the npm workspace install; the admin
 # app no longer carries its own lockfile.
 #
-# NEXT_PUBLIC_API_URL is inlined by Next at build time. It defaults to the
-# STAGING API so the admin talks to the real staging backend instead of the
-# in-process mock. For other environments pass `--build-arg NEXT_PUBLIC_API_URL=...`.
+# NEXT_PUBLIC_API_URL and NEXT_PUBLIC_APP_URL are inlined by Next at build time.
+# Pass them explicitly so admin API calls and customer-app deep links target the
+# same environment. NEXT_PUBLIC_API_URL has no default to avoid silently pointing
+# production builds at staging.
 
-FROM node:22-slim AS builder
+FROM node:24-slim AS builder
 WORKDIR /app
 
 # 1) Install dependencies from the lockfile first, for layer caching.
@@ -25,19 +26,32 @@ COPY package.json package-lock.json .npmrc ./
 COPY apps/admin/package.json ./apps/admin/package.json
 COPY apps/admin/.npmrc ./apps/admin/.npmrc
 COPY apps/admin/scripts ./apps/admin/scripts
+# Shared workspace packages (#19): admin depends on @gogocash/contracts (source
+# transpiled by Next via transpilePackages) and @gogocash/tsconfig — npm ci
+# must see the workspace dirs, and next build must see the contracts source.
+COPY packages ./packages
 # --legacy-peer-deps: the lockfile carries a peerOptional conflict
 # (@types/node vs vite) that strict `npm ci` rejects; mirrored in .npmrc.
-RUN npm ci --legacy-peer-deps
+# --include=dev: Railway injects NODE_ENV=production into the image build,
+# which would otherwise omit typescript (devDependency). Next then tries to
+# auto-install TS via yarn and dies on Corepack / packageManager mismatch.
+RUN npm install --global npm@10.9.8 \
+ && npm ci --legacy-peer-deps --include=dev
 
 # 2) Copy the admin source and build the standalone bundle.
 COPY apps/admin ./apps/admin
-ARG NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_APP_URL
+RUN test -n "$NEXT_PUBLIC_API_URL" || (echo "ERROR: NEXT_PUBLIC_API_URL build-arg is required" >&2 && exit 1)
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV STANDALONE=1
 ENV NEXT_TELEMETRY_DISABLED=1
+# Production mode for the Next compile only — after deps are fully installed.
+ENV NODE_ENV=production
 RUN npm run build:standalone -w gogocash-admin
 
-FROM node:22-slim AS runner
+FROM node:24-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

@@ -1,0 +1,18 @@
+# Authenticated wallet smoke — run after JWT inject:
+#   GOGOTRACK_AUTH_TOKEN=... npm run staging:maestro-wallet
+# Keys on the wallet-dashboard testID (only the authenticated dashboard renders it) and
+# asserts the login screen is absent, so the flow cannot false-pass on the empty-state
+# screen or the /wallet->/login "Connect Wallet" redirect (both contain the text "Wallet").
+appId: co.gogocash.app
+---
+- launchApp
+- runFlow: ../subflows/dismiss-cookie-banner.yaml
+- openLink: gogocash://wallet
+- extendedWaitUntil:
+    visible:
+      id: "wallet-dashboard"
+    timeout: 30000
+- assertVisible:
+    id: "wallet-dashboard"
+- assertNotVisible:
+    id: "login-screen"

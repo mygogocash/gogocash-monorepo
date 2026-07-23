@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import {
   AlertCircle as AlertIcon,
@@ -10,8 +10,16 @@ import {
 } from "@mobile/theme/icons";
 import { Link } from "expo-router";
 
+import {
+  resolveProfileDisplayName,
+  resolveProfileEmail,
+  resolveProfilePhone,
+} from "@mobile/account/profileIdentity";
+import { resolveProfileCashbackBreakdownRows } from "@mobile/account/resolveProfileWalletAmount";
+import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import { BirthDateField } from "@mobile/components/BirthDateField";
 import { ProfileHeroCard } from "@mobile/components/ProfileHeroCard";
+import { getMobileEnv } from "@mobile/config/env";
 import {
   ProfileSocialBrandIcon,
   type ProfileSocialBrand,
@@ -53,9 +61,20 @@ export function isValidBirthdate(input: string, now: Date = new Date()): boolean
  */
 export function ProfileInfoPanel({ session }: { session: MobileSession }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [username, setUsername] = useState(
-    typeof session.username === "string" && session.username ? session.username : "Mock User",
-  );
+  // `session` hydrates AFTER mount: useMobileSessionSnapshot starts at null and
+  // fills in from an effect, and CustomerProfileDetailScreen renders this panel
+  // ungated as `session={session ?? {}}`. So the first render always sees an
+  // empty session and the real one arrives on a later render, WITHOUT a remount.
+  // Anything seeded from a one-shot useState initializer therefore freezes at
+  // its empty-session value forever — that was issue #411, where Link Email
+  // showed a fixture (and then, once the fixture was removed, nothing at all).
+  const resolvedUsername = resolveProfileDisplayName(session);
+  const [username, setUsername] = useState(resolvedUsername);
+  // Adopt the real name once the session lands. Keyed on the resolved value, not
+  // on `isEditing`, so leaving edit mode never reverts what the user just typed.
+  useEffect(() => {
+    setUsername(resolvedUsername);
+  }, [resolvedUsername]);
   const [idType, setIdType] = useState<"national" | "passport">("national");
   const [idNumber, setIdNumber] = useState("");
   const [address, setAddress] = useState("");
@@ -65,8 +84,11 @@ export function ProfileInfoPanel({ session }: { session: MobileSession }) {
   const [zip, setZip] = useState("");
   const [gender] = useState("");
   const [birthdate, setBirthdate] = useState("");
-  const [email] = useState("mock.user@gogocash.test");
-  const [phone] = useState("+66123456789");
+  // Read-only display values — derived straight from the session on every render
+  // rather than held in state, so they cannot get stuck on the pre-hydration
+  // empty session (see the note above).
+  const email = resolveProfileEmail(session);
+  const phone = resolveProfilePhone(session);
   const [errors, setErrors] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
 
@@ -208,7 +230,11 @@ function ProfileMyCashbackLinkSection() {
             </View>
             <Pressable
               accessibilityRole="button"
-              onPress={() => toast.show(tc("This sign-in method is not available yet."))}
+              onPress={() =>
+                toast.show(
+                  `${tc("This sign-in method is not available yet.")} ${tc("Try another option or check back later.")}`,
+                )
+              }
               style={styles.linkInline}
             >
               <Text style={styles.unlinkText}>{tc("Unlink")}</Text>
@@ -250,7 +276,11 @@ function ProfileSocialLinkSection() {
             <Pressable
               accessibilityLabel={tc(provider.label)}
               accessibilityRole="button"
-              onPress={() => toast.show(tc("This sign-in method is not available yet."))}
+              onPress={() =>
+                toast.show(
+                  `${tc("This sign-in method is not available yet.")} ${tc("Try another option or check back later.")}`,
+                )
+              }
               style={styles.socialLinkButton}
             >
               <Text style={styles.socialLinkButtonText}>{tc("Link")}</Text>
@@ -268,6 +298,20 @@ function ProfileCashbackSummaryCard() {
   const tc = useCopy();
   const { width } = useWindowDimensions();
   const isCompact = width < 560;
+
+  // Field bug 2026-07-10: this card rendered the fixture "3,180.24 THB
+  // AVAILABLE TO WITHDRAW" (and a fixture source breakdown) on a LIVE account
+  // whose real balance was 0.00. Backend mode renders the same live wallet
+  // resource the header/Wallet screen use; the breakdown hides until a real
+  // per-source endpoint exists. Fixtures mode keeps design parity untouched.
+  const accountDataSource = getMobileEnv().accountDataSource;
+  const { amount: liveAmount } = useProfileWalletAmount();
+  const availableAmount =
+    accountDataSource === "backend" ? liveAmount : webProfileInfoCashbackCard.amount;
+  const breakdownRows = resolveProfileCashbackBreakdownRows(
+    accountDataSource,
+    webProfileInfoCashbackCard.rows,
+  );
 
   const withdrawButton = (
     <Link asChild href="/withdraw">
@@ -329,7 +373,7 @@ function ProfileCashbackSummaryCard() {
                 isCompact ? styles.profileCashbackAvailableAmountCompact : null,
               ]}
             >
-              {webProfileInfoCashbackCard.amount}
+              {availableAmount}
             </Text>
             <Text style={styles.profileCashbackCurrencyPill}>
               {webProfileInfoCashbackCard.currency}
@@ -337,11 +381,12 @@ function ProfileCashbackSummaryCard() {
           </View>
         </View>
       </View>
+      {breakdownRows.length === 0 ? null : (
       <View style={styles.profileCashbackBreakdown}>
         <Text style={styles.profileCashbackBreakdownTitle}>
           {tc(webProfileInfoCashbackCard.breakdownTitle)}
         </Text>
-        {webProfileInfoCashbackCard.rows.map((row) => (
+        {breakdownRows.map((row) => (
           <View key={row.label} style={styles.profileCashbackBreakdownRow}>
             <View style={styles.profileCashbackBreakdownCopy}>
               <Text style={styles.profileCashbackBreakdownLabel}>{tc(row.label)}</Text>
@@ -356,6 +401,7 @@ function ProfileCashbackSummaryCard() {
           </View>
         ))}
       </View>
+      )}
     </View>
   );
 }

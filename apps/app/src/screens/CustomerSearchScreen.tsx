@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -6,8 +6,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { usePublicCatalogPullToRefresh } from "@mobile/account/usePublicCatalogPullToRefresh";
+import { rankPopularLiveBrandTerms } from "@mobile/account/searchSuggestionResource";
 import { useFeaturedSearchTerms } from "@mobile/account/useFeaturedSearch";
 import { useOfferSearch } from "@mobile/account/useOfferSearch";
+import { trackSearchOpen, trackSearchSubmit } from "@mobile/analytics/events";
+import { useAnalytics } from "@mobile/analytics/useAnalytics";
 import { getResponsiveHomeLayoutMetrics, webHomePromoSections } from "@mobile/design/webDesignParity";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
@@ -39,7 +42,9 @@ export function CustomerSearchScreen() {
   const { colors } = useTheme();
   const tc = useCopy();
   const { region } = useLocale();
+  const analytics = useAnalytics();
   const router = useRouter();
+  const searchOpenTrackedRef = useRef(false);
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ q?: string }>();
   const paramQuery = typeof params.q === "string" ? params.q : "";
@@ -48,7 +53,6 @@ export function CustomerSearchScreen() {
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const { width } = useWindowDimensions();
   const homeLayout = getResponsiveHomeLayoutMetrics(width);
-  const suggestionTerms = useFeaturedSearchTerms();
   const brandCatalogResource = useCustomerAccountResource({
     fixtureData: webHomePromoSections,
     resourceId: "brandCatalog",
@@ -60,6 +64,12 @@ export function CustomerSearchScreen() {
     () => resolveLiveBrandCards(brandCatalogResource.source, brandCatalogResource.data, [], region),
     [brandCatalogResource.source, brandCatalogResource.data, region],
   );
+  // Same fallback chain as the home popover: curated featured terms -> live
+  // brand catalog ranked by cashback -> fixtures last resort. Staging's
+  // featured endpoint is empty, so without this the trending chips and the
+  // suggestions grid rendered fixture demo brands (issue #248).
+  const liveFallbackTerms = useMemo(() => rankPopularLiveBrandTerms(liveCards), [liveCards]);
+  const suggestionTerms = useFeaturedSearchTerms(liveFallbackTerms);
   const columnCount = homeLayout.contentWidth >= 768 ? 3 : 2;
   const trimmedQuery = normalizeSearchQuery(query);
   const hasQuery = trimmedQuery.length > 0;
@@ -89,6 +99,17 @@ export function CustomerSearchScreen() {
     };
   }, []);
 
+  // Mobile parity for DesktopHeaderSearch's search_open: opening the dedicated
+  // mobile search surface is the "search opened" signal. Fire once, and only on
+  // the mobile surface (desktop redirects to "/" above, so don't count it).
+  useEffect(() => {
+    if (homeLayout.isDesktop || searchOpenTrackedRef.current) {
+      return;
+    }
+    searchOpenTrackedRef.current = true;
+    trackSearchOpen(analytics, { source: "mobile_search" });
+  }, [analytics, homeLayout.isDesktop]);
+
   const handleBack = useCallback(() => {
     if (router.canGoBack()) {
       router.back();
@@ -108,8 +129,14 @@ export function CustomerSearchScreen() {
   }, []);
 
   const handleSubmit = useCallback(() => {
+    // Mobile parity for DesktopHeaderSearch's search_submit. search_term is the
+    // user's own query (existing property policy — unchanged here).
+    trackSearchSubmit(analytics, {
+      query: normalizeSearchQuery(query),
+      source: "mobile_search",
+    });
     void commitSearch(query);
-  }, [commitSearch, query]);
+  }, [analytics, commitSearch, query]);
 
   const handleSelectRecent = useCallback(
     (term: string) => {

@@ -143,6 +143,8 @@ type AffiliateNetworkError = {
 };
 
 const GOGOSENSE_DEEPLINK_UNAVAILABLE = 'GOGOSENSE_DEEPLINK_UNAVAILABLE';
+/** Stable error code: Involve failed outside the mapped 400/404/422 band. */
+const GOGOSENSE_UPSTREAM_UNAVAILABLE = 'GOGOSENSE_UPSTREAM_UNAVAILABLE';
 
 const GOTOTRACK_DETECTION_REQUIRED_SOURCES = new Set([
   'gototrack',
@@ -160,6 +162,15 @@ function getAffiliateNetworkStatusCode(error: unknown): number | undefined {
 
   const response = (error as AffiliateNetworkError).response;
   return response?.data?.status_code ?? response?.status;
+}
+
+function isMongoDuplicateKeyError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: number }).code === 11000
+  );
 }
 
 @Injectable()
@@ -395,37 +406,15 @@ export class GototrackService {
       }
     }
 
-    let deeplinkDoc: unknown;
-    try {
-      deeplinkDoc = await this.involveService.createAffiliate(
-        {
-          offer_id: request.offerId,
-          merchant_id: request.networkMerchantId,
-          deeplink: '',
-        },
-        validatedUserId,
-      );
-    } catch (error) {
-      const upstreamStatusCode = getAffiliateNetworkStatusCode(error);
-      if ([400, 404, 422].includes(upstreamStatusCode ?? 0)) {
-        throw new HttpException(
-          {
-            message:
-              'GoGoTrack deeplink is unavailable for this merchant activation.',
-            code: GOGOSENSE_DEEPLINK_UNAVAILABLE,
-            upstreamStatusCode,
-          },
-          422,
-        );
-      }
-
-      throw error;
+    if (request.detectionEventId) {
+      return this.activateWithReservedDetectionEvent(validatedUserId, request);
     }
-    const deeplink =
-      (deeplinkDoc as { deeplink?: string; tracking_link?: string })
-        ?.deeplink ||
-      (deeplinkDoc as { tracking_link?: string })?.tracking_link ||
-      '';
+
+    const deeplinkDoc = await this.createAffiliateDeeplink(
+      validatedUserId,
+      request,
+    );
+    const deeplink = this.resolveAffiliateDeeplink(deeplinkDoc);
 
     const activation = await this.activationEventModel.create({
       user_id: validatedUserId,
@@ -452,6 +441,127 @@ export class GototrackService {
       activationEventId: getDocumentId(activation) || '',
       deeplink,
     };
+  }
+
+  private async activateWithReservedDetectionEvent(
+    validatedUserId: string,
+    request: ActivationRequestDto,
+  ): Promise<ActivationResponse> {
+    let activation: GototrackActivationEventDocument;
+    try {
+      activation = await this.activationEventModel.create({
+        user_id: validatedUserId,
+        detection_event_id: request.detectionEventId,
+        merchant_id: request.merchantId,
+        offer_id: request.offerId,
+        network_merchant_id: request.networkMerchantId,
+        source: request.source,
+        deeplink: '',
+      });
+    } catch (error) {
+      if (isMongoDuplicateKeyError(error)) {
+        throw new BadRequestException(
+          'GoGoTrack detection event has already been activated',
+        );
+      }
+
+      throw error;
+    }
+
+    try {
+      const deeplinkDoc = await this.createAffiliateDeeplink(
+        validatedUserId,
+        request,
+      );
+      const deeplink = this.resolveAffiliateDeeplink(deeplinkDoc);
+      const updatedActivation =
+        await this.activationEventModel.findByIdAndUpdate(
+          activation._id,
+          { deeplink },
+          { new: true },
+        );
+      if (!updatedActivation) {
+        throw new BadRequestException(
+          'GoGoTrack activation could not be saved',
+        );
+      }
+
+      await this.analytics.capture(
+        'gototrack_activation_completed',
+        { platform: 'api', userId: validatedUserId },
+        {
+          merchant_id: request.merchantId,
+          offer_id: request.offerId,
+          network_merchant_id: request.networkMerchantId,
+          source: request.source,
+        },
+      );
+
+      return {
+        activationEventId: getDocumentId(updatedActivation) || '',
+        deeplink,
+      };
+    } catch (error) {
+      await this.activationEventModel.deleteOne({ _id: activation._id });
+      throw error;
+    }
+  }
+
+  private async createAffiliateDeeplink(
+    validatedUserId: string,
+    request: ActivationRequestDto,
+  ): Promise<unknown> {
+    try {
+      return await this.involveService.createAffiliate(
+        {
+          offer_id: request.offerId,
+          merchant_id: request.networkMerchantId,
+          deeplink: '',
+        },
+        validatedUserId,
+      );
+    } catch (error) {
+      // Already-shaped errors (e.g. InvolveService.signIn's 502
+      // GOGOSENSE_UPSTREAM_AUTH_FAILED) pass through unwrapped.
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      const upstreamStatusCode = getAffiliateNetworkStatusCode(error);
+      if ([400, 404, 422].includes(upstreamStatusCode ?? 0)) {
+        throw new HttpException(
+          {
+            message:
+              'GoGoTrack deeplink is unavailable for this merchant activation.',
+            code: GOGOSENSE_DEEPLINK_UNAVAILABLE,
+            upstreamStatusCode,
+          },
+          422,
+        );
+      }
+
+      // Staging incident 2026-07-10: everything else (upstream 5xx/401/429,
+      // network failures) rethrew raw and Nest rendered a bare 500. An
+      // affiliate-network failure is a gateway problem — surface it as 502.
+      throw new HttpException(
+        {
+          message:
+            'This service is temporarily unavailable. Please try again in a moment or contact support if it keeps happening.',
+          code: GOGOSENSE_UPSTREAM_UNAVAILABLE,
+          upstreamStatusCode,
+        },
+        502,
+      );
+    }
+  }
+
+  private resolveAffiliateDeeplink(deeplinkDoc: unknown): string {
+    return (
+      (deeplinkDoc as { deeplink?: string; tracking_link?: string })
+        ?.deeplink ||
+      (deeplinkDoc as { tracking_link?: string })?.tracking_link ||
+      ''
+    );
   }
 
   private async assertDetectionEventMatchesActivation(

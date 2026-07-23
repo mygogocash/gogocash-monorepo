@@ -1,7 +1,6 @@
 # CodeQL advanced setup — replaces GitHub Default setup so language selection is
-# version-controlled. JS/TS (admin, api, mobile web) plus GitHub Actions.
-# Expo local Android (Kotlin) and iOS (Swift) modules use build-mode: none — there
-# is no repo-root Gradle/Xcode project (EAS prebuild only).
+# version-controlled. JS/TS (admin, api, mobile web), GitHub Actions, and native
+# Expo modules (Kotlin via Android prebuild; Swift via iOS prebuild on macOS).
 name: CodeQL
 
 on:
@@ -46,30 +45,137 @@ jobs:
           - language: actions
             build-mode: none
             config-file: ./.github/codeql/codeql-config.yml
-          - language: java-kotlin
-            build-mode: none
-            config-file: ./.github/codeql/codeql-native-config.yml
-          - language: swift
-            build-mode: none
-            config-file: ./.github/codeql/codeql-native-config.yml
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
-        with:
-          languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
-          config-file: ${{ matrix.config-file }}
-
-      # In-repo model packs are not on GHCR; codeql-workspace.yml is not applied at init.
       - name: Wire local mongo sanitizer model pack (JS/TS)
         if: matrix.language == 'javascript-typescript'
         run: |
           echo "CODEQL_ACTION_EXTRA_OPTIONS={\"database\":{\"run-queries\":[\"--additional-packs=${GITHUB_WORKSPACE}/.github/codeql\",\"--extension-packs=mygogocash/gogocash-mongo-sanitizers\"]}}" >> "$GITHUB_ENV"
 
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          config-file: ${{ matrix.config-file }}
+
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
         with:
           category: /language:${{ matrix.language }}
+
+  analyze-java-kotlin:
+    name: Analyze (java-kotlin)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Use repository npm version
+        run: npm install --global npm@10.9.8
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          languages: java-kotlin
+          build-mode: manual
+          config-file: ./.github/codeql/codeql-native-config.yml
+
+      - name: Build Expo Android project for CodeQL
+        run: bash .github/codeql/build-native-android.sh
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          category: /language:java-kotlin
+
+  analyze-swift:
+    name: Analyze (swift)
+    # The repo has a single .swift file, yet the macOS Swift lane costs ~2.5h per
+    # PR. Run it only on the weekly schedule + manual reruns to keep periodic
+    # coverage without the per-PR tax (#542).
+    # ⚠️ If "Analyze (swift)" is a REQUIRED status check in branch protection,
+    # remove it there (see #541) — otherwise PRs will block on a check that no
+    # longer runs on pull_request.
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
+    # macos-15: React Native 0.86 requires Xcode >= 16.1; the macos-14 image
+    # defaults to 15.4 and `pod install` hard-fails ("Please upgrade XCode").
+    runs-on: macos-15
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Select newest Xcode (>= 16.1)
+        # RN 0.86 needs Xcode >= 16.1, and the precompile tooling's SwiftPM
+        # manifests need Swift tools 6.2 — Xcode 16.4 ships Swift 6.1, which
+        # fails package resolution ("package 'apple' is using Swift tools
+        # version 6.2.0 but the installed version is 6.1.0", exit 65). Select
+        # the NEWEST Xcode on the image instead of pinning a major, and print
+        # the inventory unconditionally so future bumps are diagnosable.
+        run: |
+          shopt -s nullglob
+          printf '%s\n' /Applications/Xcode*.app
+          XCODE_APP=$(printf '%s\n' /Applications/Xcode_*.app | sort -V | tail -1)
+          if [ -z "$XCODE_APP" ]; then
+            echo "::error::No versioned Xcode found on runner image"; exit 1
+          fi
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
+          swift --version
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Use repository npm version
+        run: npm install --global npm@10.9.8
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          languages: swift
+          build-mode: manual
+          config-file: ./.github/codeql/codeql-native-config.yml
+
+      - name: Build Expo iOS project for CodeQL
+        env:
+          # Analysis-only build: @sentry/react-native's Xcode build phase must
+          # not upload source maps/symbols (no SENTRY_ORG/auth here — the full
+          # compile previously succeeded and then failed in this phase).
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
+        run: bash .github/codeql/build-native-ios.sh
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          category: /language:swift

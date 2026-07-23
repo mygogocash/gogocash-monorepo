@@ -3,6 +3,7 @@ import { isPublicAdminConfiguredResource } from "@mobile/account/customerAccount
 import { resolveApiCountryParam } from "@mobile/i18n/regionCatalogFilter";
 import type { RegionCode } from "@mobile/i18n/regionTypes";
 import type { AccountDataSource } from "@mobile/auth/routeGuard";
+import { resolveSpecificPageBannerTargetForResource } from "@mobile/account/specificPageBannerTargets";
 
 const merchantEndpointTemplate = "/offer/${merchantId}";
 
@@ -62,6 +63,10 @@ export function resolveCustomerAccountResourceEndpoint({
     return "/withdraw/check";
   }
 
+  if (resourceId === "walletTransactions") {
+    return "/withdraw/list-check";
+  }
+
   if (resourceId === "referral") {
     return "/point/referral-list";
   }
@@ -89,12 +94,25 @@ export function resolveCustomerAccountResourceEndpoint({
     return "/offer/banner-home";
   }
 
+  const specificPageBannerTarget = resolveSpecificPageBannerTargetForResource(resourceId);
+  if (specificPageBannerTarget) {
+    return `/offer/banner-specific-page/${specificPageBannerTarget}`;
+  }
+
   if (resourceId === "topBrand") {
     return "/offer/top-brands";
   }
 
+  if (resourceId === "landingRails") {
+    return "/offer/landing-rails";
+  }
+
   if (resourceId === "merchant") {
     return merchantEndpointTemplate.replace("${merchantId}", encodeURIComponent(merchantId));
+  }
+
+  if (resourceId === "merchantCoupons") {
+    return `/offer/get-coupon-id/${encodeURIComponent(merchantId)}`;
   }
 
   if (resourceId === "policyCategory") {
@@ -125,6 +143,10 @@ export function resolveCustomerAccountResourceRequest({
 
   if (resourceId === "wallet") {
     return { method: "POST", path: "/withdraw/check" };
+  }
+
+  if (resourceId === "walletTransactions") {
+    return { method: "POST", path: "/withdraw/list-check" };
   }
 
   return {

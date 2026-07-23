@@ -5,10 +5,7 @@ appId: co.gogocash.app
 - extendedWaitUntil:
     visible: "Hi!"
     timeout: 30000
-- extendedWaitUntil:
-    visible: "Accept all cookies"
-    timeout: 30000
-- tapOn: "Accept all cookies"
+- runFlow: ../subflows/dismiss-cookie-banner.yaml
 - tapOn: "Wallet"
 - extendedWaitUntil:
     visible: "Sign in"
@@ -19,10 +16,7 @@ appId: co.gogocash.app
 - extendedWaitUntil:
     visible: "Hi!"
     timeout: 30000
-- extendedWaitUntil:
-    visible: "Accept all cookies"
-    timeout: 30000
-- tapOn: "Accept all cookies"
+- runFlow: ../subflows/dismiss-cookie-banner.yaml
 - tapOn: "Profile"
 - extendedWaitUntil:
     visible: "Sign in"

@@ -8,9 +8,13 @@ import { apiClient } from "@/lib/api";
 import { AFFILIATE_NETWORKS } from "@/data/affiliateNetworks";
 import { DEEPLINK_STORE_OPTIONS } from "@/data/deeplinkStores";
 import toast from "react-hot-toast";
-import { useDataSession } from "@/hooks/useDataSession";
 import { usePermissions } from "@/hooks/usePermissions";
-import { DEFAULT_MOCK_ACCESS_TOKEN } from "@/lib/authTokens";
+import { useSystemFeePercent } from "@/hooks/useSystemFeePercent";
+import { applyPlatformFee } from "@/lib/commissionFee";
+import {
+  finalizeProductTypeRows,
+  netCommissionFromRaw,
+} from "@/lib/productTypeCommission";
 import { defaultLookupFromBrandAndCountry } from "@/lib/createBrandLookupSlug";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { isDirty } from "@/lib/isDirty";
@@ -24,11 +28,28 @@ import Input from "@/components/form/input/InputField";
 import TextArea from "@/components/form/input/TextArea";
 import { fetcher } from "@/lib/axios/client";
 import type { ResCategoryList } from "@/types/category";
+import { OfferPolicyModeSwitch } from "./OfferPolicyModeSwitch";
+import {
+  CUSTOM_POLICY_CATEGORY_ID,
+  type OfferPolicyMode,
+} from "@/lib/offerPolicyMode";
+import {
+  policyTermsMapFromCategoryList,
+  resolveConfiguredOfferPolicyTerms,
+} from "@/lib/offerPolicyTerms";
 import {
   DEFAULT_OFFER_DISPLAY_TAGS,
   type OfferDisplayTags,
   type OfferProductTypeEntry,
 } from "@/types/api";
+import {
+  DEFAULT_FLOW_TYPE,
+  formatTrackingDays,
+  isValidTrackingDayCount,
+  MAX_TRACKING_PERIOD_DAYS,
+  MIN_TRACKING_PERIOD_DAYS,
+  resolveTrackingPeriodPreview,
+} from "@/lib/offerTrackingPeriod";
 
 function useObjectPreviewUrl(file: File | null) {
   const url = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
@@ -79,6 +100,15 @@ function buildCreateBrandTagPreviewChips(
 /** Default offer category label until a partner feed assigns another (matches mock create). */
 const CREATE_BRAND_INITIAL_CATEGORY = "Shopping";
 
+/**
+ * Product-type row plus per-row commission-entry UI state. `entry_mode` and
+ * `commission_raw` are editing-only and stripped from the submit payload —
+ * the saved row shape stays {name, commission_info, deeplink}.
+ */
+type CreateBrandProductTypeRow = OfferProductTypeEntry & {
+  entry_mode?: "manual" | "auto";
+};
+
 const SCROLL_CLASS = "scroll-mt-[4.5rem]";
 
 const CREATE_BRAND_JUMP_LINKS = [
@@ -88,6 +118,7 @@ const CREATE_BRAND_JUMP_LINKS = [
   { id: "create-brand-section-offer-copy", label: "Offer copy" },
   { id: "create-brand-section-merch", label: "Tags & feed" },
   { id: "create-brand-section-policy", label: "Policy" },
+  { id: "create-brand-section-tracking-period", label: "Cashback tracking period" },
   { id: "create-brand-section-media", label: "Media" },
   { id: "create-brand-section-internal", label: "Internal" },
 ] as const;
@@ -103,7 +134,6 @@ const CREATE_BRAND_INITIAL_SNAPSHOT = {
   affiliateNetworkId: "involve_asia",
   deeplinkStoreId: "global",
   trackingLink: "",
-  appDeeplink: "",
   countries: "Thailand",
   currency: "THB",
   lookupValue: "",
@@ -112,21 +142,26 @@ const CREATE_BRAND_INITIAL_SNAPSHOT = {
   disabledOffer: false,
   topBrands: false,
   isGlobal: false,
-  defaultCountry: "Thailand",
   commissionEntryMode: "manual" as "manual" | "auto",
   commissionPercentInput: "",
+  commissionRawInput: "",
   allProductTypes: true,
-  productTypes: [] as OfferProductTypeEntry[],
+  productTypes: [] as CreateBrandProductTypeRow[],
   maxCapInput: "",
   noteToUser: "",
   offerDisplayTags: { ...DEFAULT_OFFER_DISPLAY_TAGS } as OfferDisplayTags,
+  policyMode: "template" as OfferPolicyMode,
   policyCategoryId: "",
+  templateTerms: "",
   customTerms: "",
-  hasLogoDesktop: false,
-  hasLogoMobile: false,
-  hasLogoCircle: false,
-  hasBannerDesktop: false,
-  hasBannerMobile: false,
+  trackingPeriodMode: "auto" as "auto" | "manual",
+  trackingDays: null as number | null,
+  confirmDays: null as number | null,
+  flowType: DEFAULT_FLOW_TYPE as "three_step" | "two_step",
+  trackingSubtitle: null as string | null,
+  confirmSubtitle: null as string | null,
+  hasLogo: false,
+  hasBanner: false,
 };
 
 const COUNTRY_OPTIONS = [
@@ -143,16 +178,14 @@ const COUNTRY_OPTIONS = [
 export default function CreateBrandForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const session = useDataSession();
   const { can } = usePermissions();
   const canManageBrands = can("brands:manage");
-  const accessToken = session.accessToken ?? DEFAULT_MOCK_ACCESS_TOKEN;
-
+  // Platform fee % from Fee Structure (falls back to 30 while loading / on error).
+  const { feePercent, isFallback: feeIsFallback } = useSystemFeePercent();
   const [brandName, setBrandName] = useState("");
   const [affiliateNetworkId, setAffiliateNetworkId] = useState("involve_asia");
   const [deeplinkStoreId, setDeeplinkStoreId] = useState("global");
   const [trackingLink, setTrackingLink] = useState("");
-  const [appDeeplink, setAppDeeplink] = useState("");
   const [countries, setCountries] = useState("Thailand");
   const [currency, setCurrency] = useState("THB");
   const [lookupValue, setLookupValue] = useState("");
@@ -162,56 +195,82 @@ export default function CreateBrandForm() {
   const [disabledOffer, setDisabledOffer] = useState(false);
   const [topBrands, setTopBrands] = useState(false);
   // Brand visibility: when isGlobal=true the brand is shown to customers in every country;
-  // otherwise only customers whose country matches `countries` see it. defaultCountry is the
-  // fallback variant when a global brand is opened by a user whose country has no dedicated line.
+  // otherwise only customers whose country matches `countries` see it. Global brands fall
+  // back to the fixed Thailand variant for users whose country has no dedicated line.
   const [isGlobal, setIsGlobal] = useState(false);
-  const [defaultCountry, setDefaultCountry] = useState("Thailand");
   const [commissionEntryMode, setCommissionEntryMode] = useState<
     "manual" | "auto"
   >("manual");
   const [commissionPercentInput, setCommissionPercentInput] = useState("");
+  // Auto mode: raw partner % the admin types; the saved net is derived from it.
+  const [commissionRawInput, setCommissionRawInput] = useState("");
   const [allProductTypes, setAllProductTypes] = useState(true);
-  const [productTypes, setProductTypes] = useState<OfferProductTypeEntry[]>([]);
+  const [productTypes, setProductTypes] = useState<CreateBrandProductTypeRow[]>(
+    [],
+  );
   const [maxCapInput, setMaxCapInput] = useState("");
   const [noteToUser, setNoteToUser] = useState("");
   const [offerDisplayTags, setOfferDisplayTags] = useState<OfferDisplayTags>({
     ...DEFAULT_OFFER_DISPLAY_TAGS,
   });
+  const [policyMode, setPolicyMode] = useState<OfferPolicyMode>("template");
   const [policyCategoryId, setPolicyCategoryId] = useState("");
+  const [templateTerms, setTemplateTerms] = useState("");
+  const [templateTermsTouched, setTemplateTermsTouched] = useState(false);
   const [customTerms, setCustomTerms] = useState("");
+  const [trackingPeriodMode, setTrackingPeriodMode] = useState<
+    "auto" | "manual"
+  >("auto");
+  const [trackingDays, setTrackingDays] = useState<number | null>(null);
+  const [confirmDays, setConfirmDays] = useState<number | null>(null);
+  const [flowType, setFlowType] = useState<"three_step" | "two_step">(
+    DEFAULT_FLOW_TYPE,
+  );
+  const [trackingSubtitle, setTrackingSubtitle] = useState<string | null>(null);
+  const [confirmSubtitle, setConfirmSubtitle] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // When true, after a successful save the form keeps the brand-level fields (name, logos,
-  // description, availability, default country) but clears the country / tracking inputs so
-  // the admin can add another country variant of the same brand without re-entering shared info.
+  // description, availability) but clears the country / tracking inputs so the admin can
+  // add another country variant of the same brand without re-entering shared info.
   const [addAnotherCountry, setAddAnotherCountry] = useState(false);
 
   const resetCountryVariantFields = () => {
     // Country-specific fields — wiped after save when "Add another country" is on.
-    setCountries(isGlobal ? defaultCountry : "Thailand");
+    // Global brands fall back to the fixed Thailand default, so start there too.
+    setCountries("Thailand");
     setCurrency("THB");
     setTrackingLink("");
-    setAppDeeplink("");
     setLookupValue("");
     setSyncLookupFromBrandCountry(true);
     setCommissionEntryMode("manual");
     setCommissionPercentInput("");
+    setCommissionRawInput("");
     setMaxCapInput("");
     setNoteToUser("");
     setProductTypes([]);
     setAllProductTypes(true);
     setDeeplinkStoreId("global");
+    setPolicyMode("template");
     setPolicyCategoryId("");
+    setTemplateTerms("");
+    setTemplateTermsTouched(false);
     setCustomTerms("");
     setOfferDisplayTags({ ...DEFAULT_OFFER_DISPLAY_TAGS });
     setDisabledOffer(false);
     setTopBrands(false);
-    // Brand-level fields kept: brandName, logos, banners, description, isGlobal, defaultCountry.
+    // Cashback tracking period is per-country too (a partner's windows differ by
+    // market), so it resets with the rest — otherwise the next variant silently
+    // inherits the previous country's manual day counts.
+    setTrackingPeriodMode("auto");
+    setTrackingDays(null);
+    setConfirmDays(null);
+    setFlowType(DEFAULT_FLOW_TYPE);
+    setTrackingSubtitle(null);
+    setConfirmSubtitle(null);
+    // Brand-level fields kept: brandName, logos, banners, description, isGlobal.
   };
-  const [logoDesktop, setLogoDesktop] = useState<File | null>(null);
-  const [logoMobile, setLogoMobile] = useState<File | null>(null);
-  const [logoCircle, setLogoCircle] = useState<File | null>(null);
-  const [bannerDesktop, setBannerDesktop] = useState<File | null>(null);
-  const [bannerMobile, setBannerMobile] = useState<File | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
 
   // Drives "disable Save until something changed": dirty the moment any editable
   // field departs from the empty-create baseline, clean again if reverted.
@@ -223,7 +282,6 @@ export default function CreateBrandForm() {
           affiliateNetworkId,
           deeplinkStoreId,
           trackingLink,
-          appDeeplink,
           countries,
           currency,
           lookupValue,
@@ -232,21 +290,26 @@ export default function CreateBrandForm() {
           disabledOffer,
           topBrands,
           isGlobal,
-          defaultCountry,
           commissionEntryMode,
           commissionPercentInput,
+          commissionRawInput,
           allProductTypes,
           productTypes,
           maxCapInput,
           noteToUser,
           offerDisplayTags,
+          policyMode,
           policyCategoryId,
+          templateTerms,
           customTerms,
-          hasLogoDesktop: logoDesktop != null,
-          hasLogoMobile: logoMobile != null,
-          hasLogoCircle: logoCircle != null,
-          hasBannerDesktop: bannerDesktop != null,
-          hasBannerMobile: bannerMobile != null,
+          trackingPeriodMode,
+          trackingDays,
+          confirmDays,
+          flowType,
+          trackingSubtitle,
+          confirmSubtitle,
+          hasLogo: logoFile != null,
+          hasBanner: bannerFile != null,
         },
         CREATE_BRAND_INITIAL_SNAPSHOT,
       ),
@@ -255,7 +318,6 @@ export default function CreateBrandForm() {
       affiliateNetworkId,
       deeplinkStoreId,
       trackingLink,
-      appDeeplink,
       countries,
       currency,
       lookupValue,
@@ -264,23 +326,46 @@ export default function CreateBrandForm() {
       disabledOffer,
       topBrands,
       isGlobal,
-      defaultCountry,
       commissionEntryMode,
       commissionPercentInput,
+      commissionRawInput,
       allProductTypes,
       productTypes,
       maxCapInput,
       noteToUser,
       offerDisplayTags,
+      policyMode,
       policyCategoryId,
+      templateTerms,
       customTerms,
-      logoDesktop,
-      logoMobile,
-      logoCircle,
-      bannerDesktop,
-      bannerMobile,
+      trackingPeriodMode,
+      trackingDays,
+      confirmDays,
+      flowType,
+      trackingSubtitle,
+      confirmSubtitle,
+      logoFile,
+      bannerFile,
     ],
   );
+
+  // Live "% after fee" preview for the auto two-box; also the net submitted
+  // as commission_store when the form saves in auto mode.
+  const autoCommissionNet = useMemo(() => {
+    const raw = commissionRawInput.trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? applyPlatformFee(n, feePercent) : null;
+  }, [commissionRawInput, feePercent]);
+
+  const updateProductTypeRow = (
+    index: number,
+    patch: Partial<CreateBrandProductTypeRow>,
+  ) => {
+    setProductTypes((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    );
+  };
 
   const { data: policyCategories = [], isPending: policyCategoriesPending } =
     useQuery<ResCategoryList[]>({
@@ -289,9 +374,14 @@ export default function CreateBrandForm() {
       staleTime: 60_000,
     });
 
-  const { data: policiesList = {} } = useQuery<Record<string, string>>({
+  const { data: policiesList = {} } = useQuery<
+    unknown,
+    Error,
+    Record<string, string>
+  >({
     queryKey: ["policyList", "create-brand"],
-    queryFn: () => fetcher("/policy/list"),
+    queryFn: () => fetcher("/policy/category-list"),
+    select: policyTermsMapFromCategoryList,
     staleTime: 30_000,
   });
 
@@ -317,6 +407,20 @@ export default function CreateBrandForm() {
     [policyCategories],
   );
 
+  const configuredTemplateTerms = useMemo(
+    () =>
+      resolveConfiguredOfferPolicyTerms(
+        policyCategoryId,
+        CREATE_BRAND_INITIAL_CATEGORY,
+        policyCategories,
+        policiesList,
+      ),
+    [policyCategoryId, policyCategories, policiesList],
+  );
+  const effectiveTemplateTerms = templateTermsTouched
+    ? templateTerms
+    : configuredTemplateTerms;
+
   const legacyBrandCategoryLabel = useMemo(() => {
     const cur = offerDisplayTags.brand_category_label.trim();
     if (!cur) return null;
@@ -333,11 +437,8 @@ export default function CreateBrandForm() {
     [offerDisplayTags],
   );
 
-  const logoDesktopPreview = useObjectPreviewUrl(logoDesktop);
-  const logoMobilePreview = useObjectPreviewUrl(logoMobile);
-  const logoCirclePreview = useObjectPreviewUrl(logoCircle);
-  const bannerDesktopPreview = useObjectPreviewUrl(bannerDesktop);
-  const bannerMobilePreview = useObjectPreviewUrl(bannerMobile);
+  const logoPreview = useObjectPreviewUrl(logoFile);
+  const bannerPreview = useObjectPreviewUrl(bannerFile);
 
   useEffect(() => {
     if (!syncLookupFromBrandCountry) return;
@@ -391,6 +492,18 @@ export default function CreateBrandForm() {
         }
         commission_store = n;
       }
+    } else {
+      // Auto: the admin types the raw partner %; the saved commission is the
+      // net after the platform fee (Fee Structure rate).
+      const raw = commissionRawInput.trim();
+      if (raw) {
+        const n = Number(raw);
+        if (!Number.isFinite(n)) {
+          toast.error("Raw commission % must be a number.");
+          return;
+        }
+        commission_store = applyPlatformFee(n, feePercent);
+      }
     }
 
     let max_cap: number | null = null;
@@ -404,20 +517,12 @@ export default function CreateBrandForm() {
       max_cap = n;
     }
 
+    // Auto rows recompute their net from the raw % with the fee that is
+    // current NOW — the commission_info baked at typing time may predate the
+    // Fee Structure fetch resolving (30% fallback window).
     const productTypeRows = allProductTypes
       ? []
-      : productTypes
-          .map((row) => ({
-            name: row.name.trim(),
-            commission_info: row.commission_info.trim(),
-            deeplink: (row.deeplink ?? "").trim(),
-          }))
-          .filter(
-            (row) =>
-              row.name.length > 0 ||
-              row.commission_info.length > 0 ||
-              row.deeplink.length > 0,
-          );
+      : finalizeProductTypeRows(productTypes, feePercent);
 
     const formData = new FormData();
     formData.append("brand_name", name);
@@ -429,7 +534,7 @@ export default function CreateBrandForm() {
     formData.append("disabled", String(disabledOffer));
     formData.append("extra_store", String(topBrands));
     formData.append("commission_entry_mode", commissionEntryMode);
-    if (commissionEntryMode === "manual" && commission_store != null) {
+    if (commission_store != null) {
       formData.append("commission_store", String(commission_store));
     }
     formData.append("all_product_types", String(allProductTypes));
@@ -437,30 +542,52 @@ export default function CreateBrandForm() {
     if (max_cap != null) formData.append("max_cap", String(max_cap));
     formData.append("note_to_user", noteToUser.trim());
     formData.append("offer_display_tags", JSON.stringify(offerDisplayTags));
-    formData.append("policy_category_id", policyCategoryId);
-    formData.append("custom_terms", customTerms);
+    formData.append(
+      "policy_category_id",
+      policyMode === "custom" ? CUSTOM_POLICY_CATEGORY_ID : policyCategoryId,
+    );
+    formData.append(
+      "custom_terms",
+      policyMode === "custom" ? customTerms : effectiveTemplateTerms,
+    );
     formData.append("is_global", String(isGlobal));
     if (isGlobal) {
       // default_country is only relevant for global brands; sending it for country-specific
       // brands would be misleading (the single-country variant is implicitly the default).
-      formData.append("default_country", defaultCountry);
+      // The picker was removed (#274) but the field is still sent: the API keeps a
+      // denormalized copy on the offer doc (real routing uses Brand.default_country) and
+      // BrandService requires it for global brands — Thailand is the fixed fallback.
+      formData.append("default_country", "Thailand");
     }
 
     const desc = description.trim();
     if (desc) formData.append("description", desc);
     const lookup = lookupValue.trim();
     if (lookup) formData.append("lookup_value", lookup);
-    const app = appDeeplink.trim();
-    if (app) formData.append("app_deeplink", app);
-    if (logoDesktop) formData.append("logo_desktop", logoDesktop);
-    if (logoMobile) formData.append("logo_mobile", logoMobile);
-    if (logoCircle) formData.append("logo_circle", logoCircle);
-    if (bannerDesktop) formData.append("banner", bannerDesktop);
-    if (bannerMobile) formData.append("banner_mobile", bannerMobile);
+    if (logoFile) formData.append("logo_desktop", logoFile);
+    if (bannerFile) formData.append("banner", bannerFile);
+
+    formData.append("tracking_period_mode", trackingPeriodMode);
+    if (trackingPeriodMode === "manual") {
+      if (
+        !isValidTrackingDayCount(trackingDays ?? undefined) ||
+        !isValidTrackingDayCount(confirmDays ?? undefined)
+      ) {
+        toast.error(
+          `Enter whole day counts between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS} for both windows.`,
+        );
+        return;
+      }
+      formData.append("tracking_days", String(trackingDays));
+      formData.append("confirm_days", String(confirmDays));
+    }
+    formData.append("flow_type", flowType);
+    formData.append("tracking_subtitle", trackingSubtitle ?? "");
+    formData.append("confirm_subtitle", confirmSubtitle ?? "");
 
     setSubmitting(true);
     try {
-      await apiClient.createBrandFromAffiliate(formData, accessToken);
+      await apiClient.createBrandFromAffiliate(formData);
       void queryClient.invalidateQueries({ queryKey: ["offers", "list"] });
       void queryClient.invalidateQueries({
         queryKey: COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY,
@@ -493,10 +620,10 @@ export default function CreateBrandForm() {
         Create brand from affiliate
       </h1>
       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-        Register a merchant line using the partner tracking URL, map the
-        GoGoCash app tracking link when you have it, and choose the advertiser
-        store used in tracking links (same as offer edit / Commission
-        Management).
+        Register a merchant line using the partner tracking URL and choose the
+        advertiser store used in tracking links (same as offer edit / Commission
+        Management). The GoGoCash app tracking link is auto-generated from the
+        affiliate URL on save.
       </p>
       {!canManageBrands ? (
         <p className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
@@ -593,23 +720,12 @@ export default function CreateBrandForm() {
             />
           </div>
           <div>
-            <label
-              htmlFor="create-brand-app-deeplink"
-              className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
+            <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               GoGoCash app tracking link
-            </label>
-            <input
-              id="create-brand-app-deeplink"
-              type="url"
-              value={appDeeplink}
-              onChange={(e) => setAppDeeplink(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              placeholder="https://gogocash.app/open/offer/… (optional)"
-            />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              If set, saved as the commission tracking link mapping for this new
-              offer (same as editing an offer → Tracking Links).
+            </p>
+            <p className="mt-1.5 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2.5 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+              Auto-generated from the affiliate tracking URL on save — no manual
+              entry needed. (Replaces the old manually-mapped app tracking link.)
             </p>
           </div>
 
@@ -636,7 +752,7 @@ export default function CreateBrandForm() {
           <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/40">
             <FieldLabel
               label="Availability"
-              description="Country-specific brands are hidden from customers in other countries. Global brands appear worldwide and route customers without a dedicated country variant to the default country's tracking link."
+              description="Country-specific brands are hidden from customers in other countries. Global brands appear worldwide; customers without a dedicated country variant always fall back to the Thailand tracking link."
             />
             <div className="mt-3 space-y-2">
               <label className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800/40">
@@ -694,39 +810,11 @@ export default function CreateBrandForm() {
                   </span>
                   <span className="block text-xs text-gray-500 dark:text-gray-400">
                     Every customer sees this brand. Customers from countries
-                    without a dedicated variant are routed to the default
-                    country&apos;s tracking link.
+                    without a dedicated variant are routed to the Thailand
+                    tracking link (the fixed fallback).
                   </span>
                 </span>
               </label>
-              {isGlobal && (
-                <div className="mt-2 ml-7">
-                  <label
-                    htmlFor="create-brand-default-country"
-                    className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    Default country (fallback for users without a dedicated
-                    variant)
-                  </label>
-                  <select
-                    id="create-brand-default-country"
-                    value={defaultCountry}
-                    onChange={(e) => setDefaultCountry(e.target.value)}
-                    className="w-full max-w-sm rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                  >
-                    {COUNTRY_OPTIONS.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    When a Singapore user opens this brand and there&apos;s no
-                    SG variant, they&apos;ll be sent to the {defaultCountry}{" "}
-                    tracking link.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
 
@@ -786,7 +874,7 @@ export default function CreateBrandForm() {
                   : undefined
               }
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 read-only:bg-gray-50 read-only:text-gray-700 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:read-only:bg-gray-800 dark:read-only:text-gray-200"
-              placeholder="my_brand_th — used in app open URLs"
+              placeholder="bangkok_airways_in — used in app open URLs"
             />
             <p
               id="create-brand-lookup-hint"
@@ -794,10 +882,13 @@ export default function CreateBrandForm() {
             >
               With the default option on, the slug stays{" "}
               <code className="rounded bg-gray-100 px-1 py-0.5 text-[0.7rem] dark:bg-gray-800">
-                brandname_countrycode
+                brandname_in
               </code>{" "}
-              (lowercase, non-alphanumeric → underscore) and updates when brand
-              or country changes.
+              (lowercase, non-alphanumeric → underscore, international{" "}
+              <code className="rounded bg-gray-100 px-1 py-0.5 text-[0.7rem] dark:bg-gray-800">
+                _in
+              </code>{" "}
+              suffix) and updates when the brand name changes.
             </p>
           </div>
         </section>
@@ -839,10 +930,16 @@ export default function CreateBrandForm() {
               label="Commission (%)"
               description={
                 commissionEntryMode === "auto"
-                  ? "Auto applying with 30% fee: partner rate is fetched after the offer exists (open the new offer and sync), or switch to Manual to type the user-facing % now."
-                  : "Maximum % offered to users. Enter the value already reduced by 30% from the affiliate partner rate."
+                  ? `Auto applying with ${feePercent}% fee: type the raw partner % and the user-facing % (after the ${feePercent}% fee) is computed and saved when you create the brand.`
+                  : `Maximum % offered to users. Enter the value already reduced by ${feePercent}% from the affiliate partner rate.`
               }
             />
+            {feeIsFallback ? (
+              <p className="mb-2 text-xs text-amber-600 dark:text-amber-400">
+                Fee Structure rate unavailable — using the {feePercent}%
+                default until it loads.
+              </p>
+            ) : null}
             <div className="mb-2 flex flex-wrap gap-2">
               <Button
                 size="sm"
@@ -850,7 +947,10 @@ export default function CreateBrandForm() {
                 variant={
                   commissionEntryMode === "manual" ? "primary" : "outline"
                 }
-                onClick={() => setCommissionEntryMode("manual")}
+                onClick={() => {
+                  setCommissionEntryMode("manual");
+                  setCommissionRawInput("");
+                }}
                 className="touch-manipulation"
               >
                 Manual
@@ -859,29 +959,67 @@ export default function CreateBrandForm() {
                 size="sm"
                 type="button"
                 variant={commissionEntryMode === "auto" ? "primary" : "outline"}
-                onClick={() => setCommissionEntryMode("auto")}
+                onClick={() => {
+                  setCommissionEntryMode("auto");
+                  setCommissionPercentInput("");
+                }}
                 className="touch-manipulation"
               >
-                Auto applying with 30% fee
+                {`Auto applying with ${feePercent}% fee`}
               </Button>
             </div>
-            <Input
-              type="text"
-              value={commissionPercentInput}
-              onChange={(e) => setCommissionPercentInput(e.target.value)}
-              disabled={commissionEntryMode === "auto"}
-              placeholder={
-                commissionEntryMode === "auto"
-                  ? "Set via offer editor after creation, or choose Manual"
-                  : "e.g. 6"
-              }
-            />
+            {commissionEntryMode === "auto" ? (
+              <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Raw %
+                  </p>
+                  <Input
+                    type="text"
+                    name="commission_raw"
+                    value={commissionRawInput}
+                    onChange={(e) => setCommissionRawInput(e.target.value)}
+                    placeholder="e.g. 10"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                    % after {feePercent}% fee
+                  </p>
+                  <Input
+                    type="text"
+                    name="commission_store"
+                    value={autoCommissionNet ?? ""}
+                    disabled
+                    placeholder="—"
+                  />
+                </div>
+              </div>
+            ) : (
+              <Input
+                type="text"
+                value={commissionPercentInput}
+                onChange={(e) => setCommissionPercentInput(e.target.value)}
+                placeholder="e.g. 6"
+              />
+            )}
             <div className="mt-3">
               <Switch
                 key={`create-brand-all-pt-${allProductTypes ? "1" : "0"}`}
                 label="All product types"
                 defaultChecked={allProductTypes}
-                onChange={setAllProductTypes}
+                onChange={(on) => {
+                  setAllProductTypes(on);
+                  // Always-ready frame: entering per-row mode seeds one empty
+                  // row so the section never opens empty.
+                  if (!on) {
+                    setProductTypes((prev) =>
+                      prev.length === 0
+                        ? [{ name: "", commission_info: "", deeplink: "" }]
+                        : prev,
+                    );
+                  }
+                }}
               />
               <p className="mt-0.5 ml-6 text-xs text-gray-500 dark:text-gray-400">
                 Use one commission rate and tracking link for all lines. Turn
@@ -893,7 +1031,7 @@ export default function CreateBrandForm() {
 
         <section
           id="create-brand-section-product"
-          className={`space-y-4 ${SCROLL_CLASS}${
+          className={`space-y-4 ${SCROLL_CLASS} ${
             allProductTypes ? "hidden" : ""
           }`}
         >
@@ -902,19 +1040,6 @@ export default function CreateBrandForm() {
               Product Type
             </h2>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-2">
-              <Button
-                size="sm"
-                type="button"
-                disabled={!formDirty}
-                onClick={() =>
-                  toast.success(
-                    "Product type rows are included when you click Create brand below.",
-                  )
-                }
-                className="min-h-11 w-full touch-manipulation sm:w-auto sm:shrink-0"
-              >
-                Save changes
-              </Button>
               <Button
                 size="sm"
                 variant="outline"
@@ -929,6 +1054,19 @@ export default function CreateBrandForm() {
                 className="min-h-11 w-full touch-manipulation sm:w-auto sm:shrink-0"
               >
                 Add
+              </Button>
+              <Button
+                size="sm"
+                type="button"
+                disabled={!formDirty}
+                onClick={() =>
+                  toast.success(
+                    "Product type rows are included when you click Create brand below.",
+                  )
+                }
+                className="min-h-11 w-full touch-manipulation sm:w-auto sm:shrink-0"
+              >
+                Save changes
               </Button>
             </div>
           </div>
@@ -947,6 +1085,11 @@ export default function CreateBrandForm() {
             <ul className="space-y-4">
               {productTypes.map((row, i) => {
                 const baseId = `create-brand-pt-${i}`;
+                const rowMode = row.entry_mode ?? "manual";
+                const rowNet = netCommissionFromRaw(
+                  row.commission_raw ?? "",
+                  feePercent,
+                );
                 return (
                   <li
                     key={i}
@@ -964,35 +1107,93 @@ export default function CreateBrandForm() {
                         type="text"
                         placeholder="e.g. Electronics"
                         value={row.name}
-                        onChange={(e) => {
-                          const next = [...productTypes];
-                          next[i] = { ...next[i], name: e.target.value };
-                          setProductTypes(next);
-                        }}
+                        onChange={(e) =>
+                          updateProductTypeRow(i, { name: e.target.value })
+                        }
                         autoComplete="off"
                         enterKeyHint="next"
                         className="min-h-11 w-full min-w-0 touch-manipulation !text-base sm:!text-sm"
                       />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <label
-                        htmlFor={`${baseId}-commission`}
-                        className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                      >
-                        Manually commission input
-                      </label>
-                      <TextArea
-                        id={`${baseId}-commission`}
-                        rows={1}
-                        placeholder="e.g. 5% on new customers"
-                        value={row.commission_info}
-                        onChange={(v) => {
-                          const next = [...productTypes];
-                          next[i] = { ...next[i], commission_info: v };
-                          setProductTypes(next);
-                        }}
-                        className="h-11 max-h-11 min-h-11 touch-manipulation resize-none overflow-y-auto !text-base !text-gray-800 placeholder:text-gray-400 sm:!text-sm dark:!text-white/90"
-                      />
+                    <div className="min-w-0 flex-[2]">
+                      <p className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Commission
+                      </p>
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          type="button"
+                          variant={rowMode === "manual" ? "primary" : "outline"}
+                          onClick={() =>
+                            updateProductTypeRow(i, { entry_mode: "manual" })
+                          }
+                          className="touch-manipulation"
+                        >
+                          Manual
+                        </Button>
+                        <Button
+                          size="sm"
+                          type="button"
+                          variant={rowMode === "auto" ? "primary" : "outline"}
+                          onClick={() =>
+                            // Entering auto drops any stale free text; the net
+                            // is re-derived from the raw % as it's typed.
+                            updateProductTypeRow(i, {
+                              entry_mode: "auto",
+                              commission_raw: "",
+                              commission_info: "",
+                            })
+                          }
+                          className="touch-manipulation"
+                        >
+                          {`Auto applying with ${feePercent}% fee`}
+                        </Button>
+                      </div>
+                      {rowMode === "auto" ? (
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <Input
+                            id={`${baseId}-commission-raw`}
+                            type="text"
+                            placeholder="Raw %"
+                            ariaLabel={`Raw % for row ${i + 1}`}
+                            value={row.commission_raw ?? ""}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const net = netCommissionFromRaw(v, feePercent);
+                              // Saved row shape stays {name, commission_info,
+                              // deeplink}: the derived net lands in the
+                              // commission_info string as "{net}%".
+                              updateProductTypeRow(i, {
+                                commission_raw: v,
+                                commission_info:
+                                  net === "" ? "" : `${net}%`,
+                              });
+                            }}
+                            autoComplete="off"
+                            className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                          />
+                          <Input
+                            id={`${baseId}-commission-net`}
+                            type="text"
+                            placeholder={`% after ${feePercent}% fee`}
+                            ariaLabel={`% after ${feePercent}% fee for row ${i + 1}`}
+                            value={rowNet === "" ? "" : `${rowNet}%`}
+                            disabled
+                            className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
+                          />
+                        </div>
+                      ) : (
+                        <TextArea
+                          id={`${baseId}-commission`}
+                          rows={1}
+                          placeholder="e.g. 5% on new customers"
+                          value={row.commission_info}
+                          onChange={(v) =>
+                            updateProductTypeRow(i, { commission_info: v })
+                          }
+                          className="h-11 max-h-11 min-h-11 touch-manipulation resize-none overflow-y-auto !text-base !text-gray-800 placeholder:text-gray-400 sm:!text-sm dark:!text-white/90"
+                        />
+                      )}
                     </div>
                     <div className="flex shrink-0 sm:items-end sm:pb-0.5">
                       <Button
@@ -1022,7 +1223,7 @@ export default function CreateBrandForm() {
           <div>
             <FieldLabel
               label="Max cap"
-              description="Maximum cap offered to users. Enter the value already reduced by 30% from the affiliate partner cap."
+              description={`Maximum cap offered to users. Enter the value already reduced by ${feePercent}% from the affiliate partner cap.`}
             />
             <Input
               type="text"
@@ -1302,56 +1503,286 @@ export default function CreateBrandForm() {
           <h2 className="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
             Terms &amp; conditions (policy)
           </h2>
-          <FieldLabel
-            label="Which category policy applies"
-            description="Pick the category whose terms you configured under Policy Management. “Automatic” uses this offer’s own category label to resolve T&C in the app."
+          <OfferPolicyModeSwitch
+            aria-label="Policy authoring mode"
+            templateLabel="Provided Template"
+            customLabel="Custom Writing"
+            mode={policyMode}
+            onChange={setPolicyMode}
           />
-          <select
-            id="create-brand-policy-category"
-            className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-            value={policyCategoryId}
-            onChange={(e) => setPolicyCategoryId(e.target.value)}
-          >
-            <option value="">
-              Automatic — use offer category ({CREATE_BRAND_INITIAL_CATEGORY})
-            </option>
-            {policyCategoriesSorted.map((cat) => {
-              const policyText = policiesList[cat._id] ?? "";
-              const hasPolicy = policyText.trim().length > 0;
-              return (
-                <option key={cat._id} value={cat._id}>
-                  {cat.name}
-                  {hasPolicy ? " — T&C configured" : " — no T&C yet"}
+
+          {policyMode === "template" ? (
+            <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-600">
+              <FieldLabel
+                label="Which category policy applies"
+                description="Pick the category whose terms you configured under Policy Management. “Automatic” uses this offer’s own category label."
+              />
+              <select
+                id="create-brand-policy-category"
+                className="w-full max-w-xl rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                value={policyCategoryId}
+                onChange={(e) => {
+                  const nextCategoryId = e.target.value;
+                  setPolicyCategoryId(nextCategoryId);
+                  setTemplateTermsTouched(false);
+                  setTemplateTerms(
+                    resolveConfiguredOfferPolicyTerms(
+                      nextCategoryId,
+                      CREATE_BRAND_INITIAL_CATEGORY,
+                      policyCategories,
+                      policiesList,
+                    ),
+                  );
+                }}
+              >
+                <option value="">
+                  Automatic — use offer category ({CREATE_BRAND_INITIAL_CATEGORY})
                 </option>
-              );
-            })}
-          </select>
-          {policyCategoryId ? (
-            <p className="text-xs text-gray-600 dark:text-gray-400">
-              This brand will be pinned to the selected category’s policy text
-              when created.
-            </p>
+                {policyCategoriesSorted.map((cat) => {
+                  const hasPolicy = Boolean(policiesList[cat._id]?.trim());
+                  return (
+                    <option key={cat._id} value={cat._id}>
+                      {cat.name}
+                      {hasPolicy ? " — T&C configured" : " — no T&C yet"}
+                    </option>
+                  );
+                })}
+              </select>
+
+              {!configuredTemplateTerms ? (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                  No T&amp;C configured for this category yet — edit it under
+                  Policy Management, or switch to Custom Writing.
+                </p>
+              ) : (
+                <div>
+                  <FieldLabel
+                    label="Template preview (editable)"
+                    description="Review the provided policy and adjust it for this brand before saving."
+                  />
+                  <TextArea
+                    rows={8}
+                    value={effectiveTemplateTerms}
+                    onChange={(terms) => {
+                      setTemplateTermsTouched(true);
+                      setTemplateTerms(terms);
+                    }}
+                    className="min-h-[10rem] resize-y !text-base !text-gray-800 placeholder:text-gray-400 sm:!text-sm dark:!text-white/90"
+                  />
+                </div>
+              )}
+            </div>
           ) : (
-            <p className="text-xs text-gray-600 dark:text-gray-400">
-              No override: the app can match{" "}
-              <span className="font-medium">
-                {CREATE_BRAND_INITIAL_CATEGORY}
-              </span>{" "}
-              to a category and load its policy.
-            </p>
+            <div className="border-t border-gray-200 pt-4 dark:border-gray-600">
+              <FieldLabel
+                label="Custom terms"
+                description="Write the complete Terms & Conditions shown for this brand."
+              />
+              <TextArea
+                rows={8}
+                placeholder="Write the complete Terms & Conditions for this brand…"
+                value={customTerms}
+                onChange={setCustomTerms}
+                className="min-h-[10rem] resize-y !text-base !text-gray-800 placeholder:text-gray-400 sm:!text-sm dark:!text-white/90"
+              />
+            </div>
           )}
-          <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-600">
-            <FieldLabel
-              label="Custom terms (this merchant)"
-              description="Optional terms for this offer only, shown in addition to the category policy above. Use for merchant-specific rules or legal supplements; your app should merge or append with Policy Management text."
+        </section>
+
+        <section
+          id="create-brand-section-tracking-period"
+          className={`space-y-4 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-gray-800/40 ${SCROLL_CLASS}`}
+        >
+          <div>
+            <h2 className="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+              Cashback tracking period
+            </h2>
+            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+              The Purchase → Tracking → Confirm steps customers see on this
+              brand&apos;s shop page.{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                Auto
+              </span>{" "}
+              follows the affiliate partner&apos;s validation terms;{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                Manual
+              </span>{" "}
+              sets the windows for this brand.
+            </p>
+          </div>
+
+          {(() => {
+            const preview = resolveTrackingPeriodPreview({
+              tracking_period_mode: trackingPeriodMode,
+              tracking_days: trackingDays,
+              confirm_days: confirmDays,
+              flow_type: flowType,
+              tracking_subtitle: trackingSubtitle,
+              confirm_subtitle: confirmSubtitle,
+            });
+            const sourceLabel =
+              preview.source === "manual"
+                ? "Manual — set for this brand"
+                : preview.source === "partner"
+                  ? "Auto — from partner validation terms"
+                  : "Auto — platform default (no partner terms on file)";
+            return (
+              <>
+                <dl className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                      Purchase
+                    </dt>
+                    <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                      with GoGoCash
+                    </dd>
+                  </div>
+                  {preview.flow_type === "two_step" ? (
+                    <div>
+                      <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                        Tracking and confirm
+                      </dt>
+                      <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                        {formatTrackingDays(preview.confirm_days)}
+                      </dd>
+                      <dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {preview.confirm_subtitle}
+                      </dd>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                          Tracking
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                          {formatTrackingDays(preview.tracking_days)}
+                        </dd>
+                        <dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          {preview.tracking_subtitle}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                          Confirm
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                          {formatTrackingDays(preview.confirm_days)}
+                        </dd>
+                        <dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          {preview.confirm_subtitle}
+                        </dd>
+                      </div>
+                    </>
+                  )}
+                </dl>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {sourceLabel}
+                </p>
+              </>
+            );
+          })()}
+
+          <div className="space-y-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+            <div className="flex flex-wrap gap-4">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                <input
+                  type="radio"
+                  name="create-brand-tracking-period-mode"
+                  className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+                  checked={trackingPeriodMode === "auto"}
+                  onChange={() => setTrackingPeriodMode("auto")}
+                />
+                Auto — fetch from affiliate partner
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                <input
+                  type="radio"
+                  name="create-brand-tracking-period-mode"
+                  className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+                  checked={trackingPeriodMode === "manual"}
+                  onChange={() => setTrackingPeriodMode("manual")}
+                />
+                Manual
+              </label>
+            </div>
+            <Switch
+              label="Combined 2-step flow (Tracking and confirm)"
+              checked={flowType === "two_step"}
+              onChange={(checked) =>
+                setFlowType(checked ? "two_step" : "three_step")
+              }
             />
-            <TextArea
-              rows={5}
-              placeholder="e.g. Brand-specific eligibility · stacked promotions not allowed · see partner site for full rules"
-              value={customTerms}
-              onChange={setCustomTerms}
-              className="min-h-[6rem] resize-y !text-base !text-gray-800 placeholder:text-gray-400 sm:!text-sm dark:!text-white/90"
-            />
+            {trackingPeriodMode === "manual" && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Tracking window (days)
+                  </label>
+                  <input
+                    type="number"
+                    min={MIN_TRACKING_PERIOD_DAYS}
+                    max={MAX_TRACKING_PERIOD_DAYS}
+                    value={trackingDays ?? ""}
+                    onChange={(e) =>
+                      setTrackingDays(
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
+                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Confirm window (days)
+                  </label>
+                  <input
+                    type="number"
+                    min={MIN_TRACKING_PERIOD_DAYS}
+                    max={MAX_TRACKING_PERIOD_DAYS}
+                    value={confirmDays ?? ""}
+                    onChange={(e) =>
+                      setConfirmDays(
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
+                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Tracking subtitle
+                </label>
+                <input
+                  type="text"
+                  maxLength={200}
+                  placeholder="from the following month"
+                  value={trackingSubtitle ?? ""}
+                  onChange={(e) =>
+                    setTrackingSubtitle(e.target.value || null)
+                  }
+                  className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Confirm subtitle
+                </label>
+                <input
+                  type="text"
+                  maxLength={200}
+                  placeholder="after validation"
+                  value={confirmSubtitle ?? ""}
+                  onChange={(e) =>
+                    setConfirmSubtitle(e.target.value || null)
+                  }
+                  className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                />
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1364,121 +1795,52 @@ export default function CreateBrandForm() {
             Logos &amp; media
           </h4>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Upload images for desktop, mobile, and banners. Leave empty to use
-            defaults after the brand is created.
+            Upload a square logo for product/brand cards and a wide banner for
+            the brand page hero.
           </p>
 
           <div>
             <FieldLabel
-              label="Logo (desktop)"
-              description="Main logo for desktop layout."
+              label="Brand logo"
+              description="Square (1:1) — shown on product/brand cards across the app."
             />
             <Input
-              id="create-brand-logo-desktop"
+              id="create-brand-logo"
               type="file"
               name="logo_desktop"
               accept="image/*"
-              onChange={(e) => setLogoDesktop(e.target.files?.[0] ?? null)}
+              onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
             />
-            {logoDesktop && logoDesktopPreview ? (
+            {logoFile && logoPreview ? (
               <RemoteOrBlobImage
-                src={logoDesktopPreview}
-                alt="Preview"
+                src={logoPreview}
+                alt="Brand logo preview"
                 width={256}
                 height={256}
-                className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
+                className="mt-2 h-32 w-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
               />
             ) : null}
           </div>
 
           <div>
             <FieldLabel
-              label="Logo (mobile)"
-              description="Logo for mobile layout."
+              label="Brand banner"
+              description="Wide hero — shown as the banner on the brand/shop detail page."
             />
             <Input
-              id="create-brand-logo-mobile"
-              type="file"
-              name="logo_mobile"
-              accept="image/*"
-              onChange={(e) => setLogoMobile(e.target.files?.[0] ?? null)}
-            />
-            {logoMobile && logoMobilePreview ? (
-              <RemoteOrBlobImage
-                src={logoMobilePreview}
-                alt="Preview"
-                width={256}
-                height={256}
-                className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
-              />
-            ) : null}
-          </div>
-
-          <div>
-            <FieldLabel
-              label="Banner (desktop)"
-              description="Hero or banner image on desktop."
-            />
-            <Input
-              id="create-brand-banner-desktop"
+              id="create-brand-banner"
               type="file"
               name="banner"
               accept="image/*"
-              onChange={(e) => setBannerDesktop(e.target.files?.[0] ?? null)}
+              onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)}
             />
-            {bannerDesktop && bannerDesktopPreview ? (
+            {bannerFile && bannerPreview ? (
               <RemoteOrBlobImage
-                src={bannerDesktopPreview}
-                alt="Preview"
-                width={256}
-                height={256}
-                className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
-              />
-            ) : null}
-          </div>
-
-          <div>
-            <FieldLabel
-              label="Banner (mobile)"
-              description="Banner image on mobile."
-            />
-            <Input
-              id="create-brand-banner-mobile"
-              type="file"
-              name="banner_mobile"
-              accept="image/*"
-              onChange={(e) => setBannerMobile(e.target.files?.[0] ?? null)}
-            />
-            {bannerMobile && bannerMobilePreview ? (
-              <RemoteOrBlobImage
-                src={bannerMobilePreview}
-                alt="Preview"
-                width={256}
-                height={256}
-                className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
-              />
-            ) : null}
-          </div>
-
-          <div>
-            <FieldLabel
-              label="Logo (circle)"
-              description="Circular or avatar-style logo."
-            />
-            <Input
-              id="create-brand-logo-circle"
-              type="file"
-              name="logo_circle"
-              accept="image/*"
-              onChange={(e) => setLogoCircle(e.target.files?.[0] ?? null)}
-            />
-            {logoCircle && logoCirclePreview ? (
-              <RemoteOrBlobImage
-                src={logoCirclePreview}
-                alt="Preview"
-                width={256}
-                height={256}
-                className="mt-2 max-h-32 rounded-lg border border-gray-200 object-contain dark:border-gray-600"
+                src={bannerPreview}
+                alt="Brand banner preview"
+                width={800}
+                height={450}
+                className="mt-2 aspect-video h-auto w-[320px] max-w-full rounded-lg border border-gray-200 object-cover dark:border-gray-600"
               />
             ) : null}
           </div>
@@ -1510,7 +1872,7 @@ export default function CreateBrandForm() {
           <label
             htmlFor="create-brand-add-another"
             className="mr-auto flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-            title="After saving, keep brand-level fields (name, logo, default country) and clear the country/tracking inputs so you can add another country variant of this brand quickly."
+            title="After saving, keep brand-level fields (name, logo, availability) and clear the country/tracking inputs so you can add another country variant of this brand quickly."
           >
             <input
               id="create-brand-add-another"

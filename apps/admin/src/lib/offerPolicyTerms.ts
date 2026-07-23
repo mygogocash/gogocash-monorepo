@@ -1,3 +1,5 @@
+import { parseStoredPolicy } from "./policyPayload";
+
 /**
  * Generic sample terms used to pre-fill an offer's Terms & Conditions editor
  * when neither a configured policy nor a category-specific default applies.
@@ -74,9 +76,95 @@ export function categoryMockTerms(name: string | null | undefined): string {
   return CATEGORY_MOCK_TERMS[name.trim().toLowerCase()] ?? "";
 }
 
+/**
+ * Convert the current `GET /policy/category-list` response into the compact
+ * category-to-terms map consumed by the offer authoring forms. A string map is
+ * also accepted during rolling deploys so an older API response remains safe.
+ */
+export function policyTermsMapFromCategoryList(
+  payload: unknown,
+): Record<string, string> {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    return Object.fromEntries(
+      Object.entries(payload).flatMap(([categoryId, value]) =>
+        typeof value === "string" && value.trim()
+          ? [[categoryId, value.trim()]]
+          : [],
+      ),
+    );
+  }
+  if (!Array.isArray(payload)) return {};
+
+  const termsByCategory: Record<string, string> = {};
+  for (const value of payload) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    const entry = value as Record<string, unknown>;
+    const categoryId =
+      typeof entry.category_id === "string" ? entry.category_id.trim() : "";
+    if (!categoryId) continue;
+
+    const parsed = parseStoredPolicy(entry.terms);
+    const localeOrder = [
+      parsed.primary_locale,
+      "th",
+      "en",
+      ...Object.keys(parsed.translations),
+    ].filter((locale, index, all) => locale && all.indexOf(locale) === index);
+    const selectedLocale = localeOrder.find(
+      (locale) => parsed.translations[locale]?.trim(),
+    );
+    if (!selectedLocale) continue;
+
+    const base = parsed.translations[selectedLocale].trim();
+    const additional = (parsed.additionalTerms[selectedLocale] ?? "").trim();
+    const legacyTemplatePlusSeparator = "\n\n--- Additional terms ---\n\n";
+    termsByCategory[categoryId] =
+      additional && !base.includes(legacyTemplatePlusSeparator)
+      ? `${base}\n\n${additional}`
+      : base;
+  }
+  return termsByCategory;
+}
+
 export interface PolicyCategoryRef {
   _id: string;
   name: string;
+}
+
+function resolvePolicyCategory(
+  policyId: string,
+  offerCategoryName: string | null | undefined,
+  categories: PolicyCategoryRef[],
+): { categoryId: string; categoryName: string } {
+  if (policyId) {
+    return {
+      categoryId: policyId,
+      categoryName: categories.find((c) => c._id === policyId)?.name ?? "",
+    };
+  }
+
+  const categoryName = offerCategoryName?.trim() ?? "";
+  const category = categories.find(
+    (candidate) =>
+      candidate.name.trim().toLowerCase() === categoryName.toLowerCase(),
+  );
+  return { categoryId: category?._id ?? "", categoryName };
+}
+
+/** Returns only policy text configured under Policy Management. */
+export function resolveConfiguredOfferPolicyTerms(
+  policyId: string,
+  offerCategoryName: string | null | undefined,
+  categories: PolicyCategoryRef[],
+  policiesList: Record<string, string>,
+): string {
+  if (policyId === "custom") return "";
+  const { categoryId } = resolvePolicyCategory(
+    policyId,
+    offerCategoryName,
+    categories,
+  );
+  return (categoryId ? (policiesList[categoryId] ?? "") : "").trim();
 }
 
 /**
@@ -94,16 +182,19 @@ export function resolveOfferPolicyBaseTerms(
   policiesList: Record<string, string>,
 ): string {
   if (policyId === "custom") return "";
-
-  let catId = policyId;
-  let catName: string;
-  if (catId) {
-    catName = categories.find((c) => c._id === catId)?.name ?? "";
-  } else {
-    catName = offerCategoryName ?? "";
-    catId = categories.find((c) => c.name === catName)?._id ?? "";
-  }
-
-  const configured = (catId ? (policiesList[catId] ?? "") : "").trim();
-  return configured || categoryMockTerms(catName) || OFFER_MOCK_TERMS;
+  const { categoryName } = resolvePolicyCategory(
+    policyId,
+    offerCategoryName,
+    categories,
+  );
+  return (
+    resolveConfiguredOfferPolicyTerms(
+      policyId,
+      offerCategoryName,
+      categories,
+      policiesList,
+    ) ||
+    categoryMockTerms(categoryName) ||
+    OFFER_MOCK_TERMS
+  );
 }

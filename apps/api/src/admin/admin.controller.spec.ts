@@ -1,8 +1,10 @@
+import { BadRequestException } from '@nestjs/common';
 import { Request } from 'express';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { UserAdminService } from './user-admin/user-admin-service';
 import { AdminInviteService } from './admin-invite.service';
+import { ListMyCashbackUsersDto } from './dto/update-admin.dto';
 
 /**
  * AdminController is a thin delegation layer over three injected services. The
@@ -25,6 +27,14 @@ describe('AdminController', () => {
   let adminInviteService: Record<string, jest.Mock>;
 
   const RETURN = Symbol('service-return');
+  const adminRequest = (user?: Record<string, unknown>) =>
+    ({
+      user: {
+        sub: 'admin-root',
+        email: 'root@gogocash.co',
+        ...user,
+      },
+    }) as unknown as Request;
 
   beforeEach(() => {
     // Every service method returns the same sentinel so we can assert the
@@ -35,6 +45,8 @@ describe('AdminController', () => {
       getCreatedConversions: stub(),
       getTopBrands: stub(),
       saveTopBrands: stub(),
+      getLandingRails: stub(),
+      saveLandingRails: stub(),
       create: stub(),
       getWithdrawAll: stub(),
       getConversionAll: stub(),
@@ -48,11 +60,17 @@ describe('AdminController', () => {
       updateOffer: stub(),
       approveOffer: stub(),
       rejectOffer: stub(),
+      createCategory: stub(),
       updateCategory: stub(),
       updateUser: stub(),
       getMyCashBackUser: stub(),
+      listMyCashbackUsers: stub(),
       updateBannerHome: stub(),
       getBannerHome: stub(),
+      updateAllBrandBanner: stub(),
+      getAllBrandBanner: stub(),
+      updateSpecificPageBanner: stub(),
+      getSpecificPageBanner: stub(),
       updateConversionDataByConversionId: stub(),
       getDeepLinkList: stub(),
     };
@@ -98,11 +116,15 @@ describe('AdminController', () => {
     // forward exactly the email + role the (already superadmin-gated) caller
     // supplied, not a reshaped or defaulted value.
     it('invite > given an email and role > then it forwards both to AdminInviteService.invite', () => {
-      controller.invite({ email: 'new@gogocash.co', role: 'support' } as never);
+      controller.invite(
+        { email: 'new@gogocash.co', role: 'support' } as never,
+        adminRequest(),
+      );
 
       expect(adminInviteService.invite).toHaveBeenCalledWith(
         'new@gogocash.co',
         'support',
+        { id: 'admin-root', label: 'root@gogocash.co' },
       );
     });
   });
@@ -185,9 +207,12 @@ describe('AdminController', () => {
   describe('register', () => {
     it('register > given a register dto > then it delegates to UserAdminService.register', () => {
       const dto = { email: 'x@gogocash.co' };
-      controller.register(dto as never);
+      controller.register(dto as never, adminRequest());
 
-      expect(userAdminService.register).toHaveBeenCalledWith(dto);
+      expect(userAdminService.register).toHaveBeenCalledWith(dto, {
+        id: 'admin-root',
+        label: 'root@gogocash.co',
+      });
     });
   });
 
@@ -232,6 +257,22 @@ describe('AdminController', () => {
         'approved',
       );
     });
+
+    // Regression (beta 2026-07-19): absent page/limit became Number(undefined)
+    // === NaN, which DEFEATS the service's default parameters and reaches the
+    // aggregation as { $skip: NaN } → Mongo 500. Absent params must resolve to
+    // the same defaults the service declares (page 1, limit 10).
+    it('getConversionAll > given no query params > then the service receives numeric defaults, never NaN', () => {
+      controller.getConversionAll();
+
+      expect(adminService.getConversionAll).toHaveBeenCalledWith(
+        1,
+        10,
+        undefined,
+        undefined,
+        undefined,
+      );
+    });
   });
 
   describe('withdrawAll', () => {
@@ -241,7 +282,34 @@ describe('AdminController', () => {
     it('withdrawAll > given (limit, page, search) > then getWithdrawAll receives (page, limit, search)', () => {
       controller.withdrawAll(20 as never, 2 as never, 'term');
 
-      expect(adminService.getWithdrawAll).toHaveBeenCalledWith(2, 20, 'term');
+      expect(adminService.getWithdrawAll).toHaveBeenCalledWith(
+        2,
+        20,
+        'term',
+        undefined,
+        undefined,
+      );
+    });
+
+    // The admin UI's Status/Method dropdowns send `status`/`method` query
+    // params; without binding them here they are silently dropped and the
+    // filter appears to do nothing (#25).
+    it('withdrawAll > given status + method > then getWithdrawAll receives them', () => {
+      controller.withdrawAll(
+        20 as never,
+        2 as never,
+        'term',
+        'approved' as never,
+        'bank_transfer' as never,
+      );
+
+      expect(adminService.getWithdrawAll).toHaveBeenCalledWith(
+        2,
+        20,
+        'term',
+        'approved',
+        'bank_transfer',
+      );
     });
   });
 
@@ -277,30 +345,63 @@ describe('AdminController', () => {
   });
 
   describe('saveTopBrands', () => {
-    it('saveTopBrands > given a brands array > then it unwraps body.brands', () => {
-      const brands = [{ offerId: 'offer-1', cashback: '5%' }];
-      controller.saveTopBrands({ brands });
+    it('saveTopBrands > given a brands body > then it forwards the full DTO', () => {
+      const body = {
+        brands: [{ offerId: 'offer-1', cashback: '5%' }],
+        brandsDesktop: [{ offerId: 'offer-1', cashback: '5%' }],
+        brandsMobile: [{ offerId: 'offer-2', cashback: '5%' }],
+      };
+      controller.saveTopBrands(body);
 
-      expect(adminService.saveTopBrands).toHaveBeenCalledWith(brands);
+      expect(adminService.saveTopBrands).toHaveBeenCalledWith(body);
+    });
+  });
+
+  describe('landing rails', () => {
+    it('getLandingRails > then it delegates to the service', () => {
+      adminService.getLandingRails.mockReturnValue(RETURN);
+      expect(controller.getLandingRails()).toBe(RETURN);
+      expect(adminService.getLandingRails).toHaveBeenCalledTimes(1);
+    });
+
+    it('saveLandingRails > given a rails body > then it forwards the full DTO', () => {
+      const body = {
+        rails: [
+          {
+            railId: 'trending',
+            title: 'Trending Brands',
+            brandsDesktop: [{ offerId: 'offer-1', cashback: '5%' }],
+          },
+        ],
+      };
+      controller.saveLandingRails(body);
+
+      expect(adminService.saveLandingRails).toHaveBeenCalledWith(body);
     });
   });
 
   // ─── Admin record management ────────────────────────────────────────────
 
   describe('update', () => {
-    it('update > given id and dto > then it forwards (id, dto)', () => {
+    it('update > given id and dto > then it forwards the verified actor', () => {
       const dto = { role: 'viewer' };
-      controller.update('admin-9', dto as never);
+      controller.update('admin-9', dto as never, adminRequest());
 
-      expect(adminService.update).toHaveBeenCalledWith('admin-9', dto);
+      expect(adminService.update).toHaveBeenCalledWith('admin-9', dto, {
+        id: 'admin-root',
+        label: 'root@gogocash.co',
+      });
     });
   });
 
   describe('remove', () => {
-    it('remove > given an id > then it forwards the id', () => {
-      controller.remove('admin-9');
+    it('remove > given an id > then it forwards the verified actor', () => {
+      controller.remove('admin-9', adminRequest());
 
-      expect(adminService.remove).toHaveBeenCalledWith('admin-9');
+      expect(adminService.remove).toHaveBeenCalledWith('admin-9', {
+        id: 'admin-root',
+        label: 'root@gogocash.co',
+      });
     });
   });
 
@@ -372,6 +473,106 @@ describe('AdminController', () => {
       const arg = adminService.updateOffer.mock.calls[0][1];
       expect(arg.commission_store).toBe(0);
       expect(arg.max_cap).toBe(0);
+    });
+
+    it('updateOffer > given tracking_days "21" and confirm_days "45" as multipart strings > then they are forwarded as numbers', () => {
+      controller.updateOffer(
+        'offer-1',
+        {
+          tracking_period_mode: 'manual' as never,
+          tracking_days: '21' as never,
+          confirm_days: '45' as never,
+        } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.tracking_period_mode).toBe('manual');
+      expect(arg.tracking_days).toBe(21);
+      expect(arg.confirm_days).toBe(45);
+    });
+
+    it('updateOffer > given an out-of-range confirm_days "9999" > then it rejects instead of silently dropping', () => {
+      expect(() =>
+        controller.updateOffer(
+          'offer-1',
+          { confirm_days: '9999' as never } as never,
+          {},
+        ),
+      ).toThrow('Invalid confirm_days');
+    });
+
+    it('updateOffer > given no tracking-period fields > then they are forwarded as undefined', () => {
+      controller.updateOffer('offer-1', {} as never, {});
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.tracking_period_mode).toBeUndefined();
+      expect(arg.tracking_days).toBeUndefined();
+      expect(arg.confirm_days).toBeUndefined();
+      expect(arg.flow_type).toBeUndefined();
+      expect(arg.tracking_subtitle).toBeUndefined();
+      expect(arg.confirm_subtitle).toBeUndefined();
+    });
+
+    it('updateOffer > given flow_type and step subtitles > then they are forwarded (subtitles keep empty-string clears)', () => {
+      controller.updateOffer(
+        'offer-1',
+        {
+          flow_type: 'two_step' as never,
+          tracking_subtitle: 'after the return window closes' as never,
+          confirm_subtitle: '' as never,
+        } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.flow_type).toBe('two_step');
+      expect(arg.tracking_subtitle).toBe('after the return window closes');
+      // Empty string = explicit clear back to the default subtitle.
+      expect(arg.confirm_subtitle).toBe('');
+    });
+
+    it('updateOffer > given the "undefined" sentinel for subtitles > then they are omitted', () => {
+      controller.updateOffer(
+        'offer-1',
+        {
+          tracking_subtitle: 'undefined' as never,
+          confirm_subtitle: 'undefined' as never,
+        } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.tracking_subtitle).toBeUndefined();
+      expect(arg.confirm_subtitle).toBeUndefined();
+    });
+
+    it('updateOffer > given terms-and-conditions fields > then policy/custom terms/note are forwarded (regression: admin T&C saves silently no-oped)', () => {
+      controller.updateOffer(
+        'offer-1',
+        {
+          policy_category_id: '68345f00aa11bb22cc33dd99' as never,
+          custom_terms: '1. Custom term' as never,
+          note_to_user: 'Flash sale this week only.' as never,
+        } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.policy_category_id).toBe('68345f00aa11bb22cc33dd99');
+      expect(arg.custom_terms).toBe('1. Custom term');
+      expect(arg.note_to_user).toBe('Flash sale this week only.');
+    });
+
+    it('updateOffer > given the form\'s "custom" policy sentinel > then it is persisted so the mode can be inferred on reopen', () => {
+      controller.updateOffer(
+        'offer-1',
+        { policy_category_id: 'custom' as never } as never,
+        {},
+      );
+
+      const arg = adminService.updateOffer.mock.calls[0][1];
+      expect(arg.policy_category_id).toBe('custom');
     });
 
     // disabled/extra_store arrive as multipart strings; only the exact string
@@ -527,24 +728,86 @@ describe('AdminController', () => {
     });
   });
 
+  // ─── Category create + rename ───────────────────────────────────────────
+
+  describe('createCategory', () => {
+    // The admin UI's fetcherPost tuple quirk wraps the JSON body as
+    // `{ data: { name } }`; a plain `{ name }` body must work too.
+    it('createCategory > given the axios tuple body shape { data: { name } } > then it forwards the trimmed name', () => {
+      const result = controller.createCategory({
+        data: { name: '  Fashion  ' },
+      } as never);
+
+      expect(adminService.createCategory).toHaveBeenCalledWith('Fashion');
+      expect(result).toBe(RETURN);
+    });
+
+    it('createCategory > given a flat { name } body > then it forwards the trimmed name', () => {
+      controller.createCategory({ name: ' Travel ' } as never);
+
+      expect(adminService.createCategory).toHaveBeenCalledWith('Travel');
+    });
+
+    it('createCategory > given no name in either shape > then it rejects with 400 before hitting the service', () => {
+      expect(() => controller.createCategory({} as never)).toThrow(
+        BadRequestException,
+      );
+      expect(adminService.createCategory).not.toHaveBeenCalled();
+    });
+  });
+
   // ─── Category + banner multipart unwrapping ─────────────────────────────
 
   describe('updateCategory', () => {
-    it('updateCategory > given an uploaded image array > then it unwraps the first file', () => {
+    it('updateCategory > given uploaded icon and banner arrays > then it unwraps both first files', () => {
       const image = { originalname: 'cat.png' } as Express.Multer.File;
-      controller.updateCategory('cat-1', { image: [image] });
+      const banner = { originalname: 'cat-wide.png' } as Express.Multer.File;
+      controller.updateCategory('cat-1', {} as never, {
+        image: [image],
+        banner: [banner],
+      });
 
       expect(adminService.updateCategory).toHaveBeenCalledWith('cat-1', {
         image,
+        banner,
       });
     });
 
     it('updateCategory > given no image > then image is null', () => {
-      controller.updateCategory('cat-1', {});
+      controller.updateCategory('cat-1', {} as never, {});
 
       expect(adminService.updateCategory).toHaveBeenCalledWith('cat-1', {
         image: null,
+        banner: null,
       });
+    });
+
+    // The rename bug: PolicyTable PATCHes `{ name }` as JSON, but the
+    // controller used to ignore the body entirely, silently dropping renames.
+    it('updateCategory > given a JSON body with name > then it forwards the trimmed name', () => {
+      controller.updateCategory('cat-1', { name: '  Electronics  ' }, {});
+
+      expect(adminService.updateCategory).toHaveBeenCalledWith('cat-1', {
+        name: 'Electronics',
+        image: null,
+        banner: null,
+      });
+    });
+
+    it('updateCategory > given an image-only payload > then name stays undefined (no accidental rename)', () => {
+      const image = { originalname: 'cat.png' } as Express.Multer.File;
+      controller.updateCategory('cat-1', {} as never, { image: [image] });
+
+      const arg = adminService.updateCategory.mock.calls[0][1];
+      expect(arg.name).toBeUndefined();
+    });
+
+    it('updateCategory > given the multipart "undefined" sentinel or blank name > then name stays undefined', () => {
+      controller.updateCategory('cat-1', { name: 'undefined' }, {});
+      controller.updateCategory('cat-2', { name: '   ' }, {});
+
+      expect(adminService.updateCategory.mock.calls[0][1].name).toBeUndefined();
+      expect(adminService.updateCategory.mock.calls[1][1].name).toBeUndefined();
     });
   });
 
@@ -611,6 +874,63 @@ describe('AdminController', () => {
     });
   });
 
+  describe('updateAllBrandBanner', () => {
+    it('given multipart slot data > then delegates the same banner contract to the all-brand service', () => {
+      const image1 = { originalname: 'brands.png' } as Express.Multer.File;
+
+      controller.updateAllBrandBanner({ image_1: [image1] }, {
+        link_1: '/brand/promo',
+        enabled_1: 'true',
+      } as never);
+
+      expect(adminService.updateAllBrandBanner).toHaveBeenCalledWith(
+        expect.objectContaining({
+          image_1: image1,
+          link_1: '/brand/promo',
+          enabled_1: true,
+        }),
+      );
+    });
+  });
+
+  describe('specific page banners', () => {
+    it('given multipart slot data > then delegates target and slots 1-3 only', () => {
+      const image1 = { originalname: 'shops.png' } as Express.Multer.File;
+      const image4 = { originalname: 'hidden.png' } as Express.Multer.File;
+
+      controller.updateSpecificPageBanner(
+        'all-shops',
+        { image_1: [image1], image_4: [image4] } as never,
+        {
+          link_1: '/shops/promo',
+          enabled_1: 'true',
+          link_4: '/must-not-forward',
+        } as never,
+      );
+
+      expect(adminService.updateSpecificPageBanner).toHaveBeenCalledWith(
+        'all-shops',
+        expect.objectContaining({
+          image_1: image1,
+          link_1: '/shops/promo',
+          enabled_1: true,
+        }),
+      );
+      const dto = adminService.updateSpecificPageBanner.mock.calls[0][1];
+      expect(dto.image_4).toBeUndefined();
+      expect(dto.link_4).toBeUndefined();
+    });
+
+    it('getSpecificPageBanner > then delegates the target unchanged', () => {
+      expect(controller.getSpecificPageBanner('product-discovery')).toBe(
+        RETURN,
+      );
+      expect(adminService.getSpecificPageBanner).toHaveBeenCalledWith(
+        'product-discovery',
+      );
+    });
+  });
+
   // ─── Remaining read/passthrough endpoints ───────────────────────────────
 
   describe('passthrough read endpoints', () => {
@@ -629,6 +949,11 @@ describe('AdminController', () => {
       expect(adminService.getBannerHome).toHaveBeenCalledTimes(1);
     });
 
+    it('getAllBrandBanner > then it delegates to the separate service', () => {
+      expect(controller.getAllBrandBanner()).toBe(RETURN);
+      expect(adminService.getAllBrandBanner).toHaveBeenCalledTimes(1);
+    });
+
     it('getDeepLinkList > then it delegates to the service', () => {
       expect(controller.getDeepLinkList()).toBe(RETURN);
       expect(adminService.getDeepLinkList).toHaveBeenCalledTimes(1);
@@ -639,6 +964,35 @@ describe('AdminController', () => {
       expect(adminService.getMyCashBackUser).toHaveBeenCalledWith('user-3');
     });
 
+    it('listMyCashbackUsers > given a body > then it forwards the body to the service', () => {
+      const body: ListMyCashbackUsersDto = {
+        page: 2,
+        limit: 12,
+        search: 'alice',
+        sort: 'name',
+        status: 'active',
+      };
+      controller.listMyCashbackUsers(body);
+      expect(adminService.listMyCashbackUsers).toHaveBeenCalledWith(body);
+    });
+
+    it('listMyCashbackUsers > given no body > then it forwards an empty object', () => {
+      controller.listMyCashbackUsers(undefined as never);
+      expect(adminService.listMyCashbackUsers).toHaveBeenCalledWith({});
+    });
+
+    it('listMyCashbackUsersGet > given query params > then it forwards them to the same service', () => {
+      const query: ListMyCashbackUsersDto = {
+        page: 1,
+        limit: 12,
+        search: 'bob',
+        sort: 'balance',
+        status: '',
+      };
+      controller.listMyCashbackUsersGet(query);
+      expect(adminService.listMyCashbackUsers).toHaveBeenCalledWith(query);
+    });
+
     it('updateConversionDataByConversionId > given an id > then it forwards the id', () => {
       controller.updateConversionDataByConversionId('conv-1');
       expect(
@@ -646,14 +1000,39 @@ describe('AdminController', () => {
       ).toHaveBeenCalledWith('conv-1');
     });
 
-    it('updateRequestWithdraw > given a file and dto > then it forwards (dto, file)', () => {
+    it('updateRequestWithdraw > given a file and dto > then it forwards the authenticated actor', () => {
       const file = { originalname: 'slip.png' } as Express.Multer.File;
       const dto = { status: 'approved', id: 'w-1' };
-      controller.updateRequestWithdraw(file, dto as never);
+      const req = {
+        user: {
+          sub: 'admin-7',
+          email: 'approver@gogocash.co',
+          username: 'Approver',
+        },
+      } as unknown as Request;
+      controller.updateRequestWithdraw(file, dto as never, req);
       expect(adminService.updateRequestWithdraw).toHaveBeenCalledWith(
         dto,
         file,
+        { id: 'admin-7', label: 'Approver' },
       );
+    });
+
+    it('update admin role > given an authenticated superadmin > then it forwards actor identity', () => {
+      const dto = { role: 'support' };
+      const req = {
+        user: {
+          sub: 'admin-root',
+          email: 'root@gogocash.co',
+        },
+      } as unknown as Request;
+
+      controller.update('admin-target', dto as never, req);
+
+      expect(adminService.update).toHaveBeenCalledWith('admin-target', dto, {
+        id: 'admin-root',
+        label: 'root@gogocash.co',
+      });
     });
 
     it('create > given a create dto > then it delegates to AdminService.create', () => {

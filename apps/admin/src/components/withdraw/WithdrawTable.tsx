@@ -8,12 +8,17 @@ import {
   ResponseWithdraws,
   WithdrawQuery,
 } from "@/types/api";
-import { useDataSession } from "@/hooks/useDataSession";
 import ModalWithdraw from "./ModalWithdraw";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import CopyButton from "@/components/ui/CopyButton";
 import NoData from "@/components/common/NoData";
 import { devError } from "@/lib/devConsole";
+import {
+  WITHDRAW_STATUS_FILTER_OPTIONS,
+  hasInvalidWithdrawStatusParam,
+  parseWithdrawStatusFilter,
+  withdrawPathWithStatus,
+} from "@/lib/withdrawStatusFilter";
 export interface WithdrawRequestForm {
   file: File | null;
   id: string;
@@ -21,7 +26,6 @@ export interface WithdrawRequestForm {
 }
 
 export default function WithdrawTable() {
-  const session = useDataSession();
   const { loading, error, getWithdraws, clearError } = useApi();
   const [openModal, setOpenModal] = useState<DataWithdrawsList | boolean>(
     false,
@@ -29,6 +33,9 @@ export default function WithdrawTable() {
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawStatusParam = searchParams.get("status");
+  const statusFromUrl = parseWithdrawStatusFilter(rawStatusParam);
   const [form, setForm] = useState<WithdrawRequestForm>({
     file: null,
     id: "",
@@ -42,20 +49,13 @@ export default function WithdrawTable() {
     totalPages: 1,
   });
 
-  const [query, setQuery] = useState<WithdrawQuery>({
+  const [query, setQuery] = useState<WithdrawQuery>(() => ({
     search: "",
     limit: 10,
     page: 1,
-    status: undefined,
+    status: statusFromUrl,
     method: undefined,
-  });
-
-  const STATUS_FILTER_OPTIONS = [
-    { value: "", label: "All statuses" },
-    { value: "pending", label: "Pending" },
-    { value: "approved", label: "Approved" },
-    { value: "rejected", label: "Rejected" },
-  ] as const;
+  }));
 
   const METHOD_FILTER_OPTIONS = [
     { value: "", label: "All methods" },
@@ -63,30 +63,15 @@ export default function WithdrawTable() {
     { value: "web3", label: "Web3 / Crypto" },
   ] as const;
 
-  // const { data: getDetailConversionWithdraw } = useQuery<
-  //   ConversionInWithdraw[]
-  // >({
-  //   queryKey: ["getDetailConversionWithdraw", openModal],
-  //   queryFn: () =>
-  //     fetcherPost([
-  //       `/admin/getConversionInWithdraw`,
-  //       { data: (openModal as DataWithdrawsList).conversion_id as number[] },
-  //     ]),
-  // });
-
   // Guards: ignore out-of-order responses; debounce free-text search.
   const reqIdRef = useRef(0);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch offers
   const fetchOffers = async (newQuery?: WithdrawQuery) => {
     const reqId = ++reqIdRef.current;
     try {
       const queryToUse = newQuery || query;
-      const response = await getWithdraws(
-        queryToUse,
-        session?.accessToken || "",
-      );
+      const response = await getWithdraws(queryToUse);
       if (reqId !== reqIdRef.current) return; // a newer request superseded this
       setLists(response);
       setPagination({
@@ -101,12 +86,43 @@ export default function WithdrawTable() {
     }
   };
 
-  // Initial load
+  // Strip unknown ?status= tokens so the address bar matches the filter.
+  useEffect(() => {
+    if (!hasInvalidWithdrawStatusParam(rawStatusParam)) return;
+    router.replace(withdrawPathWithStatus(searchParams, undefined), {
+      scroll: false,
+    });
+  }, [rawStatusParam, router, searchParams]);
+
+  // Keep query.status aligned with the URL during render (React-recommended
+  // "adjusting state when a prop changes" — avoids setState-in-effect lint).
+  const [prevStatusFromUrl, setPrevStatusFromUrl] = useState(statusFromUrl);
+  if (statusFromUrl !== prevStatusFromUrl) {
+    setPrevStatusFromUrl(statusFromUrl);
+    setQuery((prev) => ({ ...prev, page: 1, status: statusFromUrl }));
+  }
+
+  // Initial load (status already taken from the URL in useState).
   useEffect(() => {
     startTransition(() => {
-      void fetchOffers();
+      void fetchOffers(query);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // URL is the source of truth for status (dashboard deep-links, back/forward,
+  // Status dropdown → router.replace). Fetch only here when status changes —
+  // never also from handleStatusFilter (avoids dual-fetch / loading flicker).
+  const skipStatusFetchOnMount = useRef(true);
+  useEffect(() => {
+    if (skipStatusFetchOnMount.current) {
+      skipStatusFetchOnMount.current = false;
+      return;
+    }
+    startTransition(() => {
+      void fetchOffers({ ...query, page: 1, status: statusFromUrl });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- statusFromUrl only
+  }, [statusFromUrl]);
 
   useEffect(() => {
     if (!openActionsId) return;
@@ -136,13 +152,11 @@ export default function WithdrawTable() {
   }, []);
 
   const handleStatusFilter = (value: string) => {
-    const newQuery: WithdrawQuery = {
-      ...query,
-      page: 1,
-      status: value ? value : undefined,
-    };
-    setQuery(newQuery);
-    void fetchOffers(newQuery);
+    // URL-only — the statusFromUrl effect syncs query + fetches exactly once.
+    router.replace(
+      withdrawPathWithStatus(searchParams, parseWithdrawStatusFilter(value)),
+      { scroll: false },
+    );
   };
 
   const handleMethodFilter = (value: string) => {
@@ -245,7 +259,7 @@ export default function WithdrawTable() {
                 onChange={(e) => handleStatusFilter(e.target.value)}
                 className="shadow-theme-xs h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-white/90"
               >
-                {STATUS_FILTER_OPTIONS.map((opt) => (
+                {WITHDRAW_STATUS_FILTER_OPTIONS.map((opt) => (
                   <option key={opt.label} value={opt.value}>
                     {opt.label}
                   </option>

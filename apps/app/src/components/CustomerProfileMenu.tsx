@@ -22,9 +22,17 @@ import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
 import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { getProfileMenuIcon, type ProfileMenuIcon } from "@mobile/components/profileMenuIcons";
+import {
+  resolveProfileDisplayName,
+  resolveProfileLastUpdated,
+  resolveProfileMaskedId,
+} from "@mobile/account/profileIdentity";
+import { resolveProfileCurrency } from "@mobile/account/resolveProfileWalletAmount";
+import { useProfileWalletAmount } from "@mobile/account/useProfileWalletAmount";
 import { clearMobileAppSession, type MobileSession } from "@mobile/auth/session";
 import { webProfileWalletHeroSurface, webProfileWalletSummary } from "@mobile/design/webDesignParity";
 import { profileHubMenuItems } from "@mobile/design/webDesignParity";
+import { filterHiddenProfileMenuItems } from "@mobile/config/featureFlags";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { ExternalLink as ExternalLinkIcon, LogOut as LogOutIcon } from "@mobile/theme/icons";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
@@ -34,15 +42,13 @@ import { typography } from "@mobile/theme/tokens";
 
 function deriveSummary(session: MobileSession) {
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
-  const region = str(session.region);
   return {
-    title: str(session.username) ?? webProfileWalletSummary.username,
-    amount: str(session.wallet) ?? webProfileWalletSummary.amount,
+    title: resolveProfileDisplayName(session),
     tier: str(session.membership_tier) ?? webProfileWalletSummary.membershipTier,
     avatarUrl: str(session.avatar_url),
-    maskedId: webProfileWalletSummary.maskedId,
-    lastUpdated: webProfileWalletSummary.lastUpdated,
-    currency: region && region !== "Thailand" ? "USD" : webProfileWalletSummary.currency,
+    maskedId: resolveProfileMaskedId(session),
+    lastUpdated: resolveProfileLastUpdated(),
+    currency: resolveProfileCurrency(session.region),
   };
 }
 
@@ -99,7 +105,7 @@ function PopoverWalletHeroCard({
   amount: string;
   avatarUrl: string | null;
   currency: string;
-  lastUpdated: string;
+  lastUpdated: string | null;
   maskedId: string;
   onWithdraw: () => void;
   tier?: string;
@@ -142,7 +148,7 @@ function PopoverWalletHeroCard({
           <Text style={styles.heroAmount}>{amount}</Text>
           <Text style={styles.heroCurrency}>{currency}</Text>
         </View>
-        <Text style={styles.heroUpdated}>{lastUpdated}</Text>
+        {lastUpdated ? <Text style={styles.heroUpdated}>{lastUpdated}</Text> : null}
         <Link asChild href="/withdraw" onPress={onWithdraw}>
           <MotionPressable
             accessibilityLabel={tc("Withdraw")}
@@ -241,6 +247,7 @@ export function CustomerProfileMenu({
   const styles = useThemedStyles(createProfileMenuStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const { amount: walletAmount } = useProfileWalletAmount();
   const summary = deriveSummary(session);
 
   return (
@@ -250,7 +257,7 @@ export function CustomerProfileMenu({
       style={styles.scroller}
     >
       <PopoverWalletHeroCard
-        amount={summary.amount}
+        amount={walletAmount}
         avatarUrl={summary.avatarUrl}
         currency={summary.currency}
         lastUpdated={summary.lastUpdated}
@@ -261,7 +268,7 @@ export function CustomerProfileMenu({
       />
 
       <View style={styles.menuGroup}>
-        {profileHubMenuItems.map((item) => (
+        {filterHiddenProfileMenuItems(profileHubMenuItems).map((item) => (
           <MenuRow
             external={"external" in item && item.external === true}
             href={item.href}

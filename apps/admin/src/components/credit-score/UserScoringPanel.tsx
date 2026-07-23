@@ -66,7 +66,10 @@ export default function UserScoringPanel({ userId }: { userId: string }) {
       setCustomReason("");
       void qc.invalidateQueries({ queryKey: ["admin", "credit"] });
     },
-    onError: () => toast.error("Override failed"),
+    onError: () =>
+      toast.error(
+        "Couldn't save the score override. Please try again, or contact an administrator if it continues.",
+      ),
   });
 
   const submitOverride = () => {

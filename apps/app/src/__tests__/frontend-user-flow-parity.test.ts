@@ -67,6 +67,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
       "Explore your Favorite",
       "webCategoryExploreHealthBeauty",
       "resolveCategoryExploreStores",
+      "useCategoryOfferBrowse",
     ],
     routeId: "categoryDetail",
     routeMarkers: ["useLocalSearchParams", "CustomerCategoryDetailScreen", "categoryName"],
@@ -113,17 +114,19 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/login.tsx",
-    expectedLinks: ["/privacy-policy", 'mode === "register" ? "/login" : "/register"'],
+    // "Create new account" is disabled for launch — the only mode link left is
+    // the register screen's back-link to /login (shared screen source).
+    expectedLinks: ["/privacy-policy", 'href="/login"'],
     landmarks: ["webAuthPage", "PhoneOtpBoxes", "privacyAccepted", "socialProviders"],
     routeId: "login",
     routeMarkers: ["CustomerAuthScreen", 'mode="login"'],
     screenFiles: ["src/screens/CustomerAuthScreen.tsx"],
     userFlow:
-      "Customer signs in with phone/social auth, accepts privacy terms, enters OTP, or switches to register.",
+      "Customer signs in with phone/social/email auth, accepts privacy terms, and enters OTP.",
   },
   {
     appFile: "app/register.tsx",
-    expectedLinks: ["/privacy-policy", 'mode === "register" ? "/login" : "/register"'],
+    expectedLinks: ["/privacy-policy", 'href="/login"'],
     landmarks: ["webAuthPage", "PhoneOtpBoxes", "privacyAccepted", "socialProviders"],
     routeId: "register",
     routeMarkers: ["CustomerAuthScreen", 'mode="register"'],
@@ -210,18 +213,18 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   {
     appFile: "app/profile/cf-phone.tsx",
     expectedLinks: ["/profile/verify-phone"],
-    landmarks: ["Verification Code", "Please wait for 1 minute", "Back"],
+    landmarks: ["Verification Code", "Enter the code we sent", "Didn't receive a code?", "Back"],
     routeId: "profileConfirmPhone",
     routeMarkers: ["CustomerProfilePhoneScreen", 'mode="otp"'],
     screenFiles: ["src/screens/CustomerProfilePhoneScreen.tsx"],
-    userFlow: "Customer enters phone OTP, resends code, or changes number.",
+    userFlow: "Customer confirms phone OTP, links the verified number, or returns to request a new code.",
   },
   {
     appFile: "app/profile/my-rating.tsx",
-    expectedLinks: ['href="/credit-score"'],
+    expectedLinks: ["/credit-score", "/profile"],
     landmarks: ["Redirect", "/credit-score"],
     routeId: "profileRating",
-    routeMarkers: ["Redirect", 'href="/credit-score"'],
+    routeMarkers: ["Redirect", "isCreditScoreEnabled"],
     screenFiles: ["app/profile/my-rating.tsx"],
     userFlow: "Customer follows the legacy rating route and lands on the credit-score flow.",
   },
@@ -287,7 +290,11 @@ const frontendFlowContracts: FrontendFlowContract[] = [
     landmarks: ["webFavoriteBrandsPage", "RecentlyVisitedBrandsGrid", "FavoriteBrandsListPreview"],
     routeId: "favorite",
     routeMarkers: ["CustomerFavoriteBrandsScreen"],
-    screenFiles: ["src/screens/CustomerFavoriteBrandsScreen.tsx"],
+    screenFiles: [
+      "src/screens/CustomerFavoriteBrandsScreen.tsx",
+      // Hero extracted 2026-07-11 — its See More CTA carries the /shops link.
+      "src/components/FavoriteBrandsHero.tsx",
+    ],
     userFlow: "Customer views recent/favorite brands, searches favorites, and opens shop cards.",
   },
   {
@@ -386,7 +393,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   },
   {
     appFile: "app/(tabs)/quest.tsx",
-    expectedLinks: ["/quest/history", "/brand", "getTopBrandHref(card.brand)"],
+    expectedLinks: ["/quest/history", "/brand", "<ExploreOtherShopsSection"],
     landmarks: ["webQuestTabs", "QuestTaskPanel", "QuestLeaderboardPanel"],
     routeId: "quest",
     routeMarkers: ["CustomerQuestScreen"],
@@ -396,7 +403,7 @@ const frontendFlowContracts: FrontendFlowContract[] = [
   {
     appFile: "app/quest/history.tsx",
     expectedLinks: ["/quest/history"],
-    landmarks: ['history ? "leaderboard" : "how-to-win"', "QuestLeaderboardPanel", "Quest History"],
+    landmarks: ["CustomerQuestHistoryScreen", "QuestHistoryView", "Quest History"],
     routeId: "questHistory",
     routeMarkers: ["CustomerQuestScreen", "history"],
     screenFiles: ["src/screens/CustomerQuestScreen.tsx"],

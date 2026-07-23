@@ -1,4 +1,5 @@
 import { Link } from "expo-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen as GuideIcon,
   Check as CheckIcon,
@@ -27,8 +28,17 @@ import {
 import type { LayoutRectangle, ViewStyle } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
-import { submitMissingOrder } from "@mobile/account/missingOrderResource";
+import {
+  type CustomerMissingOrderClaim,
+  formatMissingOrderStatus,
+  formatMissingOrderApiError,
+  listMissingOrders,
+  MISSING_ORDER_EVIDENCE_UNAVAILABLE_MESSAGE,
+  submitMissingOrder,
+} from "@mobile/account/missingOrderResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
+import { CustomerRouteState } from "@mobile/components/CustomerRouteState";
 import { mapOffersToCatalogBrands } from "@mobile/api/catalogMapper";
 import { isOfferListResponse } from "@mobile/api/catalogTypes";
 import { getMobileEnv } from "@mobile/config/env";
@@ -37,7 +47,10 @@ import { KeyboardAwareScreen } from "@mobile/components/KeyboardAwareScreen";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { haptics } from "@mobile/lib/haptics";
-import { mobileShellLayout, webMissingOrdersPage } from "@mobile/design/webDesignParity";
+import {
+  mobileShellLayout,
+  webMissingOrdersPage,
+} from "@mobile/design/webDesignParity";
 import type { ThemeColors } from "@mobile/theme/colorPalettes";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
@@ -53,8 +66,11 @@ const attachmentField = webMissingOrdersPage.sections
   .flatMap((section): readonly MissingOrdersField[] => section.fields)
   .find((field) => field.icon === "image");
 const attachmentRequiredMessage = attachmentField?.helper ?? "";
+const MISSING_ORDER_REQUIRED_FIELDS_MESSAGE =
+  "User ID, Brand, Order ID, Amount, and Purchase date are required.";
 
-const [purchaseSection, accountSection, extraSection] = webMissingOrdersPage.sections;
+const [purchaseSection, accountSection, extraSection] =
+  webMissingOrdersPage.sections;
 
 // Preset stores for the "Store or marketplace" dropdown (web parity: a real <Select>).
 const MISSING_ORDERS_SHOPS = [
@@ -70,6 +86,8 @@ const MISSING_ORDERS_SHOPS = [
 ] as const;
 
 const MISSING_ORDERS_USER_ID = "mock-user-001";
+const missingOrderHistoryQueryKey = (apiUrl: string) =>
+  ["missing-orders", apiUrl] as const;
 
 const MAX_MISSING_ORDER_IMAGES = 5;
 
@@ -78,7 +96,9 @@ type MissingOrderImage = { id: string; name: string; uri: string };
 // Opens the device image picker (web parity: <input type="file" accept="image/*" multiple>).
 // On web it uses a real hidden file input; on native (where this mock is not exercised) it
 // registers a single placeholder so the required-attachment flow still works.
-function pickMissingOrderImages(onPicked: (images: MissingOrderImage[]) => void): void {
+function pickMissingOrderImages(
+  onPicked: (images: MissingOrderImage[]) => void,
+): void {
   if (Platform.OS !== "web" || typeof document === "undefined") {
     onPicked([{ id: `mock-${Date.now()}`, name: "receipt.png", uri: "" }]);
     return;
@@ -93,7 +113,10 @@ function pickMissingOrderImages(onPicked: (images: MissingOrderImage[]) => void)
       .map((file, index) => ({
         id: `${file.name}-${file.size}-${index}`,
         name: file.name,
-        uri: typeof URL !== "undefined" && URL.createObjectURL ? URL.createObjectURL(file) : "",
+        uri:
+          typeof URL !== "undefined" && URL.createObjectURL
+            ? URL.createObjectURL(file)
+            : "",
       }));
     if (picked.length > 0) onPicked(picked);
   };
@@ -109,6 +132,7 @@ export function CustomerMissingOrdersScreen() {
       {isDesktop ? null : <MissingOrdersTopBar />}
       <View style={styles.content}>
         <MissingOrdersFormPanel />
+        <MissingOrdersClaimHistory />
         <MissingOrdersQuickCards />
         <MissingOrdersFaqSection />
       </View>
@@ -120,13 +144,22 @@ function MissingOrdersSubPage({ children }: { children: ReactNode }) {
   const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const tc = useCopy();
   return (
-    <AccountPageShell activeRouteId="profile" showTitle={false} title={tc(webMissingOrdersPage.title)}>
+    <AccountPageShell
+      activeRouteId="profile"
+      showTitle={false}
+      title={tc(webMissingOrdersPage.title)}
+    >
       {/* Wave B (B2) — KeyboardAwareScreen wraps this long multi-field claim form so the
           on-screen keyboard never covers the focused input (the keyboard-occlusion fix
           matters most on a form this tall). It supplies the keyboard-avoiding ScrollView
           and forwards contentContainerStyle, so the existing surface layout is unchanged;
           on web it is a layout no-op. */}
-      <KeyboardAwareScreen contentContainerStyle={[styles.surface, styles.missingOrdersSurfaceBleed]}>
+      <KeyboardAwareScreen
+        contentContainerStyle={[
+          styles.surface,
+          styles.missingOrdersSurfaceBleed,
+        ]}
+      >
         {children}
       </KeyboardAwareScreen>
     </AccountPageShell>
@@ -140,7 +173,11 @@ function MissingOrdersTopBar() {
   return (
     <Link asChild href="/profile">
       <Pressable accessibilityRole="link" hitSlop={8} style={styles.topBar}>
-        <ChevronLeftIcon color={colors.accent} size={26} strokeWidth={typography.iconStrokeWidth} />
+        <ChevronLeftIcon
+          color={colors.accent}
+          size={26}
+          strokeWidth={typography.iconStrokeWidth}
+        />
         <Text style={styles.topBarTitle}>{tc(webMissingOrdersPage.title)}</Text>
       </Pressable>
     </Link>
@@ -152,6 +189,7 @@ function MissingOrdersFormPanel() {
   const { colors } = useTheme();
   const tc = useCopy();
   const env = getMobileEnv();
+  const queryClient = useQueryClient();
   const { width } = useWindowDimensions();
   const isDesktop = width >= mobileShellLayout.desktopBreakpoint;
   const catalogResource = useCustomerAccountResource({
@@ -163,17 +201,28 @@ function MissingOrdersFormPanel() {
     resourceId: "profile",
   });
   const shopOptions = useMemo(() => {
-    if (catalogResource.source === "backend" && isOfferListResponse(catalogResource.data)) {
-      return mapOffersToCatalogBrands(catalogResource.data).map((brand) => ({
-        label: brand.name,
-        offerId: brand.id,
-      }));
+    if (env.accountDataSource === "backend") {
+      return catalogResource.status === "ready" &&
+        isOfferListResponse(catalogResource.data)
+        ? mapOffersToCatalogBrands(catalogResource.data).map((brand) => ({
+            label: brand.name,
+            offerId: brand.id,
+          }))
+        : [];
     }
 
     return MISSING_ORDERS_SHOPS.map((label) => ({ label, offerId: "" }));
-  }, [catalogResource.data, catalogResource.source]);
-  const [attachments, setAttachments] = useState<readonly MissingOrderImage[]>([]);
-  const [submitError, setSubmitError] = useState(false);
+  }, [catalogResource.data, catalogResource.status, env.accountDataSource]);
+  const catalogStateResource =
+    env.accountDataSource === "backend" &&
+    catalogResource.status === "ready" &&
+    shopOptions.length === 0
+      ? { ...catalogResource, data: null, status: "empty" as const }
+      : catalogResource;
+  const [attachments, setAttachments] = useState<readonly MissingOrderImage[]>(
+    [],
+  );
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submittedOpen, setSubmittedOpen] = useState(false);
   const [shop, setShop] = useState("");
@@ -188,22 +237,38 @@ function MissingOrdersFormPanel() {
   const hasAttachment = attachments.length > 0;
 
   const addImages = (images: MissingOrderImage[]) => {
-    setAttachments((prev) => [...prev, ...images].slice(0, MAX_MISSING_ORDER_IMAGES));
-    setSubmitError(false);
+    setAttachments((prev) =>
+      [...prev, ...images].slice(0, MAX_MISSING_ORDER_IMAGES),
+    );
+    setSubmitError(null);
   };
   const removeImage = (id: string) =>
     setAttachments((prev) => prev.filter((image) => image.id !== id));
 
   const handleSubmit = () => {
-    if (!hasAttachment) {
-      setSubmitError(true);
+    if (env.accountDataSource !== "backend" && !hasAttachment) {
+      setSubmitError(attachmentRequiredMessage);
       haptics.error();
       return;
     }
 
     if (env.accountDataSource === "backend") {
-      if (!selectedOfferId || !orderId.trim() || !amount.trim() || !purchaseDate.trim()) {
-        setSubmitError(true);
+      const profileUserId =
+        profileResource.data &&
+        typeof profileResource.data === "object" &&
+        "id" in profileResource.data &&
+        typeof profileResource.data.id === "string"
+          ? profileResource.data.id.trim()
+          : "";
+      if (
+        !profileUserId ||
+        !shop.trim() ||
+        !selectedOfferId ||
+        !orderId.trim() ||
+        !amount.trim() ||
+        !purchaseDate.trim()
+      ) {
+        setSubmitError(MISSING_ORDER_REQUIRED_FIELDS_MESSAGE);
         haptics.error();
         return;
       }
@@ -214,17 +279,20 @@ function MissingOrdersFormPanel() {
           await submitMissingOrder({
             amount: amount.trim(),
             apiUrl: env.apiUrl,
-            files: attachments,
+            files: [],
             note: note.trim(),
             offerId: selectedOfferId,
             orderId: orderId.trim(),
             purchaseDate: purchaseDate.trim(),
           });
-          setSubmitError(false);
+          setSubmitError(null);
           haptics.success();
           setSubmittedOpen(true);
-        } catch {
-          setSubmitError(true);
+          await queryClient.invalidateQueries({
+            queryKey: missingOrderHistoryQueryKey(env.apiUrl),
+          });
+        } catch (error) {
+          setSubmitError(formatMissingOrderApiError(error));
           haptics.error();
         } finally {
           setSubmitting(false);
@@ -233,7 +301,7 @@ function MissingOrdersFormPanel() {
       return;
     }
 
-    setSubmitError(false);
+    setSubmitError(null);
     haptics.success();
     setSubmittedOpen(true);
   };
@@ -246,7 +314,10 @@ function MissingOrdersFormPanel() {
           <Text style={styles.formIntro}>{tc(webMissingOrdersPage.intro)}</Text>
         </View>
         <View style={styles.headerActions}>
-          <Pressable disabled style={[styles.outlineButton, styles.disabledButton]}>
+          <Pressable
+            disabled
+            style={[styles.outlineButton, styles.disabledButton]}
+          >
             <Text style={[styles.outlineButtonText, styles.disabledButtonText]}>
               {tc(webMissingOrdersPage.clearActionLabel)}
             </Text>
@@ -256,12 +327,27 @@ function MissingOrdersFormPanel() {
 
       <View style={styles.sectionStack}>
         <MissingOrdersFormSection section={purchaseSection}>
+          {env.accountDataSource === "backend" &&
+          catalogStateResource.status !== "ready" ? (
+            <CustomerAccountResourceState
+              embedded
+              emptyBody="No eligible merchants are available for a missing conversion claim."
+              emptyTitle="No merchants available"
+              resource={catalogStateResource}
+              resourceLabel="merchant catalog"
+            />
+          ) : null}
           <MissingOrdersSelectField
+            disabled={
+              env.accountDataSource === "backend" &&
+              catalogStateResource.status !== "ready"
+            }
             helper={purchaseSection.fields[0].helper}
             label={purchaseSection.fields[0].label}
             onMeasure={setShopAnchor}
             onOpen={() => setShopOpen(true)}
             open={shopOpen}
+            required
             value={shop}
           />
           <MissingOrdersTextField
@@ -276,12 +362,14 @@ function MissingOrdersFormPanel() {
             keyboardType="decimal-pad"
             label={purchaseSection.fields[2].label}
             onChangeText={setAmount}
+            required
             value={amount}
           />
           <MissingOrdersDateField
             helper={purchaseSection.fields[3].helper}
             label={purchaseSection.fields[3].label}
             onChange={setPurchaseDate}
+            required
             value={purchaseDate}
           />
         </MissingOrdersFormSection>
@@ -295,7 +383,9 @@ function MissingOrdersFormPanel() {
               "id" in profileResource.data &&
               typeof profileResource.data.id === "string"
                 ? profileResource.data.id
-                : MISSING_ORDERS_USER_ID
+                : env.accountDataSource === "backend"
+                  ? "Unavailable"
+                  : MISSING_ORDERS_USER_ID
             }
           />
         </MissingOrdersFormSection>
@@ -307,13 +397,24 @@ function MissingOrdersFormPanel() {
             onChangeText={setNote}
             value={note}
           />
-          <MissingOrdersAttachmentField
-            attachments={attachments}
-            helper={extraSection.fields[1].helper}
-            label={extraSection.fields[1].label}
-            onAdd={addImages}
-            onRemove={removeImage}
-          />
+          {env.accountDataSource === "backend" ? (
+            <View style={styles.attachmentBox}>
+              <Text style={styles.attachmentLabel}>
+                Receipt upload unavailable
+              </Text>
+              <Text style={styles.attachmentHint}>
+                {MISSING_ORDER_EVIDENCE_UNAVAILABLE_MESSAGE}
+              </Text>
+            </View>
+          ) : (
+            <MissingOrdersAttachmentField
+              attachments={attachments}
+              helper={extraSection.fields[1].helper}
+              label={extraSection.fields[1].label}
+              onAdd={addImages}
+              onRemove={removeImage}
+            />
+          )}
         </MissingOrdersFormSection>
       </View>
 
@@ -328,30 +429,48 @@ function MissingOrdersFormPanel() {
 
       {submitError ? (
         <Text accessibilityRole="alert" style={styles.submitError}>
-          {tc(attachmentRequiredMessage)}
+          {tc(submitError)}
         </Text>
       ) : null}
 
       {/* Footer mirrors the web: a top-bordered action row with the LINE help button +
           the green pill submit, right-aligned on desktop and stacked full-width on mobile. */}
-      <View style={[styles.formFooter, isDesktop ? styles.formFooterDesktop : null]}>
+      <View
+        style={[styles.formFooter, isDesktop ? styles.formFooterDesktop : null]}
+      >
         <MotionPressable pressScale={0.98} style={styles.lineButton}>
-          <SupportIcon color="#06C755" size={18} strokeWidth={typography.iconStrokeWidth} />
-          <Text style={styles.lineButtonText}>{tc(webMissingOrdersPage.supportActionLabel)}</Text>
+          <SupportIcon
+            color="#06C755"
+            size={18}
+            strokeWidth={typography.iconStrokeWidth}
+          />
+          <Text style={styles.lineButtonText}>
+            {tc(webMissingOrdersPage.supportActionLabel)}
+          </Text>
         </MotionPressable>
         <MotionPressable
           onPress={handleSubmit}
           pressScale={0.98}
-          style={[styles.submitButton, isDesktop ? styles.submitButtonDesktop : null]}
+          style={[
+            styles.submitButton,
+            isDesktop ? styles.submitButtonDesktop : null,
+          ]}
         >
           <Text style={styles.submitButtonText}>
-            {submitting ? tc("Loading…") : tc(webMissingOrdersPage.submitActionLabel)}
+            {submitting
+              ? tc("Loading…")
+              : tc(webMissingOrdersPage.submitActionLabel)}
           </Text>
         </MotionPressable>
       </View>
 
       {shopOpen ? (
-        <Modal animationType="none" onRequestClose={() => setShopOpen(false)} transparent visible>
+        <Modal
+          animationType="none"
+          onRequestClose={() => setShopOpen(false)}
+          transparent
+          visible
+        >
           <Pressable
             accessibilityLabel={tc("Close")}
             onPress={() => setShopOpen(false)}
@@ -420,7 +539,9 @@ function MissingOrdersFormPanel() {
               <View style={styles.successBadge}>
                 <CheckIcon color={colors.white} size={36} strokeWidth={2.6} />
               </View>
-              <Text style={styles.successTitle}>{tc("Order Tracking Submitted!")}</Text>
+              <Text style={styles.successTitle}>
+                {tc("Order Tracking Submitted!")}
+              </Text>
               <Text style={styles.successBody}>
                 {tc("You can track the result on order transaction in wallet.")}
               </Text>
@@ -431,7 +552,9 @@ function MissingOrdersFormPanel() {
                     pressScale={0.98}
                     style={styles.successOutlineButton}
                   >
-                    <Text style={styles.successOutlineButtonText}>{tc("Go to Wallet")}</Text>
+                    <Text style={styles.successOutlineButtonText}>
+                      {tc("Go to Wallet")}
+                    </Text>
                   </MotionPressable>
                 </Link>
                 <Link asChild href="/brand">
@@ -440,7 +563,9 @@ function MissingOrdersFormPanel() {
                     pressScale={0.98}
                     style={styles.successPrimaryButton}
                   >
-                    <Text style={styles.successPrimaryButtonText}>{tc("Shop More!")}</Text>
+                    <Text style={styles.successPrimaryButtonText}>
+                      {tc("Shop More!")}
+                    </Text>
                   </MotionPressable>
                 </Link>
               </View>
@@ -509,7 +634,12 @@ function MissingOrdersTextField({
         ]}
       >
         {floated ? (
-          <Text style={[styles.floatLabel, focused ? styles.floatLabelFocused : null]}>
+          <Text
+            style={[
+              styles.floatLabel,
+              focused ? styles.floatLabelFocused : null,
+            ]}
+          >
             {labelText}
           </Text>
         ) : null}
@@ -522,7 +652,10 @@ function MissingOrdersTextField({
           onFocus={() => setFocused(true)}
           placeholder={floated ? "" : labelText}
           placeholderTextColor={colors.muted}
-          style={[styles.fieldInput, multiline ? styles.fieldInputMultiline : null]}
+          style={[
+            styles.fieldInput,
+            multiline ? styles.fieldInputMultiline : null,
+          ]}
           value={value}
         />
       </View>
@@ -551,7 +684,9 @@ function MissingOrdersUserIdField({
         <Text style={styles.floatLabel}>{tc(label)}</Text>
         <Text style={styles.fieldInput}>{revealed ? userId : "******"}</Text>
         <Pressable
-          accessibilityLabel={revealed ? tc("Hide user ID") : tc("Show user ID")}
+          accessibilityLabel={
+            revealed ? tc("Hide user ID") : tc("Show user ID")
+          }
           accessibilityRole="button"
           accessibilityState={{ selected: revealed }}
           hitSlop={8}
@@ -572,49 +707,69 @@ function MissingOrdersUserIdField({
 
 // Outlined select field that opens the store dropdown (web parity: a <Select> with a caret).
 function MissingOrdersSelectField({
+  disabled = false,
   helper,
   label,
   onMeasure,
   onOpen,
   open,
+  required,
   value,
 }: {
+  disabled?: boolean;
   helper: string;
   label: string;
   onMeasure: (rect: LayoutRectangle) => void;
   onOpen: () => void;
   open: boolean;
+  required?: boolean;
   value: string;
 }) {
   const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
   const ref = useRef<View>(null);
+  const labelText = `${tc(label)}${required ? " *" : ""}`;
   const floated = open || value.length > 0;
   const handlePress = () => {
+    if (disabled) return;
     // Open immediately, then anchor the menu under the field once measured (best-effort).
     onOpen();
     ref.current?.measureInWindow((x, y, fieldWidth, fieldHeight) =>
-      onMeasure({ height: fieldHeight, width: fieldWidth, x, y })
+      onMeasure({ height: fieldHeight, width: fieldWidth, x, y }),
     );
   };
   return (
     <View style={styles.fieldGroup}>
       <Pressable
+        accessibilityState={{ disabled }}
         accessibilityRole="button"
+        disabled={disabled}
         onPress={handlePress}
         ref={ref}
-        style={[styles.inputBox, open ? styles.inputBoxFocused : null]}
+        style={[
+          styles.inputBox,
+          open ? styles.inputBoxFocused : null,
+          disabled ? styles.disabledButton : null,
+        ]}
       >
         {floated ? (
-          <Text style={[styles.floatLabel, open ? styles.floatLabelFocused : null]}>
-            {tc(label)}
+          <Text
+            style={[styles.floatLabel, open ? styles.floatLabelFocused : null]}
+          >
+            {labelText}
           </Text>
         ) : null}
-        <Text style={[styles.fieldInput, value ? null : styles.fieldPlaceholder]}>
-          {value || (floated ? "" : tc(label))}
+        <Text
+          style={[styles.fieldInput, value ? null : styles.fieldPlaceholder]}
+        >
+          {value || (floated ? "" : labelText)}
         </Text>
-        <ChevronDownIcon color={colors.muted} size={20} strokeWidth={typography.iconStrokeWidth} />
+        <ChevronDownIcon
+          color={colors.muted}
+          size={20}
+          strokeWidth={typography.iconStrokeWidth}
+        />
       </Pressable>
       <Text style={styles.fieldHelper}>{tc(helper)}</Text>
     </View>
@@ -627,21 +782,26 @@ function MissingOrdersDateField({
   helper,
   label,
   onChange,
+  required,
   value,
 }: {
   helper: string;
   label: string;
   onChange: (value: string) => void;
+  required?: boolean;
   value: string;
 }) {
   const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const tc = useCopy();
   const [focused, setFocused] = useState(false);
+  const labelText = `${tc(label)}${required ? " *" : ""}`;
   return (
     <View style={styles.fieldGroup}>
       <View style={[styles.inputBox, focused ? styles.inputBoxFocused : null]}>
-        <Text style={[styles.floatLabel, focused ? styles.floatLabelFocused : null]}>
-          {tc(label)}
+        <Text
+          style={[styles.floatLabel, focused ? styles.floatLabelFocused : null]}
+        >
+          {labelText}
         </Text>
         <BirthDateField
           accessibilityLabel={tc(label)}
@@ -686,7 +846,11 @@ function MissingOrdersAttachmentField({
         onPress={() => pickMissingOrderImages(onAdd)}
         style={styles.attachmentButton}
       >
-        <ImageIcon color="#00AA80" size={20} strokeWidth={typography.iconStrokeWidth} />
+        <ImageIcon
+          color="#00AA80"
+          size={20}
+          strokeWidth={typography.iconStrokeWidth}
+        />
         <Text style={styles.attachmentButtonText}>{tc("Add images")}</Text>
       </Pressable>
       {attachments.length > 0 ? (
@@ -721,6 +885,107 @@ function MissingOrdersAttachmentField({
   );
 }
 
+function MissingOrdersClaimHistory() {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
+  const tc = useCopy();
+  const env = getMobileEnv();
+  const enabled = env.accountDataSource === "backend" && Boolean(env.apiUrl);
+  const query = useQuery({
+    enabled,
+    queryFn: () =>
+      listMissingOrders({ apiUrl: env.apiUrl, limit: 10, page: 1 }),
+    queryKey: missingOrderHistoryQueryKey(env.apiUrl),
+    retry: false,
+  });
+
+  if (!enabled) return null;
+
+  return (
+    <View style={styles.claimHistoryPanel}>
+      <View style={styles.claimHistoryHeader}>
+        <Text style={styles.claimHistoryTitle}>
+          {tc("Your missing conversions")}
+        </Text>
+        <Text style={styles.claimHistoryIntro}>
+          {tc(
+            "Track the support status of claims submitted from your account.",
+          )}
+        </Text>
+      </View>
+      {query.isPending ? (
+        <CustomerRouteState
+          body="Fetching your latest submitted claims."
+          embedded
+          title="Loading missing conversions"
+          variant="loading"
+        />
+      ) : query.isError ? (
+        <CustomerRouteState
+          action={{
+            accessibilityLabel: "Retry claim history",
+            label: "Try again",
+            onPress: () => void query.refetch(),
+          }}
+          body={formatMissingOrderApiError(query.error)}
+          embedded
+          title="We could not load missing conversions"
+          variant="error"
+        />
+      ) : !query.data || query.data.data.length === 0 ? (
+        <CustomerRouteState
+          body="Claims you submit will appear here with their review status."
+          embedded
+          title="No missing conversions yet"
+          variant="empty"
+        />
+      ) : (
+        <View style={styles.claimHistoryList}>
+          {query.data.data.map((claim) => (
+            <MissingOrderClaimCard claim={claim} key={claim.id} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function MissingOrderClaimCard({
+  claim,
+}: {
+  claim: CustomerMissingOrderClaim;
+}) {
+  const styles = useThemedStyles(createMissingOrdersScreenStyles);
+  const tc = useCopy();
+  return (
+    <View style={styles.claimCard}>
+      <View style={styles.claimCardHeader}>
+        <View style={styles.claimCardIdentity}>
+          <Text style={styles.claimMerchant}>
+            {claim.merchantName || tc("Merchant")}
+          </Text>
+          <Text style={styles.claimOrderId}>{claim.orderId}</Text>
+        </View>
+        <View style={styles.claimStatusBadge}>
+          <Text style={styles.claimStatusText}>
+            {tc(formatMissingOrderStatus(claim.status))}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.claimMetaRow}>
+        <Text style={styles.claimMetaText}>
+          {claim.orderAmount.toLocaleString("en-US", {
+            maximumFractionDigits: 2,
+          })}{" "}
+          {claim.currency}
+        </Text>
+        <Text style={styles.claimMetaText}>
+          {claim.purchaseDate.slice(0, 10)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 function MissingOrdersQuickCards() {
   const styles = useThemedStyles(createMissingOrdersScreenStyles);
   const { width } = useWindowDimensions();
@@ -729,7 +994,11 @@ function MissingOrdersQuickCards() {
   return (
     <View style={styles.quickCardsGrid}>
       {webMissingOrdersPage.quickCards.map((card) => (
-        <MissingOrdersQuickCard card={card} desktop={desktop} key={card.accent} />
+        <MissingOrdersQuickCard
+          card={card}
+          desktop={desktop}
+          key={card.accent}
+        />
       ))}
     </View>
   );
@@ -797,7 +1066,9 @@ function MissingOrdersFaqSection() {
                   />
                 </View>
               </Pressable>
-              {open ? <Text style={styles.faqAnswer}>{tc(faq.answer)}</Text> : null}
+              {open ? (
+                <Text style={styles.faqAnswer}>{tc(faq.answer)}</Text>
+              ) : null}
             </View>
           );
         })}
@@ -806,8 +1077,10 @@ function MissingOrdersFaqSection() {
   );
 }
 
-
-function renderQuickCardIcon(icon: MissingOrdersQuickCard["icon"], size: number): ReactNode {
+function renderQuickCardIcon(
+  icon: MissingOrdersQuickCard["icon"],
+  size: number,
+): ReactNode {
   const { colors } = useTheme();
   const iconProps = {
     color: colors.primaryDark,
@@ -834,605 +1107,681 @@ const quickCardArtGradient = {
 
 function createMissingOrdersScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
-  surface: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 24,
-    borderWidth: 1,
-    boxShadow: shadows.cardCss,
-    overflow: "hidden",
-    width: "100%",
-  },
-  missingOrdersSurfaceBleed: {
-    marginHorizontal: -8,
-    marginTop: 18,
-  },
-  topBar: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    gap: spacing.sm,
-    minHeight: 48,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  topBarTitle: {
-    color: colors.accent,
-    fontFamily: typography.family,
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  content: {
-    gap: 18,
-    paddingBottom: 30,
-    paddingHorizontal: 18,
-    paddingTop: 24,
-  },
-  formPanel: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 24,
-    borderWidth: 1,
-    gap: 18,
-    padding: 16,
-  },
-  formHeader: {
-    gap: 14,
-  },
-  formHeaderCopy: {
-    gap: 6,
-  },
-  formTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 22,
-    fontWeight: "600",
-    lineHeight: 30,
-  },
-  formIntro: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  headerActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  outlineButton: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: "#06C755",
-    borderRadius: radii.md,
-    borderWidth: 1.5,
-    justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: 18,
-  },
-  disabledButton: {
-    borderColor: "rgba(152, 152, 152, 0.45)",
-  },
-  outlineButtonText: {
-    color: "#06C755",
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  disabledButtonText: {
-    color: colors.muted,
-  },
-  lineButton: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: "#06C755",
-    borderRadius: radii.md,
-    borderWidth: 1.5,
-    flexDirection: "row",
-    gap: 8,
-    justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: 18,
-  },
-  lineButtonText: {
-    color: "#06C755",
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  sectionStack: {
-    gap: 16,
-  },
-  formSection: {
-    backgroundColor: colors.fieldMuted,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    gap: 14,
-    padding: 14,
-  },
-  sectionHeader: {
-    gap: 5,
-  },
-  sectionTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "600",
-    lineHeight: 22,
-  },
-  sectionHelp: {
-    color: "#656565",
-    fontFamily: typography.family,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  fieldStack: {
-    gap: 16,
-  },
-  fieldGroup: {
-    gap: 6,
-  },
-  inputBox: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 8,
-    minHeight: 56,
-    paddingHorizontal: 12,
-    position: "relative",
-  },
-  inputBoxMultiline: {
-    alignItems: "flex-start",
-    minHeight: 92,
-    paddingVertical: 10,
-  },
-  inputBoxFocused: {
-    borderColor: colors.primary,
-  },
-  floatLabel: {
-    backgroundColor: colors.card,
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 12,
-    left: 8,
-    paddingHorizontal: 4,
-    position: "absolute",
-    top: -8,
-    zIndex: 1,
-  },
-  floatLabelFocused: {
-    color: colors.primaryDark,
-  },
-  fieldInput: {
-    color: colors.ink,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 16,
-    outlineColor: "transparent",
-    outlineWidth: 0,
-    paddingVertical: 0,
-  },
-  fieldInputMultiline: {
-    minHeight: 64,
-    paddingTop: 4,
-    textAlignVertical: "top",
-  },
-  fieldPlaceholder: {
-    color: colors.muted,
-  },
-  eyeButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 32,
-    minWidth: 32,
-    outlineColor: "transparent",
-    outlineWidth: 0,
-  },
-  attachmentBox: {
-    backgroundColor: colors.card,
-    borderColor: "#D4D4D4",
-    borderRadius: 12,
-    borderStyle: "dashed",
-    borderWidth: 1,
-    gap: 8,
-    padding: 14,
-  },
-  attachmentLabel: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  attachmentRequired: {
-    color: colors.danger,
-  },
-  attachmentHint: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  attachmentButton: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    borderColor: "#00CC99",
-    borderRadius: 16,
-    borderWidth: 1.5,
-    flexDirection: "row",
-    gap: 8,
-    minHeight: 44,
-    outlineColor: "transparent",
-    outlineWidth: 0,
-    paddingHorizontal: 16,
-  },
-  attachmentButtonText: {
-    color: "#00AA80",
-    fontFamily: typography.family,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  dropdownRoot: {
-    alignItems: "center",
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-  },
-  dropdownBackdrop: {
-    backgroundColor: "rgba(0, 0, 0, 0.35)",
-    bottom: 0,
-    left: 0,
-    outlineColor: "transparent",
-    outlineWidth: 0,
-    position: "absolute",
-    right: 0,
-    top: 0,
-  },
-  dropdownMenu: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    boxShadow: shadows.cardCss,
-    maxWidth: 360,
-    padding: 8,
-    width: "100%",
-  },
-  dropdownTitle: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 12,
-    fontWeight: "600",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  dropdownOption: {
-    alignItems: "center",
-    borderRadius: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 44,
-    outlineColor: "transparent",
-    outlineWidth: 0,
-    paddingHorizontal: 12,
-  },
-  dropdownOptionText: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 16,
-  },
-  dropdownOptionTextSelected: {
-    color: colors.primaryDark,
-    fontWeight: "700",
-  },
-  fieldHelper: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  bulletPanel: {
-    gap: 8,
-  },
-  bulletRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  bulletDot: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 14,
-    lineHeight: 19,
-  },
-  bulletText: {
-    color: "#656565",
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 12,
-    lineHeight: 19,
-  },
-  submitError: {
-    color: colors.danger,
-    fontFamily: typography.family,
-    fontSize: 12,
-    fontWeight: "600",
-    lineHeight: 18,
-  },
-  formFooter: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    flexDirection: "column",
-    gap: 10,
-    paddingTop: 16,
-  },
-  formFooterDesktop: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-  },
-  submitButton: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: 24,
-  },
-  submitButtonDesktop: {
-    minWidth: 200,
-  },
-  submitButtonText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  quickCardsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  quickCard: {
-    backgroundColor: colors.card,
-    borderColor: "rgba(59, 59, 59, 0.5)",
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexBasis: "100%",
-    flexGrow: 1,
-    minHeight: 148,
-    overflow: "hidden",
-  },
-  quickCardDesktop: {
-    flexBasis: "30%",
-  },
-  quickCardArt: {
-    alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderBottomColor: "rgba(0, 170, 128, 0.12)",
-    borderBottomWidth: 1,
-    height: 72,
-    justifyContent: "center",
-  },
-  quickCardCopy: {
-    alignItems: "center",
-    flex: 1,
-    gap: 2,
-    justifyContent: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  quickCardTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 15,
-    fontWeight: "400",
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  quickCardAccent: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 20,
-    fontWeight: "600",
-    lineHeight: 25,
-    textAlign: "center",
-  },
-  faqSection: {
-    alignItems: "center",
-    gap: 14,
-    width: "100%",
-  },
-  faqTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 20,
-    fontWeight: "600",
-    lineHeight: 28,
-    textAlign: "center",
-  },
-  faqStack: {
-    gap: 8,
-    maxWidth: 948,
-    width: "100%",
-  },
-  faqCard: {
-    backgroundColor: colors.card,
-    borderBottomColor: "#B7E7DB",
-    borderBottomWidth: 1,
-    boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  faqQuestionRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 8,
-  },
-  faqQuestion: {
-    color: colors.ink,
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 15,
-    fontWeight: "500",
-    lineHeight: 21,
-  },
-  faqAnswer: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 13,
-    lineHeight: 19,
-    paddingLeft: 29,
-    paddingTop: 8,
-  },
-  faqChevronOpen: {
-    transform: [{ rotate: "180deg" }],
-  },
-  dropdownAnchoredMenu: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    boxShadow: shadows.cardCss,
-    maxHeight: 320,
-    overflow: "hidden",
-    padding: 6,
-    position: "absolute",
-  },
-  dropdownScroll: {
-    flexGrow: 0,
-  },
-  dropdownMenuFallback: {
-    left: 16,
-    right: 16,
-    top: 140,
-  },
-  attachmentChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 4,
-  },
-  attachmentChip: {
-    alignItems: "center",
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderRadius: 10,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 6,
-    maxWidth: "100%",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  attachmentThumb: {
-    borderRadius: 6,
-    height: 28,
-    width: 28,
-  },
-  attachmentChipName: {
-    color: colors.ink,
-    flexShrink: 1,
-    fontFamily: typography.family,
-    fontSize: 12,
-  },
-  attachmentRemove: {
-    alignItems: "center",
-    height: 18,
-    justifyContent: "center",
-    width: 18,
-  },
-  attachmentRemoveText: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 16,
-    lineHeight: 18,
-  },
-  successRoot: {
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-  },
-  successCard: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: 24,
-    gap: 16,
-    maxWidth: 420,
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-    width: "100%",
-  },
-  successBadge: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: 44,
-    height: 88,
-    justifyContent: "center",
-    width: 88,
-  },
-  successTitle: {
-    color: colors.ink,
-    fontFamily: typography.family,
-    fontSize: 26,
-    fontWeight: "700",
-    lineHeight: 32,
-    textAlign: "center",
-  },
-  successBody: {
-    color: colors.muted,
-    fontFamily: typography.family,
-    fontSize: 15,
-    lineHeight: 22,
-    maxWidth: 360,
-    textAlign: "center",
-  },
-  successActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    justifyContent: "center",
-    marginTop: 4,
-  },
-  successOutlineButton: {
-    alignItems: "center",
-    borderColor: colors.primary,
-    borderRadius: 999,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 52,
-    minWidth: 150,
-    outlineColor: "transparent",
-    outlineWidth: 0,
-    paddingHorizontal: 20,
-  },
-  successOutlineButtonText: {
-    color: colors.primaryDark,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  successPrimaryButton: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    justifyContent: "center",
-    minHeight: 52,
-    minWidth: 150,
-    outlineColor: "transparent",
-    outlineWidth: 0,
-    paddingHorizontal: 20,
-  },
-  successPrimaryButtonText: {
-    color: colors.white,
-    fontFamily: typography.family,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+    surface: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 24,
+      borderWidth: 1,
+      boxShadow: shadows.cardCss,
+      overflow: "hidden",
+      width: "100%",
+    },
+    missingOrdersSurfaceBleed: {
+      marginHorizontal: -8,
+      marginTop: 18,
+    },
+    topBar: {
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flexDirection: "row",
+      gap: spacing.sm,
+      minHeight: 48,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    topBarTitle: {
+      color: colors.accent,
+      fontFamily: typography.family,
+      fontSize: 18,
+      fontWeight: "600",
+    },
+    content: {
+      gap: 18,
+      paddingBottom: 30,
+      paddingHorizontal: 18,
+      paddingTop: 24,
+    },
+    formPanel: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 24,
+      borderWidth: 1,
+      gap: 18,
+      padding: 16,
+    },
+    formHeader: {
+      gap: 14,
+    },
+    formHeaderCopy: {
+      gap: 6,
+    },
+    formTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 22,
+      fontWeight: "600",
+      lineHeight: 30,
+    },
+    formIntro: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 13,
+      lineHeight: 20,
+    },
+    headerActions: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+    },
+    outlineButton: {
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderColor: "#06C755",
+      borderRadius: radii.md,
+      borderWidth: 1.5,
+      justifyContent: "center",
+      minHeight: 44,
+      paddingHorizontal: 18,
+    },
+    disabledButton: {
+      borderColor: "rgba(152, 152, 152, 0.45)",
+    },
+    outlineButtonText: {
+      color: "#06C755",
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    disabledButtonText: {
+      color: colors.muted,
+    },
+    lineButton: {
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderColor: "#06C755",
+      borderRadius: radii.md,
+      borderWidth: 1.5,
+      flexDirection: "row",
+      gap: 8,
+      justifyContent: "center",
+      minHeight: 44,
+      paddingHorizontal: 18,
+    },
+    lineButtonText: {
+      color: "#06C755",
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    sectionStack: {
+      gap: 16,
+    },
+    formSection: {
+      backgroundColor: colors.fieldMuted,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      gap: 14,
+      padding: 14,
+    },
+    sectionHeader: {
+      gap: 5,
+    },
+    sectionTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 16,
+      fontWeight: "600",
+      lineHeight: 22,
+    },
+    sectionHelp: {
+      color: "#656565",
+      fontFamily: typography.family,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    fieldStack: {
+      gap: 16,
+    },
+    fieldGroup: {
+      gap: 6,
+    },
+    inputBox: {
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 8,
+      minHeight: 56,
+      paddingHorizontal: 12,
+      position: "relative",
+    },
+    inputBoxMultiline: {
+      alignItems: "flex-start",
+      minHeight: 92,
+      paddingVertical: 10,
+    },
+    inputBoxFocused: {
+      borderColor: colors.primary,
+    },
+    floatLabel: {
+      backgroundColor: colors.card,
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 12,
+      left: 8,
+      paddingHorizontal: 4,
+      position: "absolute",
+      top: -8,
+      zIndex: 1,
+    },
+    floatLabelFocused: {
+      color: colors.primaryDark,
+    },
+    fieldInput: {
+      color: colors.ink,
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: 16,
+      outlineColor: "transparent",
+      outlineWidth: 0,
+      paddingVertical: 0,
+    },
+    fieldInputMultiline: {
+      minHeight: 64,
+      paddingTop: 4,
+      textAlignVertical: "top",
+    },
+    fieldPlaceholder: {
+      color: colors.muted,
+    },
+    eyeButton: {
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: 32,
+      minWidth: 32,
+      outlineColor: "transparent",
+      outlineWidth: 0,
+    },
+    attachmentBox: {
+      backgroundColor: colors.card,
+      borderColor: "#D4D4D4",
+      borderRadius: 12,
+      borderStyle: "dashed",
+      borderWidth: 1,
+      gap: 8,
+      padding: 14,
+    },
+    attachmentLabel: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 15,
+      fontWeight: "600",
+    },
+    attachmentRequired: {
+      color: colors.danger,
+    },
+    attachmentHint: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    attachmentButton: {
+      alignItems: "center",
+      alignSelf: "flex-start",
+      borderColor: "#00CC99",
+      borderRadius: 16,
+      borderWidth: 1.5,
+      flexDirection: "row",
+      gap: 8,
+      minHeight: 44,
+      outlineColor: "transparent",
+      outlineWidth: 0,
+      paddingHorizontal: 16,
+    },
+    attachmentButtonText: {
+      color: "#00AA80",
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    dropdownRoot: {
+      alignItems: "center",
+      flex: 1,
+      justifyContent: "center",
+      padding: 24,
+    },
+    dropdownBackdrop: {
+      backgroundColor: "rgba(0, 0, 0, 0.35)",
+      bottom: 0,
+      left: 0,
+      outlineColor: "transparent",
+      outlineWidth: 0,
+      position: "absolute",
+      right: 0,
+      top: 0,
+    },
+    dropdownMenu: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      boxShadow: shadows.cardCss,
+      maxWidth: 360,
+      padding: 8,
+      width: "100%",
+    },
+    dropdownTitle: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 12,
+      fontWeight: "600",
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    dropdownOption: {
+      alignItems: "center",
+      borderRadius: 10,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      minHeight: 44,
+      outlineColor: "transparent",
+      outlineWidth: 0,
+      paddingHorizontal: 12,
+    },
+    dropdownOptionText: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 16,
+    },
+    dropdownOptionTextSelected: {
+      color: colors.primaryDark,
+      fontWeight: "700",
+    },
+    fieldHelper: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 11,
+      lineHeight: 16,
+    },
+    bulletPanel: {
+      gap: 8,
+    },
+    bulletRow: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    bulletDot: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 14,
+      lineHeight: 19,
+    },
+    bulletText: {
+      color: "#656565",
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: 12,
+      lineHeight: 19,
+    },
+    submitError: {
+      color: colors.danger,
+      fontFamily: typography.family,
+      fontSize: 12,
+      fontWeight: "600",
+      lineHeight: 18,
+    },
+    formFooter: {
+      borderTopColor: colors.border,
+      borderTopWidth: 1,
+      flexDirection: "column",
+      gap: 10,
+      paddingTop: 16,
+    },
+    formFooterDesktop: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "flex-end",
+    },
+    submitButton: {
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      borderRadius: 999,
+      justifyContent: "center",
+      minHeight: 48,
+      paddingHorizontal: 24,
+    },
+    submitButtonDesktop: {
+      minWidth: 200,
+    },
+    submitButtonText: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: 15,
+      fontWeight: "700",
+    },
+    claimHistoryPanel: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 24,
+      borderWidth: 1,
+      gap: 16,
+      padding: 16,
+    },
+    claimHistoryHeader: {
+      gap: 4,
+    },
+    claimHistoryTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 20,
+      fontWeight: "700",
+    },
+    claimHistoryIntro: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    claimHistoryList: {
+      gap: 10,
+    },
+    claimCard: {
+      backgroundColor: colors.fieldMuted,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      gap: 10,
+      padding: 14,
+    },
+    claimCardHeader: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: 12,
+      justifyContent: "space-between",
+    },
+    claimCardIdentity: {
+      flex: 1,
+      gap: 3,
+    },
+    claimMerchant: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 15,
+      fontWeight: "700",
+    },
+    claimOrderId: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 12,
+    },
+    claimStatusBadge: {
+      backgroundColor: colors.primarySoft,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    claimStatusText: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 12,
+      fontWeight: "700",
+    },
+    claimMetaRow: {
+      flexDirection: "row",
+      gap: 12,
+      justifyContent: "space-between",
+    },
+    claimMetaText: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 12,
+    },
+    quickCardsGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 12,
+    },
+    quickCard: {
+      backgroundColor: colors.card,
+      borderColor: "rgba(59, 59, 59, 0.5)",
+      borderRadius: radii.md,
+      borderWidth: 1,
+      flexBasis: "100%",
+      flexGrow: 1,
+      minHeight: 148,
+      overflow: "hidden",
+    },
+    quickCardDesktop: {
+      flexBasis: "30%",
+    },
+    quickCardArt: {
+      alignItems: "center",
+      backgroundColor: colors.primarySoft,
+      borderBottomColor: "rgba(0, 170, 128, 0.12)",
+      borderBottomWidth: 1,
+      height: 72,
+      justifyContent: "center",
+    },
+    quickCardCopy: {
+      alignItems: "center",
+      flex: 1,
+      gap: 2,
+      justifyContent: "center",
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
+    quickCardTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 15,
+      fontWeight: "400",
+      lineHeight: 20,
+      textAlign: "center",
+    },
+    quickCardAccent: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 20,
+      fontWeight: "600",
+      lineHeight: 25,
+      textAlign: "center",
+    },
+    faqSection: {
+      alignItems: "center",
+      gap: 14,
+      width: "100%",
+    },
+    faqTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 20,
+      fontWeight: "600",
+      lineHeight: 28,
+      textAlign: "center",
+    },
+    faqStack: {
+      gap: 8,
+      maxWidth: 948,
+      width: "100%",
+    },
+    faqCard: {
+      backgroundColor: colors.card,
+      borderBottomColor: "#B7E7DB",
+      borderBottomWidth: 1,
+      boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
+    faqQuestionRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 8,
+    },
+    faqQuestion: {
+      color: colors.ink,
+      flex: 1,
+      fontFamily: typography.family,
+      fontSize: 15,
+      fontWeight: "500",
+      lineHeight: 21,
+    },
+    faqAnswer: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 13,
+      lineHeight: 19,
+      paddingLeft: 29,
+      paddingTop: 8,
+    },
+    faqChevronOpen: {
+      transform: [{ rotate: "180deg" }],
+    },
+    dropdownAnchoredMenu: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      boxShadow: shadows.cardCss,
+      maxHeight: 320,
+      overflow: "hidden",
+      padding: 6,
+      position: "absolute",
+    },
+    dropdownScroll: {
+      flexGrow: 0,
+    },
+    dropdownMenuFallback: {
+      left: 16,
+      right: 16,
+      top: 140,
+    },
+    attachmentChips: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      marginTop: 4,
+    },
+    attachmentChip: {
+      alignItems: "center",
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderRadius: 10,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 6,
+      maxWidth: "100%",
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+    },
+    attachmentThumb: {
+      borderRadius: 6,
+      height: 28,
+      width: 28,
+    },
+    attachmentChipName: {
+      color: colors.ink,
+      flexShrink: 1,
+      fontFamily: typography.family,
+      fontSize: 12,
+    },
+    attachmentRemove: {
+      alignItems: "center",
+      height: 18,
+      justifyContent: "center",
+      width: 18,
+    },
+    attachmentRemoveText: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 16,
+      lineHeight: 18,
+    },
+    successRoot: {
+      alignItems: "center",
+      backgroundColor: "rgba(0, 0, 0, 0.45)",
+      flex: 1,
+      justifyContent: "center",
+      padding: 24,
+    },
+    successCard: {
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderRadius: 24,
+      gap: 16,
+      maxWidth: 420,
+      paddingHorizontal: 24,
+      paddingVertical: 32,
+      width: "100%",
+    },
+    successBadge: {
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      borderRadius: 44,
+      height: 88,
+      justifyContent: "center",
+      width: 88,
+    },
+    successTitle: {
+      color: colors.ink,
+      fontFamily: typography.family,
+      fontSize: 26,
+      fontWeight: "700",
+      lineHeight: 32,
+      textAlign: "center",
+    },
+    successBody: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 15,
+      lineHeight: 22,
+      maxWidth: 360,
+      textAlign: "center",
+    },
+    successActions: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 12,
+      justifyContent: "center",
+      marginTop: 4,
+    },
+    successOutlineButton: {
+      alignItems: "center",
+      borderColor: colors.primary,
+      borderRadius: 999,
+      borderWidth: 1,
+      justifyContent: "center",
+      minHeight: 52,
+      minWidth: 150,
+      outlineColor: "transparent",
+      outlineWidth: 0,
+      paddingHorizontal: 20,
+    },
+    successOutlineButtonText: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    successPrimaryButton: {
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      borderRadius: 999,
+      justifyContent: "center",
+      minHeight: 52,
+      minWidth: 150,
+      outlineColor: "transparent",
+      outlineWidth: 0,
+      paddingHorizontal: 20,
+    },
+    successPrimaryButtonText: {
+      color: colors.white,
+      fontFamily: typography.family,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });
 }
-

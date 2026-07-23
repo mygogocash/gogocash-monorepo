@@ -21,7 +21,17 @@ import { IntroAfterLoginModal } from "@mobile/components/IntroAfterLoginModal";
 import { CustomerLineOfficialFab } from "@mobile/components/CustomerLineOfficialFab";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
-import { resolveHomePromoSections, resolveLiveBrandCards } from "@mobile/account/brandCatalogResource";
+import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
+import { buildLoginRedirectWithCallback } from "@mobile/auth/routeGuard";
+import { getMobileEnv } from "@mobile/config/env";
+import {
+  openGoLinkTracked,
+  useGoLinkResolution,
+} from "@mobile/features/useGoLinkResolution";
+import {
+  resolveApiLandingRails,
+  resolveLiveBrandCards,
+} from "@mobile/account/brandCatalogResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { usePublicCatalogPullToRefresh } from "@mobile/account/usePublicCatalogPullToRefresh";
 import {
@@ -42,11 +52,14 @@ import { motion } from "@mobile/theme/motion";
 
 import { createHomeScreenStyles } from "./home/customerHomeStyles";
 import { CustomerMobileBottomNav } from "./home/CustomerMobileBottomNav";
+import { resolveGoLinkMode } from "@mobile/config/featureFlags";
 import { DesktopGoLinkBanner } from "./home/DesktopGoLinkBanner";
 import { homeGoLinkShopNowRoute, homeIconStrokeWidth, webSearchInputFocusReset } from "./home/homeAssets";
 import { HomeHeroBanners } from "./home/HomeHeroBanners";
 import { HomeSearchPopularPopover } from "./home/HomeSearchPopularPopover";
+import type { SearchAnchorFrame } from "./home/searchPopoverFrame";
 import { HomeScreenThemeProvider } from "./home/homeScreenHooks";
+import { BrowseShortcuts } from "./home/BrowseShortcuts";
 import { MobileTabletHomeHeader } from "./home/MobileTabletHomeHeader";
 import { PromoSection } from "./home/PromoSection";
 import { TopBrandSection } from "./home/TopBrandSection";
@@ -74,13 +87,31 @@ export function CustomerHomeScreen() {
   const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
   const [desktopGoLinkGuidelineOpen, setDesktopGoLinkGuidelineOpen] = useState(false);
   const [desktopGoLinkResultHref, setDesktopGoLinkResultHref] = useState("");
+  // The home hero card renders the same result dialog as the /golink screen —
+  // it MUST carry the live resolution wiring too (regression: unwired, it fell
+  // back to the fixtures demo product in backend mode).
+  const { isAuthed } = useAuthGuardSession();
+  const {
+    live: liveGoLink,
+    match: goLinkMatch,
+    productPreview: goLinkProductPreview,
+  } = useGoLinkResolution(Boolean(desktopGoLinkResultHref), desktopGoLinkResultHref);
   const [searchPopoverOpen, setSearchPopoverOpen] = useState(false);
   const [searchPopoverMounted, setSearchPopoverMounted] = useState(false);
+  const [searchAnchorFrame, setSearchAnchorFrame] = useState<SearchAnchorFrame | null>(null);
   const [goLinkSheetOpen, setGoLinkSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // GoLink 3-state: "hidden" removes the surface, "comingSoon" shows it disabled.
+  const goLinkMode = resolveGoLinkMode();
   const brandCatalogResource = useCustomerAccountResource({
     fixtureData: webHomePromoSections,
     resourceId: "brandCatalog",
+  });
+  // Admin-curated homepage rails (GET /offer/landing-rails). Prefer these; the
+  // fixture is the fallback when the API is unavailable / not in backend mode.
+  const landingRailsResource = useCustomerAccountResource({
+    fixtureData: { data: [] },
+    resourceId: "landingRails",
   });
   const { onRefresh: onPullToRefresh, refreshing } = usePublicCatalogPullToRefresh();
   const homeRefreshControl = (
@@ -90,9 +121,9 @@ export function CustomerHomeScreen() {
       tintColor={colors.primaryDark}
     />
   );
-  const promoSections = resolveHomePromoSections(
-    brandCatalogResource.source,
-    brandCatalogResource.data,
+  const promoSections = resolveApiLandingRails(
+    landingRailsResource.source,
+    landingRailsResource.data,
     webHomePromoSections,
     region,
   );
@@ -121,9 +152,26 @@ export function CustomerHomeScreen() {
     setSearchPopoverMounted(false);
   }, []);
   const handleDesktopGoLinkShopNow = useCallback(() => {
+    const pastedUrl = desktopGoLinkResultHref;
+    const offer = goLinkMatch.offer;
     setDesktopGoLinkResultHref("");
-    router.push(homeGoLinkShopNowRoute as never);
-  }, [router]);
+    if (!liveGoLink) {
+      router.push(homeGoLinkShopNowRoute as never);
+      return;
+    }
+    if (!offer) {
+      return;
+    }
+    if (!isAuthed) {
+      router.push(buildLoginRedirectWithCallback("/") as never);
+      return;
+    }
+    void openGoLinkTracked(offer, pastedUrl, {
+      accessToken:
+        typeof session?.access_token === "string" ? session.access_token : undefined,
+      apiUrl: getMobileEnv().apiUrl,
+    });
+  }, [desktopGoLinkResultHref, goLinkMatch.offer, isAuthed, liveGoLink, router, session]);
 
   useEffect(() => {
     goLinkToggleProgress.stopAnimation();
@@ -145,11 +193,20 @@ export function CustomerHomeScreen() {
       {webHomeSectionOrder.includes("banner") ? (
         <HomeHeroBanners homeLayout={homeLayout} />
       ) : null}
-      {homeLayout.isDesktop ? (
+      {homeLayout.isDesktop && goLinkMode !== "hidden" ? (
         <DesktopGoLinkBanner
+          comingSoon={goLinkMode === "comingSoon"}
           onOpenGuideline={() => setDesktopGoLinkGuidelineOpen(true)}
           onResultHref={setDesktopGoLinkResultHref}
         />
+      ) : null}
+      {/* #497 — the explore bar belongs between the banners and Top Brands on
+          mobile/tablet. Desktop reaches the same destinations from the header nav
+          (CustomerDesktopHeader), so rendering it here too would duplicate them. */}
+      {!homeLayout.isDesktop ? (
+        <View style={styles.mobileTabletExploreBar}>
+          <BrowseShortcuts />
+        </View>
       ) : null}
       {webHomeSectionOrder.includes("extra") ? (
         <TopBrandSection brandCatalogData={brandCatalogResource.data} homeLayout={homeLayout} />
@@ -169,6 +226,7 @@ export function CustomerHomeScreen() {
           <View style={styles.desktopShellFrame}>
             <CustomerDesktopHeader
               onSearchFocus={openSearchPopover}
+              onSearchFrameChange={setSearchAnchorFrame}
               onSearchQueryChange={setSearchQuery}
               searchQuery={searchQuery}
               viewportWidth={width}
@@ -208,6 +266,7 @@ export function CustomerHomeScreen() {
           </View>
           {searchPopoverMounted ? (
             <HomeSearchPopularPopover
+              anchor={searchAnchorFrame}
               horizontalPadding={homeLayout.contentHorizontalPadding}
               liveCards={liveCards}
               onClose={closeSearchPopover}
@@ -215,6 +274,7 @@ export function CustomerHomeScreen() {
               onSelectRecent={(term) => setSearchQuery(term)}
               query={searchQuery}
               top={searchPopoverTop}
+              viewportWidth={width}
               visible={searchPopoverOpen}
             />
           ) : null}
@@ -230,8 +290,11 @@ export function CustomerHomeScreen() {
           {desktopGoLinkResultHref ? (
             <GoLinkResultDialog
               href={desktopGoLinkResultHref}
+              live={liveGoLink}
+              match={goLinkMatch}
               onClose={() => setDesktopGoLinkResultHref("")}
               onShopNow={handleDesktopGoLinkShopNow}
+              productPreview={goLinkProductPreview}
             />
           ) : null}
           <IntroAfterLoginModal />
@@ -333,6 +396,22 @@ export function CustomerHomeScreen() {
             <CustomerGoLinkScreen
               onClose={() => setGoLinkSheetOpen(false)}
               presentation="homeSheet"
+            />
+          ) : null}
+          {/* The mobile header's GoLink banner shares the desktop handlers —
+              the dialogs must be mounted in THIS branch too, or the (i) and
+              link-submit taps set state that nothing renders. */}
+          {desktopGoLinkGuidelineOpen ? (
+            <GoLinkGuidelineDialog onClose={() => setDesktopGoLinkGuidelineOpen(false)} />
+          ) : null}
+          {desktopGoLinkResultHref ? (
+            <GoLinkResultDialog
+              href={desktopGoLinkResultHref}
+              live={liveGoLink}
+              match={goLinkMatch}
+              onClose={() => setDesktopGoLinkResultHref("")}
+              onShopNow={handleDesktopGoLinkShopNow}
+              productPreview={goLinkProductPreview}
             />
           ) : null}
         </View>

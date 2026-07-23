@@ -125,7 +125,8 @@ export function CustomerAccountResourceState({
       body={
         resource.status === "disabled"
           ? format({
-              defaultMessage: "Backend account data is disabled for this environment.",
+              defaultMessage:
+                "Your account details aren't available right now. Please try again later or contact support.",
               id: "mobileResourceDisabledBody",
             })
           : resource.status === "error" && resource.error instanceof ApiError && resource.error.message

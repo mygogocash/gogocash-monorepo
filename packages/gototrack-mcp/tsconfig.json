@@ -8,7 +8,10 @@
     "strict": true,
     "skipLibCheck": true,
     "declaration": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    // TS 6.0+ no longer auto-includes node_modules/@types; the Node globals
+    // (process, NodeJS.*, node:test) must be requested explicitly.
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"]
 }

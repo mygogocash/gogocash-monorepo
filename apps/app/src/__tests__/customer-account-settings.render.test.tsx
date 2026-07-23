@@ -3,8 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // CustomerAccountSettingsScreen renders through AccountPageShell ->
 // CustomerDesktopHeader -> CustomerLocaleRegionControl -> i18n/LocaleProvider, which
@@ -16,9 +16,27 @@ vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
 }));
 
+const clientPost = vi.fn();
+vi.mock("@mobile/api/sharedClient", () => ({
+  getSharedMobileApiClient: async () => ({ get: vi.fn(), post: clientPost }),
+  resetSharedMobileApiClientForTests: () => {},
+}));
+
+const mockLogout = vi.fn().mockResolvedValue(undefined);
+vi.mock("@mobile/auth/useMobileLogout", () => ({
+  useMobileLogout: () => ({ logout: mockLogout, pending: false }),
+}));
+
+const getSession = vi.fn(async () => ({ email: "seeker@example.com" }));
+vi.mock("@mobile/auth/sharedSessionStore", () => ({
+  getSharedSessionStore: async () => ({ getSession }),
+  resetSharedSessionStoreForTests: () => {},
+}));
+
 import { CustomerAccountSettingsScreen } from "@mobile/screens/CustomerAccountSettingsScreen";
 import { ToastProvider } from "@mobile/components/Toast";
 import { LocaleProvider } from "@mobile/i18n/LocaleProvider";
+import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 import { ThemeProvider } from "@mobile/theme/ThemeProvider";
 
 // Wave B (B2) per-screen UX pass for the account-settings screen. RENDER suite: it
@@ -62,6 +80,17 @@ const renderScreen = () =>
   );
 
 describe("CustomerAccountSettingsScreen (render)", () => {
+  beforeEach(() => {
+    clientPost.mockReset();
+    mockLogout.mockClear();
+    getSession.mockReset();
+    getSession.mockResolvedValue({ email: "seeker@example.com" });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("mounts without throwing", () => {
     expect(() => renderScreen()).not.toThrow();
   });
@@ -88,6 +117,40 @@ describe("CustomerAccountSettingsScreen (render)", () => {
     expect(screen.getByText("Notifications via Email")).toBeTruthy();
     expect(screen.getAllByText("Coming soon").length).toBe(2);
   });
+
+  it("pdpa export > given a successful POST /pdpa/data-export > then toasts with masked session email", async () => {
+    clientPost.mockResolvedValue({
+      requestId: "req-1",
+      status: "sent",
+      delivery: "attachment",
+    });
+
+    renderScreen();
+    fireEvent.click(screen.getByText("Request data export"));
+
+    await waitFor(() => {
+      expect(clientPost).toHaveBeenCalledWith("/pdpa/data-export", { locale: "en" });
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/Request submitted/)).toBeTruthy();
+      expect(screen.getByText(/s\*\*\*@example\.com/)).toBeTruthy();
+    });
+  });
+
+  it("pdpa export > given API failure > then keeps the user and shows an error toast", async () => {
+    clientPost.mockRejectedValue(new Error("upstream failed"));
+
+    renderScreen();
+    fireEvent.click(screen.getByText("Request data export"));
+
+    await waitFor(() => {
+      expect(clientPost).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText(toastErrorMessages.submitRequestFailed)).toBeTruthy();
+    });
+    expect(screen.getByText("Request data export")).toBeTruthy();
+  });
 });
 
 describe("CustomerAccountSettingsScreen — Wave B foundations deliberately not applicable (source signals)", () => {
@@ -105,6 +168,15 @@ describe("CustomerAccountSettingsScreen — Wave B foundations deliberately not 
     expect(settingsSource).not.toContain("setIsEmailEnabled");
   });
 
+  it("renders the disabled switches at reduced opacity so they READ as disabled", () => {
+    // User report 2026-07-10: the coming-soon switches are functionally
+    // disabled but rendered at full strength (dark mode even showed a live
+    // mint on-track), inviting taps that do nothing. A dimmed control is the
+    // platform convention for disabled.
+    expect(settingsSource).toMatch(/switchDisabled:[\s\S]*?opacity: 0\.5/);
+    expect(settingsSource).toMatch(/<Switch[\s\S]*?style=\{styles\.switchDisabled\}/);
+  });
+
   it("uses the web LINE brand logo for the Line notification row (not a generic chat bubble)", () => {
     // Web parity: the Line row uses the ported LineAppIcon SVG, not the phosphor MessageCircle bubble.
     expect(settingsSource).toContain("LineAppIcon");
@@ -119,5 +191,112 @@ describe("CustomerAccountSettingsScreen — Wave B foundations deliberately not 
     // The old flat-color + letter-glyph approach is gone.
     expect(settingsSource).not.toContain("communityBrandStyles");
     expect(settingsSource).not.toContain("communityGlyph");
+  });
+
+  // Country selector (2026-07-10): the screen lives at the /language route yet
+  // carried no language or region UI — the only picker was the desktop header
+  // globe. This section gives settings muscle-memory a home for both.
+  describe("language & country section", () => {
+    it("renders both languages and the active country", () => {
+      globalThis.localStorage?.clear();
+      renderScreen();
+
+      expect(screen.getByText("Language & Country")).toBeTruthy();
+      expect(screen.getByText("English")).toBeTruthy();
+      expect(screen.getByText("ไทย")).toBeTruthy();
+      expect(screen.getByLabelText("Change country").textContent).toContain("Thailand");
+    });
+
+    it("given a tap on ไทย > then the Thai locale persists", () => {
+      globalThis.localStorage?.clear();
+      renderScreen();
+
+      fireEvent.click(screen.getByText("ไทย"));
+
+      expect(globalThis.localStorage.getItem("gogocash.locale")).toBe("th");
+    });
+
+    it("given a country pick via the row > then the region sheet opens and the choice persists", () => {
+      globalThis.localStorage?.clear();
+      renderScreen();
+
+      fireEvent.click(screen.getByLabelText("Change country"));
+      fireEvent.click(screen.getByText("Singapore"));
+
+      expect(globalThis.localStorage.getItem("gogocash.region")).toBe("SG");
+      expect(screen.getByLabelText("Change country").textContent).toContain("Singapore");
+    });
+  });
+});
+
+// Google Play launch blocker (2026-07-11): the deletion button was a no-op
+// toast. Founder-decided semantics: 30-day soft delete via the real backend.
+describe("account deletion (Play policy)", () => {
+  it("given a single tap > then it arms a confirm step and fires no request", async () => {
+    clientPost.mockClear();
+    renderScreen();
+
+    fireEvent.click(screen.getByText("Request account deletion"));
+
+    expect(await screen.findByText("Tap again to permanently delete")).toBeTruthy();
+    expect(clientPost).not.toHaveBeenCalled();
+  });
+
+  it("given tap + confirm > then POSTs /user/account-deletion and signs out", async () => {
+    clientPost.mockClear();
+    mockLogout.mockClear();
+    clientPost.mockResolvedValue({ deletionScheduledFor: "2026-08-10T00:00:00.000Z" });
+    renderScreen();
+
+    fireEvent.click(screen.getByText("Request account deletion"));
+    fireEvent.click(await screen.findByText("Tap again to permanently delete"));
+
+    expect(await screen.findByText(/Deletion scheduled/)).toBeTruthy();
+    expect(clientPost).toHaveBeenCalledWith("/user/account-deletion");
+    expect(mockLogout).toHaveBeenCalled();
+  });
+
+  it("given the backend rejects > then shows the shared error toast and stays signed in", async () => {
+    clientPost.mockClear();
+    mockLogout.mockClear();
+    clientPost.mockRejectedValue(new Error("boom"));
+    renderScreen();
+
+    fireEvent.click(screen.getByText("Request account deletion"));
+    fireEvent.click(await screen.findByText("Tap again to permanently delete"));
+
+    expect(await screen.findByText("Could not complete your request. Please try again.")).toBeTruthy();
+    expect(mockLogout).not.toHaveBeenCalled();
+  });
+
+  it("public deletion URL > given Play's Data safety form > then the /account-deletion route exists", () => {
+    const route = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), "../../app/account-deletion.tsx"),
+      "utf8"
+    );
+    expect(route).toContain("account");
+    expect(settingsSource).not.toContain("this build has no backend wired here");
+  });
+});
+
+describe("CustomerAccountSettingsScreen GoGoPass rollout flag (render)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('given EXPO_PUBLIC_ENABLE_GOGOPASS="0" > then the Stripe subscription card hides, other sections stay', () => {
+    vi.stubEnv("EXPO_PUBLIC_ENABLE_GOGOPASS", "0");
+    renderScreen();
+    expect(screen.queryByText("Your Subscription")).toBeNull();
+    expect(screen.queryByText("Open Stripe Subscription")).toBeNull();
+    // Neighbouring sections are untouched.
+    expect(screen.getByText("Receive Notifications about Updates")).toBeTruthy();
+    expect(screen.getByText("Join our Community")).toBeTruthy();
+  });
+
+  it("given the flag unset > then the subscription card still renders (default unchanged)", () => {
+    delete process.env.EXPO_PUBLIC_ENABLE_GOGOPASS;
+    renderScreen();
+    expect(screen.getByText("Your Subscription")).toBeTruthy();
   });
 });

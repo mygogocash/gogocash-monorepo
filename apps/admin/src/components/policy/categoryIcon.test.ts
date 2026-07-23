@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { categoryIconKey } from "./CategoryIcon";
+import {
+  CATEGORY_ICON_KEYS,
+  categoryIconKey,
+  resolveCategoryIconKey,
+} from "./CategoryIcon";
 
 describe("categoryIconKey", () => {
   it("maps known categories to their related icon (case-insensitive)", () => {
@@ -17,8 +21,72 @@ describe("categoryIconKey", () => {
     expect(categoryIconKey("Movies & Music")).toBe("entertainment");
   });
 
+  it("maps the expanded category icons by keyword", () => {
+    expect(categoryIconKey("Electronics & Gadgets")).toBe("electronics");
+    expect(categoryIconKey("Mobile Phones")).toBe("electronics");
+    expect(categoryIconKey("Fashion & Apparel")).toBe("fashion");
+    expect(categoryIconKey("Shoes & Clothing")).toBe("fashion");
+    expect(categoryIconKey("Beauty & Cosmetics")).toBe("beauty");
+    expect(categoryIconKey("Skincare")).toBe("beauty");
+    expect(categoryIconKey("Health & Pharmacy")).toBe("health");
+    expect(categoryIconKey("Home & Living")).toBe("home");
+    expect(categoryIconKey("Furniture")).toBe("home");
+    expect(categoryIconKey("Education & Courses")).toBe("education");
+    expect(categoryIconKey("Gifting & Crafts")).toBe("gift");
+    expect(categoryIconKey("Sports & Fitness")).toBe("sports");
+    expect(categoryIconKey("Pet Supplies")).toBe("pets");
+    expect(categoryIconKey("Baby & Kids")).toBe("baby");
+    expect(categoryIconKey("Auto Parts")).toBe("auto");
+    expect(categoryIconKey("Digital Services")).toBe("services");
+    expect(categoryIconKey("Top-up / Recharge")).toBe("services");
+  });
+
+  it("avoids substring false positives across expanded keys", () => {
+    // "mobile" inside "automobile" must not win over auto.
+    expect(categoryIconKey("Automobile")).toBe("auto");
+    expect(categoryIconKey("Automobile Parts")).toBe("auto");
+    // "pet" inside "carpet" / "competition" must not win.
+    expect(categoryIconKey("Carpet Cleaners")).toBe("default");
+    expect(categoryIconKey("Competition")).toBe("default");
+    // "book" inside "facebook" / "booking" must not win.
+    expect(categoryIconKey("Facebook Ads")).toBe("default");
+    expect(categoryIconKey("Booking")).toBe("default");
+    // Bare "digital" alone is not enough; cameras are electronics.
+    expect(categoryIconKey("Digital Camera")).toBe("electronics");
+    expect(categoryIconKey("Digital")).toBe("default");
+  });
+
   it("falls back to default for unknown / empty names", () => {
-    expect(categoryIconKey("Electronics")).toBe("default");
+    expect(categoryIconKey("Miscellaneous")).toBe("default");
     expect(categoryIconKey("")).toBe("default");
+  });
+
+  it("prefers a persisted allow-listed icon and rejects untrusted values", () => {
+    expect(resolveCategoryIconKey("finance", "Shopping")).toBe("finance");
+    expect(resolveCategoryIconKey("electronics", "Shopping")).toBe(
+      "electronics",
+    );
+    expect(resolveCategoryIconKey("gift", "Shopping")).toBe("gift");
+    expect(resolveCategoryIconKey("<script>", "Shopping")).toBe("shopping");
+    expect(CATEGORY_ICON_KEYS).toEqual([
+      "shopping",
+      "travel",
+      "food",
+      "finance",
+      "entertainment",
+      "electronics",
+      "fashion",
+      "beauty",
+      "health",
+      "home",
+      "education",
+      "gift",
+      "sports",
+      "pets",
+      "baby",
+      "auto",
+      "services",
+      "default",
+    ]);
   });
 });

@@ -1,14 +1,20 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
   IsArray,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   Matches,
   Max,
+  MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 
 /**
@@ -23,11 +29,20 @@ export class CreateWithdrawDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+  @Matches(/^0x[0-9a-fA-F]{64}$/, {
+    message: 'tx_hash must be a 0x-prefixed 64-char hex string',
+  })
   tx_hash?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @Matches(/^0x[0-9a-fA-F]{40}$/, {
+    message: 'address must be a valid EVM address',
+  })
   address?: string;
 
   @ApiProperty({ required: false })
@@ -48,6 +63,10 @@ export class CreateWithdrawDto {
   @ApiProperty({ required: false, type: [Number] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(10_000)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(Number.MAX_SAFE_INTEGER, { each: true })
   conversion_ids?: number[];
 
   @ApiProperty({ required: false })
@@ -73,6 +92,7 @@ export class CreateWithdrawDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(64)
   method?: string;
 
   @ApiProperty({ required: false, enum: ['THB', 'USD', 'USDT', 'USDC'] })
@@ -82,7 +102,8 @@ export class CreateWithdrawDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   chain?: number;
 
   @ApiProperty({ required: false, type: [String] })
@@ -96,6 +117,41 @@ export class CreateWithdrawDto {
   @IsNumber()
   @Min(0)
   rate?: number;
+
+  /** Optional marketing withdraw-fee coupon code (bank transfer MVP). */
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9]+$/, {
+    message: 'coupon_code must be alphanumeric',
+  })
+  coupon_code?: string;
+}
+
+export class PreviewWithdrawFeeDto {
+  @ApiProperty()
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(0)
+  @Max(100_000_000)
+  amount!: number;
+
+  @ApiProperty({ required: false, enum: ['THB', 'USD', 'USDT', 'USDC'] })
+  @IsOptional()
+  @IsIn(['THB', 'USD', 'USDT', 'USDC'])
+  currency?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  method?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9]+$/, {
+    message: 'coupon_code must be alphanumeric',
+  })
+  coupon_code?: string;
 }
 
 /**
@@ -140,6 +196,9 @@ export class MarkWithdrawPaidDto {
   })
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   @Matches(/^0x[0-9a-fA-F]{64}$/, {
     message: 'tx_hash must be a 0x-prefixed 64-char hex string',
   })
@@ -147,31 +206,88 @@ export class MarkWithdrawPaidDto {
 }
 
 export class GETSignDTO {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   userid: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^0x[0-9a-fA-F]{40}$/, {
+    message: 'userAddress must be a valid EVM address',
+  })
   userAddress: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d+(?:\.\d{1,18})?$/, {
+    message: 'totalCashbackAmount must be a positive decimal string',
+  })
   totalCashbackAmount: string;
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(10_000)
+  @IsString({ each: true })
+  @Matches(/^\d+$/, {
+    each: true,
+    message: 'conversionIdHashes must contain unsigned integer ids',
+  })
   conversionIdHashes: string[];
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d+$/, { message: 'expireAt must be a Unix timestamp' })
   expireAt: string;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   chain: number;
 }
 
 export class GetWithdrawTransactionsDTO {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
   page: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
   limit: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   search?: string;
 }
 
 export class DataCreateRewardList {
   @ApiProperty({ example: 1 })
+  @Type(() => Number)
+  @IsNumber()
   rank: number;
 
   @ApiProperty({ example: 1000 })
+  @Type(() => Number)
+  @IsNumber()
   reward: number;
 
   @ApiProperty({ example: 'THB' })
+  @IsString()
+  @IsNotEmpty()
   currency: string;
 }
 export class RequestCreateRewardList {
   @ApiProperty({ example: [{ rank: 1, reward: 1000, currency: 'THB' }] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DataCreateRewardList)
   list: DataCreateRewardList[];
 }

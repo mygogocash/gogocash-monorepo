@@ -53,6 +53,7 @@ export class Cart {
   subtotal_amount!: number;
 
   @Prop({
+    type: String,
     default: 'active',
     enum: ['active', 'converted', 'abandoned'],
     index: true,

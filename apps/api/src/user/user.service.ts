@@ -1,5 +1,14 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { getAdminAuth } from 'src/auth/firebase-admin.provider';
+import { isLegacyCronEnabled } from 'src/common/legacy-cron-gate';
 import { CreateUserDto, UpdateCountryDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -16,7 +25,9 @@ import { MEDIA_FOLDER } from 'src/media/media-folders.config';
  * (returns a new object — never mutates the input). Defence-in-depth: even if
  * a caller forgets to canonicalise upstream, persisted documents stay clean.
  */
-function withCanonicalCountry<T extends { country?: string | null }>(dto: T): T {
+function withCanonicalCountry<T extends { country?: string | null }>(
+  dto: T,
+): T {
   if (dto?.country === undefined) return dto;
   return { ...dto, country: toIso2Server(dto.country) };
 }
@@ -46,8 +57,12 @@ const SELF_EDITABLE_PROFILE_FIELDS = [
   'consent',
 ] as const;
 
+const EXACT_OBJECT_ID_HEX = /^[0-9a-f]{24}$/i;
+
 /** Copy only allowlisted keys from an arbitrary (untrusted) body. */
-function pickSelfEditableFields(dto: Record<string, unknown>): Record<string, unknown> {
+function pickSelfEditableFields(
+  dto: Record<string, unknown>,
+): Record<string, unknown> {
   const safe: Record<string, unknown> = {};
   for (const key of SELF_EDITABLE_PROFILE_FIELDS) {
     if (Object.prototype.hasOwnProperty.call(dto, key)) {
@@ -66,17 +81,14 @@ export class UserService {
     private readonly storedMediaService: StoredMediaService,
   ) {}
 
-  async createFromCrossmint(createUserDto: CreateUserDto) {
-    // Find or create the user in the database
-    const user = await this.userModel.findOneAndUpdate(
-      { id_crossmint: createUserDto.id_crossmint },
-      withCanonicalCountry(createUserDto),
-      { upsert: true, new: true },
-    );
-
-    return user;
-  }
   async createFromFirebase(createUserDto: CreateUserDto) {
+    if (process.env.QUEST_TASK_V2_ENABLED?.trim().toLowerCase() === 'true') {
+      throw new ServiceUnavailableException({
+        code: 'CENTRAL_REGISTRATION_REQUIRED',
+        message:
+          'New accounts must use the verified transactional registration service.',
+      });
+    }
     // Find or create the user in the database
     const user = await this.userModel.findOneAndUpdate(
       { id_firebase: createUserDto.id_firebase },
@@ -89,14 +101,19 @@ export class UserService {
 
   async findAll(page: number = 1, limit: number = 10, search?: string) {
     const skip = (page - 1) * limit;
+    const trimmedSearch = search?.trim() ?? '';
+    const escapedSearch = escapeRegexLiteral(trimmedSearch);
 
-    const query = search
+    const query = trimmedSearch
       ? {
           $or: [
-            { username: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-            { email: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-            { address: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-            { mobile: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+            { username: { $regex: escapedSearch, $options: 'i' } },
+            { email: { $regex: escapedSearch, $options: 'i' } },
+            { address: { $regex: escapedSearch, $options: 'i' } },
+            { mobile: { $regex: escapedSearch, $options: 'i' } },
+            ...(EXACT_OBJECT_ID_HEX.test(trimmedSearch)
+              ? [{ _id: new Types.ObjectId(trimmedSearch) }]
+              : []),
           ],
         }
       : {};
@@ -122,6 +139,37 @@ export class UserService {
   findOne(data: { [key: string]: string | Types.ObjectId }) {
     return this.userModel.findOne(data);
   }
+
+  /**
+   * Atomically claims a Firebase-verified canonical phone for one user.
+   *
+   * `verified_phone_e164` is protected by a sparse unique Mongo index. The
+   * database therefore arbitrates concurrent claims across app instances;
+   * the legacy `mobile` field is written in the same document operation for
+   * existing readers and display surfaces.
+   */
+  async claimVerifiedPhone(id: Types.ObjectId | string, phoneE164: string) {
+    try {
+      return await this.userModel.findByIdAndUpdate(
+        id,
+        {
+          $set: {
+            mobile: phoneE164,
+            verified_phone_e164: phoneE164,
+          },
+        },
+        { new: true, runValidators: true },
+      );
+    } catch (error) {
+      if ((error as { code?: number })?.code === 11000) {
+        throw new ConflictException(
+          'This phone number is already linked to another account. Sign in with that account or use a different phone number.',
+        );
+      }
+      throw error;
+    }
+  }
+
   async update(id: Types.ObjectId, updateUserDto: UpdateUserDto) {
     // delete updateUserDto.mobile; // prevent updating mobile directly;
     // Order matters: unwrap the legacy { data: {...} } envelope FIRST, THEN
@@ -173,11 +221,7 @@ export class UserService {
       user.avatar_url,
     );
 
-    return this.userModel.findByIdAndUpdate(
-      id,
-      { avatar_url },
-      { new: true },
-    );
+    return this.userModel.findByIdAndUpdate(id, { avatar_url }, { new: true });
   }
 
   async streamProfileAvatar(id: Types.ObjectId, ref: string) {
@@ -187,6 +231,122 @@ export class UserService {
     }
 
     return this.storedMediaService.getReadableStream(ref);
+  }
+
+  private readonly deletionLogger = new Logger('AccountDeletion');
+
+  /** 30-day grace window before the anonymizing purge (Play soft-delete). */
+  static readonly DELETION_GRACE_DAYS = 30;
+
+  async requestAccountDeletion(id: string, now: Date = new Date()) {
+    const scheduledFor = new Date(
+      now.getTime() + UserService.DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000,
+    );
+    const updated = await this.userModel.findOneAndUpdate(
+      // Only untouched accounts transition; a repeat request must not push
+      // the purge date out indefinitely.
+      { _id: new Types.ObjectId(id), deletion_requested_at: null },
+      { deletion_requested_at: now, deletion_scheduled_for: scheduledFor },
+      { new: true },
+    );
+    if (updated) {
+      return {
+        deletionScheduledFor: updated.deletion_scheduled_for ?? scheduledFor,
+      };
+    }
+
+    // Already pending (or unknown id) — surface the existing schedule.
+    const existing = await this.userModel
+      .find({ _id: new Types.ObjectId(id) })
+      .limit(1)
+      .exec();
+    const pending = existing[0];
+    if (!pending?.deletion_scheduled_for) {
+      throw new UnauthorizedException('User not found');
+    }
+    return { deletionScheduledFor: pending.deletion_scheduled_for };
+  }
+
+  async cancelAccountDeletion(id: string) {
+    await this.userModel.findOneAndUpdate(
+      // Once purged there is nothing to restore.
+      { _id: new Types.ObjectId(id), anonymized_at: null },
+      { deletion_requested_at: null, deletion_scheduled_for: null },
+      { new: true },
+    );
+    return { cancelled: true };
+  }
+
+  /**
+   * Daily anonymizing purge. Deletes the Firebase credential first — if that
+   * fails (transient), the user is skipped and retried on the next run so we
+   * never orphan a live credential against an anonymized record. PII fields
+   * are blanked; the doc (and financial history keyed on _id) survives.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async purgeDueAccountDeletionsCron() {
+    if (!isLegacyCronEnabled()) return;
+    const purged = await this.purgeDueAccountDeletions(new Date());
+    if (purged > 0) {
+      this.deletionLogger.log(
+        `Anonymized ${purged} account(s) past the grace window`,
+      );
+    }
+  }
+
+  async purgeDueAccountDeletions(now: Date): Promise<number> {
+    const due = await this.userModel
+      .find({
+        deletion_scheduled_for: { $lte: now, $ne: null },
+        anonymized_at: null,
+      })
+      .exec();
+
+    let purged = 0;
+    for (const user of due) {
+      try {
+        await getAdminAuth().deleteUser(user.id_firebase);
+      } catch (error) {
+        const code = (error as { code?: string })?.code;
+        if (code !== 'auth/user-not-found') {
+          this.deletionLogger.error(
+            `Firebase delete failed for user ${String(user._id)} — retrying next run`,
+            error instanceof Error ? error.stack : String(error),
+          );
+          continue;
+        }
+      }
+
+      await this.userModel.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            anonymized_at: now,
+            disabled: true,
+            address: '',
+            avatar_url: '',
+            birthdate: '',
+            city: '',
+            email: '',
+            email_mcb: '',
+            gender: '',
+            id_card: '',
+            id_firebase: `deleted:${String(user._id)}`,
+            id_line: '',
+            id_telegram: '',
+            id_twitter: '',
+            legal_address: '',
+            mobile: '',
+            passport: '',
+            state: '',
+            username: '',
+            zip: '',
+          },
+        },
+      );
+      purged += 1;
+    }
+    return purged;
   }
 
   updateCountry(updateCountryDto: UpdateCountryDto, id: string) {
@@ -237,11 +397,10 @@ export class UserService {
     //     .lean();
     // }
 
-   
     const mobileData = user?.mobile?.includes('+66')
-      ? user?.mobile?.slice(3)
-      : user?.mobile;
-    const mobile = '0' + mobileData;
+      ? (user?.mobile?.slice(3)?.trim() ?? '')
+      : (user?.mobile?.trim() ?? '');
+    const normalizedMobile = mobileData.length > 0 ? `0${mobileData}` : null;
 
     // const myCashbackDataList = await this.userMyCashbackModel
     //   .find({
@@ -251,9 +410,15 @@ export class UserService {
 
     let myCashbackDataList = [];
     if (user?.mobile) {
+      const phoneOr: Array<{ phoneNumber: string }> = [
+        { phoneNumber: user.mobile },
+      ];
+      if (normalizedMobile) {
+        phoneOr.push({ phoneNumber: normalizedMobile });
+      }
       myCashbackDataList = await this.userMyCashbacksModel
         .find({
-          $or: [{ phoneNumber: user.mobile }, { phoneNumber: mobile }],
+          $or: phoneOr,
         })
         .lean();
     }
@@ -261,32 +426,28 @@ export class UserService {
     if (myCashbackDataList?.length < 1) {
       myCashbackDataList = await this.userMyCashbacksModel
         .find({
-            email: { $regex: user.email }, 
-          // email: { $regex: user.email, $options: 'i' }, // Use $regex for case-insensitive search on user.email
-          // $or: [{ email: user.email }, { phoneNumber: user.mobile }, { phoneNumber: mobile }],
+          email: {
+            $regex: `^${escapeRegexLiteral(user.email)}$`,
+            $options: 'i',
+          },
         })
         .lean();
     }
-    
 
-    if (
-      myCashbackDataList[0]?.email === user.email ||
-      myCashbackDataList[0]?.phoneNumber === user.mobile ||
-      myCashbackDataList[0]?.phoneNumber === mobile
-    ) {
-      // const balanceByCurrency = userMyCashback?.reduce((acc, cashback) => {
-      //   cashback.balance?.forEach((balance) => {
-      //     const currency = balance.currency || 'THB'; // Default to THB if no currency specified
-      //     acc[currency] = {
-      //       ...balance,
-      //       amount: (acc[currency]?.amount || 0) + (balance.amount || 0),
-      //     };
-      //   });
-      //   return acc;
-      // }, {});
-      // console.log('balanceByCurrency', balanceByCurrency);
+    myCashbackDataList = myCashbackDataList.filter((row) =>
+      this.isOwnedMyCashbackRecord(
+        row,
+        user.email,
+        user.mobile,
+        normalizedMobile,
+      ),
+    );
 
-      const myCashbackDataGroupCurrency = myCashbackDataList?.reduce(
+    if (myCashbackDataList.length < 1) {
+      return { userMyCashback: null, user };
+    }
+
+    const myCashbackDataGroupCurrency = myCashbackDataList.reduce(
       (acc, cashback) => {
         cashback.balance?.forEach((balance) => {
           const currency = balance.currency || 'THB'; // Default to THB if no currency specified
@@ -299,8 +460,30 @@ export class UserService {
       },
       {},
     );
-      return { userMyCashback: myCashbackDataList, sumBalance: myCashbackDataGroupCurrency, user };
+    return {
+      userMyCashback: myCashbackDataList,
+      sumBalance: myCashbackDataGroupCurrency,
+      user,
+    };
+  }
+
+  private isOwnedMyCashbackRecord(
+    row: { email?: string; phoneNumber?: string },
+    userEmail: string,
+    userMobile: string,
+    normalizedMobile: string | null,
+  ): boolean {
+    if (
+      typeof row.email === 'string' &&
+      row.email.toLowerCase() === userEmail.toLowerCase()
+    ) {
+      return true;
     }
-    return { userMyCashback: null, user };
+
+    if (row.phoneNumber === userMobile) {
+      return true;
+    }
+
+    return normalizedMobile != null && row.phoneNumber === normalizedMobile;
   }
 }

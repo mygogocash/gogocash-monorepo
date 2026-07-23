@@ -10,9 +10,15 @@ import {
 } from "@mobile/theme/icons";
 
 import { ProfileAvatarImage } from "@mobile/components/ProfileAvatarImage";
-import { buildProtectedLoginRedirect } from "@mobile/auth/routeGuard";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
+import { queueProtectedBottomNavWhileSessionHydrates } from "@mobile/auth/protectedBottomNavPress";
 import { mobileShellLayout, webMobileBottomNavItems } from "@mobile/design/webDesignParity";
+import { filterHiddenBottomNavItems } from "@mobile/config/featureFlags";
+import {
+  GOLINK_COMING_SOON_OPACITY,
+  GoLinkSoonBadge,
+  isGoLinkComingSoonTab,
+} from "@mobile/components/goLinkNavTab";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { CustomerGoLinkScreen } from "@mobile/screens/CustomerGoLinkScreen";
@@ -37,8 +43,6 @@ const bottomNavIcons: Record<string, BottomNavIconComponent> = {
   wallet: WalletIcon,
 };
 
-const protectedBottomNavHrefs = new Set(["/profile", "/wallet"]);
-
 export function CustomerMobileBottomNav({
   activeRouteId,
   bottomInset,
@@ -59,10 +63,6 @@ export function CustomerMobileBottomNav({
   const styles = useThemedStyles(createBottomNavStyles);
 
   function handleBottomNavPress(href: string) {
-    if (!ready) {
-      return;
-    }
-
     if (href === "/golink") {
       if (onGoLinkPress) {
         onGoLinkPress();
@@ -72,8 +72,12 @@ export function CustomerMobileBottomNav({
       return;
     }
 
-    if (!isAuthed && protectedBottomNavHrefs.has(href)) {
-      router.push((buildProtectedLoginRedirect(href) ?? "/login") as never);
+    const protectedTarget = queueProtectedBottomNavWhileSessionHydrates(href, {
+      isAuthed,
+      ready,
+    });
+    if (protectedTarget) {
+      router.push(protectedTarget as never);
       return;
     }
 
@@ -99,19 +103,23 @@ export function CustomerMobileBottomNav({
           },
         ]}
       >
-        {webMobileBottomNavItems.map((item) => {
+        {filterHiddenBottomNavItems(webMobileBottomNavItems).map((item) => {
           const active = getBottomNavRouteId(item.href) === activeRouteId;
           const emphasized = "emphasized" in item && item.emphasized;
+          const comingSoon = isGoLinkComingSoonTab(item.href);
 
           return (
             <Pressable
               accessibilityRole="button"
+              accessibilityState={comingSoon ? { disabled: true } : undefined}
+              disabled={comingSoon}
               key={item.label}
-              onPress={() => handleBottomNavPress(item.href)}
+              onPress={comingSoon ? undefined : () => handleBottomNavPress(item.href)}
               style={StyleSheet.flatten([
                 styles.bottomNavItem,
                 emphasized ? styles.bottomNavItemEmphasized : null,
                 active ? styles.bottomNavItemActive : null,
+                comingSoon ? { opacity: GOLINK_COMING_SOON_OPACITY } : null,
               ])}
             >
                 <View
@@ -127,6 +135,7 @@ export function CustomerMobileBottomNav({
                     emphasized={emphasized}
                     name={item.icon}
                   />
+                  {comingSoon ? <GoLinkSoonBadge /> : null}
                 </View>
                 <Text
                   numberOfLines={1}
@@ -245,7 +254,7 @@ function createBottomNavStyles(colors: ThemeColors) {
       width: 64,
     },
     bottomNavProfileAvatar: {
-      borderRadius: radii.chip,
+      // Circular crop is owned by ProfileAvatarImage — no borderRadius here.
       height: 28,
       width: 28,
     },

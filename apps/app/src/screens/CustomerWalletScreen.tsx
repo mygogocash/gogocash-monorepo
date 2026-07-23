@@ -29,7 +29,16 @@ import walletNoDataImage from "../../assets/wallet-no-data.png";
 import { CustomerAccountResourceState } from "@mobile/account/CustomerAccountResourceState";
 import { WalletSkeleton } from "@mobile/components/Skeleton";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
-import { mapCheckWithdrawToWalletMetrics, type WalletMetricView } from "@mobile/api/walletMapper";
+import {
+  mapCheckWithdrawToWalletMetrics,
+  resolveWalletListCheckMetricExtras,
+  type WalletMetricView,
+} from "@mobile/api/walletMapper";
+import {
+  mapListCheckToWalletTxRows,
+  type WalletTxRow,
+  type WalletTxStatus,
+} from "@mobile/api/walletTransactions";
 import { isCheckWithdrawResponse, isWalletResourceBlocking } from "@mobile/api/walletTypes";
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
 import { MotionPressable } from "@mobile/components/MotionPressable";
@@ -59,15 +68,32 @@ export function CustomerWalletScreen() {
     fixtureData: webWalletCashbackSummary,
     resourceId: "wallet",
   });
+  // Transaction feed: real earnings + withdrawals from POST /withdraw/list-check
+  // in backend mode; the WALLET_TX_ROWS fixture only in fixtures mode (the
+  // resource returns fixtureData verbatim when it doesn't fetch).
+  const txResource = useCustomerAccountResource({
+    fixtureData: WALLET_TX_ROWS,
+    resourceId: "walletTransactions",
+  });
+  const txRows: readonly WalletTxRow[] = Array.isArray(txResource.data)
+    ? (txResource.data as readonly WalletTxRow[])
+    : mapListCheckToWalletTxRows(txResource.data);
   // Money rule: live amounts are backend-derived or zero — the fixture's demo
   // balances must never render as real money. Fixtures mode rejects the guard
-  // and stays byte-identical.
+  // and stays byte-identical. Pending/Withdrawn come from list-check THB
+  // aggregates (FX applied server-side), not from summing tx row strings.
+  const metricExtras = resolveWalletListCheckMetricExtras(txResource.data);
   const liveMetrics = isCheckWithdrawResponse(walletResource.data)
-    ? mapCheckWithdrawToWalletMetrics(walletResource.data, webWalletCashbackSummary.metrics)
+    ? mapCheckWithdrawToWalletMetrics(
+        walletResource.data,
+        webWalletCashbackSummary.metrics,
+        metricExtras,
+      )
     : walletResource.status === "empty"
       ? mapCheckWithdrawToWalletMetrics(
           { netAmount: 0, netAmountTHB: 0, totalPayoutTHB: 0, totalPayoutUSD: 0 },
           webWalletCashbackSummary.metrics,
+          metricExtras,
         )
       : null;
 
@@ -91,7 +117,7 @@ export function CustomerWalletScreen() {
     return (
       <AccountPageShell activeRouteId="wallet" showProfileRail showTitle={false} title={tc("My Wallet")}>
         {isDesktop ? null : <WalletHeader />}
-        <WalletSupportBanner />
+        <WalletSupportBanner compact={!isDesktop} />
         <WalletSkeleton />
       </AccountPageShell>
     );
@@ -101,9 +127,15 @@ export function CustomerWalletScreen() {
     <AccountPageShell activeRouteId="wallet" showProfileRail showTitle={false} title={tc("My Wallet")}>
       {/* Mobile-only back link + title — on desktop the persistent sidebar replaces it (web parity). */}
       {isDesktop ? null : <WalletHeader />}
-      <WalletSupportBanner />
-      <WalletCashbackSummary liveMetrics={liveMetrics} />
-      <WalletTransactions onRefresh={walletResource.retry} />
+      <WalletSupportBanner compact={!isDesktop} />
+      <WalletCashbackSummary compact={!isDesktop} liveMetrics={liveMetrics} />
+      <WalletTransactions
+        rows={txRows}
+        onRefresh={() => {
+          walletResource.retry();
+          txResource.retry();
+        }}
+      />
     </AccountPageShell>
   );
 }
@@ -113,23 +145,11 @@ export function CustomerWalletScreen() {
 // refetch (walletResource.retry) — the affordance + wiring is the deliverable. The
 // RefreshControl label reuses the existing catalog string `walletTransactionsLoading`
 // ("Loading transactions…" -> Thai via reverse-lookup), so no new copy is introduced.
-// Mock transaction rows (local — the shared webWalletPage fixture ships none and is parallel-owned).
+// Fixtures-mode transaction rows (fixtures/mock builds only — in backend mode
+// the list comes from POST /withdraw/list-check via mapListCheckToWalletTxRows).
+// WalletTxKind/WalletTxStatus/WalletTxRow now live in @mobile/api/walletTransactions.
 // Covers every case: earning + withdraw × success / pending / failed, spread across dates so the
 // Date Range filter is demonstrable. Tabs 0/1/2 = All / Earning / Withdraw (webWalletTransactionTabs order).
-type WalletTxKind = "earn" | "withdraw";
-type WalletTxStatus = "success" | "pending" | "failed";
-type WalletTxRow = {
-  id: string;
-  ts: number;
-  dateLabel: string;
-  brand: string;
-  info: string;
-  kind: WalletTxKind;
-  amount: string;
-  currency: string;
-  status: WalletTxStatus;
-  statusLabel: string;
-};
 
 const WALLET_TX_DAY_MS = 86400000;
 const WALLET_TX_BASE_TS = 1774656000000; // ~Mar 28, 2026 — anchor for the Date Range presets.
@@ -146,8 +166,13 @@ const WALLET_TX_ROWS: readonly WalletTxRow[] = [
   { id: "tx-9", ts: WALLET_TX_BASE_TS - 59 * WALLET_TX_DAY_MS, dateLabel: "Jan 28, 2026", brand: "Quick Cart", info: "Awaiting store confirmation", kind: "earn", amount: "+15.00", currency: "THB", status: "pending", statusLabel: "Pending" },
 ] as const;
 
-const WALLET_TX_MAX_TS = Math.max(...WALLET_TX_ROWS.map((row) => row.ts));
-function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
+function WalletTransactions({
+  rows: allRows,
+  onRefresh,
+}: {
+  rows: readonly WalletTxRow[];
+  onRefresh: () => void;
+}) {
   const styles = useThemedStyles(createWalletScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
@@ -157,12 +182,15 @@ function WalletTransactions({ onRefresh }: { onRefresh: () => void }) {
   const [dateDays, setDateDays] = useState<number>(0);
   const [openFilter, setOpenFilter] = useState<"date" | "status" | null>(null);
 
+  // Date-window anchor: newest row (live data) rather than the mock's fixed base.
+  const maxTs = allRows.length ? Math.max(...allRows.map((row) => row.ts)) : Date.now();
+
   // Tab → kind, plus the Search / Status / Date Range filters (web parity: substring + status + day window).
-  const rows = WALLET_TX_ROWS.filter((row) => {
+  const rows = allRows.filter((row) => {
     if (activeTab === 1 && row.kind !== "earn") return false;
     if (activeTab === 2 && row.kind !== "withdraw") return false;
     if (statusFilter !== "all" && row.status !== statusFilter) return false;
-    if (dateDays > 0 && row.ts < WALLET_TX_MAX_TS - dateDays * WALLET_TX_DAY_MS) return false;
+    if (dateDays > 0 && row.ts < maxTs - dateDays * WALLET_TX_DAY_MS) return false;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       const blob = `${row.brand} ${row.info} ${row.statusLabel} ${row.amount} ${row.currency}`.toLowerCase();
@@ -420,7 +448,7 @@ function WalletHeader() {
   );
 }
 
-function WalletSupportBanner() {
+function WalletSupportBanner({ compact }: { compact: boolean }) {
   const styles = useThemedStyles(createWalletScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
@@ -432,43 +460,104 @@ function WalletSupportBanner() {
         <Text style={styles.supportLine}>{tc(webWalletSupportBanner.line2)}</Text>
       </View>
       <Link asChild href="https://lin.ee/7om5sAr">
-        <MotionPressable pressScale={0.98} style={styles.supportContactCard}>
-          <View style={styles.lineBadge}>
+        <MotionPressable
+          pressScale={0.98}
+          style={StyleSheet.flatten([
+            styles.supportContactCard,
+            compact ? styles.supportContactCardCompact : null,
+          ])}
+        >
+          <View style={[styles.lineBadge, compact ? styles.lineBadgeCompact : null]}>
             <Text style={styles.lineBadgeText}>LINE</Text>
           </View>
           <View style={styles.supportContactCopy}>
-            <Text style={styles.supportContactTitle}>{tc(webWalletSupportBanner.title)}</Text>
-            <Text style={styles.supportContactSubtitle}>{tc(webWalletSupportBanner.subtitle)}</Text>
+            <Text
+              numberOfLines={compact ? 1 : undefined}
+              style={[
+                styles.supportContactTitle,
+                compact ? styles.supportContactTitleCompact : null,
+              ]}
+            >
+              {tc(webWalletSupportBanner.title)}
+            </Text>
+            <Text
+              style={[
+                styles.supportContactSubtitle,
+                compact ? styles.supportContactSubtitleCompact : null,
+              ]}
+            >
+              {tc(webWalletSupportBanner.subtitle)}
+            </Text>
           </View>
-          <ExternalLinkIcon color="#7EA3CA" size={20} strokeWidth={typography.iconStrokeWidth} />
+          <ExternalLinkIcon
+            color="#7EA3CA"
+            size={compact ? 18 : 20}
+            strokeWidth={typography.iconStrokeWidth}
+          />
         </MotionPressable>
       </Link>
     </View>
   );
 }
 
-function WalletCashbackSummary({ liveMetrics }: { liveMetrics: WalletMetricView[] | null }) {
+// Same explanation copy as the withdraw screen's help panel — these English
+// values are en.json keys (withdrawHelpTooltipLine1-3) with Thai translations.
+const cashbackHelpLines = [
+  "Total cashback you've earned from all transactions.",
+  "Cashback waiting for approval before you can use it.",
+  "Cashback you've already withdrawn to your wallet or bank.",
+] as const;
+
+function WalletCashbackSummary({
+  compact,
+  liveMetrics,
+}: {
+  compact: boolean;
+  liveMetrics: WalletMetricView[] | null;
+}) {
   const styles = useThemedStyles(createWalletScreenStyles);
   const tc = useCopy();
+  const [helpOpen, setHelpOpen] = useState(false);
   return (
-    <View accessibilityLabel={webWalletAccessibleSummary} style={styles.cashbackSummaryCard}>
+    <View
+      accessibilityLabel={webWalletAccessibleSummary}
+      style={styles.cashbackSummaryCard}
+      testID="wallet-dashboard"
+    >
       <View style={styles.cashbackHeader}>
         <View style={styles.cashbackHeaderCopy}>
           <Text style={styles.cashbackTitle}>{tc(webWalletCashbackSummary.title)}</Text>
           <Text style={styles.cashbackSubtitle}>{tc(webWalletCashbackSummary.subtitle)}</Text>
         </View>
-        <HelpCircleIcon color="#7089A5" size={28} strokeWidth={2.4} />
+        <MotionPressable
+          accessibilityLabel={tc("Explain total, pending, and withdrawn cashback")}
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={() => setHelpOpen((isOpen) => !isOpen)}
+          pressScale={0.96}
+        >
+          <HelpCircleIcon color="#7089A5" size={28} strokeWidth={2.4} />
+        </MotionPressable>
       </View>
-      <View style={styles.walletMetricStack}>
+      {helpOpen ? (
+        <View style={styles.cashbackHelpPanel}>
+          {cashbackHelpLines.map((line) => (
+            <Text key={line} style={styles.cashbackHelpLine}>
+              • {tc(line)}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+      <View style={compact ? styles.walletMetricColumn : styles.walletMetricRow}>
         {(liveMetrics ?? webWalletCashbackSummary.metrics).map((metric) => (
-          <WalletMetricCard key={metric.label} metric={metric} />
+          <WalletMetricCard compact={compact} key={metric.label} metric={metric} />
         ))}
       </View>
     </View>
   );
 }
 
-function WalletMetricCard({ metric }: { metric: WalletMetric }) {
+function WalletMetricCard({ compact, metric }: { compact: boolean; metric: WalletMetric }) {
   const styles = useThemedStyles(createWalletScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
@@ -481,23 +570,48 @@ function WalletMetricCard({ metric }: { metric: WalletMetric }) {
         : BanknoteIcon;
 
   return (
-    <View style={[styles.metricCard, metric.primary ? styles.metricCardPrimary : null]}>
-      <View style={styles.metricTopRow}>
-        <View style={[styles.metricIcon, metric.primary ? styles.metricIconPrimary : null]}>
+    <View
+      style={[
+        styles.metricCard,
+        metric.primary ? styles.metricCardPrimary : null,
+        compact ? styles.metricCardCompact : null,
+      ]}
+    >
+      <View style={[styles.metricTopRow, compact ? styles.metricTopRowCompact : null]}>
+        <View
+          style={[
+            styles.metricIcon,
+            metric.primary ? styles.metricIconPrimary : null,
+            compact ? styles.metricIconCompact : null,
+          ]}
+        >
           <Icon
             color={metric.primary ? colors.white : colors.primaryDark}
-            size={20}
+            size={compact ? 16 : 20}
             strokeWidth={typography.iconStrokeWidth}
           />
         </View>
         <View style={styles.metricCopy}>
-          <Text style={styles.metricLabel}>{tc(metric.label)}</Text>
-          <Text style={styles.metricHint}>{tc(metric.hint)}</Text>
+          <Text
+            numberOfLines={2}
+            style={[styles.metricLabel, compact ? styles.metricLabelCompact : null]}
+          >
+            {tc(metric.label)}
+          </Text>
+          {compact ? null : <Text style={styles.metricHint}>{tc(metric.hint)}</Text>}
         </View>
       </View>
-      <View style={styles.metricAmountRow}>
-        <Text style={styles.metricAmount}>{metric.amount}</Text>
-        <Text style={styles.metricCurrency}>{metric.currency}</Text>
+      <View style={compact ? styles.metricAmountRowCompact : styles.metricAmountRow}>
+        <Text
+          adjustsFontSizeToFit
+          numberOfLines={1}
+          style={[styles.metricAmount, compact ? styles.metricAmountCompact : null]}
+        >
+          {metric.amount}
+        </Text>
+        <Text style={[styles.metricCurrency, compact ? styles.metricCurrencyCompact : null]}>
+          {metric.currency}
+        </Text>
       </View>
     </View>
   );
@@ -593,6 +707,13 @@ function createWalletScreenStyles(colors: ThemeColors) {
     minHeight: 72,
     paddingHorizontal: spacing.md,
   },
+  // Mobile: tighter badge/type/gaps so the Thai title fits on one line.
+  supportContactCardCompact: {
+    gap: spacing.sm,
+    minHeight: 60,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
   lineBadge: {
     alignItems: "center",
     backgroundColor: pickThemed(colors, "#D5F4EF", colors.primarySoft),
@@ -600,6 +721,11 @@ function createWalletScreenStyles(colors: ThemeColors) {
     height: 48,
     justifyContent: "center",
     width: 48,
+  },
+  lineBadgeCompact: {
+    flexShrink: 0,
+    height: 40,
+    width: 40,
   },
   lineBadgeText: {
     color: "#06C755",
@@ -617,10 +743,18 @@ function createWalletScreenStyles(colors: ThemeColors) {
     fontSize: 18,
     fontWeight: "700",
   },
+  supportContactTitleCompact: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
   supportContactSubtitle: {
     color: pickThemed(colors, "#6E88A5", colors.muted),
     fontFamily: typography.family,
     fontSize: typography.body,
+  },
+  supportContactSubtitleCompact: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   cashbackSummaryCard: {
     backgroundColor: colors.card,
@@ -652,16 +786,82 @@ function createWalletScreenStyles(colors: ThemeColors) {
     fontSize: typography.body,
     lineHeight: 24,
   },
-  walletMetricStack: {
-    gap: spacing.md,
+  // Help panel mirrors the withdraw screen's helpPanel/helpLine treatment.
+  cashbackHelpPanel: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    gap: 6,
+    padding: spacing.md,
+  },
+  cashbackHelpLine: {
+    color: colors.muted,
+    fontFamily: typography.family,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  // Desktop: one row, three equal cards; stretch + marginTop:auto on the amount
+  // row keep the amounts baseline-aligned even when hint copy lengths differ.
+  walletMetricRow: {
+    alignItems: "stretch",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  // Mobile (compact): the three cards stack one per row — three columns at
+  // phone width wrapped the Thai labels and clipped the amounts.
+  walletMetricColumn: {
+    flexDirection: "column",
+    gap: spacing.sm,
   },
   metricCard: {
     backgroundColor: colors.fieldMuted,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
+    flex: 1,
     gap: spacing.md,
     padding: spacing.md,
+  },
+  // Compact card is itself a row: [icon | label] … [amount currency]. Tight
+  // paddings + the original compact type scale — the amount block is fixed
+  // content, so every point saved here goes to the label column.
+  metricCardCompact: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  metricTopRowCompact: {
+    alignItems: "center",
+    flex: 1,
+    gap: spacing.sm,
+  },
+  metricIconCompact: {
+    borderRadius: radii.sm,
+    height: 30,
+    width: 30,
+  },
+  // Normal-weight label — in the compact row only the amount + currency carry
+  // the bold emphasis (design feedback 2026-07-10).
+  metricLabelCompact: {
+    fontSize: 13,
+    fontWeight: "400",
+    lineHeight: 17,
+  },
+  metricAmountRowCompact: {
+    alignItems: "baseline",
+    flexDirection: "row",
+    flexShrink: 0,
+    gap: spacing.xs,
+    marginLeft: "auto",
+  },
+  metricAmountCompact: {
+    fontSize: 18,
+  },
+  metricCurrencyCompact: {
+    fontSize: 11,
   },
   metricCardPrimary: {
     backgroundColor: pickThemed(colors, "#E4F8F9", colors.primarySoft),
@@ -673,6 +873,7 @@ function createWalletScreenStyles(colors: ThemeColors) {
     gap: spacing.md,
   },
   metricIcon: {
+    flexShrink: 0,
     alignItems: "center",
     backgroundColor: pickThemed(colors, "#EEF9FA", colors.card),
     borderRadius: radii.sm,
@@ -686,6 +887,7 @@ function createWalletScreenStyles(colors: ThemeColors) {
   metricCopy: {
     flex: 1,
     gap: 4,
+    minWidth: 0,
   },
   metricLabel: {
     color: pickThemed(colors, "#1B3854", colors.ink),
@@ -703,18 +905,23 @@ function createWalletScreenStyles(colors: ThemeColors) {
     alignItems: "baseline",
     flexDirection: "row",
     gap: spacing.xs,
+    justifyContent: "flex-end",
+    marginTop: "auto",
+    width: "100%",
   },
   metricAmount: {
     color: colors.primaryDark,
     fontFamily: typography.family,
     fontSize: 28,
     fontWeight: "800",
+    textAlign: "right",
   },
   metricCurrency: {
     color: colors.primaryDark,
     fontFamily: typography.family,
     fontSize: typography.body,
     fontWeight: "600",
+    textAlign: "right",
   },
   transactionArea: {
     gap: spacing.md,
@@ -746,11 +953,13 @@ function createWalletScreenStyles(colors: ThemeColors) {
     backgroundColor: colors.card,
     borderBottomColor: colors.primary,
   },
+  // Normal weight — the mint underline + color already mark the active tab
+  // (design feedback 2026-07-10, same treatment as the quest tab strip).
   tabButtonText: {
     color: colors.muted,
     fontFamily: typography.family,
     fontSize: typography.caption,
-    fontWeight: "600",
+    fontWeight: "400",
     textAlign: "center",
   },
   tabButtonTextActive: {
@@ -906,10 +1115,12 @@ function createWalletScreenStyles(colors: ThemeColors) {
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
+  // Normal weight — the pill's tinted background already carries the emphasis
+  // (design feedback 2026-07-10).
   txStatusText: {
     fontFamily: typography.family,
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "400",
   },
   txStatusPillSuccess: {
     backgroundColor: pickThemed(colors, "#E6F7ED", colors.primarySoft),

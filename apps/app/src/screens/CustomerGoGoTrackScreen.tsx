@@ -1,4 +1,4 @@
-import { Link, usePathname } from "expo-router";
+import { Link, Redirect, usePathname } from "expo-router";
 import {
   CheckCircle2 as CheckIcon,
   ChevronLeft as ChevronLeftIcon,
@@ -10,6 +10,7 @@ import { type ComponentType } from "react";
 import { Platform, StyleSheet, Switch, Text, useWindowDimensions, View } from "react-native";
 
 import { AccountPageShell } from "@mobile/components/AccountPageShell";
+import { isGoGoTrackEnabled } from "@mobile/config/featureFlags";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useToast } from "@mobile/hooks/useToast";
 import { haptics } from "@mobile/lib/haptics";
@@ -137,6 +138,12 @@ export function CustomerGoGoTrackScreen({
     mode === "merchant",
   );
   const merchantLabel = merchant?.name ?? merchantRouteId;
+
+  // GoGoTrack rollout flag: when hidden every gototrack route bounces to the
+  // profile hub. Guard sits below the hooks so hook order stays unconditional.
+  if (!isGoGoTrackEnabled()) {
+    return <Redirect href="/profile" />;
+  }
 
   return (
     <AccountPageShell activeRouteId="profile" showProfileRail showTitle={false} title={tc(copy.title)}>

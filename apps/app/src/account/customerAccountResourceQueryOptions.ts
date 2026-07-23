@@ -5,11 +5,16 @@ import {
 } from "@mobile/query/queryDefaults";
 
 const PUBLIC_CATALOG_RESOURCE_IDS = new Set<CustomerAccountResourceId>([
+  "allBrandBanner",
+  "allShopBanner",
   "topBrand",
+  "landingRails",
   "homeBanner",
+  "merchantCoupons",
   "brandCatalog",
   "categoryList",
   "catalog",
+  "productDiscoveryBanner",
 ]);
 
 /** React Query options for account-resource hooks (public catalog refreshes sooner). */

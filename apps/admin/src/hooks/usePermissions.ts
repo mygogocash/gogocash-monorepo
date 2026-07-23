@@ -33,6 +33,8 @@ export function usePermissions() {
   );
 
   return {
+    /** Original API role, retained for routes whose backend minimum role is explicit. */
+    apiRole: session?.user?.apiRole,
     role: roleId,
     /** True once the session is known and the role list has settled (success or error). */
     ready: status !== "loading" && settled,

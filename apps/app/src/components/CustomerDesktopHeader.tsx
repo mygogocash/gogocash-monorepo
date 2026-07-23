@@ -2,12 +2,12 @@ import { Link, usePathname } from "expo-router";
 import { useMemo, useState } from "react";
 import { Image, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
 
-import menuFireImage from "../../assets/nav/menu-fire.png";
 import questHeaderImage from "../../assets/nav/quest-header.png";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { CustomerDesktopBrandLink } from "@mobile/components/CustomerDesktopBrandLink";
 import { DesktopHeaderSearch } from "@mobile/components/DesktopHeaderSearch";
+import type { SearchAnchorFrame } from "@mobile/screens/home/searchPopoverFrame";
 import { CustomerLocaleRegionControl } from "@mobile/components/CustomerLocaleRegionControl";
 import { CustomerSignInNavGraphic } from "@mobile/components/CustomerSignInNavGraphic";
 import { CustomerProfileNav } from "@mobile/components/CustomerProfileNav";
@@ -19,11 +19,12 @@ import {
 } from "@mobile/design/webDesignParity";
 import {
   AirplaneTilt,
+  Cloud,
   DeviceMobile,
+  Fire,
   Heartbeat,
-  SquaresFour,
+  Shirt,
   Storefront,
-  Tag,
   type IconComponent,
 } from "@mobile/theme/icons";
 import { motion } from "@mobile/theme/motion";
@@ -35,11 +36,12 @@ import { radii, typography } from "@mobile/theme/tokens";
 const desktopNavIcons: Partial<
   Record<(typeof webDesktopHeaderNavItems)[number]["icon"], IconComponent>
 > = {
+  digital: Cloud,
   electronics: DeviceMobile,
+  fashion: Shirt,
+  fire: Fire,
   health: Heartbeat,
-  promotion: Tag,
   shop: Storefront,
-  shops: SquaresFour,
   travel: AirplaneTilt,
 };
 
@@ -82,12 +84,17 @@ function useDesktopHeaderStyles() {
 }
 
 export function CustomerDesktopHeader({
+  hideSearch = false,
   onSearchFocus,
+  onSearchFrameChange,
   onSearchQueryChange,
   searchQuery,
   viewportWidth,
 }: {
+  /** #436 — hide global header search on routes that already have page-scoped search. */
+  hideSearch?: boolean;
   onSearchFocus?: () => void;
+  onSearchFrameChange?: (frame: SearchAnchorFrame) => void;
   onSearchQueryChange?: (value: string) => void;
   searchQuery?: string;
   viewportWidth: number;
@@ -115,11 +122,15 @@ export function CustomerDesktopHeader({
           ]}
         >
           <CustomerDesktopBrandLink />
-          <DesktopHeaderSearch
-            onSearchFocus={onSearchFocus}
-            onSearchQueryChange={onSearchQueryChange}
-            searchQuery={searchQuery}
-          />
+          {hideSearch ? null : (
+            <DesktopHeaderSearch
+              onSearchFocus={onSearchFocus}
+              onSearchFrameChange={onSearchFrameChange}
+              onSearchQueryChange={onSearchQueryChange}
+              searchQuery={searchQuery}
+              viewportWidth={viewportWidth}
+            />
+          )}
           <View style={styles.desktopHeaderActions}>
             <Link asChild href="/quest">
               <MotionPressable
@@ -182,9 +193,6 @@ function DesktopCategoryTab({
                   pressScale={motion.scale.subtlePress}
                   style={StyleSheet.flatten([
                     styles.desktopCategoryNavItem,
-                    "menuTypography" in item && item.menuTypography === "lead"
-                      ? styles.desktopCategoryNavItemLead
-                      : null,
                     webPressableFocusReset,
                   ])}
                 >
@@ -192,23 +200,10 @@ function DesktopCategoryTab({
                   <Text
                     ellipsizeMode="tail"
                     numberOfLines={1}
-                    style={[
-                      styles.desktopCategoryNavText,
-                      "menuTypography" in item && item.menuTypography === "lead"
-                        ? styles.desktopCategoryNavTextLead
-                        : null,
-                    ]}
+                    style={styles.desktopCategoryNavText}
                   >
                     {tc(item.label)}
                   </Text>
-                  {"showFire" in item && item.showFire ? (
-                    <Image
-                      alt=""
-                      resizeMode="cover"
-                      source={menuFireImage}
-                      style={styles.desktopCategoryFire}
-                    />
-                  ) : null}
                   <View style={[styles.desktopCategoryUnderline, { opacity: underlineOpacity }]} />
                 </MotionPressable>
               </Link>
@@ -260,10 +255,6 @@ function DesktopCategoryNavIcon({
 }) {
   const { colors } = useTheme();
   const styles = useDesktopHeaderStyles();
-
-  if (name === "none") {
-    return null;
-  }
 
   const IconComponent = desktopNavIcons[name];
 
@@ -453,9 +444,6 @@ function createDesktopHeaderStyles(colors: ThemeColors, surfaces: ThemeSurfaces)
     paddingVertical: 8,
     position: "relative",
   },
-  desktopCategoryNavItemLead: {
-    height: 40,
-  },
   desktopCategoryNavIcon: {
     height: 16,
     width: 16,
@@ -466,15 +454,6 @@ function createDesktopHeaderStyles(colors: ThemeColors, surfaces: ThemeSurfaces)
     fontSize: 14,
     fontWeight: typography.bodyWeight,
     lineHeight: 21,
-  },
-  desktopCategoryNavTextLead: {
-    fontSize: 16,
-    fontWeight: "400",
-    lineHeight: 24,
-  },
-  desktopCategoryFire: {
-    height: 16,
-    width: 13,
   },
     desktopCategoryUnderline: {
       backgroundColor: colors.primaryDark,

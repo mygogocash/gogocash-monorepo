@@ -40,6 +40,32 @@ describe("mapBackendHomeBanners", () => {
     ]);
   });
 
+  it("given staging media slots > then main banners transform at 1600 and side banners at 800", () => {
+    const doc: BannerHomeDocument = {
+      image_1: "https://media-staging.gogocash.co/banner-home/main.png",
+      image_4: "https://media-staging.gogocash.co/banner-home/side.png",
+      link_1: "/shop/1",
+      link_4: "/shop/4",
+    };
+
+    expect(mapBackendHomeBanners(doc)).toEqual([
+      {
+        id: "home-banner-1",
+        href: "/shop/1",
+        placement: "main",
+        imageUri:
+          "https://media-staging.gogocash.co/cdn-cgi/image/width=1600,quality=78,fit=scale-down,format=auto,onerror=redirect/banner-home/main.png",
+      },
+      {
+        id: "home-banner-4",
+        href: "/shop/4",
+        placement: "side",
+        imageUri:
+          "https://media-staging.gogocash.co/cdn-cgi/image/width=800,quality=78,fit=scale-down,format=auto,onerror=redirect/banner-home/side.png",
+      },
+    ]);
+  });
+
   it("given empty image slots > then skips them but keeps original slot numbering", () => {
     const doc: BannerHomeDocument = {
       image_1: "https://cdn/b1.png",
@@ -80,7 +106,7 @@ describe("mapBackendHomeBanners", () => {
         href: "/quest",
         placement: "main",
         imageUri:
-          "https://drive.google.com/uc?export=view&id=1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh",
+          "https://drive.google.com/thumbnail?id=1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh&sz=w1600",
       },
     ]);
   });

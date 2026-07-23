@@ -19,5 +19,8 @@ export function createSessionQueryCacheBridge({
   return subscribe(() => {
     clearFirebaseIdTokenCache();
     queryClient.removeQueries({ queryKey: ["customer-account-resource"] });
+    queryClient.removeQueries({ queryKey: ["payout-methods"] });
+    queryClient.removeQueries({ queryKey: ["gototrack-settings"] });
+    queryClient.removeQueries({ queryKey: ["gototrack-merchants"] });
   });
 }

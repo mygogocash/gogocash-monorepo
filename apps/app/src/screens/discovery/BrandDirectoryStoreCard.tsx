@@ -1,7 +1,8 @@
 import { Link } from "expo-router";
 import { memo } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Heart as HeartIcon } from "@mobile/theme/icons";
+import { BrandLogoTile, brandInitials } from "@mobile/components/BrandLogoTile";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
@@ -12,6 +13,7 @@ import { typography } from "@mobile/theme/tokens";
 import { createDiscoveryScreenStyles } from "./customerDiscoveryStyles";
 import { type BrandDirectoryStore } from "./discoveryTypes";
 
+/** #461 — square 1:1 Logo tile via shared BrandLogoTile (admin Logo → logo_desktop). */
 export const BrandDirectoryStoreCard = memo(function BrandDirectoryStoreCard({
   cardWidth,
   store,
@@ -22,6 +24,7 @@ export const BrandDirectoryStoreCard = memo(function BrandDirectoryStoreCard({
   const styles = useThemedStyles(createDiscoveryScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+
   return (
     <Link asChild href={store.href as never}>
       <MotionPressable
@@ -31,14 +34,15 @@ export const BrandDirectoryStoreCard = memo(function BrandDirectoryStoreCard({
         style={StyleSheet.flatten([styles.shopDirectoryStoreCard, { width: cardWidth }])}
         testID={`brand-directory-card-${store.id}`}
       >
-        <View style={[styles.shopDirectoryLogoTile, { backgroundColor: store.tint }]}>
-          <Image
-            alt={`${store.brand} logo`}
-            accessibilityLabel={`${store.brand} logo`}
-            resizeMode="contain"
-            source={{ uri: store.logoUri }}
-            style={styles.shopDirectoryLogoImage}
-          />
+        <BrandLogoTile
+          brand={store.brand}
+          containerStyle={styles.shopDirectoryLogoTile}
+          fallbackText={brandInitials(store.brand)}
+          fallbackTextStyle={styles.shopDirectoryLogoFallback}
+          source={store.logoUri ? { uri: store.logoUri } : null}
+          sourceKey={store.logoUri}
+          tint={store.tint}
+        >
           {store.showGrabCoupon ? (
             <View style={styles.shopDirectoryCouponBadge}>
               <Text style={styles.shopDirectoryCouponIcon}>🧧</Text>
@@ -54,7 +58,7 @@ export const BrandDirectoryStoreCard = memo(function BrandDirectoryStoreCard({
               strokeWidth={typography.iconStrokeWidth}
             />
           </View>
-        </View>
+        </BrandLogoTile>
         <View style={styles.shopDirectoryStoreMeta}>
           <Text numberOfLines={2} style={styles.shopDirectoryStoreName}>
             {store.brand}

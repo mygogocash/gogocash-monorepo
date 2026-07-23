@@ -1,123 +1,126 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsDate,
   IsIn,
   IsInt,
   IsMongoId,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
+  MinLength,
   Min,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+export { UpdateQuestTasksDto } from './quest-task.dto';
 
 export class CreateQuestDto {
-  @ApiProperty({ example: '' })
+  @ApiProperty({ example: '', required: false })
+  @IsOptional()
+  @IsString()
   _id?: string;
+
+  @ApiProperty({ example: 'quest-media:8c296a30-53c0-4de6-87df-b99d984d791a' })
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9:._/-]{7,255}$/)
+  request_key: string;
+
+  @ApiProperty({ example: 0 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  campaign_revision: number;
+
+  @ApiProperty({ example: 0 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  expected_config_revision: number;
+
+  @ApiProperty({
+    example: 'quest-media-qa:2026-07-17-unique-marker',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^quest-media-qa:[A-Za-z0-9._:-]{8,180}$/)
+  qa_marker?: string;
+
+  @ApiProperty({ required: false, writeOnly: true })
+  @IsOptional()
+  @IsString()
+  @MinLength(32)
+  @MaxLength(256)
+  qa_cleanup_nonce?: string;
+
   @ApiProperty({ example: '2024-01-01' })
+  @Type(() => Date)
+  @IsDate()
   start_date: Date;
+
   @ApiProperty({ example: '2024-01-31' })
+  @Type(() => Date)
+  @IsDate()
   end_date: Date;
-  @ApiProperty({ example: 'open|close|scheduled' })
-  status: string;
+
+  @ApiProperty({ example: 'open|close|scheduled', required: false })
+  @IsOptional()
+  @IsString()
+  @IsIn(['open', 'close', 'scheduled'])
+  status?: string;
 
   @ApiProperty({ example: false, required: false })
+  @IsOptional()
+  @IsBoolean()
   reward_status?: boolean;
 
   @ApiProperty({ example: '' })
+  @IsString()
   facebook_post: string;
+
   @ApiProperty({ example: '' })
+  @IsString()
   facebook_page: string;
+
   @ApiProperty({ example: '' })
+  @IsString()
   line: string;
-  @ApiProperty({ example: '' })
-  banner_en: string;
-  @ApiProperty({ example: '' })
-  banner_th: string;
-  @ApiProperty({ example: '' })
-  sub_banner_en: string;
-  @ApiProperty({ example: '' })
-  sub_banner_th: string;
+}
+
+export class QuestMediaQaCleanupDto {
+  @ApiProperty({ example: '66a8a48f2c8de0e641e17424' })
+  @IsMongoId()
+  quest_id: string;
+
+  @ApiProperty({ example: 'quest-media:qa:2026-07-17-command' })
+  @IsString()
+  @Matches(/^quest-media:qa:[A-Za-z0-9._:-]{8,180}$/)
+  request_key: string;
+
+  @ApiProperty({ example: 'quest-media-qa:2026-07-17-unique-marker' })
+  @IsString()
+  @Matches(/^quest-media-qa:[A-Za-z0-9._:-]{8,180}$/)
+  qa_marker: string;
+
+  @ApiProperty({ writeOnly: true })
+  @IsString()
+  @MinLength(32)
+  @MaxLength(256)
+  cleanup_nonce: string;
 }
 
 export class CloseQuestDto {
   @ApiProperty({ example: 'open|close|scheduled' })
+  @IsString()
+  @IsNotEmpty()
+  @IsIn(['open', 'close', 'scheduled'])
   status: string;
-}
-
-export class QuestTaskDto {
-  @ApiProperty({ example: '6942b79d7b9f8214ada6eed5' })
-  @IsMongoId()
-  offer: string;
-
-  @ApiProperty({ example: 803 })
-  @IsInt()
-  offer_id: number;
-
-  @ApiProperty({ example: 1604 })
-  @IsInt()
-  merchant_id: number;
-
-  @ApiProperty({ example: 50 })
-  @IsInt()
-  @Min(2)
-  @Max(10000)
-  extra_point: number;
-
-  @ApiProperty({ example: 0, required: false })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  sort_order?: number;
-
-  @ApiProperty({ example: true, required: false })
-  @IsOptional()
-  @IsBoolean()
-  enabled?: boolean;
-
-  @ApiProperty({
-    example: 'Make an order on Klook Travel',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(140)
-  wording?: string;
-
-  @ApiProperty({
-    example: 'Make an order on Klook Travel',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(140)
-  wording_en?: string;
-
-  @ApiProperty({
-    example: 'สั่งซื้อที่ Klook Travel',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(140)
-  wording_th?: string;
-
-  @ApiProperty({ example: 'June Klook campaign', required: false })
-  @IsOptional()
-  @IsString()
-  notes?: string;
-}
-
-export class UpdateQuestTasksDto {
-  @ApiProperty({ type: [QuestTaskDto] })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => QuestTaskDto)
-  tasks: QuestTaskDto[];
 }
 
 export class QuestRewardDto {
@@ -141,6 +144,12 @@ export class QuestRewardDto {
 }
 
 export class UpdateQuestRewardsDto {
+  @ApiProperty({ example: 0 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  expected_config_revision: number;
+
   @ApiProperty({ type: [QuestRewardDto] })
   @IsArray()
   @ValidateNested({ each: true })

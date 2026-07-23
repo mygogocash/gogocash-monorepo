@@ -1,8 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEmail,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   Matches,
@@ -35,18 +37,6 @@ export class SignInDto {
   @IsString()
   @IsOptional()
   referral_id?: string;
-}
-
-export class SignUpDto {
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsEmail()
-  email: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  password: string;
 }
 
 export class SignInFirebaseDto {
@@ -110,6 +100,16 @@ export class SignInFirebaseDto {
   token?: string;
 }
 
+export class PhoneLoginEligibilityDto {
+  @ApiProperty({ example: '+66812345678' })
+  @IsString()
+  @MaxLength(16)
+  @Matches(/^\+[1-9]\d{7,14}$/, {
+    message: 'phone_e164 must be a valid E.164 phone number',
+  })
+  phone_e164: string;
+}
+
 export class SignInAiDto {
   // @ApiProperty()
   @IsString()
@@ -118,16 +118,82 @@ export class SignInAiDto {
 }
 
 export class TelegramAuthDto {
+  @ApiProperty({ example: 123456789 })
+  @Type(() => Number)
+  @IsNumber()
   id: number;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   first_name: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   last_name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   username?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   photo_url?: string;
+
+  @ApiProperty({ example: 1700000000 })
+  @Type(() => Number)
+  @IsNumber()
   auth_date: number;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
   hash: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   email?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   referral_id?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
   country?: string;
+}
+
+/**
+ * POST /auth/log-in/telegram-miniapp body — the RAW Telegram Mini App
+ * `initData` query string (e.g. "user=%7B...%7D&auth_date=...&hash=..."). The
+ * server verifies it with the WebAppData-keyed HMAC; do NOT pre-parse it on the
+ * client, as the exact bytes are part of the signature check.
+ */
+export class TelegramMiniAppDto {
+  @ApiProperty({
+    example:
+      'query_id=AA...&user=%7B%22id%22%3A1%7D&auth_date=1700000000&hash=abc',
+    description: 'Raw Telegram Mini App initData query string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(8192)
+  initData: string;
+}
+
+/** POST /auth/firebase body — phone verification idToken after FirebaseAuthGuard. */
+export class FirebaseIdTokenDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  idToken: string;
 }
 
 /**

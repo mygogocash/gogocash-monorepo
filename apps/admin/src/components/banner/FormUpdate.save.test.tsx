@@ -1,10 +1,12 @@
 // @vitest-environment happy-dom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import client from "@/lib/axios/client";
+import { MAX_ADMIN_UPLOAD_BYTES } from "@/lib/uploadLimits";
 import type { BannerRequestForm } from "@/types/banner";
+import toast from "react-hot-toast";
 import FormUpdate from "./FormUpdate";
 
 vi.mock("@/lib/axios/client", () => ({
@@ -14,6 +16,8 @@ vi.mock("@/lib/axios/client", () => ({
 }));
 
 const postMock = vi.mocked(client.post);
+
+afterEach(cleanup);
 
 vi.mock("@/hooks/usePermissions", () => ({
   usePermissions: () => ({
@@ -26,7 +30,7 @@ vi.mock("@/hooks/usePermissions", () => ({
 }));
 
 vi.mock("@/hooks/useDataSession", () => ({
-  useDataSession: () => ({ accessToken: "test-token" }),
+  useDataSession: () => ({ user: { email: "admin@gogocash.co" } }),
 }));
 
 vi.mock("@/hooks/useObjectUrl", () => ({
@@ -105,6 +109,28 @@ function SaveHarness({
   );
 }
 
+function DirtyCloseHarness({
+  onOpenChange,
+}: {
+  onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+  const [form, setForm] = useState(makeForm());
+  const [isLoading, setIsLoading] = useState(false);
+
+  return (
+    <FormUpdate
+      fetchData={vi.fn()}
+      form={form}
+      isLoading={isLoading}
+      openModal
+      setForm={setForm}
+      setIsLoading={setIsLoading}
+      setOpenModal={onOpenChange}
+      surfaceLabel="All Shops"
+    />
+  );
+}
+
 describe("Banner FormUpdate save", () => {
   beforeEach(() => {
     postMock.mockReset();
@@ -129,11 +155,49 @@ describe("Banner FormUpdate save", () => {
     const [, body, config] = postMock.mock.calls[0] ?? [];
     expect(body).toBeInstanceOf(FormData);
     expect((body as FormData).get("image_1")).toBe(file);
-    expect(config?.headers).toEqual({
-      Authorization: "Bearer test-token",
-    });
+    expect(config?.headers).toEqual({});
     expect(config?.headers).not.toHaveProperty("Content-Type");
+    expect(config?.headers).not.toHaveProperty("Authorization");
     expect(config?.timeout).toBe(120_000);
     expect(onSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it("#487 rejects oversized banner files before posting multipart", async () => {
+    // Avoid allocating 32MB+ in CI — only size/type are read by the handler.
+    const huge = new File(["x"], "july.png", { type: "image/png" });
+    Object.defineProperty(huge, "size", { value: MAX_ADMIN_UPLOAD_BYTES + 1 });
+
+    render(<SaveHarness initialForm={makeForm()} />);
+
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, {
+      target: { files: [huge] },
+    });
+
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringMatching(/too large|32 MB/i),
+    );
+    expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it("warns before closing a dirty banner editor", async () => {
+    const setOpenModal = vi.fn();
+    render(<DirtyCloseHarness onOpenChange={setOpenModal} />);
+
+    const saveButton = screen.getByRole("button", { name: "Save Changes" });
+    await waitFor(() => expect(saveButton).toBeDisabled());
+
+    fireEvent.change(
+      document.querySelector('input[name="link_1"]') as HTMLInputElement,
+      { target: { value: "/draft" } },
+    );
+    await waitFor(() => expect(saveButton).toBeEnabled());
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.getByText("Discard unsaved banner changes?")).toBeInTheDocument();
+    expect(setOpenModal).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(setOpenModal).toHaveBeenCalledWith(false);
   });
 });

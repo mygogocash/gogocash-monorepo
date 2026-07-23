@@ -1,164 +1,262 @@
-# GCP CI/CD Runbook
+# GCP rollback and staging CI/CD runbook
 
-This is the replacement path for GitHub Actions. GitHub remains the source
-repository, but Cloud Build owns CI, image builds, staging releases, and cleanup.
+## Current deployment topology
 
-## Targets
+Railway is the day-to-day staging platform. A push to `staging` runs
+`.github/workflows/ci-staging.yml`; the Railway GitHub integration then deploys
+the changed API, Admin, and customer-web services.
 
-Staging uses project `gogocash-staging` / project number `729804769570`.
+| Staging surface | Primary host                        |
+| --------------- | ----------------------------------- |
+| API             | `https://api-staging.gogocash.co`   |
+| Admin           | `https://admin-staging.gogocash.co` |
+| Customer web    | `https://app-staging.gogocash.co`   |
 
-Use the existing split Cloud Run services in `asia-southeast1`:
+GCP project `gogocash-staging` (`asia-southeast1`) is retained as an
+operator-initiated rollback/cutover path. It is not triggered by a staging push.
+The retained Cloud Run services are:
 
 - `gogocash-api-staging`
 - `gogocash-admin`
 - `gogocash-app-web-staging`
 
-Do not use the accidental Cloud Run source-deploy service:
+Do not use the accidental source-deploy service
+`europe-west1/gogocash-monorepo`.
 
-- `europe-west1/gogocash-monorepo`
+## Manual exact-SHA GCP build
 
-## Files
+Run `.github/workflows/build-staging.yml` from the GitHub Actions UI, select the
+reviewed default branch `main`, and choose `api`, `admin`, `app-web`, or `all`.
+The upstream preflight rejects feature branches before CI or any image build.
 
-- `cloudbuild/ci.yaml` runs the monorepo CI gate with Node 22 and `npm@10.9.0`.
-- `cloudbuild/build-staging.yaml` builds all staging service images and pushes both
-  `$COMMIT_SHA` and `staging-candidate` tags to Artifact Registry.
-- `cloudbuild/deploy-staging.yaml` deploys one selected service to Cloud Run and
-  runs a post-deploy smoke check.
-- `cloudbuild/cleanup-accidental-cloudrun.yaml` deletes the accidental
-  `europe-west1/gogocash-monorepo` Cloud Run service.
-- `scripts/gcp/setup-cloud-build-cicd.sh` enables APIs, creates IAM, creates
-  Artifact Registry if needed, and creates supported Cloud Build triggers.
+The workflow:
 
-## One-Time Setup
+1. invokes the reusable repository CI workflow;
+2. requires that CI invocation to succeed;
+3. builds every explicitly selected service independent of path-filter output;
+4. validates that `github.sha` is a full lowercase 40-character commit SHA;
+5. pushes the image with that SHA tag; and
+6. reports the exact image reference and digest in the workflow summary.
 
-Refresh local Google auth first:
+The build also updates `staging-candidate` as an operator convenience. That
+moving pointer is never accepted by the release workflow.
+
+The reusable GCP job runs in the GitHub Environment `staging` and reads only the
+named WIF variables `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER`, and
+`GCP_SERVICE_ACCOUNT`. The app-web prebuild reads its `EXPO_PUBLIC_*` values
+from the same environment. No secret values belong in the workflow or this
+runbook.
+
+## Manual exact-SHA GCP release
+
+After a successful build, run `.github/workflows/release-staging.yml` from the
+reviewed default branch `main` and:
+
+1. choose `api`, `admin`, `app-web`, or `all`; and
+2. paste the exact 40-character SHA reported by the build summary; and
+3. paste an `image_digests` JSON object containing exactly the selected build
+   digest(s) by copying the build summary's canonical one-line map exactly. For
+   example, an API-only release uses
+   `{"api":"sha256:<64 lowercase hex characters>"}`; an `all` release uses
+   ordered `api`, `admin`, and `app-web` keys. Whitespace, escaped keys,
+   duplicate/reordered/extra/missing keys, and non-lowercase digests are
+   rejected before parsing or deployment.
+
+For every selected service, the reusable release job:
+
+- rejects a feature-branch dispatch before any deploy-capable job;
+- rejects a short SHA or a moving tag;
+- rejects missing, malformed, extra, or unselected digest-map entries;
+- verifies that the SHA-tagged Artifact Registry image exists;
+- requires the tag's current registry digest to equal the build-reported
+  digest supplied by the operator;
+- deploys that exact digest to Cloud Run; and
+- requires a 2xx/3xx health response from the new service revision.
+
+The API smoke uses `/health`. Admin and customer web use `/`; Admin's normal
+unauthenticated redirect is accepted as a healthy 3xx.
+
+API Secret Manager references stay name-only in `release-staging.yml`.
+`INVOLVE_AI_API_KEY` remains intentionally omitted because no approved Secret
+Manager secret name exists for that caller; the guarded route remains
+fail-closed.
+
+## Native EAS staging packet (scaffold)
+
+`.github/workflows/deploy-app-native-eas.yml` remains labelled **scaffold**
+until a new post-patch build, staging OTA, and physical-device acceptance all
+succeed.
+
+The reusable/manual workflow is intentionally limited to:
+
+- dispatch ref `refs/heads/staging`;
+- GitHub Environment `staging`;
+- EAS server environment `preview` (required by Expo SDK 57 updates);
+- EAS build profile `preview`;
+- EAS Update channel `staging`;
+- staging API and customer-web URLs; and
+- manual `build` or `update`, or a caller `update` (there is no submit or
+  production target). Every update requires the exact successful
+  `OTA-safe runtime payload` job from its selected `ci-staging.yml` run.
+
+Before calling EAS, it queries GitHub's Actions run and jobs APIs. Manual
+dispatch discovers (or accepts an operator-supplied ID for) a completed,
+successful `ci-staging.yml` push run on the exact staging branch and commit.
+The automatic path is a reusable call from the same in-progress
+`ci-staging.yml` run after its app CI job succeeds. Both paths fetch all Actions
+API pages and require exactly one successful aggregate gate and exactly one
+successful `CI gate / app (@gogocash/mobile)` job from the same exact run ID,
+attempt, push event, staging branch, and SHA. A skipped app job, checkbox,
+suffix lookalike, duplicate, incomplete page, different SHA/branch/run, or older
+workflow cannot bypass the proof.
+
+The automatic path is narrower than the app CI path. It publishes only when an
+Expo runtime bundle/asset changed and no native-sensitive path changed.
+Dependency locks, Expo/app/EAS config, native modules/plugins, platform service
+files, and native icon/splash assets suppress OTA and produce a `native build
+required` handoff. The exact successful staging run can then be used for an
+explicit `workflow_dispatch` build; older binaries never receive a bundle whose
+native compatibility surface changed. Manual OTA cannot bypass this decision:
+the exact selected CI run must contain one successful `OTA-safe runtime payload`
+job with the same run attempt and SHA.
+
+The caller is non-canceling, and every automatic/manual staging EAS build or
+update shares one literal non-canceling deployment queue. Once the job owns the
+queue and has installed dependencies, it rechecks that the selected commit is
+still the current staging branch head before any provider mutation. This lets a
+pending stale run fail before publishing while preventing an in-flight EAS
+write from being canceled, overlapped, or followed by an older commit.
+
+Provider JSON is also fail-closed. Build results must cover every selected
+platform, be terminal-successful, bind to the exact dispatched commit,
+`preview` profile, `staging` channel, and internal distribution, and contain
+newline-free IDs plus credential-free HTTPS artifact URLs before the Android
+URL reaches `GITHUB_ENV`. The expected project ID is validated, while account
+and slug metadata are sanitized before constructing canonical Expo
+build-details links. The summary records Android and iOS build IDs, links, and
+runtime versions. Before
+publishing an OTA, the workflow requires the active `staging` channel to map to
+exactly the `staging` branch, then publishes directly to that branch with
+`--environment preview`. Its results must contain exactly one Android and one
+iOS record for the exact commit and branch, with unique update IDs, one shared
+group, one shared runtime version, and credential-free HTTPS manifest links.
+Those values form the update proof in the summary.
+
+Before either build or update, GitHub writes the canonical Firebase values to an
+ephemeral mode-0600 runner file. An authenticated `eas env:exec preview` proof
+clears local release variables, loads the remote environment, compares its four
+Firebase values to that independent file, and verifies the fixed EAS project,
+staging API, app mode, backend data source, and staging frontend. Missing, blank,
+or mismatched values stop before provider mutation and are never printed; an
+exit trap removes the file.
+
+Required repository/environment configuration:
+
+- repository secret `EXPO_TOKEN`;
+- all four staging `EXPO_PUBLIC_FIREBASE_*` secrets listed in
+  `docs/firebase-native-eas.md`; missing or blank values fail before any EAS
+  build/update and values are never printed;
+- any configured staging native OAuth, PostHog, and Sentry `EXPO_PUBLIC_*`
+  secrets used by the app;
+- EAS credentials already configured for a native build; and
+- for optional Android artifact archiving, `GCP_EAS_ARTIFACT_BUCKET` plus the
+  staging WIF variables.
+
+## Artifact Registry cleanup policy (operator-only)
+
+The reviewed policy file is
+`scripts/gcp/artifact-registry-cleanup-policy.json`. It has three independent
+rules:
+
+- always keep images carrying `staging-candidate` or `latest`;
+- keep at least the 10 most recent versions of every image; and
+- make versions older than 7 days eligible for deletion.
+
+Artifact Registry keep rules override a matching delete rule. The seven-day
+age condition is a short inspection/rollback window; the 10-version keep rule
+prevents a quiet service from losing its rollback floor and bounds high-volume
+repositories much more tightly than a 30-day window.
+
+Repository validation does not apply the policy. The following commands are
+**operator-only external mutations** and were not run as part of this change.
+
+First, an authorized operator may install the policy in dry-run mode:
 
 ```bash
-gcloud auth login
-gcloud config set project gogocash-staging
+gcloud artifacts repositories set-cleanup-policies gogocash \
+  --project=gogocash-staging \
+  --location=asia-southeast1 \
+  --policy=scripts/gcp/artifact-registry-cleanup-policy.json \
+  --dry-run
 ```
 
-Connect the GitHub repository in Cloud Build. Prefer a Cloud Build repository
-connection, then pass the repository resource to the setup script:
+Wait at least one cleanup cycle (approximately one day), enable/review Artifact
+Registry Data Write audit logs, and confirm the candidate deletions preserve
+the pointer tags and rollback floor. Only after explicit owner approval may an
+authorized operator activate deletion:
 
 ```bash
-export REPOSITORY_RESOURCE="projects/gogocash-staging/locations/REGION/connections/CONNECTION/repositories/gogocash-monorepo"
+gcloud artifacts repositories set-cleanup-policies gogocash \
+  --project=gogocash-staging \
+  --location=asia-southeast1 \
+  --policy=scripts/gcp/artifact-registry-cleanup-policy.json \
+  --no-dry-run
 ```
 
-If the repo is connected through the older GitHub App trigger flow, leave
-`REPOSITORY_RESOURCE` unset and the script will use `mygogocash/gogocash-monorepo`.
+See Google's current
+[cleanup-policy format](https://cloud.google.com/artifact-registry/docs/repositories/cleanup-policy)
+and
+[`set-cleanup-policies` reference](https://cloud.google.com/sdk/gcloud/reference/artifacts/repositories/set-cleanup-policies)
+before operator execution.
 
-Run setup:
+## PR-B retirement (#52) — completed in repo
+
+The one-shot legacy workflows are deleted:
+
+- ~~`.github/workflows/deploy-api-staging.yml`~~
+- ~~`.github/workflows/deploy-admin-staging.yml`~~
+- ~~`.github/workflows/deploy-app-web-staging.yml`~~
+
+Day-to-day staging is Railway (`ci-staging.yml`). GCP rollback remains
+`build-staging.yml` + `release-staging.yml` only.
+
+**Post-merge operator cleanup (still required to close #52):**
+
+1. Verify the three deleted workflows are absent from
+   `gh workflow list --all --repo mygogocash/gogocash-monorepo`.
+2. Inventory both scopes with `gh variable list --repo
+mygogocash/gogocash-monorepo` and `gh variable list --env staging --repo
+mygogocash/gogocash-monorepo`.
+3. Delete only the repository-level `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER`, and
+   `GCP_SERVICE_ACCOUNT` variables. Preserve the same three variables in the
+   `staging` Environment because the retained build/release path uses them.
+4. Optionally dispatch `build-staging.yml` then `release-staging.yml` from
+   `main` to re-prove the retained GCP rollback path.
+
+EAS build, OTA, and physical-device acceptance remains an independent #35 gate.
+
+Cloud Build configs under `cloudbuild/` remain repository artifacts, but they
+are not the primary Railway staging path and are not covered by this exact-SHA
+GitHub workflow hardening. Do not treat their presence as acceptance evidence.
+
+## Repository-only verification
+
+These commands are safe before any live dispatch:
 
 ```bash
-PROJECT_ID=gogocash-staging \
-PROJECT_NUMBER=729804769570 \
-REGION=asia-southeast1 \
-BUILD_REGION=global \
-scripts/gcp/setup-cloud-build-cicd.sh
+npm run test:workflow-contracts
+
+find .github/workflows -maxdepth 1 -type f \
+  \( -name '*.yml' -o -name '*.yaml' \) -print0 | \
+  xargs -0 docker run --rm \
+    -v "$PWD:/repo" -w /repo \
+    rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+    -color
+
+cd apps/app
+npx expo config --json >/tmp/gogocash-expo-config.json
 ```
 
-If `REPOSITORY_RESOURCE` uses a regional Cloud Build connection, set
-`BUILD_REGION` to the connection region instead of `global`.
-
-## Trigger Inventory
-
-The setup script creates these triggers:
-
-- `gogocash-ci-pr`: PR CI gate targeting `main`; PR builds run without a manual trigger comment.
-- `gogocash-build-staging-main`: builds all staging images on pushes to `main`.
-
-The current GCP connection uses the legacy GitHub App trigger source. With that
-source type, deploy and cleanup are run as direct Cloud Build submissions from
-this repo rather than repository-backed manual triggers. If the repo is later
-connected through Cloud Build repository connections, manual triggers can be
-created using the same `cloudbuild/deploy-staging.yaml` and
-`cloudbuild/cleanup-accidental-cloudrun.yaml` configs.
-
-## Manual Build And Release
-
-Build the latest `main` images:
-
-```bash
-gcloud builds triggers run gogocash-build-staging-main \
-  --project gogocash-staging \
-  --region global \
-  --branch main
-```
-
-Deploy API staging from the current `staging-candidate` tag:
-
-```bash
-gcloud builds submit \
-  --project gogocash-staging \
-  --config cloudbuild/deploy-staging.yaml \
-  --substitutions _APP=api,_IMAGE_TAG=staging-candidate,_REGION=asia-southeast1,_ARTIFACT_REPO=gogocash
-```
-
-Deploy admin or customer web by changing `_APP`:
-
-```bash
-gcloud builds submit \
-  --project gogocash-staging \
-  --config cloudbuild/deploy-staging.yaml \
-  --substitutions _APP=admin,_IMAGE_TAG=staging-candidate,_REGION=asia-southeast1,_ARTIFACT_REPO=gogocash
-```
-
-```bash
-gcloud builds submit \
-  --project gogocash-staging \
-  --config cloudbuild/deploy-staging.yaml \
-  --substitutions _APP=app-web,_IMAGE_TAG=staging-candidate,_REGION=asia-southeast1,_ARTIFACT_REPO=gogocash
-```
-
-Run these commands from the repo root so Cloud Build can upload the checked-out
-config file.
-
-## Cleanup Accidental Cloud Run Service
-
-After setup, run:
-
-```bash
-gcloud builds submit \
-  --project gogocash-staging \
-  --config cloudbuild/cleanup-accidental-cloudrun.yaml \
-  --substitutions _REGION=europe-west1,_SERVICE=gogocash-monorepo \
-  --no-source
-```
-
-If a Cloud Build trigger was created by Cloud Run's console source-deploy flow,
-delete that trigger from Cloud Build after confirming its name in the console or
-with:
-
-```bash
-gcloud builds triggers list --project gogocash-staging --region global
-```
-
-## Retirement Criteria For GitHub Actions
-
-Do not delete GitHub Actions workflows until these are true:
-
-- `gogocash-ci-pr` passes on a PR.
-- `gogocash-build-staging-main` builds all three images from `main`.
-- `cloudbuild/deploy-staging.yaml` deploys `api` and the smoke check passes.
-- Optional: deploy `admin` and `app-web` once to validate their Cloud Run services.
-- Branch protection is updated to require Cloud Build checks instead of GitHub
-  Actions checks.
-
-After that, delete or archive `.github/workflows/*.yml` and remove the
-GitHub Actions Dependabot entry.
-
-## Production Follow-Up
-
-Keep production separate from this staging cutover. Add production only after
-staging has at least one successful CI/build/release cycle in Cloud Build.
-For production, prefer immutable image SHA tags or image digests and consider
-Cloud Deploy for approvals, promotion history, and rollback.
-
-## References
-
-- Cloud Build triggers: https://docs.cloud.google.com/build/docs/automating-builds/create-manage-triggers
-- Cloud Build to Cloud Run: https://docs.cloud.google.com/build/docs/deploying-builds/deploy-cloud-run
-- Cloud Build service accounts: https://docs.cloud.google.com/build/docs/cloud-build-service-account
-- Cloud Build approvals: https://docs.cloud.google.com/build/docs/securing-builds/gate-builds-on-approval
-- Artifact Registry IAM: https://docs.cloud.google.com/artifact-registry/docs/access-control
+They validate repository structure and Expo configuration only. They do not
+push an image, deploy Cloud Run, publish an OTA, run an EAS build, change a
+secret, or modify an Artifact Registry policy.

@@ -201,11 +201,11 @@ EXPO_PUBLIC_FRONTEND_URL=http://localhost:8081
 
 Restart Metro after edits. **`localhost:8080` on a physical phone points at the phone** — always use `api.dev.gogocash.co` for device QA.
 
-**Sign-in on native Android (known limitation):** Firebase phone OTP is **Expo web only** today (`firebasePhoneAuth.ts`). For device QA:
+**Sign-in on native Android:** works since APK 40 (app 0.2.0) via `@react-native-firebase/auth` — Play Integrity app verification, test number `+66 999999999` / `654321` needs no SMS (device-verified 2026-07-10; see `docs/firebase-native-eas.md`). For device QA:
 
-- **Preflight / API paths:** use `GOGOTRACK_AUTH_TOKEN` (customer JWT) — no UI sign-in required.
-- **Manual UI exploration:** `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=fixtures` + OTP `123456`, or sign in on **Expo web** in desktop browser with Firebase keys.
-- **Real native phone OTP:** future work (`expo-firebase-recaptcha` / `@react-native-firebase/auth`).
+- **Preflight / API paths:** `GOGOTRACK_AUTH_TOKEN` (customer JWT) still works — no UI sign-in required.
+- **Manual UI sign-in:** phone OTP directly on the device (backend mode), or `EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=fixtures` + OTP `123456` for UI-only runs.
+- APK ≤ 39 (runtime 0.1.0) predates the native Firebase module — on those binaries phone OTP remains web-only.
 
 ### 5C — Dev-client build + install
 

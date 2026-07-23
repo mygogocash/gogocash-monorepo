@@ -83,7 +83,13 @@ export class RateLimitGuard implements CanActivate {
 
     if (recent.length >= opts.max) {
       this.logger.warn(`rate-limit hit ${key} (${recent.length}/${opts.max})`);
-      throw new HttpException({ message: 'Too many requests' }, 429);
+      throw new HttpException(
+        {
+          message:
+            "You're making requests too quickly. Please wait a moment and try again.",
+        },
+        429,
+      );
     }
 
     recent.push(now);

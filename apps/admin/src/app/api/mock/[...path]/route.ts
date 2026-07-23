@@ -44,6 +44,9 @@ export function generateStaticParams() {
   add("admin", "banner-home");
   add("admin", "banner-home-small");
   add("admin", "banner-all-brand-page");
+  add("admin", "banner-specific-page", "all-brands");
+  add("admin", "banner-specific-page", "all-shops");
+  add("admin", "banner-specific-page", "product-discovery");
   add("admin", "get-mycashback-user", "u1");
   add("admin", "list-mycashback-users");
   add("auth", "profile");

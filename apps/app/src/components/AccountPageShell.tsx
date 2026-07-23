@@ -39,6 +39,7 @@ import { GoGoPassBadge } from "@mobile/components/GoGoPassBadge";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { CustomerGoLinkScreen } from "@mobile/screens/CustomerGoLinkScreen";
+import { filterHiddenProfileMenuItems } from "@mobile/config/featureFlags";
 import {
   getAccountShellFrameMetrics,
   getDesktopShellOffset,
@@ -237,7 +238,7 @@ function DesktopProfileRail() {
 
   return (
     <View style={styles.desktopRail}>
-      {profileHubMenuItems.map((item) => {
+      {filterHiddenProfileMenuItems(profileHubMenuItems).map((item) => {
         const isExternal = "external" in item && item.external === true;
         const active = isProfileMenuItemActive(item, pathname);
         const label = tc(item.label);
@@ -265,7 +266,7 @@ function DesktopProfileRail() {
               </MotionPressable>
               {profileSubOpen ? (
                 <View style={styles.railSubNav}>
-                  {profileHubSubNavItems.map((sub) => {
+                  {filterHiddenProfileMenuItems(profileHubSubNavItems).map((sub) => {
                     const subActive = isProfileSubNavItemActive(pathname, sub.href);
                     return (
                       <Link asChild href={sub.href as never} key={sub.href}>
@@ -354,7 +355,7 @@ export function AccountWalletHeroCard({
   amount = "0.00",
   avatarUrl,
   currency = "USD",
-  lastUpdated = "Last Updated: -",
+  lastUpdated = null,
   maskedId = "****",
   tier,
   title = "USER",
@@ -363,7 +364,7 @@ export function AccountWalletHeroCard({
   amount?: string;
   avatarUrl?: string | null;
   currency?: string;
-  lastUpdated?: string;
+  lastUpdated?: string | null;
   maskedId?: string;
   tier?: string;
   title?: string;
@@ -385,10 +386,7 @@ export function AccountWalletHeroCard({
               accessibilityLabel={tc("Profile avatar")}
               avatarUrl={avatarUrl}
               size={avatarSize}
-              style={[
-                styles.walletAvatar,
-                { borderRadius: radii.chip, height: avatarSize, width: avatarSize },
-              ]}
+              style={[styles.walletAvatar, { height: avatarSize, width: avatarSize }]}
             />
           </GoGoPassAvatar>
           <View style={[styles.walletHeroUser, isCompact ? styles.walletHeroUserCompact : null]}>
@@ -406,9 +404,11 @@ export function AccountWalletHeroCard({
                   <Text style={styles.walletHeroName}>{title}</Text>
                 </View>
                 <MaskedUserIdRow
-                  iconColor="rgba(255,255,255,0.82)"
+                  iconColor="rgba(255,255,255,0.95)"
+                  label={tc("User ID")}
+                  labelStyle={styles.walletHeroIdLabel}
                   maskedId={maskedId}
-                  rowStyle={styles.walletHeroIdRow}
+                  rowStyle={[styles.walletHeroIdChip, styles.walletHeroIdRow]}
                   textStyle={styles.walletHeroId}
                   userId={userId}
                 />
@@ -418,9 +418,11 @@ export function AccountWalletHeroCard({
         </View>
         {isCompact ? (
           <MaskedUserIdRow
-            iconColor="rgba(255,255,255,0.82)"
+            iconColor="rgba(255,255,255,0.95)"
+            label={tc("User ID")}
+            labelStyle={styles.walletHeroIdLabel}
             maskedId={maskedId}
-            rowStyle={styles.walletHeroIdRowCompact}
+            rowStyle={[styles.walletHeroIdChip, styles.walletHeroIdRowCompact]}
             textStyle={styles.walletHeroId}
             userId={userId}
           />
@@ -441,7 +443,7 @@ export function AccountWalletHeroCard({
               {currency}
             </Text>
           </View>
-          <Text style={styles.walletUpdated}>{lastUpdated}</Text>
+          {lastUpdated ? <Text style={styles.walletUpdated}>{lastUpdated}</Text> : null}
           <Link asChild href="/withdraw">
             <MotionPressable
               pressScale={0.98}
@@ -705,12 +707,15 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     paddingBottom: spacing.sm,
   },
   walletHeroHeaderCompact: {
-    minHeight: undefined,
+    // 0, not undefined — RN style merging SKIPS undefined, so the desktop
+    // minHeight (86) silently survived and forced a dead gap under the name.
+    minHeight: 0,
     paddingBottom: spacing.xs,
   },
   walletAvatar: {
+    // Fallback tint behind transparent regions of the avatar PNG. The circular crop is
+    // owned by ProfileAvatarImage, so no borderRadius here.
     backgroundColor: "#FFDDE7",
-    borderRadius: radii.chip,
   },
   walletHeroUser: {
     alignItems: "flex-end",
@@ -741,21 +746,38 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
     fontSize: 18,
     lineHeight: 24,
   },
+  // Redesign 2026-07-11 (founder): the ID was 58%-alpha text lost on the green
+  // band — now a labeled chip with solid-white value so it reads at a glance.
   walletHeroId: {
-    color: "rgba(255,255,255,0.58)",
+    color: colors.white,
     fontFamily: typography.family,
-    fontSize: 15,
+    fontSize: 13,
     fontVariant: ["tabular-nums"],
+    fontWeight: typography.labelWeight,
+  },
+  // Round 2 (founder): quiet chip — content-hugging, borderless, small type.
+  walletHeroIdChip: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderRadius: radii.chip,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  walletHeroIdLabel: {
+    color: "rgba(255,255,255,0.72)",
+    fontFamily: typography.family,
+    fontSize: 11,
+    fontWeight: typography.labelWeight,
+    letterSpacing: 0.3,
   },
   walletHeroIdRow: {
     marginTop: spacing.sm,
     maxWidth: "100%",
   },
   walletHeroIdRowCompact: {
-    alignSelf: "stretch",
     marginBottom: spacing.xs,
     marginTop: spacing.xs,
-    width: "100%",
   },
   walletHeroGlassPanel: {
     alignItems: "center",
@@ -778,7 +800,10 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
   walletHeroGlassPanelCompact: {
     marginHorizontal: -14,
     marginTop: -6,
-    minHeight: undefined,
+    // 0, not undefined — same skip-merge pitfall as the header: the desktop
+    // minHeight (260) survived and left ~70px of empty gradient below the
+    // Withdraw button on phones.
+    minHeight: 0,
     paddingBottom: 20,
     paddingHorizontal: 16,
     paddingTop: 18,

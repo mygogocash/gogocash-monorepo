@@ -6,7 +6,6 @@ import Input from "../form/input/InputField";
 import client from "@/lib/axios/client";
 import toast from "react-hot-toast";
 import Button from "../ui/button/Button";
-import { useDataSession } from "@/hooks/useDataSession";
 import { usePermissions } from "@/hooks/usePermissions";
 import { pathImage } from "@/utils/helper";
 import { useObjectUrl } from "@/hooks/useObjectUrl";
@@ -15,9 +14,11 @@ import { devApiError } from "@/lib/devConsole";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { isDirty } from "@/lib/isDirty";
 import { multipartPostConfig } from "@/lib/multipartFormHeaders";
+import { MAX_ADMIN_UPLOAD_BYTES } from "@/lib/uploadLimits";
 import Switch from "../form/switch/Switch";
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { buildBannerSlotFormData } from "./bannerFormPayload";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 interface IProp {
   fetchData: () => void | Promise<unknown>;
   openModal: boolean;
@@ -26,11 +27,12 @@ interface IProp {
   setForm: React.Dispatch<React.SetStateAction<BannerRequestForm>>;
   isLoading: boolean;
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  /** POST target (mock: `/admin/banner-home` or `/admin/banner-all-brand-page`). */
+  /** Live API POST target for the selected home or specific-page banner surface. */
   savePath?: string;
   headerTitle?: string;
   headerDescription?: string;
   uploadImageHint?: string;
+  surfaceLabel?: string;
 }
 const FormUpdate = ({
   fetchData,
@@ -43,9 +45,9 @@ const FormUpdate = ({
   savePath = "/admin/banner-home",
   headerTitle = "Banner Home",
   headerDescription = "Edit homepage banner slot {slot}: upload an image, set the link and optional start/end dates. The banner is shown to users on the app homepage.",
-  uploadImageHint = "Choose a banner image (e.g. PNG, JPG). Recommended size: 1920×1080 (16:9). Non-16:9 uploads are center-cropped to fill the hero frame.",
+  uploadImageHint = "Choose a banner image (PNG, JPG, or WebP). Recommended artwork: 1920×1080 (16:9) — other sizes are accepted and fitted to the hero frame. Max upload 32 MB (large PNGs are optimized on save).",
+  surfaceLabel = "Home Page Banner",
 }: IProp) => {
-  const session = useDataSession();
   const { can } = usePermissions();
   const canManageBanners = can("banner:manage");
 
@@ -101,9 +103,10 @@ const FormUpdate = ({
     end_forever_5: f.end_forever_5,
     id: f.id,
   });
-  const [initialSnapshot, setInitialSnapshot] = useState<
-    ReturnType<typeof snapshotForm> | null
-  >(null);
+  const [initialSnapshot, setInitialSnapshot] = useState<ReturnType<
+    typeof snapshotForm
+  > | null>(null);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   useEffect(() => {
     if (!openModal) return;
     startTransition(() => {
@@ -135,6 +138,22 @@ const FormUpdate = ({
   ) => {
     if (!canManageBanners) return;
     const file = e.target.files?.[0] || null;
+    if (
+      file &&
+      !["image/png", "image/jpeg", "image/webp"].includes(file.type)
+    ) {
+      toast.error("Choose a PNG, JPG, or WebP banner image.");
+      e.target.value = "";
+      return;
+    }
+    // #487 — align with admin BFF / Next proxy body limit.
+    if (file && file.size > MAX_ADMIN_UPLOAD_BYTES) {
+      toast.error(
+        "That image is too large (over 32 MB). Compress it or export a smaller PNG/JPG/WebP, then try again.",
+      );
+      e.target.value = "";
+      return;
+    }
     setForm((prev) => ({ ...prev, [key]: file }));
   };
 
@@ -145,17 +164,18 @@ const FormUpdate = ({
 
     setIsLoading(true);
     try {
-      await client.post(
-        savePath,
-        formData,
-        multipartPostConfig(session?.accessToken),
-      );
+      await client.post(savePath, formData, multipartPostConfig());
       await Promise.resolve(fetchData());
       setOpenModal(false);
       toast.success("Banner saved successfully");
     } catch (err: unknown) {
       devApiError("Banner update failed:", err, "Update failed");
-      toast.error(getApiErrorMessage(err, "Update failed"));
+      toast.error(
+        getApiErrorMessage(
+          err,
+          "Couldn't update the banner. Please try again, or contact an administrator if it continues.",
+        ),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -173,22 +193,34 @@ const FormUpdate = ({
   const slotEndDate = String(form[slotEndDateKey] || "");
   const slotEndForever = Boolean(form[slotEndForeverKey]);
   const slotDesc = headerDescription.replace(/\{slot\}/g, String(form.id));
+  const slotTitle = headerTitle.replace(/\{slot\}/g, String(form.id));
+
+  const closeWithoutSaving = () => {
+    setDiscardConfirmOpen(false);
+    setOpenModal(false);
+  };
+
+  const requestClose = () => {
+    if (isLoading) return;
+    if (dirty) {
+      setDiscardConfirmOpen(true);
+      return;
+    }
+    closeWithoutSaving();
+  };
 
   return (
     <Modal
       isOpen={Boolean(openModal)}
-      onClose={function (): void {
-        setOpenModal(false);
-      }}
-      isFullscreen
+      onClose={requestClose}
       showCloseButton={false}
-      className="p-0"
+      className="max-w-6xl p-0 sm:max-w-6xl"
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-5 sm:p-6 md:p-8 lg:p-10">
+      <div className="p-5 sm:p-6">
         <div className="mb-4 flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
           <div className="min-w-0">
             <h4 className="text-title-sm mb-1 font-semibold text-gray-800 dark:text-white/90">
-              {headerTitle}
+              {slotTitle}
             </h4>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {slotDesc}
@@ -198,7 +230,7 @@ const FormUpdate = ({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setOpenModal(false)}
+              onClick={requestClose}
               disabled={isLoading}
             >
               Close
@@ -223,154 +255,163 @@ const FormUpdate = ({
             permission to update this banner.
           </p>
         ) : null}
-        <div className="min-h-0 flex-1 overflow-auto pb-4">
-          <div className="mb-5 flex gap-2 border-b border-gray-200 dark:border-gray-700">
-            <div>
-              <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Upload image {form.id}
-              </p>
-              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                {uploadImageHint}
-              </p>
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+          <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-5 dark:border-gray-700 dark:bg-white/[0.03]">
+            <h5 className="text-base font-semibold text-gray-900 dark:text-white">
+              Creative
+            </h5>
+            <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+              {uploadImageHint}
+            </p>
+            <div className="mt-4">
               <Input
                 type="file"
+                accept="image/png,image/jpeg,image/webp"
                 name={`image_${form.id}`}
                 disabled={!canManageBanners}
                 onChange={(event) =>
                   handleFileChange(event, `image_${form.id}`)
                 }
               />
-              {Boolean(slotImage) && (
-                <div className="mt-4 mb-4">
+            </div>
+            {slotImage ? (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+                  Current preview
+                </p>
+                <RemoteOrBlobImage
+                  src={
+                    slotImageUrl ??
+                    pathImage(typeof slotImage === "string" ? slotImage : null)
+                  }
+                  alt={`${surfaceLabel} slide ${form.id} preview`}
+                  width={960}
+                  height={540}
+                  className="aspect-video h-auto w-full rounded-xl border border-gray-200 object-cover dark:border-gray-600"
+                />
+              </div>
+            ) : (
+              <div className="mt-4 flex aspect-video items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white px-6 text-center text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400">
+                No image selected for this slide.
+              </div>
+            )}
+          </section>
+
+          <div className="space-y-5">
+            <section className="rounded-2xl border border-gray-200 p-4 sm:p-5 dark:border-gray-700">
+              <h5 className="text-base font-semibold text-gray-900 dark:text-white">
+                Destination
+              </h5>
+              <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                URL or customer-app path to open when users select this banner.
+              </p>
+              <div className="mt-4">
+                <Input
+                  type="text"
+                  name={`link_${form.id}`}
+                  placeholder="/quest or https://example.com/promo"
+                  disabled={!canManageBanners}
+                  onChange={(event) =>
+                    setSlotField(
+                      `link_${form.id}` as keyof BannerRequestForm,
+                      event.target.value,
+                    )
+                  }
+                  value={
+                    (form[
+                      `link_${form.id}` as keyof BannerRequestForm
+                    ] as string) || ""
+                  }
+                />
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 p-4 sm:p-5 dark:border-gray-700">
+              <h5 className="text-base font-semibold text-gray-900 dark:text-white">
+                Visibility &amp; schedule
+              </h5>
+              <div className="mt-4">
+                <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Slot enabled
+                </p>
+                <Switch
+                  label="Enabled"
+                  checked={slotEnabled}
+                  disabled={!canManageBanners}
+                  onChange={(checked) => setSlotField(slotEnabledKey, checked)}
+                />
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Disable the slide to hide it without deleting its content.
+                </p>
+              </div>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div className="min-w-0">
                   <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Preview Banner {form.id}
+                    Start date
                   </p>
                   <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                    How the banner will look after saving.
+                    Optional. Leave blank to start immediately.
                   </p>
-                  <RemoteOrBlobImage
-                    src={
-                      slotImageUrl ??
-                      pathImage(
-                        typeof slotImage === "string" ? slotImage : null,
-                      )
+                  <Input
+                    type="date"
+                    name={slotStartDateKey as string}
+                    value={slotStartDate}
+                    disabled={!canManageBanners}
+                    onChange={(e) =>
+                      setSlotField(slotStartDateKey, e.target.value)
                     }
-                    alt="Preview"
-                    width={800}
-                    height={512}
-                    className="h-auto max-h-64 max-w-full rounded-lg border border-gray-200 dark:border-gray-600"
                   />
                 </div>
-              )}
-            </div>
-            <div>
-              <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Link {form.id}
-              </p>
-              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                URL to open when users tap this banner (e.g. promo page or
-                tracking link).
-              </p>
-              <Input
-                type="text"
-                name={`link_${form.id}`}
-                disabled={!canManageBanners}
-                onChange={(event) =>
-                  setSlotField(
-                    `link_${form.id}` as keyof BannerRequestForm,
-                    event.target.value,
-                  )
-                }
-                value={
-                  (form[
-                    `link_${form.id}` as keyof BannerRequestForm
-                  ] as string) || ""
-                }
-              />
-            </div>
-          </div>
-          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:gap-6">
-            <div className="min-w-0">
-              <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Slot enabled
-              </p>
-              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                Turn this slot off to hide it without removing the banner content.
-              </p>
-              <Switch
-                label="Enabled"
-                checked={slotEnabled}
-                disabled={!canManageBanners}
-                onChange={(checked) =>
-                  setSlotField(slotEnabledKey, checked)
-                }
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Start date
-              </p>
-              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                Optional. When to start showing this banner. Leave blank for no
-                start limit.
-              </p>
-              <Input
-                type="date"
-                name={slotStartDateKey as string}
-                value={slotStartDate}
-                disabled={!canManageBanners}
-                onChange={(e) =>
-                  setSlotField(
-                    slotStartDateKey,
-                    e.target.value,
-                  )
-                }
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                End date
-              </p>
-              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                Set a last day to show this banner, or choose{" "}
-                <strong>Forever</strong> for no end.
-              </p>
-              <label className="mb-3 flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
-                <input
-                  type="checkbox"
-                  checked={slotEndForever}
-                  disabled={!canManageBanners}
-                onChange={(e) => {
-                  const forever = e.target.checked;
-                  setSlotField(slotEndForeverKey, forever);
-                  setSlotField(
-                    slotEndDateKey,
-                    forever
-                      ? ""
-                      : slotEndDate ||
-                          slotStartDate ||
-                          new Date().toISOString().slice(0, 10),
-                  );
-                }}
-                  className="text-brand-500 h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800"
-                />
-                Forever (no end date)
-              </label>
-              <Input
-                type="date"
-                name={slotEndDateKey as string}
-                value={slotEndDate}
-                min={slotStartDate || undefined}
-                disabled={!canManageBanners || slotEndForever}
-                onChange={(e) => {
-                  setSlotField(slotEndDateKey, e.target.value);
-                  setSlotField(slotEndForeverKey, false);
-                }}
-              />
-            </div>
+                <div className="min-w-0">
+                  <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    End date
+                  </p>
+                  <label className="mb-2 flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
+                    <input
+                      type="checkbox"
+                      checked={slotEndForever}
+                      disabled={!canManageBanners}
+                      onChange={(e) => {
+                        const forever = e.target.checked;
+                        setSlotField(slotEndForeverKey, forever);
+                        setSlotField(
+                          slotEndDateKey,
+                          forever
+                            ? ""
+                            : slotEndDate ||
+                                slotStartDate ||
+                                new Date().toISOString().slice(0, 10),
+                        );
+                      }}
+                      className="text-brand-500 h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+                    />
+                    Forever (no end date)
+                  </label>
+                  <Input
+                    type="date"
+                    name={slotEndDateKey as string}
+                    value={slotEndDate}
+                    min={slotStartDate || undefined}
+                    disabled={!canManageBanners || slotEndForever}
+                    onChange={(e) => {
+                      setSlotField(slotEndDateKey, e.target.value);
+                      setSlotField(slotEndForeverKey, false);
+                    }}
+                  />
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={discardConfirmOpen}
+        title="Discard unsaved banner changes?"
+        description={`Your edits to ${surfaceLabel} slide ${form.id} have not been saved.`}
+        confirmLabel="Discard changes"
+        onConfirm={closeWithoutSaving}
+        onCancel={() => setDiscardConfirmOpen(false)}
+      />
     </Modal>
   );
 };

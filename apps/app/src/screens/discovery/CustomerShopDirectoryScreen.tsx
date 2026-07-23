@@ -10,10 +10,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "@mobile/theme/icons";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import { useSpecificPageBanner } from "@mobile/account/specificPageBannerResource";
 import { useDirectoryOfferSearch } from "@mobile/account/useDirectoryOfferSearch";
 import {
   filterShopDirectoryStores,
   getFixtureShopDirectoryResults,
+  resolveCategoryIconImages,
+  resolveCategoryIconKeys,
   resolveCategoryList,
   resolveLiveDirectoryStores,
 } from "@mobile/account/directoryCatalogResource";
@@ -50,7 +53,7 @@ import {
 import { type ShopDirectoryStore } from "./discoveryTypes";
 import { ShopDirectoryCategoryAside } from "./ShopDirectoryCategoryAside";
 import { ShopDirectoryPagination } from "./ShopDirectoryPagination";
-import { ShopDirectoryPromo } from "./ShopDirectoryPromo";
+import { SpecificPageBannerCarousel } from "./SpecificPageBannerCarousel";
 import { ShopDirectoryStoreCard } from "./ShopDirectoryStoreCard";
 
 export function CustomerShopDirectoryScreen() {
@@ -86,10 +89,19 @@ export function CustomerShopDirectoryScreen() {
     fixtureData: webShopDirectory.categories,
     resourceId: "categoryList",
   });
+  const specificPageBanner = useSpecificPageBanner("shops", webShopDirectory.promo);
   const directoryCategories = resolveCategoryList(
     categoryResource.source,
     categoryResource.data,
     webShopDirectory.categories
+  );
+  const directoryCategoryIconKeys = resolveCategoryIconKeys(
+    categoryResource.source,
+    categoryResource.data,
+  );
+  const directoryCategoryIconImages = resolveCategoryIconImages(
+    categoryResource.source,
+    categoryResource.data,
   );
   const liveStores = resolveLiveDirectoryStores(
     catalogResource.source,
@@ -147,7 +159,7 @@ export function CustomerShopDirectoryScreen() {
   const totalPages = Math.max(1, Math.ceil(shopResults.length / pageSize));
   const activePage = Math.min(currentPage, totalPages);
   const visibleStores = shopResults.slice((activePage - 1) * pageSize, activePage * pageSize);
-  const resultsLabel = `${shopResults.length} ${webShopDirectory.resultsUnit}`;
+  const resultsLabel = `${shopResults.length} ${tc(webShopDirectory.resultsUnit)}`;
 
   const updateSearchQuery = (value: string) => {
     setSearchQuery(value);
@@ -169,8 +181,9 @@ export function CustomerShopDirectoryScreen() {
     setCurrentPage(1);
     catalogResource.retry();
     categoryResource.retry();
+    specificPageBanner.retry();
     requestAnimationFrame(() => setRefreshing(false));
-  }, [catalogResource, categoryResource]);
+  }, [catalogResource, categoryResource, specificPageBanner]);
   const shopDirectoryRowHeight = getDirectoryStoreCardHeight(gridMetrics.cardWidth);
   const renderShopDirectoryCard = useCallback(
     (store: ShopDirectoryStore) => (
@@ -193,7 +206,7 @@ export function CustomerShopDirectoryScreen() {
       <View style={styles.searchPill}>
         <SearchIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
         <Text numberOfLines={1} style={styles.searchText}>
-          {webHomeSearchPlaceholder}
+          {tc(webHomeSearchPlaceholder)}
         </Text>
       </View>
     </View>
@@ -201,10 +214,14 @@ export function CustomerShopDirectoryScreen() {
 
   const shopContent = (
     <>
-      <ShopDirectoryPromo
-        contentWidth={homeLayout.contentWidth}
-        isDesktop={homeLayout.isDesktop}
-      />
+      {specificPageBanner.promo ? (
+        <SpecificPageBannerCarousel
+          contentWidth={homeLayout.contentWidth}
+          isDesktop={homeLayout.isDesktop}
+          pageTarget={specificPageBanner.target}
+          promo={specificPageBanner.promo}
+        />
+      ) : null}
 
       <View style={styles.shopDirectoryHeader}>
         <View style={styles.shopDirectoryTitleRow}>
@@ -237,6 +254,8 @@ export function CustomerShopDirectoryScreen() {
         <ShopDirectoryCategoryAside
           activeCategory={selectedCategory}
           categories={directoryCategories}
+          categoryIconImages={directoryCategoryIconImages}
+          categoryIconKeys={directoryCategoryIconKeys}
           isDesktop={homeLayout.isDesktop}
           onSelectCategory={updateCategory}
           width={sidebarWidth}

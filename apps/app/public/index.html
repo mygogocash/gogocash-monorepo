@@ -11,14 +11,19 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta property="og:title" content="GoGoCash - Save Cash on Every Spend" />
+    <meta property="og:title" content="GoGoCash - Earn Cash on Every Spend" />
     <meta property="og:description" content="GoGoCash is a cashback platform that rewards users instantly for online shopping. Shop, save, and earn in real-time with seamless integration across top e-commerce and telco providers in Southeast Asia." />
     <meta property="og:image" content="/home/banner.webp" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="GoGoCash — Earn Cashback on Every Spend" />
+    <meta property="og:type" content="website" />
     <meta property="og:site_name" content="GoGoCash" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="GoGoCash - Save Cash on Every Spend" />
+    <meta name="twitter:title" content="GoGoCash - Earn Cash on Every Spend" />
     <meta name="twitter:description" content="GoGoCash is a cashback platform that rewards users instantly for online shopping. Shop, save, and earn in real-time with seamless integration across top e-commerce and telco providers in Southeast Asia." />
     <meta name="twitter:image" content="/home/banner.webp" />
+    <meta name="twitter:image:alt" content="GoGoCash — Earn Cashback on Every Spend" />
     <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -52,6 +57,19 @@
         text-decoration: none;
       }
 
+      /* Image download deterrent (founder request 2026-07-22): block drag-to-save and the
+         long-press callout on every image app-wide. This is a DETERRENT only — screenshots
+         and the network tab still expose the raw asset; real protection needs CDN hotlink
+         protection / signed URLs on media.gogocash.co. */
+      img,
+      [data-expoimage],
+      [data-expoimage] * {
+        -webkit-user-drag: none;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
       #root {
         display: flex;
         height: 100%;
@@ -64,6 +82,65 @@
     <noscript>
       You need to enable JavaScript to run this app.
     </noscript>
+    <!-- Capture LIFF/OAuth return params before the Expo SPA can strip them,
+         and bounce Endpoint-URL returns onto /auth/line-callback. -->
+    <script>
+      (function () {
+        try {
+          var href = location.href;
+          if (
+            !/[?&#](code|state|liffClientId|liffRedirectUri|liffState|error)=/.test(
+              href
+            )
+          ) {
+            return;
+          }
+          sessionStorage.setItem("gogocash.line.auth.returnHref.v1", href);
+          var path = location.pathname.replace(/\/+$/, "") || "/";
+          if (path === "/auth/line-callback") {
+            return;
+          }
+          var next = new URL("/auth/line-callback", location.origin);
+          var current = new URL(href);
+          current.searchParams.forEach(function (value, key) {
+            next.searchParams.set(key, value);
+          });
+          next.hash = current.hash;
+          if (!next.searchParams.get("callbackUrl")) {
+            next.searchParams.set("callbackUrl", "/profile");
+          }
+          location.replace(next.pathname + next.search + next.hash);
+        } catch (e) {}
+      })();
+    </script>
+    <!-- Image download deterrent: swallow right-click "Save image" + drag-to-save on every
+         image app-wide (pairs with the img CSS above). Deterrent only, not real protection. -->
+    <script>
+      (function () {
+        function isImage(target) {
+          return (
+            target &&
+            (target.tagName === "IMG" ||
+              (typeof target.closest === "function" &&
+                target.closest("[data-expoimage]")))
+          );
+        }
+        document.addEventListener(
+          "contextmenu",
+          function (e) {
+            if (isImage(e.target)) e.preventDefault();
+          },
+          true
+        );
+        document.addEventListener(
+          "dragstart",
+          function (e) {
+            if (isImage(e.target)) e.preventDefault();
+          },
+          true
+        );
+      })();
+    </script>
     <div id="root"></div>
   </body>
 </html>

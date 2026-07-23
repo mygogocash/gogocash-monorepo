@@ -11,7 +11,7 @@
 # Dockerfile declares a matching ARG — hence the explicit ARG list below.
 
 # ── Stage 1: build the web export ────────────────────────────────────────────
-FROM node:22-slim AS build
+FROM node:24-slim AS build
 WORKDIR /app
 
 # Metro/Expo web export exceeds Node's default container heap.
@@ -24,6 +24,7 @@ ARG EXPO_PUBLIC_API_URL
 ARG EXPO_PUBLIC_APP_ENV
 ARG EXPO_PUBLIC_ACCOUNT_DATA_SOURCE
 ARG EXPO_PUBLIC_FRONTEND_URL
+ARG EXPO_PUBLIC_LIFF_ID
 ARG EXPO_PUBLIC_FIREBASE_API_KEY
 ARG EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
 ARG EXPO_PUBLIC_FIREBASE_PROJECT_ID
@@ -32,10 +33,19 @@ ARG EXPO_PUBLIC_POSTHOG_KEY
 ARG EXPO_PUBLIC_POSTHOG_HOST
 ARG EXPO_PUBLIC_SENTRY_DSN
 ARG EXPO_PUBLIC_EAS_PROJECT_ID
+ARG EXPO_PUBLIC_ENABLE_GOGOPASS
+ARG EXPO_PUBLIC_ENABLE_GOTOTRACK
+ARG EXPO_PUBLIC_ENABLE_GOLINK
+# GoLink coming-soon flag: DEFAULTS to coming-soon (visible, non-clickable); set
+# EXPO_PUBLIC_GOLINK_COMING_SOON=0 on the Railway service to fully launch GoLink.
+ARG EXPO_PUBLIC_GOLINK_COMING_SOON
+ARG EXPO_PUBLIC_ENABLE_CREDIT_SCORE
+ARG EXPO_PUBLIC_TELEGRAM_BOT_USERNAME
 ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL \
     EXPO_PUBLIC_APP_ENV=$EXPO_PUBLIC_APP_ENV \
     EXPO_PUBLIC_ACCOUNT_DATA_SOURCE=$EXPO_PUBLIC_ACCOUNT_DATA_SOURCE \
     EXPO_PUBLIC_FRONTEND_URL=$EXPO_PUBLIC_FRONTEND_URL \
+    EXPO_PUBLIC_LIFF_ID=$EXPO_PUBLIC_LIFF_ID \
     EXPO_PUBLIC_FIREBASE_API_KEY=$EXPO_PUBLIC_FIREBASE_API_KEY \
     EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=$EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN \
     EXPO_PUBLIC_FIREBASE_PROJECT_ID=$EXPO_PUBLIC_FIREBASE_PROJECT_ID \
@@ -43,14 +53,26 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL \
     EXPO_PUBLIC_POSTHOG_KEY=$EXPO_PUBLIC_POSTHOG_KEY \
     EXPO_PUBLIC_POSTHOG_HOST=$EXPO_PUBLIC_POSTHOG_HOST \
     EXPO_PUBLIC_SENTRY_DSN=$EXPO_PUBLIC_SENTRY_DSN \
-    EXPO_PUBLIC_EAS_PROJECT_ID=$EXPO_PUBLIC_EAS_PROJECT_ID
+    EXPO_PUBLIC_EAS_PROJECT_ID=$EXPO_PUBLIC_EAS_PROJECT_ID \
+    EXPO_PUBLIC_ENABLE_GOGOPASS=$EXPO_PUBLIC_ENABLE_GOGOPASS \
+    EXPO_PUBLIC_ENABLE_GOTOTRACK=$EXPO_PUBLIC_ENABLE_GOTOTRACK \
+    EXPO_PUBLIC_ENABLE_GOLINK=$EXPO_PUBLIC_ENABLE_GOLINK \
+    EXPO_PUBLIC_GOLINK_COMING_SOON=$EXPO_PUBLIC_GOLINK_COMING_SOON \
+    EXPO_PUBLIC_ENABLE_CREDIT_SCORE=$EXPO_PUBLIC_ENABLE_CREDIT_SCORE \
+    EXPO_PUBLIC_TELEGRAM_BOT_USERNAME=$EXPO_PUBLIC_TELEGRAM_BOT_USERNAME
 
 # Install from the single root lockfile that pins the whole workspace.
 # --ignore-scripts skips the root postinstall (patches admin assets not copied
 # here) and native postinstalls that a web-only export does not need.
+# --include=dev: Railway injects NODE_ENV=production into builds; Expo export
+# still needs typescript and other build-time workspace deps.
 COPY package.json package-lock.json .npmrc ./
 COPY apps/app/package.json ./apps/app/package.json
-RUN npm ci --legacy-peer-deps --ignore-scripts
+# Shared workspace packages (#19): the app imports @gogocash/i18n base catalogs
+# (bundled by Metro at export time) and extends @gogocash/tsconfig.
+COPY packages ./packages
+RUN npm install --global npm@10.9.8 \
+ && npm ci --legacy-peer-deps --ignore-scripts --include=dev
 
 # Build only the mobile workspace's web export → apps/app/dist.
 COPY apps/app ./apps/app

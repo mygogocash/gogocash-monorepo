@@ -11,6 +11,8 @@ type MobileTabletGoLinkBannerCollapseProps = {
   readonly isCovered: boolean;
   readonly onOpenGuideline: () => void;
   readonly onResultHref: (href: string) => void;
+  /** Coming-soon state forwarded to the paste box so it renders disabled. */
+  readonly comingSoon?: boolean;
 };
 
 const collapsedScaleY = 0.001;
@@ -19,6 +21,7 @@ export function MobileTabletGoLinkBannerCollapse({
   isCovered,
   onOpenGuideline,
   onResultHref,
+  comingSoon = false,
 }: MobileTabletGoLinkBannerCollapseProps) {
   const reducedMotion = useReducedMotion();
   const [bannerMounted, setBannerMounted] = useState(!isCovered);
@@ -87,6 +90,7 @@ export function MobileTabletGoLinkBannerCollapse({
     >
       <View>
         <DesktopGoLinkBanner
+          comingSoon={comingSoon}
           onOpenGuideline={onOpenGuideline}
           onResultHref={onResultHref}
           variant="mobileTabletHeader"

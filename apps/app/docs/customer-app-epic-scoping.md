@@ -144,4 +144,4 @@ Effort S(≤1d)/M(2-4d)/L(1-2wk)/XL(>2wk). Untested money/auth = R0.
 
 ---
 
-**Related:** Customer UI theming — [dark-mode.md](./dark-mode.md). Stack: Expo SDK 56, React Native 0.86 (`apps/app`).
+**Related:** Customer UI theming — [dark-mode.md](./dark-mode.md). Stack: Expo SDK 57, React Native 0.86 (`apps/app`).

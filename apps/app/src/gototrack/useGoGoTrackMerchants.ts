@@ -1,5 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
+import { getMobileEnv } from "@mobile/config/env";
+
+import {
+  resolveGoGoTrackMerchantsOverrideQueryKey,
+  resolveGoGoTrackMerchantsQueryKey,
+} from "./gototrackMerchantsQueryKey";
 import { useGoGoTrackApi } from "./useGoGoTrackApi";
 
 export type GoGoTrackMerchant = {
@@ -130,45 +137,36 @@ export function useGoGoTrackMerchants(
   apiOverride?: MerchantApi | null,
   enabled = true,
 ): MerchantResult {
+  const env = useMemo(() => getMobileEnv(), []);
   const defaultApi = useGoGoTrackApi(enabled && apiOverride === undefined);
   const api = enabled ? (apiOverride === undefined ? defaultApi : apiOverride) : null;
-  const [loading, setLoading] = useState(Boolean(api));
-  const [merchants, setMerchants] = useState<GoGoTrackMerchant[]>([]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const queryKey = useMemo(() => {
     if (!api) {
-      setLoading(false);
-      setMerchants([]);
-      return () => {
-        cancelled = true;
-      };
+      return ["gototrack-merchants", "offline"] as const;
     }
+    if (apiOverride !== undefined) {
+      return resolveGoGoTrackMerchantsOverrideQueryKey(api);
+    }
+    return resolveGoGoTrackMerchantsQueryKey(env.apiUrl ?? "");
+  }, [api, apiOverride, env.apiUrl]);
 
-    setLoading(true);
-    api
-      .getMerchants()
-      .then((data) => {
-        if (!cancelled) {
-          setMerchants(mapGoGoTrackMerchants(data));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setMerchants([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
+  const query = useQuery({
+    queryKey,
+    enabled: Boolean(api),
+    queryFn: async () => {
+      try {
+        const data = await api!.getMerchants();
+        return mapGoGoTrackMerchants(data);
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 60_000,
+  });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [api]);
-
+  const merchants = api ? (query.data ?? []) : [];
+  const loading = Boolean(api) && query.isLoading;
   const merchant = useMemo(() => findGoGoTrackMerchant(merchants, merchantId), [
     merchantId,
     merchants,

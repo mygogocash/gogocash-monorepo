@@ -25,6 +25,12 @@ export class User {
   @Prop({ type: Number, required: false, default: 0 })
   withdraw_lock_seq: number;
 
+  // Serializes quest award-cap checks for one beneficiary. The counter has no
+  // business meaning; incrementing it inside the award transaction turns
+  // concurrent count-and-award attempts into a MongoDB write conflict/retry.
+  @Prop({ type: Number, required: false, default: 0 })
+  quest_task_award_lock_seq: number;
+
   @Prop({ required: false, unique: false, default: '' })
   address: string;
 
@@ -62,6 +68,10 @@ export class User {
 
   @Prop()
   mobile: string;
+
+  /** Canonical E.164 identity claimed only after Firebase phone verification. */
+  @Prop({ type: String, required: false })
+  verified_phone_e164?: string;
 
   @Prop()
   birthdate: string;
@@ -136,6 +146,26 @@ export class User {
 
   @Prop()
   consent?: ConsentData;
+
+  // ── Account deletion (Google Play policy, 2026-07-11) ──
+  // 30-day soft delete: request schedules an anonymizing purge, cancellable
+  // during the grace window. Financial records survive anonymization.
+  @Prop({ type: Date, required: false, default: null })
+  deletion_requested_at: Date | null;
+
+  @Prop({ type: Date, required: false, default: null })
+  deletion_scheduled_for: Date | null;
+
+  @Prop({ type: Date, required: false, default: null })
+  anonymized_at: Date | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+UserSchema.index(
+  { verified_phone_e164: 1 },
+  {
+    name: 'uniq_user_verified_phone_e164',
+    sparse: true,
+    unique: true,
+  },
+);

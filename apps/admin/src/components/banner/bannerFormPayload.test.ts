@@ -75,6 +75,37 @@ describe("buildBannerSlotFormState", () => {
     expect(form.end_date_1).toBe("2026-12-31");
     expect(form.end_forever_1).toBe(false);
   });
+
+  it("treats whitespace-only dates as forever across every banner slot", () => {
+    const form = buildBannerSlotFormState(
+      {
+        image_1: null,
+        image_2: null,
+        image_3: null,
+        image_4: null,
+        image_5: null,
+        link_1: "",
+        link_2: "",
+        link_3: "",
+        link_4: "",
+        link_5: "",
+        end_date_1: "  ",
+        end_date_2: "\t",
+        end_date_3: "\n",
+        end_date_4: "",
+        end_date_5: "  \t ",
+      },
+      5,
+    );
+
+    expect([
+      form.end_forever_1,
+      form.end_forever_2,
+      form.end_forever_3,
+      form.end_forever_4,
+      form.end_forever_5,
+    ]).toEqual([true, true, true, true, true]);
+  });
 });
 
 describe("buildBannerSlotFormData", () => {

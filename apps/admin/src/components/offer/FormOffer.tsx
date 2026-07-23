@@ -20,8 +20,16 @@ import { SUPPORT_BUTTON_CLASS } from "../ui/button/SupportButton";
 import ProductTypeTable from "./ProductTypeTable";
 import {
   OFFER_MOCK_TERMS,
+  policyTermsMapFromCategoryList,
+  resolveConfiguredOfferPolicyTerms,
   resolveOfferPolicyBaseTerms,
 } from "@/lib/offerPolicyTerms";
+import {
+  CUSTOM_POLICY_CATEGORY_ID,
+  inferOfferPolicyMode,
+  type OfferPolicyMode,
+} from "@/lib/offerPolicyMode";
+import { OfferPolicyModeSwitch } from "./OfferPolicyModeSwitch";
 import Switch from "../form/switch/Switch";
 import {
   Offer,
@@ -31,8 +39,8 @@ import {
 } from "@/types/api";
 import { pathImage } from "@/utils/helper";
 import { resolveAdminOfferLogoPath } from "@/lib/offerDisplay";
+import { getOfferAvailabilityDisplay } from "@/lib/offerAvailabilityDisplay";
 import { reorder } from "@/lib/reorder";
-import { useDataSession } from "@/hooks/useDataSession";
 import { useObjectUrl } from "@/hooks/useObjectUrl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ResCategoryList } from "@/types/category";
@@ -50,11 +58,14 @@ import {
   formatPartnerRatesMinMax,
 } from "@/lib/offerDeeplink";
 import { defaultLookupFromBrandAndCountry } from "@/lib/createBrandLookupSlug";
+import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import {
-  applyThirtyPercentFee,
-  reverseThirtyPercentFee,
+  applyPlatformFee,
+  reconcileCommissionOnFeeChange,
+  reversePlatformFee,
 } from "@/lib/commissionFee";
 import { netCommissionFromRaw } from "@/lib/productTypeCommission";
+import { useSystemFeePercent } from "@/hooks/useSystemFeePercent";
 import {
   EMPTY_PRODUCT_TYPE_DRAFT,
   highestCashbackPercent,
@@ -63,6 +74,14 @@ import {
   serializeOfferProductTypes,
 } from "@/lib/productTypeDraft";
 import { appendCashbackPatchFields } from "@/lib/offerCashbackSave";
+import { appendUpsizePatchFields } from "@/lib/offerUpsizeSave";
+import {
+  formatTrackingDays,
+  isValidTrackingDayCount,
+  MAX_TRACKING_PERIOD_DAYS,
+  MIN_TRACKING_PERIOD_DAYS,
+  resolveTrackingPeriodPreview,
+} from "@/lib/offerTrackingPeriod";
 import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
 import {
   brandSectionSaveBlockedMessage,
@@ -147,11 +166,13 @@ function formatUpsizePeriod(
   return `${start || "—"} to ${end || "—"}`;
 }
 
-/** Blank upsize per-product-line draft. */
+/** Blank upsize per-product-line draft. Description rewrite starts off (#467). */
 const EMPTY_UPSIZE_DRAFT: OfferProductTypeEntry = {
   name: "",
   commission_info: "",
   deeplink: "",
+  description_rewrite: false,
+  description: "",
 };
 
 /** Blue (brand-filled) Support button — for the product-type "Add" action. */
@@ -174,6 +195,7 @@ function OfferFormSectionNav({ showReference }: { showReference: boolean }) {
         { id: "offer-section-media", label: "Logo & Medias" },
         { id: "offer-section-policy", label: "Terms & Conditions" },
         { id: "offer-section-tracking", label: "Partner & Tracking link" },
+        { id: "offer-section-tracking-period", label: "Cashback tracking period" },
       ] as const,
     [showReference],
   );
@@ -216,12 +238,25 @@ function FormOfferBrandReferenceStrip({
     logoDesktopObjectUrl ??
     logoMobileObjectUrl ??
     pathImage(persistedLogo || null);
+  const availability = getOfferAvailabilityDisplay(offer);
+  const availabilityValue = availability.clarification
+    ? `${availability.availabilityLabel} — ${availability.clarification}`
+    : availability.availabilityLabel;
 
   const meta = [
     { label: "Offer ID", value: offer._id },
     { label: "Lookup slug", value: offer.lookup_value?.trim() || "—" },
     { label: "Category", value: offer.categories?.trim() || "—" },
     { label: "Partner offer name", value: offer.offer_name?.trim() || "—" },
+    { label: "Availability", value: availabilityValue },
+    {
+      label: "Configured country / variant",
+      value: availability.configuredCountry,
+    },
+    {
+      label: "Default / fallback country",
+      value: availability.fallbackCountry,
+    },
   ] as const;
 
   return (
@@ -311,12 +346,14 @@ const FormOffer = ({
   setForm,
   isLoading,
 }: FormOfferProps) => {
-  const session = useDataSession();
   const queryClient = useQueryClient();
+  // Platform fee % from Fee Structure (falls back to 30 while loading / on error).
+  const { feePercent, isFallback: feeIsFallback } = useSystemFeePercent();
   const logoDesktopUrl = useObjectUrl(form.logo_desktop);
   const bannerUrl = useObjectUrl(form.banner);
-  const logoCircleUrl = useObjectUrl(form.logo_circle);
   const offer = openModal && typeof openModal === "object" ? openModal : null;
+  const persistedBannerPath =
+    offer?.banner ?? offer?.banner_mobile ?? offer?.logo_circle ?? "";
   const offerCountry = offer?.countries ?? "";
   // Lookup slug: when synced, the slug is derived from the offer name + country
   // (brandname_countrycode) and the input is read-only; off by default so an
@@ -444,25 +481,26 @@ const FormOffer = ({
   }
 
   /**
-   * "Auto apply 30% fee": the raw partner number the admin types. The saved
-   * commission (`commission_store`) is this minus a 30% fee (raw × 0.7). Held
-   * as a string for clean typing; re-derived from the saved net whenever a
-   * different offer loads (same `form.id` cadence as the baseline above).
+   * Auto fee mode: the raw partner number the admin types. The saved
+   * commission (`commission_store`) is this minus the platform fee
+   * (raw × (1 − fee/100), Fee Structure rate). Held as a string for clean
+   * typing; re-derived from the saved net whenever a different offer loads
+   * (same `form.id` cadence as the baseline above).
    */
   const [commissionRaw, setCommissionRaw] = useState(() =>
     form.commission_store != null
-      ? String(reverseThirtyPercentFee(form.commission_store))
+      ? String(reversePlatformFee(form.commission_store, feePercent))
       : "",
   );
   // Upsize "Special commission" mirrors the main commission entry: Auto applies
-  // the 30% fee to a raw partner %, Manual takes the net directly. Mode + raw are
-  // local (the net lives in form.upsize_special_commission).
+  // the platform fee to a raw partner %, Manual takes the net directly. Mode +
+  // raw are local (the net lives in form.upsize_special_commission).
   const [upsizeCommissionMode, setUpsizeCommissionMode] = useState<
     "auto" | "manual"
   >("auto");
   const [upsizeCommissionRaw, setUpsizeCommissionRaw] = useState(() =>
     form.upsize_special_commission != null
-      ? String(reverseThirtyPercentFee(form.upsize_special_commission))
+      ? String(reversePlatformFee(form.upsize_special_commission, feePercent))
       : "",
   );
   // Upsize date inputs render as type="text" (so the "Start Date" / "End Date"
@@ -479,23 +517,62 @@ const FormOffer = ({
   const [upsizeLaunched, setUpsizeLaunched] = useState(() =>
     offerFormHasUpsize(form),
   );
+  const [commissionRawEdited, setCommissionRawEdited] = useState(false);
+  const [upsizeCommissionRawEdited, setUpsizeCommissionRawEdited] =
+    useState(false);
   const [commissionRawId, setCommissionRawId] = useState(form.id);
   if (commissionRawId !== form.id) {
     setCommissionRawId(form.id);
     setUpsizeLaunched(offerFormHasUpsize(form));
     setCommissionRaw(
       form.commission_store != null
-        ? String(reverseThirtyPercentFee(form.commission_store))
+        ? String(reversePlatformFee(form.commission_store, feePercent))
         : "",
     );
     setUpsizeCommissionRaw(
       form.upsize_special_commission != null
-        ? String(reverseThirtyPercentFee(form.upsize_special_commission))
+        ? String(reversePlatformFee(form.upsize_special_commission, feePercent))
         : "",
     );
     setUpsizeCommissionMode("auto");
     setStartDateType(form.upsize_start_date ? "date" : "text");
     setEndDateType(form.upsize_end_date ? "date" : "text");
+    setCommissionRawEdited(false);
+    setUpsizeCommissionRawEdited(false);
+  }
+  // The Fee Structure rate resolves asynchronously. When it changes (the 30%
+  // fallback giving way to the configured value), reconcile raw ↔ net: a raw
+  // the admin authored this session (typed / partner-synced) is ground truth
+  // and the stored net is recomputed with the real fee; a raw that was only
+  // seeded from the stored net is re-derived so a passive open never rewrites
+  // stored economics.
+  const [seededFeePercent, setSeededFeePercent] = useState(feePercent);
+  if (seededFeePercent !== feePercent) {
+    setSeededFeePercent(feePercent);
+    const main = reconcileCommissionOnFeeChange({
+      rawEdited: commissionRawEdited,
+      raw: commissionRaw,
+      storedNet: form.commission_store,
+      feePercent,
+    });
+    const upsize = reconcileCommissionOnFeeChange({
+      rawEdited: upsizeCommissionRawEdited,
+      raw: upsizeCommissionRaw,
+      storedNet: form.upsize_special_commission,
+      feePercent,
+    });
+    setCommissionRaw(main.raw);
+    setUpsizeCommissionRaw(upsize.raw);
+    if (
+      main.storedNet !== (form.commission_store ?? null) ||
+      upsize.storedNet !== (form.upsize_special_commission ?? null)
+    ) {
+      setForm((prev) => ({
+        ...prev,
+        commission_store: main.storedNet,
+        upsize_special_commission: upsize.storedNet,
+      }));
+    }
   }
 
   // When per-row product types are in play ("All product types" off), the single
@@ -511,7 +588,7 @@ const FormOffer = ({
     form.commission_store !== highestRowCashback
   ) {
     setForm((prev) => ({ ...prev, commission_store: highestRowCashback }));
-    setCommissionRaw(String(reverseThirtyPercentFee(highestRowCashback)));
+    setCommissionRaw(String(reversePlatformFee(highestRowCashback, feePercent)));
   }
 
   // The single-commission controls are read-only when per-row rates drive the
@@ -520,8 +597,9 @@ const FormOffer = ({
 
   const applyPartnerCommissionToForm = useCallback(
     (rawPercent: number): boolean => {
-      const fields = commissionFieldsFromPartnerRaw(rawPercent);
+      const fields = commissionFieldsFromPartnerRaw(rawPercent, feePercent);
       if (!fields) return false;
+      setCommissionRawEdited(true);
       setCommissionRaw(fields.commissionRaw);
       setForm((prev) => ({
         ...prev,
@@ -530,7 +608,7 @@ const FormOffer = ({
       }));
       return true;
     },
-    [setForm],
+    [setForm, feePercent],
   );
 
   const fetchBestCommission = useMutation({
@@ -568,14 +646,14 @@ const FormOffer = ({
         applyPartnerCommissionToForm(data.bestRatePercent);
         fetchOffers();
         toast.success(
-          `Loaded partner rate ${data.bestRatePercent}% (user-facing ${applyThirtyPercentFee(data.bestRatePercent)}% after 30% fee)`,
+          `Loaded partner rate ${data.bestRatePercent}% (user-facing ${applyPlatformFee(data.bestRatePercent, feePercent)}% after ${feePercent}% fee)`,
         );
         return;
       }
       if (localRaw > 0) {
         applyPartnerCommissionToForm(localRaw);
         toast.success(
-          `Using partner rate on file ${localRaw}% (user-facing ${applyThirtyPercentFee(localRaw)}%)`,
+          `Using partner rate on file ${localRaw}% (user-facing ${applyPlatformFee(localRaw, feePercent)}%)`,
         );
         return;
       }
@@ -607,6 +685,7 @@ const FormOffer = ({
     fetchBestCommission,
     applyPartnerCommissionToForm,
     fetchOffers,
+    feePercent,
   ]);
 
   // Product-type "add" frame: a local draft, committed into form.product_types
@@ -637,33 +716,102 @@ const FormOffer = ({
     note_to_user: string;
   } | null>(null);
   const [policySaveError, setPolicySaveError] = useState<string | null>(null);
+  const [templatePolicyCategoryId, setTemplatePolicyCategoryId] = useState("");
+  const [templateTermsDraft, setTemplateTermsDraft] = useState("");
+  const [templateTermsTouched, setTemplateTermsTouched] = useState(false);
+  const [customWritingDraft, setCustomWritingDraft] = useState("");
   // "Add note to users" toggle inside the policy section (note_to_user field).
   const [showNoteToUser, setShowNoteToUser] = useState(() =>
     Boolean(form.note_to_user?.trim()),
   );
 
   const beginEditPolicy = () => {
+    const mode = inferOfferPolicyMode(form.policy_category_id);
+    const savedTerms = form.custom_terms ?? "";
+    const nextTemplateCategoryId =
+      mode === "template" ? (form.policy_category_id ?? "") : "";
+    const configuredTerms = resolveConfiguredOfferPolicyTerms(
+      nextTemplateCategoryId,
+      offer?.categories,
+      policyCategories,
+      policiesList,
+    );
     setPolicySnapshot({
       policy_category_id: form.policy_category_id ?? "",
-      custom_terms: form.custom_terms ?? "",
+      custom_terms: savedTerms,
       note_to_user: form.note_to_user ?? "",
     });
+    setTemplatePolicyCategoryId(nextTemplateCategoryId);
+    setTemplateTermsTouched(false);
+    setTemplateTermsDraft(
+      mode === "template" ? savedTerms || configuredTerms : configuredTerms,
+    );
+    setCustomWritingDraft(mode === "custom" ? savedTerms : "");
     setPolicySaveError(null);
     setShowNoteToUser(Boolean(form.note_to_user?.trim()));
-    // Seed the editable T&C from the resolved base when the brand has none yet,
-    // so admins start from the template and tweak it.
-    if (!form.custom_terms?.trim()) {
+    if (mode === "template" && !savedTerms.trim() && configuredTerms) {
       setForm((prev) => ({
         ...prev,
-        custom_terms: resolveOfferPolicyBaseTerms(
-          prev.policy_category_id ?? "",
-          offer?.categories,
-          policyCategories,
-          policiesList,
-        ),
+        custom_terms: configuredTerms,
       }));
     }
     setEditingPolicy(true);
+  };
+
+  const changePolicyMode = (nextMode: OfferPolicyMode) => {
+    const currentMode = inferOfferPolicyMode(form.policy_category_id);
+    if (nextMode === currentMode) return;
+
+    if (nextMode === "custom") {
+      setTemplatePolicyCategoryId(form.policy_category_id ?? "");
+      setTemplateTermsDraft(form.custom_terms ?? "");
+      setForm((prev) => ({
+        ...prev,
+        policy_category_id: CUSTOM_POLICY_CATEGORY_ID,
+        custom_terms: customWritingDraft,
+      }));
+      return;
+    }
+
+    setCustomWritingDraft(form.custom_terms ?? "");
+    const configuredTerms = resolveConfiguredOfferPolicyTerms(
+      templatePolicyCategoryId,
+      offer?.categories,
+      policyCategories,
+      policiesList,
+    );
+    setForm((prev) => ({
+      ...prev,
+      policy_category_id: templatePolicyCategoryId,
+      custom_terms: templateTermsDraft || configuredTerms,
+    }));
+  };
+
+  const changeTemplatePolicyCategory = (categoryId: string) => {
+    const configuredTerms = resolveConfiguredOfferPolicyTerms(
+      categoryId,
+      offer?.categories,
+      policyCategories,
+      policiesList,
+    );
+    setTemplatePolicyCategoryId(categoryId);
+    setTemplateTermsTouched(false);
+    setTemplateTermsDraft(configuredTerms);
+    setForm((prev) => ({
+      ...prev,
+      policy_category_id: categoryId,
+      custom_terms: configuredTerms,
+    }));
+  };
+
+  const changeActivePolicyTerms = (terms: string) => {
+    if (inferOfferPolicyMode(form.policy_category_id) === "custom") {
+      setCustomWritingDraft(terms);
+    } else {
+      setTemplateTermsTouched(true);
+      setTemplateTermsDraft(terms);
+    }
+    setForm((prev) => ({ ...prev, custom_terms: terms }));
   };
 
   const cancelEditPolicy = () => {
@@ -682,16 +830,19 @@ const FormOffer = ({
 
   const savePolicyEdit = async () => {
     if (!form.id) return;
+    const policyTermsToSave =
+      inferOfferPolicyMode(form.policy_category_id) === "template"
+        ? effectiveTemplateTerms
+        : (form.custom_terms ?? "");
     setSavingPolicy(true);
     setPolicySaveError(null);
     try {
       const fd = new FormData();
       fd.append("policy_category_id", form.policy_category_id ?? "");
-      fd.append("custom_terms", form.custom_terms ?? "");
+      fd.append("custom_terms", policyTermsToSave);
       fd.append("note_to_user", form.note_to_user ?? "");
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       });
@@ -702,18 +853,120 @@ const FormOffer = ({
         snapshot: {
           ...prev.snapshot,
           policy_category_id: form.policy_category_id ?? "",
-          custom_terms: form.custom_terms ?? "",
+          custom_terms: policyTermsToSave,
           note_to_user: form.note_to_user ?? "",
         },
       }));
+      setForm((prev) => ({ ...prev, custom_terms: policyTermsToSave }));
       setEditingPolicy(false);
       fetchOffers();
       toast.success("Policy updated successfully");
     } catch (err) {
       devError("Failed to update policy:", err);
-      setPolicySaveError("Could not update policy. Please try again.");
+      setPolicySaveError(
+        getApiErrorMessage(
+          err,
+          "Could not update policy. Please try again, or contact an administrator if it continues.",
+        ),
+      );
     } finally {
       setSavingPolicy(false);
+    }
+  };
+
+  // Cashback tracking period: the "Purchase → Tracking → Confirm" steps
+  // customers see. Auto follows partner validation terms; Manual is per-brand.
+  const [editingTrackingPeriod, setEditingTrackingPeriod] = useState(false);
+  const [savingTrackingPeriod, setSavingTrackingPeriod] = useState(false);
+  const [trackingPeriodSnapshot, setTrackingPeriodSnapshot] = useState<{
+    tracking_period_mode: "auto" | "manual";
+    tracking_days: number | null;
+    confirm_days: number | null;
+    flow_type: "three_step" | "two_step";
+    tracking_subtitle: string | null;
+    confirm_subtitle: string | null;
+  } | null>(null);
+  const [trackingPeriodSaveError, setTrackingPeriodSaveError] = useState<
+    string | null
+  >(null);
+
+  const beginEditTrackingPeriod = () => {
+    setTrackingPeriodSnapshot({
+      tracking_period_mode: form.tracking_period_mode,
+      tracking_days: form.tracking_days,
+      confirm_days: form.confirm_days,
+      flow_type: form.flow_type,
+      tracking_subtitle: form.tracking_subtitle,
+      confirm_subtitle: form.confirm_subtitle,
+    });
+    setTrackingPeriodSaveError(null);
+    setEditingTrackingPeriod(true);
+  };
+
+  const cancelEditTrackingPeriod = () => {
+    if (trackingPeriodSnapshot) {
+      setForm((prev) => ({ ...prev, ...trackingPeriodSnapshot }));
+    }
+    setTrackingPeriodSaveError(null);
+    setEditingTrackingPeriod(false);
+  };
+
+  const saveTrackingPeriodEdit = async () => {
+    if (!form.id) return;
+    if (form.tracking_period_mode === "manual") {
+      if (
+        !isValidTrackingDayCount(form.tracking_days ?? undefined) ||
+        !isValidTrackingDayCount(form.confirm_days ?? undefined)
+      ) {
+        setTrackingPeriodSaveError(
+          `Enter whole day counts between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS} for both windows.`,
+        );
+        return;
+      }
+    }
+    setSavingTrackingPeriod(true);
+    setTrackingPeriodSaveError(null);
+    try {
+      const fd = new FormData();
+      fd.append("tracking_period_mode", form.tracking_period_mode);
+      if (form.tracking_period_mode === "manual") {
+        // Day counts only travel in manual mode — auto saves leave the stored
+        // manual values untouched server-side (absent key = no change).
+        fd.append("tracking_days", String(form.tracking_days));
+        fd.append("confirm_days", String(form.confirm_days));
+      }
+      // Flow + subtitles always travel: an empty subtitle is an explicit
+      // clear back to the default caption (coerceOptionalText semantics).
+      fd.append("flow_type", form.flow_type);
+      fd.append("tracking_subtitle", form.tracking_subtitle ?? "");
+      fd.append("confirm_subtitle", form.confirm_subtitle ?? "");
+      await client.patch(`/admin/update-offer/${form.id}`, fd, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setFormBaseline((prev) => ({
+        ...prev,
+        snapshot: {
+          ...prev.snapshot,
+          tracking_period_mode: form.tracking_period_mode,
+          tracking_days: form.tracking_days,
+          confirm_days: form.confirm_days,
+          flow_type: form.flow_type,
+          tracking_subtitle: form.tracking_subtitle,
+          confirm_subtitle: form.confirm_subtitle,
+        },
+      }));
+      setEditingTrackingPeriod(false);
+      fetchOffers();
+      toast.success("Tracking period updated successfully");
+    } catch (err) {
+      devError("Failed to update tracking period:", err);
+      setTrackingPeriodSaveError(
+        "Could not update tracking period. Please try again.",
+      );
+    } finally {
+      setSavingTrackingPeriod(false);
     }
   };
 
@@ -751,13 +1004,9 @@ const FormOffer = ({
     try {
       const fd = new FormData();
       if (form.logo_desktop) fd.append("logo_desktop", form.logo_desktop);
-      if (form.logo_mobile) fd.append("logo_mobile", form.logo_mobile);
-      if (form.logo_circle) fd.append("logo_circle", form.logo_circle);
       if (form.banner) fd.append("banner", form.banner);
-      if (form.banner_mobile) fd.append("banner_mobile", form.banner_mobile);
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       });
@@ -864,7 +1113,6 @@ const FormOffer = ({
       }
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       });
@@ -896,7 +1144,16 @@ const FormOffer = ({
       toast.success("Partner info updated successfully");
     } catch (err) {
       devError("Failed to update partner info:", err);
-      setTrackingSaveError("Could not update partner info. Please try again.");
+      // Surface the API's actual message. The hardcoded string here is exactly
+      // why #516 went undiagnosed — a 400 naming the rejected fields
+      // (affiliate_network_id / deeplink_store_id) was hidden behind "Please try
+      // again", so nobody saw the cause.
+      setTrackingSaveError(
+        getApiErrorMessage(
+          err,
+          "Could not update partner info. Please try again, or contact an administrator if it continues.",
+        ),
+      );
     } finally {
       setSavingTracking(false);
     }
@@ -971,7 +1228,6 @@ const FormOffer = ({
       fd.append("offer_display_tags", JSON.stringify(form.offer_display_tags));
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       });
@@ -1084,7 +1340,6 @@ const FormOffer = ({
       });
       await client.patch(`/admin/update-offer/${form.id}`, fd, {
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
           "Content-Type": "multipart/form-data",
         },
       });
@@ -1115,7 +1370,12 @@ const FormOffer = ({
       toast.success("Cashback updated successfully");
     } catch (err) {
       devError("Failed to update cashback:", err);
-      setCashbackSaveError("Could not update cashback. Please try again.");
+      setCashbackSaveError(
+        getApiErrorMessage(
+          err,
+          "Could not update cashback. Please try again.",
+        ),
+      );
     } finally {
       setSavingCashback(false);
     }
@@ -1135,8 +1395,10 @@ const FormOffer = ({
       cashbackSnapshot,
     );
 
-  // Upsize event edit toggle — mirrors Cashback (lock/unlock; no section save).
+  // Upsize event edit toggle — mirrors Cashback (section Save persists via PATCH).
   const [editingUpsize, setEditingUpsize] = useState(false);
+  const [savingUpsize, setSavingUpsize] = useState(false);
+  const [upsizeSaveError, setUpsizeSaveError] = useState<string | null>(null);
   const [upsizeEditKey, setUpsizeEditKey] = useState(0);
   const [upsizeSnapshot, setUpsizeSnapshot] = useState<
     | (Pick<
@@ -1165,6 +1427,7 @@ const FormOffer = ({
       upsize_max_cap: form.upsize_max_cap,
       launched: upsizeLaunched,
     });
+    setUpsizeSaveError(null);
     setEditingUpsize(true);
   };
 
@@ -1174,9 +1437,109 @@ const FormOffer = ({
       setForm((prev) => ({ ...prev, ...fields }));
       setUpsizeLaunched(launched);
     }
+    setUpsizeDraft(EMPTY_UPSIZE_DRAFT);
+    setEditingUpsizeIndex(null);
+    setUpsizeSaveError(null);
     setUpsizeEditKey((k) => k + 1);
     setEditingUpsize(false);
   };
+
+  const saveUpsizeEdit = async () => {
+    if (!form.id) return;
+    setSavingUpsize(true);
+    setUpsizeSaveError(null);
+    try {
+      const fd = new FormData();
+      appendUpsizePatchFields(fd, {
+        upsize_start_date: form.upsize_start_date,
+        upsize_end_date: form.upsize_end_date,
+        upsize_start_time: form.upsize_start_time,
+        upsize_end_time: form.upsize_end_time,
+        upsize_all_product_types: form.upsize_all_product_types,
+        upsize_special_commission: form.upsize_special_commission,
+        upsize_max_cap: form.upsize_max_cap,
+        upsize_product_types: form.upsize_product_types,
+      });
+      await client.patch(`/admin/update-offer/${form.id}`, fd, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setFormBaseline((prev) => ({
+        ...prev,
+        snapshot: {
+          ...prev.snapshot,
+          upsize_start_date: form.upsize_start_date,
+          upsize_end_date: form.upsize_end_date,
+          upsize_start_time: form.upsize_start_time,
+          upsize_end_time: form.upsize_end_time,
+          upsize_all_product_types: form.upsize_all_product_types,
+          upsize_special_commission: form.upsize_special_commission,
+          upsize_max_cap: form.upsize_max_cap,
+          upsize_product_types: form.upsize_product_types,
+        },
+      }));
+      setOpenModal((prev) =>
+        prev && typeof prev === "object"
+          ? {
+              ...prev,
+              upsize_start_date: form.upsize_start_date,
+              upsize_end_date: form.upsize_end_date,
+              upsize_start_time: form.upsize_start_time,
+              upsize_end_time: form.upsize_end_time,
+              upsize_all_product_types: form.upsize_all_product_types,
+              upsize_special_commission: form.upsize_special_commission,
+              upsize_max_cap: form.upsize_max_cap,
+              upsize_product_types: form.upsize_product_types,
+            }
+          : prev,
+      );
+      setUpsizeDraft(EMPTY_UPSIZE_DRAFT);
+      setEditingUpsizeIndex(null);
+      setEditingUpsize(false);
+      fetchOffers();
+      toast.success("Upsize event updated successfully");
+    } catch (err) {
+      devError("Failed to update upsize event:", err);
+      setUpsizeSaveError(
+        getApiErrorMessage(
+          err,
+          "Could not update upsize event. Please try again.",
+        ),
+      );
+    } finally {
+      setSavingUpsize(false);
+    }
+  };
+
+  const upsizeDirty =
+    !!upsizeSnapshot &&
+    (upsizeLaunched !== upsizeSnapshot.launched ||
+      isDirty(
+        {
+          upsize_all_product_types: form.upsize_all_product_types,
+          upsize_product_types: form.upsize_product_types,
+          upsize_start_date: form.upsize_start_date,
+          upsize_end_date: form.upsize_end_date,
+          upsize_start_time: form.upsize_start_time,
+          upsize_end_time: form.upsize_end_time,
+          upsize_special_commission: form.upsize_special_commission,
+          upsize_max_cap: form.upsize_max_cap,
+        },
+        {
+          upsize_all_product_types: upsizeSnapshot.upsize_all_product_types,
+          upsize_product_types: upsizeSnapshot.upsize_product_types,
+          upsize_start_date: upsizeSnapshot.upsize_start_date,
+          upsize_end_date: upsizeSnapshot.upsize_end_date,
+          upsize_start_time: upsizeSnapshot.upsize_start_time,
+          upsize_end_time: upsizeSnapshot.upsize_end_time,
+          upsize_special_commission: upsizeSnapshot.upsize_special_commission,
+          upsize_max_cap: upsizeSnapshot.upsize_max_cap,
+        },
+      ));
+
+  /** #468 — after save, hide setup controls until Edit. */
+  const upsizeSavedReadOnly = !editingUpsize && offerFormHasUpsize(form);
 
   const { data: policyCategories = [], isPending: policyCategoriesPending } =
     useQuery<ResCategoryList[]>({
@@ -1233,13 +1596,27 @@ const FormOffer = ({
 
   const addUpsizeDraft = () => {
     if (!upsizeDraft.name.trim()) return;
+    // Commit-time recompute: the draft's commission_info was written at typing
+    // time with whatever fee was current then (possibly the 30% fallback) —
+    // rebuild it from the raw with the fee that is current NOW.
+    const committedDraft =
+      (upsizeDraft.pay_in ?? "cashback") === "cashback" &&
+      (upsizeDraft.commission_raw ?? "").trim()
+        ? {
+            ...upsizeDraft,
+            commission_info: netCommissionFromRaw(
+              upsizeDraft.commission_raw ?? "",
+              feePercent,
+            ),
+          }
+        : upsizeDraft;
     const editing = editingUpsizeIndex;
     setForm((prev) => {
       const list = prev.upsize_product_types ?? [];
       const next =
         editing !== null && editing < list.length
-          ? list.map((row, i) => (i === editing ? upsizeDraft : row))
-          : [...list, upsizeDraft];
+          ? list.map((row, i) => (i === editing ? committedDraft : row))
+          : [...list, committedDraft];
       return { ...prev, upsize_product_types: next };
     });
     setUpsizeDraft(EMPTY_UPSIZE_DRAFT);
@@ -1277,23 +1654,34 @@ const FormOffer = ({
     return map;
   }, [form.product_types]);
 
-  const { data: policiesList = {} } = useQuery<Record<string, string>>({
+  const { data: policiesList = {} } = useQuery<
+    unknown,
+    Error,
+    Record<string, string>
+  >({
     queryKey: ["policyList"],
-    queryFn: () => fetcher("/policy/list"),
+    queryFn: () => fetcher("/policy/category-list"),
+    select: policyTermsMapFromCategoryList,
     staleTime: 30_000,
   });
 
-  // Handle file change
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    key: string,
-  ) => {
-    const file = e.target.files?.[0] || null;
-    setForm((prev) => ({ ...prev, [key]: file }));
-  };
-
-  // The brand's effective Terms & Conditions: the edited text if present, else
-  // the resolved base for the selected source (category / automatic / sample).
+  const policyMode = inferOfferPolicyMode(form.policy_category_id);
+  const configuredTemplateTerms = resolveConfiguredOfferPolicyTerms(
+    policyMode === "template"
+      ? (form.policy_category_id ?? "")
+      : templatePolicyCategoryId,
+    offer?.categories,
+    policyCategories,
+    policiesList,
+  );
+  const effectiveTemplateTerms =
+    policyMode === "template" &&
+    !templateTermsTouched &&
+    !form.custom_terms?.trim()
+      ? configuredTemplateTerms
+      : (form.custom_terms ?? "");
+  // The brand's effective Terms & Conditions in read-only mode. Template mode
+  // can fall back to sample text; Custom Writing never does.
   const policyBaseTerms = resolveOfferPolicyBaseTerms(
     form.policy_category_id ?? "",
     offer?.categories,
@@ -1301,7 +1689,9 @@ const FormOffer = ({
     policiesList,
   );
   const policyPreviewText =
-    form.custom_terms?.trim() || policyBaseTerms || OFFER_MOCK_TERMS;
+    policyMode === "custom"
+      ? form.custom_terms?.trim() || "No custom terms have been written yet."
+      : form.custom_terms?.trim() || policyBaseTerms || OFFER_MOCK_TERMS;
   // Shared read-only preview box (heading + "Preview" badge + bordered box) so
   // the Terms & Conditions and Note-to-users previews look identical.
   const policyPreviewBox = (
@@ -1357,7 +1747,7 @@ const FormOffer = ({
       toast.success(editing !== null ? "Tagline updated" : "Tagline added");
       return;
     }
-    const entry = productTypeDraftToEntry(productTypeDraft);
+    const entry = productTypeDraftToEntry(productTypeDraft, feePercent);
     const editing = editingProductIndex;
     setForm((prev) => {
       const list = prev.product_types ?? [];
@@ -1384,7 +1774,7 @@ const FormOffer = ({
       setProductTypeDraft({ ...EMPTY_PRODUCT_TYPE_DRAFT, name: entry.name });
     } else {
       setInsertMode("product");
-      setProductTypeDraft(productTypeEntryToDraft(entry));
+      setProductTypeDraft(productTypeEntryToDraft(entry, feePercent));
     }
     setEditingProductIndex(index);
   };
@@ -2035,6 +2425,12 @@ const FormOffer = ({
                 {cashbackSaveError}
               </p>
             ) : null}
+            {feeIsFallback ? (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Fee Structure rate unavailable — using the {feePercent}% default
+                until it loads.
+              </p>
+            ) : null}
             <fieldset
               key={cashbackEditKey}
               disabled={!editingCashback || isLoading}
@@ -2062,8 +2458,8 @@ const FormOffer = ({
                       label="Commission (%)"
                       description={
                         form.commission_entry_mode === "auto"
-                          ? "Loads the best partner rate for this merchant on the selected affiliate network (same as Commission Management), then applies −30% for the user-facing %."
-                          : "Maximum % offered to users. Enter the value already reduced by 30% from the affiliate partner rate."
+                          ? `Loads the best partner rate for this merchant on the selected affiliate network (same as Commission Management), then applies −${feePercent}% for the user-facing %.`
+                          : `Maximum % offered to users. Enter the value already reduced by ${feePercent}% from the affiliate partner rate.`
                       }
                     />
                     <div className="mb-3 flex min-w-0 items-start gap-3 sm:max-w-md">
@@ -2110,7 +2506,7 @@ const FormOffer = ({
                       >
                         {fetchBestCommission.isPending
                           ? "Loading partner rate…"
-                          : "Auto apply 30% fee"}
+                          : `Auto applying with ${feePercent}% fee`}
                       </button>
                       <button
                         type="button"
@@ -2145,6 +2541,7 @@ const FormOffer = ({
                                 value={commissionRaw}
                                 onChange={(e) => {
                                   const v = e.target.value;
+                                  setCommissionRawEdited(true);
                                   setCommissionRaw(v);
                                   const n = Number(v);
                                   setForm((prev) => ({
@@ -2152,7 +2549,7 @@ const FormOffer = ({
                                     commission_store:
                                       v.trim() === "" || Number.isNaN(n)
                                         ? null
-                                        : applyThirtyPercentFee(n),
+                                        : applyPlatformFee(n, feePercent),
                                   }));
                                 }}
                                 disabled={isLoading || commissionLockedToRows}
@@ -2166,7 +2563,7 @@ const FormOffer = ({
                           </div>
                           <div className="min-w-0">
                             <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                              % after 30% fee
+                              % after {feePercent}% fee
                             </p>
                             {editingCashback ? (
                               <Input
@@ -2228,7 +2625,7 @@ const FormOffer = ({
                   <div>
                     <FieldLabel
                       label="Max cap"
-                      description="Maximum cap offered to users. Enter the value already reduced by 30% from the affiliate partner cap."
+                      description={`Maximum cap offered to users. Enter the value already reduced by ${feePercent}% from the affiliate partner cap.`}
                     />
                     {editingCashback ? (
                       <Input
@@ -2444,11 +2841,12 @@ const FormOffer = ({
                                     <Input
                                       id="offer-pt-draft-net"
                                       type="text"
-                                      placeholder="% after 30% fee"
-                                      ariaLabel="% after 30% fee"
-                                      title="% after 30% fee"
+                                      placeholder={`% after ${feePercent}% fee`}
+                                      ariaLabel={`% after ${feePercent}% fee`}
+                                      title={`% after ${feePercent}% fee`}
                                       value={netCommissionFromRaw(
                                         productTypeDraft.commission_raw,
+                                        feePercent,
                                       )}
                                       disabled
                                       className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
@@ -2574,8 +2972,7 @@ const FormOffer = ({
           id="offer-section-upsize"
           className={`border-brand-200/80 bg-brand-50/50 dark:border-brand-800/60 dark:bg-brand-950/25 relative rounded-xl border border-dashed p-4 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
         >
-          {/* Section actions — Edit unlocks the fields; Save locks (changes
-          persist via the form-wide "Save changes"); Cancel reverts. */}
+          {/* Section actions — Edit unlocks; Save persists via PATCH (#471). */}
           <div className="absolute top-4 right-4 z-10">
             {!editingUpsize ? (
               <SecondaryButton onClick={beginEditUpsize} disabled={!offer}>
@@ -2586,23 +2983,29 @@ const FormOffer = ({
                 <button
                   type="button"
                   onClick={cancelEditUpsize}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                  disabled={savingUpsize}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={() => setEditingUpsize(false)}
-                  className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white"
+                  onClick={() => void saveUpsizeEdit()}
+                  disabled={savingUpsize || !upsizeDirty}
+                  className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Save
+                  {savingUpsize
+                    ? "Saving…"
+                    : upsizeDirty
+                      ? "Save changes"
+                      : "No changes"}
                 </button>
               </div>
             )}
           </div>
           <fieldset
             key={upsizeEditKey}
-            disabled={!editingUpsize || isLoading}
+            disabled={!editingUpsize || isLoading || savingUpsize}
             className="min-w-0"
           >
             <div>
@@ -2616,6 +3019,52 @@ const FormOffer = ({
                     cashback above with a higher commission and max cap for a
                     set window.
                   </p>
+                  {upsizeSaveError ? (
+                    <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                      {upsizeSaveError}
+                    </p>
+                  ) : null}
+                  {/* #468 — saved read-only: only the added lines / rate summary */}
+                  {upsizeSavedReadOnly ? (
+                    !form.upsize_all_product_types ? (
+                      <div className="mt-3">
+                        <ProductTypeTable
+                          title="Added upsize lines"
+                          rows={form.upsize_product_types ?? []}
+                          editingIndex={null}
+                          disabled
+                          onReorder={() => undefined}
+                          onEdit={() => undefined}
+                          onDelete={() => undefined}
+                        />
+                      </div>
+                    ) : (
+                      <div className="mt-3 space-y-2 rounded-xl border border-gray-300 bg-white/70 p-4 dark:border-gray-600 dark:bg-gray-900/40">
+                        <p className={CASHBACK_READONLY_VALUE}>
+                          Upsize commission:{" "}
+                          {form.upsize_special_commission != null
+                            ? `${form.upsize_special_commission}%`
+                            : "—"}
+                        </p>
+                        <p className={CASHBACK_READONLY_VALUE}>
+                          Max cap:{" "}
+                          {form.upsize_max_cap != null
+                            ? form.upsize_max_cap
+                            : "—"}
+                        </p>
+                        <p className={CASHBACK_READONLY_VALUE}>
+                          Period:{" "}
+                          {formatUpsizePeriod(
+                            form.upsize_start_date,
+                            form.upsize_start_time,
+                            form.upsize_end_date,
+                            form.upsize_end_time,
+                          )}
+                        </p>
+                      </div>
+                    )
+                  ) : (
+                    <>
                   <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-14">
                     <PrimaryButton
                       variant={upsizeLaunched ? "blue" : "default"}
@@ -2874,6 +3323,7 @@ const FormOffer = ({
                                                       is_others: false,
                                                       name: e.target.value,
                                                       description_rewrite: false,
+                                                      description: "",
                                                     })
                                               }
                                               disabled={isLoading}
@@ -2939,59 +3389,37 @@ const FormOffer = ({
                                           </div>
                                         </div>
                                         <div>
+                                          {/* #467 — off-by-default switch; hide input until on */}
                                           <div className="mb-1.5 flex flex-wrap items-center gap-3">
                                             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                               Product description
                                             </span>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
+                                            <Switch
+                                              label=""
+                                              ariaLabel="Rewrite product description"
+                                              checked={
+                                                !!row.description_rewrite ||
+                                                !!row.is_others
+                                              }
+                                              onChange={(on) =>
                                                 updateUpsizeDraft({
-                                                  description_rewrite: false,
-                                                  description: "",
-                                                })
-                                              }
-                                              disabled={
-                                                isLoading || row.is_others
-                                              }
-                                              aria-pressed={
-                                                !row.description_rewrite
-                                              }
-                                              className={`${
-                                                !row.description_rewrite
-                                                  ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                                  : COMMISSION_MODE_TOGGLE_INACTIVE
-                                              } touch-manipulation`}
-                                            >
-                                              Default
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                updateUpsizeDraft({
-                                                  description_rewrite: true,
-                                                  description:
-                                                    row.description?.trim()
+                                                  description_rewrite: on,
+                                                  description: on
+                                                    ? row.description?.trim()
                                                       ? row.description
                                                       : (productTypeDescByName.get(
                                                           row.name.trim(),
-                                                        ) ?? ""),
+                                                        ) ?? "")
+                                                    : "",
                                                 })
                                               }
-                                              disabled={isLoading}
-                                              aria-pressed={
-                                                !!row.description_rewrite
+                                              disabled={
+                                                isLoading || !!row.is_others
                                               }
-                                              className={`${
-                                                row.description_rewrite
-                                                  ? COMMISSION_MODE_TOGGLE_ACTIVE
-                                                  : COMMISSION_MODE_TOGGLE_INACTIVE
-                                              } touch-manipulation`}
-                                            >
-                                              Re-write
-                                            </button>
+                                            />
                                           </div>
-                                          {row.description_rewrite ? (
+                                          {row.description_rewrite ||
+                                          row.is_others ? (
                                             <Input
                                               type="text"
                                               placeholder="Re-write the description for this promo"
@@ -3006,20 +3434,7 @@ const FormOffer = ({
                                               autoComplete="off"
                                               className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
                                             />
-                                          ) : (
-                                            <Input
-                                              type="text"
-                                              placeholder="(uses the product type's description)"
-                                              ariaLabel={`Default description for ${row.name.trim()}`}
-                                              value={
-                                                productTypeDescByName.get(
-                                                  row.name.trim(),
-                                                ) ?? ""
-                                              }
-                                              disabled
-                                              className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
-                                            />
-                                          )}
+                                          ) : null}
                                         </div>
                                         <div className="flex flex-wrap items-center gap-6">
                                           <div className="flex flex-wrap items-center gap-3">
@@ -3086,6 +3501,7 @@ const FormOffer = ({
                                                         commission_info:
                                                           netCommissionFromRaw(
                                                             e.target.value,
+                                                            feePercent,
                                                           ),
                                                       })
                                                     }
@@ -3097,10 +3513,11 @@ const FormOffer = ({
                                                 <div className="min-w-0 flex-1">
                                                   <Input
                                                     type="text"
-                                                    placeholder="% after 30% fee"
-                                                    ariaLabel={`% after 30% fee for ${row.name.trim()}`}
+                                                    placeholder={`% after ${feePercent}% fee`}
+                                                    ariaLabel={`% after ${feePercent}% fee for ${row.name.trim()}`}
                                                     value={netCommissionFromRaw(
                                                       row.commission_raw ?? "",
+                                                      feePercent,
                                                     )}
                                                     disabled
                                                     className="min-h-11 w-full touch-manipulation !text-base sm:!text-sm"
@@ -3190,7 +3607,7 @@ const FormOffer = ({
                                           : COMMISSION_MODE_TOGGLE_INACTIVE
                                       } touch-manipulation`}
                                     >
-                                      Auto apply 30% fee
+                                      {`Auto applying with ${feePercent}% fee`}
                                     </button>
                                     <button
                                       type="button"
@@ -3224,6 +3641,9 @@ const FormOffer = ({
                                               value={upsizeCommissionRaw}
                                               onChange={(e) => {
                                                 const v = e.target.value;
+                                                setUpsizeCommissionRawEdited(
+                                                  true,
+                                                );
                                                 setUpsizeCommissionRaw(v);
                                                 const n = Number(v);
                                                 setForm((prev) => ({
@@ -3232,8 +3652,9 @@ const FormOffer = ({
                                                     v.trim() === "" ||
                                                     Number.isNaN(n)
                                                       ? null
-                                                      : applyThirtyPercentFee(
+                                                      : applyPlatformFee(
                                                           n,
+                                                          feePercent,
                                                         ),
                                                 }));
                                               }}
@@ -3253,7 +3674,7 @@ const FormOffer = ({
                                         </div>
                                         <div className="min-w-0">
                                           <p className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                                            % after 30% fee
+                                            % after {feePercent}% fee
                                           </p>
                                           {editingUpsize ? (
                                             <Input
@@ -3320,7 +3741,7 @@ const FormOffer = ({
                                 <div className="sm:col-span-2">
                                   <FieldLabel
                                     label="Max cap for upsize"
-                                    description="Maximum cap offered to users during the promo. Enter the value already reduced by 30% from the affiliate partner cap."
+                                    description={`Maximum cap offered to users during the promo. Enter the value already reduced by ${feePercent}% from the affiliate partner cap.`}
                                   />
                                   {editingUpsize ? (
                                     <Input
@@ -3384,6 +3805,8 @@ const FormOffer = ({
                       ) : null}
                     </>
                   ) : null}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -3423,14 +3846,14 @@ const FormOffer = ({
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {editingMedia
-              ? "Upload images for the logo, brand cover, and banner. Leave empty to keep current."
+              ? "Upload a square logo for product/brand cards and a wide banner for the brand page hero."
               : "Current images. Click Edit to replace them."}
           </p>
 
           <div>
             <FieldLabel
               label="Logo"
-              description="Square (1:1) logo — used on both desktop and mobile."
+              description="Square (1:1) — shown on product/brand cards across the app."
             />
             <div className="flex flex-wrap items-start gap-4">
               {editingMedia && (
@@ -3439,22 +3862,21 @@ const FormOffer = ({
                     type="file"
                     name="logo_desktop"
                     onChange={(e) => {
-                      // One 1:1 logo for both surfaces: set desktop + mobile to it.
                       const file = e.target.files?.[0] || null;
                       setForm((prev) => ({
                         ...prev,
                         logo_desktop: file,
-                        logo_mobile: file,
+                        logo_mobile: null,
                       }));
                     }}
                   />
                 </div>
               )}
-              {(form.logo_desktop || (openModal as Offer).logo_desktop) && (
+              {(form.logo_desktop || resolveAdminOfferLogoPath(openModal as Offer)) && (
                 <RemoteOrBlobImage
                   src={
                     logoDesktopUrl ??
-                    pathImage((openModal as Offer).logo_desktop)
+                    pathImage(resolveAdminOfferLogoPath(openModal as Offer))
                   }
                   alt="Preview"
                   width={256}
@@ -3467,40 +3889,8 @@ const FormOffer = ({
 
           <div>
             <FieldLabel
-              label="Brand cover"
-              description="Cover image shown on the brand's shop page."
-            />
-            <div className="flex flex-wrap items-start gap-4">
-              {editingMedia && (
-                <div className="w-[320px] max-w-full shrink-0">
-                  <Input
-                    type="file"
-                    name="logo_circle"
-                    onChange={(e) => handleFileChange(e, "logo_circle")}
-                  />
-                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    Requested size: 1,200 × 410 px (W × H).
-                  </p>
-                </div>
-              )}
-              {(form.logo_circle || (openModal as Offer).logo_circle) && (
-                <RemoteOrBlobImage
-                  src={
-                    logoCircleUrl ?? pathImage((openModal as Offer).logo_circle)
-                  }
-                  alt="Preview"
-                  width={256}
-                  height={256}
-                  className="aspect-[1200/410] h-auto w-[250px] shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
-                />
-              )}
-            </div>
-          </div>
-
-          <div>
-            <FieldLabel
               label="Banner"
-              description="Hero / banner image — used on both desktop and mobile."
+              description="Wide hero — shown as the banner on the brand/shop detail page."
             />
             <div className="flex flex-wrap items-start gap-4">
               {editingMedia && (
@@ -3509,12 +3899,12 @@ const FormOffer = ({
                     type="file"
                     name="banner"
                     onChange={(e) => {
-                      // One banner for both surfaces: set desktop + mobile to it.
                       const file = e.target.files?.[0] || null;
                       setForm((prev) => ({
                         ...prev,
                         banner: file,
-                        banner_mobile: file,
+                        banner_mobile: null,
+                        logo_circle: null,
                       }));
                     }}
                   />
@@ -3523,9 +3913,9 @@ const FormOffer = ({
                   </p>
                 </div>
               )}
-              {(form.banner || (openModal as Offer).banner) && (
+              {(form.banner || persistedBannerPath) && (
                 <RemoteOrBlobImage
-                  src={bannerUrl ?? pathImage((openModal as Offer).banner)}
+                  src={bannerUrl ?? pathImage(persistedBannerPath)}
                   alt="Preview"
                   width={256}
                   height={256}
@@ -3599,82 +3989,80 @@ const FormOffer = ({
             </div>
           ) : (
             <>
-              <FieldLabel
-                label="Terms template"
-                description="Pick a starting point; edit the terms below to fit this brand."
+              <OfferPolicyModeSwitch
+                aria-label="Policy authoring mode"
+                templateLabel="Provided Template"
+                customLabel="Custom Writing"
+                mode={policyMode}
+                onChange={changePolicyMode}
+                disabled={savingPolicy}
               />
-              <select
-                id="offer-policy-category"
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                value={form.policy_category_id}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  // Picking a source loads its terms into the editor below.
-                  setForm({
-                    ...form,
-                    policy_category_id: v,
-                    custom_terms: resolveOfferPolicyBaseTerms(
-                      v,
-                      offer?.categories,
-                      policyCategories,
-                      policiesList,
-                    ),
-                  });
-                }}
-              >
-                <option value="custom">Custom T&Cs for specific shop</option>
-                <option value="">
-                  Automatic — use offer category ({offer?.categories ?? "—"})
-                </option>
-                {policyCategories.map((cat) => {
-                  const policyText = policiesList[cat._id] ?? "";
-                  const hasPolicy = policyText.trim().length > 0;
-                  return (
-                    <option key={cat._id} value={cat._id}>
-                      {cat.name}
-                      {hasPolicy ? " — T&C configured" : " — no T&C yet"}
-                    </option>
-                  );
-                })}
-              </select>
-              <div className="mt-1 border-t border-gray-200 pt-3 dark:border-gray-600">
-                <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                    Terms &amp; Conditions
-                  </p>
-                  <button
-                    type="button"
-                    title="Reset the editor to the default terms for the selected source"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        custom_terms: resolveOfferPolicyBaseTerms(
-                          prev.policy_category_id ?? "",
-                          offer?.categories,
-                          policyCategories,
-                          policiesList,
-                        ),
-                      }))
+
+              {policyMode === "template" ? (
+                <div className="space-y-3 border-t border-gray-200 pt-3 dark:border-gray-600">
+                  <FieldLabel
+                    label="Terms template"
+                    description="Pick a configured category policy and review its editable preview."
+                  />
+                  <select
+                    id="offer-policy-category"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                    value={form.policy_category_id}
+                    onChange={(e) =>
+                      changeTemplatePolicyCategory(e.target.value)
                     }
-                    disabled={savingPolicy}
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                   >
-                    Back to default
-                  </button>
+                    <option value="">
+                      Automatic — use offer category ({offer?.categories ?? "—"})
+                    </option>
+                    {policyCategories.map((cat) => {
+                      const hasPolicy = Boolean(policiesList[cat._id]?.trim());
+                      return (
+                        <option key={cat._id} value={cat._id}>
+                          {cat.name}
+                          {hasPolicy ? " — T&C configured" : " — no T&C yet"}
+                        </option>
+                      );
+                    })}
+                  </select>
+
+                  {!configuredTemplateTerms ? (
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                      No T&amp;C configured for this category yet — edit it under
+                      Policy Management, or switch to Custom Writing.
+                    </p>
+                  ) : (
+                    <div>
+                      <FieldLabel
+                        label="Template preview (editable)"
+                        description="This exact text is shown to users after you save."
+                      />
+                      <TextArea
+                        rows={12}
+                        value={effectiveTemplateTerms}
+                        onChange={changeActivePolicyTerms}
+                        disabled={savingPolicy}
+                        className="h-36 resize-none overflow-y-auto !text-xs !leading-relaxed !text-gray-700 placeholder:text-gray-400 dark:!text-gray-300"
+                      />
+                    </div>
+                  )}
                 </div>
-                <p className="text-theme-xs mb-2 text-gray-500 dark:text-gray-400">
-                  Pre-filled from the source above. Edit any line to fit this
-                  brand’s actual terms — this exact text is shown to users.
-                </p>
-                <TextArea
-                  rows={12}
-                  placeholder="Terms & Conditions shown to users for this brand…"
-                  value={form.custom_terms}
-                  onChange={(v) => setForm({ ...form, custom_terms: v })}
-                  disabled={savingPolicy}
-                  className="h-36 resize-none overflow-y-auto !text-xs !leading-relaxed !text-gray-700 placeholder:text-gray-400 dark:!text-gray-300"
-                />
-              </div>
+              ) : (
+                <div className="border-t border-gray-200 pt-3 dark:border-gray-600">
+                  <FieldLabel
+                    label="Custom terms"
+                    description="Write the complete Terms & Conditions shown for this brand."
+                  />
+                  <TextArea
+                    rows={12}
+                    placeholder="Write the complete Terms & Conditions for this brand…"
+                    value={form.custom_terms}
+                    onChange={changeActivePolicyTerms}
+                    disabled={savingPolicy}
+                    className="h-36 resize-none overflow-y-auto !text-xs !leading-relaxed !text-gray-700 placeholder:text-gray-400 dark:!text-gray-300"
+                  />
+                </div>
+              )}
               <div className="border-t border-gray-200 pt-3 dark:border-gray-600">
                 <div className="flex min-w-0 items-start gap-3 sm:max-w-md">
                   <Switch
@@ -4002,6 +4390,267 @@ const FormOffer = ({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        <div
+          id="offer-section-tracking-period"
+          className={`relative rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5 dark:border-gray-700 dark:bg-gray-800/30 ${OFFER_FORM_SECTION_SCROLL_CLASS}`}
+        >
+          <div className="absolute top-4 right-4 z-10 sm:top-5 sm:right-5">
+            {!editingTrackingPeriod ? (
+              <SecondaryButton onClick={beginEditTrackingPeriod} disabled={!offer}>
+                Edit
+              </SecondaryButton>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={cancelEditTrackingPeriod}
+                  disabled={savingTrackingPeriod}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveTrackingPeriodEdit()}
+                  disabled={savingTrackingPeriod}
+                  className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {savingTrackingPeriod ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            )}
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+              Cashback tracking period
+            </h4>
+            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+              The Purchase → Tracking → Confirm steps customers see on this
+              brand&apos;s shop page.{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                Auto
+              </span>{" "}
+              follows the affiliate partner&apos;s validation terms;{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                Manual
+              </span>{" "}
+              sets the windows for this brand.
+            </p>
+          </div>
+          {trackingPeriodSaveError && (
+            <p className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+              {trackingPeriodSaveError}
+            </p>
+          )}
+          {(() => {
+            const preview = resolveTrackingPeriodPreview(
+              {
+                tracking_period_mode: form.tracking_period_mode,
+                tracking_days: form.tracking_days,
+                confirm_days: form.confirm_days,
+                validation_terms: offer?.validation_terms ?? null,
+                flow_type: form.flow_type,
+                tracking_subtitle: form.tracking_subtitle,
+                confirm_subtitle: form.confirm_subtitle,
+              },
+              offer?.tracking_period ?? null,
+            );
+            const sourceLabel =
+              preview.source === "manual"
+                ? "Manual — set for this brand"
+                : preview.source === "partner"
+                  ? "Auto — from partner validation terms"
+                  : "Auto — platform default (no partner terms on file)";
+            return (
+              <>
+                <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                      Purchase
+                    </dt>
+                    <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                      with GoGoCash
+                    </dd>
+                  </div>
+                  {preview.flow_type === "two_step" ? (
+                    <div>
+                      <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                        Tracking and confirm
+                      </dt>
+                      <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                        {formatTrackingDays(preview.confirm_days)}
+                      </dd>
+                      <dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {preview.confirm_subtitle}
+                      </dd>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                          Tracking
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                          {formatTrackingDays(preview.tracking_days)}
+                        </dd>
+                        <dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          {preview.tracking_subtitle}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                          Confirm
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-gray-900 dark:text-gray-100">
+                          {formatTrackingDays(preview.confirm_days)}
+                        </dd>
+                        <dd className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          {preview.confirm_subtitle}
+                        </dd>
+                      </div>
+                    </>
+                  )}
+                </dl>
+                <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                  {sourceLabel} · Partner reference:{" "}
+                  {typeof offer?.validation_terms === "number" && offer.validation_terms > 0
+                    ? `validation ${offer.validation_terms} days`
+                    : "validation —"}
+                  {typeof offer?.payment_terms === "number" && offer.payment_terms > 0
+                    ? `, payment ${offer.payment_terms} days`
+                    : ""}
+                </p>
+              </>
+            );
+          })()}
+          {editingTrackingPeriod && (
+            <div className="mt-4 space-y-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+              <div className="flex flex-wrap gap-4">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                  <input
+                    type="radio"
+                    name="tracking_period_mode"
+                    className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+                    checked={form.tracking_period_mode === "auto"}
+                    onChange={() =>
+                      setForm((prev) => ({ ...prev, tracking_period_mode: "auto" }))
+                    }
+                  />
+                  Auto — fetch from affiliate partner
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                  <input
+                    type="radio"
+                    name="tracking_period_mode"
+                    className="text-brand-600 focus:ring-brand-500 h-4 w-4 border-gray-300 dark:border-gray-600 dark:bg-gray-800"
+                    checked={form.tracking_period_mode === "manual"}
+                    onChange={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        tracking_period_mode: "manual",
+                      }))
+                    }
+                  />
+                  Manual
+                </label>
+              </div>
+              <Switch
+                label="Combined 2-step flow (Tracking and confirm)"
+                checked={form.flow_type === "two_step"}
+                onChange={(checked) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    flow_type: checked ? "two_step" : "three_step",
+                  }))
+                }
+              />
+              {form.tracking_period_mode === "manual" && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Tracking window (days)
+                    </label>
+                    <input
+                      type="number"
+                      min={MIN_TRACKING_PERIOD_DAYS}
+                      max={MAX_TRACKING_PERIOD_DAYS}
+                      value={form.tracking_days ?? ""}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          tracking_days: e.target.value
+                            ? Number(e.target.value)
+                            : null,
+                        }))
+                      }
+                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Confirm window (days)
+                    </label>
+                    <input
+                      type="number"
+                      min={MIN_TRACKING_PERIOD_DAYS}
+                      max={MAX_TRACKING_PERIOD_DAYS}
+                      value={form.confirm_days ?? ""}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          confirm_days: e.target.value
+                            ? Number(e.target.value)
+                            : null,
+                        }))
+                      }
+                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+                </div>
+              )}
+              {/* Step subtitles: empty = the placeholder default copy. */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Tracking subtitle
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={200}
+                    placeholder="from the following month"
+                    value={form.tracking_subtitle ?? ""}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        tracking_subtitle: e.target.value || null,
+                      }))
+                    }
+                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Confirm subtitle
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={200}
+                    placeholder="after validation"
+                    value={form.confirm_subtitle ?? ""}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        confirm_subtitle: e.target.value || null,
+                      }))
+                    }
+                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>

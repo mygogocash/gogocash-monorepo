@@ -63,10 +63,10 @@ describe("SignInForm", () => {
   it("given the admin sign-in page > then credentials fields are accessible and named", () => {
     render(<SignInForm />);
 
-    expect(screen.getByLabelText(/email \/ username/i)).toHaveAttribute(
-      "name",
-      "email",
-    );
+    expect(screen.getByLabelText(/^email/i)).toHaveAttribute("name", "email");
+    // The field only accepts email (type="email" + API @IsEmail), so the
+    // label must not promise username login (#374).
+    expect(screen.queryByLabelText(/username/i)).toBeNull();
     expect(screen.getByLabelText(/^password/i)).toHaveAttribute(
       "name",
       "password",
@@ -95,6 +95,71 @@ describe("SignInForm", () => {
     });
   });
 
+  it("given mock quick access fails > then shows a plain demo-unavailable message that never leaks env vars", async () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    authMock.signIn.mockResolvedValue({ error: "CredentialsSignin" });
+
+    render(<SignInForm />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /sign in with mock account/i }),
+    );
+
+    const message = await screen.findByText(
+      "Demo sign-in isn't available here. Please sign in with your email and password.",
+    );
+    expect(message).toBeTruthy();
+    expect(screen.queryByText(/ALLOW_MOCK_ADMIN_PASSWORD/)).toBeNull();
+    expect(screen.queryByText(/development/)).toBeNull();
+  });
+
+  it("given sign in throws > then shows a plain, actionable error message", async () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    authMock.signIn.mockRejectedValue(new Error("boom"));
+
+    render(<SignInForm />);
+
+    await userEvent.type(screen.getByLabelText(/^email/i), "admin@gogocash.co");
+    await userEvent.type(screen.getByLabelText(/^password/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    const message = await screen.findByText(
+      "Something went wrong during sign in. Please try again.",
+    );
+    expect(message).toBeTruthy();
+  });
+
+  it('given "Keep me logged in" is checked > then signIn receives rememberMe "true"', async () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    authMock.signIn.mockResolvedValue({ ok: false });
+
+    render(<SignInForm />);
+    await userEvent.type(screen.getByLabelText(/^email/i), "admin@gogocash.co");
+    await userEvent.type(screen.getByLabelText(/^password/i), "secret");
+    await userEvent.click(screen.getByText("Keep me logged in"));
+    await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    expect(authMock.signIn).toHaveBeenCalledWith(
+      "credentials",
+      expect.objectContaining({ rememberMe: "true" }),
+    );
+  });
+
+  it('given "Keep me logged in" is unchecked > then signIn receives rememberMe "false"', async () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    authMock.signIn.mockResolvedValue({ ok: false });
+
+    render(<SignInForm />);
+    await userEvent.type(screen.getByLabelText(/^email/i), "admin@gogocash.co");
+    await userEvent.type(screen.getByLabelText(/^password/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    expect(authMock.signIn).toHaveBeenCalledWith(
+      "credentials",
+      expect.objectContaining({ rememberMe: "false" }),
+    );
+  });
+
   it("given a real API is configured > then mock quick access is hidden", () => {
     process.env.NEXT_PUBLIC_API_URL = "https://api.gogocash.co";
 
@@ -104,5 +169,15 @@ describe("SignInForm", () => {
       screen.queryByRole("button", { name: /sign in with mock account/i }),
     ).toBeNull();
     expect(screen.getByRole("button", { name: /^sign in$/i })).toBeTruthy();
+  });
+
+  it("given a whitespace-only API URL > then mock quick access stays visible", () => {
+    process.env.NEXT_PUBLIC_API_URL = "   ";
+
+    render(<SignInForm />);
+
+    expect(
+      screen.getByRole("button", { name: /sign in with mock account/i }),
+    ).toBeTruthy();
   });
 });

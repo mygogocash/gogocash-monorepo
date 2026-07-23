@@ -1,15 +1,19 @@
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { webMobileBottomNavItems } from "@mobile/design/webDesignParity";
+import { filterHiddenBottomNavItems } from "@mobile/config/featureFlags";
+import {
+  GOLINK_COMING_SOON_OPACITY,
+  GoLinkSoonBadge,
+  isGoLinkComingSoonTab,
+} from "@mobile/components/goLinkNavTab";
 import { MotionPressable } from "@mobile/components/MotionPressable";
-import { buildProtectedLoginRedirect } from "@mobile/auth/routeGuard";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
+import { queueProtectedBottomNavWhileSessionHydrates } from "@mobile/auth/protectedBottomNavPress";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
 import { BottomNavIcon } from "./BottomNavIcon";
 import { useHomeScreenStyles } from "./homeScreenHooks";
-
-const protectedBottomNavHrefs = new Set(["/profile", "/wallet"]);
 
 export function CustomerMobileBottomNav({
   bottomInset,
@@ -24,12 +28,12 @@ export function CustomerMobileBottomNav({
   const { isAuthed, ready } = useAuthGuardSession();
 
   function handleBottomNavPress(href: string) {
-    if (!ready) {
-      return;
-    }
-
-    if (!isAuthed && protectedBottomNavHrefs.has(href)) {
-      router.push((buildProtectedLoginRedirect(href) ?? "/login") as never);
+    const protectedTarget = queueProtectedBottomNavWhileSessionHydrates(href, {
+      isAuthed,
+      ready,
+    });
+    if (protectedTarget) {
+      router.push(protectedTarget as never);
       return;
     }
 
@@ -46,13 +50,15 @@ export function CustomerMobileBottomNav({
       ]}
     >
       <View style={styles.bottomNav}>
-        {webMobileBottomNavItems.map((item) => {
+        {filterHiddenBottomNavItems(webMobileBottomNavItems).map((item) => {
           const active = item.label === "Home";
           const emphasized = "emphasized" in item && item.emphasized;
+          const comingSoon = isGoLinkComingSoonTab(item.href);
           const navItemStyle = StyleSheet.flatten([
             styles.bottomNavItem,
             emphasized ? styles.bottomNavItemEmphasized : null,
             active ? styles.bottomNavItemActive : null,
+            comingSoon ? { opacity: GOLINK_COMING_SOON_OPACITY } : null,
           ]);
           const navItemContent = (
             <>
@@ -60,6 +66,7 @@ export function CustomerMobileBottomNav({
                 style={[styles.bottomNavIcon, emphasized ? styles.bottomNavIconEmphasized : null]}
               >
                 <BottomNavIcon active={active} emphasized={emphasized} name={item.icon} />
+                {comingSoon ? <GoLinkSoonBadge /> : null}
               </View>
               <Text
                 numberOfLines={1}
@@ -78,8 +85,10 @@ export function CustomerMobileBottomNav({
             return (
               <MotionPressable
                 accessibilityRole="button"
+                accessibilityState={comingSoon ? { disabled: true } : undefined}
+                disabled={comingSoon}
                 key={item.label}
-                onPress={onGoLinkPress}
+                onPress={comingSoon ? undefined : onGoLinkPress}
                 pressScale={motion.scale.subtlePress}
                 style={navItemStyle}
               >

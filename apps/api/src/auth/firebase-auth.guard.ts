@@ -3,13 +3,14 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from 'src/user/schemas/user.schema';
-import { getAdminAuth } from './firebase-admin.provider';
+import { verifyFirebaseIdToken } from './firebase-admin.provider';
 
 type CachedDecode = { sub: string; firebaseId: string; expiresAt: number };
 
@@ -37,6 +38,8 @@ const cacheSet = (key: string, value: CachedDecode): void => {
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
+  private readonly logger = new Logger(FirebaseAuthGuard.name);
+
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private jwtService: JwtService,
@@ -74,14 +77,18 @@ export class FirebaseAuthGuard implements CanActivate {
         return true;
       }
 
-      const decoded = await getAdminAuth().verifyIdToken(token);
+      const decoded = await verifyFirebaseIdToken(token);
+      // Email fallback only for VERIFIED emails (mirrors signInFirebase):
+      // an unverified-email token carrying someone else's address must never
+      // resolve to that victim's account.
+      const emailFallback =
+        decoded.email && decoded.email_verified === true
+          ? [{ email: decoded.email }]
+          : [];
       const user = await this.userModel
         .findOne(
           {
-            $or: [
-              { id_firebase: decoded.uid },
-              ...(decoded.email ? [{ email: decoded.email }] : []),
-            ],
+            $or: [{ id_firebase: decoded.uid }, ...emailFallback],
           },
           { _id: 1, id_firebase: 1 },
         )
@@ -89,6 +96,11 @@ export class FirebaseAuthGuard implements CanActivate {
 
       if (!user) {
         throw new UnauthorizedException('User not found');
+      }
+      if (user.id_firebase && user.id_firebase !== decoded.uid) {
+        this.logger.warn(
+          `Firebase uid mismatch on email-fallback login: token uid ${decoded.uid} resolved user ${String(user._id)} (stored uid differs)`,
+        );
       }
 
       const sub = String(user._id);
@@ -101,7 +113,13 @@ export class FirebaseAuthGuard implements CanActivate {
       request['user'] = { sub, userId: sub, firebaseId: decoded.uid };
       return true;
     } catch (errorData: any) {
-      throw new UnauthorizedException(errorData?.message || 'Invalid token');
+      // Keep the raw upstream reason in server logs; clients get generic copy.
+      this.logger.warn(
+        `Firebase token verification failed: ${errorData?.message ?? 'unknown error'}`,
+      );
+      throw new UnauthorizedException(
+        'Your session has expired. Please sign in again.',
+      );
     }
   }
 }

@@ -1,39 +1,49 @@
 /* eslint-disable prettier/prettier */
-import { Body, Controller, Get, Post, Req, UnauthorizedException, UseGuards, ValidationPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+  ValidationPipe,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiOperation,
   ApiResponse,
   ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  FirebaseIdTokenDto,
   LineAuthDto,
   MiniPaySiweDto,
+  PhoneLoginEligibilityDto,
   RequestOtpDto,
   SignInAiDto,
   SignInDto,
   SignInFirebaseDto,
   TelegramAuthDto,
+  TelegramMiniAppDto,
   VerifyOtpDto,
 } from './dto/auth.dto';
-import { CrossmintAuthGuard } from './jwt-auth.guard';
 import { Request } from 'express';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { OtpService } from './otp.service';
 // VerifyOtpDto exists in BOTH auth.dto (email-OTP) and otp.dto (legacy) —
 // alias the legacy one to disambiguate.
-import {
-  SendOtpDto,
-  VerifyOtpDto as LegacyVerifyOtpDto,
-} from './dto/otp.dto';
+import { SendOtpDto, VerifyOtpDto as LegacyVerifyOtpDto } from './dto/otp.dto';
 import { RateLimitGuard } from './rate-limit.guard';
 import { RateLimit } from './rate-limit.decorator';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { EmailService } from '../email/email.service';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { extractAnalyticsContext } from 'src/analytics/analytics-context';
+import { CrossmintAuthGuard } from './jwt-auth.guard';
 
 // Route-scoped strict validation for the UNAUTHENTICATED OTP endpoints. These
 // take `email` straight into a Mongo selector (otp.service `findOne({ email })`),
@@ -59,12 +69,15 @@ export class AuthController {
 
   @Post('sign-in')
   @UseGuards(CrossmintAuthGuard)
+  @ApiOperation({
+    deprecated: true,
+    summary: 'Retired legacy sign-in endpoint (always returns 401)',
+  })
   @ApiBody({ type: SignInDto })
-  @ApiSecurity('access-token') // Apply the security scheme defined globally
-  @ApiBearerAuth() // This directly applies Bearer authentication
-  @ApiResponse({ status: 201, description: 'User login successfully' })
+  @ApiResponse({ status: 401, description: 'Legacy sign-in is disabled' })
   async login(@Body() body: SignInDto) {
-    // The guard has already validated the token and added the user payload to the request
+    // Defense in depth: the guard rejects before this method and signIn() also
+    // rejects if invoked directly by internal code.
     const user = await this.auth.signIn(body);
     return { message: 'Login successful!', user };
   }
@@ -75,18 +88,22 @@ export class AuthController {
   @ApiBody({ type: SignInFirebaseDto })
   @ApiResponse({ status: 201, description: 'User login successfully' })
   async loginFirebase(@Req() req: Request, @Body() body: SignInFirebaseDto) {
-    const authHeader = req.headers.authorization ?? "";
+    const authHeader = req.headers.authorization ?? '';
     // Prefer token from Authorization header, fallback to body.token for compatibility
-    const token = authHeader.startsWith("Bearer ")
+    const token = authHeader.startsWith('Bearer ')
       ? authHeader.slice(7)
       : body.token || null;
 
     if (!token) {
-      throw new UnauthorizedException('Firebase token is required in Authorization header or body');
+      throw new UnauthorizedException(
+        'Your session is missing. Please sign in again.',
+      );
     }
 
     // Sign in the user
-    const user = await this.auth.signInFirebase(token, body);
+    const user = await this.auth.signInFirebase(token, body, {
+      allowPhoneRegistration: false,
+    });
 
     // Track login event
     if (user.user?._id) {
@@ -95,25 +112,26 @@ export class AuthController {
         region: body.country,
       });
 
-      void this.analytics.capture(
-        'user_login',
-        analyticsCtx,
-        {
-          method: 'firebase',
-          provider: user.user.provider || 'unknown',
-          is_new_user: user.is_new_user || false,
-          pathname: body.pathname,
-          $set: {
-            email: user.user.email,
-            username: user.user.username,
-          },
+      // PDPA: person-property allowlist — email is dropped entirely (the Mongo
+      // user id is already the distinct_id / join key, so email is analytically
+      // redundant). Only non-PII profile attributes are $set.
+      void this.analytics.capture('user_login', analyticsCtx, {
+        method: 'firebase',
+        provider: user.user.provider || 'unknown',
+        is_new_user: user.is_new_user || false,
+        pathname: body.pathname,
+        $set: {
+          username: user.user.username,
+          signup_method: user.user.provider || 'unknown',
+          locale: analyticsCtx.locale,
+          region: analyticsCtx.region,
+          platform: 'api',
         },
-      );
+      });
     }
 
     return { message: 'Login successful!', ...user };
   }
-
 
   @Post('register')
   @UseGuards(RateLimitGuard)
@@ -121,18 +139,22 @@ export class AuthController {
   @ApiBody({ type: SignInFirebaseDto })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   async register(@Req() req: Request, @Body() body: SignInFirebaseDto) {
-    const authHeader = req.headers.authorization ?? "";
+    const authHeader = req.headers.authorization ?? '';
     // Prefer token from Authorization header, fallback to body.token for compatibility
-    const token = authHeader.startsWith("Bearer ")
+    const token = authHeader.startsWith('Bearer ')
       ? authHeader.slice(7)
       : body.token || null;
 
     if (!token) {
-      throw new UnauthorizedException('Firebase token is required in Authorization header or body');
+      throw new UnauthorizedException(
+        'Your session is missing. Please sign in again.',
+      );
     }
 
     // Register/sign in the user
-    const user = await this.auth.signInFirebase(token, body);
+    const user = await this.auth.signInFirebase(token, body, {
+      allowPhoneRegistration: true,
+    });
 
     // Track registration event
     if (user.user?._id) {
@@ -141,23 +163,40 @@ export class AuthController {
         region: body.country,
       });
 
-      void this.analytics.capture(
-        'user_registered',
-        analyticsCtx,
-        {
-          method: 'firebase',
-          provider: user.user.provider || 'unknown',
-          pathname: body.pathname,
-          referral_id: body.referral_id,
-          $set: {
-            email: user.user.email,
-            username: user.user.username,
-          },
+      const eventName =
+        user.auth_flow === 'register' ? 'user_registered' : 'user_login';
+      // PDPA: person-property allowlist — email is dropped entirely (the Mongo
+      // user id is already the distinct_id / join key, so email is analytically
+      // redundant). Only non-PII profile attributes are $set.
+      void this.analytics.capture(eventName, analyticsCtx, {
+        method: 'firebase',
+        provider: user.user.provider || 'unknown',
+        pathname: body.pathname,
+        referral_id: body.referral_id,
+        $set: {
+          username: user.user.username,
+          signup_method: user.user.provider || 'unknown',
+          locale: analyticsCtx.locale,
+          region: analyticsCtx.region,
+          platform: 'api',
         },
-      );
+      });
     }
 
     return { message: 'Registration successful!', ...user };
+  }
+
+  @Post('phone-sign-in/eligibility')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 5 })
+  @ApiBody({ type: PhoneLoginEligibilityDto })
+  @ApiResponse({ status: 201, description: 'Phone login eligibility checked' })
+  async phoneSignInEligibility(
+    @Body(otpBodyValidation) body: PhoneLoginEligibilityDto,
+  ) {
+    return {
+      eligible: await this.auth.isPhoneLoginEligible(body.phone_e164),
+    };
   }
 
   /**
@@ -201,6 +240,22 @@ export class AuthController {
   }
 
   /**
+   * Telegram Mini App auto-login. Accepts the raw `initData` query string and
+   * verifies it with the WebAppData-keyed HMAC (distinct from the widget's
+   * SHA256(bot_token) secret), then returns the same envelope as the widget
+   * login. Enables safe in-app auto-login without a separate widget round-trip.
+   */
+  @Post('log-in/telegram-miniapp')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 20 })
+  @ApiBody({ type: TelegramMiniAppDto })
+  @ApiResponse({ status: 201, description: 'User login successfully' })
+  async loginTelegramMiniApp(@Body() body: TelegramMiniAppDto) {
+    const user = await this.auth.signInTelegramMiniApp(body.initData);
+    return { message: 'Login successful!', ...user };
+  }
+
+  /**
    * Account-existence probe for Telegram IDs. Admin-only to prevent
    * unauthenticated enumeration of which Telegram IDs have GoGoCash
    * accounts (which then feeds Telegram-login impersonation attacks).
@@ -215,17 +270,20 @@ export class AuthController {
     return Boolean(user);
   }
 
-  @Post("firebase")
+  @Post('firebase')
   @UseGuards(FirebaseAuthGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
-  async authWithFirebase(@Req() req: Request, @Body() body: {idToken: string}) {
+  async authWithFirebase(
+    @Req() req: Request,
+    @Body() body: FirebaseIdTokenDto,
+  ) {
     const user = req['user'] as any;
     const id = user?.sub;
     // const authHeader = req.headers.authorization ?? "";
     // const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const token = body.idToken ? body.idToken : null;
-    if (!token) throw new UnauthorizedException("Missing token");
+    if (!token) throw new UnauthorizedException('Missing token');
     return this.auth.verifyPhone(token, id);
   }
 
@@ -253,7 +311,9 @@ export class AuthController {
   async loginLine(@Req() req: Request, @Body() body: LineAuthDto) {
     // Extract LINE access token from Authorization header for verification
     const authHeader = req.headers.authorization ?? '';
-    const accessToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const accessToken = authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : undefined;
 
     // Extract temporary OTP token from custom header (set after email OTP verification)
     const tempToken = req.headers['x-otp-token'] as string | undefined;
@@ -274,9 +334,12 @@ export class AuthController {
     return {
       exists: !!user,
       // Only return email hint if account exists (for UX - show which account to use)
-      user: user ? {
-        hasEmail: !!user.email && user.email !== '' && user.email !== 'undefined',
-      } : null,
+      user: user
+        ? {
+            hasEmail:
+              !!user.email && user.email !== '' && user.email !== 'undefined',
+          }
+        : null,
     };
   }
 
@@ -285,7 +348,10 @@ export class AuthController {
   @RateLimit({ windowMs: 60_000, max: 5 })
   @ApiBody({ type: RequestOtpDto })
   @ApiResponse({ status: 201, description: 'OTP sent to email successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid email or rate limit exceeded' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid email or rate limit exceeded',
+  })
   async requestOtp(@Body(otpBodyValidation) body: RequestOtpDto) {
     // Generate and send OTP via email
     const otp = await this.otpService.createOtp(body.email);
@@ -301,7 +367,10 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ windowMs: 60_000, max: 10 })
   @ApiBody({ type: VerifyOtpDto })
-  @ApiResponse({ status: 200, description: 'OTP verified, temporary token issued' })
+  @ApiResponse({
+    status: 200,
+    description: 'OTP verified, temporary token issued',
+  })
   @ApiResponse({ status: 401, description: 'Invalid or expired OTP' })
   async verifyOtp(@Body(otpBodyValidation) body: VerifyOtpDto) {
     // STEP 1: Verify OTP code (business logic in OtpService)

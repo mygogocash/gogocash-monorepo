@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   exchangeFirebaseIdToken,
+  FirebaseLoginExchangeError,
+  getFirebaseLoginExchangeErrorKind,
+  isPhoneLinkRequiredError,
   mapLoginResponseToMobileSession,
 } from "@mobile/auth/firebaseLogin";
 import { mobileSessionFields } from "@mobile/config/mobileAppConfig";
@@ -114,6 +117,25 @@ describe("firebase login > exchangeFirebaseIdToken", () => {
     });
   });
 
+  it("given registration intent > posts to the explicit /auth/register endpoint", async () => {
+    const fetchImpl = okFetch({
+      ...fullResponse,
+      auth_flow: "register",
+      is_new_user: true,
+    });
+
+    await exchangeFirebaseIdToken({
+      apiUrl: "https://api-staging.gogocash.co",
+      fetchImpl,
+      idToken: "firebase-id-token",
+      intent: "register",
+    });
+
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe(
+      "https://api-staging.gogocash.co/auth/register",
+    );
+  });
+
   it("returns the mapped session on success", async () => {
     const session = await exchangeFirebaseIdToken({
       apiUrl: "https://api-staging.gogocash.co",
@@ -124,18 +146,72 @@ describe("firebase login > exchangeFirebaseIdToken", () => {
     expect(session.provider).toBe("firebase");
   });
 
-  it("surfaces the backend error message on a failed exchange", async () => {
+  it("maps an unlinked verified phone to a safe, actionable error without exposing backend text", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      json: () =>
+        Promise.resolve({
+          message:
+            "This phone number is not linked to an account. Sign in with your original method, then link it from Profile > Verify Phone.",
+        }),
+      ok: false,
+      status: 401,
+    } as unknown as Response);
+
+    const error = await exchangeFirebaseIdToken({
+      apiUrl: "https://api-staging.gogocash.co",
+      fetchImpl,
+      idToken: "verified-phone-token",
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(FirebaseLoginExchangeError);
+    expect(error).toMatchObject({ kind: "phone-link-required", status: 401 });
+    expect(getFirebaseLoginExchangeErrorKind(error)).toBe(
+      "phone-link-required",
+    );
+    expect(isPhoneLinkRequiredError(error)).toBe(true);
+    expect(String(error)).not.toContain("original method");
+  });
+
+  it.each([
+    [403, "account-disabled"],
+    [429, "service-unavailable"],
+    [503, "service-unavailable"],
+    [401, "identity-verification"],
+  ] as const)(
+    "maps status %i to the safe %s exchange kind",
+    async (status, expectedKind) => {
+      const fetchImpl = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({ message: "sensitive provider details" }),
+        ok: false,
+        status,
+      } as unknown as Response);
+
+      await expect(
+        exchangeFirebaseIdToken({
+          apiUrl: "https://api-staging.gogocash.co",
+          fetchImpl,
+          idToken: "bad-token",
+        }),
+      ).rejects.toMatchObject({
+        kind: expectedKind,
+        status,
+      });
+    },
+  );
+
+  it("does not classify arbitrary server text as phone-link-required", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       json: () => Promise.resolve({ message: "Firebase token is required" }),
       ok: false,
       status: 401,
     } as unknown as Response);
+
     await expect(
       exchangeFirebaseIdToken({
         apiUrl: "https://api-staging.gogocash.co",
         fetchImpl,
         idToken: "bad-token",
-      })
-    ).rejects.toThrow("Firebase token is required");
+      }),
+    ).rejects.toMatchObject({ kind: "identity-verification", status: 401 });
   });
 });

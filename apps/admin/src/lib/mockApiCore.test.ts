@@ -34,7 +34,192 @@ describe("pagination clamping", () => {
   });
 });
 
+describe("policy category create (mock parity with POST /admin/create-category)", () => {
+  it("creates a category from the fetcherPost tuple body shape", async () => {
+    const res = await call("POST", ["admin", "create-category"], {
+      body: { data: { name: "  New category  " } },
+    });
+    expect(res.status).toBe(200);
+    const body = res.body as { _id: string; name: string };
+    expect(body._id).toBeTruthy();
+    expect(body.name).toBe("New category");
+  });
+
+  it("rejects a missing name with 400", async () => {
+    const res = await call("POST", ["admin", "create-category"], {
+      body: { data: {} },
+    });
+    expect(res.status).toBe(400);
+    expect((res.body as { message: string }).message).toBe("name is required");
+  });
+
+  it("persists a default category banner from a FormData draft", async () => {
+    const create = await call("POST", ["admin", "create-category"], {
+      body: { data: { name: "Policy banner category" } },
+    });
+    const categoryId = (create.body as { _id: string })._id;
+    const formData = new FormData();
+    formData.append(
+      "banner",
+      new File(["wide-banner"], "wide.png", { type: "image/png" }),
+    );
+
+    const update = await call(
+      "PATCH",
+      ["admin", "update-category", categoryId],
+      { body: formData },
+    );
+    expect(update.status).toBe(200);
+
+    const categories = (await call("GET", ["offer", "get-category", "list"]))
+      .body as Array<{ _id: string; banner?: string }>;
+    expect(
+      categories.find((category) => category._id === categoryId)?.banner,
+    ).toMatch(new RegExp(`^category-banner/${categoryId}/`));
+  });
+});
+
+describe("policy unified save (mock parity with PUT /policy)", () => {
+  it("requires terms on first save, accepts a flat DTO, and explicitly clears existing terms", async () => {
+    const categoryId = "policy-unified-save-category";
+    const bannerOnly = await call("PUT", ["policy"], {
+      body: {
+        category_id: categoryId,
+        banner: { primary_locale: "en", translations: { en: "Banner" } },
+      },
+    });
+    expect(bannerOnly.status).toBe(400);
+    expect((bannerOnly.body as { message: string }).message).toBe(
+      "Terms & conditions are required for a new policy.",
+    );
+
+    const create = await call("PUT", ["policy"], {
+      body: {
+        category_id: categoryId,
+        terms: { primary_locale: "en", translations: { en: "Terms" } },
+        banner: { primary_locale: "en", translations: { en: "Banner" } },
+      },
+    });
+    expect(create.status).toBe(200);
+
+    const clear = await call("PUT", ["policy"], {
+      body: { category_id: categoryId, clear_terms: true },
+    });
+    expect(clear.status).toBe(200);
+
+    const list = (await call("GET", ["policy", "category-list"]))
+      .body as Array<{
+      category_id: string;
+      terms?: unknown;
+      banner?: unknown;
+    }>;
+    const saved = list.find((row) => row.category_id === categoryId);
+    expect(saved).not.toHaveProperty("terms");
+    expect(saved).toHaveProperty("banner");
+  });
+});
+
+describe("policy aggregate save (mock parity with PUT /policy/aggregate)", () => {
+  it("creates category metadata and policy together, then replays the same request key", async () => {
+    const form = new FormData();
+    form.set("request_key", "mock-policy-aggregate-1");
+    form.set("category_name", "  Mock   Travel  ");
+    form.set("icon_key", "travel");
+    form.set(
+      "policy",
+      JSON.stringify({
+        category_id: "__new__",
+        terms: { primary_locale: "en", translations: { en: "Terms" } },
+        banner: { primary_locale: "en", translations: { en: "Banner" } },
+      }),
+    );
+    form.set(
+      "default_banner",
+      new File(["banner"], "travel.png", { type: "image/png" }),
+    );
+
+    const first = await call("PUT", ["policy", "aggregate"], { body: form });
+    const replay = await call("PUT", ["policy", "aggregate"], { body: form });
+
+    expect(first.status).toBe(200);
+    expect(replay).toEqual(first);
+    expect(first.body).toMatchObject({
+      request_key: "mock-policy-aggregate-1",
+      category: {
+        name: "Mock Travel",
+        icon_key: "travel",
+        lifecycle_status: "active",
+        banner: expect.stringContaining("category-banner/"),
+      },
+      policy: {
+        terms: { translations: { en: "Terms" } },
+        banner: { translations: { en: "Banner" } },
+      },
+    });
+  });
+
+  it("rejects request-key reuse with a different aggregate payload", async () => {
+    const form = new FormData();
+    form.set("request_key", "mock-policy-aggregate-1");
+    form.set("category_name", "Different category");
+    form.set("icon_key", "food");
+    form.set("policy", JSON.stringify({ category_id: "__new__" }));
+
+    const response = await call("PUT", ["policy", "aggregate"], {
+      body: form,
+    });
+    expect(response.status).toBe(409);
+  });
+});
+
 describe("banner slot updates", () => {
+  it("isolates all three specific-page targets and keeps the legacy alias", async () => {
+    const targets = ["all-brands", "all-shops", "product-discovery"] as const;
+    const before = new Map<string, Record<string, unknown>>();
+
+    for (const target of targets) {
+      const response = await call("GET", [
+        "admin",
+        "banner-specific-page",
+        target,
+      ]);
+      expect(response.status).toBe(200);
+      expect(String((response.body as Record<string, unknown>).image_1)).toMatch(
+        /^\/images\/carousel\//,
+      );
+      before.set(target, response.body as Record<string, unknown>);
+    }
+
+    await call("POST", ["admin", "banner-specific-page", "all-shops"], {
+      body: { link_1: "https://all-shops-only.example" },
+    });
+
+    expect(
+      (await call("GET", ["admin", "banner-specific-page", "all-shops"])).body,
+    ).toMatchObject({ link_1: "https://all-shops-only.example" });
+    expect(
+      (await call("GET", ["admin", "banner-specific-page", "all-brands"])).body,
+    ).toMatchObject({ link_1: before.get("all-brands")?.link_1 });
+    expect(
+      (
+        await call("GET", [
+          "admin",
+          "banner-specific-page",
+          "product-discovery",
+        ])
+      ).body,
+    ).toMatchObject({ link_1: before.get("product-discovery")?.link_1 });
+
+    const legacy = await call("GET", ["admin", "banner-all-brand-page"]);
+    expect(legacy.body).toEqual(
+      (await call("GET", ["admin", "banner-specific-page", "all-brands"])).body,
+    );
+
+    await call("POST", ["admin", "banner-specific-page", "all-shops"], {
+      body: { link_1: String(before.get("all-shops")?.link_1 ?? "") },
+    });
+  });
+
   it("persists only edited slot fields while preserving other slots", async () => {
     const baseline = await call("GET", ["admin", "banner-home"]);
     expect(baseline.status).toBe(200);
@@ -51,10 +236,8 @@ describe("banner slot updates", () => {
     });
     expect(update.status).toBe(200);
 
-    const updated = (await call("GET", ["admin", "banner-home"])).body as Record<
-      string,
-      unknown
-    >;
+    const updated = (await call("GET", ["admin", "banner-home"]))
+      .body as Record<string, unknown>;
     expect(updated.link_1).toBe("https://slot-1-updated.example");
     expect(updated.image_1).toBe("slot-1-updated");
     expect(updated.enabled_1).toBe(false);
@@ -67,8 +250,7 @@ describe("banner slot updates", () => {
     await call("POST", ["admin", "banner-home"], {
       body: {
         link_1: String(before.link_1 || ""),
-        image_1:
-          before.image_1 == null ? "" : String(before.image_1),
+        image_1: before.image_1 == null ? "" : String(before.image_1),
         enabled_1: before.enabled_1,
         start_date_1: String(before.start_date_1 || ""),
         end_date_1: String(before.end_date_1 || ""),
@@ -87,10 +269,8 @@ describe("banner slot updates", () => {
       },
     });
 
-    const updated = (await call("GET", ["admin", "banner-home"])).body as Record<
-      string,
-      unknown
-    >;
+    const updated = (await call("GET", ["admin", "banner-home"]))
+      .body as Record<string, unknown>;
     expect(updated.image_2).toBeNull();
     expect(updated.link_2).toBe("");
     expect(updated.enabled_2).toBe(false);
@@ -112,17 +292,15 @@ describe("banner slot updates", () => {
     });
     expect(update.status).toBe(200);
 
-    const updated = (await call("GET", ["admin", "banner-home"])).body as Record<
-      string,
-      unknown
-    >;
+    const updated = (await call("GET", ["admin", "banner-home"]))
+      .body as Record<string, unknown>;
     expect(updated.link_3).toBe("https://slot-3-file.example");
     expect(String(updated.image_3)).toMatch(/^mock-drive-image_3-/);
   });
 });
 
 describe("top-brands config", () => {
-  it("round-trips the saved brands payload with cashback labels", async () => {
+  it("round-trips ordered identities and derives cashback from live offers", async () => {
     const brands = [
       { offerId: "o2", cashback: "12%" },
       { offerId: "o1", cashback: "8%" },
@@ -132,18 +310,46 @@ describe("top-brands config", () => {
       body: { brands },
     });
     expect(put.status).toBe(200);
-    expect(put.body).toMatchObject({ success: true, brands });
+    expect(put.body).toMatchObject({
+      success: true,
+      brands: brands.map(({ offerId }) => ({ offerId, cashback: "" })),
+    });
 
     const get = await call("GET", ["admin", "top-brands"]);
     expect(get.status).toBe(200);
     const body = get.body as {
       brands: typeof brands;
       items: Array<{ _id: string }>;
+      maxBrands: number;
       order: string[];
     };
     expect(body.order).toEqual(["o2", "o1"]);
-    expect(body.brands).toEqual(brands);
+    expect(body.brands).toEqual([
+      { offerId: "o2", cashback: "4%" },
+      { offerId: "o1", cashback: "5%" },
+    ]);
     expect(body.items.map((item) => item._id)).toEqual(["o2", "o1"]);
+    expect(body.maxBrands).toBe(16);
+  });
+
+  it("#479 rejects disabled offers on PUT /admin/top-brands", async () => {
+    const { mockOffers } = await import("@/app/api/mock/data");
+    const target = mockOffers.find((offer) => offer._id === "o1");
+    expect(target).toBeTruthy();
+    const previous = target!.disabled;
+    target!.disabled = true;
+
+    try {
+      const put = await call("PUT", ["admin", "top-brands"], {
+        body: { brands: [{ offerId: "o1", cashback: "" }] },
+      });
+      expect(put.status).toBe(400);
+      expect(put.body).toMatchObject({
+        message: expect.stringMatching(/Disabled or missing offers/i),
+      });
+    } finally {
+      target!.disabled = previous;
+    }
   });
 });
 
@@ -335,6 +541,31 @@ describe("withdraw detail user", () => {
     expect(res.status).toBe(200);
     const body = res.body as { user: { username?: string } };
     expect(body.user.username).toBe("alice_smith_1");
+  });
+
+  it("returns an unknown user's fallback and overlays later profile edits", async () => {
+    const userId = "lint-spread-regression-user";
+    const initial = await call("POST", [
+      "withdraw",
+      "list-check-admin",
+      userId,
+    ]);
+    expect(initial.status).toBe(200);
+    expect((initial.body as { user: { _id: string } }).user._id).toBe(userId);
+
+    const update = await call("POST", ["withdraw", "update-withdraw-user"], {
+      body: { userId, fullName: "  Spread Regression  " },
+    });
+    expect(update.status).toBe(200);
+
+    const updated = await call("POST", [
+      "withdraw",
+      "list-check-admin",
+      userId,
+    ]);
+    expect((updated.body as { user: { fullName: string } }).user.fullName).toBe(
+      "Spread Regression",
+    );
   });
 });
 

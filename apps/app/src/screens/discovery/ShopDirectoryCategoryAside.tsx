@@ -1,24 +1,29 @@
 import { ScrollView, Text, View } from "react-native";
-import { getCategoryIcon } from "@mobile/theme/categoryIcons";
+import { CategoryGlyph } from "@mobile/components/CategoryGlyph";
 import { webShopDirectory } from "@mobile/design/webDesignParity";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { motion } from "@mobile/theme/motion";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
-import { typography } from "@mobile/theme/tokens";
 
 import { createDiscoveryScreenStyles } from "./customerDiscoveryStyles";
 
 export function ShopDirectoryCategoryAside({
   activeCategory,
   categories = webShopDirectory.categories,
+  categoryIconKeys,
+  categoryIconImages,
   isDesktop,
   onSelectCategory,
   width,
 }: {
   activeCategory: string;
   categories?: readonly string[];
+  /** Optional admin/API icon_key by category name (Phase C). */
+  categoryIconKeys?: Readonly<Record<string, string>>;
+  /** Optional custom uploaded icon URL by category name. */
+  categoryIconImages?: Readonly<Record<string, string>>;
   isDesktop: boolean;
   onSelectCategory: (category: string) => void;
   width: number;
@@ -53,7 +58,6 @@ export function ShopDirectoryCategoryAside({
       >
         {categories.map((category) => {
           const active = activeCategory === category;
-          const CategoryIcon = getCategoryIcon(category);
 
           return (
             <MotionPressable
@@ -68,10 +72,12 @@ export function ShopDirectoryCategoryAside({
               ]}
             >
               <View style={styles.shopDirectoryCategoryIconCell}>
-                <CategoryIcon
+                <CategoryGlyph
+                  category={category}
                   color={active ? colors.white : colors.accent}
+                  iconKey={categoryIconKeys?.[category]}
+                  imageUrl={categoryIconImages?.[category]}
                   size={isDesktop ? 18 : 16}
-                  strokeWidth={typography.iconStrokeWidth}
                 />
               </View>
               <Text

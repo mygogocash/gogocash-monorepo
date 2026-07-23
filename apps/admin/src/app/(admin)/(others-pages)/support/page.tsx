@@ -140,7 +140,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
               8. Banner Management
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              <strong>Home Page Banner</strong> — Main homepage carousel plus a separate <strong>Home Page Banner Small Banner</strong> strip (same page). <strong>All Brand Page banner</strong> covers the in-app all-brands listing screen. Use <strong>Modal popups</strong> to configure up to three app-open popups with redirect links, and <strong>Popup history</strong> to review saved configurations.
+              <strong>Home Page Banner</strong> manages top carousel slides 1–3 and the two smaller lower banners in slots 4–5. <strong>Page Banners</strong> manages separate three-slide carousels for All Brands, All Shops, and Product Discovery. Use <strong>Modal popups</strong> to configure up to three app-open popups with redirect links, and <strong>Popup history</strong> to review saved configurations.
             </p>
           </section>
 
