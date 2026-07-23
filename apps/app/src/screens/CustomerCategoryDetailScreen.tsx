@@ -461,7 +461,7 @@ function CategoryNavItem({
   );
 }
 
-function createCategoryDetailScreenStyles(colors: ThemeColors) {
+export function createCategoryDetailScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
   viewport: {
     alignItems: "center",
@@ -482,6 +482,9 @@ function createCategoryDetailScreenStyles(colors: ThemeColors) {
   },
   desktopContentCap: {
     alignSelf: "center",
+    // Shared desktop page rhythm: clear the sticky header, separate sections.
+    gap: mobileShellLayout.desktopPageSectionGap,
+    paddingTop: mobileShellLayout.desktopPageTopGap,
     width: "100%",
   },
   desktopFooterCap: {
