@@ -172,10 +172,8 @@ export function CustomerBrandDirectoryScreen() {
     specificPageBanner.retry();
     requestAnimationFrame(() => setRefreshing(false));
   }, [catalogResource, categoryResource, specificPageBanner]);
-  // Sized for the shared BrandCard this grid renders, NOT the legacy bespoke
-  // ShopDirectoryStoreCard (two-line name) that getDirectoryStoreCardHeight
-  // still covers for the shop directory — that formula left ~40px dead under
-  // every brand card.
+  // Sized for the shared BrandCard this grid renders. The retired bespoke card
+  // reserved a two-line name, which left ~40px dead under every card.
   const brandDirectoryRowHeight = getBrandCardLargeHeight(gridMetrics.cardWidth);
   const renderBrandDirectoryCard = useCallback(
     (store: BrandDirectoryStore) => (
