@@ -457,6 +457,32 @@ describe("QuestTable management tabs", () => {
     expect(screen.queryByLabelText("Spend target (THB)")).toBeNull();
   });
 
+  it("editing spend-target amount or referral completion rule does not crash (currentTarget-in-updater regression)", async () => {
+    // Regression: these onChange handlers read event.currentTarget inside the
+    // setTaskDrafts functional updater, which runs AFTER React nulls
+    // currentTarget → "Cannot read properties of null (reading 'value')" tripped
+    // the quest error boundary. Handlers must capture the value synchronously.
+    const user = userEvent.setup();
+    renderQuestTable("create");
+    await user.click(await screen.findByRole("button", { name: "Add task" }));
+    const taskType = screen.getByRole("combobox", { name: "Task type" });
+
+    await user.selectOptions(taskType, "spend_target");
+    const spend = screen.getByLabelText("Spend target (THB)");
+    await user.clear(spend);
+    await user.type(spend, "500");
+    expect(spend).toHaveValue(500);
+    fireEvent.change(spend, { target: { value: "2500" } });
+    expect(spend).toHaveValue(2500);
+
+    await user.selectOptions(taskType, "friend_referral");
+    const rule = screen.getByRole("combobox", {
+      name: "Complete invitation rule",
+    });
+    fireEvent.change(rule, { target: { value: "first_earning_conversion" } });
+    expect(rule).toHaveValue("first_earning_conversion");
+  });
+
   it("upgrades a saved brand-only legacy quest to task-v2 for a canonical membership audience", async () => {
     const user = userEvent.setup();
     questQueries.fetchAdminQuests.mockResolvedValue([
