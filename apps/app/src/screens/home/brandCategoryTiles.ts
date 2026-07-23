@@ -23,12 +23,22 @@ export const BRAND_CATEGORY_DEFINITIONS: readonly BrandCategoryDefinition[] = [
   { id: "electronics", label: "Electronics", terms: ["electronic"] },
 ];
 
+export type BrandCategoryLogo = {
+  readonly logoUri?: string;
+  readonly tint: string;
+};
+
 export type BrandCategoryTile = {
   readonly brandCount: number;
   readonly href: string;
   readonly id: string;
   readonly label: string;
-  readonly logos: readonly { readonly logoUri?: string; readonly tint: string }[];
+  /**
+   * Always BRAND_CATEGORY_TILE_LOGO_COUNT slots so every card keeps the same
+   * three-cell grid. `null` is an intentional blank — the cluster must not
+   * stretch one logo across the whole row.
+   */
+  readonly logos: readonly (BrandCategoryLogo | null)[];
   /** Formatted like the brand cards ("9.8%"), or "" when nothing is curated. */
   readonly topCashback: string;
 };
@@ -62,11 +72,11 @@ export function resolveBrandCategoryTiles(
       href: brandCategoryHref(definition.label),
       id: definition.id,
       label: definition.label,
-      logos: matched.slice(0, BRAND_CATEGORY_TILE_LOGO_COUNT).map((card) => ({
-        logoUri: card.logoUri,
-        tint: card.tint,
-      })),
+      logos: Array.from({ length: BRAND_CATEGORY_TILE_LOGO_COUNT }, (_, index) => {
+        const card = matched[index];
+        return card ? { logoUri: card.logoUri, tint: card.tint } : null;
+      }),
       topCashback: topCashback > 0 ? `${topCashback}%` : "",
     };
-  }).filter((tile) => tile.logos.length > 0);
+  }).filter((tile) => tile.brandCount > 0);
 }

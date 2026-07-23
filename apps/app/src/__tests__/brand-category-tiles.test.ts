@@ -68,6 +68,23 @@ describe("brand category tiles", () => {
     expect(tiles[1].href).toBe("/category/Health%20%26%20Beauty");
   });
 
+  it("resolveBrandCategoryTiles > given fewer brands than slots > pads with blanks instead of stretching", () => {
+    // Fashion has two brands in this catalogue. The card must still be a
+    // three-cell grid, with the third left blank — one logo stretched across the
+    // whole row is not the approved design.
+    const fashion = resolveBrandCategoryTiles(CATALOG)[2];
+
+    expect(fashion.logos).toHaveLength(BRAND_CATEGORY_TILE_LOGO_COUNT);
+    expect(fashion.logos.filter(Boolean)).toHaveLength(2);
+    expect(fashion.logos[2]).toBeNull();
+  });
+
+  it("resolveBrandCategoryTiles > given every category > always renders the same slot count", () => {
+    for (const tile of resolveBrandCategoryTiles(CATALOG)) {
+      expect(tile.logos).toHaveLength(BRAND_CATEGORY_TILE_LOGO_COUNT);
+    }
+  });
+
   it("resolveBrandCategoryTiles > given a category with no brands > drops the tile", () => {
     const travelOnly = CATALOG.filter((entry) => entry.category === "Travel");
 
