@@ -1,13 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link } from "expo-router";
-import { Search as SearchIcon } from "@mobile/theme/icons";
 import { CategoryGlyph } from "@mobile/components/CategoryGlyph";
 import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  type TextStyle,
   useWindowDimensions,
   View,
   type ViewStyle,
@@ -23,6 +20,7 @@ import {
 import { useCategoryOfferBrowse } from "@mobile/account/useCategoryOfferBrowse";
 import { BrandCard } from "@mobile/components/BrandCard";
 import { getCategoryGridMetrics } from "@mobile/screens/categoryDetailGrid";
+import { DirectorySearchPanel } from "@mobile/screens/discovery/DirectorySearchPanel";
 import { getMobileEnv } from "@mobile/config/env";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
@@ -44,11 +42,6 @@ import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { radii, shadows, spacing, typography } from "@mobile/theme/tokens";
 
-
-const webSearchInputFocusReset = {
-  outlineStyle: "none",
-  outlineWidth: 0,
-} as unknown as TextStyle;
 
 // react-native-web leaves a persistent focus outline box on Pressable/anchor elements after a mouse
 // click; suppress it on the category sidebar items and sort pills (a11y role/label are unaffected).
@@ -87,7 +80,6 @@ function getVisibleStoreCountLabel(count: number) {
 
 export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: string }) {
   const styles = useThemedStyles(createCategoryDetailScreenStyles);
-  const { colors } = useTheme();
   const tc = useCopy();
   const { region } = useLocale();
   const insets = useSafeAreaInsets();
@@ -173,57 +165,21 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
               : null,
           ]}
         >
-          <View style={styles.filterCard}>
-            <View style={styles.searchBox}>
-              <SearchIcon
-                color={colors.muted}
-                size={18}
-                strokeWidth={typography.iconStrokeWidth}
-              />
-              <TextInput
-                accessibilityLabel={searchPlaceholder}
-                autoCapitalize="none"
-                autoCorrect={false}
-                inputMode="search"
-                onChangeText={setSearchQuery}
-                placeholder={searchPlaceholder}
-                placeholderTextColor={colors.muted}
-                returnKeyType="search"
-                style={[styles.searchInput, webSearchInputFocusReset]}
-                value={searchQuery}
-              />
-            </View>
-
-            <View style={styles.sortRow}>
-              <Text style={styles.sortLabel}>{tc(webCategoryExploreHealthBeauty.sortLabel)}</Text>
-              {webCategoryExploreHealthBeauty.sortPills.map((pill) => {
-                const active = sortBy === pill.value;
-                return (
-                  <MotionPressable
-                    accessibilityRole="button"
-                    key={pill.value}
-                    onPress={() => {
-                      // Medium-impact haptic on selection (fire-and-forget; web no-op).
-                      void haptics.impact();
-                      setSortBy(pill.value);
-                    }}
-                    pressScale={motion.scale.subtlePress}
-                    style={[
-                      styles.sortPill,
-                      active ? styles.sortPillActive : null,
-                      pill.value === "lowest_cashback" ? styles.lowestSortPill : null,
-                      webPressableFocusReset,
-                    ]}
-                  >
-                    <Text style={[styles.sortPillText, active ? styles.sortPillTextActive : null]}>
-                      {tc(pill.label)}
-                    </Text>
-                  </MotionPressable>
-                );
-              })}
-              <Text style={styles.storeCount}>{tc(getVisibleStoreCountLabel(stores.length))}</Text>
-            </View>
-          </View>
+          <DirectorySearchPanel
+            activeSort={sortBy}
+            onSearchChange={setSearchQuery}
+            onSelectSort={(value) => {
+              // Medium-impact haptic on selection (fire-and-forget; web no-op).
+              void haptics.impact();
+              setSortBy(value as WebCategoryExploreSort);
+            }}
+            resultsLabel={tc(getVisibleStoreCountLabel(stores.length))}
+            searchLabel={searchPlaceholder}
+            searchPlaceholder={searchPlaceholder}
+            searchValue={searchQuery}
+            sortLabel={webCategoryExploreHealthBeauty.sortLabel}
+            sortPills={webCategoryExploreHealthBeauty.sortPills}
+          />
 
           {stores.length > 0 ? (
             <View style={[styles.storeGrid, { gap: gridMetrics.gap }]}>
