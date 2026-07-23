@@ -183,21 +183,39 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
 
           {stores.length > 0 ? (
             <View style={[styles.storeGrid, { gap: gridMetrics.gap }]}>
-              {stores.map((store, index) => (
-                <BrandCard
-                  accessibilityLabel={store.brand}
-                  brand={store.brand}
-                  cardHeight={gridMetrics.cardHeight}
-                  cardWidth={gridMetrics.cardWidth}
-                  cashback={store.cashback}
-                  href={store.href}
-                  key={store.href ?? store.brand}
-                  logoUri={store.logoUri}
-                  size="L"
-                  testID={`category-result-card-${index}`}
-                  tint={store.tint}
-                />
-              ))}
+              {stores.map((store, index) =>
+                gridMetrics.cardSize === "S" ? (
+                  <BrandCard
+                    accessibilityLabel={store.brand}
+                    brand={store.brand}
+                    cardHeight={gridMetrics.cardHeight}
+                    cardWidth={gridMetrics.cardWidth}
+                    cashback={store.cashback}
+                    href={store.href}
+                    key={store.href ?? store.brand}
+                    logoUri={store.logoUri}
+                    logoVisualHeight={gridMetrics.logoVisualHeight}
+                    showFavoriteHeart
+                    size="S"
+                    testID={`category-result-card-${index}`}
+                    tint={store.tint}
+                  />
+                ) : (
+                  <BrandCard
+                    accessibilityLabel={store.brand}
+                    brand={store.brand}
+                    cardHeight={gridMetrics.cardHeight}
+                    cardWidth={gridMetrics.cardWidth}
+                    cashback={store.cashback}
+                    href={store.href}
+                    key={store.href ?? store.brand}
+                    logoUri={store.logoUri}
+                    size="L"
+                    testID={`category-result-card-${index}`}
+                    tint={store.tint}
+                  />
+                )
+              )}
             </View>
           ) : (
             <View style={styles.emptyState}>
@@ -648,4 +666,3 @@ export function createCategoryDetailScreenStyles(colors: ThemeColors) {
   },
 });
 }
-

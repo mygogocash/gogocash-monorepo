@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { BRAND_CARD_MIN_WIDTH } from "@mobile/components/brandCardMetrics";
-import { getShopDirectoryGridMetrics } from "@mobile/design/webDesignParity";
+import {
+  getResponsiveHomeLayoutMetrics,
+  getShopDirectoryGridMetrics,
+} from "@mobile/design/webDesignParity";
 import { getCategoryGridMetrics } from "@mobile/screens/categoryDetailGrid";
 
 /**
@@ -45,6 +48,52 @@ describe("brand card minimum width", () => {
         expect(cardWidth).toBeGreaterThanOrEqual(BRAND_CARD_MIN_WIDTH.S);
       }
     }
+  });
+
+  it("category detail > given a phone grid > uses two compact cards above the S floor", () => {
+    const metrics = getCategoryGridMetrics({
+      contentWidth: 358,
+      isDesktop: false,
+      viewportWidth: 390,
+    });
+
+    expect(metrics).toMatchObject({ cardSize: "S", columns: 2 });
+    expect(metrics.cardWidth).toBeGreaterThanOrEqual(BRAND_CARD_MIN_WIDTH.S);
+  });
+
+  it("category detail > given the 320px reflow boundary > keeps two compact cards at the S floor", () => {
+    const phoneLayout = getResponsiveHomeLayoutMetrics(320);
+    const metrics = getCategoryGridMetrics({
+      contentWidth: phoneLayout.contentWidth,
+      isDesktop: false,
+      viewportWidth: 320,
+    });
+
+    expect(metrics).toMatchObject({ cardSize: "S", columns: 2, gap: 8 });
+    expect(metrics.cardWidth).toBe(BRAND_CARD_MIN_WIDTH.S);
+  });
+
+  it("category detail > given a viewport too narrow for two legible cards > falls back to one compact card", () => {
+    const phoneLayout = getResponsiveHomeLayoutMetrics(280);
+    const metrics = getCategoryGridMetrics({
+      contentWidth: phoneLayout.contentWidth,
+      isDesktop: false,
+      viewportWidth: 280,
+    });
+
+    expect(metrics).toMatchObject({ cardSize: "S", columns: 1 });
+    expect(metrics.cardWidth).toBeGreaterThanOrEqual(BRAND_CARD_MIN_WIDTH.S);
+  });
+
+  it("category detail > given a tablet grid > keeps large cards above the L floor", () => {
+    const metrics = getCategoryGridMetrics({
+      contentWidth: 720,
+      isDesktop: false,
+      viewportWidth: 768,
+    });
+
+    expect(metrics).toMatchObject({ cardSize: "L", columns: 4 });
+    expect(metrics.cardWidth).toBeGreaterThanOrEqual(BRAND_CARD_MIN_WIDTH.L);
   });
 
   it("shop directory > given size L > uses the taller L floor, not the S one", () => {

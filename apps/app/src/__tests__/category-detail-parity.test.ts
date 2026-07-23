@@ -161,18 +161,19 @@ describe("Category detail parity", () => {
     expect(screenFile).not.toContain('resourceId: "brandCatalog"');
   });
 
-  it("category detail card > given category result grid > then it renders the shared big BrandCard", () => {
+  it("category detail card > given category result grid > then it renders the responsive shared BrandCard variants", () => {
     const screenFile = fs.readFileSync(
       path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),
       "utf8"
     );
 
     expect(screenFile).toContain('import { BrandCard } from "@mobile/components/BrandCard"');
-    // Founder call: category pages use the same setup as All Brands — the big
-    // card. The scaled size "S" it replaced stretched to 185.3px wide at desktop
-    // widths, wider than the big card it sits beside on /brand.
+    // Founder call: phone category results use the compact card in a two-up grid,
+    // while tablet/desktop retain the same big card used by All Brands.
     expect(screenFile).toContain('size="L"');
-    expect(screenFile).not.toContain('size="S"');
+    expect(screenFile).toContain('size="S"');
+    expect(screenFile).toContain("gridMetrics.cardSize");
+    expect(screenFile).toContain("gridMetrics.logoVisualHeight");
     expect(screenFile).toContain("category-result-card");
     expect(screenFile).not.toContain("Grab Coupon");
     expect(screenFile).not.toContain("favoriteButton");
@@ -197,6 +198,45 @@ describe("Category detail parity", () => {
     expect(
       getCategoryGridMetrics({ contentWidth: 1440, isDesktop: true, viewportWidth: 1440 }).columns
     ).toBe(5);
+  });
+
+  it("category detail grid > given a phone viewport > then it uses exactly two compact cards", () => {
+    const phone = getCategoryGridMetrics({
+      contentWidth: 358,
+      isDesktop: false,
+      viewportWidth: 390,
+    });
+
+    expect(phone.cardSize).toBe("S");
+    expect(phone.columns).toBe(2);
+    expect(phone.logoVisualHeight).toBeGreaterThan(0);
+    expect(phone.cardHeight).toBeLessThan(
+      getCategoryGridMetrics({
+        contentWidth: 358,
+        isDesktop: false,
+        viewportWidth: 768,
+      }).cardHeight
+    );
+  });
+
+  it("category detail grid > given the last mobile viewport > then it stays two-up until tablet", () => {
+    expect(
+      getCategoryGridMetrics({
+        contentWidth: 390,
+        isDesktop: false,
+        viewportWidth: 767,
+      })
+    ).toMatchObject({ cardSize: "S", columns: 2 });
+  });
+
+  it("category detail grid > given a tablet viewport > then it preserves the large-card grid", () => {
+    expect(
+      getCategoryGridMetrics({
+        contentWidth: 720,
+        isDesktop: false,
+        viewportWidth: 768,
+      })
+    ).toMatchObject({ cardSize: "L", columns: 4 });
   });
 
   it("category detail grid > given the 280px aside narrowing it > then it drops columns rather than shrink cards", () => {

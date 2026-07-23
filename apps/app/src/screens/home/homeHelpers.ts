@@ -1,8 +1,16 @@
 import { type ImageSourcePropType, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 
 import { type HomeHeroBanner } from "@mobile/account/homeBannerResource";
+import {
+  fitBrandCardColumns,
+  getBrandCardLargeHeight,
+} from "@mobile/components/brandCardMetrics";
 import { resolveHeroBannerRemoteImageSource } from "@mobile/lib/heroBannerImage";
-import { getCarouselActiveIndex, getTopBrandHref } from "@mobile/design/webDesignParity";
+import {
+  getCarouselActiveIndex,
+  getTopBrandHref,
+  mobileShellLayout,
+} from "@mobile/design/webDesignParity";
 
 import { heroBannerAssets } from "./homeAssets";
 import { type CompactBrandLogoOfferCardProps, type HomeLayoutMetrics, type TopBrandCardProps } from "./homeTypes";
@@ -103,6 +111,65 @@ export function getTopBrandSectionLayoutMode(
   }
 
   return getPromoSectionLayoutMode(homeLayout.isDesktop, cardCount);
+}
+
+/**
+ * Phone Top Brands uses the full home content frame rather than the peek-rail frame.
+ * This keeps two large cards above their measured legibility floor on normal phones;
+ * a very narrow phone falls back to one centered large card without reintroducing
+ * horizontal scrolling.
+ */
+export function getTopBrandGridMetrics(
+  homeLayout: Pick<
+    HomeLayoutMetrics,
+    | "brandSectionFrameWidth"
+    | "contentWidth"
+    | "designVersion"
+    | "topBrandCardHeight"
+    | "topBrandCardWidth"
+    | "topBrandGap"
+  >,
+) {
+  if (homeLayout.designVersion !== "mobile") {
+    return {
+      cardHeight: homeLayout.topBrandCardHeight,
+      cardWidth: getPromoGridCardWidth(
+        homeLayout.brandSectionFrameWidth,
+        homeLayout.topBrandGap,
+      ),
+      columns: 2,
+      frameWidth: undefined,
+    };
+  }
+
+  // The mobile home sheet uses 24px page padding, while `contentWidth` is
+  // calculated from the shared 16px shell inset. Remove that 16px difference so
+  // these metrics match the grid's real rendered width.
+  const gridFrameWidth = Math.max(
+    0,
+    homeLayout.contentWidth - mobileShellLayout.contentHorizontalPadding,
+  );
+  const fitted = fitBrandCardColumns({
+    contentWidth: gridFrameWidth,
+    gap: homeLayout.topBrandGap,
+    maxColumns: 2,
+    minColumns: 1,
+    size: "L",
+  });
+  const cardWidth =
+    fitted.columns === 1
+      ? Math.min(homeLayout.topBrandCardWidth, fitted.cardWidth)
+      : fitted.cardWidth;
+
+  return {
+    cardHeight:
+      cardWidth === homeLayout.topBrandCardWidth
+        ? homeLayout.topBrandCardHeight
+        : getBrandCardLargeHeight(cardWidth),
+    cardWidth,
+    columns: fitted.columns,
+    frameWidth: gridFrameWidth,
+  };
 }
 
 /** Fit-all grid: two columns filling the section frame exactly. */

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { BRAND_CARD_MIN_WIDTH } from "@mobile/components/brandCardMetrics";
 import {
   getPromoGridCardWidth,
   getPromoSectionLayoutMode,
+  getTopBrandGridMetrics,
   getTopBrandSectionLayoutMode,
 } from "@mobile/screens/home/homeHelpers";
 import { getResponsiveHomeLayoutMetrics } from "@mobile/design/webDesignParity";
@@ -49,6 +51,34 @@ describe("getTopBrandSectionLayoutMode", () => {
     expect(desktopShellWithTabletDesign.isDesktop).toBe(true);
     expect(getTopBrandSectionLayoutMode(desktopShellWithTabletDesign, 40)).toBe("pager");
     expect(getTopBrandSectionLayoutMode(wideDesktop, 40)).toBe("pager");
+  });
+});
+
+describe("getTopBrandGridMetrics", () => {
+  it("given a common phone viewport > then two large cards use the full content frame and clear their width floor", () => {
+    const metrics = getTopBrandGridMetrics(getResponsiveHomeLayoutMetrics(390));
+
+    expect(metrics.columns).toBe(2);
+    expect(metrics.cardWidth).toBeGreaterThanOrEqual(BRAND_CARD_MIN_WIDTH.L);
+  });
+
+  it("given a 320px reflow viewport > then falls back to one centered large card without horizontal scrolling", () => {
+    const metrics = getTopBrandGridMetrics(getResponsiveHomeLayoutMetrics(320));
+
+    expect(metrics.columns).toBe(1);
+    expect(metrics.cardWidth).toBeGreaterThanOrEqual(BRAND_CARD_MIN_WIDTH.L);
+  });
+
+  it("given a wide phone or foldable viewport > then exposes a centered capped frame with two balanced columns", () => {
+    for (const viewportWidth of [600, 767]) {
+      const layout = getResponsiveHomeLayoutMetrics(viewportWidth);
+      const metrics = getTopBrandGridMetrics(layout);
+      const renderedSheetWidth = viewportWidth - 48;
+
+      expect(metrics.columns).toBe(2);
+      expect(metrics.frameWidth).toBeLessThan(renderedSheetWidth);
+      expect(metrics.cardWidth * 2 + layout.topBrandGap).toBe(metrics.frameWidth);
+    }
   });
 });
 
