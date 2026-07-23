@@ -1048,6 +1048,9 @@ export function createShopDetailScreenStyles(colors: ThemeColors) {
     },
     desktopContentCap: {
       alignSelf: "center",
+      // Shared desktop page rhythm: clear the sticky header, separate sections.
+      gap: mobileShellLayout.desktopPageSectionGap,
+      paddingTop: mobileShellLayout.desktopPageTopGap,
       width: "100%",
     },
     desktopFooterCap: {

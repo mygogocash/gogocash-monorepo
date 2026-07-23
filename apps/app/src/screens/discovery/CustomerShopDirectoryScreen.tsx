@@ -46,15 +46,14 @@ import {
   type WebShopType,
 } from "@mobile/design/webDesignParity";
 
-import {
-  DirectoryVirtualizedGrid,
-  getDirectoryStoreCardHeight,
-} from "./directoryVirtualizedGrid";
+import { BrandCard } from "@mobile/components/BrandCard";
+import { getBrandCardLargeHeight } from "@mobile/components/brandCardMetrics";
+
+import { DirectoryVirtualizedGrid } from "./directoryVirtualizedGrid";
 import { type ShopDirectoryStore } from "./discoveryTypes";
 import { ShopDirectoryCategoryAside } from "./ShopDirectoryCategoryAside";
 import { ShopDirectoryPagination } from "./ShopDirectoryPagination";
 import { SpecificPageBannerCarousel } from "./SpecificPageBannerCarousel";
-import { ShopDirectoryStoreCard } from "./ShopDirectoryStoreCard";
 
 export function CustomerShopDirectoryScreen() {
   const styles = useThemedStyles(createDiscoveryScreenStyles);
@@ -184,12 +183,30 @@ export function CustomerShopDirectoryScreen() {
     specificPageBanner.retry();
     requestAnimationFrame(() => setRefreshing(false));
   }, [catalogResource, categoryResource, specificPageBanner]);
-  const shopDirectoryRowHeight = getDirectoryStoreCardHeight(gridMetrics.cardWidth);
+  const shopDirectoryRowHeight = getBrandCardLargeHeight(gridMetrics.cardWidth);
   const renderShopDirectoryCard = useCallback(
+    // The shared BrandCard (size "L") is the one big-card design — same as the
+    // brand directory, home rails and Top Brands. The bespoke
+    // ShopDirectoryStoreCard it replaces had drifted into a third design
+    // (extra "category · shop type" meta line, different padding and logo tile).
     (store: ShopDirectoryStore) => (
-      <ShopDirectoryStoreCard cardWidth={gridMetrics.cardWidth} store={store} />
+      <BrandCard
+        accessibilityLabel={`${store.brand} ${store.cashback} cashback`}
+        brand={store.brand}
+        cardHeight={shopDirectoryRowHeight}
+        cardWidth={gridMetrics.cardWidth}
+        cashback={store.cashback}
+        href={store.href}
+        id={store.id}
+        label={store.label}
+        logoUri={store.logoUri}
+        showGrabCoupon={store.showGrabCoupon}
+        size="L"
+        testID={`shop-directory-card-${store.id}`}
+        tint={store.tint}
+      />
     ),
-    [gridMetrics.cardWidth]
+    [gridMetrics.cardWidth, shopDirectoryRowHeight]
   );
 
   // Desktop search lives in the header (CustomerDesktopHeader); only mobile needs the sticky search.

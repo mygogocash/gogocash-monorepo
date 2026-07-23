@@ -34,15 +34,28 @@ export function isDesktopSelfChromePathname(pathname: string) {
 }
 
 /**
- * Founder request (2026-07-22): the global desktop header search must be available on
- * EVERY desktop stage, so it is never hidden. This intentionally overrides #436/#463/#495,
- * which hid it on the directory pages (/category, /brand, /shops, /discover) that own a
- * page-scoped search — those pages now show BOTH the global header search and their own
- * page-scoped search. Kept as a seam (the RouteChrome -> CustomerDesktopHeader wiring is
- * unchanged) so per-route hiding can be reintroduced by returning true for a route here.
+ * Pages that ship their own search field. `/category` covers every category stage,
+ * since they are one pattern (same layout, same page-scoped search).
  */
-export function shouldHideDesktopHeaderSearch(_pathname: string): boolean {
-  return false;
+const pageScopedSearchPathnames = ["/brand", "/shops", "/discover", "/category"] as const;
+
+/**
+ * Founder call (2026-07-23), reversing the 2026-07-22 "show it on every desktop stage"
+ * request and restoring the behaviour of #436/#463/#495.
+ *
+ * The global header search is bound to the home stage: using it from a directory or
+ * category page throws the reader back to the homepage. On pages that already own a
+ * page-scoped search it was therefore both a duplicate and a trapdoor. Keep it on the
+ * home stage and anywhere without its own search; hide it where the page has one.
+ */
+export function shouldHideDesktopHeaderSearch(pathname: string): boolean {
+  const normalizedPathname = normalizeDesktopPathname(pathname);
+
+  return pageScopedSearchPathnames.some(
+    (searchPathname) =>
+      normalizedPathname === searchPathname ||
+      normalizedPathname.startsWith(`${searchPathname}/`),
+  );
 }
 
 export function CustomerDesktopRouteChrome({ children }: { children: ReactNode }) {

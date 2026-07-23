@@ -92,29 +92,21 @@ describe("perf wave 4 — query cache, carousel driver, expo-image", () => {
   });
 
   it("directory store cards > given remote logos > then expo-image uses contain on card background", () => {
-    const shopCard = readMobileFile("src/screens/discovery/ShopDirectoryStoreCard.tsx");
-    // #461 — brand directory cards share BrandLogoTile (expo-image lives there).
-    const brandCard = readMobileFile("src/screens/discovery/BrandDirectoryStoreCard.tsx");
+    // #461 + brand-card unification: both directories render the shared BrandCard,
+    // so expo-image lives once, in BrandLogoTile.
+    const brandCard = readMobileFile("src/components/BrandCard.tsx");
     const tile = readMobileFile("src/components/BrandLogoTile.tsx");
-    const discoveryStyles = readMobileFile("src/screens/discovery/customerDiscoveryStyles.ts");
 
-    expect(shopCard).toContain('from "expo-image"');
-    expect(shopCard).toContain('contentFit="contain"');
-    expect(shopCard).toContain("store.logoUri");
-    expect(shopCard).toContain("colors.card");
-    expect(shopCard).not.toMatch(
+    expect(brandCard).toContain("<BrandLogoTile");
+    expect(brandCard).not.toContain('from "expo-image"');
+    expect(brandCard).not.toMatch(
       /import\s*\{[^}]*\bImage\b[^}]*\}\s*from\s*"react-native"/,
     );
 
-    expect(brandCard).toContain("<BrandLogoTile");
-    expect(brandCard).toContain("shopDirectoryLogoTile");
-    expect(brandCard).toContain("store.logoUri");
-    expect(brandCard).not.toContain('from "expo-image"');
     expect(tile).toContain('from "expo-image"');
     expect(tile).toContain('contentFit="contain"');
-
-    expect(discoveryStyles).toMatch(/shopDirectoryLogoTile:[\s\S]*aspectRatio:\s*1/);
-    expect(discoveryStyles).not.toContain('height: "62%"');
+    // The square tile comes from the caller's container style (brandVisual).
+    expect(brandCard).toMatch(/brandVisual:\s*\{[\s\S]*?aspectRatio:\s*1/);
   });
 
   it("shop detail related cards > given remote logos > then the shared BrandCard renders them", () => {

@@ -3,7 +3,6 @@ import {
   RefreshControl,
   ScrollView,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -24,17 +23,14 @@ import type { OfferListResponse } from "@mobile/api/catalogTypes";
 import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter";
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
-import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { haptics } from "@mobile/lib/haptics";
-import { motion } from "@mobile/theme/motion";
 import { useTheme } from "@mobile/theme/ThemeProvider";
 import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 import { typography } from "@mobile/theme/tokens";
 
 import { createDiscoveryScreenStyles } from "./customerDiscoveryStyles";
-import { webSearchInputFocusReset } from "./directoryAssets";
 
 import {
   getBrandDirectoryGridMetrics,
@@ -48,6 +44,7 @@ import {
 import { BrandCard } from "@mobile/components/BrandCard";
 import { getBrandCardLargeHeight } from "@mobile/components/brandCardMetrics";
 import { BrandDirectoryCategoryAside } from "./BrandDirectoryCategoryAside";
+import { DirectorySearchPanel } from "./DirectorySearchPanel";
 import { DirectoryVirtualizedGrid } from "./directoryVirtualizedGrid";
 import { type BrandDirectoryStore } from "./discoveryTypes";
 import { ShopDirectoryPagination } from "./ShopDirectoryPagination";
@@ -172,10 +169,8 @@ export function CustomerBrandDirectoryScreen() {
     specificPageBanner.retry();
     requestAnimationFrame(() => setRefreshing(false));
   }, [catalogResource, categoryResource, specificPageBanner]);
-  // Sized for the shared BrandCard this grid renders, NOT the legacy bespoke
-  // ShopDirectoryStoreCard (two-line name) that getDirectoryStoreCardHeight
-  // still covers for the shop directory — that formula left ~40px dead under
-  // every brand card.
+  // Sized for the shared BrandCard this grid renders. The retired bespoke card
+  // reserved a two-line name, which left ~40px dead under every card.
   const brandDirectoryRowHeight = getBrandCardLargeHeight(gridMetrics.cardWidth);
   const renderBrandDirectoryCard = useCallback(
     (store: BrandDirectoryStore) => (
@@ -272,57 +267,17 @@ export function CustomerBrandDirectoryScreen() {
         />
 
         <View style={[styles.shopDirectoryMain, { width: gridContentWidth }]}>
-          <View style={styles.shopDirectoryFilterPanel}>
-            <View style={styles.shopDirectorySearchBox}>
-              <SearchIcon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
-              <TextInput
-                accessibilityLabel={tc(webBrandDirectory.searchLabel)}
-                autoCapitalize="none"
-                autoCorrect={false}
-                inputMode="search"
-                onChangeText={updateSearchQuery}
-                placeholder={tc(webBrandDirectory.searchPlaceholder)}
-                placeholderTextColor={colors.muted}
-                returnKeyType="search"
-                style={[styles.shopDirectorySearchInput, webSearchInputFocusReset]}
-                value={searchQuery}
-              />
-            </View>
-
-            <View style={styles.shopDirectorySortBlock}>
-              <Text
-                numberOfLines={1}
-                style={styles.shopDirectorySortLabel}
-              >
-                {tc(webBrandDirectory.sortLabel)}
-              </Text>
-              <View style={styles.shopDirectorySortRow}>
-                {webBrandDirectory.sortPills.map((pill) => (
-                  <MotionPressable
-                    accessibilityRole="button"
-                    key={pill.value}
-                    onPress={() => setSortBy(pill.value as WebBrandDirectorySort)}
-                    pressScale={motion.scale.subtlePress}
-                    style={[
-                      styles.shopDirectoryPill,
-                      sortBy === pill.value ? styles.shopDirectoryPillActive : null,
-                    ]}
-                  >
-                    <Text
-                      numberOfLines={1}
-                      style={[
-                        styles.directorySortPillText,
-                        sortBy === pill.value ? styles.directorySortPillTextActive : null,
-                      ]}
-                    >
-                      {tc(pill.label)}
-                    </Text>
-                  </MotionPressable>
-                ))}
-                <Text style={styles.shopDirectoryResultsCount}>{resultsLabel}</Text>
-              </View>
-            </View>
-          </View>
+          <DirectorySearchPanel
+            activeSort={sortBy}
+            onSearchChange={updateSearchQuery}
+            onSelectSort={(value) => setSortBy(value as WebBrandDirectorySort)}
+            resultsLabel={resultsLabel}
+            searchLabel={tc(webBrandDirectory.searchLabel)}
+            searchPlaceholder={tc(webBrandDirectory.searchPlaceholder)}
+            searchValue={searchQuery}
+            sortLabel={webBrandDirectory.sortLabel}
+            sortPills={webBrandDirectory.sortPills}
+          />
 
           {visibleBrands.length > 0 ? (
             <DirectoryVirtualizedGrid
