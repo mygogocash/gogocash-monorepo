@@ -2,6 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { assertWebExportEnv } from "./webExportEnvGuard.mjs";
+
+// Runs before `expo export`. A hosted build that lost its EXPO_PUBLIC_* args
+// must fail here rather than ship a bundle pointed at the wrong environment.
+assertWebExportEnv(process.env);
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const mobileRoot = path.resolve(__dirname, "..");
 const routeMatrixPath = path.join(mobileRoot, "src/navigation/expoConversionMatrix.ts");
