@@ -37,6 +37,11 @@ export const mobileShellLayout = {
   desktopSubNavHeight: 56,
   desktopHomeTopGap: 64,
   desktopHomeStackGap: 40,
+  // Directory pages (/brand, /shops, /category, product discovery) sit under the
+  // sticky header with no hero to separate them, so they carry their own top gap
+  // and a tighter stack gap than the home page's 64/40.
+  desktopDirectoryTopGap: 40,
+  desktopDirectorySectionGap: 24,
   // Space between page content and the full-bleed desktop footer band (margin + inner
   // padding). Do not also gap the scroll container before the footer — that stacks.
   desktopFooterTopMargin: 40,
