@@ -174,6 +174,7 @@ export function CustomerSearchScreen() {
   }
 
   const showPopularBelowQuery = hasQuery && status !== "loading";
+  const showPopularIntro = !hasQuery || showPopularBelowQuery;
   const showIdleSuggestions = !hasQuery;
   const showSuggestionsGrid =
     (showIdleSuggestions && suggestionGridTerms.length > 0) ||
@@ -221,12 +222,9 @@ export function CustomerSearchScreen() {
         />
         {hasQuery ? <SearchResultsSections matches={matches} query={query} status={status} /> : null}
         {showPopularBelowQuery ? (
-          <>
-            <View style={styles.sectionDivider} />
-            <SearchPopularIntro variant="compact" />
-          </>
+          <View style={styles.sectionDivider} />
         ) : null}
-        {!hasQuery ? <SearchPopularIntro variant="large" /> : null}
+        {showPopularIntro ? <SearchPopularIntro /> : null}
         {!hasQuery ? (
           <SearchTrendingChips
             onSelect={(term) => {
