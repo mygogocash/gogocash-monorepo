@@ -2146,6 +2146,18 @@ export function getShopDirectoryResults({
     });
 }
 
+/**
+ * Narrowest card that still renders its cashback row without truncating.
+ * Measured in the shipped font (DM Sans) against BrandCard size "L":
+ * "Cashback upto" (77) + row gap (10) + widest cashback "2.45%" (54) + card
+ * chrome (18) = 159 — within rounding of the directory card's 158.4px design
+ * width. Below it the caption clips to "Cashb…".
+ */
+const MIN_DIRECTORY_CARD_WIDTH = 158;
+
+/** Two-up is the floor; one full-bleed card per row reads as a broken grid. */
+const MIN_DIRECTORY_COLUMNS = 2;
+
 export function getShopDirectoryGridMetrics({
   contentWidth,
   viewportWidth,
@@ -2153,7 +2165,11 @@ export function getShopDirectoryGridMetrics({
   contentWidth: number;
   viewportWidth: number;
 }) {
-  const columns =
+  // The viewport sets the DENSEST allowed grid, but both directories put a
+  // ~280px category aside beside the cards, so contentWidth can be far narrower
+  // than the viewport implies. Sizing columns off the viewport alone squeezed
+  // the desktop 5-up down to ~98px cards next to the aside (#615 follow-up).
+  const maxColumns =
     viewportWidth >= 1024
       ? 5
       : viewportWidth >= 768
@@ -2162,10 +2178,16 @@ export function getShopDirectoryGridMetrics({
           ? 3
           : 2;
   const gap = viewportWidth >= 1024 ? 24 : viewportWidth >= 640 ? 16 : 12;
-  const cardWidth = roundLayoutValue((contentWidth - gap * Math.max(0, columns - 1)) / columns);
+  const widthAt = (count: number) =>
+    (contentWidth - gap * Math.max(0, count - 1)) / count;
+
+  let columns = maxColumns;
+  while (columns > MIN_DIRECTORY_COLUMNS && widthAt(columns) < MIN_DIRECTORY_CARD_WIDTH) {
+    columns -= 1;
+  }
 
   return {
-    cardWidth,
+    cardWidth: roundLayoutValue(widthAt(columns)),
     columns,
     gap,
   };
