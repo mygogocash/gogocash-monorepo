@@ -174,6 +174,23 @@ describe('global ValidationPipe wiring (#46 whitelist)', () => {
       400,
     ));
 
+  it.each(['email', 'referral_id', 'country'])(
+    'rejects unsigned TelegramAuthDto metadata field %s',
+    (field) =>
+      expectStatus(
+        request(app.getHttpServer())
+          .post('/pipe-test/telegram')
+          .send({
+            id: 12345,
+            first_name: 'Ada',
+            auth_date: 1_700_000_000,
+            hash: 'abc123',
+            [field]: 'untrusted-app-metadata',
+          }),
+        400,
+      ),
+  );
+
   it('rejects TelegramAuthDto bodies missing required fields', () =>
     expectStatus(
       request(app.getHttpServer())

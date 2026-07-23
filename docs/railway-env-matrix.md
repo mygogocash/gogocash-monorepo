@@ -55,7 +55,10 @@ railway variables --set 'FIREBASE_PROJECT_ID=<SET_ME: e.g. gogocash-staging-637d
 railway variables --set 'INVOLVE_SECRET=<SET_ME>' --service gogocash-api
 railway variables --set 'INVOLVE_POSTBACK_SECRET=<SET_ME: openssl rand -hex 32 — FAILS CLOSED if empty>' --service gogocash-api
 railway variables --set 'INVOLVE_AI_API_KEY=<SET_ME: FAILS CLOSED on /involve/create-affiliate-ai>' --service gogocash-api
-railway variables --set 'TELEGRAM_BOT_TOKEN=<SET_ME: BotFather token — also GATES TelegramBotModule; omit to disable>' --service gogocash-api
+# Telegram commands are intentionally commented: replace the placeholder and
+# uncomment only after the corresponding rollout is approved.
+# railway variables --set 'TELEGRAM_LOGIN_BOT_TOKEN=<SET_ME: Login Widget BotFather token>' --service gogocash-api
+# railway variables --set 'TELEGRAM_BOT_TOKEN=<SET_ME: poller/Mini App BotFather token; single owner only>' --service gogocash-api
 railway variables --set 'RESEND_API_KEY=<SET_ME: email OTP/invites>' --service gogocash-api
 railway variables --set 'POSTHOG_KEY=<SET_ME: empty disables analytics>' --service gogocash-api
 railway variables --set 'R2_ACCESS_KEY_ID=<SET_ME: Cloudflare R2 S3 API token access key>' --service gogocash-api
@@ -174,8 +177,12 @@ The nginx runtime reads no env except `$PORT`; all `EXPO_PUBLIC_*` must be prese
   these returns HTTP 503 (not a crash) — RUNTIME-LAZY, but catalog/withdraw-slip/avatar media is broken until set.
   Create an S3 API token in Cloudflare → R2 → **Manage R2 API Tokens** (**Object Read & Write** on the bucket).
   Set `MEDIA_UPLOAD_DISABLED=true` only to deliberately disable uploads.
-- **`TELEGRAM_BOT_TOKEN` changes the dependency graph** (`app.module.ts:51-54`): `TelegramBotModule` loads only
-  when it's set and ≠ `'PLACEHOLDER'`. Unset = Telegram cleanly disabled.
+- **Telegram login and polling have separate runtime gates.**
+  `TELEGRAM_LOGIN_BOT_TOKEN` verifies Login Widget callbacks without starting a
+  poller or enabling Mini App login. `TELEGRAM_BOT_TOKEN` verifies Mini App
+  initData and changes the dependency graph (`app.module.ts:57-60`) by loading
+  `TelegramBotModule`; exactly one deployed API instance may own it. Leave both
+  unset to keep both Telegram authentication paths fail-closed.
 - **Fail-closed secrets**: `INVOLVE_POSTBACK_SECRET` and `INVOLVE_AI_API_KEY` reject every request when empty.
 - **Admin "boots ≠ works"**: without `NEXTAUTH_SECRET` the Next.js server binds the port (looks deployed) but
   every protected route redirects to `/signin` — the admin is unusable.

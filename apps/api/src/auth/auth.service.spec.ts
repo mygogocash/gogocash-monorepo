@@ -67,6 +67,7 @@ jest.mock('src/quest-task-engine/registration-source.manifest', () => {
 import axios from 'axios';
 import { assertRegistrationSourceEnabled } from 'src/quest-task-engine/registration-source.manifest';
 import { AuthService } from './auth.service';
+import { TelegramAuthDto } from './dto/auth.dto';
 
 // Mongo ObjectId-ish strings the service feeds into `new Types.ObjectId(...)`.
 const REF_ID = '507f1f77bcf86cd799439011';
@@ -178,6 +179,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   verifyMessageMock.mockReset();
   verifyIdTokenMock.mockReset();
+  delete process.env.TELEGRAM_LOGIN_BOT_TOKEN;
   delete process.env.TELEGRAM_BOT_TOKEN;
   delete process.env.SIWE_EXPECTED_DOMAIN;
   delete process.env.QUEST_TASK_V2_ENABLED;
@@ -1108,7 +1110,7 @@ describe('AuthService', () => {
   describe('signInTelegram', () => {
     // Without the bot token configured, the HMAC cannot be verified, so login
     // MUST be refused rather than trusting the unverified payload.
-    it('signInTelegram > given TELEGRAM_BOT_TOKEN is not set > then it throws UnauthorizedException', async () => {
+    it('signInTelegram > given TELEGRAM_LOGIN_BOT_TOKEN is not set > then it throws UnauthorizedException', async () => {
       const { service, userService } = makeService();
 
       await expect(
@@ -1122,8 +1124,21 @@ describe('AuthService', () => {
       expect(userService.findOne).not.toHaveBeenCalled();
     });
 
+    it('signInTelegram > given only the poller token > then Widget login stays disabled', async () => {
+      process.env.TELEGRAM_BOT_TOKEN = 'poller-only-secret';
+      const { service, userService } = makeService();
+      const payload = signedTelegramAuthDto('poller-only-secret', {
+        auth_date: Math.floor(Date.now() / 1000),
+      });
+
+      await expect(service.signInTelegram(payload)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(userService.findOne).not.toHaveBeenCalled();
+    });
+
     it('signInTelegram > given a verified unknown identity > then disabled registration fails before user mutation', async () => {
-      process.env.TELEGRAM_BOT_TOKEN = 'test-bot-token';
+      process.env.TELEGRAM_LOGIN_BOT_TOKEN = 'test-login-bot-token';
       const { service, userService } = makeService({
         userService: { findOne: jest.fn().mockResolvedValue(null) },
       });
@@ -1137,12 +1152,16 @@ describe('AuthService', () => {
           hash: 'verified-by-spy',
         } as any),
       ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(userService.findOne).toHaveBeenCalledWith({
+        id_telegram: '123',
+      });
+      expect(assertRegistrationSourceEnabled).toHaveBeenCalledWith('telegram');
       expect(userService.createFromFirebase).not.toHaveBeenCalled();
     });
 
     // A forged HMAC must be rejected: this is the anti-impersonation control.
     it('signInTelegram > given an invalid HMAC hash > then it throws UnauthorizedException', async () => {
-      process.env.TELEGRAM_BOT_TOKEN = 'bot-secret';
+      process.env.TELEGRAM_LOGIN_BOT_TOKEN = 'login-bot-secret';
       const { service, userService } = makeService();
 
       await expect(
@@ -1159,51 +1178,75 @@ describe('AuthService', () => {
     // Even a correctly-signed but stale (>60s) payload must be rejected to stop
     // replay of a captured legitimate login.
     it('signInTelegram > given a valid signature but expired auth_date > then it throws UnauthorizedException', async () => {
-      process.env.TELEGRAM_BOT_TOKEN = 'bot-secret';
+      process.env.TELEGRAM_LOGIN_BOT_TOKEN = 'login-bot-secret';
       const { service } = makeService();
-      const payload: any = {
-        id: 123,
-        first_name: 'A',
+      const payload = signedTelegramAuthDto('login-bot-secret', {
         auth_date: Math.floor(Date.now() / 1000) - 600, // 10 min old
-      };
-      payload.hash = signTelegram(payload, 'bot-secret');
+      });
 
       await expect(service.signInTelegram(payload)).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
     });
 
-    // Cross-provider account-takeover guard: a fresh Telegram login whose email
-    // already belongs to a DIFFERENT provider must NOT silently merge.
-    it('signInTelegram > given a fresh telegram login whose email belongs to a non-telegram account > then it refuses to merge', async () => {
-      process.env.TELEGRAM_BOT_TOKEN = 'bot-secret';
-      const emailOwner = makeUser({
-        provider: 'firebase',
-        id_telegram: undefined,
-        email: 'victim@gogocash.co',
+    it('signInTelegram > given a valid dedicated-token signature for an existing identity > then it returns a login session', async () => {
+      process.env.TELEGRAM_LOGIN_BOT_TOKEN = 'login-bot-secret';
+      const existing = makeUser({
+        id_telegram: '999',
+        provider: 'telegram',
+      });
+      const updated = makeUser({
+        id_telegram: '999',
+        provider: 'telegram',
+        username: 'ada_l',
       });
       const { service, userService } = makeService({
         userService: {
-          // 1st call: lookup by id_telegram → none. 2nd call: lookup by email → existing firebase user.
-          findOne: jest
-            .fn()
-            .mockResolvedValueOnce(null)
-            .mockResolvedValueOnce(emailOwner),
+          findOne: jest.fn().mockResolvedValue(existing),
+          update: jest.fn().mockResolvedValue(updated),
+        },
+      });
+      const payload = signedTelegramAuthDto('login-bot-secret', {
+        id: 999,
+        username: 'ada_l',
+        auth_date: Math.floor(Date.now() / 1000),
+      });
+
+      await expect(service.signInTelegram(payload)).resolves.toMatchObject({
+        user: updated,
+        token: 'signed.jwt.token',
+        is_new_user: false,
+        auth_flow: 'login',
+      });
+      expect(userService.findOne).toHaveBeenCalledWith({
+        id_telegram: '999',
+      });
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
+    it('signInTelegram > given a disabled existing identity > then it rejects before mutation or token issuance', async () => {
+      process.env.TELEGRAM_LOGIN_BOT_TOKEN = 'login-bot-secret';
+      const disabledUser = makeUser({
+        disabled: true,
+        id_telegram: '999',
+        provider: 'telegram',
+      });
+      const { service, userService, jwtService } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(disabledUser),
           update: jest.fn(),
         },
       });
-      const payload: any = {
+      const payload = signedTelegramAuthDto('login-bot-secret', {
         id: 999,
-        first_name: 'A',
-        email: 'victim@gogocash.co',
         auth_date: Math.floor(Date.now() / 1000),
-      };
-      payload.hash = signTelegram(payload, 'bot-secret');
+      });
 
       await expect(service.signInTelegram(payload)).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
       expect(userService.update).not.toHaveBeenCalled();
+      expect(jwtService.sign).not.toHaveBeenCalled();
     });
   });
 
@@ -1235,6 +1278,17 @@ describe('AuthService', () => {
 
       await expect(
         service.signInTelegramMiniApp(freshMiniAppInitData()),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(userService.findOne).not.toHaveBeenCalled();
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
+    it('signInTelegramMiniApp > given a placeholder poller token > then it rejects before account lookup', async () => {
+      process.env.TELEGRAM_BOT_TOKEN = 'PLACEHOLDER';
+      const { service, userService } = makeService();
+
+      await expect(
+        service.signInTelegramMiniApp(freshMiniAppInitData('PLACEHOLDER')),
       ).rejects.toBeInstanceOf(UnauthorizedException);
       expect(userService.findOne).not.toHaveBeenCalled();
       expect(userService.createFromFirebase).not.toHaveBeenCalled();
@@ -1355,21 +1409,95 @@ describe('AuthService', () => {
       });
       expect(userService.createFromFirebase).not.toHaveBeenCalled();
     });
+
+    it('signInTelegramMiniApp > given only a Login Widget token > then Mini App login stays disabled', async () => {
+      process.env.TELEGRAM_LOGIN_BOT_TOKEN = MINI_BOT_TOKEN;
+      const { service, userService } = makeService();
+
+      await expect(
+        service.signInTelegramMiniApp(freshMiniAppInitData()),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(userService.findOne).not.toHaveBeenCalled();
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
+
+    it('signInTelegramMiniApp > given distinct Widget and poller tokens > then it verifies only with the poller token', async () => {
+      process.env.TELEGRAM_LOGIN_BOT_TOKEN = 'widget-bot-token';
+      process.env.TELEGRAM_BOT_TOKEN = MINI_BOT_TOKEN;
+      const existing = makeUser({
+        id_telegram: String(TG_ID),
+        provider: 'telegram',
+      });
+      const { service, userService } = makeService({
+        userService: {
+          findOne: jest.fn().mockResolvedValue(existing),
+          update: jest.fn().mockResolvedValue(existing),
+        },
+      });
+
+      await expect(
+        service.signInTelegramMiniApp(freshMiniAppInitData()),
+      ).resolves.toMatchObject({
+        user: existing,
+        is_new_user: false,
+        auth_flow: 'login',
+      });
+      expect(userService.createFromFirebase).not.toHaveBeenCalled();
+    });
   });
 
   // --- verifyTelegramAuth ---------------------------------------------------
   describe('verifyTelegramAuth', () => {
-    it('verifyTelegramAuth > given a hash computed with the bot token > then it returns true', async () => {
-      process.env.TELEGRAM_BOT_TOKEN = 'bot-secret';
+    it('verifyTelegramAuth > given the dedicated login token > then it returns true without a poller token', async () => {
+      process.env.TELEGRAM_LOGIN_BOT_TOKEN = 'login-only-secret';
       const { service } = makeService();
-      const payload: any = { id: 1, first_name: 'A', auth_date: 1700000000 };
-      payload.hash = signTelegram(payload, 'bot-secret');
+      const payload = signedTelegramAuthDto('login-only-secret');
 
       await expect(service.verifyTelegramAuth(payload)).resolves.toBe(true);
     });
 
+    it('verifyTelegramAuth > given only the poller token > then it returns false', async () => {
+      process.env.TELEGRAM_BOT_TOKEN = 'poller-only-secret';
+      const { service } = makeService();
+      const payload = signedTelegramAuthDto('poller-only-secret');
+
+      await expect(service.verifyTelegramAuth(payload)).resolves.toBe(false);
+    });
+
+    it('verifyTelegramAuth > given both tokens > then it accepts only the dedicated-token signature', async () => {
+      process.env.TELEGRAM_LOGIN_BOT_TOKEN = 'login-secret';
+      process.env.TELEGRAM_BOT_TOKEN = 'poller-secret';
+      const { service } = makeService();
+
+      await expect(
+        service.verifyTelegramAuth(signedTelegramAuthDto('login-secret')),
+      ).resolves.toBe(true);
+      await expect(
+        service.verifyTelegramAuth(signedTelegramAuthDto('poller-secret')),
+      ).resolves.toBe(false);
+    });
+
+    it('verifyTelegramAuth > given transformed optional fields with undefined values > then it verifies only the fields Telegram sent', async () => {
+      process.env.TELEGRAM_LOGIN_BOT_TOKEN = 'login-secret';
+      const { service } = makeService();
+      const signedPayload = signedTelegramAuthDto('login-secret');
+      const transformedPayload = Object.assign(new TelegramAuthDto(), {
+        ...signedPayload,
+        last_name: undefined,
+        photo_url: undefined,
+        username: undefined,
+      });
+
+      expect(Object.keys(transformedPayload)).toEqual(
+        expect.arrayContaining(['last_name', 'photo_url', 'username']),
+      );
+      await expect(
+        service.verifyTelegramAuth(transformedPayload),
+      ).resolves.toBe(true);
+    });
+
     it('verifyTelegramAuth > given a tampered hash > then it returns false', async () => {
-      process.env.TELEGRAM_BOT_TOKEN = 'bot-secret';
+      process.env.TELEGRAM_LOGIN_BOT_TOKEN = 'login-secret';
       const { service } = makeService();
 
       await expect(
@@ -1652,6 +1780,23 @@ function signTelegram(
     .join('\n');
   const secretKey = createHash('sha256').update(botToken).digest();
   return createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+}
+
+function signedTelegramAuthDto(
+  botToken: string,
+  overrides: Partial<Omit<TelegramAuthDto, 'hash'>> = {},
+): TelegramAuthDto {
+  const unsignedPayload = {
+    id: 1,
+    first_name: 'A',
+    auth_date: 1_700_000_000,
+    ...overrides,
+  } satisfies Omit<TelegramAuthDto, 'hash'>;
+
+  return {
+    ...unsignedPayload,
+    hash: signTelegram(unsignedPayload, botToken),
+  };
 }
 
 // Build a signed Telegram Mini App initData query string using the CORRECT
