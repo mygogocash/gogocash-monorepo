@@ -2584,19 +2584,43 @@ describe('OfferService', () => {
         cardVariant: 'brandLogoBadge',
         position: 0,
         data: [
-          { _id: 'id1', offer_id: 1, brand: 'Alpha', logo: 'a.png', cashback: '12.5%' },
+          {
+            _id: 'id1',
+            offer_id: 1,
+            brand: 'Alpha',
+            logo: 'a.png',
+            cashback: '12.5%',
+          },
         ],
         dataDesktop: [
-          { _id: 'id1', offer_id: 1, brand: 'Alpha', logo: 'a.png', cashback: '12.5%' },
+          {
+            _id: 'id1',
+            offer_id: 1,
+            brand: 'Alpha',
+            logo: 'a.png',
+            cashback: '12.5%',
+          },
         ],
         dataMobile: [],
       });
       expect(travel.emoji).toBe('✈️');
       expect(travel.dataDesktop).toEqual([
-        { _id: 'id2', offer_id: 2, brand: 'Bravo', logo: 'b.png', cashback: '10%' },
+        {
+          _id: 'id2',
+          offer_id: 2,
+          brand: 'Bravo',
+          logo: 'b.png',
+          cashback: '10%',
+        },
       ]);
       expect(travel.dataMobile).toEqual([
-        { _id: 'id2', offer_id: 2, brand: 'Bravo', logo: 'b.png', cashback: '10%' },
+        {
+          _id: 'id2',
+          offer_id: 2,
+          brand: 'Bravo',
+          logo: 'b.png',
+          cashback: '10%',
+        },
       ]);
     });
 

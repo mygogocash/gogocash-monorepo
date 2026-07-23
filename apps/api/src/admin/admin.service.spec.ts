@@ -3575,8 +3575,18 @@ describe('AdminService', () => {
       );
       offerModel.find.mockReturnValue(
         makeQuery([
-          { _id: 'offer-1', offer_id: 1, offer_name: 'Alpha', commission_store: 8 },
-          { _id: 'offer-2', offer_id: 2, offer_name: 'Bravo', commission_store: 12 },
+          {
+            _id: 'offer-1',
+            offer_id: 1,
+            offer_name: 'Alpha',
+            commission_store: 8,
+          },
+          {
+            _id: 'offer-2',
+            offer_id: 2,
+            offer_name: 'Bravo',
+            commission_store: 12,
+          },
         ]),
       );
 

@@ -1304,7 +1304,9 @@ describe('AuthService', () => {
         }),
       );
 
-      const result = await service.signInTelegramMiniApp(freshMiniAppInitData());
+      const result = await service.signInTelegramMiniApp(
+        freshMiniAppInitData(),
+      );
 
       expect(result).toMatchObject({
         user: created,
@@ -1338,7 +1340,9 @@ describe('AuthService', () => {
         },
       });
 
-      const result = await service.signInTelegramMiniApp(freshMiniAppInitData());
+      const result = await service.signInTelegramMiniApp(
+        freshMiniAppInitData(),
+      );
 
       expect(result).toMatchObject({
         user: updated,
@@ -1664,7 +1668,9 @@ function signMiniAppInitData(
     .sort()
     .map((k) => `${k}=${params[k]}`)
     .join('\n');
-  const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest();
+  const secretKey = createHmac('sha256', 'WebAppData')
+    .update(botToken)
+    .digest();
   const hash = createHmac('sha256', secretKey)
     .update(dataCheckString)
     .digest('hex');

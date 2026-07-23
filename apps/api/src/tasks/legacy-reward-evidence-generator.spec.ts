@@ -523,7 +523,10 @@ describe('computeGeneratorSnapshotHash (funded rank + special slice)', () => {
 
   it('produces a 64-char hex sha256 digest', () => {
     expect(
-      computeGeneratorSnapshotHash({ fundedRankEntries: [], specialEntries: [] }),
+      computeGeneratorSnapshotHash({
+        fundedRankEntries: [],
+        specialEntries: [],
+      }),
     ).toMatch(/^[0-9a-f]{64}$/);
   });
 });

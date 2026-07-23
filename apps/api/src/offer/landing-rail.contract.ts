@@ -2,7 +2,6 @@ import {
   MAX_TOP_BRANDS,
   normalizeTopBrandEntries,
   resolveDeviceBrandEntries,
-  resolveOfferCashbackLabel,
   type TopBrandConfigLike,
   type TopBrandDevice,
   type TopBrandEntryLike,
@@ -174,14 +173,14 @@ export function normalizeLandingRailForSave(
     rail?.brandsDesktop !== undefined || rail?.brandsMobile !== undefined;
   const brandsDesktop = normalizeTopBrandEntries(
     hasDeviceLists
-      ? (rail?.brandsDesktop as TopBrandEntryLike[] | null | undefined) ??
-          rail?.brands
+      ? ((rail?.brandsDesktop as TopBrandEntryLike[] | null | undefined) ??
+          rail?.brands)
       : rail?.brands,
   );
   const brandsMobile = normalizeTopBrandEntries(
     hasDeviceLists
-      ? (rail?.brandsMobile as TopBrandEntryLike[] | null | undefined) ??
-          rail?.brands
+      ? ((rail?.brandsMobile as TopBrandEntryLike[] | null | undefined) ??
+          rail?.brands)
       : rail?.brands,
   );
   return {
@@ -222,5 +221,3 @@ export function landingRailMemberIds(
   }
   return normalizeTopBrandEntries(ids).map((entry) => entry.offerId);
 }
-
-export { resolveDeviceBrandEntries, resolveOfferCashbackLabel };

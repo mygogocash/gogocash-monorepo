@@ -1,9 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
-import {
-  TopBrandEntry,
-  TopBrandEntrySchema,
-} from './top-brand-config.schema';
+import { TopBrandEntry, TopBrandEntrySchema } from './top-brand-config.schema';
 
 export type LandingRailConfigDocument = HydratedDocument<LandingRailConfig>;
 

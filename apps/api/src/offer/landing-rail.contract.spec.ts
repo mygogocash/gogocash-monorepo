@@ -105,9 +105,12 @@ describe('normalizeLandingRailForSave', () => {
   });
 
   it('normalizeLandingRailForSave > given more than max brands > then caps per device', () => {
-    const many = Array.from({ length: MAX_LANDING_RAIL_BRANDS + 5 }, (_, i) => ({
-      offerId: `id-${i}`,
-    }));
+    const many = Array.from(
+      { length: MAX_LANDING_RAIL_BRANDS + 5 },
+      (_, i) => ({
+        offerId: `id-${i}`,
+      }),
+    );
     const rail = normalizeLandingRailForSave({
       railId: 'trending',
       title: 'Trending',
