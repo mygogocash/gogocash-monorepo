@@ -1,4 +1,9 @@
 import type { Request } from 'express';
+import { UnauthorizedException } from '@nestjs/common';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
+import { ROLES_KEY } from 'src/admin/roles.decorator';
+import { RolesGuard } from 'src/admin/roles.guard';
 import { OfferController } from './offer.controller';
 import { OfferService } from './offer.service';
 import {
@@ -42,6 +47,7 @@ function createOfferServiceMock(): OfferServiceMock {
     getCoupon: jest.fn().mockResolvedValue({ data: [], total: 0 }),
     getCouponId: jest.fn().mockResolvedValue({ _id: 'coupon-1' }),
     updateCoupon: jest.fn().mockResolvedValue({ updated: true }),
+    archiveCoupon: jest.fn().mockResolvedValue({ archived: true }),
     findAll: jest.fn().mockResolvedValue({
       page: 1,
       limit: 10,
@@ -196,6 +202,44 @@ describe('OfferController', () => {
 
       expect(service.updateCoupon).toHaveBeenCalledTimes(1);
       expect(service.updateCoupon).toHaveBeenCalledWith(body);
+    });
+  });
+
+  describe('archiveCoupon', () => {
+    it('requires approver auth metadata and forwards auditable actor identity', async () => {
+      const method = OfferController.prototype.archiveCoupon;
+      const guards = Reflect.getMetadata(GUARDS_METADATA, method) ?? [];
+
+      expect(guards).toEqual(
+        expect.arrayContaining([AuthAdminGuard, RolesGuard]),
+      );
+      expect(Reflect.getMetadata(ROLES_KEY, method)).toEqual(['approver']);
+
+      await expect(
+        controller.archiveCoupon(
+          {
+            user: {
+              email: 'approver@gogocash.co',
+              sub: 'admin-42',
+            },
+          } as never,
+          'coupon-1',
+        ),
+      ).resolves.toEqual({ archived: true });
+      expect(service.archiveCoupon).toHaveBeenCalledWith('coupon-1', {
+        adminEmail: 'approver@gogocash.co',
+        adminId: 'admin-42',
+      });
+    });
+
+    it('fails closed when the authenticated token lacks an operator id', async () => {
+      await expect(
+        controller.archiveCoupon(
+          { user: { email: 'admin@gogocash.co' } } as never,
+          'coupon-1',
+        ),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(service.archiveCoupon).not.toHaveBeenCalled();
     });
   });
 

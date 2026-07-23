@@ -10,6 +10,7 @@ import {
   UploadedFiles,
   UseGuards,
   UseInterceptors,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { OfferService } from './offer.service';
 import { ApiBearerAuth, ApiBody, ApiQuery, ApiSecurity } from '@nestjs/swagger';
@@ -135,6 +136,26 @@ export class OfferController {
     // console.log('user', request);
     // const id = user.sub;
     return this.offerService.updateCoupon(body);
+  }
+
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @Roles('approver')
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Delete('coupons/:id')
+  async archiveCoupon(@Req() request: Request, @Param('id') id: string) {
+    const user = request['user'] as
+      { email?: string; sub?: string } | undefined;
+    if (!user?.sub) {
+      throw new UnauthorizedException(
+        'Authenticated admin identity is required to delete a coupon.',
+      );
+    }
+
+    return this.offerService.archiveCoupon(id, {
+      adminEmail: user.email,
+      adminId: user.sub,
+    });
   }
 
   @Get()

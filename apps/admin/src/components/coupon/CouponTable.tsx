@@ -18,15 +18,28 @@ import {
 import { CouponData, CouponRequestForm, ResponseCoupon } from "@/types/coupon";
 import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
 import SearchBar from "@/components/ui/button/SearchBar";
-import { useQuery } from "@tanstack/react-query";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import client from "@/lib/axios/client";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { usePermissions } from "@/hooks/usePermissions";
+
+const API_COUPON_DELETE_ROLES = new Set([
+  "admin",
+  "approver",
+  "super_admin",
+  "superadmin",
+]);
 
 export default function CouponTable() {
+  const permissions = usePermissions();
+  const canDeleteCoupons =
+    permissions.ready && API_COUPON_DELETE_ROLES.has(permissions.apiRole ?? "");
   const [openModal, setOpenModal] = useState<boolean | CouponRequestForm>(
     false,
   );
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [couponToDelete, setCouponToDelete] = useState<CouponData | null>(null);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState<CouponRequestForm>(COUPON_FORM_DEFAULTS);
@@ -99,6 +112,24 @@ export default function CouponTable() {
     setForm(dt);
     setOpenActionsId(null);
   };
+
+  const deleteCouponMutation = useMutation({
+    mutationFn: (couponId: string) =>
+      client
+        .delete(`/offer/coupons/${encodeURIComponent(couponId)}`)
+        .then((response) => response.data),
+    onSuccess: async () => {
+      setCouponToDelete(null);
+      setOpenActionsId(null);
+      await refetch();
+    },
+  });
+  const deleteErrorMessage = deleteCouponMutation.error
+    ? getApiErrorMessage(
+        deleteCouponMutation.error,
+        "Couldn't delete this coupon. Please try again.",
+      )
+    : null;
 
   const coupons = couponData?.data ?? [];
 
@@ -334,13 +365,20 @@ export default function CouponTable() {
                                   >
                                     Edit
                                   </button>
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                  >
-                                    Delete
-                                  </button>
+                                  {canDeleteCoupons ? (
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setCouponToDelete(list);
+                                        setOpenActionsId(null);
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                    >
+                                      Delete
+                                    </button>
+                                  ) : null}
                                 </div>
                               )}
                             </div>
@@ -428,6 +466,36 @@ export default function CouponTable() {
           </>
         )}
       </div>
+      <ConfirmDialog
+        busy={deleteCouponMutation.isPending}
+        confirmLabel={
+          deleteCouponMutation.isPending ? "Deleting…" : "Delete coupon"
+        }
+        description={[
+          "This removes the coupon from Coupon History and the customer app while preserving its redemption and engagement audit history.",
+          deleteErrorMessage,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        isOpen={couponToDelete !== null}
+        onCancel={() => {
+          if (!deleteCouponMutation.isPending) {
+            deleteCouponMutation.reset();
+            setCouponToDelete(null);
+          }
+        }}
+        onConfirm={() => {
+          if (couponToDelete) {
+            deleteCouponMutation.mutate(couponToDelete._id);
+          }
+        }}
+        title={
+          couponToDelete
+            ? `Delete “${couponToDelete.name}”?`
+            : "Delete this coupon?"
+        }
+        tone="danger"
+      />
     </div>
   );
 }
