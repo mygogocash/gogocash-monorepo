@@ -1,8 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
-  IsBoolean,
   IsDate,
   IsIn,
   IsInt,
@@ -69,17 +68,6 @@ export class CreateQuestDto {
   @IsDate()
   end_date: Date;
 
-  @ApiProperty({ example: 'open|close|scheduled', required: false })
-  @IsOptional()
-  @IsString()
-  @IsIn(['open', 'close', 'scheduled'])
-  status?: string;
-
-  @ApiProperty({ example: false, required: false })
-  @IsOptional()
-  @IsBoolean()
-  reward_status?: boolean;
-
   @ApiProperty({ example: '' })
   @IsString()
   facebook_post: string;
@@ -116,11 +104,21 @@ export class QuestMediaQaCleanupDto {
 }
 
 export class CloseQuestDto {
-  @ApiProperty({ example: 'open|close|scheduled' })
+  @ApiProperty({ example: '66a8a48f2c8de0e641e17424' })
+  @IsMongoId()
+  quest_id: string;
+
+  @ApiProperty({ example: 0 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  expected_campaign_revision: number;
+
+  @ApiProperty({ example: 'close', enum: ['close'] })
   @IsString()
   @IsNotEmpty()
-  @IsIn(['open', 'close', 'scheduled'])
-  status: string;
+  @IsIn(['close'])
+  status: 'close';
 }
 
 export class QuestRewardDto {
@@ -172,4 +170,59 @@ export class UpdateQuestRewardsDto {
   @Max(365)
   @Type(() => Number)
   reward_distribution_delay_days?: number;
+}
+
+export class CreateQuestRevisionDto {
+  @ApiProperty({ example: 'quest-revision:2026-08-launch' })
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9:._/-]{7,255}$/)
+  request_key: string;
+
+  @ApiProperty({ example: 0 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  expected_campaign_revision: number;
+
+  @ApiProperty({ example: 0 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  expected_config_revision: number;
+
+  @ApiProperty({ example: '2026-08-01T00:00:00.000+07:00' })
+  @Type(() => Date)
+  @IsDate()
+  start_date: Date;
+
+  @ApiProperty({ example: '2026-08-31T23:59:59.999+07:00' })
+  @Type(() => Date)
+  @IsDate()
+  end_date: Date;
+
+  @ApiProperty({ example: 'Prepare the next monthly campaign.' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(4)
+  @MaxLength(500)
+  reason: string;
+}
+
+export class PublishQuestRevisionDto {
+  @ApiProperty({ example: 'quest-publish:2026-08-launch' })
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9:._/-]{7,255}$/)
+  request_key: string;
+
+  @ApiProperty({ example: 0 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  expected_campaign_revision: number;
+
+  @ApiProperty({ example: 0 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  expected_config_revision: number;
 }

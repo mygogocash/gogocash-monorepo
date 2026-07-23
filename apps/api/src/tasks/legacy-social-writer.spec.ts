@@ -28,9 +28,16 @@ function serviceHarness() {
     legacy_payout_key: `legacy:quest:${questId}:social:facebook:follow:user:${userId}`,
   };
   const questModel = {
-    findOne: jest.fn().mockReturnValue({
-      lean: jest.fn().mockResolvedValue(quest),
-    }),
+    findOne: jest.fn().mockReturnValue(
+      (() => {
+        const query = {
+          sort: jest.fn(),
+          lean: jest.fn().mockResolvedValue(quest),
+        };
+        query.sort.mockReturnValue(query);
+        return query;
+      })(),
+    ),
   };
   const socialRewardModel = {
     findOne: jest.fn().mockResolvedValue(social),
@@ -170,6 +177,7 @@ describe('PointService legacy social writer', () => {
     const { service, questModel, socialRewardModel, userId, social } =
       serviceHarness();
     questModel.findOne.mockReturnValue({
+      sort: jest.fn().mockReturnThis(),
       lean: jest.fn().mockResolvedValue(null),
     });
 

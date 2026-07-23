@@ -549,6 +549,13 @@ describe('QuestTaskProgressService pure contracts', () => {
       new Date('2026-07-17T00:00:00.000Z'),
     );
 
+    expect(questModel.find).toHaveBeenCalledWith({
+      reward_model: 'task_v2',
+      publication_status: { $ne: 'draft' },
+      status: { $ne: 'close' },
+      start_date: { $lte: new Date('2026-07-17T00:00:00.000Z') },
+      end_date: { $gte: new Date('2026-07-17T00:00:00.000Z') },
+    });
     expect(response.map((entry) => entry.quest_id)).toEqual([
       allQuest._id.toHexString(),
       eligibleQuest._id.toHexString(),

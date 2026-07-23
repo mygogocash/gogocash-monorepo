@@ -17,10 +17,8 @@ vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageTag: "en-US", languageCode: "en" }],
 }));
 
-// Quest tasks now come from TWO hooks (the "Both" design): useQuestTaskRows = the signed-in
-// user's PERSONAL progress (/point/quest-progress, auth-gated), and useQuestBrandTasks = the
-// PUBLIC earn-list (/offer/extra-point, shown to everyone). Both are stubbed here via mutable
-// state so a single mock factory can model signed-in vs signed-out without re-mocking.
+// Quest definitions come from the public catalog; authenticated progress is merged into those
+// definitions by quest_id + task_key rather than rendered as a second list.
 type QuestRowLike = Record<string, unknown> & { key: string };
 type HookResultLike = {
   error: null;
@@ -35,11 +33,13 @@ const PERSONAL_ROWS: QuestRowLike[] = [
     href: "/shop/offer-1",
     icon: "go",
     key: "quest:brand",
+    questId: "quest",
     points: "+50 Points",
     progressLabel: "1 / 1 purchase",
     state: "completed",
     stateLabel: "Completed",
     target: 1,
+    taskKey: "brand",
     taskType: "brand_purchase",
     title: "Brand purchase task",
     unit: "purchase",
@@ -51,11 +51,13 @@ const PERSONAL_ROWS: QuestRowLike[] = [
     current: 2,
     icon: "glow",
     key: "quest:referral",
+    questId: "quest",
     points: "+75 Points",
     progressLabel: "2 / 2 referrals",
     state: "in_progress",
     stateLabel: "In progress",
     target: 2,
+    taskKey: "referral",
     taskType: "friend_referral",
     title: "Friend referral task",
     unit: "referral",
@@ -64,11 +66,78 @@ const PERSONAL_ROWS: QuestRowLike[] = [
     current: 125000,
     icon: "orbit",
     key: "quest:spend",
+    questId: "quest",
     points: "+100 Points",
     progressLabel: "THB 1,250 / THB 1,500",
     state: "compensated",
     stateLabel: "Reversed",
     target: 150000,
+    taskKey: "spend",
+    taskType: "spend_target",
+    title: "Spend target task",
+    unit: "thb_minor",
+  },
+  {
+    current: 0,
+    href: "/shop/offer-2",
+    icon: "go",
+    key: "quest:not-started",
+    questId: "quest",
+    points: "+25 Points",
+    progressLabel: "0 / 1 purchase",
+    state: "not_started",
+    stateLabel: "Not started",
+    target: 1,
+    taskKey: "not-started",
+    taskType: "brand_purchase",
+    title: "Not started task",
+    unit: "purchase",
+  },
+];
+
+const CATALOG_ROWS: QuestRowLike[] = [
+  {
+    current: 0,
+    href: "/shop/offer-1",
+    icon: "go",
+    key: "quest:brand",
+    points: "+50 Points",
+    progressLabel: "",
+    questId: "quest",
+    state: "not_started",
+    stateLabel: "",
+    target: 1,
+    taskKey: "brand",
+    taskType: "brand_purchase",
+    title: "Brand purchase task",
+    unit: "purchase",
+  },
+  {
+    current: 0,
+    icon: "glow",
+    key: "quest:referral",
+    points: "+75 Points",
+    progressLabel: "",
+    questId: "quest",
+    state: "not_started",
+    stateLabel: "",
+    target: 3,
+    taskKey: "referral",
+    taskType: "friend_referral",
+    title: "Friend referral task",
+    unit: "referral",
+  },
+  {
+    current: 0,
+    icon: "orbit",
+    key: "quest:spend",
+    points: "+100 Points",
+    progressLabel: "",
+    questId: "quest",
+    state: "not_started",
+    stateLabel: "",
+    target: 150000,
+    taskKey: "spend",
     taskType: "spend_target",
     title: "Spend target task",
     unit: "thb_minor",
@@ -79,57 +148,14 @@ const PERSONAL_ROWS: QuestRowLike[] = [
     icon: "go",
     key: "quest:not-started",
     points: "+25 Points",
-    progressLabel: "0 / 1 purchase",
+    progressLabel: "",
+    questId: "quest",
     state: "not_started",
-    stateLabel: "Not started",
+    stateLabel: "",
     target: 1,
+    taskKey: "not-started",
     taskType: "brand_purchase",
     title: "Not started task",
-    unit: "purchase",
-  },
-];
-
-const BRAND_ROWS: QuestRowLike[] = [
-  {
-    current: 0,
-    href: "/shop/offer-klook",
-    icon: "go",
-    key: "extra-point:offer-klook",
-    points: "+50 Points",
-    progressLabel: "",
-    state: "not_started",
-    stateLabel: "",
-    target: 1,
-    taskType: "brand_purchase",
-    title: "Klook Travel",
-    unit: "purchase",
-  },
-  {
-    current: 0,
-    href: "/shop/offer-traveloka",
-    icon: "go",
-    key: "extra-point:offer-traveloka",
-    points: "+50 Points",
-    progressLabel: "",
-    state: "not_started",
-    stateLabel: "",
-    target: 1,
-    taskType: "brand_purchase",
-    title: "Traveloka TH",
-    unit: "purchase",
-  },
-  {
-    current: 0,
-    href: "/shop",
-    icon: "go",
-    key: "extra-point:shop-300",
-    points: "+50 Points",
-    progressLabel: "",
-    state: "not_started",
-    stateLabel: "",
-    target: 1,
-    taskType: "brand_purchase",
-    title: "Shop 300 Baht+ on any shops",
     unit: "purchase",
   },
 ];
@@ -141,12 +167,37 @@ const ready = (rows: QuestRowLike[]): HookResultLike => ({
   status: "ready",
 });
 
-let personalState: HookResultLike;
-let brandState: HookResultLike;
+let progressState: HookResultLike;
+let catalogState: HookResultLike;
 
 vi.mock("@mobile/quest/questTaskResource", () => ({
-  useQuestTaskRows: () => personalState,
-  useQuestBrandTasks: () => brandState,
+  mergeQuestTaskCatalogProgress: (
+    catalogRows: QuestRowLike[],
+    progressRows: QuestRowLike[],
+  ) =>
+    catalogRows.map((definition) => {
+      const progress = progressRows.find(
+        (row) =>
+          row.questId === definition.questId &&
+          row.taskKey === definition.taskKey,
+      );
+      return progress
+        ? {
+            ...definition,
+            ...(progress.capLabel ? { capLabel: progress.capLabel } : {}),
+            ...(progress.capReached
+              ? { capReached: progress.capReached }
+              : {}),
+            ...(progress.capReason ? { capReason: progress.capReason } : {}),
+            current: progress.current,
+            progressLabel: progress.progressLabel,
+            state: progress.state,
+            stateLabel: progress.stateLabel,
+          }
+        : definition;
+    }),
+  useQuestTaskCatalog: () => catalogState,
+  useQuestTaskRows: () => progressState,
 }));
 
 import { CustomerQuestScreen } from "@mobile/screens/CustomerQuestScreen";
@@ -181,9 +232,8 @@ function renderQuest(props?: { history?: boolean }) {
 }
 
 beforeEach(() => {
-  // Default: signed-in shopper with personal progress AND the public earn-list ("Both").
-  personalState = ready(PERSONAL_ROWS);
-  brandState = ready(BRAND_ROWS);
+  catalogState = ready(CATALOG_ROWS);
+  progressState = ready(PERSONAL_ROWS);
 });
 
 describe("CustomerQuestScreen (render)", () => {
@@ -201,11 +251,12 @@ describe("CustomerQuestScreen (render)", () => {
     expect(screen.getByText("Explore other Shops")).toBeTruthy();
   });
 
-  it("shows the public brand earn-list under the How-to-win tab too", () => {
-    // Prod parity: the tasks are visible on the how-to-earn tab, not only the Tasks tab.
+  it("shows the public task catalog under the How-to-win tab too", () => {
     renderQuest();
-    expect(screen.getAllByText("Klook Travel").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Shop 300 Baht+ on any shops").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Brand purchase task").length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.getAllByText("Spend target task").length).toBeGreaterThan(0);
   });
 
   it("renders every canonical personal task type with progress, points, and completion state", () => {
@@ -225,29 +276,32 @@ describe("CustomerQuestScreen (render)", () => {
     expect(screen.getByText("Not started")).toBeTruthy();
   });
 
-  it("signed-in: renders BOTH the personal progress section and the public earn-list", () => {
+  it("signed-in: merges progress into catalog definitions without duplicate rows", () => {
     renderQuest();
     fireEvent.click(screen.getByText("Tasks"));
 
-    // Personal overlay (signed-in only) carries its own "Quest progress" section header.
-    expect(screen.getByText("Quest progress")).toBeTruthy();
-    expect(screen.getByText("Brand purchase task")).toBeTruthy();
-    // Public earn-list is shown to everyone.
-    expect(screen.getAllByText("Klook Travel").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Traveloka TH").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Brand purchase task")).toHaveLength(1);
+    expect(screen.getByText("1 / 1 purchase")).toBeTruthy();
+    expect(screen.queryByText("Quest progress")).toBeNull();
   });
 
-  it("signed-out: shows the public brand list to everyone, not an empty state", () => {
-    personalState = ready([]); // signed-out -> no personal rows
+  it("signed-out: shows catalog definitions without requiring progress", () => {
+    progressState = ready([]);
     renderQuest();
     fireEvent.click(screen.getByText("Tasks"));
 
-    // The public earn-list still renders for a signed-out visitor (prod parity).
-    expect(screen.getAllByText("Klook Travel").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Shop 300 Baht+ on any shops").length).toBeGreaterThan(0);
-    // No personal section and no "nothing here" dead-end.
+    expect(screen.getByText("Brand purchase task")).toBeTruthy();
+    expect(screen.getByText("Spend target task")).toBeTruthy();
     expect(screen.queryByText("Quest progress")).toBeNull();
     expect(screen.queryByText("No active quest tasks right now.")).toBeNull();
+  });
+
+  it("shows an explicit empty state when the catalog has no active tasks", () => {
+    catalogState = ready([]);
+    progressState = ready([]);
+    renderQuest();
+
+    expect(screen.getByText("No active quest tasks right now.")).toBeTruthy();
   });
 
   it("mounts the quest history view without throwing", () => {
@@ -334,8 +388,10 @@ describe("CustomerQuestScreen — Wave B (B5) foundations adopted (source signal
     expect(questSource).not.toContain("webQuestLeaderboardRows.map(");
   });
 
-  it("wires the PUBLIC brand earn-list to /offer/extra-point via useQuestBrandTasks", () => {
-    // The Tasks panel must consume the public hook so signed-out visitors see the earn-list.
-    expect(questSource).toContain("useQuestBrandTasks()");
+  it("wires the server-owned catalog and merges authenticated progress by identity", () => {
+    expect(questSource).toContain("useQuestTaskCatalog()");
+    expect(questSource).toContain("mergeQuestTaskCatalogProgress(");
+    expect(questSource).not.toContain("useQuestBrandTasks");
+    expect(questSource).not.toContain("/offer/extra-point");
   });
 });

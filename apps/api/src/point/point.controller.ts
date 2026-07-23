@@ -19,7 +19,9 @@ import { TasksService } from './tasksService';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import {
   CloseQuestDto,
+  CreateQuestRevisionDto,
   CreateQuestDto,
+  PublishQuestRevisionDto,
   QuestMediaQaCleanupDto,
   UpdateQuestRewardsDto,
   UpdateQuestTasksDto,
@@ -28,12 +30,18 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { RolesGuard } from 'src/admin/roles.guard';
 import { Roles } from 'src/admin/roles.decorator';
 import { QuestMediaQaService } from './quest-media-qa.service';
+import { QuestTaskCatalogService } from './quest-task-catalog.service';
+import { QuestRevisionService } from './quest-revision.service';
+import { RateLimit } from 'src/auth/rate-limit.decorator';
+import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 @Controller('point')
 export class PointController {
   constructor(
     private readonly pointService: PointService,
     private readonly tasksService: TasksService,
     private readonly questMediaQa: QuestMediaQaService,
+    private readonly questTaskCatalog: QuestTaskCatalogService,
+    private readonly questRevision: QuestRevisionService,
   ) {}
 
   @Post()
@@ -189,6 +197,14 @@ export class PointController {
     return this.pointService.getQuestAdmin();
   }
 
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('admin-quest-capabilities')
+  getQuestManagementCapabilities() {
+    return this.pointService.getQuestManagementCapabilities();
+  }
+
   @UseGuards(AuthAdminGuard, RolesGuard)
   @ApiSecurity('access-token')
   @ApiBearerAuth()
@@ -226,6 +242,48 @@ export class PointController {
   @UseGuards(AuthAdminGuard)
   @ApiSecurity('access-token')
   @ApiBearerAuth()
+  @Get('admin-quest/:id/effective-tasks')
+  getQuestAdminEffectiveTasks(@Param('id') id: string) {
+    return this.questTaskCatalog.getAdminCatalog(id);
+  }
+
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Roles('superadmin')
+  @Post('admin-quest/:id/revisions')
+  createQuestRevision(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() input: CreateQuestRevisionDto,
+  ) {
+    return this.questRevision.createRevision(
+      id,
+      input,
+      String((req['user'] as any)?.sub ?? ''),
+    );
+  }
+
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Roles('superadmin')
+  @Post('admin-quest/:id/publish')
+  publishQuestRevision(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() input: PublishQuestRevisionDto,
+  ) {
+    return this.questRevision.publishRevision(
+      id,
+      input,
+      String((req['user'] as any)?.sub ?? ''),
+    );
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
   @Get('admin-quest/:id/task-deeplinks')
   getQuestTaskDeeplinkSummary(@Param('id') id: string) {
     return this.pointService.getQuestTaskDeeplinkSummary(id);
@@ -234,6 +292,13 @@ export class PointController {
   @Get('get-quest-open')
   getQuestOpen() {
     return this.pointService.getQuestOpen();
+  }
+
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ windowMs: 60_000, max: 60 })
+  @Get('quest-task-catalog')
+  getQuestTaskCatalog() {
+    return this.questTaskCatalog.getPublicCatalog();
   }
 
   @UseGuards(FirebaseAuthGuard)

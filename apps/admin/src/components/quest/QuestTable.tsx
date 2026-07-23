@@ -41,12 +41,18 @@ import {
 import { usePermissions } from "@/hooks/usePermissions";
 import { fetchOffersList, offersListQueryKey } from "@/lib/query/offersQueries";
 import {
+  createQuestRevision,
   fetchAdminQuests,
+  fetchQuestEffectiveTasks,
   fetchQuestLeaderboard,
+  fetchQuestManagementCapabilities,
   fetchQuestTaskDeeplinkSummary,
+  questEffectiveTasksQueryKey,
   questLeaderboardQueryKey,
   questListQueryKey,
+  questManagementCapabilitiesQueryKey,
   questTaskDeeplinkSummaryQueryKey,
+  publishQuestRevision,
   saveQuestCampaign,
   saveQuestRewards,
   saveQuestTasks,
@@ -55,8 +61,12 @@ import type { Offer, OffersQuery } from "@/types/api";
 import type { MembershipTier } from "@/types/adminModules";
 import type {
   QuestAudience,
+  QuestEffectiveTask,
+  QuestEffectiveTaskCatalogSource,
+  QuestEffectiveTaskSource,
   QuestReward,
   QuestRewardModel,
+  QuestRevisionResponse,
   QuestTask,
   QuestTaskConfigSavePayload,
   QuestTaskDeeplinkSummary,
@@ -76,6 +86,8 @@ import {
   toBangkokDateTimeInput,
 } from "./questDateTime";
 import {
+  adoptCommittedQuestTaskKeys,
+  adoptSavedQuestTaskKeys,
   buildQuestTaskPayloads,
   sameJson,
   type TaskDraft,
@@ -541,6 +553,154 @@ function summaryForTask(
   );
 }
 
+const EFFECTIVE_TASK_SOURCE_LABELS: Record<QuestEffectiveTaskSource, string> = {
+  quest_task: "Quest task",
+  legacy_offer_fallback: "Legacy Offer fallback",
+  legacy_system_rule: "Legacy system rule",
+};
+
+const EFFECTIVE_CATALOG_SOURCE_LABELS: Record<
+  QuestEffectiveTaskCatalogSource,
+  string
+> = {
+  canonical: "Canonical Quest tasks",
+  legacy_compatibility: "Legacy compatibility catalog",
+  none: "No customer tasks",
+};
+
+function effectiveTaskLabel(task: QuestEffectiveTask): string {
+  if (task.offer?.name.trim()) return task.offer.name.trim();
+  if (task.source === "legacy_system_rule") {
+    return task.wording_en.trim() || "Legacy bonus rule";
+  }
+  if (task.task_kind === "friend_referral") return "Invite a friend";
+  if (
+    task.task_kind === "spend_target" &&
+    task.target?.kind === "spend_thb_minor"
+  ) {
+    const target = Number(task.target.target_thb_minor ?? 0) / 100;
+    return target > 0
+      ? `Spend ${target.toLocaleString()} THB through GoGoCash`
+      : "Spend through GoGoCash";
+  }
+  return task.task_key;
+}
+
+function formatQuestFreezeReason(reason: string | null | undefined): string {
+  if (!reason) {
+    return "Quest economics are frozen by the server for this campaign.";
+  }
+  if (reason === "QUEST_ALREADY_STARTED") {
+    return "Quest economics are frozen because the campaign has started.";
+  }
+  if (reason === "QUEST_HAS_EFFECTS") {
+    return "Quest economics are frozen because the campaign started or participant progress exists.";
+  }
+  if (reason === "QUEST_REVISION_PUBLISHED") {
+    return "Quest economics are frozen because this revision is published. Create a new future revision to make economic changes.";
+  }
+  return reason;
+}
+
+type QuestRevisionDraftInput = {
+  startDate: string;
+  endDate: string;
+  reason: string;
+};
+
+type IdempotentQuestCommand = {
+  fingerprint: string;
+  requestKey: string;
+};
+
+const EMPTY_QUEST_REVISION_DRAFT: QuestRevisionDraftInput = {
+  startDate: "",
+  endDate: "",
+  reason: "",
+};
+
+const QUEST_REVISION_BLOCKER_LABELS: Record<string, string> = {
+  QUEST_REVISION_WORKFLOW_DISABLED:
+    "Future revision creation is disabled by the server rollout gate.",
+  QUEST_TASK_V2_UNAVAILABLE:
+    "Quest task-v2 must be enabled before this revision can publish.",
+  QUEST_REVISION_PUBLISH_NOT_READY:
+    "Publishing remains disabled until the server publication lock is ready.",
+  QUEST_REVISION_PREFLIGHT_REQUIRED:
+    "Publishing remains disabled until the server verifies the future window, source revision, offers, and campaign overlap.",
+  QUEST_REVISION_WINDOW_INVALID:
+    "Choose a valid future campaign window before publishing.",
+  QUEST_REVISION_SOURCE_STALE:
+    "The source Quest changed or its revision lineage is incomplete. Create a fresh revision.",
+  QUEST_REVISION_OFFERS_UNAVAILABLE:
+    "One or more brand tasks reference a missing, disabled, or unapproved offer.",
+  QUEST_REVISION_WINDOW_OVERLAP:
+    "This campaign window overlaps another published Quest.",
+  QUEST_REVISION_NOT_DRAFT: "Only a future revision draft can be published.",
+  QUEST_REVISION_TASKS_REQUIRED:
+    "Add at least one enabled canonical Quest task.",
+  QUEST_REVISION_REWARDS_REQUIRED: "Configure at least one rank reward.",
+  QUEST_REVISION_MEDIA_REQUIRED:
+    "Provide all four required Quest banner assets.",
+  QUEST_REVISION_DECISION_REQUIRED:
+    "Resolve the listed product decisions before publishing.",
+};
+
+function revisionBlockerLabel(blocker: string): string {
+  return QUEST_REVISION_BLOCKER_LABELS[blocker] ?? blocker;
+}
+
+function questRevisionSourceId(quest: ResponseQuestDate): string | null {
+  if (!quest.revision_of) return null;
+  return typeof quest.revision_of === "string"
+    ? quest.revision_of
+    : quest.revision_of._id;
+}
+
+function nextIdempotentQuestCommand(
+  current: IdempotentQuestCommand | null,
+  fingerprint: string,
+  prefix: "quest-revision" | "quest-publish",
+): IdempotentQuestCommand {
+  if (current?.fingerprint === fingerprint) return current;
+  const id =
+    typeof globalThis.crypto?.randomUUID === "function"
+      ? globalThis.crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return {
+    fingerprint,
+    requestKey: `${prefix}:${id}`,
+  };
+}
+
+function validateQuestRevisionDraft(
+  draft: QuestRevisionDraftInput,
+): string | null {
+  const reason = draft.reason.trim();
+  if (reason.length < 4) {
+    return "Add a revision reason with at least 4 characters.";
+  }
+  if (!draft.startDate || !draft.endDate) {
+    return "Choose a future start and end time in Bangkok time.";
+  }
+  const start = new Date(
+    bangkokDateTimeInputToISOString(draft.startDate),
+  ).getTime();
+  const end = new Date(
+    bangkokDateTimeInputToISOString(draft.endDate),
+  ).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return "Choose valid revision dates.";
+  }
+  if (start <= Date.now()) {
+    return "The revision start time must be in the future.";
+  }
+  if (end <= start) {
+    return "The revision end time must be after its start time.";
+  }
+  return null;
+}
+
 export type QuestTableView = "list" | "create" | "edit";
 
 export default function QuestTable({
@@ -554,6 +714,7 @@ export default function QuestTable({
   const { role } = usePermissions();
   const canEditCampaign = role === "super_admin";
   const canEditTasks = role === "super_admin";
+  const canInspectEffectiveTasks = role === "super_admin";
 
   const [selectedQuestId, setSelectedQuestId] = useState<string | null>(
     questId ?? null,
@@ -571,15 +732,27 @@ export default function QuestTable({
     useState<RewardDistributionDraft>(makeRewardDistributionDraft(null));
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [revisionDraft, setRevisionDraft] = useState<QuestRevisionDraftInput>(
+    EMPTY_QUEST_REVISION_DRAFT,
+  );
+  const [revisionFeedbackByQuest, setRevisionFeedbackByQuest] = useState<
+    Record<string, QuestRevisionResponse>
+  >({});
+  const [revisionError, setRevisionError] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [hasIncompleteSettingsSave, setHasIncompleteSettingsSave] =
     useState(false);
   const [offerLookup, setOfferLookup] = useState<Record<string, Offer>>({});
   const [activeDetailTab, setActiveDetailTab] =
     useState<QuestDetailTab>("tasks");
   const campaignRequestRef = useRef<QuestCampaignRequest | null>(null);
+  const revisionRequestRef = useRef<IdempotentQuestCommand | null>(null);
+  const publishRequestRef = useRef<IdempotentQuestCommand | null>(null);
   const committedCampaignRef = useRef<{
     draftFingerprint: string;
     quest: ResponseQuestDate;
+    taskKeySourceTasks?: QuestTask[];
+    campaignTasks?: QuestTask[];
     taskFingerprint?: string;
     taskQuest?: ResponseQuestDate;
     taskRewardModel?: QuestRewardModel;
@@ -590,6 +763,12 @@ export default function QuestTable({
     queryFn: fetchAdminQuests,
   });
   const quests = questsQuery.data ?? EMPTY_QUESTS;
+  const managementCapabilitiesQuery = useQuery({
+    queryKey: questManagementCapabilitiesQueryKey,
+    queryFn: fetchQuestManagementCapabilities,
+  });
+  const directCreateEnabled =
+    managementCapabilitiesQuery.data?.direct_create_enabled === true;
 
   const selectedQuest = useMemo(() => {
     if (view === "list") return null;
@@ -637,6 +816,20 @@ export default function QuestTable({
     enabled: view !== "list" && Boolean(selectedQuest?._id),
   });
   const deeplinkSummaries = deeplinkSummaryQuery.data?.data ?? [];
+
+  const effectiveTasksQuery = useQuery({
+    queryKey: questEffectiveTasksQueryKey(selectedQuest?._id ?? ""),
+    queryFn: () => fetchQuestEffectiveTasks(selectedQuest?._id ?? ""),
+    enabled:
+      canInspectEffectiveTasks &&
+      view !== "list" &&
+      !creatingNew &&
+      Boolean(selectedQuest?._id),
+  });
+  // Never authorize writes from stale capabilities after a failed refresh.
+  const effectiveTaskCatalog = effectiveTasksQuery.isError
+    ? undefined
+    : effectiveTasksQuery.data;
 
   const leaderboardQuery = useQuery({
     queryKey: questLeaderboardQueryKey(selectedQuest?._id ?? ""),
@@ -743,9 +936,6 @@ export default function QuestTable({
         questId: questIdForSave,
         startDate: bangkokDateTimeInputToISOString(campaignDraft.startDate),
         endDate: bangkokDateTimeInputToISOString(campaignDraft.endDate),
-        // Kept during rollout for compatibility with older API revisions. The
-        // current API ignores this field and derives status from the dates.
-        status: derivedCampaignStatus,
         facebookPage: campaignDraft.facebookPage,
         facebookPost: campaignDraft.facebookPost,
         line: campaignDraft.line,
@@ -764,6 +954,10 @@ export default function QuestTable({
         committedCampaign?.draftFingerprint === draftFingerprint
           ? committedCampaign.quest
           : null;
+      const didSaveCampaignStage = !campaign;
+      const taskKeySourceTasks = didSaveCampaignStage
+        ? campaignIdentity?.tasks
+        : (committedCampaign?.taskKeySourceTasks ?? campaignIdentity?.tasks);
       if (!campaign) {
         const fingerprint = questCampaignFingerprint(campaignInput);
         campaignRequestRef.current = nextQuestCampaignRequest(
@@ -775,7 +969,12 @@ export default function QuestTable({
           requestKey: campaignRequestRef.current.requestKey,
         });
         campaign = await saveQuestCampaign(fd);
-        committedCampaignRef.current = { draftFingerprint, quest: campaign };
+        committedCampaignRef.current = {
+          draftFingerprint,
+          quest: campaign,
+          taskKeySourceTasks,
+          campaignTasks: campaign.tasks,
+        };
 
         // Adopt a committed create before saving its settings. Pinning both the
         // draft source and id preserves in-progress task/reward drafts, while a
@@ -793,15 +992,17 @@ export default function QuestTable({
         setCreatingNew(false);
         setHasIncompleteSettingsSave(true);
       }
+      const campaignTasks = didSaveCampaignStage
+        ? campaign.tasks
+        : (committedCampaign?.campaignTasks ?? campaign.tasks);
 
       const draftTaskPayloads =
         currentTaskPayloads ?? buildQuestTaskPayloads(taskDrafts, offersById);
-      const campaignTaskPayloads = draftTaskPayloads.map((task, index) => {
-        const committedTaskKey = campaign.tasks?.[index]?.task_key;
-        return committedTaskKey
-          ? { ...task, task_key: committedTaskKey }
-          : task;
-      });
+      const campaignTaskPayloads = adoptCommittedQuestTaskKeys(
+        draftTaskPayloads,
+        taskKeySourceTasks,
+        campaignTasks,
+      );
       const taskRewardModel: QuestRewardModel =
         taskDrafts.some(
           (task) =>
@@ -840,15 +1041,45 @@ export default function QuestTable({
         isInitialCreate ||
         tasksDirty ||
         Boolean(committedCampaign && !committedCampaign.taskFingerprint);
+      const didSaveTaskStage = !hasCommittedTaskStage && mustSaveTaskStage;
       const taskQuest = hasCommittedTaskStage
-        ? campaign
-        : mustSaveTaskStage
+        ? (committedCampaign?.taskQuest ?? campaign)
+        : didSaveTaskStage
           ? await saveQuestTasks(campaign._id, taskPayload)
           : campaign;
+      const committedTaskPayloads = didSaveTaskStage
+        ? adoptSavedQuestTaskKeys(campaignTaskPayloads, taskQuest.tasks)
+        : campaignTaskPayloads;
+      const committedTaskFingerprint = JSON.stringify({
+        ...taskPayload,
+        expected_config_revision: 0,
+        tasks: committedTaskPayloads,
+      });
+      if (didSaveTaskStage && taskQuest.tasks?.length === taskDrafts.length) {
+        const savedTaskKeys = taskQuest.tasks.map((task) => task.task_key);
+        setTaskDrafts((current) =>
+          current.length === savedTaskKeys.length
+            ? current.map((task, index) => ({
+                ...task,
+                task_key: savedTaskKeys[index] ?? task.task_key,
+              }))
+            : current,
+        );
+      }
       committedCampaignRef.current = {
         draftFingerprint,
-        quest: { ...campaign, ...taskQuest },
-        taskFingerprint,
+        quest: {
+          ...taskQuest,
+          ...campaign,
+          config_revision: Math.max(
+            Number(taskQuest.config_revision ?? 0),
+            Number(campaign.config_revision ?? 0),
+          ),
+          tasks: taskQuest.tasks ?? campaign.tasks,
+        },
+        taskKeySourceTasks,
+        campaignTasks,
+        taskFingerprint: committedTaskFingerprint,
         taskQuest,
         taskRewardModel,
       };
@@ -885,11 +1116,128 @@ export default function QuestTable({
         queryKey: questTaskDeeplinkSummaryQueryKey(quest._id),
       });
       void queryClient.invalidateQueries({
+        queryKey: questEffectiveTasksQueryKey(quest._id),
+      });
+      void queryClient.invalidateQueries({
         queryKey: questLeaderboardQueryKey(quest._id),
       });
     },
     onError: (error) => {
       setSaveError(questTaskSaveErrorMessage(error));
+    },
+  });
+
+  const createRevisionMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedQuest) {
+        throw new Error("Select a source Quest before creating a revision.");
+      }
+      const validationError = validateQuestRevisionDraft(revisionDraft);
+      if (validationError) throw new Error(validationError);
+      const commandInput = {
+        sourceQuestId: selectedQuest._id,
+        expectedCampaignRevision: Number(selectedQuest.campaign_revision ?? 0),
+        expectedConfigRevision: Number(selectedQuest.config_revision ?? 0),
+        startDate: bangkokDateTimeInputToISOString(revisionDraft.startDate),
+        endDate: bangkokDateTimeInputToISOString(revisionDraft.endDate),
+        reason: revisionDraft.reason.trim(),
+      };
+      const fingerprint = JSON.stringify(commandInput);
+      revisionRequestRef.current = nextIdempotentQuestCommand(
+        revisionRequestRef.current,
+        fingerprint,
+        "quest-revision",
+      );
+      return createQuestRevision(selectedQuest._id, {
+        request_key: revisionRequestRef.current.requestKey,
+        expected_campaign_revision: commandInput.expectedCampaignRevision,
+        expected_config_revision: commandInput.expectedConfigRevision,
+        start_date: commandInput.startDate,
+        end_date: commandInput.endDate,
+        reason: commandInput.reason,
+      });
+    },
+    onSuccess: (response) => {
+      const draft = response.quest;
+      setRevisionFeedbackByQuest((current) => ({
+        ...current,
+        [draft._id]: response,
+      }));
+      queryClient.setQueryData<ResponseQuestDate[]>(
+        questListQueryKey,
+        (current = []) => [
+          draft,
+          ...current.filter((item) => item._id !== draft._id),
+        ],
+      );
+      setRevisionError(null);
+      setSelectedQuestId(draft._id);
+      setDraftSourceQuestId(null);
+      void queryClient.invalidateQueries({ queryKey: questListQueryKey });
+      void queryClient.invalidateQueries({
+        queryKey: questEffectiveTasksQueryKey(draft._id),
+      });
+    },
+    onError: (error) => {
+      setRevisionError(
+        getApiErrorMessage(
+          error,
+          "Couldn't create the future Quest revision. Review the schedule and retry.",
+        ),
+      );
+    },
+  });
+
+  const publishRevisionMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedQuest || selectedQuest.publication_status !== "draft") {
+        throw new Error("Only a selected Quest revision draft can publish.");
+      }
+      const commandInput = {
+        questId: selectedQuest._id,
+        expectedCampaignRevision: Number(selectedQuest.campaign_revision ?? 0),
+        expectedConfigRevision: Number(selectedQuest.config_revision ?? 0),
+      };
+      const fingerprint = JSON.stringify(commandInput);
+      publishRequestRef.current = nextIdempotentQuestCommand(
+        publishRequestRef.current,
+        fingerprint,
+        "quest-publish",
+      );
+      return publishQuestRevision(selectedQuest._id, {
+        request_key: publishRequestRef.current.requestKey,
+        expected_campaign_revision: commandInput.expectedCampaignRevision,
+        expected_config_revision: commandInput.expectedConfigRevision,
+      });
+    },
+    onSuccess: (response) => {
+      const published = response.quest;
+      queryClient.setQueryData<ResponseQuestDate[]>(
+        questListQueryKey,
+        (current = []) =>
+          current.map((item) =>
+            item._id === published._id ? published : item,
+          ),
+      );
+      setRevisionFeedbackByQuest((current) => {
+        const next = { ...current };
+        delete next[published._id];
+        return next;
+      });
+      setPublishError(null);
+      setDraftSourceQuestId(null);
+      void queryClient.invalidateQueries({ queryKey: questListQueryKey });
+      void queryClient.invalidateQueries({
+        queryKey: questEffectiveTasksQueryKey(published._id),
+      });
+    },
+    onError: (error) => {
+      setPublishError(
+        getApiErrorMessage(
+          error,
+          "Couldn't publish the Quest revision. Reload readiness and retry.",
+        ),
+      );
     },
   });
 
@@ -1014,9 +1362,16 @@ export default function QuestTable({
           </div>
           <Link
             href="/quest/create"
-            aria-disabled={!canEditCampaign}
+            aria-disabled={!canEditCampaign || !directCreateEnabled}
+            title={
+              !directCreateEnabled
+                ? "Direct creation is unavailable. Open a Quest and create a future revision."
+                : undefined
+            }
             className={`bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-9 items-center justify-center rounded-lg px-4 text-sm font-medium text-white transition ${
-              canEditCampaign ? "" : "pointer-events-none opacity-50"
+              canEditCampaign && directCreateEnabled
+                ? ""
+                : "pointer-events-none opacity-50"
             }`}
           >
             Create quest
@@ -1064,8 +1419,14 @@ export default function QuestTable({
                   );
                   return (
                     <TableRow key={quest._id}>
-                      <TableCell className="px-5 py-4 font-mono text-xs text-gray-600 dark:text-gray-300">
-                        {quest._id.slice(-8)}
+                      <TableCell className="px-5 py-4 text-xs text-gray-600 dark:text-gray-300">
+                        <span className="font-mono">{quest._id.slice(-8)}</span>
+                        {quest.revision_number ? (
+                          <span className="mt-1 block font-sans text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                            Revision {quest.revision_number} ·{" "}
+                            {quest.publication_status ?? "legacy"}
+                          </span>
+                        ) : null}
                       </TableCell>
                       <TableCell className="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
                         {formatDate(quest.start_date)} -{" "}
@@ -1094,6 +1455,27 @@ export default function QuestTable({
             </Table>
           )}
         </div>
+      </div>
+    );
+  }
+
+  if (
+    creatingNew &&
+    managementCapabilitiesQuery.isSuccess &&
+    !directCreateEnabled
+  ) {
+    return (
+      <div className="rounded-2xl border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
+        <p>
+          Direct Quest creation is disabled while revision workflow is active.
+          Open an existing Quest and create a future revision instead.
+        </p>
+        <Link
+          href="/quest"
+          className="mt-4 inline-block font-medium underline underline-offset-2"
+        >
+          Back to quest list
+        </Link>
       </div>
     );
   }
@@ -1129,15 +1511,62 @@ export default function QuestTable({
   const selectedQuestLabel = selectedQuest
     ? `${formatDate(selectedQuest.start_date)} - ${formatDate(selectedQuest.end_date)}`
     : "New Quest";
-  const taskEconomicsFrozen = Boolean(
+  const mutationCapabilities = effectiveTaskCatalog?.capabilities;
+  const capabilityContractUnavailable =
+    canInspectEffectiveTasks &&
     !creatingNew &&
-    selectedQuest &&
-    selectedQuest.reward_model === "task_v2" &&
-    (selectedQuest.task_v2_state_frozen_at ||
-      deriveQuestStatus(selectedQuest.start_date, selectedQuest.end_date) !==
-        "scheduled"),
+    Boolean(selectedQuest) &&
+    !mutationCapabilities;
+  const canEditCampaignEconomics =
+    canEditCampaign &&
+    (creatingNew || mutationCapabilities?.can_edit_campaign_economics === true);
+  const canEditTaskEconomics =
+    canEditTasks &&
+    (creatingNew || mutationCapabilities?.can_edit_task_economics === true);
+  const canEditRewards =
+    canEditTasks &&
+    (creatingNew || mutationCapabilities?.can_edit_rewards === true);
+  const canEditPresentation =
+    canEditCampaign &&
+    (creatingNew || mutationCapabilities?.can_edit_presentation === true);
+  const canEditTaskPresentation =
+    canEditTasks &&
+    (creatingNew || mutationCapabilities?.can_edit_presentation === true);
+  const revisionFeedback = selectedQuest
+    ? revisionFeedbackByQuest[selectedQuest._id]
+    : undefined;
+  const revisionWorkflow = effectiveTasksQuery.isFetching
+    ? undefined
+    : effectiveTaskCatalog?.revision_workflow;
+  const isRevisionDraft =
+    !creatingNew && selectedQuest?.publication_status === "draft";
+  const revisionBlockedDecisions = Array.from(
+    new Set([
+      ...(selectedQuest?.blocked_decisions ?? []),
+      ...(revisionFeedback?.blocked_decisions ?? []),
+    ]),
   );
-  const canEditTaskEconomics = canEditTasks && !taskEconomicsFrozen;
+  const revisionValidationError =
+    !creatingNew && selectedQuest && !isRevisionDraft
+      ? validateQuestRevisionDraft(revisionDraft)
+      : null;
+  const revisionCreationAvailable =
+    canEditCampaign &&
+    !isRevisionDraft &&
+    revisionWorkflow?.can_create_revision === true;
+  const canCreateRevision =
+    revisionCreationAvailable && !revisionValidationError;
+  const canPublishRevision =
+    canEditCampaign &&
+    isRevisionDraft &&
+    revisionWorkflow?.can_publish === true &&
+    revisionBlockedDecisions.length === 0 &&
+    !combinedDirty &&
+    !capabilityContractUnavailable;
+  const taskEconomicsFrozen =
+    !creatingNew &&
+    Boolean(mutationCapabilities) &&
+    mutationCapabilities?.can_edit_task_economics === false;
 
   return (
     <div className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
@@ -1149,7 +1578,8 @@ export default function QuestTable({
                 {creatingNew ? "Create quest" : selectedQuestLabel}
               </h4>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Configure the campaign, tasks, and rewards, then save once.
+                Configure the campaign, tasks, and rewards. Server capabilities
+                lock economic fields when a Quest is no longer safe to change.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -1193,7 +1623,7 @@ export default function QuestTable({
                   altFormat={ADMIN_DATETIME_ALT_FORMAT}
                   minuteIncrement={1}
                   value={campaignDraft.startDate}
-                  disabled={!canEditCampaign || taskEconomicsFrozen}
+                  disabled={!canEditCampaignEconomics}
                   onValueChange={(value) =>
                     setCampaignDraft((draft) => ({
                       ...draft,
@@ -1215,7 +1645,7 @@ export default function QuestTable({
                   altFormat={ADMIN_DATETIME_ALT_FORMAT}
                   minuteIncrement={1}
                   value={campaignDraft.endDate}
-                  disabled={!canEditCampaign || taskEconomicsFrozen}
+                  disabled={!canEditCampaignEconomics}
                   onValueChange={(value) =>
                     setCampaignDraft((draft) => ({
                       ...draft,
@@ -1246,7 +1676,7 @@ export default function QuestTable({
                   id="quest-campaign-facebook-page"
                   name="facebook_page"
                   value={campaignDraft.facebookPage}
-                  disabled={!canEditCampaign}
+                  disabled={!canEditCampaignEconomics}
                   onChange={(e) =>
                     setCampaignDraft((draft) => ({
                       ...draft,
@@ -1263,7 +1693,7 @@ export default function QuestTable({
                   id="quest-campaign-facebook-post"
                   name="facebook_post"
                   value={campaignDraft.facebookPost}
-                  disabled={!canEditCampaign}
+                  disabled={!canEditCampaignEconomics}
                   onChange={(e) =>
                     setCampaignDraft((draft) => ({
                       ...draft,
@@ -1278,7 +1708,7 @@ export default function QuestTable({
                   id="quest-campaign-line-link"
                   name="line"
                   value={campaignDraft.line}
-                  disabled={!canEditCampaign}
+                  disabled={!canEditCampaignEconomics}
                   onChange={(e) =>
                     setCampaignDraft((draft) => ({
                       ...draft,
@@ -1337,7 +1767,7 @@ export default function QuestTable({
                       type="file"
                       accept="image/*"
                       required={creatingNew}
-                      disabled={!canEditCampaign}
+                      disabled={!canEditPresentation}
                       onChange={(e) => {
                         const file = e.target.files?.[0] ?? null;
                         setCampaignDraft((draft) => ({
@@ -1361,21 +1791,405 @@ export default function QuestTable({
             ) : null}
           </section>
 
-          {!creatingNew &&
-          selectedQuest &&
-          selectedQuest.reward_model !== "task_v2" ? (
-            <div
-              role="note"
-              className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+          {!creatingNew && selectedQuest && canInspectEffectiveTasks ? (
+            <section
+              aria-labelledby="quest-revision-heading"
+              className="mb-5 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900/30"
             >
-              <span className="font-semibold">Legacy quest.</span> Brand tasks
-              are managed per-offer in the Offers module (each offer&rsquo;s{" "}
-              <code className="rounded bg-amber-100 px-1 dark:bg-amber-500/20">
-                extra_point
-              </code>
-              ). The Tasks and Rewards tabs below apply to task-v2 quests, so a
-              count of 0 here is expected.
-            </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h5
+                    id="quest-revision-heading"
+                    className="text-sm font-semibold text-gray-900 dark:text-white"
+                  >
+                    Quest revision workflow
+                  </h5>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Prepare future economics in an isolated draft. The source
+                    Quest remains unchanged until a separately validated draft
+                    is published.
+                  </p>
+                </div>
+                <Badge size="sm" color={isRevisionDraft ? "warning" : "light"}>
+                  {isRevisionDraft
+                    ? "Draft"
+                    : selectedQuest.publication_status === "published"
+                      ? "Published"
+                      : "Legacy source"}
+                </Badge>
+              </div>
+
+              {isRevisionDraft ? (
+                <div className="mt-4 space-y-4">
+                  <dl className="grid gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs sm:grid-cols-2 dark:border-gray-700 dark:bg-gray-900">
+                    <div>
+                      <dt className="text-gray-500 dark:text-gray-400">
+                        Revision
+                      </dt>
+                      <dd className="mt-1 font-semibold text-gray-900 dark:text-white">
+                        #{selectedQuest.revision_number ?? "—"} ·{" "}
+                        {selectedQuest.publication_status}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500 dark:text-gray-400">
+                        Source Quest
+                      </dt>
+                      <dd className="mt-1 font-mono text-gray-900 dark:text-white">
+                        {questRevisionSourceId(selectedQuest)?.slice(-8) ?? "—"}
+                      </dd>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <dt className="text-gray-500 dark:text-gray-400">
+                        Revision reason
+                      </dt>
+                      <dd className="mt-1 text-gray-900 dark:text-white">
+                        {selectedQuest.revision_reason || "No reason recorded."}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  {revisionFeedback?.warnings.map((warning) => (
+                    <div
+                      key={warning.code}
+                      role="status"
+                      className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+                    >
+                      <span className="font-semibold">{warning.code}:</span>{" "}
+                      {warning.message}
+                    </div>
+                  ))}
+
+                  {revisionBlockedDecisions.length > 0 ? (
+                    <div
+                      role="alert"
+                      className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+                    >
+                      <p className="font-semibold">
+                        Product decisions required before publication
+                      </p>
+                      <ul className="mt-1 list-disc pl-5">
+                        {revisionBlockedDecisions.map((decision) => (
+                          <li key={decision}>
+                            <code>{decision}</code>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {revisionWorkflow ? (
+                    revisionWorkflow.blockers.length > 0 ? (
+                      <div
+                        role="status"
+                        className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                      >
+                        <p className="font-semibold">Publication readiness</p>
+                        <ul className="mt-1 list-disc pl-5">
+                          {revisionWorkflow.blockers.map((blocker) => (
+                            <li key={blocker}>
+                              {revisionBlockerLabel(blocker)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p
+                        role="status"
+                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
+                      >
+                        Snapshot preflight passed. Publishing will revalidate
+                        the draft before committing.
+                      </p>
+                    )
+                  ) : (
+                    <p role="status" className="text-sm text-gray-500">
+                      Publication remains disabled until server readiness is
+                      available.
+                    </p>
+                  )}
+
+                  {combinedDirty ? (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Save all draft changes before publishing.
+                    </p>
+                  ) : null}
+                  {publishError ? (
+                    <p
+                      role="alert"
+                      className="text-sm text-red-600 dark:text-red-400"
+                    >
+                      {publishError}
+                    </p>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    disabled={
+                      !canPublishRevision ||
+                      publishRevisionMutation.isPending ||
+                      saveAllMutation.isPending
+                    }
+                    onClick={() => publishRevisionMutation.mutate()}
+                  >
+                    {publishRevisionMutation.isPending
+                      ? "Publishing revision…"
+                      : "Publish revision"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <DatePicker
+                      id="quest-revision-start-date"
+                      label="Future start date and time"
+                      required
+                      ariaLabel="Revision start date and time"
+                      hint={BANGKOK_TIMEZONE_LABEL}
+                      enableTime
+                      altInput
+                      dateFormat={ADMIN_DATETIME_VALUE_FORMAT}
+                      altFormat={ADMIN_DATETIME_ALT_FORMAT}
+                      minuteIncrement={1}
+                      value={revisionDraft.startDate}
+                      disabled={!revisionCreationAvailable}
+                      onValueChange={(value) =>
+                        setRevisionDraft((draft) => ({
+                          ...draft,
+                          startDate: value,
+                        }))
+                      }
+                    />
+                    <DatePicker
+                      id="quest-revision-end-date"
+                      label="Future end date and time"
+                      required
+                      ariaLabel="Revision end date and time"
+                      hint={BANGKOK_TIMEZONE_LABEL}
+                      enableTime
+                      altInput
+                      dateFormat={ADMIN_DATETIME_VALUE_FORMAT}
+                      altFormat={ADMIN_DATETIME_ALT_FORMAT}
+                      minuteIncrement={1}
+                      value={revisionDraft.endDate}
+                      disabled={!revisionCreationAvailable}
+                      onValueChange={(value) =>
+                        setRevisionDraft((draft) => ({
+                          ...draft,
+                          endDate: value,
+                        }))
+                      }
+                    />
+                    <div className="md:col-span-2">
+                      <Label htmlFor="quest-revision-reason">
+                        Revision reason
+                      </Label>
+                      <textarea
+                        id="quest-revision-reason"
+                        aria-label="Revision reason"
+                        rows={3}
+                        maxLength={500}
+                        value={revisionDraft.reason}
+                        disabled={!revisionCreationAvailable}
+                        onChange={(event) => {
+                          const value = event.currentTarget.value;
+                          setRevisionDraft((draft) => ({
+                            ...draft,
+                            reason: value,
+                          }));
+                        }}
+                        className="focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 outline-none focus:ring-3 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-white/90"
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Explain why this future revision is needed. The reason
+                        becomes part of its lineage record.
+                      </p>
+                    </div>
+                  </div>
+
+                  {!revisionWorkflow ? (
+                    <p role="status" className="mt-3 text-sm text-gray-500">
+                      Revision creation remains disabled until server
+                      capabilities are available.
+                    </p>
+                  ) : !revisionWorkflow.workflow_enabled ? (
+                    <p
+                      role="status"
+                      className="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                    >
+                      {revisionBlockerLabel("QUEST_REVISION_WORKFLOW_DISABLED")}
+                    </p>
+                  ) : revisionValidationError ? (
+                    <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                      {revisionValidationError}
+                    </p>
+                  ) : null}
+
+                  {revisionError ? (
+                    <p
+                      role="alert"
+                      className="mt-3 text-sm text-red-600 dark:text-red-400"
+                    >
+                      {revisionError}
+                    </p>
+                  ) : null}
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="mt-4"
+                    disabled={
+                      !canCreateRevision || createRevisionMutation.isPending
+                    }
+                    onClick={() => createRevisionMutation.mutate()}
+                  >
+                    {createRevisionMutation.isPending
+                      ? "Creating future revision…"
+                      : "Create future revision"}
+                  </Button>
+                </div>
+              )}
+            </section>
+          ) : null}
+
+          {!creatingNew && selectedQuest && canInspectEffectiveTasks ? (
+            <section
+              aria-labelledby="effective-quest-tasks-heading"
+              className="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h5
+                    id="effective-quest-tasks-heading"
+                    className="text-sm font-semibold text-gray-900 dark:text-white"
+                  >
+                    Effective customer tasks
+                  </h5>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    This catalog is the server-owned view rendered to customers.
+                    Stored Quest tasks and legacy compatibility rows are shown
+                    separately so the Admin count cannot hide live tasks.
+                  </p>
+                </div>
+                {effectiveTaskCatalog ? (
+                  <div className="flex shrink-0 flex-wrap gap-2 text-xs">
+                    <span className="rounded-full bg-white px-2.5 py-1 font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                      Stored: {effectiveTaskCatalog.stored_task_count}
+                    </span>
+                    <span className="bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300 rounded-full px-2.5 py-1 font-medium">
+                      Effective: {effectiveTaskCatalog.effective_task_count}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+
+              {effectiveTasksQuery.isLoading ? (
+                <p role="status" className="mt-4 text-sm text-gray-500">
+                  Loading effective customer tasks…
+                </p>
+              ) : effectiveTasksQuery.isError ? (
+                <div
+                  role="alert"
+                  className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
+                >
+                  <p>
+                    {getApiErrorMessage(
+                      effectiveTasksQuery.error,
+                      "Couldn't load the effective customer task catalog. Economic controls are disabled until the server confirms edit capabilities.",
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-1 font-medium underline"
+                    onClick={() => void effectiveTasksQuery.refetch()}
+                  >
+                    Retry task catalog
+                  </button>
+                </div>
+              ) : effectiveTaskCatalog ? (
+                <>
+                  <div
+                    role="note"
+                    className="mt-4 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                  >
+                    <span className="font-semibold">
+                      {
+                        EFFECTIVE_CATALOG_SOURCE_LABELS[
+                          effectiveTaskCatalog.catalog_source
+                        ]
+                      }
+                      .
+                    </span>{" "}
+                    {effectiveTaskCatalog.catalog_source ===
+                    "legacy_compatibility"
+                      ? "These compatibility rows describe current customer behavior and are not managed in the Offers module. Create a future Quest revision for economic changes."
+                      : effectiveTaskCatalog.catalog_source === "canonical"
+                        ? "Customer definitions come from this Quest's stored task configuration."
+                        : "This Quest currently exposes no customer task definitions."}
+                  </div>
+
+                  {mutationCapabilities?.freeze_reason ? (
+                    <p
+                      role="status"
+                      className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+                    >
+                      {formatQuestFreezeReason(
+                        mutationCapabilities.freeze_reason,
+                      )}
+                    </p>
+                  ) : null}
+
+                  {effectiveTaskCatalog.tasks.length > 0 ? (
+                    <div className="mt-4 space-y-2">
+                      {effectiveTaskCatalog.tasks.map((task, index) => (
+                        <article
+                          key={task.task_key}
+                          data-testid="effective-quest-task"
+                          className="grid gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center dark:border-gray-700 dark:bg-gray-900"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-semibold text-gray-400">
+                                {index + 1}
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                {effectiveTaskLabel(task)}
+                              </span>
+                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                {EFFECTIVE_TASK_SOURCE_LABELS[task.source]}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                              EN: {task.wording_en || effectiveTaskLabel(task)}
+                            </p>
+                            {task.wording_th ? (
+                              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                TH: {task.wording_th}
+                              </p>
+                            ) : null}
+                            <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+                              Key: {task.task_key} ·{" "}
+                              {task.editable_fields.length > 0
+                                ? `Editable: ${task.editable_fields.join(", ")}`
+                                : "Read-only compatibility definition"}
+                            </p>
+                          </div>
+                          <div className="bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300 justify-self-start rounded-full px-3 py-1 text-sm font-semibold sm:justify-self-end">
+                            +{Number(task.points)} points
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                      No customer tasks are exposed for this Quest.
+                    </p>
+                  )}
+                </>
+              ) : null}
+            </section>
           ) : null}
 
           <div
@@ -1391,7 +2205,8 @@ export default function QuestTable({
               const active = activeDetailTab === tab.key;
               const count =
                 tab.key === "tasks"
-                  ? taskDrafts.length
+                  ? (effectiveTaskCatalog?.effective_task_count ??
+                    taskDrafts.length)
                   : tab.key === "leaderboard"
                     ? leaderboardRows.length
                     : rewardDrafts.length;
@@ -1453,10 +2268,22 @@ export default function QuestTable({
                   role="status"
                   className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
                 >
-                  Quest economics are frozen after the campaign starts or
-                  records progress. Customer wording and notes remain editable.
+                  {formatQuestFreezeReason(mutationCapabilities?.freeze_reason)}{" "}
+                  {canEditTaskPresentation
+                    ? "Customer wording and notes remain editable."
+                    : "Presentation changes are also disabled."}
                 </p>
               )}
+              {capabilityContractUnavailable &&
+              !effectiveTasksQuery.isLoading ? (
+                <p
+                  role="status"
+                  className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                >
+                  Economic controls remain disabled until the server confirms
+                  this Quest&rsquo;s mutation capabilities.
+                </p>
+              ) : null}
 
               <div className="mb-4 grid gap-4 rounded-xl border border-gray-100 bg-gray-50 p-4 md:grid-cols-2 xl:grid-cols-4 dark:border-gray-700 dark:bg-gray-900/40">
                 <div>
@@ -1640,6 +2467,24 @@ export default function QuestTable({
                   const offer = task.offer
                     ? offersById.get(task.offer)
                     : undefined;
+                  const serverTask = effectiveTaskCatalog?.tasks.find(
+                    (effectiveTask) =>
+                      Boolean(task.task_key) &&
+                      effectiveTask.task_key === task.task_key,
+                  );
+                  const canEditTaskWording =
+                    canEditTaskPresentation &&
+                    (creatingNew ||
+                      !task.task_key ||
+                      Boolean(
+                        serverTask?.editable_fields.includes("wording_en") &&
+                        serverTask.editable_fields.includes("wording_th"),
+                      ));
+                  const canEditTaskNotes =
+                    canEditTaskPresentation &&
+                    (creatingNew ||
+                      !task.task_key ||
+                      serverTask?.editable_fields.includes("notes") === true);
                   const summary = summaryForTask(deeplinkSummaries, task);
                   const taskFieldPrefix = `quest-task-${index}`;
                   const typeFieldId = `${taskFieldPrefix}-type`;
@@ -1871,7 +2716,7 @@ export default function QuestTable({
                               </div>
                               <QuestTaskWordingFields
                                 idPrefix={taskFieldPrefix}
-                                disabled={!canEditTasks}
+                                disabled={!canEditTaskWording}
                                 offer={offer}
                                 value={{
                                   wording_en: task.wording_en ?? "",
@@ -1960,7 +2805,7 @@ export default function QuestTable({
                               id={notesFieldId}
                               name={notesFieldId}
                               value={task.notes ?? ""}
-                              disabled={!canEditTasks}
+                              disabled={!canEditTaskNotes}
                               onChange={(e) =>
                                 setTaskDrafts((current) =>
                                   current.map((row, i) =>
@@ -2139,7 +2984,7 @@ export default function QuestTable({
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={!canEditTaskEconomics}
+                    disabled={!canEditRewards}
                     onClick={addReward}
                   >
                     Add rank reward
@@ -2166,7 +3011,7 @@ export default function QuestTable({
                         </div>
                         <RewardDistributionSelect
                           value={rewardDistributionDraft.mode}
-                          disabled={!canEditTaskEconomics}
+                          disabled={!canEditRewards}
                           onChange={(mode) => {
                             setRewardDistributionDraft((draft) => ({
                               mode,
@@ -2195,7 +3040,7 @@ export default function QuestTable({
                               max={365}
                               aria-label="Reward distribution delay days"
                               value={rewardDistributionDraft.delayDays}
-                              disabled={!canEditTaskEconomics}
+                              disabled={!canEditRewards}
                               onChange={(e) =>
                                 setRewardDistributionDraft((draft) => ({
                                   ...draft,
@@ -2251,7 +3096,7 @@ export default function QuestTable({
                             min={1}
                             max={1000}
                             value={reward.rank}
-                            disabled={!canEditTaskEconomics}
+                            disabled={!canEditRewards}
                             onChange={(e) =>
                               updateReward(index, {
                                 rank: Number(e.target.value),
@@ -2274,7 +3119,7 @@ export default function QuestTable({
                             min={0}
                             max={1000000}
                             value={reward.reward}
-                            disabled={!canEditTaskEconomics}
+                            disabled={!canEditRewards}
                             onChange={(e) =>
                               updateReward(index, {
                                 reward: Number(e.target.value),
@@ -2294,7 +3139,7 @@ export default function QuestTable({
                             id={currencyFieldId}
                             name={currencyFieldId}
                             value={reward.currency}
-                            disabled={!canEditTaskEconomics}
+                            disabled={!canEditRewards}
                             onChange={(e) =>
                               updateReward(index, {
                                 currency: e.target.value.toUpperCase(),
@@ -2306,7 +3151,7 @@ export default function QuestTable({
                           type="button"
                           size="sm"
                           variant="outline"
-                          disabled={!canEditTaskEconomics}
+                          disabled={!canEditRewards}
                           onClick={() => removeReward(index)}
                         >
                           Remove
@@ -2334,6 +3179,8 @@ export default function QuestTable({
               disabled={
                 !canEditCampaign ||
                 !canEditTasks ||
+                (creatingNew && !directCreateEnabled) ||
+                (!creatingNew && capabilityContractUnavailable) ||
                 !combinedDirty ||
                 !campaignDraft.startDate ||
                 !campaignDraft.endDate ||
@@ -2351,7 +3198,8 @@ export default function QuestTable({
                   : "Save quest changes"}
             </Button>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              One action saves the campaign, tasks, and reward settings.
+              One action coordinates campaign, task, and reward settings. If a
+              stage fails, review the error before retrying.
             </p>
           </div>
         </div>
@@ -2363,37 +3211,62 @@ export default function QuestTable({
             Customer Quest task preview
           </h4>
           <div className="mt-4 space-y-3">
-            {taskDrafts
-              .filter((task) => task.enabled !== false)
-              .map((task) => {
-                const offer = task.offer
-                  ? offersById.get(task.offer)
-                  : undefined;
-                return (
+            {!creatingNew && effectiveTaskCatalog
+              ? effectiveTaskCatalog.tasks.map((task) => (
                   <div
-                    key={`preview-${task.clientId}`}
+                    key={`preview-effective-${task.task_key}`}
                     className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3 dark:border-gray-700"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      {task.task_type === "brand_purchase" && offer && (
+                      {task.offer?.logo_uri ? (
                         <RemoteOrBlobImage
-                          src={offerLogo(offer)}
-                          alt={offerLabel(offer)}
+                          src={task.offer.logo_uri}
+                          alt={task.offer.name}
                           width={40}
                           height={40}
                           className="h-10 w-10 rounded-full object-cover"
                         />
-                      )}
+                      ) : null}
                       <span className="truncate text-sm text-gray-900 dark:text-white">
-                        {customerTaskWording(task, offer)}
+                        {task.wording_en || effectiveTaskLabel(task)}
                       </span>
                     </div>
                     <span className="shrink-0 rounded-full bg-emerald-500 px-3 py-1 text-sm font-semibold text-white">
                       +{task.points} Points
                     </span>
                   </div>
-                );
-              })}
+                ))
+              : taskDrafts
+                  .filter((task) => task.enabled !== false)
+                  .map((task) => {
+                    const offer = task.offer
+                      ? offersById.get(task.offer)
+                      : undefined;
+                    return (
+                      <div
+                        key={`preview-${task.clientId}`}
+                        className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3 dark:border-gray-700"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          {task.task_type === "brand_purchase" && offer && (
+                            <RemoteOrBlobImage
+                              src={offerLogo(offer)}
+                              alt={offerLabel(offer)}
+                              width={40}
+                              height={40}
+                              className="h-10 w-10 rounded-full object-cover"
+                            />
+                          )}
+                          <span className="truncate text-sm text-gray-900 dark:text-white">
+                            {customerTaskWording(task, offer)}
+                          </span>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-emerald-500 px-3 py-1 text-sm font-semibold text-white">
+                          +{task.points} Points
+                        </span>
+                      </div>
+                    );
+                  })}
           </div>
         </div>
       </Modal>

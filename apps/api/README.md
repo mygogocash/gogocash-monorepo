@@ -245,6 +245,13 @@ These are referenced in code and should be defined in `.env` for local/prod:
 - `QUEST_TASK_V2_ENABLED` — enables the quest task-v2 consumer. `true` on
   Railway dev + staging since 2026-07-18; NOT enabled in production. Setting
   it to `false` is the instant rollback path (consumer no-ops).
+- `QUEST_REVISION_WORKFLOW_ENABLED` — enables superadmin creation of future
+  quest revision drafts. It is fail-closed and defaults to `false`; creating a
+  draft never changes the source quest.
+- `QUEST_REVISION_PUBLISH_READY` — independent publication readiness gate.
+  Keep it `false` until serialized publication/overlap acceptance is approved.
+  Publication also requires `QUEST_TASK_V2_ENABLED=true`. Legacy drafts omit
+  the ambiguous 300-point rule and expose it as a blocked product decision.
 
 ## 6. Security Architecture
 

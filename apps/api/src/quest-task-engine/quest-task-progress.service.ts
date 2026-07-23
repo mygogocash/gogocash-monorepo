@@ -419,9 +419,13 @@ export class QuestTaskProgressService {
       payload,
       occurredAt,
     );
+    // `close` removes a quest from customer-facing discovery but is not an
+    // economic cutoff. A conversion purchased inside the immutable campaign
+    // window may approve, reverse, or correct after the campaign is closed.
     const candidates = await this.questModel.find(
       {
         reward_model: 'task_v2',
+        publication_status: { $ne: 'draft' },
         start_date: { $lte: selectionAt },
         end_date: { $gte: selectionAt },
       },
@@ -534,6 +538,7 @@ export class QuestTaskProgressService {
         {
           _id: quest._id,
           reward_model: 'task_v2',
+          publication_status: { $ne: 'draft' },
           config_revision: revision,
           $or: [
             { task_v2_state_frozen_at: { $exists: false } },
@@ -1047,6 +1052,8 @@ export class QuestTaskProgressService {
     const quests = await this.questModel
       .find({
         reward_model: 'task_v2',
+        publication_status: { $ne: 'draft' },
+        status: { $ne: 'close' },
         start_date: { $lte: at },
         end_date: { $gte: at },
       })

@@ -209,13 +209,14 @@ describe("Account hub route parity", () => {
     expect(designFile).toContain("Glow Theory");
     expect(designFile).toContain("+0 Points");
     expect(questFile).toContain("QuestTaskPanel");
-    // "Both": personal progress (useQuestTaskRows) + the public earn-list (useQuestBrandTasks).
+    // The public catalog owns definitions; authenticated progress is merged by identity.
     expect(questFile).toContain("useQuestTaskRows");
-    expect(questFile).toContain("useQuestBrandTasks");
-    expect(questFile).toContain(".rows.map");
+    expect(questFile).toContain("useQuestTaskCatalog");
+    expect(questFile).toContain("mergeQuestTaskCatalogProgress");
+    expect(questFile).toContain("rows.map");
     expect(questFile).toContain("TaskPointsPill");
     expect(questFile).not.toContain("Daily check-in");
-    // The hardcoded "Shop 300 Baht+" row lives in the mapper, not the screen source.
+    // No frontend-only economic task is allowed in the customer task list.
     expect(questFile).not.toContain("Shop 300 Baht+ on any shops");
     expect(questFile).not.toContain("Invite your Friends");
   });

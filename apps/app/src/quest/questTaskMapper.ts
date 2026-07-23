@@ -5,11 +5,16 @@ import { BRAND_LOGO_IMAGE_WIDTH } from "@mobile/api/optimizedImageUrl";
 export const questTaskEndpoint = "/point/quest-progress";
 
 export type QuestTaskIcon = "go" | "glow" | "orbit" | "pixel" | "watchAds";
-export type QuestTaskType =
-  "brand_purchase" | "friend_referral" | "spend_target";
 export type QuestTaskProgressState =
   "not_started" | "in_progress" | "completed" | "compensated";
-export type QuestTaskProgressUnit = "purchase" | "referral" | "thb_minor";
+export type QuestTaskType =
+  | "brand_purchase"
+  | "friend_referral"
+  | "spend_target"
+  | "points_threshold_bonus";
+type CanonicalQuestTaskType = Exclude<QuestTaskType, "points_threshold_bonus">;
+export type QuestTaskProgressUnit =
+  "purchase" | "referral" | "thb_minor" | "quest_points";
 
 export type QuestTaskRow = {
   capLabel?: string;
@@ -22,9 +27,11 @@ export type QuestTaskRow = {
   logoUri?: string;
   points: string;
   progressLabel: string;
+  questId?: string;
   state: QuestTaskProgressState;
   stateLabel: string;
   target: number | null;
+  taskKey?: string;
   taskType: QuestTaskType;
   title: string;
   unit: QuestTaskProgressUnit;
@@ -54,7 +61,7 @@ type CanonicalTaskProgress = {
   unit?: unknown;
 };
 
-const taskIconByType: Record<QuestTaskType, QuestTaskIcon> = {
+const taskIconByType: Record<CanonicalQuestTaskType, QuestTaskIcon> = {
   brand_purchase: "go",
   friend_referral: "glow",
   spend_target: "orbit",
@@ -146,9 +153,11 @@ function mapQuestTask(
     ...(logoUri ? { logoUri } : {}),
     points: formatQuestPoints(points),
     progressLabel: formatProgress(current, target, unit, locale),
+    questId,
     state,
     stateLabel: progressStateLabel(state, locale),
     target,
+    taskKey,
     taskType,
     title,
     unit,
@@ -241,7 +250,7 @@ function formatQuestPoints(value: number): string {
   return `+${Math.trunc(value)} Points`;
 }
 
-function parseTaskType(value: unknown): QuestTaskType | null {
+function parseTaskType(value: unknown): CanonicalQuestTaskType | null {
   return value === "brand_purchase" ||
     value === "friend_referral" ||
     value === "spend_target"

@@ -52,6 +52,7 @@ export type QuestMediaWriteInput = {
   expectedConfigRevision?: number;
   economicChange?: boolean;
   taskV2EconomicChange?: boolean;
+  requireDraftPublication?: boolean;
   questPatch: Record<string, unknown>;
   uploads: QuestMediaWriteUpload[];
   commitFence?: QuestEconomicCommitFence;
@@ -170,6 +171,11 @@ function validateInput(input: QuestMediaWriteInput) {
         `Duplicate quest banner field: ${upload.role}`,
       );
     }
+    if (input.requireDraftPublication && !input.economicChange) {
+      throw new ConflictException(
+        'A draft-publication fence requires an economic change',
+      );
+    }
     roles.add(upload.role);
   }
 }
@@ -186,6 +192,7 @@ export async function questMediaPayloadHash(input: {
   expectedConfigRevision?: number;
   economicChange?: boolean;
   taskV2EconomicChange?: boolean;
+  requireDraftPublication?: boolean;
   questPatch: Record<string, unknown>;
   uploads: QuestMediaWriteUpload[];
   qaMarker?: string;
@@ -517,8 +524,13 @@ export class QuestMediaWriteService implements OnModuleInit {
         filter.config_revision = expectedConfigRevision;
       }
     }
-    if (input.taskV2EconomicChange) {
+    if (input.economicChange) {
       filter.start_date = { $gt: new Date() };
+    }
+    if (input.requireDraftPublication) {
+      filter.publication_status = 'draft';
+    }
+    if (input.taskV2EconomicChange) {
       orClauses.push([
         { task_v2_state_frozen_at: { $exists: false } },
         { task_v2_state_frozen_at: null },
