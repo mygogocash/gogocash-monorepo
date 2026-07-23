@@ -95,3 +95,4 @@ describe("brand category tiles", () => {
     expect(resolveBrandCategoryTiles([])).toEqual([]);
   });
 });
+
