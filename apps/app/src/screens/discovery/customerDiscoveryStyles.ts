@@ -26,6 +26,10 @@ export function createDiscoveryScreenStyles(colors: ThemeColors) {
   },
   desktopContentCap: {
     alignSelf: "center",
+    // Without these the page title sits flush against the sticky header and each
+    // section sits flush against the next — both gaps measured at 0px.
+    gap: mobileShellLayout.desktopPageSectionGap,
+    paddingTop: mobileShellLayout.desktopPageTopGap,
     width: "100%",
   },
   desktopFooterCap: {

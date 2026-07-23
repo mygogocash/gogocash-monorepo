@@ -534,7 +534,7 @@ function useAccountPageShellStyles() {
 }
 
 
-function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfaces) {
+export function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfaces) {
   // Frosted wallet glass stays light in every theme; body copy stays #3B3B3B.
   const walletGlassInk = "#3B3B3B";
 
@@ -560,6 +560,9 @@ function createAccountPageShellStyles(colors: ThemeColors, surfaces: ThemeSurfac
   desktopContentCap: {
     alignSelf: "center",
     flexGrow: 0,
+    // Shared desktop page rhythm: clear the sticky header, separate sections.
+    gap: mobileShellLayout.desktopPageSectionGap,
+    paddingTop: mobileShellLayout.desktopPageTopGap,
     width: "100%",
   },
   profileSurface: {

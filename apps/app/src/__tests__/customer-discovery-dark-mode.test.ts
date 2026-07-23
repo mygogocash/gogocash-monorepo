@@ -11,14 +11,14 @@ function readMobileFile(relativePath: string) {
 }
 
 describe("discovery directory dark mode surfaces", () => {
-  it("shop directory styles > given remote logos > then logo tile fills card background", () => {
-    const styles = readMobileFile("src/screens/discovery/customerDiscoveryStyles.ts");
-    const shopCard = readMobileFile("src/screens/discovery/ShopDirectoryStoreCard.tsx");
+  it("brand logo tile > given remote logos > then logo tile fills card background", () => {
+    // Both directories now render the shared BrandCard, so this behaviour lives in
+    // BrandLogoTile rather than the retired per-directory card components.
+    const tile = readMobileFile("src/components/BrandLogoTile.tsx");
 
-    expect(styles).toMatch(/shopDirectoryLogoImage:[\s\S]*height: "100%"/);
     // Card background only goes neutral once a logo is actually rendering —
     // failed/missing logos fall back to the brand tint + initials.
-    expect(shopCard).toContain("const showLogo = Boolean(store.logoUri) && !logoFailed");
-    expect(shopCard).toContain("showLogo ? colors.card : store.tint");
+    expect(tile).toContain("const showImage = source !== null && !logoFailed");
+    expect(tile).toMatch(/backgroundColor: showImage \?[\s\S]*?: tint/);
   });
 });

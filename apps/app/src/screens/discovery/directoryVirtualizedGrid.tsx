@@ -16,10 +16,6 @@ export function chunkDirectoryGridRows<T>(items: readonly T[], columns: number):
   return rows;
 }
 
-export function getDirectoryStoreCardHeight(cardWidth: number) {
-  return cardWidth + spacing.sm * 2 + 72;
-}
-
 export function getProductDiscoveryCardHeight(cardWidth: number) {
   return cardWidth + spacing.sm * 2 + 148;
 }

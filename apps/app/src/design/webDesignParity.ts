@@ -1,3 +1,7 @@
+import {
+  fitBrandCardColumns,
+  type BrandCardSize,
+} from "@mobile/components/brandCardMetrics";
 import { toastErrorMessages } from "@mobile/i18n/toastMessages";
 
 export const webHomeSectionOrder = [
@@ -37,6 +41,11 @@ export const mobileShellLayout = {
   desktopSubNavHeight: 56,
   desktopHomeTopGap: 64,
   desktopHomeStackGap: 40,
+  // Directory pages (/brand, /shops, /category, product discovery) sit under the
+  // sticky header with no hero to separate them, so they carry their own top gap
+  // and a tighter stack gap than the home page's 64/40.
+  desktopPageTopGap: 40,
+  desktopPageSectionGap: 24,
   // Space between page content and the full-bleed desktop footer band (margin + inner
   // padding). Do not also gap the scroll container before the footer — that stacks.
   desktopFooterTopMargin: 40,
@@ -2146,22 +2155,13 @@ export function getShopDirectoryResults({
     });
 }
 
-/**
- * Narrowest card that still renders its cashback row without truncating.
- * Measured in the shipped font (DM Sans) against BrandCard size "L":
- * "Cashback upto" (77) + row gap (10) + widest cashback "2.45%" (54) + card
- * chrome (18) = 159 — within rounding of the directory card's 158.4px design
- * width. Below it the caption clips to "Cashb…".
- */
-const MIN_DIRECTORY_CARD_WIDTH = 158;
-
-/** Two-up is the floor; one full-bleed card per row reads as a broken grid. */
-const MIN_DIRECTORY_COLUMNS = 2;
-
 export function getShopDirectoryGridMetrics({
+  cardSize = "L",
   contentWidth,
   viewportWidth,
 }: {
+  /** Which BrandCard this grid renders — sets the width floor. */
+  cardSize?: BrandCardSize;
   contentWidth: number;
   viewportWidth: number;
 }) {
@@ -2178,16 +2178,15 @@ export function getShopDirectoryGridMetrics({
           ? 3
           : 2;
   const gap = viewportWidth >= 1024 ? 24 : viewportWidth >= 640 ? 16 : 12;
-  const widthAt = (count: number) =>
-    (contentWidth - gap * Math.max(0, count - 1)) / count;
-
-  let columns = maxColumns;
-  while (columns > MIN_DIRECTORY_COLUMNS && widthAt(columns) < MIN_DIRECTORY_CARD_WIDTH) {
-    columns -= 1;
-  }
+  const { cardWidth, columns } = fitBrandCardColumns({
+    contentWidth,
+    gap,
+    maxColumns,
+    size: cardSize,
+  });
 
   return {
-    cardWidth: roundLayoutValue(widthAt(columns)),
+    cardWidth: roundLayoutValue(cardWidth),
     columns,
     gap,
   };
