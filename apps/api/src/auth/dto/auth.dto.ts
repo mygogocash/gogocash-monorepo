@@ -152,22 +152,6 @@ export class TelegramAuthDto {
   @IsString()
   @IsNotEmpty()
   hash: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  email?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  referral_id?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  @MaxLength(64)
-  country?: string;
 }
 
 /**

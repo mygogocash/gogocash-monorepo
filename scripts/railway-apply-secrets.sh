@@ -92,6 +92,7 @@ set_var gogocash-api INVOLVE_POSTBACK_SECRET
 set_var gogocash-api INVOLVE_AI_API_KEY
 set_var gogocash-api RESEND_API_KEY
 set_var gogocash-api POSTHOG_KEY
+set_var gogocash-api TELEGRAM_LOGIN_BOT_TOKEN
 set_var gogocash-api TELEGRAM_BOT_TOKEN
 set_var gogocash-api OPTIMISE_API_KEY
 set_var gogocash-api CORS_EXTRA_ORIGINS

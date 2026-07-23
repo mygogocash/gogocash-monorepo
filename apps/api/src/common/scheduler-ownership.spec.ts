@@ -31,6 +31,14 @@ describe('describeSchedulerOwnership', () => {
     ).toContain('telegram=on');
   });
 
+  it('given only a login-verification token > then Telegram poller ownership stays off', () => {
+    expect(
+      describeSchedulerOwnership({
+        TELEGRAM_LOGIN_BOT_TOKEN: '12345:login-widget-bot-token-copy',
+      }),
+    ).toContain('telegram=off');
+  });
+
   it('given WITHDRAWALS_ENABLED=false > then withdrawals report off', () => {
     expect(
       describeSchedulerOwnership({ WITHDRAWALS_ENABLED: 'false' }),
