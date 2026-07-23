@@ -1,6 +1,13 @@
 import { useRouter } from "expo-router";
 import { type ComponentType, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ViewStyle,
+} from "react-native";
 import {
   CircleUserRound as ProfileIcon,
   Home as HomeIcon,
@@ -47,11 +54,18 @@ export function CustomerMobileBottomNav({
   activeRouteId,
   bottomInset,
   onGoLinkPress,
+  webScrollContainerChild = false,
 }: {
   activeRouteId?: BottomNavRouteId;
   bottomInset: number;
   /** When set, GoGoLink opens as a sheet overlay instead of navigating to `/golink`. */
   onGoLinkPress?: () => void;
+  /**
+   * Mobile web only: render this nav inside the page ScrollView and keep it
+   * visually fixed. Wheel/touch gestures then bubble to the actual scroller
+   * instead of being trapped by a sibling overlay.
+   */
+  webScrollContainerChild?: boolean;
 }) {
   const tc = useCopy();
   const router = useRouter();
@@ -92,6 +106,7 @@ export function CustomerMobileBottomNav({
         {
           paddingBottom: Math.max(10, bottomInset + 8),
         },
+        webScrollContainerChild ? webFixedBottomNavStyle : null,
       ]}
     >
       <View
@@ -163,6 +178,11 @@ export function CustomerMobileBottomNav({
     </>
   );
 }
+
+const webFixedBottomNavStyle = {
+  position: "fixed",
+  zIndex: 20,
+} as unknown as ViewStyle;
 
 function BottomNavIcon({
   active,

@@ -4,8 +4,9 @@ import { fileURLToPath } from "node:url";
 
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { router } from "expo-router";
 
 // CustomerCategoryDetailScreen reaches CustomerMobileBottomNav -> useCopy and
 // expo-router (both aliased to stubs by vitest.render.config). It does NOT import
@@ -56,6 +57,38 @@ describe("CustomerCategoryDetailScreen (render)", () => {
   it("mounts the category-detail directory list without throwing", () => {
     expect(() => renderScreen()).not.toThrow();
   });
+
+  it("#635 keeps the fixed web bottom nav inside the vertical ScrollView so upward gestures bubble", () => {
+    Object.defineProperty(globalThis.window, "innerWidth", {
+      configurable: true,
+      value: 390,
+    });
+    Object.defineProperty(globalThis.window, "innerHeight", {
+      configurable: true,
+      value: 844,
+    });
+    globalThis.window.dispatchEvent(new Event("resize"));
+    const push = vi.spyOn(router, "push");
+
+    renderScreen();
+
+    const homeButton = screen.getByRole("button", { name: "Home" });
+    let ancestor: HTMLElement | null = homeButton.parentElement;
+    while (
+      ancestor &&
+      !["auto", "scroll"].includes(
+        globalThis.getComputedStyle(ancestor).overflowY,
+      )
+    ) {
+      ancestor = ancestor.parentElement;
+    }
+
+    expect(ancestor).not.toBeNull();
+    expect(globalThis.getComputedStyle(ancestor!).overflowY).toBe("auto");
+
+    fireEvent.click(homeButton);
+    expect(push).toHaveBeenCalledWith("/");
+  });
 });
 
 describe("CustomerCategoryDetailScreen — Wave B foundations adopted (source signals)", () => {
@@ -97,5 +130,20 @@ describe("CustomerCategoryDetailScreen — Wave B foundations adopted (source si
     expect(brandCardFile).toContain("getTopBrandHref");
     expect(brandCardFile).toContain("href ?? brandHref(brand)");
     expect(categorySource).not.toContain("href={brandHref(store.brand)");
+  });
+
+  it("#635 fixes web nav positioning without changing the native overlay contract", () => {
+    const bottomNavSource = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        "../components/CustomerMobileBottomNav.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(categorySource).toContain('Platform.OS === "web"');
+    expect(categorySource).toContain("webScrollContainerChild");
+    expect(bottomNavSource).toContain('position: "fixed"');
+    expect(bottomNavSource).toContain('position: "absolute"');
   });
 });

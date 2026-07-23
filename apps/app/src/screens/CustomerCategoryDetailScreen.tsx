@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "expo-router";
 import { CategoryGlyph } from "@mobile/components/CategoryGlyph";
 import {
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -88,6 +89,8 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
   const desktopFooterHorizontalOffset = getDesktopShellOffset(width);
   const isDesktop = homeLayout.isDesktop;
   const showBottomNav = !isDesktop;
+  const webBottomNavInScroll =
+    showBottomNav && Platform.OS === "web";
   const category = safeDecodeCategoryName(categoryName);
   const [searchQuery, setSearchQuery] = useState("");
   // #437 — default Sort by to All (unforced catalog order), not Highest Cashback.
@@ -297,9 +300,17 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
             horizontalPadding={homeLayout.contentHorizontalPadding}
             style={styles.desktopFooter}
           />
+          {webBottomNavInScroll ? (
+            <CustomerMobileBottomNav
+              bottomInset={insets.bottom}
+              webScrollContainerChild
+            />
+          ) : null}
         </ScrollView>
 
-        {showBottomNav ? <CustomerMobileBottomNav bottomInset={insets.bottom} /> : null}
+        {showBottomNav && !webBottomNavInScroll ? (
+          <CustomerMobileBottomNav bottomInset={insets.bottom} />
+        ) : null}
       </View>
     </View>
   );
