@@ -330,7 +330,7 @@ describe("CustomerQuestScreen — Wave B (B5) foundations adopted (source signal
     expect(questSource).toContain("useQuestWindow()");
     expect(questSource).toContain("useQuestLeaderboard(questWindow)");
     expect(questSource).toContain("useMyQuestRank(questWindow)");
-    expect(questSource).toContain("rows={leaderboard.rows}");
+    expect(questSource).toContain("leaderboard.rows");
     expect(questSource).not.toContain("webQuestLeaderboardRows.map(");
   });
 

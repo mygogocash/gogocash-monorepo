@@ -39,8 +39,11 @@ describe("mapQuestLeaderboardRows", () => {
   it("maps real rows to {key,name,points}, truncates like prod, and never leaks email", () => {
     const rows = mapQuestLeaderboardRows(leaderboardPayload);
 
-    // Default top-N cap (matches the compact panel).
-    expect(rows).toHaveLength(QUEST_LEADERBOARD_TOP_N);
+    // The leaderboard tab shows EVERY ranked participant — mapping keeps all rows by
+    // default (the compact desktop rail asks for a top-N slice explicitly, see below).
+    expect(rows).toHaveLength(leaderboardPayload.length); // all 6, NOT capped to top-5
+    // The 6th row (dropped by the old default top-5 cap) is now surfaced.
+    expect(rows[5]).toEqual({ key: "u6", name: "Ove...low", points: "10" }); // "Overflow" (8)
     // Prod truncation: len<=11 -> slice(0,3)+"..."+slice(-3); len>11 -> slice(0,6)+"..."+slice(-6).
     expect(rows[0]).toEqual({
       key: "69701fc66e498fea442c9e17",
@@ -65,8 +68,11 @@ describe("mapQuestLeaderboardRows", () => {
     expect(mapQuestLeaderboardRows({ data: [] })).toEqual([]);
   });
 
-  it("honors an explicit topN", () => {
+  it("honors an explicit topN (the compact desktop rail asks for QUEST_LEADERBOARD_TOP_N)", () => {
     expect(mapQuestLeaderboardRows(leaderboardPayload, 2)).toHaveLength(2);
+    expect(
+      mapQuestLeaderboardRows(leaderboardPayload, QUEST_LEADERBOARD_TOP_N),
+    ).toHaveLength(QUEST_LEADERBOARD_TOP_N); // 5
   });
 });
 

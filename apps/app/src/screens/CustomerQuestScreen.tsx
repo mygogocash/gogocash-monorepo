@@ -47,6 +47,7 @@ import {
   useQuestTaskRows,
 } from "@mobile/quest/questTaskResource";
 import {
+  QUEST_LEADERBOARD_TOP_N,
   useMyQuestRank,
   useQuestLeaderboard,
   useQuestWindow,
@@ -177,11 +178,16 @@ function CustomerQuestMainScreen() {
           </View>
         ) : null}
         {activeTab === "leaderboard" ? (
+          // Full leaderboard: list every ranked participant (no limit).
           <QuestLeaderboardPanel mediaColumnWidth={contentWidth} />
         ) : null}
+        {/* Secondary desktop rail beside the other tabs: keep it a compact glance. */}
         {isDesktop && activeTab !== "leaderboard" ? (
           <View style={styles.questColumn}>
-            <QuestLeaderboardPanel mediaColumnWidth={mediaColumnWidth} />
+            <QuestLeaderboardPanel
+              limit={QUEST_LEADERBOARD_TOP_N}
+              mediaColumnWidth={mediaColumnWidth}
+            />
           </View>
         ) : null}
       </View>
@@ -470,8 +476,12 @@ function QuestMyRankCard({
 
 function QuestLeaderboardPanel({
   mediaColumnWidth,
+  // undefined -> list EVERY ranked participant (the leaderboard tab). A number caps the
+  // rows (the compact desktop side-rail passes QUEST_LEADERBOARD_TOP_N for a glance).
+  limit,
 }: {
   mediaColumnWidth: number;
+  limit?: number;
 }) {
   const styles = useThemedStyles(createQuestScreenStyles);
   const { colors } = useTheme();
@@ -482,6 +492,10 @@ function QuestLeaderboardPanel({
   const { window: questWindow } = useQuestWindow();
   const leaderboard = useQuestLeaderboard(questWindow);
   const myRank = useMyQuestRank(questWindow);
+  const rows =
+    typeof limit === "number"
+      ? leaderboard.rows.slice(0, limit)
+      : leaderboard.rows;
   return (
     <View style={styles.leaderboardPanel}>
       <Image
@@ -515,7 +529,7 @@ function QuestLeaderboardPanel({
             </MotionPressable>
           </Link>
         </View>
-        <QuestRankRows rows={leaderboard.rows} />
+        <QuestRankRows rows={rows} />
       </View>
     </View>
   );

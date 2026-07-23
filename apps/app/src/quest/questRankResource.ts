@@ -11,6 +11,7 @@ import {
 } from "@mobile/design/webDesignParity";
 
 import {
+  QUEST_LEADERBOARD_TOP_N,
   mapMyQuestRank,
   mapQuestLeaderboardRows,
   mapQuestWindow,
@@ -23,6 +24,7 @@ import {
 } from "./questRankMapper";
 
 export {
+  QUEST_LEADERBOARD_TOP_N,
   questLeaderboardEndpoint,
   questMyRankEndpoint,
   questWindowEndpoint,

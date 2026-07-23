@@ -9,7 +9,8 @@ export const questWindowEndpoint = "/point/get-quest-open";
 export const questLeaderboardEndpoint = "/point/check-points";
 export const questMyRankEndpoint = "/point/my-quest-list";
 
-// The compact leaderboard panel renders a small top-N slice (parity with the prior fixture).
+// The compact desktop side-rail renders a small top-N glance; the leaderboard TAB shows
+// every participant (mapper returns all rows unless an explicit topN is passed).
 export const QUEST_LEADERBOARD_TOP_N = 5;
 
 export type QuestLeaderboardRow = {
@@ -36,11 +37,14 @@ export type QuestMyRankValues = {
 
 export function mapQuestLeaderboardRows(
   payload: unknown,
-  topN: number = QUEST_LEADERBOARD_TOP_N,
+  // undefined -> keep EVERY ranked row (the leaderboard tab lists all participants);
+  // a number caps the result (the compact desktop side-rail passes QUEST_LEADERBOARD_TOP_N).
+  topN?: number,
 ): QuestLeaderboardRow[] {
   if (!Array.isArray(payload)) return [];
-  return payload
-    .slice(0, Math.max(0, topN))
+  const ranked =
+    typeof topN === "number" ? payload.slice(0, Math.max(0, topN)) : payload;
+  return ranked
     .map((raw, index) => {
       if (!isRecord(raw)) return null;
       const name = truncateName(firstText(raw.username) ?? "");
