@@ -110,7 +110,7 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
   it("backend mode > tapping Google > exchanges the Firebase token and persists the session", async () => {
     renderLogin();
 
-    fireEvent.click(screen.getByRole("button", { name: "Gmail" }));
+    fireEvent.click(screen.getByRole("button", { name: "Google" }));
 
     await waitFor(() => {
       expect(signInWithSocialProvider).toHaveBeenCalledWith("google");
@@ -134,7 +134,7 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
     signInWithNativeGoogle.mockResolvedValue({ idToken: "native-google-id-token" });
 
     renderLogin();
-    fireEvent.click(screen.getByRole("button", { name: "Gmail" }));
+    fireEvent.click(screen.getByRole("button", { name: "Google" }));
 
     await waitFor(() => {
       expect(signInWithNativeGoogle).toHaveBeenCalled();
@@ -158,7 +158,7 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
     signInWithNativeGoogle.mockRejectedValue(new GoogleSignInNotConfiguredError());
 
     renderLogin();
-    fireEvent.click(screen.getByRole("button", { name: "Gmail" }));
+    fireEvent.click(screen.getByRole("button", { name: "Google" }));
 
     await waitFor(() => {
       expect(signInWithNativeGoogle).toHaveBeenCalled();

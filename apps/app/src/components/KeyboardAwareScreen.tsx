@@ -16,6 +16,10 @@ interface KeyboardAwareScreenProps {
   // Lets a screen freeze scrolling (e.g. while a sheet is open) without losing
   // the keyboard-avoidance behavior. Defaults to scrollable.
   scrollEnabled?: boolean;
+  // Long mobile forms can hide the persistent scrollbar while preserving all
+  // scrolling and keyboard-avoidance behavior. Defaults to React Native's
+  // visible indicator so existing screens remain unchanged.
+  showsVerticalScrollIndicator?: boolean;
 }
 
 // A4 — drop-in wrapper for form screens. On iOS the keyboard pushes content up
@@ -26,6 +30,7 @@ export function KeyboardAwareScreen({
   children,
   contentContainerStyle,
   scrollEnabled = true,
+  showsVerticalScrollIndicator = true,
 }: KeyboardAwareScreenProps) {
   return (
     <KeyboardAvoidingView
@@ -37,6 +42,7 @@ export function KeyboardAwareScreen({
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         scrollEnabled={scrollEnabled}
+        showsVerticalScrollIndicator={showsVerticalScrollIndicator}
         style={styles.flex}
         testID="keyboard-aware-scroll"
       >

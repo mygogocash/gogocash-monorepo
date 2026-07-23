@@ -12,6 +12,8 @@ import { motion } from "@mobile/theme/motion";
 import { createSearchScreenStyles } from "./createSearchScreenStyles";
 import { webSearchInputFocusReset } from "../home/homeAssets";
 
+const MOBILE_SEARCH_PLACEHOLDER = "Search brands";
+
 type SearchScreenHeaderProps = {
   readonly query: string;
   readonly onBack: () => void;
@@ -53,7 +55,7 @@ export function SearchScreenHeader({
           onChangeText={onChangeQuery}
           onFocus={() => setFocused(true)}
           onSubmitEditing={onSubmit}
-          placeholder={tc(webHomeSearchPlaceholder)}
+          placeholder={tc(MOBILE_SEARCH_PLACEHOLDER)}
           placeholderTextColor={colors.muted}
           returnKeyType="search"
           style={[styles.searchInput, webSearchInputFocusReset]}

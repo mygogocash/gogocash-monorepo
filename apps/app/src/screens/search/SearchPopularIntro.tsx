@@ -8,6 +8,8 @@ import { useThemedStyles } from "@mobile/theme/useThemedStyles";
 
 import { createSearchScreenStyles } from "./createSearchScreenStyles";
 
+const MOBILE_POPULAR_SUBTITLE = "Hand-picked stores with standout cashback.";
+
 type SearchPopularIntroProps = {
   readonly variant: "compact" | "large";
 };
@@ -33,7 +35,7 @@ export function SearchPopularIntro({ variant }: SearchPopularIntroProps) {
             compact ? styles.popularIntroSubtitleCompact : null,
           ]}
         >
-          {tc(webHomeSearchPopularPanel.subtitle)}
+          {tc(MOBILE_POPULAR_SUBTITLE)}
         </Text>
       </View>
     </View>

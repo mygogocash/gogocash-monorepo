@@ -58,7 +58,12 @@ describe("CustomerSearchScreen (render)", () => {
       width: 390,
     });
     renderSearchScreen();
-    expect(screen.getByTestId("mobile-search-input")).toBeTruthy();
+    const input = screen.getByTestId("mobile-search-input");
+    expect(input).toBeTruthy();
+    expect(screen.getByPlaceholderText("Search brands")).toBeTruthy();
+    expect(
+      screen.getByLabelText("Search brands, stores, products, or cashback"),
+    ).toBeTruthy();
   });
 
   it("shows search suggestions when the query is empty", () => {
@@ -69,11 +74,15 @@ describe("CustomerSearchScreen (render)", () => {
       width: 390,
     });
     renderSearchScreen();
-    expect(screen.getByText("Search suggestions")).toBeTruthy();
+    expect(screen.getByText("Popular brands")).toBeTruthy();
+    expect(screen.getByText("Explore standout cashback offers.")).toBeTruthy();
     expect(screen.getByText("Popular right now")).toBeTruthy();
     expect(screen.getByText("Trending searches")).toBeTruthy();
+    expect(
+      screen.queryByText("Start typing to search brands, stores, products, or cashback."),
+    ).toBeNull();
     expect(screen.getAllByText("Grocery Galaxy").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Cashback upto").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Cashback up to").length).toBeGreaterThan(0);
   });
 
   it("given desktop width > then redirects to home", () => {
@@ -104,5 +113,36 @@ describe("CustomerSearchScreen — design feedback (source signals)", () => {
       "utf8",
     );
     expect(stylesSource).toMatch(/seeAllLabel:[\s\S]*?fontWeight: "400"/);
+  });
+
+  it("keeps the compact mobile targets and popular-card hierarchy", () => {
+    const { readFileSync } = require("node:fs") as typeof import("node:fs");
+    const { resolve, dirname } = require("node:path") as typeof import("node:path");
+    const { fileURLToPath } = require("node:url") as typeof import("node:url");
+    const stylesSource = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        "../screens/search/createSearchScreenStyles.ts",
+      ),
+      "utf8",
+    );
+    const recentChipsSource = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        "../screens/search/SearchRecentChips.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(stylesSource).toMatch(/backButton:[\s\S]*?height: 44,[\s\S]*?width: 44/);
+    expect(stylesSource).toMatch(/searchFieldShell:[\s\S]*?minHeight: 48/);
+    expect(stylesSource).toMatch(/submitButton:[\s\S]*?height: 48,[\s\S]*?width: 48/);
+    expect(stylesSource).toMatch(/popularIntroIcon:[\s\S]*?height: 48,[\s\S]*?width: 48/);
+    expect(stylesSource).toMatch(/popularIntroTitle:[\s\S]*?fontSize: 18/);
+    expect(stylesSource).toMatch(/popularIntroSubtitle:[\s\S]*?fontSize: 14/);
+    expect(stylesSource).toMatch(/clearHistoryButton:[\s\S]*?minHeight: 44/);
+    expect(stylesSource).toMatch(/recentChipSelect:[\s\S]*?minHeight: 44/);
+    expect(recentChipsSource).toContain("style={styles.recentChipSelect}");
+    expect(stylesSource).toMatch(/trendingChip:[\s\S]*?minHeight: 44/);
   });
 });

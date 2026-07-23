@@ -597,6 +597,10 @@ export const webAuthPage = {
     login: "or sign in with",
     register: "or sign up with",
   },
+  mobileSocialDividerByMode: {
+    login: "Other ways to sign in",
+    register: "Other ways to sign up",
+  },
   otp: {
     changeNumber: "Change phone number",
     errorAria:
@@ -610,7 +614,7 @@ export const webAuthPage = {
   },
   socialProviders: [
     { id: "facebook", label: "Facebook" },
-    { id: "google", label: "Gmail" },
+    { id: "google", label: "Google" },
     { id: "line", label: "LINE" },
     { id: "telegram", label: "Telegram" },
     { id: "apple", label: "Apple" },

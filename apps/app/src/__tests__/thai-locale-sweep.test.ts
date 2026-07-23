@@ -54,18 +54,21 @@ describe("Thai locale sweep — catalog coverage", () => {
       "That phone number doesn't look valid. Check it and try again.",
       "Sign-in is temporarily unavailable. Please try again later.",
       "Social sign-in isn't available in the app yet. Open GoGoCash in your web browser to continue.",
+      "Use email instead",
+      "Other ways to sign in",
+      "Other ways to sign up",
       "Could not save GoGoTrack settings. Please try again.",
-      // Issue #249: search screen headings + idle helper leaked English in Thai mode.
-      "Start typing to search brands, stores, products, or cashback.",
+      // Search screen layout/copy must remain localized in the compact mobile presentation.
+      "Search brands",
       "Trending searches",
-      "Search suggestions",
+      "Hand-picked stores with standout cashback.",
+      "Popular brands",
       // Issue #249 follow-up: recent-history chrome also missing from catalogs.
       "Recent searches",
       "Clear all",
       "Clear recent searches",
-      // Issue #248: the suggestions grid gets its own subtitle instead of
-      // duplicating the popular-banner sentence.
-      "Tap a brand to search its cashback deals.",
+      "Explore standout cashback offers.",
+      "Cashback up to",
     ]);
   });
 

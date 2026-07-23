@@ -37,7 +37,7 @@ describe("CustomerAuthScreen — login/register link and social stubs", () => {
 
   it("given a social provider button inside ToastProvider > then tapping it shows Coming soon", async () => {
     renderAuth("login", true);
-    fireEvent.click(screen.getByRole("button", { name: "Gmail" }));
+    fireEvent.click(screen.getByRole("button", { name: "Google" }));
     await waitFor(() => {
       expect(screen.getByText("Coming soon")).toBeTruthy();
     });
