@@ -118,7 +118,7 @@ function createBrandCategoryStyles(colors: ThemeColors) {
       fontSize: 18,
       fontWeight: typography.labelWeight,
       lineHeight: 24,
-      marginTop: 2,
+      marginTop: 8,
     },
   });
 }
