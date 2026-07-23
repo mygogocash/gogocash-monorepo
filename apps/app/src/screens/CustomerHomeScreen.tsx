@@ -214,11 +214,7 @@ export function CustomerHomeScreen() {
       {webHomeSectionOrder.includes("extra") ? (
         <TopBrandSection brandCatalogData={brandCatalogResource.data} homeLayout={homeLayout} />
       ) : null}
-      <BrandCategorySection
-        contentWidth={homeLayout.contentWidth}
-        isDesktop={homeLayout.isDesktop}
-        tiles={brandCategoryTiles}
-      />
+      <BrandCategorySection isDesktop={homeLayout.isDesktop} tiles={brandCategoryTiles} />
       {promoSections.filter((section) => section.cards.length > 0).map((section) => (
         <PromoSection homeLayout={homeLayout} key={section.id} {...section} />
       ))}
