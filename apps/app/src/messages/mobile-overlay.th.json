@@ -476,5 +476,6 @@
   "mobileWithdrawCouponMethodChanged": "วิธีถอนเงินเปลี่ยนแปลง กรุณาใช้รหัสคูปองอีกครั้ง",
   "mobileNavExploreBrand": "เลือกชมแบรนด์",
   "mobileNavExploreShops": "เลือกชมร้านค้า",
-  "mobileNavExploreProducts": "เลือกชมสินค้า"
+  "mobileNavExploreProducts": "เลือกชมสินค้า",
+  "mobileHomeShopByCategory": "ช้อปตามหมวดหมู่"
 }

@@ -476,5 +476,6 @@
   "mobileWithdrawCouponMethodChanged": "Withdrawal method changed — re-apply your coupon code.",
   "mobileNavExploreBrand": "Explore Brand",
   "mobileNavExploreShops": "Explore Shops",
-  "mobileNavExploreProducts": "Explore Products"
+  "mobileNavExploreProducts": "Explore Products",
+  "mobileHomeShopByCategory": "Shop by category"
 }

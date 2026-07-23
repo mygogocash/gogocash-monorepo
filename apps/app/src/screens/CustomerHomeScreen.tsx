@@ -63,6 +63,8 @@ import { BrowseShortcuts } from "./home/BrowseShortcuts";
 import { MobileTabletHomeHeader } from "./home/MobileTabletHomeHeader";
 import { PromoSection } from "./home/PromoSection";
 import { TopBrandSection } from "./home/TopBrandSection";
+import { BrandCategorySection } from "./home/BrandCategorySection";
+import { resolveBrandCategoryTiles } from "./home/brandCategoryTiles";
 
 export function CustomerHomeScreen() {
   const { colors, resolved } = useTheme();
@@ -131,6 +133,7 @@ export function CustomerHomeScreen() {
     () => resolveLiveBrandCards(brandCatalogResource.source, brandCatalogResource.data, [], region),
     [brandCatalogResource.source, brandCatalogResource.data, region],
   );
+  const brandCategoryTiles = useMemo(() => resolveBrandCategoryTiles(liveCards), [liveCards]);
   const searchTopPadding = Math.max(8, insets.top + 8);
   const searchPopoverTop = searchTopPadding + 62;
   const openMobileSearch = useCallback(() => {
@@ -211,6 +214,11 @@ export function CustomerHomeScreen() {
       {webHomeSectionOrder.includes("extra") ? (
         <TopBrandSection brandCatalogData={brandCatalogResource.data} homeLayout={homeLayout} />
       ) : null}
+      <BrandCategorySection
+        contentWidth={homeLayout.contentWidth}
+        isDesktop={homeLayout.isDesktop}
+        tiles={brandCategoryTiles}
+      />
       {promoSections.filter((section) => section.cards.length > 0).map((section) => (
         <PromoSection homeLayout={homeLayout} key={section.id} {...section} />
       ))}
