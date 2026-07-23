@@ -22,6 +22,13 @@ describe('normalizeLandingRailId', () => {
     expect(normalizeLandingRailId(undefined)).toBe('');
     expect(normalizeLandingRailId('   ')).toBe('');
   });
+
+  it('normalizeLandingRailId > given long edge separators > then trims them without changing the slug', () => {
+    const separators = '-'.repeat(100_000);
+    expect(normalizeLandingRailId(`${separators}Travel${separators}`)).toBe(
+      'travel',
+    );
+  });
 });
 
 describe('normalizeLandingRailMeta', () => {
