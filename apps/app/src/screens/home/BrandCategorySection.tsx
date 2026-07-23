@@ -61,13 +61,17 @@ export function BrandCategorySection({
                 <View style={styles.logoRow}>
                   {tile.logos.map((logo, index) => (
                     <View key={`${tile.id}-logo-${index}`} style={styles.logoCell}>
-                      <BrandLogoTile
-                        brand={tile.label}
-                        containerStyle={styles.logoTile}
-                        source={logo.logoUri ? { uri: logo.logoUri } : null}
-                        sourceKey={logo.logoUri}
-                        tint={logo.tint}
-                      />
+                      {logo ? (
+                        <BrandLogoTile
+                          brand={tile.label}
+                          containerStyle={styles.logoTile}
+                          source={logo.logoUri ? { uri: logo.logoUri } : null}
+                          sourceKey={logo.logoUri}
+                          tint={logo.tint}
+                        />
+                      ) : (
+                        <View style={styles.logoBlank} />
+                      )}
                     </View>
                   ))}
                 </View>
@@ -105,6 +109,10 @@ function createBrandCategoryStyles(colors: ThemeColors) {
     },
     logoCell: {
       flex: 1,
+    },
+    logoBlank: {
+      aspectRatio: 1,
+      width: "100%",
     },
     logoTile: {
       aspectRatio: 1,
