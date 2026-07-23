@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getConnectionToken, getModelToken } from '@nestjs/mongoose';
-import { HttpException } from '@nestjs/common';
-import { ConflictException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Types } from 'mongoose';
 import { AdminService } from './admin.service';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
@@ -17,6 +20,7 @@ import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
 import { SPECIFIC_PAGE_BANNER_MODEL } from 'src/offer/schemas/specific-page-banner.schema';
 import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
+import { LandingRailConfig } from 'src/offer/schemas/landing-rail-config.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { StoredMediaService } from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
@@ -80,6 +84,7 @@ describe('AdminService', () => {
   let allBrandBannerModel: any;
   let specificPageBannerModel: any;
   let topBrandConfigModel: any;
+  let landingRailConfigModel: any;
   let deeplinkModel: any;
   let storedMediaService: {
     upload: jest.Mock;
@@ -188,6 +193,9 @@ describe('AdminService', () => {
       find: jest.fn(),
       findById: jest.fn(),
       findByIdAndUpdate: jest.fn(),
+      updateMany: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ acknowledged: true }),
+      }),
     };
     categoryModel = {
       create: jest.fn(),
@@ -227,7 +235,16 @@ describe('AdminService', () => {
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
     };
-    topBrandConfigModel = { updateOne: jest.fn(), findOne: jest.fn() };
+    topBrandConfigModel = {
+      updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+      findOne: jest.fn().mockReturnValue(makeQuery(null)),
+    };
+    landingRailConfigModel = {
+      find: jest.fn().mockReturnValue(makeQuery([])),
+      findOne: jest.fn().mockReturnValue(makeQuery(null)),
+      updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+      deleteMany: jest.fn().mockReturnValue(makeQuery({ deletedCount: 0 })),
+    };
     deeplinkModel = { aggregate: jest.fn() };
     storedMediaService = {
       upload: jest
@@ -351,6 +368,10 @@ describe('AdminService', () => {
         {
           provide: getModelToken(TopBrandConfig.name),
           useValue: topBrandConfigModel,
+        },
+        {
+          provide: getModelToken(LandingRailConfig.name),
+          useValue: landingRailConfigModel,
         },
         { provide: getModelToken(Deeplink.name), useValue: deeplinkModel },
         { provide: StoredMediaService, useValue: storedMediaService },
@@ -1553,6 +1574,48 @@ describe('AdminService', () => {
       });
     });
 
+    /**
+     * #493 — the wide hero banner and the square logo both uploaded into `brands`,
+     * whose 1024px cap is sized for logos. A 2400-3840px banner was downsampled on
+     * upload and the original was never retained, so the loss is permanent. The banner
+     * role now routes to its own 1920px folder; the logo must NOT follow it.
+     */
+    it('updateOffer > given a banner upload > then it stores under brand-banners while the logo stays under brands', async () => {
+      categoryIntegrity.withNormalWrite.mockImplementation(({ legacy }) =>
+        legacy(),
+      );
+      offerModel.findById.mockReturnValue(
+        makeQuery({
+          _id: offerId,
+          logo_desktop: 'old-logo',
+          banner: 'old-banner',
+          categories: 'Shopping',
+        }),
+      );
+      storedMediaService.replace.mockResolvedValue('new-asset');
+      offerModel.findByIdAndUpdate.mockReturnValue(
+        makeQuery({ _id: offerId, banner: 'new-asset' }),
+      );
+
+      await service.updateOffer(offerId, {
+        logo_desktop: { originalname: 'logo.png' } as Express.Multer.File,
+        banner: { originalname: 'hero.png' } as Express.Multer.File,
+        policy_category_id: '507f1f77bcf86cd799439011',
+        product_type: [],
+      });
+
+      expect(storedMediaService.replace).toHaveBeenCalledWith(
+        expect.objectContaining({ originalname: 'hero.png' }),
+        MEDIA_FOLDER.BRAND_BANNERS,
+        'old-banner',
+      );
+      expect(storedMediaService.replace).toHaveBeenCalledWith(
+        expect.objectContaining({ originalname: 'logo.png' }),
+        MEDIA_FOLDER.BRANDS,
+        'old-logo',
+      );
+    });
+
     it('updateOffer > given an unknown offer id > then it throws "Offer not found"', async () => {
       offerModel.findById.mockReturnValue(makeQuery(null));
 
@@ -1708,7 +1771,8 @@ describe('AdminService', () => {
       expect(storedMediaService.upload).toHaveBeenCalledTimes(1);
       expect(storedMediaService.upload).toHaveBeenCalledWith(
         expect.objectContaining({ originalname: 'banner.png' }),
-        'brands',
+        // #493 — banner roles moved off the logo-sized `brands` folder.
+        MEDIA_FOLDER.BRAND_BANNERS,
       );
       expect(storedMediaService.replace).not.toHaveBeenCalled();
       expect(policyMediaCleanup.journalLegacyReplacements).toHaveBeenCalledWith(
@@ -1990,6 +2054,63 @@ describe('AdminService', () => {
       expect(persisted.product_type).toEqual(rows);
       expect(persisted.all_product_types).toBe(false);
       expect(persisted.commission_store).toBe(5.6);
+    });
+
+    // #516 / #518 — the admin has always submitted these two on partner-info
+    // save, but nothing persisted them, so forbidNonWhitelisted rejected the
+    // whole request ("property affiliate_network_id should not exist") before
+    // product_types was ever examined. That made "Info from partner" unsaveable
+    // for EVERY offer, and the admin's hardcoded error string hid the reason.
+    it('updateOffer > given affiliate_network_id and deeplink_store_id > then both persist', async () => {
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, {
+        affiliate_network_id: 'accesstrade',
+        deeplink_store_id: 'shopee_cps_new',
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.affiliate_network_id).toBe('accesstrade');
+      expect(persisted.deeplink_store_id).toBe('shopee_cps_new');
+    });
+
+    // Absent key must leave the stored value alone — a partial save (T&C, media,
+    // tracking period) must never blank the network or advertiser line.
+    it('updateOffer > given neither key > then neither is written', async () => {
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, { note_to_user: 'hello' });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect('affiliate_network_id' in persisted).toBe(false);
+      expect('deeplink_store_id' in persisted).toBe(false);
+    });
+
+    it('updateOffer > given upsize product rows > then upsize fields persist (#471)', async () => {
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      const upsizeRows = [
+        {
+          name: 'OPPO Find X9',
+          pay_in: 'cashback',
+          commission_info: '3.5',
+        },
+      ];
+      await service.updateOffer(offerId, {
+        upsize_all_product_types: false,
+        upsize_start_date: '2026-07-01',
+        upsize_end_date: '2026-07-31',
+        upsize_product_types: upsizeRows as never,
+      });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.upsize_all_product_types).toBe(false);
+      expect(persisted.upsize_start_date).toBe('2026-07-01');
+      expect(persisted.upsize_end_date).toBe('2026-07-31');
+      expect(persisted.upsize_product_types).toEqual(upsizeRows);
     });
 
     it('updateOffer > given no product_type field > then existing product_type is not wiped', async () => {
@@ -3248,6 +3369,18 @@ describe('AdminService', () => {
   describe('saveTopBrands', () => {
     // Only ordered identities are persisted. Customer cashback is read from the
     // live offer so stale or forged labels cannot reach the homepage.
+    beforeEach(() => {
+      // #479 — eligibility lookup defaults to active offers for every requested id.
+      offerModel.find.mockImplementation(
+        (filter: { _id?: { $in?: unknown[] } }) => {
+          const ids = (filter?._id?.$in ?? []).map(String);
+          return makeQuery(
+            ids.map((id) => ({ _id: id, disabled: false, status: 'approved' })),
+          );
+        },
+      );
+    });
+
     it('saveTopBrands > given curated brand entries > then it upserts identities without editable cashback', async () => {
       topBrandConfigModel.updateOne.mockResolvedValue({ acknowledged: true });
       const brands = [
@@ -3304,6 +3437,17 @@ describe('AdminService', () => {
       expect(topBrandConfigModel.updateOne).not.toHaveBeenCalled();
     });
 
+    it('#479 saveTopBrands > given a disabled offer id > then rejects before persistence', async () => {
+      offerModel.find.mockReturnValue(
+        makeQuery([{ _id: 'offer-1', disabled: true, status: 'approved' }]),
+      );
+
+      await expect(
+        service.saveTopBrands([{ offerId: 'offer-1', cashback: '' }]),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(topBrandConfigModel.updateOne).not.toHaveBeenCalled();
+    });
+
     it('#378 saveTopBrands > given independent device lists > then persists both and mirrors desktop into brands', async () => {
       topBrandConfigModel.updateOne.mockResolvedValue({ acknowledged: true });
       const brandsDesktop = [
@@ -3333,6 +3477,129 @@ describe('AdminService', () => {
         brandsDesktop: persistedDesktop,
         brandsMobile: persistedMobile,
       });
+    });
+  });
+
+  describe('saveLandingRails', () => {
+    beforeEach(() => {
+      offerModel.find.mockImplementation(
+        (filter: { _id?: { $in?: unknown[] } }) => {
+          const ids = (filter?._id?.$in ?? []).map(String);
+          return makeQuery(
+            ids.map((id) => ({ _id: id, disabled: false, status: 'approved' })),
+          );
+        },
+      );
+    });
+
+    it('saveLandingRails > given rails > then upserts each by railId and drops removed rails', async () => {
+      const result = await service.saveLandingRails({
+        rails: [
+          {
+            railId: 'Trending',
+            title: 'Trending Brands',
+            link: '/brand',
+            position: 1,
+            brandsDesktop: [{ offerId: 'offer-1', cashback: 'forged' }],
+          },
+          {
+            railId: 'travel',
+            title: 'Travel Deals are Here!',
+            emoji: '✈️',
+            position: 0,
+            brandsDesktop: [{ offerId: 'offer-2', cashback: 'forged' }],
+            brandsMobile: [{ offerId: 'offer-2', cashback: 'forged' }],
+          },
+        ],
+      });
+
+      // replace-set: deleteMany keeps only the two railIds sent.
+      expect(landingRailConfigModel.deleteMany).toHaveBeenCalledWith({
+        railId: { $nin: ['travel', 'trending'] },
+      });
+      // one upsert per rail
+      expect(landingRailConfigModel.updateOne).toHaveBeenCalledTimes(2);
+      const travelUpdate = landingRailConfigModel.updateOne.mock.calls.find(
+        (call: any[]) => call[0].railId === 'travel',
+      );
+      expect(travelUpdate[2]).toEqual({ upsert: true });
+      // cashback is never trusted from the client
+      expect(travelUpdate[1].$set.brandsDesktop).toEqual([
+        { offerId: 'offer-2', cashback: '' },
+      ]);
+      // sorted by position ⇒ travel(0) before trending(1)
+      expect(result.rails.map((r) => r.railId)).toEqual(['travel', 'trending']);
+      expect(result.success).toBe(true);
+    });
+
+    it('saveLandingRails > given a disabled offer > then rejects the save', async () => {
+      offerModel.find.mockReturnValue(
+        makeQuery([{ _id: 'offer-x', disabled: true, status: 'approved' }]),
+      );
+
+      await expect(
+        service.saveLandingRails({
+          rails: [
+            {
+              railId: 'trending',
+              title: 'Trending',
+              brandsDesktop: [{ offerId: 'offer-x', cashback: '' }],
+            },
+          ],
+        }),
+      ).rejects.toThrow(/Disabled or missing offers/);
+      expect(landingRailConfigModel.updateOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getLandingRails', () => {
+    it('getLandingRails > given saved rails > then returns them ordered with live cashback', async () => {
+      landingRailConfigModel.find.mockReturnValue(
+        makeQuery([
+          {
+            railId: 'trending',
+            title: 'Trending Brands',
+            position: 1,
+            brandsDesktop: [{ offerId: 'offer-1', cashback: 'stale' }],
+            brandsMobile: [],
+          },
+          {
+            railId: 'travel',
+            title: 'Travel Deals are Here!',
+            emoji: '✈️',
+            position: 0,
+            brandsDesktop: [{ offerId: 'offer-2', cashback: 'stale' }],
+            brandsMobile: [{ offerId: 'offer-2', cashback: 'stale' }],
+          },
+        ]),
+      );
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: 'offer-1',
+            offer_id: 1,
+            offer_name: 'Alpha',
+            commission_store: 8,
+          },
+          {
+            _id: 'offer-2',
+            offer_id: 2,
+            offer_name: 'Bravo',
+            commission_store: 12,
+          },
+        ]),
+      );
+
+      const result = await service.getLandingRails();
+
+      expect(result.rails.map((r) => r.railId)).toEqual(['travel', 'trending']);
+      const travel = result.rails[0];
+      expect(travel.emoji).toBe('✈️');
+      expect(travel.brandsDesktop).toEqual([
+        { offerId: 'offer-2', cashback: '12%' },
+      ]);
+      expect(result.maxRails).toBeGreaterThan(0);
+      expect(result.maxBrands).toBeGreaterThan(0);
     });
   });
 
@@ -3525,15 +3792,219 @@ describe('AdminService', () => {
   });
 
   describe('getMyCashBackUser', () => {
-    it('getMyCashBackUser > given a user id > then it returns the userMyCashback from the user service', async () => {
-      userService.getBalanceMyCashback.mockResolvedValue({
-        userMyCashback: { balance: 42 },
+    it('getMyCashBackUser > given a UserMyCashback ObjectId > then it returns that row as an array', async () => {
+      const mcbId = '60583a4d1325b29fd914af5b';
+      const row = { _id: mcbId, buyerId: 'tmn.1', balance: [{ amount: 1 }] };
+      userMyCashbackModel.findById = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(row),
+          }),
+        }),
       });
 
-      const result = await service.getMyCashBackUser('user-1');
+      const result = await service.getMyCashBackUser(mcbId);
 
-      expect(userService.getBalanceMyCashback).toHaveBeenCalledWith('user-1');
-      expect(result).toEqual({ balance: 42 });
+      expect(userMyCashbackModel.findById).toHaveBeenCalledWith(mcbId);
+      expect(userService.getBalanceMyCashback).not.toHaveBeenCalled();
+      expect(result).toEqual([row]);
+    });
+
+    it('getMyCashBackUser > given an app user id > then it returns the userMyCashback list from the user service', async () => {
+      userMyCashbackModel.findById = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(null),
+          }),
+        }),
+      });
+      userService.getBalanceMyCashback.mockResolvedValue({
+        userMyCashback: [{ balance: 42 }],
+      });
+
+      const result = await service.getMyCashBackUser(
+        '60583a4d1325b29fd914af5b',
+      );
+
+      expect(userService.getBalanceMyCashback).toHaveBeenCalledWith(
+        '60583a4d1325b29fd914af5b',
+      );
+      expect(result).toEqual([{ balance: 42 }]);
+    });
+
+    it('getMyCashBackUser > given user-service UnauthorizedException > then it returns [] (never 401)', async () => {
+      userMyCashbackModel.findById = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(null),
+          }),
+        }),
+      });
+      userService.getBalanceMyCashback.mockRejectedValue(
+        new UnauthorizedException('User not found'),
+      );
+
+      await expect(
+        service.getMyCashBackUser('60583a4d1325b29fd914af5b'),
+      ).resolves.toEqual([]);
+    });
+  });
+
+  describe('listMyCashbackUsers', () => {
+    beforeEach(() => {
+      userMyCashbackModel.find = jest.fn();
+      userMyCashbackModel.countDocuments = jest.fn();
+      userMyCashbackModel.aggregate = jest.fn();
+    });
+
+    it('listMyCashbackUsers > given defaults > then it pages with limit 12 and newest sort', async () => {
+      const findQuery = makeQuery([{ _id: 'mcb-1' }]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(1));
+
+      const result = await service.listMyCashbackUsers();
+
+      expect(userMyCashbackModel.find).toHaveBeenCalledWith({});
+      expect(findQuery.select).toHaveBeenCalledWith(
+        '-withdrawalPassword -buyerToken',
+      );
+      expect(findQuery.sort).toHaveBeenCalledWith({ createdAt: -1 });
+      expect(findQuery.skip).toHaveBeenCalledWith(0);
+      expect(findQuery.limit).toHaveBeenCalledWith(12);
+      expect(result).toEqual({
+        status: 'success',
+        data: [{ _id: 'mcb-1' }],
+        pagination: { page: 1, limit: 12, total: 1, totalPages: 1 },
+      });
+    });
+
+    it('listMyCashbackUsers > given search + banned status + name sort > then it builds the filter and sort', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.listMyCashbackUsers({
+        page: 2,
+        limit: 20,
+        search: 'a.*',
+        sort: 'name',
+        status: 'banned',
+      });
+
+      expect(userMyCashbackModel.find).toHaveBeenCalledWith({
+        banned: true,
+        $or: [
+          { email: { $regex: 'a\\.\\*', $options: 'i' } },
+          { phoneNumber: { $regex: 'a\\.\\*', $options: 'i' } },
+          { buyerId: { $regex: 'a\\.\\*', $options: 'i' } },
+          { firstName: { $regex: 'a\\.\\*', $options: 'i' } },
+          { lastName: { $regex: 'a\\.\\*', $options: 'i' } },
+        ],
+      });
+      expect(findQuery.sort).toHaveBeenCalledWith({
+        firstName: 1,
+        lastName: 1,
+        email: 1,
+      });
+      expect(findQuery.skip).toHaveBeenCalledWith(20);
+      expect(findQuery.limit).toHaveBeenCalledWith(20);
+    });
+
+    it('listMyCashbackUsers > given balance sort > then it aggregates by summed balance amounts', async () => {
+      const aggregateQuery = makeQuery([{ _id: 'mcb-rich' }]);
+      userMyCashbackModel.aggregate.mockReturnValue(aggregateQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(1));
+
+      const result = await service.listMyCashbackUsers({
+        status: 'active',
+        sort: 'balance',
+        page: 2,
+        limit: 5,
+      });
+
+      expect(userMyCashbackModel.find).not.toHaveBeenCalled();
+      expect(userMyCashbackModel.aggregate).toHaveBeenCalledWith([
+        { $match: { banned: { $ne: true } } },
+        {
+          $addFields: {
+            _balanceTotal: {
+              $sum: {
+                $map: {
+                  input: { $ifNull: ['$balance', []] },
+                  as: 'b',
+                  in: { $ifNull: ['$$b.amount', 0] },
+                },
+              },
+            },
+          },
+        },
+        { $sort: { _balanceTotal: -1, createdAt: -1 } },
+        { $skip: 5 },
+        { $limit: 5 },
+        {
+          $project: {
+            withdrawalPassword: 0,
+            buyerToken: 0,
+            _balanceTotal: 0,
+          },
+        },
+      ]);
+      expect(result).toEqual({
+        status: 'success',
+        data: [{ _id: 'mcb-rich' }],
+        pagination: { page: 2, limit: 5, total: 1, totalPages: 1 },
+      });
+    });
+
+    it('listMyCashbackUsers > given a 24-char hex search > then it matches _id and publisherId', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+      const hex = '507f1f77bcf86cd799439011';
+      const objectId = new Types.ObjectId(hex);
+
+      await service.listMyCashbackUsers({ search: hex });
+
+      expect(userMyCashbackModel.find).toHaveBeenCalledWith({
+        $or: expect.arrayContaining([
+          { _id: objectId },
+          { publisherId: objectId },
+        ]),
+      });
+    });
+
+    it('listMyCashbackUsers > given a 12-char non-hex search > then it does not coerce ObjectId', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.listMyCashbackUsers({ search: 'abcdefghijkl' });
+
+      const filter = userMyCashbackModel.find.mock.calls[0][0] as {
+        $or: Array<Record<string, unknown>>;
+      };
+      expect(filter.$or.some((clause) => '_id' in clause)).toBe(false);
+      expect(filter.$or.some((clause) => 'publisherId' in clause)).toBe(false);
+    });
+
+    it('listMyCashbackUsers > given unknown sort > then it falls back to newest', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      await service.listMyCashbackUsers({ sort: 'not-a-sort' });
+
+      expect(findQuery.sort).toHaveBeenCalledWith({ createdAt: -1 });
+    });
+
+    it('listMyCashbackUsers > given empty result set > then totalPages is 0', async () => {
+      const findQuery = makeQuery([]);
+      userMyCashbackModel.find.mockReturnValue(findQuery);
+      userMyCashbackModel.countDocuments.mockReturnValue(makeQuery(0));
+
+      const result = await service.listMyCashbackUsers();
+
+      expect(result.pagination.totalPages).toBe(0);
     });
   });
 

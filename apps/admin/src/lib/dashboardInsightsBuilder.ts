@@ -15,6 +15,7 @@ import {
   affiliateNetworkName,
 } from "@/data/affiliateNetworks";
 import { parseCustomRange, parseIsoDateLocal } from "@/lib/insightRange";
+import { withdrawListHref } from "@/lib/withdrawStatusFilter";
 import type {
   DashboardAlert,
   DashboardCommissionHealth,
@@ -878,7 +879,7 @@ function buildAlerts(
           : "medium",
       title: "Withdrawal queue needs attention",
       body: `${buckets.pending.count} pending requests (${buckets.pending.total.toLocaleString(undefined, { maximumFractionDigits: 2 })} total).`,
-      href: "/withdraw?status=pending",
+      href: withdrawListHref("pending"),
       metric: "pending_withdrawals",
     });
   }
@@ -888,7 +889,7 @@ function buildAlerts(
       severity: "high",
       title: "Pending payouts over 48 hours",
       body: `${wm.pendingOver48hCount} request(s) have been pending more than 48 hours.`,
-      href: "/withdraw?status=pending",
+      href: withdrawListHref("pending"),
     });
   }
   if (convDelta != null && convDelta <= -15) {

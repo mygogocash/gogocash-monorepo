@@ -8,6 +8,7 @@ import {
   buildQuestWordingOptions,
   defaultQuestTaskWording,
   filterQuestWordingOptions,
+  questWordingHelperText,
   type QuestWordingLocale,
 } from "@/lib/questTaskWording";
 import { getOfferDisplayName } from "@/lib/offerDisplay";
@@ -134,8 +135,7 @@ export function QuestTaskWordingFields({
         onChange={(wording_th) => onChange({ ...value, wording_th })}
       />
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        Shown on the customer Quest page by language. Search presets or type
-        custom copy. Leave blank to use the brand default for that language.
+        {questWordingHelperText(offer)}
       </p>
     </div>
   );

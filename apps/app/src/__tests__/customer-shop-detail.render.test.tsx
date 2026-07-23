@@ -345,8 +345,8 @@ describe("CustomerShopDetailScreen (render)", () => {
       screen.getByRole("alert", { name: "Moving to Link Merchant" }),
     ).toBeTruthy();
 
-    fireEvent.click(screen.getByText("Tap here"));
-
+    // New flow: the redirect fires automatically the moment the mint resolves —
+    // no "Tap here" needed — and opens the attributed (minted) link.
     await waitFor(() => {
       expect(openUrl).toHaveBeenCalledWith(
         "https://attributed.example/user-coupon-link",
@@ -396,6 +396,59 @@ describe("CustomerShopDetailScreen (render)", () => {
     expect(openUrl).not.toHaveBeenCalledWith(
       "https://www.google.com/search?q=Fallback%20Merchant",
     );
+  });
+
+  it("shows the GoGoCash -> brand-partner logos on the redirect interstitial", () => {
+    // Never-resolving mint keeps the overlay up so we can assert its content
+    // (the real client caps this at 2.5s via AbortController).
+    couponRedirectMocks.mintUserTrackingLink.mockReturnValue(
+      new Promise<string | null>(() => {}),
+    );
+    merchantResourceState.data = {
+      _id: "merchant-logo",
+      merchant_id: 7339,
+      offer_name: "Lazada",
+      offer_id: 339,
+      tracking_link: "https://merchant.example/general",
+      logo: "https://media.example/lazada-logo.png",
+    };
+    merchantResourceState.source = "backend";
+
+    renderScreen();
+    fireEvent.click(screen.getByRole("button", { name: "Shop now at Lazada" }));
+
+    expect(
+      screen.getByRole("alert", { name: "Moving to Lazada" }),
+    ).toBeTruthy();
+    expect(screen.getByTestId("shop-redirect-gogocash-logo")).toBeTruthy();
+    expect(screen.getByTestId("shop-redirect-partner-logo")).toBeTruthy();
+  });
+
+  it("Tap here opens the raw tracking link immediately while the mint is still pending", async () => {
+    couponRedirectMocks.mintUserTrackingLink.mockReturnValue(
+      new Promise<string | null>(() => {}),
+    );
+    merchantResourceState.data = {
+      _id: "merchant-tap",
+      merchant_id: 7339,
+      offer_name: "Slow Merchant",
+      offer_id: 339,
+      tracking_link: "https://merchant.example/raw-tracked",
+    };
+    merchantResourceState.source = "backend";
+    const openUrl = vi.spyOn(Linking, "openURL").mockResolvedValue(true);
+
+    renderScreen();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Shop now at Slow Merchant" }),
+    );
+    fireEvent.click(screen.getByText("Tap here"));
+
+    await waitFor(() => {
+      expect(openUrl).toHaveBeenCalledWith(
+        "https://merchant.example/raw-tracked",
+      );
+    });
   });
 
   it("preserves only the coupon id through login and re-resolves the current backend destination", async () => {

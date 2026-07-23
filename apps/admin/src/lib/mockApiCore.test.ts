@@ -331,6 +331,26 @@ describe("top-brands config", () => {
     expect(body.items.map((item) => item._id)).toEqual(["o2", "o1"]);
     expect(body.maxBrands).toBe(16);
   });
+
+  it("#479 rejects disabled offers on PUT /admin/top-brands", async () => {
+    const { mockOffers } = await import("@/app/api/mock/data");
+    const target = mockOffers.find((offer) => offer._id === "o1");
+    expect(target).toBeTruthy();
+    const previous = target!.disabled;
+    target!.disabled = true;
+
+    try {
+      const put = await call("PUT", ["admin", "top-brands"], {
+        body: { brands: [{ offerId: "o1", cashback: "" }] },
+      });
+      expect(put.status).toBe(400);
+      expect(put.body).toMatchObject({
+        message: expect.stringMatching(/Disabled or missing offers/i),
+      });
+    } finally {
+      target!.disabled = previous;
+    }
+  });
 });
 
 describe("offer admin search", () => {

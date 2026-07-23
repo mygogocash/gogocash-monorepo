@@ -7,17 +7,16 @@ import {
 } from "@mobile/account/topBrandResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
 import { BrandCard } from "@mobile/components/BrandCard";
-import { CarouselDots } from "@mobile/components/CarouselDots";
+import { CarouselRail } from "@mobile/components/CarouselRail";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { getMobileEnv } from "@mobile/config/env";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { prefetchRemoteImages } from "@mobile/lib/prefetchRemoteImages";
-import { getCarouselDotCount, webTopBrandCards } from "@mobile/design/webDesignParity";
+import { webTopBrandCards } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
 import {
   chunkTopBrandCards,
-  getPagedScrollIndex,
   getPromoGridCardWidth,
   getPromoSectionLayoutMode,
 } from "./homeHelpers";
@@ -49,7 +48,6 @@ export function TopBrandSection({
     apiBaseUrl,
     homeLayout.isDesktop ? "desktop" : "mobile",
   );
-  const topBrandPages = chunkTopBrandCards(topBrands, homeLayout.topBrandCardsPerPage);
   // Same mobile treatment as the promo rails (founder feedback 2026-07-11):
   // few cards → static grid; more → free momentum scroll; desktop pager.
   const layoutMode = getPromoSectionLayoutMode(homeLayout.isDesktop, topBrands.length);
@@ -59,14 +57,12 @@ export function TopBrandSection({
     homeLayout.brandSectionFrameWidth,
     homeLayout.topBrandGap
   );
-  const [activeTopBrandPage, setActiveTopBrandPage] = useState(0);
-  const topBrandDotCount = getCarouselDotCount(
-    topBrands.length,
-    homeLayout.topBrandCardsPerPage
-  );
-  const topBrandMaxPageIndex = Math.max(0, topBrandPages.length - 1);
-  const activeTopBrandDot = Math.min(activeTopBrandPage, topBrandDotCount - 1);
   const topBrandScrollX = useMemo(() => new Animated.Value(0), []);
+  // #498 — the rail is proportional, so it needs the real scroll geometry rather than a
+  // page count. Measured from the ScrollView instead of derived, so it stays correct
+  // whatever the column count works out to be.
+  const [railContentWidth, setRailContentWidth] = useState(0);
+  const [railVisibleWidth, setRailVisibleWidth] = useState(0);
 
   useEffect(() => {
     prefetchRemoteImages(topBrands.map((brand) => brand.logoUri));
@@ -107,80 +103,55 @@ export function TopBrandSection({
         <Animated.ScrollView
           contentContainerStyle={[
             styles.topBrandPagerContent,
-            isPager ? null : { gap: homeLayout.topBrandGap },
+            { gap: homeLayout.topBrandGap },
           ]}
-          decelerationRate={isPager ? "fast" : "normal"}
-          disableIntervalMomentum={isPager}
+          decelerationRate="normal"
+
           horizontal
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { x: topBrandScrollX } } }],
             { useNativeDriver: motion.useNativeDriver }
           )}
-          onMomentumScrollEnd={(event) =>
-            setActiveTopBrandPage(
-              getPagedScrollIndex(event, homeLayout.topBrandGroupWidth, topBrandMaxPageIndex)
-            )
-          }
-          pagingEnabled={isPager}
+
+          onContentSizeChange={(width) => setRailContentWidth(width)}
+          onLayout={(event) => setRailVisibleWidth(event.nativeEvent.layout.width)}
           scrollEventThrottle={16}
           showsHorizontalScrollIndicator={false}
-          snapToAlignment="start"
-          snapToInterval={isPager ? homeLayout.topBrandGroupWidth : undefined}
+
+
           style={[styles.topBrandScroll, { height: homeLayout.topBrandGridHeight }]}
         >
-          {isPager
-            ? topBrandPages.map((pageCards, pageIndex) => (
-                <Animated.View
-                  key={`top-brand-page-${pageIndex}`}
-                  style={[
-                    styles.topBrandPage,
-                    styles.brandGrid,
-                    {
-                      gap: homeLayout.topBrandGap,
-                      height: homeLayout.topBrandGridHeight,
-                      width: homeLayout.topBrandGroupWidth,
-                    },
-                  ]}
-                >
-                  {pageCards.map((card) => (
-                    <BrandCard
-                      cardHeight={homeLayout.topBrandCardHeight}
-                      cardWidth={homeLayout.topBrandCardWidth}
-                      key={card.id ?? card.brand}
-                      {...card}
-                      size="L"
-                    />
-                  ))}
-                </Animated.View>
-              ))
-            : topBrandColumns.map((columnCards, columnIndex) => (
-                <View
-                  key={`top-brand-column-${columnIndex}`}
-                  style={{ gap: homeLayout.topBrandGap }}
-                >
-                  {columnCards.map((card) => (
-                    <BrandCard
-                      cardHeight={homeLayout.topBrandCardHeight}
-                      cardWidth={homeLayout.topBrandCardWidth}
-                      key={card.id ?? card.brand}
-                      {...card}
-                      size="L"
-                    />
-                  ))}
-                </View>
+          {/* #498 — one continuous group, column-major, instead of fixed-width pages.
+              The page chunking is what produced the visible boundary gap between cards;
+              this is the ordering the ticket asks for:
+                row 1: [1] [3] [5] [7] [9] [11]
+                row 2: [2] [4] [6] [8] [10]          */}
+          {topBrandColumns.map((columnCards, columnIndex) => (
+            <View
+              key={`top-brand-column-${columnIndex}`}
+              style={{ gap: homeLayout.topBrandGap }}
+            >
+              {columnCards.map((card) => (
+                <BrandCard
+                  cardHeight={homeLayout.topBrandCardHeight}
+                  cardWidth={homeLayout.topBrandCardWidth}
+                  key={card.id ?? card.brand}
+                  {...card}
+                  size="L"
+                />
               ))}
+            </View>
+          ))}
         </Animated.ScrollView>
         </View>
         )}
         {isPager ? (
-          <CarouselDots
-            activeIndex={activeTopBrandDot}
+          <CarouselRail
             color={colors.primary}
             containerStyle={styles.topBrandDots}
-            count={topBrandDotCount}
-            pageWidth={homeLayout.topBrandGroupWidth}
+            contentWidth={railContentWidth}
             scrollX={topBrandScrollX}
-            size={12}
+            visibleWidth={railVisibleWidth}
           />
         ) : null}
       </View>

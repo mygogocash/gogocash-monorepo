@@ -34,4 +34,50 @@ describe('commission-partner.util', () => {
     expect(url).toContain('bestRate=7');
     expect(url).toContain('affNetwork=involve_asia');
   });
+
+  // #517/#518 — the admin and API generators diverged: the admin one emitted a
+  // `store=` param for the selected advertiser line, the API one had no store
+  // parameter at all. Shipping either side alone bakes the divergence into
+  // offer.app_deeplink, so both now build the identical URL.
+  //
+  // `global` is the sentinel for "no specific advertiser line" and is omitted,
+  // matching apps/admin/src/lib/offerDeeplink.ts.
+  it('buildSuggestedAppDeeplink > given a deeplink store id > appends store=', () => {
+    const url = buildSuggestedAppDeeplink({
+      offerId: 'abc123',
+      lookupValue: 'shopee-th',
+      currency: 'THB',
+      commissions: [{ Commission: '7%' }],
+      commissionStore: 5,
+      affiliateNetworkId: 'involve_asia',
+      bestRatePercent: 7,
+      deeplinkStoreId: 'shopee_cps_new',
+    });
+    expect(url).toContain('store=shopee_cps_new');
+  });
+
+  it('buildSuggestedAppDeeplink > given the global sentinel > omits store=', () => {
+    const url = buildSuggestedAppDeeplink({
+      offerId: 'abc123',
+      lookupValue: 'shopee-th',
+      currency: 'THB',
+      commissions: [],
+      affiliateNetworkId: 'involve_asia',
+      bestRatePercent: 7,
+      deeplinkStoreId: 'global',
+    });
+    expect(url).not.toContain('store=');
+  });
+
+  it('buildSuggestedAppDeeplink > given no store id > omits store= (unchanged)', () => {
+    const url = buildSuggestedAppDeeplink({
+      offerId: 'abc123',
+      lookupValue: 'shopee-th',
+      currency: 'THB',
+      commissions: [],
+      affiliateNetworkId: 'involve_asia',
+      bestRatePercent: 7,
+    });
+    expect(url).not.toContain('store=');
+  });
 });

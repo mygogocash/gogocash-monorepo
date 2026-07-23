@@ -41,6 +41,8 @@ export type DesktopGoLinkBannerProps = {
   readonly onOpenGuideline: () => void;
   readonly onResultHref: (href: string) => void;
   readonly variant?: "default" | "mobileTabletHeader";
+  /** Coming-soon state: render the box visible but disabled/non-interactive. */
+  readonly comingSoon?: boolean;
 };
 
 export type MobileTabletHomeHeaderProps = {

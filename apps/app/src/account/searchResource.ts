@@ -17,13 +17,18 @@ export type SearchPanelItem = {
   logoUri?: string;
 };
 
+/** Default page size for category-detail browse (#438) — larger than home brandCatalog. */
+export const CATEGORY_OFFER_BROWSE_LIMIT = 80;
+
 export function buildOfferSearchPath({
+  category = "",
   country,
   limit = 20,
   page = 1,
   query = "",
   regionCode,
 }: {
+  category?: string;
   country?: string;
   limit?: number;
   page?: number;
@@ -37,6 +42,10 @@ export function buildOfferSearchPath({
   const trimmed = query.trim();
   if (trimmed) {
     params.set("search", trimmed);
+  }
+  const trimmedCategory = category.trim();
+  if (trimmedCategory && trimmedCategory.toLowerCase() !== "all") {
+    params.set("category", trimmedCategory);
   }
   const resolvedCountry = country ?? (regionCode ? resolveApiCountryParam(regionCode) : undefined);
   if (resolvedCountry) {

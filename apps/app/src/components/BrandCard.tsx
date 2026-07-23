@@ -59,6 +59,8 @@ export type BrandCardProps =
       readonly size: "S";
       readonly cardHeight: number;
       readonly cardWidth: number;
+      /** Optional surface-specific caption; shared compact cards retain the legacy default. */
+      readonly cashbackCaption?: string;
       readonly logoVisualHeight: number;
       readonly accessibilityLabel?: string;
       /** Stable offer id for the favorite heart (falls back to href/brand). */
@@ -66,6 +68,9 @@ export type BrandCardProps =
       readonly onPress?: () => void;
       /** Render the same favorite heart the L card carries. */
       readonly showFavoriteHeart?: boolean;
+      /** #496 — the offer/tag chip the L card carries, pinned to the image top-left. */
+      readonly label?: string;
+      readonly showGrabCoupon?: boolean;
       readonly testID?: string;
     });
 
@@ -117,6 +122,20 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
   };
   const compactLogoSource =
     props.size === "S" ? resolveCompactLogoSource(props) : null;
+  const cashbackCaption =
+    props.size === "S" ? props.cashbackCaption ?? "Cashback upto" : "Cashback upto";
+
+  // #496 — one chip definition for both sizes: the L and S branches rendered the same
+  // markup, and only L had it. Both cards pin it to the image top-left.
+  const couponChip =
+    props.showGrabCoupon && props.label ? (
+      <View style={styles.couponChip}>
+        <Text style={styles.couponIcon}>🧧</Text>
+        <Text numberOfLines={1} style={styles.couponText}>
+          {tc(props.label)}
+        </Text>
+      </View>
+    ) : null;
 
   const card = (
     <MotionPressable
@@ -137,14 +156,7 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
             sourceKey={logoSourceKey}
             tint={tint}
           >
-            {props.showGrabCoupon && props.label ? (
-              <View style={styles.couponChip}>
-                <Text style={styles.couponIcon}>🧧</Text>
-                <Text numberOfLines={1} style={styles.couponText}>
-                  {tc(props.label)}
-                </Text>
-              </View>
-            ) : null}
+            {couponChip}
             <Pressable
               accessibilityLabel={
                 isFavorite
@@ -176,6 +188,7 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
             sourceKey={logoSourceKey}
             tint={tint}
           >
+            {couponChip}
             {props.showFavoriteHeart ? (
               <Pressable
                 accessibilityLabel={
@@ -210,7 +223,7 @@ export const BrandCard = memo(function BrandCard(props: BrandCardProps) {
             numberOfLines={1}
             style={props.size === "L" ? styles.brandCashbackCaption : styles.compactCashbackCaption}
           >
-            {tc("Cashback upto")}
+            {tc(cashbackCaption)}
           </Text>
           <Text
             style={
@@ -350,7 +363,6 @@ function createBrandCardStyles(colors: ThemeColors) {
       fontSize: 14,
       fontWeight: typography.labelWeight,
       lineHeight: 17.5,
-      marginTop: 2,
     },
     compactCashbackRow: {
       alignItems: "baseline",

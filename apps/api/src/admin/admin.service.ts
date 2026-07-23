@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { CreateAdminDto } from './dto/create-admin.dto';
@@ -13,11 +14,18 @@ import {
   ProductTypeDto,
   ADMIN_ASSIGNABLE_ROLES,
   SaveTopBrandsDto,
+  SaveLandingRailsDto,
   UpdateAdminDto,
   UpdateBannerHomeDto,
   UpdateSpecificPageBannerDto,
   UpdateFeeRateDto,
   UpdateRequestWithdrawDto,
+  MYCASHBACK_USERS_DEFAULT_LIMIT,
+  MYCASHBACK_USERS_MAX_LIMIT,
+  MYCASHBACK_USERS_MAX_PAGE,
+  MYCASHBACK_USERS_MAX_SEARCH_LENGTH,
+  MYCASHBACK_USER_SORTS,
+  type MyCashbackUserSort,
 } from './dto/update-admin.dto';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { UserAdmin } from './user-admin/schemas/user-admin.schema';
@@ -38,6 +46,7 @@ import type { AdminActor } from './activity/admin-activity.actor';
 import { InvolveService } from 'src/involve/involve.service';
 import { User } from 'src/user/schemas/user.schema';
 import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
+import { REFERRAL_BONUS_DEFAULT_PERCENT } from 'src/point/referral-bonus';
 import { StoredMediaService } from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
 import { Offer } from 'src/offer/schemas/offer.schema';
@@ -50,12 +59,26 @@ import { ALL_BRAND_BANNER_MODEL } from 'src/offer/schemas/banner.schema';
 import { SPECIFIC_PAGE_BANNER_MODEL } from 'src/offer/schemas/specific-page-banner.schema';
 import { requireSpecificPageBannerTarget } from 'src/offer/specific-page-banner.contract';
 import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
+import { LandingRailConfig } from 'src/offer/schemas/landing-rail-config.schema';
 import {
   MAX_TOP_BRANDS,
   normalizeTopBrandEntries,
   resolveDeviceBrandEntries,
   resolveOfferCashbackLabel,
 } from 'src/offer/top-brand.contract';
+import {
+  MAX_LANDING_RAILS,
+  MAX_LANDING_RAIL_BRANDS,
+  landingRailMemberIds,
+  normalizeLandingRailMeta,
+  normalizeLandingRailsForSave,
+  sortLandingRails,
+} from 'src/offer/landing-rail.contract';
+import {
+  mirrorTopBrandExtraStoreFlags,
+  syncOfferTopBrandMembership,
+  topBrandMemberIds,
+} from 'src/offer/top-brand-membership';
 import { UserService } from 'src/user/user.service';
 import { JobService } from 'src/withdraw/cronjob/job.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
@@ -96,9 +119,23 @@ type AdminOfferUpdateData = {
   max_cap?: number;
   extra_store?: boolean;
   tracking_link?: string;
+  /** Affiliate network for this brand line; absent key leaves it unchanged. */
+  affiliate_network_id?: string;
+  /** Advertiser line emitted as `store=` on the generated app deeplink. */
+  deeplink_store_id?: string;
   /** Present only when the admin PATCH included product_type(s). */
   product_type?: ProductTypeDto[] | Array<Record<string, unknown>> | string;
   all_product_types?: boolean;
+  upsize_start_date?: string | null;
+  upsize_end_date?: string | null;
+  upsize_start_time?: string | null;
+  upsize_end_time?: string | null;
+  upsize_special_commission?: number | null;
+  upsize_max_cap?: number | null;
+  upsize_all_product_types?: boolean;
+  /** Present only when the admin PATCH included upsize_product_types. */
+  upsize_product_types?:
+    ProductTypeDto[] | Array<Record<string, unknown>> | string;
   tracking_period_mode?: 'auto' | 'manual';
   tracking_days?: number;
   confirm_days?: number;
@@ -112,12 +149,50 @@ type AdminOfferUpdateData = {
 
 /** Persist product_type rows; string input is validated (400 on bad JSON). */
 function coerceProductTypeForPersist(
-  value: AdminOfferUpdateData['product_type'],
+  value:
+    | AdminOfferUpdateData['product_type']
+    | AdminOfferUpdateData['upsize_product_types'],
 ): Array<Record<string, unknown>> | ProductTypeDto[] {
   if (typeof value === 'string') {
     return requireProductTypeRowsField(value, 'product_type') ?? [];
   }
   return (value ?? []) as Array<Record<string, unknown>> | ProductTypeDto[];
+}
+
+/** Partial $set fragment for upsize fields (absent key = leave unchanged). */
+function upsizePersistPatch(
+  updateData: AdminOfferUpdateData,
+): Record<string, unknown> {
+  return {
+    ...(updateData.upsize_start_date !== undefined
+      ? { upsize_start_date: updateData.upsize_start_date }
+      : {}),
+    ...(updateData.upsize_end_date !== undefined
+      ? { upsize_end_date: updateData.upsize_end_date }
+      : {}),
+    ...(updateData.upsize_start_time !== undefined
+      ? { upsize_start_time: updateData.upsize_start_time }
+      : {}),
+    ...(updateData.upsize_end_time !== undefined
+      ? { upsize_end_time: updateData.upsize_end_time }
+      : {}),
+    ...(updateData.upsize_special_commission !== undefined
+      ? { upsize_special_commission: updateData.upsize_special_commission }
+      : {}),
+    ...(updateData.upsize_max_cap !== undefined
+      ? { upsize_max_cap: updateData.upsize_max_cap }
+      : {}),
+    ...(updateData.upsize_all_product_types !== undefined
+      ? { upsize_all_product_types: updateData.upsize_all_product_types }
+      : {}),
+    ...(updateData.upsize_product_types !== undefined
+      ? {
+          upsize_product_types: coerceProductTypeForPersist(
+            updateData.upsize_product_types,
+          ),
+        }
+      : {}),
+  };
 }
 
 type AdminCategoryUpdateData = {
@@ -159,6 +234,8 @@ export class AdminService {
     private specificPageBannerModel: Model<Banner>,
     @InjectModel(TopBrandConfig.name)
     private topBrandConfigModel: Model<TopBrandConfig>,
+    @InjectModel(LandingRailConfig.name)
+    private landingRailConfigModel: Model<LandingRailConfig>,
     @InjectModel(Deeplink.name) private deeplinkModel: Model<Deeplink>,
 
     private readonly storedMediaService: StoredMediaService,
@@ -752,13 +829,16 @@ export class AdminService {
     // search is a free-text regex that narrows *within* the selected filters.
     // Both compose as an implicit AND on the same query object.
     const query: Record<string, unknown> = {};
-    if (status) query.status = status;
-    if (method) query.method = method;
+    // #540 — coerce user-supplied filters to primitives so a crafted object (e.g.
+    // `{ $ne: null }`) can never inject Mongo query operators (CodeQL js/sql-injection).
+    if (status) query.status = String(status);
+    if (method) query.method = String(method);
     if (search) {
+      const safeSearch = escapeRegexLiteral(String(search));
       query.$or = [
-        { method: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-        { status: { $regex: escapeRegexLiteral(search), $options: 'i' } },
-        { address: { $regex: escapeRegexLiteral(search), $options: 'i' } },
+        { method: { $regex: safeSearch, $options: 'i' } },
+        { status: { $regex: safeSearch, $options: 'i' } },
+        { address: { $regex: safeSearch, $options: 'i' } },
       ];
     }
 
@@ -999,6 +1079,26 @@ export class AdminService {
     return this.feeRateModel.find().exec();
   }
 
+  /**
+   * Public read of the referral bonus percentage for the customer app copy.
+   * FeeRate is a singleton (admin uses find()[0]); this returns just the
+   * percentage so the app never sees admin-only fee internals. Falls back to
+   * the schema default when no singleton exists yet.
+   */
+  async getReferralBonusPercent(): Promise<{ referral_bonus_percent: number }> {
+    const feeRate = await this.feeRateModel
+      .findOne()
+      .select('referral_bonus_percent')
+      .lean();
+    const value = feeRate?.referral_bonus_percent;
+    return {
+      referral_bonus_percent:
+        typeof value === 'number' && Number.isFinite(value)
+          ? value
+          : REFERRAL_BONUS_DEFAULT_PERCENT,
+    };
+  }
+
   async updateFeeRate(updateFeeRateDto: UpdateFeeRateDto, id: string) {
     const objectId = requireObjectId(id);
     const update = buildFeeRateUpdate(updateFeeRateDto);
@@ -1016,10 +1116,65 @@ export class AdminService {
   }
 
   async updateOffer(id: string, updateData: AdminOfferUpdateData) {
-    return this.categoryIntegrity.withNormalWrite({
+    // #475 — enable Top Brand only after curated list accepts the offer
+    // (throws at max capacity before we persist a divergent extra_store flag).
+    if (updateData.extra_store === true) {
+      await syncOfferTopBrandMembership(this.topBrandConfigModel, id, true);
+    }
+    const updated = await this.categoryIntegrity.withNormalWrite({
       legacy: () => this.updateOfferLegacy(id, updateData),
       enforced: () => this.updateOfferWithIntegrity(id, updateData),
     });
+    if (updateData.extra_store === false) {
+      await syncOfferTopBrandMembership(this.topBrandConfigModel, id, false);
+    }
+    // #479 — disabling an offer pulls it out of curated Top brands.
+    if (updateData.disabled === true) {
+      await syncOfferTopBrandMembership(this.topBrandConfigModel, id, false);
+    }
+    return updated;
+  }
+
+  /** #479 — Top brands may only reference active (non-disabled) offers. */
+  private async assertTopBrandOffersEligible(
+    offerIds: readonly string[],
+  ): Promise<void> {
+    const unique = [
+      ...new Set(
+        offerIds
+          .map((id) => String(id ?? '').trim())
+          .filter((id) => id.length > 0),
+      ),
+    ];
+    if (unique.length === 0) return;
+
+    const offers = await this.offerModel
+      .find({ _id: { $in: unique } })
+      .select('_id disabled status')
+      .lean()
+      .exec();
+    const byId = new Map(
+      (offers ?? []).map((offer) => [String(offer._id), offer]),
+    );
+    const bad: string[] = [];
+    for (const id of unique) {
+      const offer = byId.get(id);
+      if (!offer || offer.disabled === true) {
+        bad.push(id);
+        continue;
+      }
+      const status = String((offer as { status?: unknown }).status ?? '')
+        .trim()
+        .toLowerCase();
+      if (status === 'pending_review' || status === 'rejected') {
+        bad.push(id);
+      }
+    }
+    if (bad.length > 0) {
+      throw new BadRequestException(
+        `Disabled or missing offers cannot be top brands: ${bad.join(', ')}`,
+      );
+    }
   }
 
   private async updateOfferLegacy(
@@ -1028,12 +1183,14 @@ export class AdminService {
   ) {
     const offer = await this.offerModel.findById(requireObjectId(id)).exec();
     if (!offer) throw new Error('Offer not found');
-    const folder = MEDIA_FOLDER.BRANDS;
+    // #493 — the wide hero and the square logo need different width caps.
+    const logoFolder = MEDIA_FOLDER.BRANDS;
+    const bannerFolder = MEDIA_FOLDER.BRAND_BANNERS;
     const logoUpload = updateData.logo_desktop ?? updateData.logo_mobile;
     const logoAsset = logoUpload
       ? await this.storedMediaService.replace(
           logoUpload,
-          folder,
+          logoFolder,
           offer.logo_desktop ?? offer.logo_mobile ?? offer.logo,
         )
       : undefined;
@@ -1042,7 +1199,7 @@ export class AdminService {
     const bannerAsset = bannerUpload
       ? await this.storedMediaService.replace(
           bannerUpload,
-          folder,
+          bannerFolder,
           offer.banner ?? offer.banner_mobile ?? offer.logo_circle,
         )
       : undefined;
@@ -1082,6 +1239,14 @@ export class AdminService {
           max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
           extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
           tracking_link: trackingLink,
+          // Absent key = leave unchanged, so a partial save (T&C, media, …) can
+          // never blank the network or advertiser line (#516/#518).
+          ...(updateData.affiliate_network_id !== undefined
+            ? { affiliate_network_id: updateData.affiliate_network_id }
+            : {}),
+          ...(updateData.deeplink_store_id !== undefined
+            ? { deeplink_store_id: updateData.deeplink_store_id }
+            : {}),
           // Partial updates (brand info, T&C, …) must not wipe product rows.
           ...(updateData.product_type !== undefined
             ? {
@@ -1093,6 +1258,7 @@ export class AdminService {
           ...(updateData.all_product_types !== undefined
             ? { all_product_types: updateData.all_product_types }
             : {}),
+          ...upsizePersistPatch(updateData),
           ...(updateData.tracking_period_mode !== undefined
             ? { tracking_period_mode: updateData.tracking_period_mode }
             : {}),
@@ -1139,7 +1305,9 @@ export class AdminService {
         updateData.policy_category_id,
       );
     }
-    const folder = MEDIA_FOLDER.BRANDS;
+    // #493 — the wide hero and the square logo need different width caps.
+    const logoFolder = MEDIA_FOLDER.BRANDS;
+    const bannerFolder = MEDIA_FOLDER.BRAND_BANNERS;
     const logoUpload = updateData.logo_desktop ?? updateData.logo_mobile;
     const bannerUpload =
       updateData.banner ?? updateData.banner_mobile ?? updateData.logo_circle;
@@ -1183,6 +1351,15 @@ export class AdminService {
         max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
         extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
         tracking_link: trackingLink,
+        // Mirrors updateOfferLegacy — this file keeps two patch builders and a
+        // field added to only one silently works on the legacy path and not the
+        // enforced one (#516/#518).
+        ...(updateData.affiliate_network_id !== undefined
+          ? { affiliate_network_id: updateData.affiliate_network_id }
+          : {}),
+        ...(updateData.deeplink_store_id !== undefined
+          ? { deeplink_store_id: updateData.deeplink_store_id }
+          : {}),
         ...(updateData.product_type !== undefined
           ? {
               product_type: coerceProductTypeForPersist(
@@ -1193,6 +1370,7 @@ export class AdminService {
         ...(updateData.all_product_types !== undefined
           ? { all_product_types: updateData.all_product_types }
           : {}),
+        ...upsizePersistPatch(updateData),
         ...(updateData.tracking_period_mode !== undefined
           ? { tracking_period_mode: updateData.tracking_period_mode }
           : {}),
@@ -1326,9 +1504,11 @@ export class AdminService {
         ownerId,
         operation: 'offer-update',
         uploads: [
-          ...(logoUpload ? [{ role: 'logo', file: logoUpload, folder }] : []),
+          ...(logoUpload
+            ? [{ role: 'logo', file: logoUpload, folder: logoFolder }]
+            : []),
           ...(bannerUpload
-            ? [{ role: 'banner', file: bannerUpload, folder }]
+            ? [{ role: 'banner', file: bannerUpload, folder: bannerFolder }]
             : []),
         ],
         commit: async (assets, session) => {
@@ -1580,9 +1760,193 @@ export class AdminService {
       .exec();
   }
 
+  /**
+   * Admin detail for a MyCashBack profile.
+   *
+   * The users table navigates with the **UserMyCashback** `_id`. Older call
+   * sites still pass an app **User** `_id`. Resolve MyCashback first, then fall
+   * back to the User-linked lookup. Always return an array (admin mock + UI
+   * contract). Never surface `UnauthorizedException` — the admin axios client
+   * treats any HTTP 401 as session expiry and redirects to `/signin`.
+   */
   async getMyCashBackUser(id: string) {
-    const myCashBack = await this.userService.getBalanceMyCashback(id);
-    return myCashBack?.userMyCashback;
+    const trimmed = String(id ?? '').trim();
+    if (/^[0-9a-f]{24}$/i.test(trimmed)) {
+      const row = await this.userMyCashbackModel
+        .findById(trimmed)
+        .select('-withdrawalPassword')
+        .lean()
+        .exec();
+      if (row) {
+        return [row];
+      }
+    }
+
+    try {
+      const myCashBack = await this.userService.getBalanceMyCashback(trimmed);
+      const rows = myCashBack?.userMyCashback;
+      if (Array.isArray(rows)) {
+        return rows;
+      }
+      if (rows) {
+        return [rows];
+      }
+      return [];
+    } catch (err) {
+      if (err instanceof UnauthorizedException) {
+        return [];
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Paginated MyCashBack user directory for the admin table.
+   * Contract matches admin mock `POST|GET /admin/list-mycashback-users`.
+   */
+  async listMyCashbackUsers(
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      sort?: string;
+      status?: string;
+    } = {},
+  ) {
+    const page = Math.min(
+      MYCASHBACK_USERS_MAX_PAGE,
+      Math.max(1, Number(params.page) || 1),
+    );
+    const limit = Math.min(
+      MYCASHBACK_USERS_MAX_LIMIT,
+      Math.max(1, Number(params.limit) || MYCASHBACK_USERS_DEFAULT_LIMIT),
+    );
+    const skip = (page - 1) * limit;
+    const search = String(params.search ?? '')
+      .trim()
+      .slice(0, MYCASHBACK_USERS_MAX_SEARCH_LENGTH);
+    const status = String(params.status ?? '').trim();
+    const rawSort = String(params.sort ?? 'newest').trim() || 'newest';
+    const sortKey = (MYCASHBACK_USER_SORTS as readonly string[]).includes(
+      rawSort,
+    )
+      ? (rawSort as MyCashbackUserSort)
+      : 'newest';
+
+    const query = this.buildMyCashbackUsersQuery(search, status);
+
+    // Balance sort sums every currency row (not FX-normalized). Primary-row
+    // sort would under-rank multi-wallet users; aggregation is required.
+    if (sortKey === 'balance') {
+      const [data, total] = await Promise.all([
+        this.userMyCashbackModel
+          .aggregate([
+            { $match: query },
+            {
+              $addFields: {
+                _balanceTotal: {
+                  $sum: {
+                    $map: {
+                      input: { $ifNull: ['$balance', []] },
+                      as: 'b',
+                      in: { $ifNull: ['$$b.amount', 0] },
+                    },
+                  },
+                },
+              },
+            },
+            { $sort: { _balanceTotal: -1, createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                withdrawalPassword: 0,
+                buyerToken: 0,
+                _balanceTotal: 0,
+              },
+            },
+          ])
+          .exec(),
+        this.userMyCashbackModel.countDocuments(query).exec(),
+      ]);
+
+      return {
+        status: 'success',
+        data,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    }
+
+    let sort: Record<string, 1 | -1>;
+    switch (sortKey) {
+      case 'name':
+        sort = { firstName: 1, lastName: 1, email: 1 };
+        break;
+      case 'newest':
+      default:
+        sort = { createdAt: -1 };
+        break;
+    }
+
+    const [data, total] = await Promise.all([
+      this.userMyCashbackModel
+        .find(query)
+        .select('-withdrawalPassword -buyerToken')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.userMyCashbackModel.countDocuments(query).exec(),
+    ]);
+
+    // Match findAll / mock paginate: empty result sets report totalPages 0.
+    return {
+      status: 'success',
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  private buildMyCashbackUsersQuery(
+    search: string,
+    status: string,
+  ): Record<string, unknown> {
+    const query: Record<string, unknown> = {};
+    if (search) {
+      const safe = escapeRegexLiteral(search);
+      const or: Record<string, unknown>[] = [
+        { email: { $regex: safe, $options: 'i' } },
+        { phoneNumber: { $regex: safe, $options: 'i' } },
+        { buyerId: { $regex: safe, $options: 'i' } },
+        { firstName: { $regex: safe, $options: 'i' } },
+        { lastName: { $regex: safe, $options: 'i' } },
+      ];
+      // Exact 24-char hex only — Types.ObjectId.isValid also accepts any
+      // 12-char string, which would wrongly coerce free-text searches.
+      if (/^[0-9a-f]{24}$/i.test(search)) {
+        const objectId = new Types.ObjectId(search);
+        or.push({ _id: objectId }, { publisherId: objectId });
+      }
+      query.$or = or;
+    }
+    if (status === 'active') {
+      // Treat missing `banned` as active (legacy rows).
+      query.banned = { $ne: true };
+    } else if (status === 'banned') {
+      query.banned = true;
+    }
+    return query;
   }
 
   private async updateBanner(
@@ -2004,6 +2368,9 @@ export class AdminService {
       const brandsMobile = normalizeTopBrandEntries(
         body.brandsMobile ?? body.brands,
       );
+      await this.assertTopBrandOffersEligible(
+        topBrandMemberIds(brandsDesktop, brandsMobile),
+      );
       await this.topBrandConfigModel.updateOne(
         {},
         {
@@ -2014,6 +2381,10 @@ export class AdminService {
           },
         },
         { upsert: true },
+      );
+      await mirrorTopBrandExtraStoreFlags(
+        this.offerModel,
+        topBrandMemberIds(brandsDesktop, brandsMobile),
       );
       return {
         success: true,
@@ -2029,6 +2400,9 @@ export class AdminService {
         `Top brands is limited to ${MAX_TOP_BRANDS} offers.`,
       );
     }
+    await this.assertTopBrandOffersEligible(
+      topBrandMemberIds(normalizedBrands, normalizedBrands),
+    );
 
     await this.topBrandConfigModel.updateOne(
       {},
@@ -2041,12 +2415,136 @@ export class AdminService {
       },
       { upsert: true },
     );
+    await mirrorTopBrandExtraStoreFlags(
+      this.offerModel,
+      topBrandMemberIds(normalizedBrands, normalizedBrands),
+    );
     return {
       success: true,
       brands: normalizedBrands,
       brandsDesktop: normalizedBrands,
       brandsMobile: normalizedBrands,
     };
+  }
+
+  /**
+   * Admin read for the curated homepage rails ("Trending Brands", "Travel
+   * Deals are Here!", "Makeup Must Have!"). Mirrors {@link getTopBrands}: each
+   * rail's device lists are returned with live-recomputed cashback, and a
+   * shared `items` offer catalog lets the panel render brand names/logos.
+   */
+  async getLandingRails() {
+    const rails = sortLandingRails(
+      await this.landingRailConfigModel.find().lean().exec(),
+    );
+
+    const unionIds = [
+      ...new Set(
+        rails.flatMap((rail) => [
+          ...resolveDeviceBrandEntries(rail, 'desktop').map((e) => e.offerId),
+          ...resolveDeviceBrandEntries(rail, 'mobile').map((e) => e.offerId),
+        ]),
+      ),
+    ];
+
+    const offers =
+      unionIds.length === 0
+        ? []
+        : await this.offerModel.find({ _id: { $in: unionIds } }).exec();
+    const offerById = new Map(
+      offers.map((offer) => [String(offer._id), offer]),
+    );
+
+    const withLiveCashback = (
+      entries: { offerId: string; cashback: string }[],
+    ) =>
+      entries.map((entry) => ({
+        offerId: entry.offerId,
+        cashback: resolveOfferCashbackLabel(offerById.get(entry.offerId)),
+      }));
+
+    return {
+      rails: rails.map((rail, index) => {
+        const meta = normalizeLandingRailMeta(rail, index);
+        const brandsDesktop = withLiveCashback(
+          resolveDeviceBrandEntries(rail, 'desktop'),
+        );
+        const brandsMobile = withLiveCashback(
+          resolveDeviceBrandEntries(rail, 'mobile'),
+        );
+        return {
+          railId: meta.railId,
+          title: meta.title,
+          emoji: meta.emoji,
+          link: meta.link,
+          cardVariant: meta.cardVariant,
+          position: meta.position,
+          enabled: meta.enabled,
+          orderDesktop: brandsDesktop.map((b) => b.offerId),
+          orderMobile: brandsMobile.map((b) => b.offerId),
+          brandsDesktop,
+          brandsMobile,
+        };
+      }),
+      items: unionIds
+        .map((offerId) => offerById.get(offerId))
+        .filter((offer) => offer != null),
+      maxRails: MAX_LANDING_RAILS,
+      maxBrands: MAX_LANDING_RAIL_BRANDS,
+    };
+  }
+
+  /**
+   * Save the full set of curated homepage rails. Replace-set semantics: the
+   * admin panel always sends the complete list, so rails whose `railId` is no
+   * longer present are removed, and the remaining rails are upserted by
+   * `railId`. Each rail's curated offers are validated for eligibility exactly
+   * like Top brands. Cashback is never trusted from the client.
+   */
+  async saveLandingRails(input: SaveLandingRailsDto | null | undefined) {
+    const rails = normalizeLandingRailsForSave(input?.rails);
+
+    for (const rail of rails) {
+      if (
+        rail.brandsDesktop.length > MAX_LANDING_RAIL_BRANDS ||
+        rail.brandsMobile.length > MAX_LANDING_RAIL_BRANDS
+      ) {
+        throw new BadRequestException(
+          `Each landing rail is limited to ${MAX_LANDING_RAIL_BRANDS} offers.`,
+        );
+      }
+    }
+
+    await this.assertTopBrandOffersEligible(landingRailMemberIds(rails));
+
+    const keepRailIds = rails.map((rail) => rail.railId);
+    // Remove rails the admin dropped from the list (replace-set semantics).
+    await this.landingRailConfigModel
+      .deleteMany({ railId: { $nin: keepRailIds } })
+      .exec();
+
+    for (const rail of rails) {
+      await this.landingRailConfigModel.updateOne(
+        { railId: rail.railId },
+        {
+          $set: {
+            railId: rail.railId,
+            title: rail.title,
+            emoji: rail.emoji,
+            link: rail.link,
+            cardVariant: rail.cardVariant,
+            position: rail.position,
+            enabled: rail.enabled,
+            brands: rail.brands,
+            brandsDesktop: rail.brandsDesktop,
+            brandsMobile: rail.brandsMobile,
+          },
+        },
+        { upsert: true },
+      );
+    }
+
+    return { success: true, rails };
   }
 
   /**

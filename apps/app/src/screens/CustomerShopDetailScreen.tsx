@@ -15,6 +15,7 @@ import {
 import {
   Image,
   Linking,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -49,6 +50,11 @@ import {
 import { getMobileEnv } from "@mobile/config/env";
 import { useMobileSessionSnapshot } from "@mobile/auth/useMobileSessionSnapshot";
 import { isMerchantOfferResponse } from "@mobile/api/merchantTypes";
+import { useReferralBonusPercent } from "@mobile/api/referralBonus";
+import {
+  buildReferralCardCopy,
+  type ReferralCardCopy,
+} from "@mobile/api/referralBonusCopy";
 import { buildLoginRedirectWithCallback } from "@mobile/auth/routeGuard";
 import {
   consumePendingShopNowIntentDetails,
@@ -109,6 +115,8 @@ type ShopDetail = Omit<
   noteToUser?: string;
   offerId?: number;
   policyCategoryId?: string;
+  /** Live offers set this from `extra_cashback_tag`; only `true` shows the badge (#472). */
+  showExtraCashbackTag?: boolean;
   trackingPeriod: readonly TrackingPeriodStep[];
   trackingUrl?: string;
 };
@@ -138,6 +146,14 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   const shop: ShopDetail = isMerchantOfferResponse(merchantResource.data)
     ? mapMerchantOfferToShopDetail(merchantResource.data, fixtureShop)
     : fixtureShop;
+  // Dynamic "Share & earn {n}%" copy from the live FeeRate.referral_bonus_percent
+  // (single source of truth). Falls back to the fixture copy until/if the public
+  // read resolves, so the card never flashes a broken or 0% bonus.
+  const referralBonusPercent = useReferralBonusPercent();
+  const referralCopy = buildReferralCardCopy(
+    referralBonusPercent,
+    shop.referral,
+  );
   const policyResource = useCustomerAccountResource<
     CategoryPolicyPayload | null,
     CategoryPolicyPayload
@@ -182,7 +198,37 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
   const mintedLinkRef = useRef<Promise<string | null> | null>(null);
   const redirectFallbackRef = useRef<string | undefined>(undefined);
   const allowSearchFallbackRef = useRef(true);
+  // Guards a double-open when the awaited mint and a manual "Tap here" race.
+  // Reset at the start of every redirect.
+  const redirectOpenedRef = useRef(false);
+
+  // Open the merchant exactly once + hide the overlay. `minted` is the per-user
+  // tracked link when ready; null falls back to the raw tracking link (or a
+  // brand search when allowed).
+  const openDestination = (minted: string | null) => {
+    if (redirectOpenedRef.current) return;
+    redirectOpenedRef.current = true;
+    setRedirecting(false);
+    const destination =
+      minted ||
+      redirectFallbackRef.current ||
+      (allowSearchFallbackRef.current
+        ? `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
+        : null);
+    if (!destination) return;
+    void Linking.openURL(destination).catch(() => undefined);
+  };
+
+  // Redirect the MOMENT the mint resolves — a ready link opens instantly; a slow
+  // one is capped by mintUserTrackingLink's AbortController, then falls back to
+  // the raw link. No fixed minimum wait.
+  const openMerchantUrl = async () => {
+    const minted = await (mintedLinkRef.current ?? Promise.resolve(null));
+    openDestination(minted);
+  };
+
   const beginShopNowRedirect = () => {
+    redirectOpenedRef.current = false;
     redirectFallbackRef.current = shop.trackingUrl;
     allowSearchFallbackRef.current = true;
     mintedLinkRef.current = mintUserTrackingLink({
@@ -196,10 +242,12 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
       offerId: shop.offerId,
     });
     setRedirecting(true);
+    void openMerchantUrl();
   };
 
   const beginCouponRedirect = (coupon: ShopCoupon) => {
     if (!coupon.destinationUrl) return;
+    redirectOpenedRef.current = false;
     redirectFallbackRef.current = coupon.destinationUrl;
     allowSearchFallbackRef.current = false;
     mintedLinkRef.current = mintUserTrackingLink({
@@ -213,18 +261,7 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
       offerId: shop.offerId,
     });
     setRedirecting(true);
-  };
-
-  const openMerchantUrl = async () => {
-    const minted = await (mintedLinkRef.current ?? Promise.resolve(null));
-    const destination =
-      minted ||
-      redirectFallbackRef.current ||
-      (allowSearchFallbackRef.current
-        ? `https://www.google.com/search?q=${encodeURIComponent(shop.brand)}`
-        : null);
-    if (!destination) return;
-    void Linking.openURL(destination).catch(() => undefined);
+    void openMerchantUrl();
   };
 
   const handleShopNow = () => {
@@ -329,7 +366,10 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
         >
           <ShopCashbackRail shop={shop} />
           <ShopTrackingPeriod shop={shop} />
-          <ShopReferralCard onShare={handleShareReferral} shop={shop} />
+          <ShopReferralCard
+            onShare={handleShareReferral}
+            referralCopy={referralCopy}
+          />
           {isDesktop ? <ShopTermsPanel terms={shopTerms} /> : null}
         </View>
         <View
@@ -410,10 +450,8 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
         {redirecting ? (
           <ShopRedirectOverlay
             brand={shop.brand}
-            onComplete={() => {
-              setRedirecting(false);
-              void openMerchantUrl();
-            }}
+            logoUri={shop.logoUri}
+            onComplete={() => openDestination(null)}
           />
         ) : null}
       </View>
@@ -455,10 +493,8 @@ export function CustomerShopDetailScreen({ shopId }: { shopId?: string }) {
       {redirecting ? (
         <ShopRedirectOverlay
           brand={shop.brand}
-          onComplete={() => {
-            setRedirecting(false);
-            void openMerchantUrl();
-          }}
+          logoUri={shop.logoUri}
+          onComplete={() => openDestination(null)}
         />
       ) : null}
     </View>
@@ -659,13 +695,15 @@ function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
             <Text style={styles.tagText}>{shop.category}</Text>
           </MotionPressable>
         </Link>
-        <View style={styles.extraTag}>
-          <Text style={styles.fireIcon}>🔥</Text>
-          <Text style={styles.tagText}>
-            {tc("Extra Cashback")}{" "}
-            <Text style={styles.tagStrong}>{shop.extraCashback}</Text>
-          </Text>
-        </View>
+        {shop.showExtraCashbackTag === true ? (
+          <View style={styles.extraTag} testID="shop-detail-extra-cashback-tag">
+            <Text style={styles.fireIcon}>🔥</Text>
+            <Text style={styles.tagText}>
+              {tc("Extra Cashback")}{" "}
+              <Text style={styles.tagStrong}>{shop.extraCashback}</Text>
+            </Text>
+          </View>
+        ) : null}
       </View>
       <View style={styles.rateDetails}>
         <Text style={styles.disclaimer}>{tc(shop.disclaimer)}</Text>
@@ -777,10 +815,10 @@ function TrackingIcon({ name }: { name: TrackingStep["icon"] }) {
 
 function ShopReferralCard({
   onShare,
-  shop,
+  referralCopy,
 }: {
   onShare: () => void;
-  shop: ShopDetail;
+  referralCopy: ReferralCardCopy;
 }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
@@ -796,12 +834,12 @@ function ShopReferralCard({
       </View>
       <View style={styles.referralCopy}>
         <Text numberOfLines={2} style={styles.referralTitle}>
-          {tc(shop.referral.title)}
+          {tc(referralCopy.title)}
         </Text>
         <Text numberOfLines={2} style={styles.referralSubtitle}>
-          {tc(shop.referral.subtitle)}
+          {tc(referralCopy.subtitle)}
         </Text>
-        <Text style={styles.referralBody}>{tc(shop.referral.body)}</Text>
+        <Text style={styles.referralBody}>{tc(referralCopy.body)}</Text>
       </View>
       <MotionPressable
         accessibilityRole="button"
@@ -812,7 +850,7 @@ function ShopReferralCard({
       >
         <ShareIcon color={colors.white} size={16} strokeWidth={2} />
         <Text style={styles.shareButtonText}>
-          {tc(shop.referral.actionLabel)}
+          {tc(referralCopy.actionLabel)}
         </Text>
       </MotionPressable>
     </View>
@@ -867,15 +905,21 @@ function ShopTermsPanel({ terms }: { terms: ShopTermsViewModel }) {
         />
       </View>
       <Text style={styles.termsSectionTitle}>{tc(terms.exclusionsTitle)}</Text>
-      <View style={styles.termsList}>
-        {terms.bullets.map((bullet) => (
-          <View key={bullet} style={styles.termBulletRow}>
-            {/* #426 — muted legal markers, not tip-style green dots */}
-            <Text style={styles.termBulletDot}>•</Text>
-            <Text style={styles.termBulletText}>{bullet}</Text>
-          </View>
-        ))}
-      </View>
+      {terms.body ? (
+        <Text style={styles.termsFreeformBody} testID="shop-detail-terms-body">
+          {terms.body}
+        </Text>
+      ) : (
+        <View style={styles.termsList}>
+          {terms.bullets.map((bullet) => (
+            <View key={bullet} style={styles.termBulletRow}>
+              {/* #426 — muted legal markers, not tip-style green dots */}
+              <Text style={styles.termBulletDot}>•</Text>
+              <Text style={styles.termBulletText}>{bullet}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -965,7 +1009,7 @@ function ShopDetailSkeleton() {
   );
 }
 
-function createShopDetailScreenStyles(colors: ThemeColors) {
+export function createShopDetailScreenStyles(colors: ThemeColors) {
   return StyleSheet.create({
     viewport: {
       alignItems: "center",
@@ -1326,7 +1370,9 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
       justifyContent: "space-between",
     },
     trackingItemWrap: {
-      alignItems: "center",
+      // flex-start, not center: centring made the connector's position depend on the
+      // TALLEST step in the row, so a short step's connector was placed by its neighbour.
+      alignItems: "flex-start",
       flex: 1,
       flexDirection: "row",
     },
@@ -1339,7 +1385,10 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
       borderBottomColor: colors.border,
       borderBottomWidth: 1,
       flex: 0.35,
-      marginTop: -34,
+      // Half the 24px TrackingIcon, measured from the top of the step — so the line meets
+      // the icon centre regardless of how tall the label/detail/subtitle stack below it
+      // grows. The previous -34 was tuned against one snapshot and drifted with content.
+      marginTop: 12,
     },
     trackingLabel: {
       color: colors.ink,
@@ -1483,6 +1532,17 @@ function createShopDetailScreenStyles(colors: ThemeColors) {
       fontSize: 14,
       fontWeight: typography.bodyWeight,
       lineHeight: 22,
+    },
+    // #466 — preserve admin newlines in freeform custom T&Cs (esp. web).
+    termsFreeformBody: {
+      color: colors.muted,
+      fontFamily: typography.family,
+      fontSize: 14,
+      fontWeight: typography.bodyWeight,
+      lineHeight: 22,
+      ...(Platform.OS === "web"
+        ? ({ whiteSpace: "pre-wrap" } as object)
+        : null),
     },
     relatedSection: {
       gap: 18,

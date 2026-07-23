@@ -97,6 +97,10 @@ import {
   TopBrandConfig,
   TopBrandConfigSchema,
 } from 'src/offer/schemas/top-brand-config.schema';
+import {
+  LandingRailConfig,
+  LandingRailConfigSchema,
+} from 'src/offer/schemas/landing-rail-config.schema';
 import { Deeplink, DeeplinkSchema } from 'src/involve/schemas/deeplink.schema';
 import {
   WithdrawMethod,
@@ -212,6 +216,7 @@ import { CategoryIntegrityModule } from 'src/policy/category-integrity.module';
         collection: SPECIFIC_PAGE_BANNER_COLLECTION,
       },
       { name: TopBrandConfig.name, schema: TopBrandConfigSchema },
+      { name: LandingRailConfig.name, schema: LandingRailConfigSchema },
       { name: Deeplink.name, schema: DeeplinkSchema },
       { name: WithdrawMethod.name, schema: WithdrawMethodSchema },
       { name: Coupon.name, schema: CouponSchema },

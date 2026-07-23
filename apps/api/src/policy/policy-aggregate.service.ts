@@ -31,6 +31,7 @@ import { Category } from 'src/offer/schemas/category.schema';
 import { AggregatePolicyCommandDto } from './dto/aggregate-policy.dto';
 import {
   inspectPolicyTransactionCapability,
+  policyTransactionsUnsupportedError,
   type PolicyTransactionCapability,
 } from './policy-transaction-capability';
 import { buildPolicyUpdate, parseAggregatePolicyJson } from './policy-write';
@@ -387,8 +388,10 @@ export class PolicyAggregateService {
   async assertTransactionsAvailable() {
     const capability = await this.getTransactionCapability();
     if (!capability.supported) {
+      // Structured body matches policyIntegrityReadinessError — admin toasts
+      // read `message` and append `reason` for ops-actionable detail (#407).
       throw new ServiceUnavailableException(
-        'Policy aggregate saves require MongoDB replica set or mongos transaction support.',
+        policyTransactionsUnsupportedError(capability),
       );
     }
   }

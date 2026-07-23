@@ -55,14 +55,16 @@ describe("sortMyCashback", () => {
     expect(ids(sortMyCashback(rows, "name"))).toEqual(["2", "1", "3"]);
   });
 
-  it("given balance > orders by primary balance amount descending", () => {
+  it("given balance > orders by summed balance amounts descending", () => {
     const rows: U[] = [
       { id: "low", balance: [{ amount: 100 }] },
       { id: "high", balance: [{ amount: 900 }] },
+      { id: "multi", balance: [{ amount: 400 }, { amount: 400 }] },
       { id: "none", balance: [] },
     ];
     expect(ids(sortMyCashback(rows, "balance"))).toEqual([
       "high",
+      "multi",
       "low",
       "none",
     ]);

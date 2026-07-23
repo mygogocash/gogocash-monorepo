@@ -10,7 +10,9 @@ import {
   ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
+  IsBoolean,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -23,6 +25,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { MAX_TOP_BRANDS } from 'src/offer/top-brand.contract';
+import { MAX_LANDING_RAILS } from 'src/offer/landing-rail.contract';
 import {
   MAX_CUSTOM_TERMS_LENGTH,
   MAX_NOTE_TO_USER_LENGTH,
@@ -214,6 +217,20 @@ export class UpdateFeeRateDto {
   @IsString()
   @Matches(/^[A-Za-z]{3,8}$/)
   global_withdraw_currency?: string;
+
+  /**
+   * Referrer earns this % of a referred friend's approved cashback (MONEY / R0).
+   * Single source of truth for the referral bonus engine. Whitelisted here so
+   * the global `forbidNonWhitelisted` ValidationPipe accepts it on the existing
+   * PATCH /admin/update-fee-rate — no new admin endpoint.
+   */
+  @ApiPropertyOptional({ minimum: 0, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  referral_bonus_percent?: number;
 }
 
 export class UpdateRequestWithdrawDto {
@@ -305,6 +322,27 @@ export class UpdateOfferAdminDto {
   @IsOptional()
   tracking_link: string;
 
+  /**
+   * Affiliate network for this brand line (`involve_asia`, `optimise`,
+   * `accesstrade`). The admin has always submitted this on partner-info save;
+   * until it was whitelisted here, `forbidNonWhitelisted` rejected the entire
+   * request with `property affiliate_network_id should not exist`, which is
+   * what made "Info from partner" unsaveable for every offer (#516).
+   */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  affiliate_network_id?: string;
+
+  /**
+   * Advertiser line within the network, emitted as `store=` on the generated
+   * app deeplink. Same history as `affiliate_network_id` above (#516/#518).
+   */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  deeplink_store_id?: string;
+
   @ApiProperty({ type: [ProductTypeDto] })
   @IsOptional()
   product_type?: ProductTypeDto[] | string;
@@ -329,6 +367,48 @@ export class UpdateOfferAdminDto {
   @ApiProperty({ required: false })
   @IsOptional()
   all_product_types?: boolean | string;
+
+  /** Upsize event — multipart strings; controller coerces nullables (#471). */
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  upsize_start_date?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  upsize_end_date?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  upsize_start_time?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  upsize_end_time?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  upsize_special_commission?: number | string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  upsize_max_cap?: number | string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  upsize_all_product_types?: boolean | string;
+
+  @ApiProperty({
+    required: false,
+    description:
+      'JSON string of upsize product-type rows (multipart FormData).',
+  })
+  @IsString()
+  @IsOptional()
+  upsize_product_types?: string;
 
   @ApiProperty({ required: false, enum: ['auto', 'manual'] })
   @IsIn(['auto', 'manual'])
@@ -387,6 +467,65 @@ export class UpdateUserDto {
   @IsNotEmpty()
   @IsString()
   mobile: string;
+}
+
+/** Allowed sort keys for POST /admin/list-mycashback-users. */
+export const MYCASHBACK_USER_SORTS = ['newest', 'name', 'balance'] as const;
+export type MyCashbackUserSort = (typeof MYCASHBACK_USER_SORTS)[number];
+
+/** Allowed status filters for POST /admin/list-mycashback-users. */
+export const MYCASHBACK_USER_STATUSES = ['active', 'banned'] as const;
+export type MyCashbackUserStatus = (typeof MYCASHBACK_USER_STATUSES)[number];
+
+export const MYCASHBACK_USERS_DEFAULT_LIMIT = 12;
+export const MYCASHBACK_USERS_MAX_LIMIT = 100;
+export const MYCASHBACK_USERS_MAX_PAGE = 10_000;
+export const MYCASHBACK_USERS_MAX_SEARCH_LENGTH = 100;
+
+/** Body for POST /admin/list-mycashback-users (admin MyCashBack users table). */
+export class ListMyCashbackUsersDto {
+  @ApiProperty({ required: false, default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(MYCASHBACK_USERS_MAX_PAGE)
+  page?: number;
+
+  @ApiProperty({ required: false, default: MYCASHBACK_USERS_DEFAULT_LIMIT })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(MYCASHBACK_USERS_MAX_LIMIT)
+  limit?: number;
+
+  @ApiProperty({
+    required: false,
+    maxLength: MYCASHBACK_USERS_MAX_SEARCH_LENGTH,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(MYCASHBACK_USERS_MAX_SEARCH_LENGTH)
+  search?: string;
+
+  @ApiProperty({
+    required: false,
+    enum: MYCASHBACK_USER_SORTS,
+    default: 'newest',
+  })
+  @IsOptional()
+  @IsIn([...MYCASHBACK_USER_SORTS, ''])
+  sort?: MyCashbackUserSort | '';
+
+  @ApiProperty({
+    required: false,
+    enum: [...MYCASHBACK_USER_STATUSES, ''],
+    description: 'Derived account status filter',
+  })
+  @IsOptional()
+  @IsIn([...MYCASHBACK_USER_STATUSES, ''])
+  status?: MyCashbackUserStatus | '';
 }
 
 export class UpdateBannerHomeBodyDto {
@@ -609,6 +748,82 @@ export class SaveTopBrandsDto {
   @ValidateNested({ each: true })
   @Type(() => TopBrandConfigEntryDto)
   brandsMobile?: TopBrandConfigEntryDto[];
+}
+
+/**
+ * One curated homepage rail in a {@link SaveLandingRailsDto} payload. Brand
+ * lists reuse {@link TopBrandConfigEntryDto} — same offerId/cashback shape as
+ * Top brands. `railId` is the stable slug the customer app curates by.
+ */
+export class LandingRailDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  railId: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  emoji?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  link?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  cardVariant?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  position?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
+  @ApiProperty({ type: [TopBrandConfigEntryDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_TOP_BRANDS)
+  @ValidateNested({ each: true })
+  @Type(() => TopBrandConfigEntryDto)
+  brands?: TopBrandConfigEntryDto[];
+
+  @ApiProperty({ type: [TopBrandConfigEntryDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_TOP_BRANDS)
+  @ValidateNested({ each: true })
+  @Type(() => TopBrandConfigEntryDto)
+  brandsDesktop?: TopBrandConfigEntryDto[];
+
+  @ApiProperty({ type: [TopBrandConfigEntryDto], required: false })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_TOP_BRANDS)
+  @ValidateNested({ each: true })
+  @Type(() => TopBrandConfigEntryDto)
+  brandsMobile?: TopBrandConfigEntryDto[];
+}
+
+/** Full-set save for the homepage landing rails (replace-set semantics). */
+export class SaveLandingRailsDto {
+  @ApiProperty({ type: [LandingRailDto] })
+  @IsArray()
+  @ArrayMaxSize(MAX_LANDING_RAILS)
+  @ValidateNested({ each: true })
+  @Type(() => LandingRailDto)
+  rails: LandingRailDto[];
 }
 
 export class GetConversionInWithdrawDto {

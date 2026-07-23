@@ -28,6 +28,17 @@ function credentialFreeHttpUrl(value: unknown): string | null {
   }
 }
 
+// A backend mint (POST /involve/create-affiliate) can chain auth + a 401 refresh
+// + a retried provider call (PROVIDER_TIMEOUT_MS = 10s each on the API), so it
+// may run for tens of seconds when the affiliate provider is slow or offline.
+// The Shop Now overlay only covers ~2.5s (REDIRECT_MIN_DURATION_MS) and
+// `openMerchantUrl` awaits this promise before opening the merchant — so with no
+// client cap the redirect hangs ("takes a long time to open Lazada"). Abort
+// after `timeoutMs` and return null; the caller then opens the raw tracking link
+// (anonymous attribution, but the sale isn't lost). Tunable trade-off: higher =
+// wider attribution window, lower = snappier redirect.
+const DEFAULT_MINT_TIMEOUT_MS = 2500;
+
 export async function mintUserTrackingLink({
   accessToken,
   apiUrl,
@@ -35,6 +46,7 @@ export async function mintUserTrackingLink({
   fetchImpl = fetch,
   merchantId,
   offerId,
+  timeoutMs = DEFAULT_MINT_TIMEOUT_MS,
 }: {
   accessToken: string | undefined;
   apiUrl: string;
@@ -43,10 +55,14 @@ export async function mintUserTrackingLink({
   fetchImpl?: typeof fetch;
   merchantId: number | undefined;
   offerId: number | undefined;
+  /** Abort the mint + return null after this many ms so the redirect never hangs. */
+  timeoutMs?: number;
 }): Promise<string | null> {
   if (!accessToken || !offerId || !merchantId) {
     return null;
   }
+  const controller = new AbortController();
+  const abortTimer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetchImpl(`${apiUrl}/involve/create-affiliate`, {
       body: JSON.stringify({
@@ -60,6 +76,7 @@ export async function mintUserTrackingLink({
         "Content-Type": "application/json",
       },
       method: "POST",
+      signal: controller.signal,
     });
     if (!response.ok) {
       return null;
@@ -67,6 +84,9 @@ export async function mintUserTrackingLink({
     const doc = (await response.json()) as { deeplink?: string };
     return credentialFreeHttpUrl(doc?.deeplink);
   } catch {
+    // Includes AbortError on timeout — fall back to the raw link.
     return null;
+  } finally {
+    clearTimeout(abortTimer);
   }
 }

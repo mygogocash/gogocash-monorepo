@@ -337,6 +337,10 @@ export function getResponsiveHomeLayoutMetrics(viewportWidth: number) {
       ? mobileShellLayout.topBrandMobilePageCardCount
       : topBrandColumnsPerRow * topBrandRowsPerPage,
     topBrandColumns: topBrandColumnsPerRow,
+    // Per-design-version columns-per-row (6 desktop / 4 tablet / 2 mobile). Distinct from
+    // topBrandColumns, which is the 8-wide mobile paging group off-desktop. Sections that
+    // must fit one on-screen page (e.g. the two-row Trending cap) size off this instead.
+    topBrandDesignColumns: designFrame.topBrandColumns,
     topBrandRowsPerPage,
     topBrandDotCount: isMobileTopBrandGrid
       ? mobileShellLayout.topBrandMobileDotCount
@@ -593,6 +597,10 @@ export const webAuthPage = {
     login: "or sign in with",
     register: "or sign up with",
   },
+  mobileSocialDividerByMode: {
+    login: "Other ways to sign in",
+    register: "Other ways to sign up",
+  },
   otp: {
     changeNumber: "Change phone number",
     errorAria:
@@ -606,7 +614,7 @@ export const webAuthPage = {
   },
   socialProviders: [
     { id: "facebook", label: "Facebook" },
-    { id: "google", label: "Gmail" },
+    { id: "google", label: "Google" },
     { id: "line", label: "LINE" },
     { id: "telegram", label: "Telegram" },
     { id: "apple", label: "Apple" },
@@ -1146,51 +1154,35 @@ export const webPrivacyPolicyPage = {
   firstSectionTitle: "1. Who We Are",
 } as const;
 
-export const webBrowseShortcuts = [
-  { id: "all-brands", label: "All Brands", href: "/brand", icon: "shop" },
-  { id: "all-shops", label: "All Shops", href: "/shops", icon: "shops" },
-  {
-    id: "product-discover",
-    label: "Product Discovery",
-    href: "/discover",
-    icon: "promotion",
-  },
-  { id: "categories", label: "Categories", href: "/category", icon: "education" },
-] as const;
-
+// #483 — one icon system + one text size for every desktop header nav item.
 export const webDesktopHeaderNavItems = [
   {
     id: "top-brands",
     label: "Top Brands",
     href: "/",
-    icon: "none",
+    icon: "fire",
     active: true,
-    showFire: true,
   },
   {
     id: "all-brands",
-    label: "All Brands",
+    label: "Explore Brand",
     href: "/brand",
     icon: "shop",
     active: false,
-    showFire: false,
   },
   {
-    id: "all-shops",
-    label: "All Shops",
-    href: "/shops",
-    icon: "shops",
+    id: "digital-services",
+    label: "Digital Services",
+    href: "/category/Digital%20Services",
+    icon: "digital",
     active: false,
-    showFire: false,
   },
   {
-    id: "product-discovery",
-    label: "Product Discovery",
-    href: "/discover",
-    icon: "promotion",
+    id: "fashion",
+    label: "Fashion",
+    href: "/category/Fashion",
+    icon: "fashion",
     active: false,
-    showFire: false,
-    menuTypography: "lead",
   },
   {
     id: "travel",
@@ -1198,7 +1190,6 @@ export const webDesktopHeaderNavItems = [
     href: "/category/Travel",
     icon: "travel",
     active: false,
-    showFire: false,
   },
   {
     id: "electronics",
@@ -1206,8 +1197,6 @@ export const webDesktopHeaderNavItems = [
     href: "/category/Electronics",
     icon: "electronics",
     active: false,
-    showFire: false,
-    menuTypography: "lead",
   },
   {
     id: "health-beauty",
@@ -1215,10 +1204,18 @@ export const webDesktopHeaderNavItems = [
     href: "/category/Health%20%26%20Beauty",
     icon: "health",
     active: false,
-    showFire: false,
-    menuTypography: "lead",
   },
 ] as const;
+
+// #497 — the mobile explore bar must reach the same destinations as the desktop nav
+// ("taps route to the same destinations as desktop"), so it is DERIVED from that list
+// rather than maintained in parallel. Derived below it so the two can never drift apart.
+export const webBrowseShortcuts = webDesktopHeaderNavItems.map((item) => ({
+  id: item.id,
+  label: item.label,
+  href: item.href,
+  icon: item.icon,
+}));
 
 export const webLocaleRegionPanel = {
   ariaLabel: "Choose language and region",
@@ -1287,10 +1284,14 @@ export const webDesktopFooter = {
       ],
     },
     {
-      title: "Products",
+      title: "Company",
       items: [
-        { label: "Business Inquiries", href: "https://lin.ee/7om5sAr", external: true },
-        { label: "Careers", href: "https://lin.ee/7om5sAr", external: true },
+        { label: "Business Inquiries", href: "mailto:info@gogocash.co", external: true },
+        {
+          label: "Careers",
+          href: "https://www.linkedin.com/company/gogocash",
+          external: true,
+        },
       ],
     },
     {
@@ -1315,6 +1316,15 @@ export const webDesktopFooter = {
           href: "https://gogocash.co/privacy-policy",
           external: true,
         },
+      ],
+    },
+    {
+      title: "Agents",
+      items: [
+        { label: "sitemap.md", href: "https://gogocash.co/sitemap.md", external: true },
+        { label: "llms.txt", href: "https://gogocash.co/llms.txt", external: true },
+        { label: "skills.md", href: "https://gogocash.co/skills.md", external: true },
+        { label: "rss.xml", href: "https://gogocash.co/rss.xml", external: true },
       ],
     },
   ],
@@ -2049,7 +2059,12 @@ export const webShopDirectory = {
 } as const;
 
 export type WebShopDirectoryStore = (typeof webShopDirectory.stores)[number];
-export type WebBrandDirectorySort = "highest_cashback" | "lowest_cashback" | "popular" | "newest";
+export type WebBrandDirectorySort =
+  | "all"
+  | "highest_cashback"
+  | "lowest_cashback"
+  | "popular"
+  | "newest";
 
 export const webBrandDirectory = {
   categoryHeading: "Categories",
@@ -2065,6 +2080,7 @@ export const webBrandDirectory = {
   searchPlaceholder: "Search by store or product…",
   sortLabel: "Sort by:",
   sortPills: [
+    { label: "All", value: "all" },
     { label: "Popular", value: "popular" },
     { label: "Latest", value: "newest" },
     { label: "Highest Cashback", value: "highest_cashback" },
@@ -2130,6 +2146,18 @@ export function getShopDirectoryResults({
     });
 }
 
+/**
+ * Narrowest card that still renders its cashback row without truncating.
+ * Measured in the shipped font (DM Sans) against BrandCard size "L":
+ * "Cashback upto" (77) + row gap (10) + widest cashback "2.45%" (54) + card
+ * chrome (18) = 159 — within rounding of the directory card's 158.4px design
+ * width. Below it the caption clips to "Cashb…".
+ */
+const MIN_DIRECTORY_CARD_WIDTH = 158;
+
+/** Two-up is the floor; one full-bleed card per row reads as a broken grid. */
+const MIN_DIRECTORY_COLUMNS = 2;
+
 export function getShopDirectoryGridMetrics({
   contentWidth,
   viewportWidth,
@@ -2137,7 +2165,11 @@ export function getShopDirectoryGridMetrics({
   contentWidth: number;
   viewportWidth: number;
 }) {
-  const columns =
+  // The viewport sets the DENSEST allowed grid, but both directories put a
+  // ~280px category aside beside the cards, so contentWidth can be far narrower
+  // than the viewport implies. Sizing columns off the viewport alone squeezed
+  // the desktop 5-up down to ~98px cards next to the aside (#615 follow-up).
+  const maxColumns =
     viewportWidth >= 1024
       ? 5
       : viewportWidth >= 768
@@ -2146,10 +2178,16 @@ export function getShopDirectoryGridMetrics({
           ? 3
           : 2;
   const gap = viewportWidth >= 1024 ? 24 : viewportWidth >= 640 ? 16 : 12;
-  const cardWidth = roundLayoutValue((contentWidth - gap * Math.max(0, columns - 1)) / columns);
+  const widthAt = (count: number) =>
+    (contentWidth - gap * Math.max(0, count - 1)) / count;
+
+  let columns = maxColumns;
+  while (columns > MIN_DIRECTORY_COLUMNS && widthAt(columns) < MIN_DIRECTORY_CARD_WIDTH) {
+    columns -= 1;
+  }
 
   return {
-    cardWidth,
+    cardWidth: roundLayoutValue(widthAt(columns)),
     columns,
     gap,
   };
@@ -2158,7 +2196,7 @@ export function getShopDirectoryGridMetrics({
 export function getBrandDirectoryResults({
   category = "All",
   query = "",
-  sortBy = "highest_cashback",
+  sortBy = "all",
 }: {
   category?: string;
   query?: string;
@@ -2181,6 +2219,11 @@ export function getBrandDirectoryResults({
       return matchesCategory && matchesQuery;
     })
     .sort((a, b) => {
+      // #464 — "All" preserves catalog insertion order (mirror #437 category sort).
+      if (sortBy === "all") {
+        return a.position - b.position;
+      }
+
       if (sortBy === "popular") {
         return a.popularity - b.popularity || a.position - b.position;
       }
@@ -2732,7 +2775,12 @@ export function getProductDiscoveryGridMetrics({
   };
 }
 
-export type WebCategoryExploreSort = "highest_cashback" | "lowest_cashback" | "popular" | "newest";
+export type WebCategoryExploreSort =
+  | "all"
+  | "highest_cashback"
+  | "lowest_cashback"
+  | "popular"
+  | "newest";
 
 export const webCategoryExploreHealthBeauty = {
   category: "Health & Beauty",
@@ -2741,7 +2789,7 @@ export const webCategoryExploreHealthBeauty = {
     "Find cashback deals from brands in Health & Beauty. Search and sort to narrow results.",
   searchPlaceholder: "Search within Health & Beauty",
   sortLabel: "Sort by:",
-  storeCountLabel: "13 brands in this category",
+  storeCountLabel: "13 brands",
   categories: [
     "All",
     "Digital Services",
@@ -2759,6 +2807,7 @@ export const webCategoryExploreHealthBeauty = {
     "Others",
   ],
   sortPills: [
+    { label: "All", value: "all" },
     { label: "Popular", value: "popular" },
     { label: "Latest", value: "newest" },
     { label: "Highest Cashback", value: "highest_cashback" },
@@ -2883,7 +2932,7 @@ function getCategoryExploreBaseStores(category: string): CategoryExploreStore[] 
 export function getCategoryExploreResults({
   category = webCategoryExploreHealthBeauty.category,
   query = "",
-  sortBy = "highest_cashback",
+  sortBy = "all",
 }: {
   category?: string;
   query?: string;
@@ -2896,6 +2945,9 @@ export function getCategoryExploreResults({
     : [...baseStores];
 
   switch (sortBy) {
+    case "all":
+      // Preserve catalog / fixture insertion order — no forced cashback ranking.
+      return filteredStores;
     case "lowest_cashback":
       return filteredStores.sort(
         (left, right) => categoryExploreCashbackValue(left) - categoryExploreCashbackValue(right)
@@ -2917,10 +2969,11 @@ export function getCategoryExploreResults({
         return 0;
       });
     case "highest_cashback":
-    default:
       return filteredStores.sort(
         (left, right) => categoryExploreCashbackValue(right) - categoryExploreCashbackValue(left)
       );
+    default:
+      return filteredStores;
   }
 }
 
@@ -2932,6 +2985,8 @@ export const webShopDetailGroceryGalaxy = {
   category: "others",
   cashback: "26.5%",
   extraCashback: "14%",
+  /** Fixture demos the Extra Cashback badge (#472). Live offers require admin tag on. */
+  showExtraCashbackTag: true,
   shopNowLabel: "Shop Now",
   disclaimer:
     "The cashback rates shown above are the maximum possible amounts. Actual rates vary by merchant and specific order conditions. Final approval is at the sole discretion of the merchant; GoGoCash acts as a platform provider for your convenience.",

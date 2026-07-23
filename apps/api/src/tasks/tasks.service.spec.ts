@@ -6,6 +6,8 @@ import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { Offer } from 'src/offer/schemas/offer.schema';
 import { Quest } from 'src/point/schemas/quest.schema';
 import { Point } from 'src/point/schemas/point.schema';
+import { FeeRate } from 'src/withdraw/schemas/feeRate.schema';
+import { ReferralPayout } from 'src/point/schemas/referral-payout.schema';
 import { InvolveService } from 'src/involve/involve.service';
 import { ConversionIngestService } from 'src/involve/conversion-ingest.service';
 import { PointService } from 'src/point/point.service';
@@ -153,6 +155,18 @@ async function buildService(): Promise<{
       { provide: getModelToken(Offer.name), useValue: offerModel },
       { provide: getModelToken(Quest.name), useValue: questModel },
       { provide: getModelToken(Point.name), useValue: PointModel },
+      {
+        provide: getModelToken(FeeRate.name),
+        useValue: {
+          findOne: jest
+            .fn()
+            .mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }),
+        },
+      },
+      {
+        provide: getModelToken(ReferralPayout.name),
+        useValue: { updateOne: jest.fn().mockResolvedValue({}) },
+      },
       { provide: InvolveService, useValue: involveService },
       { provide: ConversionIngestService, useValue: conversionIngestService },
       { provide: PointService, useValue: pointService },

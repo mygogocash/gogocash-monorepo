@@ -330,6 +330,46 @@ function loadWriterDrainEvidence(filePath) {
   };
 }
 
+/**
+ * Reviewed production Atlas target for #407 / policy integrity rollout.
+ * Fingerprint = sha256(`${host}/${database}`).slice(0, 16) from describeMongoTarget.
+ * Do not broaden this without a fresh dry-run review.
+ */
+const REVIEWED_PRODUCTION_ATLAS_FINGERPRINT = 'f3a5dff559dda931';
+const PRODUCTION_REQUIRED_WRITER_SERVICE = 'gogocash-api';
+
+function looksLikeProductionMongoTarget(target) {
+  return (
+    /(?:^|[-_.])(prod|production)(?:[-_.]|$)/i.test(target.host) ||
+    /^(?:gogocash[-_]?prod(?:uction)?|prod(?:uction)?)$/i.test(
+      target.database,
+    ) ||
+    target.fingerprint === REVIEWED_PRODUCTION_ATLAS_FINGERPRINT
+  );
+}
+
+function buildWriterDrainConfirm({
+  environment,
+  candidateSha,
+  fingerprint,
+  evidenceSha256,
+}) {
+  return `drained-all-writers:${environment}:${candidateSha}:${fingerprint}:${evidenceSha256}`;
+}
+
+function buildApplyConfirmSentinel({
+  environment,
+  candidateSha,
+  database,
+  fingerprint,
+}) {
+  return `apply-category-integrity-v2:${environment}:${candidateSha}:${database}:${fingerprint}`;
+}
+
+function buildProductionAuthorizeSentinel({ candidateSha, fingerprint }) {
+  return `authorize-production-integrity-v2:${candidateSha}:${fingerprint}`;
+}
+
 function assertPolicyCategoryIntegrityApplyGate(
   target,
   env = process.env,
@@ -343,16 +383,17 @@ function assertPolicyCategoryIntegrityApplyGate(
   const writerDrain = env.POLICY_CATEGORY_INTEGRITY_WRITER_DRAIN_CONFIRM;
   const expectedEvidenceSha256 =
     env.POLICY_CATEGORY_INTEGRITY_WRITER_DRAIN_EVIDENCE_SHA256;
+  const productionAuthorize =
+    env.POLICY_CATEGORY_INTEGRITY_PRODUCTION_AUTHORIZE;
 
   if (!target.database) {
     throw new Error(
       'Apply refuses an implicit MongoDB database; add the exact database path to MONGO_URI.',
     );
   }
-  if (
-    /(?:^|[-_.])(prod|production)(?:[-_.]|$)/i.test(target.host) ||
-    /^(?:gogocash[-_]?prod(?:uction)?|prod(?:uction)?)$/i.test(target.database)
-  ) {
+  // Accidental prod hits stay refused unless the operator opts into the
+  // production environment + reviewed Atlas fingerprint + authorize sentinel.
+  if (looksLikeProductionMongoTarget(target) && environment !== 'production') {
     throw new Error(
       'Policy category integrity apply refuses a production target.',
     );
@@ -362,11 +403,34 @@ function assertPolicyCategoryIntegrityApplyGate(
       'Apply requires an exact lowercase 40-character candidate SHA.',
     );
   }
+  if (environment === 'production') {
+    if (target.fingerprint !== REVIEWED_PRODUCTION_ATLAS_FINGERPRINT) {
+      throw new Error(
+        'Production apply requires the reviewed Atlas target fingerprint (gogocash Atlas /gogocash).',
+      );
+    }
+    if (
+      productionAuthorize !==
+      buildProductionAuthorizeSentinel({
+        candidateSha,
+        fingerprint: target.fingerprint,
+      })
+    ) {
+      throw new Error(
+        'Production apply requires POLICY_CATEGORY_INTEGRITY_PRODUCTION_AUTHORIZE bound to candidate SHA and target fingerprint.',
+      );
+    }
+  }
   if (
     !/^[a-f0-9]{64}$/.test(writerDrainEvidenceSha256 ?? '') ||
     expectedEvidenceSha256 !== writerDrainEvidenceSha256 ||
     writerDrain !==
-      `drained-all-writers:${environment}:${candidateSha}:${target.fingerprint}:${writerDrainEvidenceSha256}`
+      buildWriterDrainConfirm({
+        environment,
+        candidateSha,
+        fingerprint: target.fingerprint,
+        evidenceSha256: writerDrainEvidenceSha256,
+      })
   ) {
     throw new Error(
       'Apply requires writer-drain evidence and confirmation bound to environment, candidate SHA, target fingerprint, and evidence SHA-256.',
@@ -418,14 +482,29 @@ function assertPolicyCategoryIntegrityApplyGate(
     );
   }
   if (
-    env.POLICY_CATEGORY_INTEGRITY_APPLY !== '1' ||
-    !['dev', 'staging'].includes(environment) ||
-    targetFingerprint !== target.fingerprint ||
-    confirmation !==
-      `apply-category-integrity-v2:${environment}:${candidateSha}:${target.database}:${target.fingerprint}`
+    environment === 'production' &&
+    !writerDrainEvidence.writer_deployments.some(
+      (deployment) => deployment.service === PRODUCTION_REQUIRED_WRITER_SERVICE,
+    )
   ) {
     throw new Error(
-      'Apply requires the explicit dev/staging gate plus exact candidate SHA, database target fingerprint, and confirmation sentinel.',
+      'Production writer-drain evidence must include the gogocash-api service.',
+    );
+  }
+  if (
+    env.POLICY_CATEGORY_INTEGRITY_APPLY !== '1' ||
+    !['dev', 'staging', 'production'].includes(environment) ||
+    targetFingerprint !== target.fingerprint ||
+    confirmation !==
+      buildApplyConfirmSentinel({
+        environment,
+        candidateSha,
+        database: target.database,
+        fingerprint: target.fingerprint,
+      })
+  ) {
+    throw new Error(
+      'Apply requires the explicit environment gate plus exact candidate SHA, database target fingerprint, and confirmation sentinel.',
     );
   }
 }
@@ -1391,9 +1470,15 @@ async function main() {
 
 module.exports = {
   MIGRATION_VERSION,
+  PRODUCTION_REQUIRED_WRITER_SERVICE,
+  REVIEWED_PRODUCTION_ATLAS_FINGERPRINT,
   assertPolicyCategoryIntegrityApplyGate,
+  buildApplyConfirmSentinel,
+  buildProductionAuthorizeSentinel,
+  buildWriterDrainConfirm,
   describeMongoTarget,
   loadWriterDrainEvidence,
+  looksLikeProductionMongoTarget,
   normalize,
   normalizePolicyMediaUrl,
   planMigration,

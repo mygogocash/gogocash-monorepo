@@ -6,6 +6,7 @@ import {
   mapBackendCategoryIconKeys,
   mapBackendCategoryList,
   mapCatalogBrandsToDirectoryStores,
+  resolveCategoryExploreStores,
   resolveCategoryIconImages,
   resolveCategoryIconKeys,
   resolveCategoryList,
@@ -55,6 +56,62 @@ describe("directoryCatalogResource", () => {
         stores,
       }).map((store) => store.brand)
     ).toEqual(["Beta Travel"]);
+  });
+
+  it("filterDirectoryStores > given sortBy all > then preserves catalog insertion order (#437)", () => {
+    const stores = mapCatalogBrandsToDirectoryStores([
+      { ...LIVE_BRANDS[1], cashback: "2.0%" },
+      { ...LIVE_BRANDS[0], cashback: "99.0%" },
+    ]);
+    expect(
+      filterDirectoryStores({
+        category: "All",
+        query: "",
+        sortBy: "all",
+        stores,
+      }).map((store) => store.brand),
+    ).toEqual(["Beta Travel", "Alpha Shop"]);
+  });
+
+  it("resolveCategoryExploreStores > given backend Electronics payload with Oppo > then Oppo appears without name search (#438)", () => {
+    const payload = {
+      data: [
+        {
+          _id: "offer-oppo",
+          commission_store: 5,
+          offer_name: "Oppo",
+          offer_name_display: "Oppo",
+          categories: "Mobile",
+          offer_display_tags: {
+            brand_category_enabled: true,
+            brand_category_label: "Electronics",
+          },
+          status: "approved",
+        },
+        {
+          _id: "offer-sony",
+          commission_store: 8,
+          offer_name: "Sony",
+          offer_name_display: "Sony",
+          categories: "Electronics",
+          status: "approved",
+        },
+      ],
+      limit: 80,
+      page: 1,
+      total: 2,
+      totalPages: 1,
+    };
+
+    expect(
+      resolveCategoryExploreStores({
+        category: "Electronics",
+        data: payload,
+        query: "",
+        sortBy: "all",
+        source: "backend",
+      }).map((store) => store.brand),
+    ).toEqual(["Oppo", "Sony"]);
   });
 
   it("resolveLiveDirectoryStores > backend offer list > returns mapped stores", () => {

@@ -6,6 +6,12 @@ import {
 const LOCAL_MEDIA_PREFIX = "local-media:";
 const REMOTE_URI_PREFIXES = ["https://", "http://", "data:", "blob:", "file:"] as const;
 
+/**
+ * Width requested from Drive's thumbnail endpoint when a surface does not declare
+ * one. 640 keeps logos crisp on retina without pulling the full-resolution asset.
+ */
+const DRIVE_THUMBNAIL_DEFAULT_WIDTH = 640;
+
 function looksLikeGoogleDriveFileId(value: string): boolean {
   return /^[A-Za-z0-9_-]{10,}$/.test(value);
 }
@@ -64,7 +70,15 @@ export function resolveRemoteImageUri(
   }
 
   if (looksLikeGoogleDriveFileId(trimmed)) {
-    return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(trimmed)}`;
+    // Google removed `uc?export=view` for image hotlinking — it now returns an
+    // interstitial, so <img> loads fail and every Drive-hosted brand logo falls
+    // back to initials. The `thumbnail` endpoint still serves the bytes directly
+    // and takes a size, so it doubles as a right-sizing step. Verified in a real
+    // browser: uc?export=view → error; thumbnail?sz=w320 → a 320px image.
+    const width = imageOptions?.width ?? DRIVE_THUMBNAIL_DEFAULT_WIDTH;
+    return `https://drive.google.com/thumbnail?id=${encodeURIComponent(
+      trimmed,
+    )}&sz=w${width}`;
   }
 
   return undefined;

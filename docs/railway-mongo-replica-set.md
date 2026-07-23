@@ -12,23 +12,30 @@ This is a maintenance-window operation. Stop API ingress and every database
 writer, take a verified backup, and keep writers stopped until the transaction
 smoke tests and candidate API readiness checks pass.
 
-## Status (2026-07-18)
+## Status (2026-07-20)
 
-Dev and staging are converted and verified: both run authenticated single-node
-replica sets (rs0; `mongo:8.0.4` on dev, `mongo:8.3.4` on staging) and MongoDB
-transactions commit. All 18 QUEST_TASK_V2_REQUIRED_INDEXES plus the canonical
-fence doc `quest_source_config_fence` (fence_key `task-v2-source-config-v1`,
-revision 0) are in place on both environments. The index migration has been
-executed on both: the legacy unique `conversions.conversion_id_1` was dropped
-and recreated non-unique, with identity uniqueness now enforced by the partial
-unique composite index `uniq_conversion_provider_identity` on (source,
-provider_account, provider_conversion_id); the staging pre-check found 0
-duplicate identity groups across 2907 string-identity conversions.
-`conversion_id_1` must remain non-unique even if `QUEST_TASK_V2_ENABLED` is
-later set false — the composite index now carries the uniqueness guarantee.
-The policy/category integrity migration has been applied on both environments
-(writers drained, quarantine=0) and policy endpoints serve. Production has not
-been converted and is not authorized by this runbook.
+Dev and staging Railway Mongo are converted and verified: both run authenticated
+single-node replica sets (rs0; `mongo:8.0.4` on dev, `mongo:8.3.4` on staging)
+and MongoDB transactions commit. All 18 QUEST_TASK_V2_REQUIRED_INDEXES plus the
+canonical fence doc `quest_source_config_fence` (fence_key
+`task-v2-source-config-v1`, revision 0) are in place on both environments. The
+index migration has been executed on both: the legacy unique
+`conversions.conversion_id_1` was dropped and recreated non-unique, with
+identity uniqueness now enforced by the partial unique composite index
+`uniq_conversion_provider_identity` on (source, provider_account,
+provider_conversion_id); the staging pre-check found 0 duplicate identity
+groups across 2907 string-identity conversions. `conversion_id_1` must remain
+non-unique even if `QUEST_TASK_V2_ENABLED` is later set false — the composite
+index now carries the uniqueness guarantee. The policy/category integrity
+migration has been applied on both Railway environments (writers drained,
+quarantine=0) and policy endpoints serve.
+
+**Production / beta API does not use this Railway Mongo service.** `api-beta`
+points at **MongoDB Atlas** (`mongodb+srv://…/gogocash`), which already provides
+replica-set topology + sessions. Policy integrity for beta was applied on Atlas
+(2026-07-20, #407) — see `docs/policy-category-integrity-rollout.md`. This
+runbook still does **not** authorize converting the unused Railway production
+Mongo volume unless/until the API URI is deliberately cut over to it.
 
 Known failure mode from the rollout: if any required index conflicts with an
 existing same-name index (e.g. `conversion_id_1` still unique), `createIndex`

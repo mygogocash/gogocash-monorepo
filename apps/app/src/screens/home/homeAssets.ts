@@ -13,12 +13,15 @@ import {
   AirplaneTilt,
   BookOpen as BookOpenIcon,
   CircleUserRound as ProfileIcon,
+  Cloud,
   DeviceMobile,
+  Fire,
   Grid2X2 as GridIcon,
   Heartbeat,
   Home as HomeIcon,
   type IconComponent,
   Link2 as LinkIcon,
+  Shirt,
   ShoppingBag as ShoppingBagIcon,
   SquaresFour,
   Store as StoreIcon,
@@ -47,11 +50,20 @@ export const brandLogoAssets: Record<string, ImageSourcePropType> = {
   shopee: shopeeLogo,
 };
 
+// #497 — the mobile explore bar mirrors the desktop nav, so it must cover every icon the
+// desktop items use. ShortcutIcon silently falls back to a shopping bag for unknown names,
+// which would render four identical bags rather than an error.
 export const shortcutIcons: Record<string, HomeIconComponent> = {
+  digital: Cloud,
   education: BookOpenIcon,
+  electronics: DeviceMobile,
+  fashion: Shirt,
+  fire: Fire,
+  health: Heartbeat,
   promotion: TagsIcon,
   shop: StoreIcon,
   shops: GridIcon,
+  travel: AirplaneTilt,
 };
 
 export const desktopNavIcons: Record<string, IconComponent> = {

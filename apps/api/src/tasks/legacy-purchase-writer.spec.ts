@@ -161,4 +161,63 @@ describe('awardReconciledPurchaseConversion', () => {
     ).rejects.toThrow(/currency/i);
     expect(pointService.addPointsToUser).not.toHaveBeenCalled();
   });
+
+  it('invokes the optional referralBonus hook AFTER completion with the credited amount', async () => {
+    const conversion = readyConversion({ currency: 'THB', sale_amount: 200 });
+    const state = { ...conversion } as Record<string, unknown>;
+    const conversionModel = {
+      updateOne: jest.fn(async (filter: any, update: { $set: any }) => {
+        Object.assign(state, update.$set);
+        return { modifiedCount: 1, matchedCount: 1 };
+      }),
+      findOne: jest.fn(),
+    };
+    const pointService = { addPointsToUser: jest.fn(async () => ({})) };
+    const referralBonus = jest.fn(async () => ({ status: 'paid' as const }));
+
+    const result = await awardReconciledPurchaseConversion(conversion, {
+      conversionModel: conversionModel as never,
+      pointService,
+      thbPerUsd: 35,
+      referralBonus,
+    });
+
+    expect(result).toEqual({
+      payout_key: conversion.legacy_point_payout_key,
+      amount: 200,
+    });
+    expect(referralBonus).toHaveBeenCalledTimes(1);
+    expect(referralBonus).toHaveBeenCalledWith({
+      refereeUserId: conversion.user_id,
+      sourceCashbackAmount: 200,
+      sourceConversionId: conversion.conversion_id,
+      sourcePayoutKey: conversion.legacy_point_payout_key,
+    });
+    // referee credited before the referrer bonus hook fires
+    expect(pointService.addPointsToUser).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays backward compatible: no referralBonus dep -> no referral side effects', async () => {
+    const conversion = readyConversion({ currency: 'THB', sale_amount: 200 });
+    const state = { ...conversion } as Record<string, unknown>;
+    const conversionModel = {
+      updateOne: jest.fn(async (filter: any, update: { $set: any }) => {
+        Object.assign(state, update.$set);
+        return { modifiedCount: 1, matchedCount: 1 };
+      }),
+      findOne: jest.fn(),
+    };
+    const pointService = { addPointsToUser: jest.fn(async () => ({})) };
+
+    await expect(
+      awardReconciledPurchaseConversion(conversion, {
+        conversionModel: conversionModel as never,
+        pointService,
+        thbPerUsd: 35,
+      }),
+    ).resolves.toEqual({
+      payout_key: conversion.legacy_point_payout_key,
+      amount: 200,
+    });
+  });
 });

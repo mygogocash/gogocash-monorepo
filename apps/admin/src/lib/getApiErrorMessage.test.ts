@@ -91,6 +91,37 @@ describe("getApiErrorMessage", () => {
     ).toBe("boom");
   });
 
+  it("appends Nest structured reason for policy transaction/integrity 503s (#407)", () => {
+    expect(
+      getApiErrorMessage({
+        response: {
+          data: {
+            statusCode: 503,
+            code: "POLICY_TRANSACTIONS_UNSUPPORTED",
+            message:
+              "Policy aggregate saves require MongoDB replica set or mongos transaction support.",
+            reason: "Durable migration marker is absent or stale",
+            topology: "replica-set",
+          },
+        },
+      }),
+    ).toBe(
+      "Policy aggregate saves require MongoDB replica set or mongos transaction support. (Durable migration marker is absent or stale)",
+    );
+  });
+
+  it("does not duplicate reason when it is already embedded in message", () => {
+    expect(
+      getApiErrorMessage({
+        data: {
+          code: "POLICY_CATEGORY_INTEGRITY_NOT_READY",
+          message: "Unavailable (Durable migration marker is absent or stale)",
+          reason: "Durable migration marker is absent or stale",
+        },
+      }),
+    ).toBe("Unavailable (Durable migration marker is absent or stale)");
+  });
+
   it("still reads the interceptor-rejected data.message shape", () => {
     expect(getApiErrorMessage({ data: { message: "rejected" } })).toBe(
       "rejected",
@@ -99,6 +130,22 @@ describe("getApiErrorMessage", () => {
 
   it("still reads Error instances", () => {
     expect(getApiErrorMessage(new Error("kaboom"))).toBe("kaboom");
+  });
+
+  it("appends Nest reason from flat apiClient ApiError (#407)", () => {
+    const apiError = Object.assign(
+      new Error(
+        "Policy aggregate saves require MongoDB replica set or mongos transaction support.",
+      ),
+      {
+        status: 503,
+        code: "POLICY_TRANSACTIONS_UNSUPPORTED",
+        reason: "MongoDB is not a replica set or mongos",
+      },
+    );
+    expect(getApiErrorMessage(apiError)).toBe(
+      "Policy aggregate saves require MongoDB replica set or mongos transaction support. (MongoDB is not a replica set or mongos)",
+    );
   });
 
   it("joins validation message arrays from the interceptor-rejected shape", () => {
@@ -115,5 +162,16 @@ describe("getApiErrorMessage", () => {
     expect(getApiErrorMessage(undefined, "fallback")).toBe("fallback");
     expect(getApiErrorMessage({ message: "   " }, "fallback")).toBe("fallback");
     expect(getApiErrorMessage({ message: 42 }, "fallback")).toBe("fallback");
+  });
+
+  it("#487 maps Multipart: Unexpected end of form to an actionable upload message", () => {
+    expect(
+      getApiErrorMessage({
+        response: { data: { message: "Multipart: Unexpected end of form" } },
+      }),
+    ).toMatch(/under 32 MB/i);
+    expect(
+      getApiErrorMessage(new Error("Multipart: Unexpected end of form")),
+    ).toMatch(/compress the image/i);
   });
 });

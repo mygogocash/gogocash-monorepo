@@ -42,6 +42,11 @@ const TopBrandManagementPanel = dynamic(
   { loading: () => <TabPanelSkeleton /> },
 );
 
+const LandingRailsManagementPanel = dynamic(
+  () => import("./LandingRailsManagementPanel").then((m) => m.default),
+  { loading: () => <TabPanelSkeleton /> },
+);
+
 function TabPanelSkeleton() {
   return (
     <div className="animate-pulse rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
@@ -61,6 +66,7 @@ const BREADCRUMB_LABEL: Record<OffersManagementTabId, string> = {
   policy: "Policy Management",
   deeplink: "User tracking link",
   "top-brands": "Top brands",
+  "landing-rails": "Landing rails",
 };
 
 export default function OffersManagementPageContent() {
@@ -113,6 +119,7 @@ export default function OffersManagementPageContent() {
         {activeTab === "policy" && <PolicyTable />}
         {activeTab === "deeplink" && <DeeplinkTable />}
         {activeTab === "top-brands" && <TopBrandManagementPanel />}
+        {activeTab === "landing-rails" && <LandingRailsManagementPanel />}
       </div>
     </div>
   );

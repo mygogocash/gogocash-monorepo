@@ -120,7 +120,7 @@ export const BANNER_ADMIN_SURFACES: Record<
     formDescription:
       "Edit homepage position {slot}: positions 1–3 are top carousel slides; positions 4–5 are the lower small banners.",
     uploadHint:
-      "Choose a banner image (PNG, JPG, or WebP). Recommended size: 1920×1080 (16:9).",
+      "Choose a banner image (PNG, JPG, or WebP). Recommended artwork: 1920×1080 (16:9) — other sizes are accepted and fitted. Max upload 32 MB (large PNGs are optimized on save).",
     slots: [
       {
         area: "Top homepage sliding carousel",

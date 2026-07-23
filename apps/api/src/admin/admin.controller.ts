@@ -32,6 +32,7 @@ import {
   GetConversionInWithdrawDto,
   RejectOfferDto,
   SaveTopBrandsDto,
+  SaveLandingRailsDto,
   UpdateAdminDto,
   UpdateBannerHomeBodyDto,
   UpdateBannerHomeDto,
@@ -42,6 +43,7 @@ import {
   UpdateOfferAdminDto,
   UpdateRequestWithdrawDto,
   UpdateUserDto,
+  ListMyCashbackUsersDto,
 } from './dto/update-admin.dto';
 import { UserAdminService } from './user-admin/user-admin-service';
 import { AdminInviteService } from './admin-invite.service';
@@ -53,7 +55,10 @@ import {
 } from './dto/admin-auth.dto';
 import { ApiBearerAuth, ApiBody, ApiSecurity } from '@nestjs/swagger';
 import { parseOfferDisplayTagsField } from 'src/offer/offer-display-tags.util';
-import { resolveProductTypeUpdate } from 'src/offer/product-type.util';
+import {
+  requireProductTypeRowsField,
+  resolveProductTypeUpdate,
+} from 'src/offer/product-type.util';
 import { AuthAdminGuard } from './jwt-auth-admin.guard';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
@@ -66,8 +71,8 @@ import {
   FileInterceptor,
 } from '@nestjs/platform-express';
 
-// Strip unknown fields + coerce types on the unauthenticated admin-auth
-// endpoints (no global ValidationPipe in this app).
+// Strip unknown fields + coerce types (no global ValidationPipe in this app).
+// Shared by unauthenticated admin-auth bodies and validated admin list bodies.
 const adminAuthValidation = new ValidationPipe({
   transform: true,
   whitelist: true,
@@ -105,6 +110,32 @@ function coerceOptionalText(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   if (value.trim() === 'undefined') return undefined;
   return value;
+}
+
+/**
+ * Multipart nullable string: absent/"undefined" = no change; "" = clear to null.
+ */
+function coerceOptionalNullableString(
+  value: unknown,
+): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string') return undefined;
+  if (value.trim() === 'undefined') return undefined;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+/**
+ * Multipart nullable number: absent = no change; "" = clear to null.
+ */
+function coerceOptionalNullableNumber(
+  value: unknown,
+): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  return coerceOptionalNumber(value);
 }
 
 type BannerUploadFiles = {
@@ -387,6 +418,25 @@ export class AdminController {
     return this.adminService.saveTopBrands(body);
   }
 
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('landing-rails')
+  getLandingRails() {
+    return this.adminService.getLandingRails();
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  // Homepage curated rails — a mutation, so it must not be reachable by a
+  // read-only viewer (mirrors the Top brands write gate).
+  @Roles('approver')
+  @Put('landing-rails')
+  saveLandingRails(@Body() body: SaveLandingRailsDto) {
+    return this.adminService.saveLandingRails(body);
+  }
+
   // Creating an admin account is a superadmin action (parallels the gated
   // invite flow); without this gate any authenticated admin could mint a
   // superadmin via a mass-assigned role.
@@ -481,6 +531,14 @@ export class AdminController {
   @Get('get-fee-rate')
   getFeeRate() {
     return this.adminService.getFeeRate();
+  }
+
+  // Public: the customer app reads only the referral bonus % (not the rest of
+  // the admin-guarded fee singleton) to render the dynamic Share & Earn copy.
+  @Public()
+  @Get('referral-bonus-percent')
+  getReferralBonusPercent() {
+    return this.adminService.getReferralBonusPercent();
   }
 
   @UseGuards(AuthAdminGuard)
@@ -613,6 +671,34 @@ export class AdminController {
       all_product_types: coerceOptionalBoolean(
         updateAdminDto.all_product_types,
       ),
+      upsize_start_date: coerceOptionalNullableString(
+        updateAdminDto.upsize_start_date,
+      ),
+      upsize_end_date: coerceOptionalNullableString(
+        updateAdminDto.upsize_end_date,
+      ),
+      upsize_start_time: coerceOptionalNullableString(
+        updateAdminDto.upsize_start_time,
+      ),
+      upsize_end_time: coerceOptionalNullableString(
+        updateAdminDto.upsize_end_time,
+      ),
+      upsize_special_commission: coerceOptionalNullableNumber(
+        updateAdminDto.upsize_special_commission,
+      ),
+      upsize_max_cap: coerceOptionalNullableNumber(
+        updateAdminDto.upsize_max_cap,
+      ),
+      upsize_all_product_types: coerceOptionalBoolean(
+        updateAdminDto.upsize_all_product_types,
+      ),
+      upsize_product_types:
+        updateAdminDto.upsize_product_types !== undefined
+          ? requireProductTypeRowsField(
+              updateAdminDto.upsize_product_types,
+              'upsize_product_types',
+            )
+          : undefined,
       tracking_period_mode: updateAdminDto.tracking_period_mode,
       tracking_days: coerceOptionalDayCount(
         updateAdminDto.tracking_days,
@@ -729,6 +815,27 @@ export class AdminController {
   @Get('get-mycashback-user/:id')
   viewMyCahsback(@Param('id') id: string) {
     return this.adminService.getMyCashBackUser(id);
+  }
+
+  // Admin MyCashBack users table (apps/admin MyCashbackUsersTable).
+  // Class-level AuthAdminGuard + RolesGuard already apply; no @Roles so any
+  // authenticated admin (including viewer) may read — matches RBAC contract.
+  // POST kept for the current UI client; GET is the preferred list shape.
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @ApiBody({ type: ListMyCashbackUsersDto })
+  @Post('list-mycashback-users')
+  listMyCashbackUsers(@Body(adminAuthValidation) body: ListMyCashbackUsersDto) {
+    return this.adminService.listMyCashbackUsers(body ?? {});
+  }
+
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('list-mycashback-users')
+  listMyCashbackUsersGet(
+    @Query(adminAuthValidation) query: ListMyCashbackUsersDto,
+  ) {
+    return this.adminService.listMyCashbackUsers(query ?? {});
   }
 
   @UseInterceptors(

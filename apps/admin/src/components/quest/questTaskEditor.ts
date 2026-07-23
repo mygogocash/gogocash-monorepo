@@ -1,3 +1,5 @@
+import { type OfferLike } from "@/lib/offerDisplay";
+import { defaultQuestTaskWording } from "@/lib/questTaskWording";
 import type { QuestTaskPayload, QuestTaskType } from "@/types/quest";
 
 export type TaskDraft = {
@@ -19,13 +21,36 @@ export type TaskDraft = {
   target_thb_minor?: number;
 };
 
-export function buildQuestTaskPayloads(tasks: TaskDraft[]): QuestTaskPayload[] {
+// A brand_purchase task may rely on the brand's default wording — the editor's wording
+// helper promises "leave blank -> brand default". The customer app DROPS a task with no
+// wording (questTaskMapper: `if (!title) return null`), so we resolve that default at the
+// save boundary. Non-brand tasks have no brand to fall back on, so this returns "" and they
+// must carry explicit wording.
+function brandDefaultWording(
+  task: TaskDraft,
+  offersById: ReadonlyMap<string, OfferLike> | undefined,
+  locale: "en" | "th",
+): string {
+  if (task.task_type !== "brand_purchase") return "";
+  return defaultQuestTaskWording(offersById?.get(task.offer ?? ""), locale);
+}
+
+export function buildQuestTaskPayloads(
+  tasks: TaskDraft[],
+  offersById?: ReadonlyMap<string, OfferLike>,
+): QuestTaskPayload[] {
   return tasks.map((task) => {
     if (!task.task_type) {
       throw new Error("Choose a task type before saving.");
     }
-    const wordingEn = task.wording_en?.trim() ?? task.wording?.trim() ?? "";
-    const wordingTh = task.wording_th?.trim() ?? "";
+    // Blank wording on a brand task falls back to the per-language brand default so the
+    // customer Quest page renders it instead of silently dropping the task.
+    const wordingEn =
+      (task.wording_en?.trim() ?? task.wording?.trim() ?? "") ||
+      brandDefaultWording(task, offersById, "en");
+    const wordingTh =
+      (task.wording_th?.trim() ?? "") ||
+      brandDefaultWording(task, offersById, "th");
     const common = {
       ...(task.task_key ? { task_key: task.task_key } : {}),
       task_type: task.task_type,
@@ -107,7 +132,10 @@ export function normalizeQuestTaskPoints(
   return defaultQuestTaskPoints(offer);
 }
 
-export function validateQuestTasks(tasks: TaskDraft[]): string | null {
+export function validateQuestTasks(
+  tasks: TaskDraft[],
+  offersById?: ReadonlyMap<string, OfferLike>,
+): string | null {
   const seen = new Set<string>();
   for (const task of tasks) {
     if (!task.task_type) return "Choose a task type for every task.";
@@ -137,11 +165,18 @@ export function validateQuestTasks(tasks: TaskDraft[]): string | null {
     ) {
       return "Reach-spend tasks need a positive spend target.";
     }
-    if (
-      !task.wording?.trim() &&
-      !task.wording_en?.trim() &&
-      !task.wording_th?.trim()
-    ) {
+    const hasExplicitWording = Boolean(
+      task.wording?.trim() ||
+        task.wording_en?.trim() ||
+        task.wording_th?.trim(),
+    );
+    // Blank is allowed ONLY when a brand default can stand in (brand_purchase with an offer);
+    // referral/spend tasks have no brand, so the customer would drop them — require wording.
+    const hasBrandDefault = Boolean(
+      brandDefaultWording(task, offersById, "en") ||
+        brandDefaultWording(task, offersById, "th"),
+    );
+    if (!hasExplicitWording && !hasBrandDefault) {
       return "Each task needs English or Thai customer wording.";
     }
     if ((task.wording_en?.trim().length ?? 0) > 140) {

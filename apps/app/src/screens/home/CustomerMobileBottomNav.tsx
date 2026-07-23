@@ -1,6 +1,12 @@
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { webMobileBottomNavItems } from "@mobile/design/webDesignParity";
+import { filterHiddenBottomNavItems } from "@mobile/config/featureFlags";
+import {
+  GOLINK_COMING_SOON_OPACITY,
+  GoLinkSoonBadge,
+  isGoLinkComingSoonTab,
+} from "@mobile/components/goLinkNavTab";
 import { MotionPressable } from "@mobile/components/MotionPressable";
 import { useAuthGuardSession } from "@mobile/auth/useAuthGuardSession";
 import { queueProtectedBottomNavWhileSessionHydrates } from "@mobile/auth/protectedBottomNavPress";
@@ -44,13 +50,15 @@ export function CustomerMobileBottomNav({
       ]}
     >
       <View style={styles.bottomNav}>
-        {webMobileBottomNavItems.map((item) => {
+        {filterHiddenBottomNavItems(webMobileBottomNavItems).map((item) => {
           const active = item.label === "Home";
           const emphasized = "emphasized" in item && item.emphasized;
+          const comingSoon = isGoLinkComingSoonTab(item.href);
           const navItemStyle = StyleSheet.flatten([
             styles.bottomNavItem,
             emphasized ? styles.bottomNavItemEmphasized : null,
             active ? styles.bottomNavItemActive : null,
+            comingSoon ? { opacity: GOLINK_COMING_SOON_OPACITY } : null,
           ]);
           const navItemContent = (
             <>
@@ -58,6 +66,7 @@ export function CustomerMobileBottomNav({
                 style={[styles.bottomNavIcon, emphasized ? styles.bottomNavIconEmphasized : null]}
               >
                 <BottomNavIcon active={active} emphasized={emphasized} name={item.icon} />
+                {comingSoon ? <GoLinkSoonBadge /> : null}
               </View>
               <Text
                 numberOfLines={1}
@@ -76,8 +85,10 @@ export function CustomerMobileBottomNav({
             return (
               <MotionPressable
                 accessibilityRole="button"
+                accessibilityState={comingSoon ? { disabled: true } : undefined}
+                disabled={comingSoon}
                 key={item.label}
-                onPress={onGoLinkPress}
+                onPress={comingSoon ? undefined : onGoLinkPress}
                 pressScale={motion.scale.subtlePress}
                 style={navItemStyle}
               >

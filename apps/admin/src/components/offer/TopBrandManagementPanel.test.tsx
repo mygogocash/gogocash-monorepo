@@ -169,16 +169,15 @@ describe("TopBrandManagementPanel", () => {
     vi.clearAllMocks();
   });
 
-  it("shows live cashback and saves ordered identities with derived copy", async () => {
+  it("saves ordered identities after removing from the landing preview (#476)", async () => {
     const user = userEvent.setup();
     renderPanel();
 
-    const cashbackLabels = await screen.findAllByLabelText(
-      "Cashback for Banana IT",
-    );
-    expect(cashbackLabels[0]).toHaveTextContent("7%");
+    expect(
+      await screen.findByTestId("top-brand-landing-preview"),
+    ).toHaveTextContent("Banana IT");
 
-    // Make dirty via remove (dual lists), then save remaining empty dual payload.
+    // Make dirty via remove in the preview, then save empty dual payload.
     await user.click(screen.getAllByRole("button", { name: "Remove" })[0]);
     await user.click(screen.getByRole("button", { name: "Save top brands" }));
 
@@ -226,19 +225,19 @@ describe("TopBrandManagementPanel", () => {
     permissionsMock.canManageBrands = false;
     renderPanel();
 
-    const cashbackLabels = await screen.findAllByLabelText(
-      "Cashback for Banana IT",
-    );
+    expect(
+      await screen.findByTestId("top-brand-landing-preview"),
+    ).toHaveTextContent("Banana IT");
 
     expect(
       screen.getByRole("textbox", { name: "Search offers to add" }),
     ).toBeDisabled();
-    expect(cashbackLabels[0]).toHaveTextContent("7%");
+    expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
     expect(screen.getByRole("button", { name: "Save top brands" })).toBeDisabled();
     expect(screen.getByText(/read-only access/i)).toBeInTheDocument();
   });
 
-  it("given saved cashback is empty > when offer has commission_store > then shows derived cashback", async () => {
+  it("given saved brands > then landing preview shows brand labels (#476)", async () => {
     apiClientMock.getTopBrands.mockResolvedValue({
       brands: [{ offerId: "o-shopee", cashback: "" }],
       brandsDesktop: [{ offerId: "o-shopee", cashback: "" }],
@@ -252,13 +251,15 @@ describe("TopBrandManagementPanel", () => {
 
     renderPanel();
 
-    const cashbackLabels = await screen.findAllByLabelText(
-      "Cashback for Shopee",
-    );
-    expect(cashbackLabels[0]).toHaveTextContent("5.6%");
+    expect(
+      await screen.findByTestId("top-brand-preview-desktop-page-0-slot-0"),
+    ).toHaveTextContent("Shopee");
+    expect(
+      screen.getByTestId("top-brand-preview-mobile-grid-slot-0"),
+    ).toHaveTextContent("Shopee");
   });
 
-  it("given a brand added from picker > when offer has commission_store > then prefills cashback", async () => {
+  it("given dual-device lists with one brand > then preview shows the brand on both devices", async () => {
     apiClientMock.getTopBrands.mockResolvedValue({
       brands: [{ offerId: "o-shopee", cashback: "" }],
       brandsDesktop: [{ offerId: "o-shopee", cashback: "" }],
@@ -272,11 +273,60 @@ describe("TopBrandManagementPanel", () => {
 
     renderPanel();
 
-    const cashbackLabels = await screen.findAllByLabelText(
-      "Cashback for Shopee",
+    expect(
+      await screen.findAllByText("Shopee"),
+    ).toHaveLength(2);
+  });
+
+  it("#479 excludes disabled offers from preview and save payload", async () => {
+    const user = userEvent.setup();
+    const disabledShopee = { ...shopeeOffer, disabled: true };
+    apiClientMock.getTopBrands.mockResolvedValue({
+      brands: [
+        { offerId: "o1", cashback: "" },
+        { offerId: "o-shopee", cashback: "" },
+      ],
+      brandsDesktop: [
+        { offerId: "o1", cashback: "" },
+        { offerId: "o-shopee", cashback: "" },
+      ],
+      brandsMobile: [
+        { offerId: "o1", cashback: "" },
+        { offerId: "o-shopee", cashback: "" },
+      ],
+      items: [offer, disabledShopee],
+      order: ["o1", "o-shopee"],
+      orderDesktop: ["o1", "o-shopee"],
+      orderMobile: ["o1", "o-shopee"],
+      maxBrands: 16,
+    });
+    fetchOffersListMock.mockResolvedValue({
+      data: [offer, disabledShopee],
+      limit: 80,
+      page: 1,
+      total: 2,
+      totalPages: 1,
+    });
+
+    renderPanel();
+
+    expect(
+      await screen.findByTestId("top-brand-landing-preview"),
+    ).toHaveTextContent("Banana IT");
+    expect(screen.getByTestId("top-brand-landing-preview")).not.toHaveTextContent(
+      "Shopee",
     );
-    expect(cashbackLabels).toHaveLength(2);
-    expect(cashbackLabels[0]).toHaveTextContent("5.6%");
+    expect(
+      screen.getByText(/Disabled offers are excluded from Top brands/i),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save top brands" }));
+    await waitFor(() => {
+      expect(apiClientMock.saveTopBrands).toHaveBeenCalledWith({
+        brandsDesktop: [{ offerId: "o1", cashback: expect.any(String) }],
+        brandsMobile: [{ offerId: "o1", cashback: expect.any(String) }],
+      });
+    });
   });
 
   it("given typed search text > when fetch returns Shopee > then requests include the search term", async () => {
@@ -356,7 +406,7 @@ describe("TopBrandManagementPanel", () => {
     });
 
     renderPanel();
-    await screen.findAllByLabelText("Cashback for Banana IT");
+    await screen.findByTestId("top-brand-landing-preview");
 
     await user.type(
       screen.getByRole("textbox", { name: "Search offers to add" }),
@@ -449,10 +499,7 @@ describe("TopBrandManagementPanel", () => {
     renderPanel();
 
     expect(
-      await screen.findByRole("heading", { name: "Desktop order" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Mobile order" }),
+      await screen.findByRole("heading", { name: "Landing preview" }),
     ).toBeInTheDocument();
     expect(
       screen.getByTestId("top-brand-preview-desktop-page-0-slot-0"),
@@ -461,7 +508,7 @@ describe("TopBrandManagementPanel", () => {
       screen.getByTestId("top-brand-preview-mobile-grid-slot-0"),
     ).toHaveTextContent("Shopee");
 
-    // Touch a remove+undo-ish dirty path: remove from both, then save empty.
+    // Remove from preview (both device lists); then save.
     await user.click(screen.getAllByRole("button", { name: "Remove" })[0]);
     await user.click(screen.getByRole("button", { name: "Save top brands" }));
 

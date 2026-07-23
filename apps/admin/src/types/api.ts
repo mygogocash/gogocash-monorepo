@@ -23,6 +23,10 @@ export interface ApiError {
   message: string;
   status: number;
   errors?: Record<string, string[]>;
+  /** Nest machine code when present (e.g. POLICY_TRANSACTIONS_UNSUPPORTED). */
+  code?: string;
+  /** Nest ops-actionable detail appended by getApiErrorMessage for POLICY_* gates. */
+  reason?: string;
 }
 
 export interface User {
@@ -435,6 +439,13 @@ export interface OfferProductTypeEntry {
   pay_in?: "cashback" | "cash";
   /** Cashback %: saved net commission (after −30% fee), as a string. */
   commission_info: string;
+  /**
+   * The same rate under the key the affiliate feed and the API's `ProductTypeDto`
+   * use. Read as a fallback for `commission_info` on load and written alongside it
+   * on save (#516) — the API stores `product_type` as a free-form string map with
+   * no row validation, so a key the admin omits is dropped from the document.
+   */
+  minimum?: string;
   /** Raw partner number the admin typed; editing-only, derived from `commission_info` on load and dropped on save. */
   commission_raw?: string;
   /** Cash pay-in: fixed amount paid out. */
@@ -473,7 +484,12 @@ export function normalizeOfferProductTypes(
       return {
         name: String(o.name ?? "").trim(),
         pay_in: o.pay_in === "cash" ? "cash" : "cashback",
-        commission_info: String(o.commission_info ?? "").trim(),
+        // The affiliate feed writes the rate as `minimum`; the admin form models
+        // the same value as `commission_info` (#516). Read either, preferring the
+        // admin key so an edited value is never overwritten by a stale feed one.
+        commission_info: String(
+          o.commission_info ?? (o as { minimum?: unknown }).minimum ?? "",
+        ).trim(),
         amount:
           typeof amountNum === "number" && Number.isFinite(amountNum)
             ? amountNum
@@ -481,6 +497,12 @@ export function normalizeOfferProductTypes(
         currency: String(o.currency ?? "").trim(),
         deeplink: String(o.deeplink ?? "").trim(),
         description: String(o.description ?? "").trim(),
+        // Non-empty saved description ⇒ rewrite was on (#467 load).
+        ...(o.description_rewrite === true ||
+        String(o.description ?? "").trim()
+          ? { description_rewrite: true }
+          : {}),
+        ...(o.is_others === true ? { is_others: true } : {}),
         ...(o.is_tagline === true ? { is_tagline: true } : {}),
       };
     }
@@ -762,6 +784,52 @@ export interface SaveTopBrandsResponse {
   message?: string;
 }
 
+/** One curated homepage landing rail (admin view). */
+export interface LandingRailAdmin {
+  railId: string;
+  title: string;
+  emoji: string;
+  link: string;
+  cardVariant: string;
+  position: number;
+  enabled: boolean;
+  orderDesktop: string[];
+  orderMobile: string[];
+  brandsDesktop: TopBrandConfigEntry[];
+  brandsMobile: TopBrandConfigEntry[];
+}
+
+export interface LandingRailsAdminResponse {
+  rails: LandingRailAdmin[];
+  /** Resolved offer catalog for every curated offerId across all rails. */
+  items: Offer[];
+  maxRails: number;
+  maxBrands: number;
+}
+
+/** One rail in a save payload. Brand lists reuse the Top brands entry shape. */
+export interface SaveLandingRailPayload {
+  railId: string;
+  title?: string;
+  emoji?: string;
+  link?: string;
+  cardVariant?: string;
+  position?: number;
+  enabled?: boolean;
+  brandsDesktop?: TopBrandConfigEntry[];
+  brandsMobile?: TopBrandConfigEntry[];
+}
+
+export interface SaveLandingRailsPayload {
+  rails: SaveLandingRailPayload[];
+}
+
+export interface SaveLandingRailsResponse {
+  success: boolean;
+  rails: LandingRailAdmin[];
+  message?: string;
+}
+
 export interface ResponseWithdraws {
   data: DataWithdrawsList[];
   pagination: Pagination;
@@ -892,6 +960,8 @@ export interface ResponseFee {
   global_withdraw_fee?: number;
   global_minimum_withdraw?: number;
   global_withdraw_currency?: string;
+  /** Referrer earns this % of a referred friend's approved cashback (0-100). */
+  referral_bonus_percent?: number;
 }
 
 export interface FeeSettingsForm {
@@ -911,4 +981,6 @@ export interface FeeSettingsForm {
   global_withdraw_fee: number;
   global_minimum_withdraw: number;
   global_withdraw_currency: string;
+  /** Referrer earns this % of a referred friend's approved cashback (0-100). */
+  referral_bonus_percent: number;
 }

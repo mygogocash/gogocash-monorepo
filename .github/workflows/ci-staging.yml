@@ -1,4 +1,7 @@
-# CI gate for merges to staging — Railway auto-deploys after this passes.
+# CI signal for merges to staging. NOTE: Railway deploys on push, independently
+# of and often BEFORE this workflow finishes — it was observed deploying one
+# second after a push whose CI later concluded failure. This workflow does NOT
+# gate the deploy; branch protection on the PR is what gates the merge.
 #
 # Staging CD is Railway-native (gogocash-api, gogocash-admin, @gogocash/mobile).
 # GCP build-staging.yml is manual rollback only — it does NOT run on push.

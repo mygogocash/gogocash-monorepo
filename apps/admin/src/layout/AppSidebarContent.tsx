@@ -27,6 +27,7 @@ import {
 } from "../icons/index";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { Permission } from "@/lib/rbac";
+import { filterHiddenAdminItems } from "@/config/featureFlags";
 
 export type NavItem = {
   name: string;
@@ -84,6 +85,7 @@ export const navItems: NavItem[] = [
       { name: "Policy Management", path: "/brands?tab=policy", pro: false, permission: "brands:view" },
       { name: "User tracking link", path: "/brands?tab=deeplink", pro: false, permission: "brands:view" },
       { name: "Top brands", path: "/brands?tab=top-brands", pro: false, permission: "brands:view" },
+      { name: "Landing rails", path: "/brands?tab=landing-rails", pro: false, permission: "brands:view" },
       { name: "Missing conversions", path: "/missing-orders", pro: false, permission: "brands:view" },
       { name: "Search Management", path: "/search-config", pro: false, permission: "brands:view" },
     ],
@@ -170,12 +172,18 @@ function filterNav(
   check: (permission: Permission) => boolean,
 ): NavItem[] {
   return items
-    .map((item) => ({
-      ...item,
-      subItems: item.subItems?.filter(
+    .map((item) => {
+      const permitted = item.subItems?.filter(
         (si) => !si.permission || check(si.permission),
-      ),
-    }))
+      );
+      // Drop pre-launch sub-items (Membership/Subscription/Credit score) whose
+      // NEXT_PUBLIC_ENABLE_* flag is "0"; default-on so nothing changes unless a
+      // flag is explicitly set. See @/config/featureFlags.
+      return {
+        ...item,
+        subItems: permitted ? filterHiddenAdminItems(permitted) : undefined,
+      };
+    })
     .filter((item) => {
       if (item.subItems) return item.subItems.length > 0;
       return !item.permission || check(item.permission);

@@ -1,6 +1,7 @@
 "use client";
 
 import SectionTabs from "@/components/common/SectionTabs";
+import { filterHiddenAdminItems } from "@/config/featureFlags";
 
 /** Mirrors `AppSidebarContent` → Users Management submenu (order and paths).
  *  Admin-panel accounts/roles live under Admin Management (AdminManagementTabs). */
@@ -19,9 +20,12 @@ function isTabActive(pathname: string, href: string): boolean {
 }
 
 export default function UsersManagementTabs() {
+  // Hide pre-launch tabs (Membership/Subscription behind GOGOPASS, Credit score
+  // behind CREDIT_SCORE) when their NEXT_PUBLIC_ENABLE_* flag is "0"; default-on.
+  const tabs = filterHiddenAdminItems(USERS_MANAGEMENT_NAV);
   return (
     <SectionTabs
-      tabs={USERS_MANAGEMENT_NAV}
+      tabs={tabs}
       ariaLabel="Users management sections"
       isActive={isTabActive}
     />

@@ -5,6 +5,7 @@ import {
   HttpException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
@@ -34,7 +35,7 @@ import {
 } from './dto/update-withdraw.dto';
 import { ethers, keccak256, solidityPacked } from 'ethers';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { User } from 'src/user/schemas/user.schema';
+import { User, UserDocument } from 'src/user/schemas/user.schema';
 import {
   ClientSession,
   Connection,
@@ -1487,12 +1488,112 @@ export class WithdrawService {
     };
   }
 
+  /**
+   * Admin "View info" for MyCashBack users passes a UserMyCashback `_id`, not an
+   * app User `_id`. Resolve a linked User when possible; otherwise return an
+   * empty withdraw shell so the admin UI can still render the MyCashBack profile
+   * without receiving HTTP 401 (which redirects the browser to `/signin`).
+   */
+  // Returns the hydrated document (`findOne().exec()`, not `.lean()`), so the
+  // annotation must say so — a bare `User` drops `_id` and the document methods,
+  // which is what broke the two `user = await …` assignments below.
+  private async findUserLinkedToMyCashback(mcb: {
+    email?: string;
+    phoneNumber?: string;
+  }): Promise<UserDocument | null> {
+    const or: Record<string, string>[] = [];
+    const email = typeof mcb.email === 'string' ? mcb.email.trim() : '';
+    const phone =
+      typeof mcb.phoneNumber === 'string' ? mcb.phoneNumber.trim() : '';
+    if (email) {
+      or.push({ email });
+    }
+    if (phone) {
+      or.push({ mobile: phone });
+      if (phone.startsWith('0') && phone.length > 1) {
+        or.push({ mobile: `+66${phone.slice(1)}` });
+      } else if (phone.startsWith('+66')) {
+        or.push({ mobile: `0${phone.slice(3)}` });
+      }
+    }
+    if (or.length === 0) {
+      return null;
+    }
+    return this.userModel.findOne({ $or: or }).exec();
+  }
+
+  private async emptyAdminWithdrawDetailFromMyCashback(mcb: {
+    _id?: Types.ObjectId;
+    email?: string;
+    phoneNumber?: string;
+    firstName?: string;
+    lastName?: string;
+  }) {
+    const fee = await this.feeRateModel.findOne().exec();
+    if (!fee) {
+      this.logger.error('Withdrawal blocked: no FeeRate document configured.');
+      throw new HttpException(
+        {
+          message:
+            'Withdrawals are temporarily unavailable. Please try again later or contact support.',
+        },
+        400,
+      );
+    }
+    return {
+      totalsByStatusAndCurrency: [],
+      data: {},
+      fee,
+      withdrawList: [],
+      withdrawSumByCurrency: {
+        pending: {},
+        approved: {},
+      },
+      allConversions: [],
+      user: {
+        _id: mcb._id ? String(mcb._id) : undefined,
+        email: mcb.email ?? '',
+        mobile: mcb.phoneNumber ?? '',
+        firstName: mcb.firstName ?? '',
+        lastName: mcb.lastName ?? '',
+      },
+      withdrawSumThbApproved: { netAmount: 0, count: 0 },
+      withdrawSumUsdApproved: { netAmount: 0, count: 0 },
+      withdrawSumThbPending: { netAmount: 0, count: 0 },
+      withdrawSumUsdPending: { netAmount: 0, count: 0 },
+      myCashbackOnly: true,
+    };
+  }
+
   async listCheckWithdrawNew(id: string) {
-    const user = await this.userModel.findOne({
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException({ message: 'User not found' });
+    }
+
+    let user = await this.userModel.findOne({
       _id: new Types.ObjectId(id),
     });
+    let myCashbackOnly: {
+      _id?: Types.ObjectId;
+      email?: string;
+      phoneNumber?: string;
+      firstName?: string;
+      lastName?: string;
+    } | null = null;
+
     if (!user) {
-      throw new UnauthorizedException({ message: 'User not found' });
+      myCashbackOnly = await this.userMyCashbackModel.findById(id).lean();
+      if (myCashbackOnly) {
+        user = await this.findUserLinkedToMyCashback(myCashbackOnly);
+        if (!user) {
+          return this.emptyAdminWithdrawDetailFromMyCashback(myCashbackOnly);
+        }
+      }
+    }
+
+    if (!user) {
+      // 404 (not 401): admin axios treats any 401 as session expiry → /signin.
+      throw new NotFoundException({ message: 'User not found' });
     }
     const fee = await this.feeRateModel.findOne().exec();
     if (!fee) {
@@ -1958,51 +2059,61 @@ export class WithdrawService {
     id: string,
     existingUser?: { _id: Types.ObjectId; email?: string; mobile?: string },
   ) {
-    const user =
+    let user =
       existingUser ??
-      (await this.userModel.findOne({
-        _id: new Types.ObjectId(id),
-      }));
+      (isValidObjectId(id)
+        ? await this.userModel.findOne({
+            _id: new Types.ObjectId(id),
+          })
+        : null);
 
-    if (!user) {
-      throw new UnauthorizedException({ message: 'User not found' });
+    let myCashbackDataList = [];
+
+    // Admin detail routes pass a UserMyCashback `_id` when opening
+    // /withdraw/:id?from=mycashback. Resolve that document directly.
+    if (!user && isValidObjectId(id)) {
+      const mcbById = await this.userMyCashbackModel.findById(id).lean();
+      if (mcbById) {
+        myCashbackDataList = [mcbById];
+        user = await this.findUserLinkedToMyCashback(mcbById);
+      }
+    }
+
+    if (!user && myCashbackDataList.length < 1) {
+      // Prefer 404 over 401 so admin BFF clients do not treat this as logout.
+      throw new NotFoundException({ message: 'User not found' });
     }
 
     // if(!user?.mobile) {
     //   throw new UnauthorizedException({ message: 'User mobile not found' });
     // }
 
-    const mobileData = user?.mobile?.includes('+66')
-      ? user?.mobile?.slice(3)
-      : user?.mobile;
-    const mobile = '0' + mobileData;
+    if (user && myCashbackDataList.length < 1) {
+      const mobileData = user?.mobile?.includes('+66')
+        ? user?.mobile?.slice(3)
+        : user?.mobile;
+      const mobile = '0' + mobileData;
 
-    // const myCashbackDataList = await this.userMyCashbackModel
-    //   .find({
-    //     $or: [{ email: user.email }, { phoneNumber: user.mobile }, { phoneNumber: mobile }],
-    //   })
-    //   .lean();
+      if (user?.mobile) {
+        myCashbackDataList = await this.userMyCashbackModel
+          .find({
+            $or: [{ phoneNumber: user.mobile }, { phoneNumber: mobile }],
+          })
+          .lean();
+      }
 
-    let myCashbackDataList = [];
-    if (user?.mobile) {
-      myCashbackDataList = await this.userMyCashbackModel
-        .find({
-          $or: [{ phoneNumber: user.mobile }, { phoneNumber: mobile }],
-        })
-        .lean();
-    }
-
-    // Fresh phone-OTP users have no email on the doc; `$regex: undefined`
-    // makes MongoDB throw and 500s /withdraw/check for exactly those users.
-    if (myCashbackDataList?.length < 1 && user?.email) {
-      myCashbackDataList = await this.userMyCashbackModel
-        .find({
-          email: {
-            $regex: `^${escapeRegexLiteral(user.email)}$`,
-            $options: 'i',
-          },
-        })
-        .lean();
+      // Fresh phone-OTP users have no email on the doc; `$regex: undefined`
+      // makes MongoDB throw and 500s /withdraw/check for exactly those users.
+      if (myCashbackDataList?.length < 1 && user?.email) {
+        myCashbackDataList = await this.userMyCashbackModel
+          .find({
+            email: {
+              $regex: `^${escapeRegexLiteral(user.email)}$`,
+              $options: 'i',
+            },
+          })
+          .lean();
+      }
     }
 
     if (myCashbackDataList?.length < 1) {
@@ -2055,12 +2166,16 @@ export class WithdrawService {
       }
     }, 0);
 
+    const myCashbackObjectIds = myCashbackDataList
+      .map((item) => item?._id)
+      .filter(Boolean)
+      .map((oid) => new Types.ObjectId(String(oid)));
     const withdrawListApproved = await this.withdrawModel
       .find({
-        user_id: new Types.ObjectId(user._id),
+        ...(user?._id ? { user_id: new Types.ObjectId(String(user._id)) } : {}),
         mycashback_id: {
-          $in: myCashbackDataList.map((item) => new Types.ObjectId(item?._id)),
-        }, //,
+          $in: myCashbackObjectIds,
+        },
         // 'paid' included so settled MyCashback withdrawals stay deducted.
         status: { $in: ['approved', 'pending', 'paid'] },
       })
