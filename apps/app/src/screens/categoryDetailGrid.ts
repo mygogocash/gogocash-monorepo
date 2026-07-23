@@ -19,7 +19,9 @@ export function getCategoryGridMetrics({
   const layoutGap = isDesktop ? 32 : 0;
   const sidebarWidth = isDesktop ? 280 : 0;
   const gridWidth = Math.max(0, contentWidth - sidebarWidth - layoutGap);
-  const gap = isDesktop || viewportWidth >= 640 ? 16 : 12;
+  // Match the directory section setup (/brand, /shops) so every results grid
+  // reads the same: 24px on desktop, 16 on tablet, 12 on phones.
+  const gap = isDesktop ? 24 : viewportWidth >= 640 ? 16 : 12;
   const preferredColumns = isDesktop
     ? 5
     : viewportWidth >= 768
