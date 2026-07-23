@@ -42,7 +42,7 @@ describe("Category detail parity", () => {
         "Find cashback deals from brands in Health & Beauty. Search and sort to narrow results.",
       searchPlaceholder: "Search within Health & Beauty",
       sortLabel: "Sort by:",
-      storeCountLabel: "13 brands in this category",
+      storeCountLabel: "13 brands",
       categories: [
         "All",
         "Digital Services",
@@ -178,6 +178,19 @@ describe("Category detail parity", () => {
     expect(brandCardFile).toContain("compactBrandLogoFallback");
   });
 
+  it("category detail card > forwards the store href so it routes to /shop/<id>, not a name slug", () => {
+    // Regression guard for the brand-click 404: the category grid MUST pass the
+    // store's real href to BrandCard. Without it, BrandCard falls back to
+    // getTopBrandHref(brand) which slugifies the NAME (e.g. "/shop/traveloka"),
+    // and the ObjectId-keyed GET /offer/:id can't resolve it -> "No merchant
+    // details yet". store.href is already "/shop/<ObjectId>".
+    const screenFile = fs.readFileSync(
+      path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),
+      "utf8"
+    );
+    expect(screenFile).toMatch(/<BrandCard[\s\S]*?href=\{store\.href\}[\s\S]*?\/>/);
+  });
+
   it("category detail grid > given desktop width >= 1024 > then it uses 5 columns matching brand/shop directories", () => {
     const screenFile = fs.readFileSync(
       path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),
@@ -201,6 +214,9 @@ describe("Category detail parity", () => {
     expect(screenFile).not.toContain("Find cashback deals from stores in");
     expect(screenFile).toContain('count === 1 ? "brand" : "brands"');
     expect(screenFile).not.toContain('"store" : "stores"');
+    // Count label aligns with Explore Brand's `{n} brands` (CustomerBrandDirectoryScreen
+    // renders `${count} ${tc(webBrandDirectory.resultsUnit)}`) — no trailing clause.
+    expect(screenFile).not.toContain("in this category");
 
     // tc() only resolves the localized Health & Beauty subtitle when the inline template's output
     // (category interpolated) equals this fixture — so they must stay in lockstep.
@@ -210,5 +226,28 @@ describe("Category detail parity", () => {
     expect(fixture.subtitle).toBe(
       "Find cashback deals from brands in Health & Beauty. Search and sort to narrow results."
     );
+  });
+
+  it("category detail header gap > matches the brand/shop/product directories (Math.max(8, insets.top + 8)), not spacing.lg", () => {
+    // The three Explore directories (brand/shop/product) all pad the scroll
+    // content's top by Math.max(8, insets.top + 8). The category page used
+    // spacing.lg (24px), leaving a visibly larger navbar->header gap on
+    // /category/<name> (e.g. "Explore your Favorite Travel"). Pin it to the
+    // directory value so all four Explore surfaces share the same gap.
+    const screenFile = fs.readFileSync(
+      path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),
+      "utf8"
+    );
+    const brandDir = fs.readFileSync(
+      path.join(mobileRoot, "src/screens/discovery/CustomerBrandDirectoryScreen.tsx"),
+      "utf8"
+    );
+    const directoryGap = "Math.max(8, insets.top + 8)";
+    // Reference invariant: the directory the user pointed to as "correct".
+    expect(brandDir).toContain(directoryGap);
+    // Both category shells (desktop + mobile) must use the directory gap...
+    expect(screenFile.split(directoryGap).length - 1).toBeGreaterThanOrEqual(2);
+    // ...and no longer the larger spacing.lg top padding.
+    expect(screenFile).not.toContain("Math.max(spacing.lg, insets.top + spacing.lg)");
   });
 });

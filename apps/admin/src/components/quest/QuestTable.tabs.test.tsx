@@ -457,6 +457,32 @@ describe("QuestTable management tabs", () => {
     expect(screen.queryByLabelText("Spend target (THB)")).toBeNull();
   });
 
+  it("editing spend-target amount or referral completion rule does not crash (currentTarget-in-updater regression)", async () => {
+    // Regression: these onChange handlers read event.currentTarget inside the
+    // setTaskDrafts functional updater, which runs AFTER React nulls
+    // currentTarget → "Cannot read properties of null (reading 'value')" tripped
+    // the quest error boundary. Handlers must capture the value synchronously.
+    const user = userEvent.setup();
+    renderQuestTable("create");
+    await user.click(await screen.findByRole("button", { name: "Add task" }));
+    const taskType = screen.getByRole("combobox", { name: "Task type" });
+
+    await user.selectOptions(taskType, "spend_target");
+    const spend = screen.getByLabelText("Spend target (THB)");
+    await user.clear(spend);
+    await user.type(spend, "500");
+    expect(spend).toHaveValue(500);
+    fireEvent.change(spend, { target: { value: "2500" } });
+    expect(spend).toHaveValue(2500);
+
+    await user.selectOptions(taskType, "friend_referral");
+    const rule = screen.getByRole("combobox", {
+      name: "Complete invitation rule",
+    });
+    fireEvent.change(rule, { target: { value: "first_earning_conversion" } });
+    expect(rule).toHaveValue("first_earning_conversion");
+  });
+
   it("upgrades a saved brand-only legacy quest to task-v2 for a canonical membership audience", async () => {
     const user = userEvent.setup();
     questQueries.fetchAdminQuests.mockResolvedValue([
@@ -1480,5 +1506,53 @@ describe("QuestTable management tabs", () => {
     expect((await screen.findAllByText("Closed")).length).toBe(2);
     expect(screen.queryByText("open")).not.toBeInTheDocument();
     expect(screen.queryByText("close")).not.toBeInTheDocument();
+  });
+
+  it("previews a stored banner and shows none for an empty banner slot (BUG 4)", async () => {
+    const driveId = "1wqlSrCi2LQ2Q6NohLnWbtpvbvO17_yKh";
+    questQueries.fetchAdminQuests.mockResolvedValue([
+      { ...quest, banner_en: driveId, banner_th: "" },
+    ]);
+    renderQuestTable();
+
+    const preview = await screen.findByAltText("Current Banner EN");
+    expect(preview).toHaveAttribute(
+      "src",
+      `https://drive.google.com/uc?export=view&id=${driveId}`,
+    );
+    // An empty banner slot must not render a stale preview.
+    expect(screen.queryByAltText("Current Banner TH")).not.toBeInTheDocument();
+  });
+
+  it("does not preview banners while creating a new quest (BUG 4)", async () => {
+    renderQuestTable("create");
+
+    await screen.findByLabelText("Banner EN");
+    expect(screen.queryByAltText("Current Banner EN")).not.toBeInTheDocument();
+  });
+
+  it("explains where legacy-quest brand tasks live (GAP 5)", async () => {
+    // Default fixture quest is reward_model: "legacy_v1".
+    renderQuestTable();
+
+    expect(
+      await screen.findByText(
+        /brand tasks are managed per-offer in the Offers module/i,
+      ),
+    ).toBeVisible();
+  });
+
+  it("hides the legacy-quest note for a task-v2 quest (GAP 5)", async () => {
+    questQueries.fetchAdminQuests.mockResolvedValue([
+      { ...quest, reward_model: "task_v2" },
+    ]);
+    renderQuestTable();
+
+    await screen.findByRole("tab", { name: /Quest tasks/i });
+    expect(
+      screen.queryByText(
+        /brand tasks are managed per-offer in the Offers module/i,
+      ),
+    ).not.toBeInTheDocument();
   });
 });

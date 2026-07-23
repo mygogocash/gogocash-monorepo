@@ -81,6 +81,7 @@ describe("PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS", () => {
       "allBrandBanner",
       "allShopBanner",
       "homeBanner",
+      "landingRails",
       "merchant",
       "merchantCoupons",
       "productDiscoveryBanner",

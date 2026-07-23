@@ -32,6 +32,7 @@ import { ALL_BRAND_BANNER_MODEL, Banner } from './schemas/banner.schema';
 import { SPECIFIC_PAGE_BANNER_MODEL } from './schemas/specific-page-banner.schema';
 import { requireSpecificPageBannerTarget } from './specific-page-banner.contract';
 import { TopBrandConfig } from './schemas/top-brand-config.schema';
+import { LandingRailConfig } from './schemas/landing-rail-config.schema';
 import { Coupon } from './schemas/coupon.schema';
 import { UpdateCouponDto } from './dto/update-offer.dto';
 import { MissionOrder } from './schemas/missing-order.schema';
@@ -66,6 +67,11 @@ import {
   resolveDeviceBrandEntries,
   resolveOfferCashbackLabel,
 } from './top-brand.contract';
+import {
+  DEFAULT_LANDING_RAIL_CARD_VARIANT,
+  normalizeLandingRailMeta,
+  sortLandingRails,
+} from './landing-rail.contract';
 import { syncOfferTopBrandMembership } from './top-brand-membership';
 import { MISSION_ORDER_SCHEMA_VERSION } from './schemas/missing-order.schema';
 import {
@@ -595,6 +601,8 @@ export class OfferService implements OnApplicationBootstrap {
     private allBrandBannerModel: Model<Banner>,
     @InjectModel(TopBrandConfig.name)
     private topBrandConfigModel: Model<TopBrandConfig>,
+    @InjectModel(LandingRailConfig.name)
+    private landingRailConfigModel: Model<LandingRailConfig>,
     @InjectModel(MissionOrder.name)
     private missionOrderModel: Model<MissionOrder>,
     @InjectModel(Quest.name) private questModel: Model<Quest>,
@@ -1547,6 +1555,100 @@ export class OfferService implements OnApplicationBootstrap {
     const dataMobile = toDisplay(mobileEntries);
     // `data` stays desktop-shaped for legacy clients / E2E pollers.
     return { data: dataDesktop, dataDesktop, dataMobile };
+  }
+
+  /**
+   * Public home "landing rails": every enabled admin-curated rail
+   * ("Trending Brands", "Travel Deals are Here!", "Makeup Must Have!"), ordered
+   * by position, each hydrated from live offer economics exactly like
+   * {@link getDisplayTopBrands}. Rails whose curated offers all resolve to
+   * unknown/inactive offers still return (with empty cards) so the customer app
+   * can fall back to its fixture for that rail. No rails → empty list (the
+   * client falls back to fixtures entirely).
+   */
+  async getDisplayLandingRails() {
+    const rails = sortLandingRails(
+      await this.landingRailConfigModel
+        .find({ enabled: { $ne: false } })
+        .exec(),
+    );
+    if (rails.length === 0) {
+      return { data: [] };
+    }
+
+    const unionIds = [
+      ...new Set(
+        rails.flatMap((rail) => [
+          ...resolveDeviceBrandEntries(rail, 'desktop').map((e) => e.offerId),
+          ...resolveDeviceBrandEntries(rail, 'mobile').map((e) => e.offerId),
+        ]),
+      ),
+    ];
+
+    const offers =
+      unionIds.length === 0
+        ? []
+        : await this.offerModel
+            .find({
+              _id: { $in: unionIds },
+              ...ACTIVE_OFFER_FILTER,
+            } as any)
+            .select(
+              'offer_id offer_name offer_name_display logo logo_desktop logo_mobile logo_circle commission_store commissions',
+            )
+            .exec();
+    const offerById = new Map(
+      offers.map((offer) => [String(offer._id), offer]),
+    );
+
+    const toDisplay = (entries: { offerId: string; cashback: string }[]) =>
+      entries
+        .map((entry) => {
+          const offer = offerById.get(entry.offerId);
+          if (!offer) {
+            return null;
+          }
+          const row = offer as {
+            _id: unknown;
+            offer_id: number;
+            offer_name: string;
+            offer_name_display?: string;
+            logo?: string;
+            logo_desktop?: string;
+            logo_mobile?: string;
+            logo_circle?: string;
+            commission_store?: unknown;
+            commissions?: unknown[];
+          };
+          return {
+            _id: String(row._id),
+            offer_id: row.offer_id,
+            brand: row.offer_name_display?.trim() || row.offer_name,
+            logo: resolvePublicOfferLogo(row),
+            cashback: resolveOfferCashbackLabel(row),
+          };
+        })
+        .filter((brand) => brand !== null);
+
+    const data = rails.map((rail, index) => {
+      const meta = normalizeLandingRailMeta(rail, index);
+      const dataDesktop = toDisplay(resolveDeviceBrandEntries(rail, 'desktop'));
+      const dataMobile = toDisplay(resolveDeviceBrandEntries(rail, 'mobile'));
+      return {
+        railId: meta.railId,
+        title: meta.title,
+        emoji: meta.emoji,
+        link: meta.link,
+        cardVariant: meta.cardVariant || DEFAULT_LANDING_RAIL_CARD_VARIANT,
+        position: meta.position,
+        // `data` stays desktop-shaped for legacy clients / E2E pollers.
+        data: dataDesktop,
+        dataDesktop,
+        dataMobile,
+      };
+    });
+
+    return { data };
   }
 
   async updateCoupon(body: UpdateCouponDto) {

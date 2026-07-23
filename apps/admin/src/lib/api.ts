@@ -25,6 +25,9 @@ import {
   TopBrandsAdminResponse,
   SaveTopBrandsPayload,
   SaveTopBrandsResponse,
+  LandingRailsAdminResponse,
+  SaveLandingRailsPayload,
+  SaveLandingRailsResponse,
   WithdrawQuery,
   ResponseWithdraws,
   ConversionQuery,
@@ -1070,6 +1073,21 @@ class ApiClient {
     return this.request<SaveTopBrandsResponse>("/admin/top-brands", {
       method: "PUT",
       body: JSON.stringify(body),
+    });
+  }
+
+  async getLandingRails(): Promise<LandingRailsAdminResponse> {
+    return this.request<LandingRailsAdminResponse>("/admin/landing-rails", {
+      method: "GET",
+    });
+  }
+
+  async saveLandingRails(
+    payload: SaveLandingRailsPayload,
+  ): Promise<SaveLandingRailsResponse> {
+    return this.request<SaveLandingRailsResponse>("/admin/landing-rails", {
+      method: "PUT",
+      body: JSON.stringify(payload),
     });
   }
 

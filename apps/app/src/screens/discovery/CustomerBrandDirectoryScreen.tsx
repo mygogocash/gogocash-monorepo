@@ -45,12 +45,10 @@ import {
   type WebBrandDirectorySort,
 } from "@mobile/design/webDesignParity";
 
+import { BrandCard } from "@mobile/components/BrandCard";
+import { getBrandCardLargeHeight } from "@mobile/components/brandCardMetrics";
 import { BrandDirectoryCategoryAside } from "./BrandDirectoryCategoryAside";
-import { BrandDirectoryStoreCard } from "./BrandDirectoryStoreCard";
-import {
-  DirectoryVirtualizedGrid,
-  getDirectoryStoreCardHeight,
-} from "./directoryVirtualizedGrid";
+import { DirectoryVirtualizedGrid } from "./directoryVirtualizedGrid";
 import { type BrandDirectoryStore } from "./discoveryTypes";
 import { ShopDirectoryPagination } from "./ShopDirectoryPagination";
 import { SpecificPageBannerCarousel } from "./SpecificPageBannerCarousel";
@@ -174,12 +172,34 @@ export function CustomerBrandDirectoryScreen() {
     specificPageBanner.retry();
     requestAnimationFrame(() => setRefreshing(false));
   }, [catalogResource, categoryResource, specificPageBanner]);
-  const brandDirectoryRowHeight = getDirectoryStoreCardHeight(gridMetrics.cardWidth);
+  // Sized for the shared BrandCard this grid renders, NOT the legacy bespoke
+  // ShopDirectoryStoreCard (two-line name) that getDirectoryStoreCardHeight
+  // still covers for the shop directory — that formula left ~40px dead under
+  // every brand card.
+  const brandDirectoryRowHeight = getBrandCardLargeHeight(gridMetrics.cardWidth);
   const renderBrandDirectoryCard = useCallback(
     (store: BrandDirectoryStore) => (
-      <BrandDirectoryStoreCard cardWidth={gridMetrics.cardWidth} store={store} />
+      // Unified with the shared BrandCard (size "L") used by the home rails, Top Brands,
+      // category + shop-detail surfaces — so every brand card renders identically (logo
+      // tile, favorite heart pinned bottom-right, single-line name, cashback row) instead
+      // of the bespoke BrandDirectoryStoreCard that drifted from that component.
+      <BrandCard
+        accessibilityLabel={`${store.brand} ${store.cashback} cashback`}
+        brand={store.brand}
+        cardHeight={brandDirectoryRowHeight}
+        cardWidth={gridMetrics.cardWidth}
+        cashback={store.cashback}
+        href={store.href}
+        id={store.id}
+        label={store.label}
+        logoUri={store.logoUri}
+        showGrabCoupon={store.showGrabCoupon}
+        size="L"
+        testID={`brand-directory-card-${store.id}`}
+        tint={store.tint}
+      />
     ),
-    [gridMetrics.cardWidth]
+    [brandDirectoryRowHeight, gridMetrics.cardWidth]
   );
 
   // Desktop search lives in the header (CustomerDesktopHeader); only mobile needs the sticky search.

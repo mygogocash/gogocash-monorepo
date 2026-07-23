@@ -16,9 +16,17 @@ import SortByDropdown from "@/components/ui/button/SortByDropdown";
 import SearchBar from "@/components/ui/button/SearchBar";
 import { planCycle, CYCLE_LABEL, CYCLE_BADGE } from "@/lib/subscriptionCycle";
 import { tierFromScore, CREDIT_TIER_BADGE } from "@/lib/creditTier";
+import { isCreditScoreEnabled, isGoGoPassEnabled } from "@/config/featureFlags";
 
 /** Users-table filter dimension; each maps to a second-dropdown value set. */
 type FilterDim = "tier" | "membership" | "subscription";
+
+/** Label shown in the dimension dropdown for each filter dimension. */
+const DIM_LABEL: Record<FilterDim, string> = {
+  tier: "Credit Tier",
+  membership: "Membership",
+  subscription: "Subscription",
+};
 
 /** Second-dropdown options per dimension ([value, label]); "" = no filter. */
 const FILTER_VALUES: Record<FilterDim, [string, string][]> = {
@@ -43,6 +51,18 @@ const FILTER_VALUES: Record<FilterDim, [string, string][]> = {
 };
 
 export default function UsersTable() {
+  // Pre-launch feature-flag gating (build-time constants; see featureFlags.ts).
+  // Credit tier is gated by NEXT_PUBLIC_ENABLE_CREDIT_SCORE; membership +
+  // subscription by NEXT_PUBLIC_ENABLE_GOGOPASS. `availableDims` is the set of
+  // filter dimensions whose flag is on — it drives both the dimension dropdown
+  // and the default `filterDim`, so a hidden dimension can never be selected.
+  const creditScoreEnabled = isCreditScoreEnabled();
+  const goGoPassEnabled = isGoGoPassEnabled();
+  const availableDims: FilterDim[] = [
+    ...(creditScoreEnabled ? (["tier"] as FilterDim[]) : []),
+    ...(goGoPassEnabled ? (["membership", "subscription"] as FilterDim[]) : []),
+  ];
+
   const searchParams = useSearchParams();
   const { loading, error, getUsers, clearError } = useApi();
   const [isLoading, setIsLoading] = useState(false);
@@ -74,7 +94,12 @@ export default function UsersTable() {
     search: searchParams.get("search") ?? "",
     sort: "newest",
   }));
-  const [filterDim, setFilterDim] = useState<FilterDim>("tier");
+  // Default to the first visible dimension so the dropdown never starts on a
+  // flag-hidden one ("tier" is the fallback only when nothing is available,
+  // in which case the whole filter group is not rendered).
+  const [filterDim, setFilterDim] = useState<FilterDim>(
+    () => availableDims[0] ?? "tier",
+  );
 
   // Guards: ignore out-of-order responses; debounce free-text search.
   const reqIdRef = useRef(0);
@@ -200,29 +225,37 @@ export default function UsersTable() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-            Sort by
-            <SortByDropdown
-              value={filterDim}
-              onChange={(e) => handleDimChange(e.target.value as FilterDim)}
-              aria-label="Filter dimension"
-            >
-              <option value="tier">Credit Tier</option>
-              <option value="membership">Membership</option>
-              <option value="subscription">Subscription</option>
-            </SortByDropdown>
-          </label>
-          <SortByDropdown
-            value={query[filterDim] ?? ""}
-            onChange={(e) => applyFilter(filterDim, e.target.value)}
-            aria-label="Filter value"
-          >
-            {FILTER_VALUES[filterDim].map(([value, label]) => (
-              <option key={value || "all"} value={value}>
-                {label}
-              </option>
-            ))}
-          </SortByDropdown>
+          {availableDims.length > 0 && (
+            <>
+              <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                Sort by
+                <SortByDropdown
+                  value={filterDim}
+                  onChange={(e) =>
+                    handleDimChange(e.target.value as FilterDim)
+                  }
+                  aria-label="Filter dimension"
+                >
+                  {availableDims.map((dim) => (
+                    <option key={dim} value={dim}>
+                      {DIM_LABEL[dim]}
+                    </option>
+                  ))}
+                </SortByDropdown>
+              </label>
+              <SortByDropdown
+                value={query[filterDim] ?? ""}
+                onChange={(e) => applyFilter(filterDim, e.target.value)}
+                aria-label="Filter value"
+              >
+                {FILTER_VALUES[filterDim].map(([value, label]) => (
+                  <option key={value || "all"} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </SortByDropdown>
+            </>
+          )}
           <SearchBar
             placeholder="Search by email, user ID, or phone"
             value={query.search}
@@ -268,15 +301,21 @@ export default function UsersTable() {
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Role
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      Tier
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      Membership
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                      Subscription
-                    </th>
+                    {creditScoreEnabled && (
+                      <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                        Tier
+                      </th>
+                    )}
+                    {goGoPassEnabled && (
+                      <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                        Membership
+                      </th>
+                    )}
+                    {goGoPassEnabled && (
+                      <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                        Subscription
+                      </th>
+                    )}
                     <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                       Actions
                     </th>
@@ -337,37 +376,43 @@ export default function UsersTable() {
                             {"User"}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {user.creditScore != null ? (
+                        {creditScoreEnabled && (
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {user.creditScore != null ? (
+                              <span
+                                className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold capitalize ${CREDIT_TIER_BADGE[tierFromScore(user.creditScore)]}`}
+                              >
+                                {tierFromScore(user.creditScore)}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                        )}
+                        {goGoPassEnabled && (
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <span
-                              className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold capitalize ${CREDIT_TIER_BADGE[tierFromScore(user.creditScore)]}`}
+                              className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                                user.membershipTier === "GoGoPass Plus"
+                                  ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
+                                  : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                              }`}
                             >
-                              {tierFromScore(user.creditScore)}
+                              {user.membershipTier ?? "—"}
                             </span>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                              user.membershipTier === "GoGoPass Plus"
-                                ? "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200"
-                                : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                            }`}
-                          >
-                            {user.membershipTier ?? "—"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {user.subscriptionPlan ? (
-                            <span
-                              className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${CYCLE_BADGE[planCycle(user.subscriptionPlan)]}`}
-                            >
-                              {CYCLE_LABEL[planCycle(user.subscriptionPlan)]}
-                            </span>
-                          ) : null}
-                        </td>
+                          </td>
+                        )}
+                        {goGoPassEnabled && (
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {user.subscriptionPlan ? (
+                              <span
+                                className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${CYCLE_BADGE[planCycle(user.subscriptionPlan)]}`}
+                              >
+                                {CYCLE_LABEL[planCycle(user.subscriptionPlan)]}
+                              </span>
+                            ) : null}
+                          </td>
+                        )}
                         <td className="relative px-6 py-4 text-sm font-medium whitespace-nowrap">
                           <div
                             ref={

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import {
   ClipboardText as ClipboardIcon,
   Copy as CopyIcon,
@@ -25,6 +25,7 @@ export function DesktopGoLinkBanner({
   onOpenGuideline,
   onResultHref,
   variant = "default",
+  comingSoon = false,
 }: DesktopGoLinkBannerProps) {
   const styles = useHomeScreenStyles();
   const colors = useHomeScreenColors();
@@ -33,7 +34,12 @@ export function DesktopGoLinkBanner({
   const [goLinkInput, setGoLinkInput] = useState("");
   const tc = useCopy();
 
+  // Coming-soon: the box stays visible but every interaction is a no-op.
   const handlePasteAndGo = () => {
+    if (comingSoon) {
+      return;
+    }
+
     const nextGoLinkInput = goLinkInput.trim();
 
     setGoLinkError("");
@@ -49,6 +55,13 @@ export function DesktopGoLinkBanner({
     }
 
     onResultHref(nextGoLinkInput);
+  };
+
+  const handleOpenGuideline = () => {
+    if (comingSoon) {
+      return;
+    }
+    onOpenGuideline();
   };
 
   return (
@@ -77,8 +90,10 @@ export function DesktopGoLinkBanner({
       <MotionPressable
         accessibilityLabel={tc("About GoLink")}
         accessibilityRole="button"
+        accessibilityState={comingSoon ? { disabled: true } : undefined}
+        disabled={comingSoon}
         hitSlop={10}
-        onPress={onOpenGuideline}
+        onPress={handleOpenGuideline}
         pressScale={motion.scale.subtlePress}
         style={styles.desktopGoLinkInfoButton}
       >
@@ -106,8 +121,20 @@ export function DesktopGoLinkBanner({
           isMobileTabletHeader ? styles.mobileTabletGoLinkForm : null,
         ]}
       >
-        <View style={styles.desktopGoLinkEyebrow}>
-          <Text style={styles.desktopGoLinkEyebrowText}>GoGoLink</Text>
+        <View style={comingSoonStyles.eyebrowRow}>
+          <View style={styles.desktopGoLinkEyebrow}>
+            <Text style={styles.desktopGoLinkEyebrowText}>GoGoLink</Text>
+          </View>
+          {comingSoon ? (
+            <View
+              style={[
+                comingSoonStyles.badge,
+                { backgroundColor: colors.primary },
+              ]}
+            >
+              <Text style={comingSoonStyles.badgeText}>{tc("Coming soon")}</Text>
+            </View>
+          ) : null}
         </View>
         <View style={styles.desktopGoLinkHeadlineRow}>
           <Text
@@ -149,6 +176,7 @@ export function DesktopGoLinkBanner({
           style={[
             styles.desktopGoLinkControls,
             isMobileTabletHeader ? styles.mobileTabletGoLinkControls : null,
+            comingSoon ? comingSoonStyles.dimmed : null,
           ]}
         >
           <View style={styles.desktopGoLinkInputField}>
@@ -167,6 +195,7 @@ export function DesktopGoLinkBanner({
                 accessibilityLabel={tc(webGoLinkFeature.inputLabel)}
                 autoCapitalize="none"
                 autoCorrect={false}
+                editable={!comingSoon}
                 inputMode="url"
                 onChangeText={(nextValue) => {
                   setGoLinkInput(nextValue);
@@ -186,6 +215,8 @@ export function DesktopGoLinkBanner({
           </View>
           <MotionPressable
             accessibilityRole="button"
+            accessibilityState={comingSoon ? { disabled: true } : undefined}
+            disabled={comingSoon}
             onPress={handlePasteAndGo}
             pressScale={motion.scale.subtlePress}
             style={[
@@ -200,3 +231,26 @@ export function DesktopGoLinkBanner({
     </View>
   );
 }
+
+// Coming-soon visuals live locally (not in customerHomeStyles) so the shared
+// home style sheet — and its dead-code guard — stays untouched.
+const comingSoonStyles = StyleSheet.create({
+  eyebrowRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  badge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  dimmed: {
+    opacity: 0.5,
+  },
+});

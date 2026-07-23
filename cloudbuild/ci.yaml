@@ -1,6 +1,6 @@
 steps:
   - id: npm-ci
-    name: node:24-bookworm
+    name: node:26-bookworm
     entrypoint: bash
     args:
       - -ceu
@@ -10,7 +10,7 @@ steps:
         npm ci
 
   - id: lint
-    name: node:24-bookworm
+    name: node:26-bookworm
     entrypoint: bash
     args:
       - -ceu
@@ -21,7 +21,7 @@ steps:
         npm run lint --workspace gogocash-admin
 
   - id: test
-    name: node:24-bookworm
+    name: node:26-bookworm
     entrypoint: bash
     args:
       - -ceu
@@ -31,7 +31,7 @@ steps:
         npm run test
 
   - id: build
-    name: node:24-bookworm
+    name: node:26-bookworm
     entrypoint: bash
     args:
       - -ceu

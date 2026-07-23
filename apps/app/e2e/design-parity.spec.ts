@@ -602,13 +602,13 @@ test.describe("mobile design QA parity", () => {
     await expect(authCard.getByText("Privacy Policy", { exact: true })).toBeVisible();
     await expect(authCard.getByText("or sign in with", { exact: true })).toBeVisible();
     for (const providerLabel of [
-      "Facebook",
-      "Gmail",
-      "Telegram",
-      "Apple",
-      "X",
-      "Microsoft",
-      "Connect Wallet",
+      "Continue with Facebook",
+      "Continue with Google",
+      "Continue with Telegram",
+      "Continue with Apple",
+      "Continue with X",
+      "Continue with Microsoft",
+      "Continue with Connect Wallet",
     ]) {
       await expect(
         authCard.getByRole("button", { exact: true, name: providerLabel })

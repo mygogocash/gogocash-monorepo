@@ -69,7 +69,12 @@ gcloud builds submit --config cloudbuild.yaml .
 # Set your project ID
 export PROJECT_ID=your-project-id
 
-# Build the Docker image
+# Build the Docker image.
+# Pre-launch surfaces default VISIBLE (only the literal "0" hides). To hide them,
+# pass on Docker builds:
+#   --build-arg NEXT_PUBLIC_ENABLE_CREDIT_SCORE=0 --build-arg NEXT_PUBLIC_ENABLE_GOGOPASS=0
+# On non-Docker hosts (Vercel / App Engine / Cloudflare) set the same two vars as
+# BUILD-scope env; on Railway set them as service variables (docs/railway-env-matrix.md).
 docker build -t gcr.io/$PROJECT_ID/gogocash-admin .
 
 # Push to Google Container Registry

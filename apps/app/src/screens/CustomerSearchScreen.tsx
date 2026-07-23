@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshControl, ScrollView, Text, useWindowDimensions, View } from "react-native";
+import { RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -12,7 +12,6 @@ import { useOfferSearch } from "@mobile/account/useOfferSearch";
 import { trackSearchOpen, trackSearchSubmit } from "@mobile/analytics/events";
 import { useAnalytics } from "@mobile/analytics/useAnalytics";
 import { getResponsiveHomeLayoutMetrics, webHomePromoSections } from "@mobile/design/webDesignParity";
-import { useCopy } from "@mobile/i18n/useCopy";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
 import {
   clearSearchHistory,
@@ -40,7 +39,6 @@ const TRENDING_TERM_LIMIT = 8;
 export function CustomerSearchScreen() {
   const styles = useThemedStyles(createSearchScreenStyles);
   const { colors } = useTheme();
-  const tc = useCopy();
   const { region } = useLocale();
   const analytics = useAnalytics();
   const router = useRouter();
@@ -175,8 +173,8 @@ export function CustomerSearchScreen() {
     return null;
   }
 
-  const showIdleHint = !hasQuery && recentSearches.length === 0;
   const showPopularBelowQuery = hasQuery && status !== "loading";
+  const showPopularIntro = !hasQuery || showPopularBelowQuery;
   const showIdleSuggestions = !hasQuery;
   const showSuggestionsGrid =
     (showIdleSuggestions && suggestionGridTerms.length > 0) ||
@@ -222,19 +220,11 @@ export function CustomerSearchScreen() {
           }}
           onSelect={handleSelectRecent}
         />
-        {showIdleHint ? (
-          <Text style={styles.idleHint}>
-            {tc("Start typing to search brands, stores, products, or cashback.")}
-          </Text>
-        ) : null}
         {hasQuery ? <SearchResultsSections matches={matches} query={query} status={status} /> : null}
         {showPopularBelowQuery ? (
-          <>
-            <View style={styles.sectionDivider} />
-            <SearchPopularIntro variant="compact" />
-          </>
+          <View style={styles.sectionDivider} />
         ) : null}
-        {!hasQuery ? <SearchPopularIntro variant="large" /> : null}
+        {showPopularIntro ? <SearchPopularIntro /> : null}
         {!hasQuery ? (
           <SearchTrendingChips
             onSelect={(term) => {

@@ -54,7 +54,7 @@ export function SearchRecentChips({ items, onClear, onRemove, onSelect }: Search
                 accessibilityRole="button"
                 onPress={() => onSelect(item)}
                 pressScale={motion.scale.subtlePress}
-                style={{ flex: 1, minWidth: 0 }}
+                style={styles.recentChipSelect}
               >
                 <Text numberOfLines={1} style={styles.recentChipText}>
                   {item}

@@ -14,6 +14,7 @@ import { FavoriteOffer } from './schemas/favorite-offer.schema';
 import { Banner } from './schemas/banner.schema';
 import { SPECIFIC_PAGE_BANNER_MODEL } from './schemas/specific-page-banner.schema';
 import { TopBrandConfig } from './schemas/top-brand-config.schema';
+import { LandingRailConfig } from './schemas/landing-rail-config.schema';
 import { MissionOrder } from './schemas/missing-order.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { User } from 'src/user/schemas/user.schema';
@@ -66,6 +67,7 @@ describe('OfferService', () => {
   let allBrandBannerModel: any;
   let specificPageBannerModel: any;
   let topBrandConfigModel: any;
+  let landingRailConfigModel: any;
   let missionOrderModel: any;
   let questModel: any;
   let featuredSearchModel: any;
@@ -134,6 +136,16 @@ describe('OfferService', () => {
         }),
       }),
       updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+    };
+    landingRailConfigModel = {
+      find: jest.fn().mockReturnValue(makeQuery([])),
+      findOne: jest.fn().mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      }),
+      updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 0 }),
     };
     // missionOrderModel is used BOTH as a constructor (`new this.missionOrderModel(...)`)
     // and as a static query holder (`this.missionOrderModel.find(...)`), so the
@@ -249,6 +261,10 @@ describe('OfferService', () => {
         {
           provide: getModelToken(TopBrandConfig.name),
           useValue: topBrandConfigModel,
+        },
+        {
+          provide: getModelToken(LandingRailConfig.name),
+          useValue: landingRailConfigModel,
         },
         {
           provide: getModelToken(MissionOrder.name),
@@ -2497,6 +2513,136 @@ describe('OfferService', () => {
           cashback: '12.5%',
         },
       ]);
+    });
+  });
+
+  describe('getDisplayLandingRails', () => {
+    it('getDisplayLandingRails > given no rails > then returns empty and skips the offer lookup', async () => {
+      landingRailConfigModel.find.mockReturnValue(makeQuery([]));
+
+      await expect(service.getDisplayLandingRails()).resolves.toEqual({
+        data: [],
+      });
+      expect(offerModel.find).not.toHaveBeenCalled();
+    });
+
+    it('getDisplayLandingRails > given enabled rails > then returns rails ordered by position with live cashback', async () => {
+      landingRailConfigModel.find.mockReturnValue(
+        makeQuery([
+          {
+            railId: 'travel',
+            title: 'Travel Deals are Here!',
+            emoji: '✈️',
+            link: '/category/Travel',
+            cardVariant: 'brandLogoBadge',
+            position: 1,
+            brandsDesktop: [{ offerId: 'id2', cashback: 'stale' }],
+            brandsMobile: [{ offerId: 'id2', cashback: 'stale' }],
+          },
+          {
+            railId: 'trending',
+            title: 'Trending Brands',
+            link: '/brand',
+            position: 0,
+            brandsDesktop: [{ offerId: 'id1', cashback: 'stale' }],
+            brandsMobile: [],
+          },
+        ]),
+      );
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: 'id1',
+            offer_id: 1,
+            offer_name: 'Alpha',
+            logo: 'a.png',
+            commission_store: 12.5,
+          },
+          {
+            _id: 'id2',
+            offer_id: 2,
+            offer_name: 'Bravo',
+            logo: 'b.png',
+            commission_store: 10,
+          },
+        ]),
+      );
+
+      const result = await service.getDisplayLandingRails();
+
+      // position ⇒ trending (0) before travel (1)
+      expect(result.data.map((r: { railId: string }) => r.railId)).toEqual([
+        'trending',
+        'travel',
+      ]);
+      const [trending, travel] = result.data;
+      expect(trending).toEqual({
+        railId: 'trending',
+        title: 'Trending Brands',
+        emoji: '',
+        link: '/brand',
+        cardVariant: 'brandLogoBadge',
+        position: 0,
+        data: [
+          {
+            _id: 'id1',
+            offer_id: 1,
+            brand: 'Alpha',
+            logo: 'a.png',
+            cashback: '12.5%',
+          },
+        ],
+        dataDesktop: [
+          {
+            _id: 'id1',
+            offer_id: 1,
+            brand: 'Alpha',
+            logo: 'a.png',
+            cashback: '12.5%',
+          },
+        ],
+        dataMobile: [],
+      });
+      expect(travel.emoji).toBe('✈️');
+      expect(travel.dataDesktop).toEqual([
+        {
+          _id: 'id2',
+          offer_id: 2,
+          brand: 'Bravo',
+          logo: 'b.png',
+          cashback: '10%',
+        },
+      ]);
+      expect(travel.dataMobile).toEqual([
+        {
+          _id: 'id2',
+          offer_id: 2,
+          brand: 'Bravo',
+          logo: 'b.png',
+          cashback: '10%',
+        },
+      ]);
+    });
+
+    it('getDisplayLandingRails > given a rail whose offers are all inactive > then returns the rail with empty cards', async () => {
+      landingRailConfigModel.find.mockReturnValue(
+        makeQuery([
+          {
+            railId: 'trending',
+            title: 'Trending Brands',
+            position: 0,
+            brandsDesktop: [{ offerId: 'gone', cashback: '' }],
+            brandsMobile: [{ offerId: 'gone', cashback: '' }],
+          },
+        ]),
+      );
+      // Active-offer filter drops it ⇒ no offers returned.
+      offerModel.find.mockReturnValue(makeQuery([]));
+
+      const result = await service.getDisplayLandingRails();
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].dataDesktop).toEqual([]);
+      expect(result.data[0].dataMobile).toEqual([]);
     });
   });
 

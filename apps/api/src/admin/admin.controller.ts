@@ -32,6 +32,7 @@ import {
   GetConversionInWithdrawDto,
   RejectOfferDto,
   SaveTopBrandsDto,
+  SaveLandingRailsDto,
   UpdateAdminDto,
   UpdateBannerHomeBodyDto,
   UpdateBannerHomeDto,
@@ -417,6 +418,25 @@ export class AdminController {
     return this.adminService.saveTopBrands(body);
   }
 
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Get('landing-rails')
+  getLandingRails() {
+    return this.adminService.getLandingRails();
+  }
+
+  @UseGuards(AuthAdminGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  // Homepage curated rails — a mutation, so it must not be reachable by a
+  // read-only viewer (mirrors the Top brands write gate).
+  @Roles('approver')
+  @Put('landing-rails')
+  saveLandingRails(@Body() body: SaveLandingRailsDto) {
+    return this.adminService.saveLandingRails(body);
+  }
+
   // Creating an admin account is a superadmin action (parallels the gated
   // invite flow); without this gate any authenticated admin could mint a
   // superadmin via a mass-assigned role.
@@ -511,6 +531,14 @@ export class AdminController {
   @Get('get-fee-rate')
   getFeeRate() {
     return this.adminService.getFeeRate();
+  }
+
+  // Public: the customer app reads only the referral bonus % (not the rest of
+  // the admin-guarded fee singleton) to render the dynamic Share & Earn copy.
+  @Public()
+  @Get('referral-bonus-percent')
+  getReferralBonusPercent() {
+    return this.adminService.getReferralBonusPercent();
   }
 
   @UseGuards(AuthAdminGuard)

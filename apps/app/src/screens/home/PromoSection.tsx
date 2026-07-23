@@ -39,7 +39,7 @@ export function PromoSection({
   const styles = useHomeScreenStyles();
   const colors = useHomeScreenColors();
   const tc = useCopy();
-  const sectionCards = getPromoSectionCards(id, cards);
+  const sectionCards = getPromoSectionCards(id, cards, homeLayout);
   // Issue #253: Travel / Beauty / Trending use the same size="L" Top Brands card
   // (full-bleed artwork + favorite heart). Layout metrics follow topBrand*.
   const layoutMode = getPromoSectionLayoutMode(homeLayout.isDesktop, sectionCards.length);

@@ -12,8 +12,14 @@
 # Pass them explicitly so admin API calls and customer-app deep links target the
 # same environment. NEXT_PUBLIC_API_URL has no default to avoid silently pointing
 # production builds at staging.
+#
+# NEXT_PUBLIC_ENABLE_CREDIT_SCORE / NEXT_PUBLIC_ENABLE_GOGOPASS are pre-launch
+# feature flags (default-ENABLED; only the literal "0" hides). They are declared
+# as build ARGs so a "0" set as a Railway service variable or a CI --build-arg is
+# inlined by Next into the client bundle; without the ARG the value never reaches
+# Next and the surfaces cannot be hidden. See src/config/featureFlags.ts.
 
-FROM node:24-slim AS builder
+FROM node:26-slim AS builder
 WORKDIR /app
 
 # 1) Install dependencies from the lockfile first, for layer caching.
@@ -42,16 +48,22 @@ RUN npm install --global npm@10.9.8 \
 COPY apps/admin ./apps/admin
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_APP_URL
+# Pre-launch feature flags — optional (no required-check): unset/empty reads as
+# enabled, only the literal "0" hides. See the header note and featureFlags.ts.
+ARG NEXT_PUBLIC_ENABLE_CREDIT_SCORE
+ARG NEXT_PUBLIC_ENABLE_GOGOPASS
 RUN test -n "$NEXT_PUBLIC_API_URL" || (echo "ERROR: NEXT_PUBLIC_API_URL build-arg is required" >&2 && exit 1)
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_ENABLE_CREDIT_SCORE=$NEXT_PUBLIC_ENABLE_CREDIT_SCORE
+ENV NEXT_PUBLIC_ENABLE_GOGOPASS=$NEXT_PUBLIC_ENABLE_GOGOPASS
 ENV STANDALONE=1
 ENV NEXT_TELEMETRY_DISABLED=1
 # Production mode for the Next compile only — after deps are fully installed.
 ENV NODE_ENV=production
 RUN npm run build:standalone -w gogocash-admin
 
-FROM node:24-slim AS runner
+FROM node:26-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

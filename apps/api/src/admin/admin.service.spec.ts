@@ -20,6 +20,7 @@ import { UserMyCashback } from 'src/user/schemas/user-my-cashback.schema';
 import { Banner } from 'src/offer/schemas/banner.schema';
 import { SPECIFIC_PAGE_BANNER_MODEL } from 'src/offer/schemas/specific-page-banner.schema';
 import { TopBrandConfig } from 'src/offer/schemas/top-brand-config.schema';
+import { LandingRailConfig } from 'src/offer/schemas/landing-rail-config.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import { StoredMediaService } from 'src/media/stored-media.service';
 import { MEDIA_FOLDER } from 'src/media/media-folders.config';
@@ -83,6 +84,7 @@ describe('AdminService', () => {
   let allBrandBannerModel: any;
   let specificPageBannerModel: any;
   let topBrandConfigModel: any;
+  let landingRailConfigModel: any;
   let deeplinkModel: any;
   let storedMediaService: {
     upload: jest.Mock;
@@ -237,6 +239,12 @@ describe('AdminService', () => {
       updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
       findOne: jest.fn().mockReturnValue(makeQuery(null)),
     };
+    landingRailConfigModel = {
+      find: jest.fn().mockReturnValue(makeQuery([])),
+      findOne: jest.fn().mockReturnValue(makeQuery(null)),
+      updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
+      deleteMany: jest.fn().mockReturnValue(makeQuery({ deletedCount: 0 })),
+    };
     deeplinkModel = { aggregate: jest.fn() };
     storedMediaService = {
       upload: jest
@@ -360,6 +368,10 @@ describe('AdminService', () => {
         {
           provide: getModelToken(TopBrandConfig.name),
           useValue: topBrandConfigModel,
+        },
+        {
+          provide: getModelToken(LandingRailConfig.name),
+          useValue: landingRailConfigModel,
         },
         { provide: getModelToken(Deeplink.name), useValue: deeplinkModel },
         { provide: StoredMediaService, useValue: storedMediaService },
@@ -3465,6 +3477,129 @@ describe('AdminService', () => {
         brandsDesktop: persistedDesktop,
         brandsMobile: persistedMobile,
       });
+    });
+  });
+
+  describe('saveLandingRails', () => {
+    beforeEach(() => {
+      offerModel.find.mockImplementation(
+        (filter: { _id?: { $in?: unknown[] } }) => {
+          const ids = (filter?._id?.$in ?? []).map(String);
+          return makeQuery(
+            ids.map((id) => ({ _id: id, disabled: false, status: 'approved' })),
+          );
+        },
+      );
+    });
+
+    it('saveLandingRails > given rails > then upserts each by railId and drops removed rails', async () => {
+      const result = await service.saveLandingRails({
+        rails: [
+          {
+            railId: 'Trending',
+            title: 'Trending Brands',
+            link: '/brand',
+            position: 1,
+            brandsDesktop: [{ offerId: 'offer-1', cashback: 'forged' }],
+          },
+          {
+            railId: 'travel',
+            title: 'Travel Deals are Here!',
+            emoji: '✈️',
+            position: 0,
+            brandsDesktop: [{ offerId: 'offer-2', cashback: 'forged' }],
+            brandsMobile: [{ offerId: 'offer-2', cashback: 'forged' }],
+          },
+        ],
+      });
+
+      // replace-set: deleteMany keeps only the two railIds sent.
+      expect(landingRailConfigModel.deleteMany).toHaveBeenCalledWith({
+        railId: { $nin: ['travel', 'trending'] },
+      });
+      // one upsert per rail
+      expect(landingRailConfigModel.updateOne).toHaveBeenCalledTimes(2);
+      const travelUpdate = landingRailConfigModel.updateOne.mock.calls.find(
+        (call: any[]) => call[0].railId === 'travel',
+      );
+      expect(travelUpdate[2]).toEqual({ upsert: true });
+      // cashback is never trusted from the client
+      expect(travelUpdate[1].$set.brandsDesktop).toEqual([
+        { offerId: 'offer-2', cashback: '' },
+      ]);
+      // sorted by position ⇒ travel(0) before trending(1)
+      expect(result.rails.map((r) => r.railId)).toEqual(['travel', 'trending']);
+      expect(result.success).toBe(true);
+    });
+
+    it('saveLandingRails > given a disabled offer > then rejects the save', async () => {
+      offerModel.find.mockReturnValue(
+        makeQuery([{ _id: 'offer-x', disabled: true, status: 'approved' }]),
+      );
+
+      await expect(
+        service.saveLandingRails({
+          rails: [
+            {
+              railId: 'trending',
+              title: 'Trending',
+              brandsDesktop: [{ offerId: 'offer-x', cashback: '' }],
+            },
+          ],
+        }),
+      ).rejects.toThrow(/Disabled or missing offers/);
+      expect(landingRailConfigModel.updateOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getLandingRails', () => {
+    it('getLandingRails > given saved rails > then returns them ordered with live cashback', async () => {
+      landingRailConfigModel.find.mockReturnValue(
+        makeQuery([
+          {
+            railId: 'trending',
+            title: 'Trending Brands',
+            position: 1,
+            brandsDesktop: [{ offerId: 'offer-1', cashback: 'stale' }],
+            brandsMobile: [],
+          },
+          {
+            railId: 'travel',
+            title: 'Travel Deals are Here!',
+            emoji: '✈️',
+            position: 0,
+            brandsDesktop: [{ offerId: 'offer-2', cashback: 'stale' }],
+            brandsMobile: [{ offerId: 'offer-2', cashback: 'stale' }],
+          },
+        ]),
+      );
+      offerModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: 'offer-1',
+            offer_id: 1,
+            offer_name: 'Alpha',
+            commission_store: 8,
+          },
+          {
+            _id: 'offer-2',
+            offer_id: 2,
+            offer_name: 'Bravo',
+            commission_store: 12,
+          },
+        ]),
+      );
+
+      const result = await service.getLandingRails();
+
+      expect(result.rails.map((r) => r.railId)).toEqual(['travel', 'trending']);
+      const travel = result.rails[0];
+      expect(travel.emoji).toBe('✈️');
+      expect(travel.brandsDesktop).toEqual([
+        { offerId: 'offer-2', cashback: '12%' },
+      ]);
+      expect(result.maxRails).toBeGreaterThan(0);
+      expect(result.maxBrands).toBeGreaterThan(0);
     });
   });
 

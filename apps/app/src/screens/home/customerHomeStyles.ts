@@ -267,7 +267,7 @@ export function createHomeScreenStyles(colors: ThemeColors, surfaces: ThemeSurfa
     color: pickThemed(colors, "#103522", colors.accent),
     fontFamily: typography.family,
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: "400",
     lineHeight: 24,
   },
   searchPopoverTitleCompact: {

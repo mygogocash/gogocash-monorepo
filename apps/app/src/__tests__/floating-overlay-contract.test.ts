@@ -54,4 +54,18 @@ describe("floating overlay contract (#251)", () => {
     expect(home).toContain("<CustomerLineOfficialFab");
     expect(home).not.toMatch(/MOBILE:[\s\S]*<CustomerLineOfficialFab/);
   });
+
+  it("LINE Official FAB has an inviting idle animation that respects reduce-motion", () => {
+    const fab = fs.readFileSync(
+      path.join(mobileRoot, "src/components/CustomerLineOfficialFab.tsx"),
+      "utf8",
+    );
+    // Founder request 2026-07-22: make the FAB feel alive + inviting so users want to tap.
+    // A looping transform-only (compositor-friendly) grow/bob, disabled under reduce-motion.
+    expect(fab).toContain("Animated.loop");
+    expect(fab).toContain("useReducedMotion");
+    expect(fab).toContain("if (reduced)");
+    // pointerEvents must live in style, not the deprecated RN-web prop.
+    expect(fab).toContain('pointerEvents: "box-none"');
+  });
 });

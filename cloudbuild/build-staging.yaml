@@ -19,6 +19,11 @@ steps:
       - apps/admin/Dockerfile
       - --build-arg
       - NEXT_PUBLIC_API_URL=https://api-staging.gogocash.co
+      # Pre-launch surfaces hidden in staging (default-ENABLED; only "0" hides).
+      - --build-arg
+      - NEXT_PUBLIC_ENABLE_CREDIT_SCORE=0
+      - --build-arg
+      - NEXT_PUBLIC_ENABLE_GOGOPASS=0
       - --tag
       - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/gogocash-admin:$COMMIT_SHA
       - --tag
@@ -26,7 +31,7 @@ steps:
       - .
 
   - id: export-app-web
-    name: node:24-bookworm
+    name: node:26-bookworm
     entrypoint: bash
     args:
       - -ceu

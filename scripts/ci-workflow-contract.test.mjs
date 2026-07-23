@@ -84,7 +84,7 @@ const packageJson = JSON.parse(
   readFileSync(resolve(repoRoot, "package.json"), "utf8"),
 );
 const SETUP_NODE_ACTION =
-  "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e";
+  "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020";
 
 function indentation(line) {
   return line.match(/^ */)?.[0].length ?? 0;
@@ -199,7 +199,7 @@ function parseSteps(job) {
   }));
 }
 
-function assertPinnedNode24BeforeRun(job, expectedRun, label) {
+function assertPinnedNode26BeforeRun(job, expectedRun, label) {
   const steps = parseSteps(job);
   const setupSteps = steps
     .map((step, index) => ({ index, step }))
@@ -212,14 +212,14 @@ function assertPinnedNode24BeforeRun(job, expectedRun, label) {
   );
   assert.equal(
     parseNestedMapping(setupSteps[0].step.lines, 8, "with").get("node-version"),
-    "24",
-    `${label} must select Node 24 explicitly`,
+    "26",
+    `${label} must select Node 26 explicitly`,
   );
   const commandIndex = steps.findIndex((step) => step.run === expectedRun);
   assert.notEqual(commandIndex, -1, `${label} must run ${expectedRun}`);
   assert.ok(
     setupSteps[0].index < commandIndex,
-    `${label} must setup Node 24 before its Node command`,
+    `${label} must setup Node 26 before its Node command`,
   );
 }
 
@@ -721,7 +721,7 @@ test("workflow-contract changes are path-filtered into their own job", () => {
     ),
     "workflow-contract job must execute the root contract script",
   );
-  assertPinnedNode24BeforeRun(
+  assertPinnedNode26BeforeRun(
     contractJob,
     "npm run test:workflow-contracts",
     "workflow-contract job",
@@ -759,7 +759,7 @@ test("Expo EAS workflows are manual-only and validated by the required workflow 
       validation.continueOnError === "false",
     "EAS workflow schema validation must be blocking",
   );
-  assertPinnedNode24BeforeRun(
+  assertPinnedNode26BeforeRun(
     contractJob,
     "npm run validate:eas-workflows",
     "workflow-contract job",
@@ -844,7 +844,7 @@ test("required CI gate accepts only success or legitimate path-filter skips", as
     parseNestedMapping(gateStep.lines, 8, "env").get("NEEDS_JSON"),
     "${{ toJSON(needs) }}",
   );
-  assertPinnedNode24BeforeRun(
+  assertPinnedNode26BeforeRun(
     gate,
     "node scripts/deployment/ci-required-gate.mjs",
     "aggregate CI gate",
@@ -1031,7 +1031,7 @@ test("manual GCP release consumes an exact SHA plus selected digest map and cann
 
 test("Cloud Run release requires the SHA tag to match the build-reported digest", () => {
   assert.match(deployCloudRunSource, /environment:\s+staging/);
-  assert.match(deployCloudRunSource, /node-version:\s+"24"/);
+  assert.match(deployCloudRunSource, /node-version:\s+"26"/);
   assert.match(
     deployCloudRunSource,
     /run: node scripts\/deployment\/gcp-image-proof\.mjs/,
@@ -1198,7 +1198,7 @@ test("native EAS scaffold is staging-only and verifies CI for the exact SHA", ()
   );
   assert.doesNotMatch(easDeploySource, /node <<'NODE'/);
   assert.match(easDeploySource, /ref:\s+\$\{\{ github\.sha \}\}/);
-  assert.match(easDeploySource, /node-version:\s+"24"/);
+  assert.match(easDeploySource, /node-version:\s+"26"/);
   assert.match(easDeploySource, /npm@10\.9\.8/);
   assert.match(easDeploySource, /eas-version:\s+"21\.0\.1"/);
   assert.match(
@@ -1289,8 +1289,8 @@ test("native EAS provider JSON is validated before build or OTA proof is surface
   assert.ok(firebaseIndex >= 0 && firebaseIndex < firstProviderWrite);
 });
 
-test("exact EAS CI proof runs on Node 24 and rejects provenance ambiguity", async () => {
-  assert.match(process.versions.node, /^24\./);
+test("exact EAS CI proof runs on Node 26 and rejects provenance ambiguity", async () => {
+  assert.match(process.versions.node, /^26\./);
   const sha = "a".repeat(40);
   const baseRun = {
     conclusion: null,

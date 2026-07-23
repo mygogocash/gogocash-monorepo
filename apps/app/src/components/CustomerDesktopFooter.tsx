@@ -83,7 +83,7 @@ export function CustomerDesktopFooter({
                     />
                   ))}
                 </View>
-                {section.title === "Products" ? <FooterCloudflareTrust /> : null}
+                {section.title === "Company" ? <FooterCloudflareTrust /> : null}
               </View>
             ))}
           </View>

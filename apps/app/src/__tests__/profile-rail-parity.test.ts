@@ -31,7 +31,9 @@ describe("desktop profile rail parity", () => {
     // gogopass-flag.test.ts), so the full-menu pin targets the filtered map.
     expect(shell).toContain("filterHiddenProfileMenuItems(profileHubMenuItems).map");
     expect(shell).not.toContain("profileHubMenuItems.slice(0, 9)");
-    expect(shell).toContain("profileHubSubNavItems.map");
+    // Profile-accordion sub-nav also flows through the shared filter so the
+    // "My Rating Score" (/credit-score) row drops when CREDIT_SCORE="0".
+    expect(shell).toContain("filterHiddenProfileMenuItems(profileHubSubNavItems).map");
     expect(shell).not.toContain("profileHubGoGoTrackSubNavItems");
     expect(shell).toContain("shouldAutoExpandProfileSubNav");
     expect(shell).not.toContain("shouldAutoExpandGoGoTrackSubNav");

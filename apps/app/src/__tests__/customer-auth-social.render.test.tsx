@@ -110,7 +110,7 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
   it("backend mode > tapping Google > exchanges the Firebase token and persists the session", async () => {
     renderLogin();
 
-    fireEvent.click(screen.getByRole("button", { name: "Gmail" }));
+    fireEvent.click(screen.getByRole("button", { name: "Google" }));
 
     await waitFor(() => {
       expect(signInWithSocialProvider).toHaveBeenCalledWith("google");
@@ -134,7 +134,7 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
     signInWithNativeGoogle.mockResolvedValue({ idToken: "native-google-id-token" });
 
     renderLogin();
-    fireEvent.click(screen.getByRole("button", { name: "Gmail" }));
+    fireEvent.click(screen.getByRole("button", { name: "Google" }));
 
     await waitFor(() => {
       expect(signInWithNativeGoogle).toHaveBeenCalled();
@@ -158,7 +158,7 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
     signInWithNativeGoogle.mockRejectedValue(new GoogleSignInNotConfiguredError());
 
     renderLogin();
-    fireEvent.click(screen.getByRole("button", { name: "Gmail" }));
+    fireEvent.click(screen.getByRole("button", { name: "Google" }));
 
     await waitFor(() => {
       expect(signInWithNativeGoogle).toHaveBeenCalled();
@@ -179,13 +179,15 @@ describe("CustomerAuthScreen — backend mode social sign-in", () => {
     expect(screen.queryByRole("button", { name: "Apple" })).toBeNull();
   });
 
-  it("disabled providers > Facebook is not rendered in backend mode", () => {
-    // Facebook hidden (2026-07-18): Firebase OAuth fails on staging login.
-    // Native Facebook OAuth seam stays covered by native-oauth-signin.test.ts.
+  it("re-enabled providers > Facebook and Telegram render in backend mode", () => {
+    // Founder (2026-07-22): Facebook + Telegram re-enabled. Both sign-in seams were
+    // already built — Facebook via Firebase FacebookAuthProvider, Telegram via the
+    // /auth/log-in/telegram endpoint + Login Widget (web-only tap handler).
     platformState.OS = "android";
 
     renderLogin();
-    expect(screen.queryByRole("button", { name: "Facebook" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Facebook" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Telegram" })).not.toBeNull();
   });
 
   it("disabled providers > Microsoft and X are not rendered in backend mode", () => {

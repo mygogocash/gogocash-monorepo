@@ -32,7 +32,7 @@ export type StoredMediaTargetSpec = {
 /**
  * Kept byte-for-byte equivalent to stored-media-targets.ts and guarded by a
  * contract test. This script intentionally has no local TypeScript imports so
- * Node 24 can execute it through native type stripping without SWC/TS7.
+ * Node 26 can execute it through native type stripping without SWC/TS7.
  */
 export const GCS_R2_TARGET_SPECS: StoredMediaTargetSpec[] = [
   {

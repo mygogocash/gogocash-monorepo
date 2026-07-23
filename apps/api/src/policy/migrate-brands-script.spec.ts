@@ -164,7 +164,7 @@ describe('migrate-brands policy media contract', () => {
     );
   });
 
-  it('uses the Node 24 native TypeScript runner instead of the incompatible SWC register hook', () => {
+  it('uses the Node 26 native TypeScript runner instead of the incompatible SWC register hook', () => {
     const packageJson = JSON.parse(
       fs.readFileSync(path.resolve(__dirname, '../../package.json'), 'utf8'),
     );
@@ -179,7 +179,7 @@ describe('migrate-brands policy media contract', () => {
     );
   });
 
-  it('boots under the current Node 24 binary and refuses a dry-run without Mongo', () => {
+  it('boots under the current Node 26 binary and refuses a dry-run without Mongo', () => {
     const env = { ...process.env };
     delete env.MONGO_URI;
     const result = spawnSync(
@@ -196,7 +196,7 @@ describe('migrate-brands policy media contract', () => {
         encoding: 'utf8',
       },
     );
-    expect(process.versions.node).toMatch(/^24\./);
+    expect(process.versions.node).toMatch(/^26\./);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('MONGO_URI is not set. Aborting.');
     expect(result.stderr).not.toContain('ts.Extension');

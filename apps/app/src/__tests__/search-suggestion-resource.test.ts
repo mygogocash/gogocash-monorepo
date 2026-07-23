@@ -108,7 +108,16 @@ describe("search suggestion UI wiring", () => {
     const gridSource = readMobileFile("src/screens/search/SearchSuggestionsGrid.tsx");
 
     expect(gridSource).not.toContain("webHomeSearchPopularPanel.subtitle");
-    expect(gridSource).toContain('tc("Tap a brand to search its cashback deals.")');
+    expect(gridSource).toContain('tc("Explore standout cashback offers.")');
+  });
+
+  it("SearchSuggestionsGrid > given wide mobile columns > then its logo height is capped locally", () => {
+    const gridSource = readMobileFile("src/screens/search/SearchSuggestionsGrid.tsx");
+
+    expect(gridSource).toContain("SEARCH_SUGGESTION_LOGO_MAX_HEIGHT = 132");
+    expect(gridSource).toContain("Math.min(");
+    expect(gridSource).toContain("mobileShellLayout.compactBrandMetaHeight");
+    expect(gridSource).toContain('cashbackCaption="Cashback up to"');
   });
 
   it("CustomerSearchScreen > given brand catalog resource > then passes live cards to the grid", () => {

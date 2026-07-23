@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { OfferLike } from "@/lib/offerDisplay";
 import {
   buildQuestRewardPayloads,
   buildQuestRewardSavePayload,
@@ -289,5 +290,79 @@ describe("QuestTable task helpers", () => {
     expect(bangkokDateTimeInputToISOString("2026-07-01T09:30")).toBe(
       "2026-07-01T02:30:00.000Z",
     );
+  });
+});
+
+// Regression: a brand_purchase task saved with BLANK wording must NOT block Save — the
+// field helper promises "leave blank -> brand default", and the customer app DROPS a task
+// with no wording (questTaskMapper: `if (!title) return null`). So blank brand wording must
+// resolve to the brand default at the save boundary. Referral/spend tasks have no brand to
+// fall back on, so they still require explicit wording.
+describe("QuestTable brand-default wording (blank -> brand default)", () => {
+  const shopeeOffers = new Map<string, OfferLike>([
+    [
+      "offer-shopee",
+      {
+        _id: "offer-shopee",
+        offer_name: "Shopee",
+        offer_name_display: "Shopee",
+        countries: "TH",
+      },
+    ],
+  ]);
+
+  const blankBrandTask = {
+    clientId: "brand-blank",
+    task_type: "brand_purchase" as const,
+    offer: "offer-shopee",
+    points: 50,
+    enabled: true,
+    wording: "",
+    wording_en: "",
+    wording_th: "",
+    notes: "",
+  };
+
+  it("validateQuestTasks > brand_purchase blank wording WITH a resolvable brand default > passes", () => {
+    // Without the offer catalog the default cannot be resolved -> still blocked (old behavior).
+    expect(validateQuestTasks([blankBrandTask])).toContain("customer wording");
+    // With the catalog, the brand default satisfies the wording requirement.
+    expect(validateQuestTasks([blankBrandTask], shopeeOffers)).toBeNull();
+  });
+
+  it("validateQuestTasks > friend_referral blank wording > still required (no brand fallback)", () => {
+    expect(
+      validateQuestTasks(
+        [
+          {
+            clientId: "ref",
+            task_type: "friend_referral",
+            completion_rule: "account_created",
+            points: 50,
+            enabled: true,
+            wording_en: "",
+            wording_th: "",
+            notes: "",
+          },
+        ],
+        shopeeOffers,
+      ),
+    ).toContain("customer wording");
+  });
+
+  it("buildQuestTaskPayloads > brand_purchase blank wording > materializes the per-language brand default", () => {
+    const [payload] = buildQuestTaskPayloads([blankBrandTask], shopeeOffers);
+    expect(payload.wording_en).toBe("Make an order on Shopee");
+    expect(payload.wording_th).toBe("สั่งซื้อที่ Shopee");
+    expect(payload.wording).toBe("Make an order on Shopee");
+  });
+
+  it("buildQuestTaskPayloads > explicit wording is never overwritten; only blank languages fill", () => {
+    const [payload] = buildQuestTaskPayloads(
+      [{ ...blankBrandTask, wording: "Buy now", wording_en: "Buy now" }],
+      shopeeOffers,
+    );
+    expect(payload.wording_en).toBe("Buy now"); // kept as typed
+    expect(payload.wording_th).toBe("สั่งซื้อที่ Shopee"); // blank -> brand default
   });
 });
