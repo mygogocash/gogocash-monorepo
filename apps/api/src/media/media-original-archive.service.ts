@@ -13,7 +13,7 @@ import {
 } from './schemas/media-original-archive.schema';
 
 /** A public, image upload is eligible to be archived to Drive. */
-export function isArchivableUpload(
+function isArchivableUpload(
   file: Pick<Express.Multer.File, 'mimetype'> | undefined,
   folder: MediaFolder,
 ): boolean {

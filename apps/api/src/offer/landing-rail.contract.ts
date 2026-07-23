@@ -222,5 +222,3 @@ export function landingRailMemberIds(
   }
   return normalizeTopBrandEntries(ids).map((entry) => entry.offerId);
 }
-
-export { resolveDeviceBrandEntries, resolveOfferCashbackLabel };
