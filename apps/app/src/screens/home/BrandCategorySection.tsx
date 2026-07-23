@@ -40,14 +40,6 @@ export function BrandCategorySection({
 
   return (
     <View style={homeStyles.section} testID="home-brand-categories">
-      <View style={homeStyles.sectionHeader}>
-        <View style={homeStyles.titleRow}>
-          <Text ellipsizeMode="tail" numberOfLines={1} style={homeStyles.sectionTitle}>
-            {tc("Shop by category")}
-          </Text>
-        </View>
-      </View>
-
       <View style={[styles.grid, { gap }]}>
         {tiles.map((tile) => (
           <Link asChild href={tile.href as never} key={tile.id}>
@@ -123,10 +115,10 @@ function createBrandCategoryStyles(colors: ThemeColors) {
     cardTitle: {
       color: colors.ink,
       fontFamily: typography.family,
-      fontSize: 15,
+      fontSize: 18,
       fontWeight: typography.labelWeight,
-      lineHeight: 20,
-      marginTop: spacing.xs,
+      lineHeight: 24,
+      marginTop: 2,
     },
   });
 }
