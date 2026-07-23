@@ -18,7 +18,7 @@ import { motion } from "@mobile/theme/motion";
 import {
   chunkTopBrandCards,
   getPromoGridCardWidth,
-  getPromoSectionLayoutMode,
+  getTopBrandSectionLayoutMode,
 } from "./homeHelpers";
 import { useHomeScreenColors, useHomeScreenStyles } from "./homeScreenHooks";
 import { type HomeLayoutMetrics, type TopBrandCardProps } from "./homeTypes";
@@ -48,9 +48,13 @@ export function TopBrandSection({
     apiBaseUrl,
     homeLayout.isDesktop ? "desktop" : "mobile",
   );
-  // Same mobile treatment as the promo rails (founder feedback 2026-07-11):
-  // few cards → static grid; more → free momentum scroll; desktop pager.
-  const layoutMode = getPromoSectionLayoutMode(homeLayout.isDesktop, topBrands.length);
+  // Top Brands is intentionally unique on the phone home page: every curated brand
+  // expands into the two-column vertical grid. Tablet and desktop keep their existing
+  // adaptive rail/pager behavior, and PromoSection remains unchanged.
+  const layoutMode = getTopBrandSectionLayoutMode(
+    homeLayout,
+    topBrands.length,
+  );
   const isPager = layoutMode === "pager";
   const topBrandColumns = chunkTopBrandCards(topBrands, homeLayout.topBrandRowsPerPage);
   const gridCardWidth = getPromoGridCardWidth(

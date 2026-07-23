@@ -90,6 +90,21 @@ export function getPromoSectionLayoutMode(
   return cardCount <= PROMO_GRID_MAX_CARDS ? "grid" : "scroll";
 }
 
+/**
+ * Top Brands is the one home rail that expands fully down the phone page.
+ * Tablet keeps the adaptive grid/rail behavior and desktop keeps the pager.
+ */
+export function getTopBrandSectionLayoutMode(
+  homeLayout: Pick<HomeLayoutMetrics, "designVersion" | "isDesktop">,
+  cardCount: number,
+): HomeCarouselLayoutMode {
+  if (homeLayout.designVersion === "mobile") {
+    return "grid";
+  }
+
+  return getPromoSectionLayoutMode(homeLayout.isDesktop, cardCount);
+}
+
 /** Fit-all grid: two columns filling the section frame exactly. */
 export function getPromoGridCardWidth(frameWidth: number, gap: number): number {
   return Math.floor((frameWidth - gap) / 2);

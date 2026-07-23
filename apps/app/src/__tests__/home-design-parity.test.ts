@@ -436,15 +436,15 @@ describe("Expo home design parity", () => {
     expect(homeFile).not.toContain("contentContainerStyle={styles.brandCardRow}");
   });
 
-  it("home design parity > given staging Top Brands carousel > then desktop pages while mobile free-scrolls column flow", () => {
-    // Founder feedback 2026-07-11 gated snapping so mobile flowed columns freely while
-    // desktop kept a paged group. #498 removed the paged group entirely: the page boundary
-    // was the visible gap between cards, so BOTH now scroll one continuous column-major
-    // group and the dots became a proportional progress rail.
+  it("home design parity > given staging Top Brands > then phone expands vertically while larger layouts retain the rail", () => {
+    // Founder feedback 2026-07-23 makes Top Brands unique to this page: phones render
+    // every curated card in the fit-all grid. Tablet and desktop retain the existing
+    // continuous column rail behavior.
     const homeFile = readHomeFile();
 
     expect(homeFile).toContain("horizontal");
-    expect(homeFile).toContain("getPromoSectionLayoutMode(homeLayout.isDesktop, topBrands.length)");
+    expect(homeFile).toContain("getTopBrandSectionLayoutMode(");
+    expect(homeFile).toContain("getTopBrandSectionLayoutMode(\n    homeLayout,");
     expect(homeFile).not.toContain("snapToInterval={isPager ? homeLayout.topBrandGroupWidth : undefined}");
     expect(homeFile).not.toContain("topBrandPages.map");
     expect(homeFile).toContain("styles.topBrandScroll");

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getPromoGridCardWidth,
   getPromoSectionLayoutMode,
+  getTopBrandSectionLayoutMode,
 } from "@mobile/screens/home/homeHelpers";
 import { getResponsiveHomeLayoutMetrics } from "@mobile/design/webDesignParity";
 
@@ -27,6 +28,27 @@ describe("getPromoSectionLayoutMode", () => {
   it("given mobile with more cards than fit > then free-scrolls without snapping", () => {
     expect(getPromoSectionLayoutMode(false, 5)).toBe("scroll");
     expect(getPromoSectionLayoutMode(false, 16)).toBe("scroll");
+  });
+});
+
+describe("getTopBrandSectionLayoutMode", () => {
+  it("given a phone catalog of any size > then shows every Top Brand in the vertical grid", () => {
+    const phone = getResponsiveHomeLayoutMetrics(390);
+    expect(getTopBrandSectionLayoutMode(phone, 1)).toBe("grid");
+    expect(getTopBrandSectionLayoutMode(phone, 40)).toBe("grid");
+  });
+
+  it("given tablet or either desktop width tier > then preserves the existing rail behavior", () => {
+    const tablet = getResponsiveHomeLayoutMetrics(834);
+    const desktopShellWithTabletDesign = getResponsiveHomeLayoutMetrics(1100);
+    const wideDesktop = getResponsiveHomeLayoutMetrics(1440);
+
+    expect(getTopBrandSectionLayoutMode(tablet, 4)).toBe("grid");
+    expect(getTopBrandSectionLayoutMode(tablet, 5)).toBe("scroll");
+    expect(desktopShellWithTabletDesign.designVersion).toBe("tablet");
+    expect(desktopShellWithTabletDesign.isDesktop).toBe(true);
+    expect(getTopBrandSectionLayoutMode(desktopShellWithTabletDesign, 40)).toBe("pager");
+    expect(getTopBrandSectionLayoutMode(wideDesktop, 40)).toBe("pager");
   });
 });
 
