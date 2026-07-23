@@ -237,8 +237,7 @@ export function CustomerCategoryDetailScreen({ categoryName }: { categoryName?: 
                   href={store.href}
                   key={store.href ?? store.brand}
                   logoUri={store.logoUri}
-                  logoVisualHeight={gridMetrics.logoVisualHeight}
-                  size="S"
+                  size="L"
                   testID={`category-result-card-${index}`}
                   tint={store.tint}
                 />

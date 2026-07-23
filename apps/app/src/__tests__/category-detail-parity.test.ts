@@ -161,28 +161,21 @@ describe("Category detail parity", () => {
     expect(screenFile).not.toContain('resourceId: "brandCatalog"');
   });
 
-  it("category detail card > given category result grid > then it renders the shared compact BrandCard", () => {
+  it("category detail card > given category result grid > then it renders the shared big BrandCard", () => {
     const screenFile = fs.readFileSync(
       path.join(mobileRoot, "src/screens/CustomerCategoryDetailScreen.tsx"),
       "utf8"
     );
-    const brandCardFile = fs.readFileSync(
-      path.join(mobileRoot, "src/components/BrandCard.tsx"),
-      "utf8"
-    );
 
     expect(screenFile).toContain('import { BrandCard } from "@mobile/components/BrandCard"');
-    expect(screenFile).toContain('size="S"');
-    // Scaled compact metrics moved to categoryDetailGrid.ts with the rest of the sizing.
-    const gridFile = fs.readFileSync(
-      path.join(mobileRoot, "src/screens/categoryDetailGrid.ts"),
-      "utf8"
-    );
-    expect(gridFile).toContain("getScaledCompactBrandCardMetrics");
+    // Founder call: category pages use the same setup as All Brands — the big
+    // card. The scaled size "S" it replaced stretched to 185.3px wide at desktop
+    // widths, wider than the big card it sits beside on /brand.
+    expect(screenFile).toContain('size="L"');
+    expect(screenFile).not.toContain('size="S"');
     expect(screenFile).toContain("category-result-card");
     expect(screenFile).not.toContain("Grab Coupon");
     expect(screenFile).not.toContain("favoriteButton");
-    expect(brandCardFile).toContain("compactBrandLogoFallback");
   });
 
   it("category detail card > forwards the store href so it routes to /shop/<id>, not a name slug", () => {
