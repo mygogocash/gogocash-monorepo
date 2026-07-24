@@ -7,65 +7,71 @@ import {
   formatCouponMinSpendLabel,
   getCouponTableStatus,
   isCouponRanOut,
-  isCouponScheduled,
 } from "./couponStatus";
 
-const REF = new Date("2026-06-13T12:00:00");
+const REF = new Date("2026-07-22T05:00:00.000Z");
 
 describe("couponStatus", () => {
-  it("isCouponScheduled > given future start_date > returns true", () => {
-    expect(
-      isCouponScheduled({ start_date: "2026-06-20T00:00:00.000Z" }, REF),
-    ).toBe(true);
-  });
-
-  it("isCouponScheduled > given past start_date > returns false", () => {
-    expect(
-      isCouponScheduled({ start_date: "2026-06-06T00:00:00.000Z" }, REF),
-    ).toBe(false);
-  });
-
-  it("getCouponTableStatus > given disabled coupon > returns Inactive only", () => {
+  it("getCouponTableStatus > given disabled coupon > returns Pause", () => {
     expect(
       getCouponTableStatus(
         {
           disabled: true,
-          end_date: "",
-          end_time: "",
-          quantity: 0,
-          quantity_used: 0,
-          start_date: "2026-06-20T00:00:00.000Z",
+          end_date: "2026-04-30",
+          end_time: "23:59",
+          quantity: 100,
+          quantity_used: 100,
+          start_date: "2026-04-01",
           unlimited_amount_enabled: true,
         },
         REF,
       ).label,
-    ).toBe("Inactive");
+    ).toBe("Pause");
   });
 
-  it("getCouponTableStatus > given enabled future start > returns Scheduled", () => {
+  it("getCouponTableStatus > given future start > returns Pause until available", () => {
     expect(
       getCouponTableStatus(
         {
           disabled: false,
-          end_date: "",
-          end_time: "",
+          end_date: "2026-08-31",
+          end_time: "23:59",
           quantity: 0,
           quantity_used: 0,
-          start_date: "2026-06-20T00:00:00.000Z",
+          start_date: "2026-07-23",
           unlimited_amount_enabled: true,
         },
         REF,
       ).label,
-    ).toBe("Scheduled");
+    ).toBe("Pause");
   });
 
-  it("getCouponTableStatus > given enabled past start > returns Active", () => {
+  it("getCouponTableStatus > given start time later today > returns Pause until available", () => {
     expect(
       getCouponTableStatus(
         {
           disabled: false,
-          start_date: "2026-06-06T00:00:00.000Z",
-          end_date: "2026-12-31",
+          end_date: "2026-07-31",
+          end_time: "23:59",
+          quantity: 0,
+          quantity_used: 0,
+          start_date: "2026-07-22",
+          start_time: "12:01",
+          unlimited_amount_enabled: true,
+        },
+        REF,
+      ).label,
+    ).toBe("Pause");
+  });
+
+  it("getCouponTableStatus > given enabled coupon within its valid period > returns Active", () => {
+    expect(
+      getCouponTableStatus(
+        {
+          disabled: false,
+          start_date: "2026-07-01",
+          start_time: "00:00",
+          end_date: "2026-07-31",
           end_time: "23:59",
           quantity: 0,
           unlimited_amount_enabled: true,
@@ -75,29 +81,23 @@ describe("couponStatus", () => {
     ).toBe("Active");
   });
 
-  it("isCouponRanOut > given limited coupon fully used before end > returns true", () => {
+  it("isCouponRanOut > given limited coupon fully used > returns true", () => {
     expect(
-      isCouponRanOut(
-        {
-          start_date: "2026-06-01",
-          end_date: "2026-12-31",
-          end_time: "23:59",
-          quantity: 100,
-          quantity_used: 100,
-          unlimited_amount_enabled: false,
-        },
-        REF,
-      ),
+      isCouponRanOut({
+        quantity: 100,
+        quantity_used: 100,
+        unlimited_amount_enabled: false,
+      }),
     ).toBe(true);
   });
 
-  it("getCouponTableStatus > given limited coupon fully used before end > returns Ran out", () => {
+  it("getCouponTableStatus > given limited coupon fully used > returns Run out before Expired", () => {
     expect(
       getCouponTableStatus(
         {
           disabled: false,
-          start_date: "2026-06-01",
-          end_date: "2026-12-31",
+          start_date: "2026-04-01",
+          end_date: "2026-04-30",
           end_time: "23:59",
           quantity: 100,
           quantity_used: 100,
@@ -105,16 +105,51 @@ describe("couponStatus", () => {
         },
         REF,
       ).label,
-    ).toBe("Ran out");
+    ).toBe("Run out");
   });
 
-  it("getCouponTableStatus > given unlimited coupon > never returns Ran out", () => {
+  it("getCouponTableStatus > given April coupon in July > returns Expired", () => {
+    expect(
+      getCouponTableStatus(
+        {
+          disabled: false,
+          start_date: "2026-04-01",
+          start_time: "00:00",
+          end_date: "2026-04-30",
+          end_time: "23:59",
+          quantity: 100,
+          quantity_used: 10,
+          unlimited_amount_enabled: false,
+        },
+        REF,
+      ).label,
+    ).toBe("Expired");
+  });
+
+  it("getCouponTableStatus > given end time already passed today > returns Expired", () => {
+    expect(
+      getCouponTableStatus(
+        {
+          disabled: false,
+          start_date: "2026-07-01",
+          end_date: "2026-07-22",
+          end_time: "11:59",
+          quantity: 0,
+          quantity_used: 0,
+          unlimited_amount_enabled: true,
+        },
+        REF,
+      ).label,
+    ).toBe("Expired");
+  });
+
+  it("getCouponTableStatus > given unlimited coupon > never returns Run out", () => {
     expect(
       getCouponTableStatus(
         {
           disabled: false,
           start_date: "2026-06-01",
-          end_date: "2026-12-31",
+          end_date: "2026-07-31",
           end_time: "23:59",
           quantity: 0,
           quantity_used: 999,

@@ -1,3 +1,9 @@
+/** Flatpickr display: dd/mm/yyyy. */
+export const ADMIN_DATE_ALT_FORMAT = "d/m/Y";
+
+/** Flatpickr stored value for date-only fields. */
+export const ADMIN_DATE_VALUE_FORMAT = "Y-m-d";
+
 /** Flatpickr display: dd/mm/yyyy, HH:mm (English 24-hour). */
 export const ADMIN_DATETIME_ALT_FORMAT = "d/m/Y, H:i";
 
