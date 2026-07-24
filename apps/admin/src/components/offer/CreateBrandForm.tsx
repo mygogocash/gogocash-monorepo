@@ -29,6 +29,7 @@ import TextArea from "@/components/form/input/TextArea";
 import { fetcher } from "@/lib/axios/client";
 import type { ResCategoryList } from "@/types/category";
 import { OfferPolicyModeSwitch } from "./OfferPolicyModeSwitch";
+import { TrackingPeriodManualEditor } from "./TrackingPeriodManualEditor";
 import {
   CUSTOM_POLICY_CATEGORY_ID,
   type OfferPolicyMode,
@@ -45,9 +46,9 @@ import {
 import {
   DEFAULT_FLOW_TYPE,
   formatTrackingDays,
-  isValidTrackingDayCount,
   MAX_TRACKING_PERIOD_DAYS,
   MIN_TRACKING_PERIOD_DAYS,
+  resolveManualTrackingPeriodDays,
   resolveTrackingPeriodPreview,
 } from "@/lib/offerTrackingPeriod";
 
@@ -102,8 +103,8 @@ const CREATE_BRAND_INITIAL_CATEGORY = "Shopping";
 
 /**
  * Product-type row plus per-row commission-entry UI state. `entry_mode` and
- * `commission_raw` are editing-only and stripped from the submit payload —
- * the saved row shape stays {name, commission_info, deeplink}.
+ * `commission_raw` are editing-only and stripped from the submit payload;
+ * user-facing fields such as `description` survive finalization.
  */
 type CreateBrandProductTypeRow = OfferProductTypeEntry & {
   entry_mode?: "manual" | "auto";
@@ -569,17 +570,21 @@ export default function CreateBrandForm() {
 
     formData.append("tracking_period_mode", trackingPeriodMode);
     if (trackingPeriodMode === "manual") {
-      if (
-        !isValidTrackingDayCount(trackingDays ?? undefined) ||
-        !isValidTrackingDayCount(confirmDays ?? undefined)
-      ) {
+      const manualDays = resolveManualTrackingPeriodDays({
+        flow_type: flowType,
+        tracking_days: trackingDays,
+        confirm_days: confirmDays,
+      });
+      if (!manualDays) {
         toast.error(
-          `Enter whole day counts between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS} for both windows.`,
+          flowType === "two_step"
+            ? `Enter a whole combined day count between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS}.`
+            : `Enter whole day counts between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS} for both windows.`,
         );
         return;
       }
-      formData.append("tracking_days", String(trackingDays));
-      formData.append("confirm_days", String(confirmDays));
+      formData.append("tracking_days", String(manualDays.tracking_days));
+      formData.append("confirm_days", String(manualDays.confirm_days));
     }
     formData.append("flow_type", flowType);
     formData.append("tracking_subtitle", trackingSubtitle ?? "");
@@ -1015,7 +1020,14 @@ export default function CreateBrandForm() {
                   if (!on) {
                     setProductTypes((prev) =>
                       prev.length === 0
-                        ? [{ name: "", commission_info: "", deeplink: "" }]
+                        ? [
+                            {
+                              name: "",
+                              commission_info: "",
+                              deeplink: "",
+                              description: "",
+                            },
+                          ]
                         : prev,
                     );
                   }
@@ -1047,7 +1059,12 @@ export default function CreateBrandForm() {
                 onClick={() =>
                   setProductTypes((prev) => [
                     ...prev,
-                    { name: "", commission_info: "", deeplink: "" },
+                    {
+                      name: "",
+                      commission_info: "",
+                      deeplink: "",
+                      description: "",
+                    },
                   ])
                 }
                 disabled={allProductTypes}
@@ -1109,6 +1126,28 @@ export default function CreateBrandForm() {
                         value={row.name}
                         onChange={(e) =>
                           updateProductTypeRow(i, { name: e.target.value })
+                        }
+                        autoComplete="off"
+                        enterKeyHint="next"
+                        className="min-h-11 w-full min-w-0 touch-manipulation !text-base sm:!text-sm"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <label
+                        htmlFor={`${baseId}-description`}
+                        className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        Product description
+                      </label>
+                      <Input
+                        id={`${baseId}-description`}
+                        type="text"
+                        placeholder="e.g. Phones, laptops & accessories"
+                        value={row.description ?? ""}
+                        onChange={(e) =>
+                          updateProductTypeRow(i, {
+                            description: e.target.value,
+                          })
                         }
                         autoComplete="off"
                         enterKeyHint="next"
@@ -1713,76 +1752,18 @@ export default function CreateBrandForm() {
                 setFlowType(checked ? "two_step" : "three_step")
               }
             />
-            {trackingPeriodMode === "manual" && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                    Tracking window (days)
-                  </label>
-                  <input
-                    type="number"
-                    min={MIN_TRACKING_PERIOD_DAYS}
-                    max={MAX_TRACKING_PERIOD_DAYS}
-                    value={trackingDays ?? ""}
-                    onChange={(e) =>
-                      setTrackingDays(
-                        e.target.value ? Number(e.target.value) : null,
-                      )
-                    }
-                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                    Confirm window (days)
-                  </label>
-                  <input
-                    type="number"
-                    min={MIN_TRACKING_PERIOD_DAYS}
-                    max={MAX_TRACKING_PERIOD_DAYS}
-                    value={confirmDays ?? ""}
-                    onChange={(e) =>
-                      setConfirmDays(
-                        e.target.value ? Number(e.target.value) : null,
-                      )
-                    }
-                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                  />
-                </div>
-              </div>
-            )}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Tracking subtitle
-                </label>
-                <input
-                  type="text"
-                  maxLength={200}
-                  placeholder="from the following month"
-                  value={trackingSubtitle ?? ""}
-                  onChange={(e) =>
-                    setTrackingSubtitle(e.target.value || null)
-                  }
-                  className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Confirm subtitle
-                </label>
-                <input
-                  type="text"
-                  maxLength={200}
-                  placeholder="after validation"
-                  value={confirmSubtitle ?? ""}
-                  onChange={(e) =>
-                    setConfirmSubtitle(e.target.value || null)
-                  }
-                  className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                />
-              </div>
-            </div>
+            <TrackingPeriodManualEditor
+              mode={trackingPeriodMode}
+              flowType={flowType}
+              trackingDays={trackingDays}
+              confirmDays={confirmDays}
+              trackingSubtitle={trackingSubtitle}
+              confirmSubtitle={confirmSubtitle}
+              onTrackingDaysChange={setTrackingDays}
+              onConfirmDaysChange={setConfirmDays}
+              onTrackingSubtitleChange={setTrackingSubtitle}
+              onConfirmSubtitleChange={setConfirmSubtitle}
+            />
           </div>
         </section>
 

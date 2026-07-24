@@ -31,8 +31,8 @@ describe("FormOffer — Cashback tracking period section", () => {
   });
 
   it("the section nav has a Cashback tracking period jump link", () => {
-    expect(formSource).toContain(
-      '{ id: "offer-section-tracking-period", label: "Cashback tracking period" }',
+    expect(formSource).toMatch(
+      /id:\s*"offer-section-tracking-period",\s*label:\s*"Cashback tracking period"/,
     );
   });
 
@@ -62,9 +62,11 @@ describe("FormOffer — Cashback tracking period section", () => {
     expect(formSource).toContain('form.flow_type === "two_step"');
   });
 
-  it("edit mode has subtitle inputs whose placeholders are the default captions", () => {
-    expect(formSource).toContain('placeholder="from the following month"');
-    expect(formSource).toContain('placeholder="after validation"');
+  it("edit mode uses the shared editor so two_step exposes only the combined controls", () => {
+    expect(formSource).toContain("<TrackingPeriodManualEditor");
+    expect(formSource).toContain("mode={form.tracking_period_mode}");
+    expect(formSource).toContain("flowType={form.flow_type}");
+    expect(formSource).toContain("confirmDays={form.confirm_days}");
   });
 
   it("read mode collapses to a combined Tracking and confirm cell when two_step", () => {

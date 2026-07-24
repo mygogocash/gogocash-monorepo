@@ -37,6 +37,7 @@ export type FinalizedProductTypeRow = {
   name: string;
   commission_info: string;
   deeplink: string;
+  description: string;
 };
 
 /**
@@ -52,6 +53,7 @@ export function finalizeProductTypeRows(
     deeplink?: string | null;
     entry_mode?: "manual" | "auto";
     commission_raw?: string;
+    description?: string | null;
   }>,
   feePercent: number,
 ): FinalizedProductTypeRow[] {
@@ -69,6 +71,7 @@ export function finalizeProductTypeRows(
               : `${net}%`
             : row.commission_info.trim(),
         deeplink: (row.deeplink ?? "").trim(),
+        description: (row.description ?? "").trim(),
       };
     })
     .filter(
