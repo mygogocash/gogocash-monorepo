@@ -611,10 +611,10 @@ describe("Expo home design parity", () => {
     ]);
     expect(homeFile).toContain("webHomePromoSections");
     expect(homeFile).toContain('resourceId: "brandCatalog"');
-    // Homepage rails now prefer the admin-curated /offer/landing-rails config,
-    // falling back to the webHomePromoSections fixture (see resolveApiLandingRails).
+    // General rails prefer the admin-curated /offer/landing-rails config, while
+    // category rails are composed from the live brand catalog.
     expect(homeFile).toContain('resourceId: "landingRails"');
-    expect(homeFile).toContain("resolveApiLandingRails");
+    expect(homeFile).toContain("resolveHomeLandingRails");
     expect(homeFile).not.toContain("Recommended Shops");
     expect(homeFile).not.toContain("Travel cashback stores");
     expect(homeFile).not.toContain("Beauty store rewards");

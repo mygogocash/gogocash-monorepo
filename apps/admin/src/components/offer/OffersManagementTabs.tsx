@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 export const OFFERS_MANAGEMENT_TABS = [
   { id: "brands" as const, label: "Brands" },
@@ -40,6 +39,10 @@ export function offersManagementTabFromSearch(tabParam: string | null): OffersMa
   return "brands";
 }
 
+export function offersManagementTabHref(id: OffersManagementTabId): string {
+  return id === "brands" ? "/brands" : `/brands?tab=${id}`;
+}
+
 const tabButtonClass = (selected: boolean) =>
   `inline-flex items-center -mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
     selected
@@ -50,20 +53,8 @@ const tabButtonClass = (selected: boolean) =>
 export default function OffersManagementTabs() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const createBrandActive = pathname === "/brands/create-brand";
   const queryActiveTab = offersManagementTabFromSearch(searchParams.get("tab"));
-
-  const setTab = useCallback(
-    (id: OffersManagementTabId) => {
-      const next = new URLSearchParams(searchParams.toString());
-      if (id === "brands") next.delete("tab");
-      else next.set("tab", id);
-      const qs = next.toString();
-      router.push(qs ? `/brands?${qs}` : "/brands", { scroll: false });
-    },
-    [router, searchParams],
-  );
 
   const onBrandsListWithTabs = pathname === "/brands";
   const missingOrdersActive = pathname === "/missing-orders";
@@ -73,16 +64,15 @@ export default function OffersManagementTabs() {
     const selected =
       onBrandsListWithTabs && !createBrandActive && queryActiveTab === t.id;
     return (
-      <button
+      <Link
         key={t.id}
-        type="button"
+        href={offersManagementTabHref(t.id)}
         role="tab"
         aria-selected={selected}
-        onClick={() => setTab(t.id)}
         className={tabButtonClass(selected)}
       >
         {t.label}
-      </button>
+      </Link>
     );
   };
 
