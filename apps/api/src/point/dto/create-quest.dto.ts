@@ -83,13 +83,17 @@ export class CreateQuestDto {
 
 /**
  * Existing quest campaign edits take their identity from the URL and expose
- * only operator-editable campaign fields. QA-only create fields and `_id` are
- * deliberately excluded from this multipart body contract.
+ * only operator-editable campaign fields. `_id` is deliberately excluded from
+ * this multipart body contract. The optional QA marker/nonce pair is accepted
+ * only so the staging-only acceptance harness can exercise this exact PATCH
+ * route; PointService rejects it unless the guarded QA mode is enabled.
  */
 export class UpdateQuestCampaignDto extends PickType(CreateQuestDto, [
   'request_key',
   'campaign_revision',
   'expected_config_revision',
+  'qa_marker',
+  'qa_cleanup_nonce',
   'start_date',
   'end_date',
   'facebook_post',

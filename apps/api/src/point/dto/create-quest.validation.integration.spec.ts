@@ -137,6 +137,8 @@ describe('CreateQuestDto multipart validation (integration)', () => {
       .field('request_key', 'quest-media:update-validation')
       .field('campaign_revision', '3')
       .field('expected_config_revision', '7')
+      .field('qa_marker', 'quest-media-qa:update-validation')
+      .field('qa_cleanup_nonce', 'n'.repeat(32))
       .field('start_date', '2026-07-20T02:00:00.000Z')
       .field('end_date', '2026-07-31T15:00:00.000Z')
       .field('facebook_post', '')
@@ -153,6 +155,8 @@ describe('CreateQuestDto multipart validation (integration)', () => {
       request_key: 'quest-media:update-validation',
       campaign_revision: 3,
       expected_config_revision: 7,
+      qa_marker: 'quest-media-qa:update-validation',
+      qa_cleanup_nonce: 'n'.repeat(32),
     });
   });
 

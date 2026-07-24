@@ -34,7 +34,7 @@ test('read-only mode performs only health and authenticated readiness GETs', asy
     calls.push({ url, options });
     if (url.endsWith('/health')) return jsonResponse({ status: 'ok' });
     return jsonResponse({
-      contract_version: 'quest-media-v2',
+      contract_version: 'quest-media-v3',
       mutation_enabled: false,
       required_routes: REQUIRED_ROUTE_BUNDLE,
     });
@@ -61,7 +61,7 @@ test('mutation refuses to start without both CLI confirmation and deployed enabl
     methods.push(options.method);
     if (url.endsWith('/health')) return jsonResponse({ status: 'ok' });
     return jsonResponse({
-      contract_version: 'quest-media-v2',
+      contract_version: 'quest-media-v3',
       mutation_enabled: false,
       required_routes: REQUIRED_ROUTE_BUNDLE,
     });
@@ -83,7 +83,7 @@ test('preflight rejects a partial route bundle', () => {
     () =>
       assertReadinessContract(
         {
-          contract_version: 'quest-media-v2',
+          contract_version: 'quest-media-v3',
           mutation_enabled: true,
           required_routes: REQUIRED_ROUTE_BUNDLE.slice(0, -1),
         },
@@ -93,72 +93,158 @@ test('preflight rejects a partial route bundle', () => {
   );
 });
 
-test('applied acceptance fails when any exact public object remains readable after cleanup', async () => {
-  const refs = [
+function acceptanceFixture({
+  initialAvailabilityFailures = 0,
+  replacementRemains = false,
+} = {}) {
+  const createdRefs = [
     'https://media.example/quests/a/banner-en.png',
     'https://media.example/quests/a/banner-th.png',
     'https://media.example/quests/a/sub-banner-en.png',
     'https://media.example/quests/a/sub-banner-th.png',
   ];
+  const replacementRefs = [
+    'https://media.example/quests/b/banner-en.png',
+    'https://media.example/quests/b/banner-th.png',
+    'https://media.example/quests/b/sub-banner-en.png',
+    'https://media.example/quests/b/sub-banner-th.png',
+  ];
+  const calls = [];
   const refReads = new Map();
-  let statusReads = 0;
+  let replaced = false;
+  let cleaned = false;
   const fetchImpl = async (url, options) => {
+    calls.push({ url, options });
     if (url.endsWith('/health')) return jsonResponse({ status: 'ok' });
     if (url.endsWith('/point/admin-quest-media/readiness')) {
       return jsonResponse({
-        contract_version: 'quest-media-v2',
+        contract_version: 'quest-media-v3',
         mutation_enabled: true,
         required_routes: REQUIRED_ROUTE_BUNDLE,
       });
     }
     if (url.endsWith('/point/create-quest')) {
+      assert.equal(
+        options.body.get('status'),
+        null,
+        'status is derived by the API and must not be sent in multipart',
+      );
       return jsonResponse({
         _id: '507f1f77bcf86cd799439011',
-        banner_en: refs[0],
-        banner_th: refs[1],
-        sub_banner_en: refs[2],
-        sub_banner_th: refs[3],
+        campaign_revision: 1,
+        config_revision: 0,
+        banner_en: createdRefs[0],
+        banner_th: createdRefs[1],
+        sub_banner_en: createdRefs[2],
+        sub_banner_th: createdRefs[3],
+      });
+    }
+    if (url.includes('/point/admin-quest/') && url.endsWith('/campaign')) {
+      replaced = true;
+      return jsonResponse({
+        _id: '507f1f77bcf86cd799439011',
+        campaign_revision: 2,
+        config_revision: 0,
+        banner_en: replacementRefs[0],
+        banner_th: replacementRefs[1],
+        sub_banner_en: replacementRefs[2],
+        sub_banner_th: replacementRefs[3],
       });
     }
     if (url.includes('/point/admin-quest-media/qa-status/')) {
-      statusReads += 1;
-      return statusReads === 1
-        ? jsonResponse({
-            command: { status: 'committed', planned_object_count: 4 },
-            quest: { refs },
-            pending_cleanup: 0,
-          })
-        : jsonResponse({ command: null, quest: null, cleanup: 0 });
+      if (cleaned) {
+        return jsonResponse({ command: null, quest: null, cleanup: 0 });
+      }
+      const isReplacement = decodeURIComponent(url).endsWith(':replacement');
+      const refs = isReplacement ? replacementRefs : createdRefs;
+      return jsonResponse({
+        command: { status: 'committed', planned_object_count: 4 },
+        quest: { refs },
+        pending_cleanup: 0,
+      });
     }
     if (url.endsWith('/point/admin-quest-media/qa-cleanup')) {
+      cleaned = true;
       return jsonResponse({
         quest_deleted: true,
         objects_deleted: 4,
-        intent_deleted: true,
-        tombstones_deleted: 4,
+        intents_deleted: 2,
+        tombstones_deleted: 8,
       });
     }
-    if (refs.includes(url)) {
+    if (createdRefs.includes(url)) {
       const reads = (refReads.get(url) ?? 0) + 1;
       refReads.set(url, reads);
-      // First read proves upload availability. The second read deliberately
-      // simulates a provider delete no-op that leaves the object public.
-      return new Response(Buffer.from('still-present'), { status: 200 });
+      const unavailable =
+        !replaced && reads <= initialAvailabilityFailures;
+      return new Response(
+        replaced || unavailable ? null : Buffer.from('created'),
+        {
+          status: replaced || unavailable ? 404 : 200,
+        },
+      );
+    }
+    if (replacementRefs.includes(url)) {
+      const reads = (refReads.get(url) ?? 0) + 1;
+      refReads.set(url, reads);
+      const absent = cleaned && !replacementRemains;
+      return new Response(absent ? null : Buffer.from('replacement'), {
+        status: absent ? 404 : 200,
+      });
     }
     throw new Error(`Unexpected request: ${options?.method} ${url}`);
   };
+  return { calls, createdRefs, fetchImpl, refReads, replacementRefs };
+}
+
+test('applied acceptance replaces four existing banners and cleans both generations', async () => {
+  const fixture = acceptanceFixture({ initialAvailabilityFailures: 1 });
+
+  const result = await runQuestMediaQa({
+    token: 'secret',
+    apply: true,
+    confirmStaging: true,
+    fetchImpl: fixture.fetchImpl,
+    availabilityTimeoutMs: 50,
+    availabilityRetryMs: 1,
+  });
+
+  assert.equal(result.mode, 'replaced-and-cleaned');
+  assert.deepEqual(result.created_refs, fixture.createdRefs);
+  assert.deepEqual(result.replacement_refs, fixture.replacementRefs);
+  assert.ok(
+    fixture.calls.some(
+      ({ url, options }) =>
+        options.method === 'PATCH' &&
+        url.endsWith('/point/admin-quest/507f1f77bcf86cd799439011/campaign'),
+    ),
+  );
+  assert.ok(
+    [...fixture.createdRefs, ...fixture.replacementRefs].every(
+      (ref) => (fixture.refReads.get(ref) ?? 0) >= 2,
+    ),
+    'both object generations must be probed before and after replacement/cleanup',
+  );
+});
+
+test('applied acceptance fails when any replacement object remains readable after cleanup', async () => {
+  const fixture = acceptanceFixture({ replacementRemains: true });
 
   await assert.rejects(
     runQuestMediaQa({
       token: 'secret',
       apply: true,
       confirmStaging: true,
-      fetchImpl,
+      fetchImpl: fixture.fetchImpl,
+      absenceTimeoutMs: 5,
+      absenceRetryMs: 1,
     }),
     /still readable|deletion.*not.*proven/i,
   );
   assert.ok(
-    refs.every((ref) => (refReads.get(ref) ?? 0) >= 2),
-    'every exact ref must be probed after cleanup',
+    fixture.replacementRefs.every(
+      (ref) => (fixture.refReads.get(ref) ?? 0) >= 2,
+    ),
+    'every replacement ref must be probed after cleanup',
   );
 });

@@ -2664,6 +2664,52 @@ describe('PointService', () => {
       expect(questMediaWrite.execute).not.toHaveBeenCalled();
     });
 
+    it('allows a guarded QA create while ordinary direct creation is disabled', async () => {
+      const previousWorkflow = process.env.QUEST_REVISION_WORKFLOW_ENABLED;
+      const previousQa = process.env.QUEST_MEDIA_QA_ENABLED;
+      const previousNodeEnv = process.env.NODE_ENV;
+      process.env.QUEST_REVISION_WORKFLOW_ENABLED = 'true';
+      process.env.QUEST_MEDIA_QA_ENABLED = 'true';
+      process.env.NODE_ENV = 'test';
+      questModel.findById.mockResolvedValue(null);
+      questMediaWrite.execute.mockResolvedValue({
+        _id: 'qa-quest',
+        campaign_revision: 1,
+      });
+
+      try {
+        await expect(
+          service.createQuest(
+            dto({
+              request_key: 'quest-media:qa:revision-workflow-test',
+              qa_marker: 'quest-media-qa:revision-workflow-test',
+              qa_cleanup_nonce: 'n'.repeat(32),
+            }),
+            allFiles(),
+          ),
+        ).resolves.toEqual(expect.objectContaining({ campaign_revision: 1 }));
+      } finally {
+        if (previousWorkflow === undefined) {
+          delete process.env.QUEST_REVISION_WORKFLOW_ENABLED;
+        } else {
+          process.env.QUEST_REVISION_WORKFLOW_ENABLED = previousWorkflow;
+        }
+        if (previousQa === undefined) {
+          delete process.env.QUEST_MEDIA_QA_ENABLED;
+        } else {
+          process.env.QUEST_MEDIA_QA_ENABLED = previousQa;
+        }
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+
+      expect(questMediaWrite.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestKey: 'quest-media:qa:revision-workflow-test',
+          qaMarker: 'quest-media-qa:revision-workflow-test',
+        }),
+      );
+    });
+
     it('requires all four actual multipart files for a new quest and ignores body strings', async () => {
       questModel.findById.mockResolvedValue(null);
 
@@ -2919,6 +2965,111 @@ describe('PointService', () => {
         }),
       );
       expect(second.payloadHash).not.toBe(first.payloadHash);
+    });
+
+    it('carries the same guarded QA ownership through a four-banner replacement', async () => {
+      const previousEnabled = process.env.QUEST_MEDIA_QA_ENABLED;
+      const previousNodeEnv = process.env.NODE_ENV;
+      process.env.QUEST_MEDIA_QA_ENABLED = 'true';
+      process.env.NODE_ENV = 'test';
+      const questId = new Types.ObjectId();
+      const marker = 'quest-media-qa:replacement-test';
+      const existingQuestRecord = {
+        _id: questId,
+        campaign_revision: 1,
+        config_revision: 0,
+        qa_marker: marker,
+        start_date: new Date('2099-06-27'),
+        end_date: new Date('2099-06-30'),
+        facebook_post: '',
+        facebook_page: '',
+        line: '',
+        reward_model: 'legacy_v1',
+      };
+      const existingQuest = {
+        ...existingQuestRecord,
+        toObject: () => existingQuestRecord,
+        $isDefault: () => false,
+      };
+      questModel.findById.mockResolvedValue(existingQuest);
+      questMediaWrite.execute.mockResolvedValue({
+        ...existingQuestRecord,
+        campaign_revision: 2,
+      });
+
+      try {
+        await service.createQuest(
+          dto({
+            _id: String(questId),
+            request_key: 'quest-media:qa:replacement-test',
+            campaign_revision: 1,
+            qa_marker: marker,
+            qa_cleanup_nonce: 'r'.repeat(32),
+          }),
+          allFiles(),
+        );
+      } finally {
+        if (previousEnabled === undefined) {
+          delete process.env.QUEST_MEDIA_QA_ENABLED;
+        } else {
+          process.env.QUEST_MEDIA_QA_ENABLED = previousEnabled;
+        }
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+
+      expect(questMediaWrite.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          questId,
+          expectedRevision: 1,
+          qaMarker: marker,
+          uploads: expect.arrayContaining([
+            expect.objectContaining({ role: 'banner_en' }),
+            expect.objectContaining({ role: 'banner_th' }),
+            expect.objectContaining({ role: 'sub_banner_en' }),
+            expect.objectContaining({ role: 'sub_banner_th' }),
+          ]),
+        }),
+      );
+    });
+
+    it('rejects a QA replacement that does not own the existing marker', async () => {
+      const previousEnabled = process.env.QUEST_MEDIA_QA_ENABLED;
+      const previousNodeEnv = process.env.NODE_ENV;
+      process.env.QUEST_MEDIA_QA_ENABLED = 'true';
+      process.env.NODE_ENV = 'test';
+      const questId = new Types.ObjectId();
+      questModel.findById.mockResolvedValue({
+        qa_marker: 'quest-media-qa:different-owner',
+        toObject: () => ({
+          qa_marker: 'quest-media-qa:different-owner',
+        }),
+        $isDefault: () => false,
+      });
+
+      try {
+        await expect(
+          service.createQuest(
+            dto({
+              _id: String(questId),
+              request_key: 'quest-media:qa:replacement-owner-test',
+              qa_marker: 'quest-media-qa:replacement-owner-test',
+              qa_cleanup_nonce: 'o'.repeat(32),
+            }),
+            allFiles(),
+          ),
+        ).rejects.toMatchObject({
+          message: 'QA marker does not own the existing quest',
+        });
+      } finally {
+        if (previousEnabled === undefined) {
+          delete process.env.QUEST_MEDIA_QA_ENABLED;
+        } else {
+          process.env.QUEST_MEDIA_QA_ENABLED = previousEnabled;
+        }
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+
+      expect(questMediaWrite.execute).not.toHaveBeenCalled();
     });
 
     it('routes a genuine one-field replacement through the fenced writer', async () => {
