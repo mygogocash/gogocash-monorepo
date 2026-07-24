@@ -1,0 +1,51 @@
+{
+  "_note": "SYNTHETIC fixture matching the pinned /shopeextra/all envelope shape (spec §6). REQ-DEP-3 requires replacing this with a REAL recorded Shopee TH response before v1 is 'done'. Includes one malformed row (empty commission_rate) to exercise the reject path.",
+  "status": "success",
+  "message": "ok",
+  "data": {
+    "page": 1,
+    "limit": 200,
+    "count": 3,
+    "nextPage": null,
+    "data": [
+      {
+        "shop_id": 1001,
+        "shop_name": "Alpha Mall Store",
+        "shop_type": "mall",
+        "shop_link": "https://shopee.co.th/alpha",
+        "shop_image": "https://cf.shopee.co.th/file/alpha-logo",
+        "shop_banner": ["https://cf.shopee.co.th/file/alpha-banner"],
+        "offer_name": "Shopee Thailand",
+        "country": "Thailand",
+        "commission_rate": "0.0150",
+        "period_start_time": "2026-07-01 00:00:00",
+        "period_end_time": "2026-12-31 23:59:59",
+        "tracking_link": "https://invl.me/alpha"
+      },
+      {
+        "shop_id": 1002,
+        "shop_name": "Beta Preferred Store",
+        "shop_type": "preferred",
+        "shop_link": "https://shopee.co.th/beta",
+        "shop_image": "https://cf.shopee.co.th/file/beta-logo",
+        "shop_banner": [],
+        "offer_name": "Shopee Thailand",
+        "country": "Thailand",
+        "commission_rate": "0.0325",
+        "period_start_time": "2026-07-01 00:00:00",
+        "period_end_time": "2026-12-31 23:59:59",
+        "tracking_link": "https://invl.me/beta"
+      },
+      {
+        "shop_id": 1003,
+        "shop_name": "Malformed Store",
+        "shop_type": "mall",
+        "shop_link": "https://shopee.co.th/malformed",
+        "offer_name": "Shopee Thailand",
+        "country": "Thailand",
+        "commission_rate": "",
+        "tracking_link": "https://invl.me/malformed"
+      }
+    ]
+  }
+}
