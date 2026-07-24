@@ -135,7 +135,9 @@ const CREATE_BRAND_INITIAL_SNAPSHOT = {
   affiliateNetworkId: "involve_asia",
   deeplinkStoreId: "global",
   trackingLink: "",
-  countries: "Thailand",
+  // #519 — a country-specific brand can target multiple countries. Stored as a
+  // list; the API + admin table already treat `countries` as a comma-separated string.
+  countries: ["Thailand"] as string[],
   currency: "THB",
   lookupValue: "",
   syncLookupFromBrandCountry: true,
@@ -187,7 +189,8 @@ export default function CreateBrandForm() {
   const [affiliateNetworkId, setAffiliateNetworkId] = useState("involve_asia");
   const [deeplinkStoreId, setDeeplinkStoreId] = useState("global");
   const [trackingLink, setTrackingLink] = useState("");
-  const [countries, setCountries] = useState("Thailand");
+  // #519 — country-specific availability supports multiple countries (chips below).
+  const [countries, setCountries] = useState<string[]>(["Thailand"]);
   const [currency, setCurrency] = useState("THB");
   const [lookupValue, setLookupValue] = useState("");
   const [syncLookupFromBrandCountry, setSyncLookupFromBrandCountry] =
@@ -238,7 +241,7 @@ export default function CreateBrandForm() {
   const resetCountryVariantFields = () => {
     // Country-specific fields — wiped after save when "Add another country" is on.
     // Global brands fall back to the fixed Thailand default, so start there too.
-    setCountries("Thailand");
+    setCountries(["Thailand"]);
     setCurrency("THB");
     setTrackingLink("");
     setLookupValue("");
@@ -441,12 +444,14 @@ export default function CreateBrandForm() {
   const logoPreview = useObjectPreviewUrl(logoFile);
   const bannerPreview = useObjectPreviewUrl(bannerFile);
 
+  // #519 — the default lookup slug no longer depends on country (always the "_in"
+  // market suffix), so the sync effect only tracks the brand name.
   useEffect(() => {
     if (!syncLookupFromBrandCountry) return;
     queueMicrotask(() => {
-      setLookupValue(defaultLookupFromBrandAndCountry(brandName, countries));
+      setLookupValue(defaultLookupFromBrandAndCountry(brandName));
     });
-  }, [syncLookupFromBrandCountry, brandName, countries]);
+  }, [syncLookupFromBrandCountry, brandName]);
 
   const applyLookupDefaultOnce = () => {
     const name = brandName.trim();
@@ -454,7 +459,16 @@ export default function CreateBrandForm() {
       toast.error("Enter a brand name first.");
       return;
     }
-    setLookupValue(defaultLookupFromBrandAndCountry(brandName, countries));
+    setLookupValue(defaultLookupFromBrandAndCountry(brandName));
+  };
+
+  // #519 — add/remove country chips for the country-specific availability list.
+  const addCountry = (value: string) => {
+    if (!value) return;
+    setCountries((prev) => (prev.includes(value) ? prev : [...prev, value]));
+  };
+  const removeCountry = (value: string) => {
+    setCountries((prev) => prev.filter((c) => c !== value));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -468,6 +482,13 @@ export default function CreateBrandForm() {
     }
     if (!link) {
       toast.error("Affiliate tracking URL is required.");
+      return;
+    }
+    // #519 — a country-specific brand must target at least one country.
+    if (!isGlobal && countries.length === 0) {
+      toast.error(
+        "Select at least one country, or choose Global availability.",
+      );
       return;
     }
 
@@ -529,7 +550,8 @@ export default function CreateBrandForm() {
     formData.append("brand_name", name);
     formData.append("affiliate_network_id", affiliateNetworkId);
     formData.append("affiliate_tracking_link", link);
-    formData.append("countries", countries);
+    // #519 — comma-separated; API + table split/trim on comma.
+    formData.append("countries", countries.join(", ") || "Thailand");
     formData.append("currency", currency);
     formData.append("deeplink_store_id", deeplinkStoreId);
     formData.append("disabled", String(disabledOffer));
@@ -599,7 +621,7 @@ export default function CreateBrandForm() {
       });
       if (addAnotherCountry) {
         toast.success(
-          `${name} (${countries}) saved. Add another country variant.`,
+          `${name} (${countries.join(", ")}) saved. Add another country variant.`,
         );
         resetCountryVariantFields();
         // Scroll back to the country select so the admin can immediately fill the next variant.
@@ -773,27 +795,58 @@ export default function CreateBrandForm() {
                     Country-specific
                   </span>
                   <span className="block text-xs text-gray-500 dark:text-gray-400">
-                    Only customers whose country is {countries} will see this
-                    brand. Customers in other countries won&apos;t see it on
-                    home, search, or category pages.
+                    Only customers whose country is one of{" "}
+                    {countries.length > 0 ? countries.join(", ") : "(none yet)"}{" "}
+                    will see this brand. Customers in other countries won&apos;t
+                    see it on home, search, or category pages.
                   </span>
                 </span>
               </label>
               {!isGlobal && (
-                <div className="mt-2 ml-7">
+                <div className="mt-2 ml-7 space-y-2">
                   <label
                     htmlFor="create-brand-country"
-                    className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300"
+                    className="block text-xs font-medium text-gray-700 dark:text-gray-300"
                   >
-                    Country (which country this brand applies to)
+                    Countries (which countries this brand applies to)
                   </label>
+                  {countries.length > 0 ? (
+                    <div
+                      className="flex flex-wrap gap-2"
+                      data-testid="create-brand-country-chips"
+                    >
+                      {countries.map((c) => (
+                        <span
+                          key={c}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-gray-200 py-1 pr-1 pl-3 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-100"
+                        >
+                          {c}
+                          <button
+                            type="button"
+                            aria-label={`Remove ${c}`}
+                            onClick={() => removeCountry(c)}
+                            className="flex h-4 w-4 items-center justify-center rounded-full text-gray-500 hover:bg-gray-300 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-white"
+                          >
+                            &times;
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-red-500">
+                      Select at least one country.
+                    </p>
+                  )}
                   <select
                     id="create-brand-country"
-                    value={countries}
-                    onChange={(e) => setCountries(e.target.value)}
+                    value=""
+                    onChange={(e) => addCountry(e.target.value)}
                     className="w-full max-w-sm rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   >
-                    {COUNTRY_OPTIONS.map((c) => (
+                    <option value="">Add a country…</option>
+                    {COUNTRY_OPTIONS.filter(
+                      (c) => !countries.includes(c.value),
+                    ).map((c) => (
                       <option key={c.value} value={c.value}>
                         {c.label}
                       </option>
@@ -845,10 +898,7 @@ export default function CreateBrandForm() {
                       setSyncLookupFromBrandCountry(on);
                       if (on) {
                         setLookupValue(
-                          defaultLookupFromBrandAndCountry(
-                            brandName,
-                            countries,
-                          ),
+                          defaultLookupFromBrandAndCountry(brandName),
                         );
                       }
                     }}
