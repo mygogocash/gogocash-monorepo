@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   allContactsVerifiedForSave,
+  buildWithdrawUserContactSavePlan,
   contactRowVerified,
   createContactRow,
+  emptyWithdrawUserEditDraft,
   mergeContactValue,
   rowNeedsOtp,
 } from "@/lib/withdrawUserContactState";
@@ -106,5 +108,57 @@ describe("allContactsVerifiedForSave", () => {
   it("passes when new value verified", () => {
     const rows = [{ ...createContactRow("n@x.com"), otpVerified: true }];
     expect(allContactsVerifiedForSave(rows, new Set(), "email")).toBe(true);
+  });
+});
+
+describe("buildWithdrawUserContactSavePlan", () => {
+  it("omits an email channel with an unverified change without blocking ready mobiles", () => {
+    const draft = emptyWithdrawUserEditDraft();
+    draft.emailRows = [
+      { ...createContactRow("new@example.com"), otpVerified: false },
+    ];
+    draft.mobileRows = [createContactRow("+66810000000")];
+
+    expect(
+      buildWithdrawUserContactSavePlan(
+        draft,
+        new Set(["old@example.com"]),
+        new Set(["+66810000000"]),
+      ),
+    ).toEqual({
+      mobiles: ["+66810000000"],
+      deferredChannels: ["email"],
+    });
+  });
+
+  it("keeps an empty verified channel payload so an intentional removal persists", () => {
+    const draft = emptyWithdrawUserEditDraft();
+
+    expect(
+      buildWithdrawUserContactSavePlan(
+        draft,
+        new Set(["old@example.com"]),
+        new Set(),
+      ),
+    ).toEqual({
+      emails: [],
+      mobiles: [],
+      deferredChannels: [],
+    });
+  });
+
+  it("includes a newly verified email", () => {
+    const draft = emptyWithdrawUserEditDraft();
+    draft.emailRows = [
+      { ...createContactRow("new@example.com"), otpVerified: true },
+    ];
+
+    expect(
+      buildWithdrawUserContactSavePlan(draft, new Set(), new Set()),
+    ).toEqual({
+      emails: ["new@example.com"],
+      mobiles: [],
+      deferredChannels: [],
+    });
   });
 });
