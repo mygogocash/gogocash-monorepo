@@ -114,6 +114,8 @@ describe('OfferService', () => {
       find: jest.fn().mockReturnValue(makeQuery([])),
       countDocuments: jest.fn().mockResolvedValue(0),
       findByIdAndUpdate: jest.fn().mockResolvedValue({}),
+      findOneAndUpdate: jest.fn().mockResolvedValue({}),
+      exists: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockResolvedValue({}),
     };
     favoriteOfferModel = {
@@ -561,11 +563,73 @@ describe('OfferService', () => {
 
       const filter = couponModel.find.mock.calls[0][0];
       expect(filter).toEqual({
+        archived_at: { $exists: false },
         $or: [
           { name: { $regex: 'save\\.\\*', $options: 'i' } },
           { code: { $regex: 'save\\.\\*', $options: 'i' } },
         ],
       });
+    });
+  });
+
+  describe('archiveCoupon', () => {
+    it('soft-archives the coupon with operator evidence instead of deleting usage history', async () => {
+      const couponId = new Types.ObjectId().toHexString();
+      couponModel.findOneAndUpdate.mockResolvedValue({ _id: couponId });
+
+      await expect(
+        service.archiveCoupon(couponId, {
+          adminEmail: 'approver@gogocash.co',
+          adminId: 'admin-42',
+        }),
+      ).resolves.toEqual({
+        alreadyArchived: false,
+        archived: true,
+        id: couponId,
+        message: 'Coupon deleted successfully.',
+      });
+
+      expect(couponModel.findOneAndUpdate).toHaveBeenCalledWith(
+        {
+          _id: new Types.ObjectId(couponId),
+          archived_at: { $exists: false },
+        },
+        {
+          $set: {
+            archived_at: expect.any(Date),
+            archived_by_admin_email: 'approver@gogocash.co',
+            archived_by_admin_id: 'admin-42',
+            disabled: true,
+          },
+        },
+        { new: true },
+      );
+      expect(couponModel.exists).not.toHaveBeenCalled();
+    });
+
+    it('is idempotent for an already archived coupon', async () => {
+      const couponId = new Types.ObjectId().toHexString();
+      couponModel.findOneAndUpdate.mockResolvedValue(null);
+      couponModel.exists.mockResolvedValue({ _id: couponId });
+
+      await expect(
+        service.archiveCoupon(couponId, { adminId: 'admin-42' }),
+      ).resolves.toEqual({
+        alreadyArchived: true,
+        archived: true,
+        id: couponId,
+        message: 'Coupon was already deleted.',
+      });
+    });
+
+    it('rejects an unknown coupon id without creating archive evidence', async () => {
+      const couponId = new Types.ObjectId().toHexString();
+      couponModel.findOneAndUpdate.mockResolvedValue(null);
+      couponModel.exists.mockResolvedValue(null);
+
+      await expect(
+        service.archiveCoupon(couponId, { adminId: 'admin-42' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
@@ -668,6 +732,7 @@ describe('OfferService', () => {
       );
 
       expect(couponModel.find).toHaveBeenCalledWith({
+        archived_at: { $exists: false },
         offer_id: new Types.ObjectId(offerId),
       });
       expect(query.populate).toHaveBeenCalledWith('offer_id', [
@@ -1762,7 +1827,8 @@ describe('OfferService', () => {
 
       expect(questModel.findOne).toHaveBeenCalledWith(
         expect.objectContaining({
-          status: 'open',
+          publication_status: { $ne: 'draft' },
+          status: { $ne: 'close' },
           $and: expect.arrayContaining([
             expect.objectContaining({ $or: expect.any(Array) }),
             expect.objectContaining({ $or: expect.any(Array) }),

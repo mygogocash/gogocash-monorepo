@@ -17,8 +17,8 @@ import { webTopBrandCards } from "@mobile/design/webDesignParity";
 import { motion } from "@mobile/theme/motion";
 import {
   chunkTopBrandCards,
-  getPromoGridCardWidth,
-  getPromoSectionLayoutMode,
+  getTopBrandGridMetrics,
+  getTopBrandSectionLayoutMode,
 } from "./homeHelpers";
 import { useHomeScreenColors, useHomeScreenStyles } from "./homeScreenHooks";
 import { type HomeLayoutMetrics, type TopBrandCardProps } from "./homeTypes";
@@ -48,15 +48,16 @@ export function TopBrandSection({
     apiBaseUrl,
     homeLayout.isDesktop ? "desktop" : "mobile",
   );
-  // Same mobile treatment as the promo rails (founder feedback 2026-07-11):
-  // few cards → static grid; more → free momentum scroll; desktop pager.
-  const layoutMode = getPromoSectionLayoutMode(homeLayout.isDesktop, topBrands.length);
+  // Top Brands is intentionally unique on the phone home page: every curated brand
+  // expands into the two-column vertical grid. Tablet and desktop keep their existing
+  // adaptive rail/pager behavior, and PromoSection remains unchanged.
+  const layoutMode = getTopBrandSectionLayoutMode(
+    homeLayout,
+    topBrands.length,
+  );
   const isPager = layoutMode === "pager";
   const topBrandColumns = chunkTopBrandCards(topBrands, homeLayout.topBrandRowsPerPage);
-  const gridCardWidth = getPromoGridCardWidth(
-    homeLayout.brandSectionFrameWidth,
-    homeLayout.topBrandGap
-  );
+  const gridMetrics = getTopBrandGridMetrics(homeLayout);
   const topBrandScrollX = useMemo(() => new Animated.Value(0), []);
   // #498 — the rail is proportional, so it needs the real scroll geometry rather than a
   // page count. Measured from the ScrollView instead of derived, so it stays correct
@@ -87,11 +88,21 @@ export function TopBrandSection({
 
       <View style={styles.topBrandPager}>
         {layoutMode === "grid" ? (
-          <View style={[styles.brandGrid, { gap: homeLayout.topBrandGap, width: "100%" }]}>
+          <View
+            style={[
+              styles.brandGrid,
+              {
+                alignSelf: gridMetrics.frameWidth ? "center" : undefined,
+                gap: homeLayout.topBrandGap,
+                justifyContent: gridMetrics.columns === 1 ? "center" : "flex-start",
+                width: gridMetrics.frameWidth ?? "100%",
+              },
+            ]}
+          >
             {topBrands.map((card) => (
               <BrandCard
-                cardHeight={homeLayout.topBrandCardHeight}
-                cardWidth={gridCardWidth}
+                cardHeight={gridMetrics.cardHeight}
+                cardWidth={gridMetrics.cardWidth}
                 key={card.id ?? card.brand}
                 {...card}
                 size="L"

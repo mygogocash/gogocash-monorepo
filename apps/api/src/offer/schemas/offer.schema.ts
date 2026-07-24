@@ -343,6 +343,10 @@ OfferSchema.index({ source: 1, offer_id: 1 }, { unique: true });
 /** Fast lookups for admin Pending tab and customer-app visibility filter. */
 OfferSchema.index({ status: 1 });
 OfferSchema.index({ source: 1, status: 1 });
+OfferSchema.index(
+  { extra_point: -1, offer_name: 1, _id: 1 },
+  { name: 'quest_legacy_catalog_order' },
+);
 OfferSchema.index({ policy_category_id: 1 });
 OfferSchema.index({ categories_normalized: 1 });
 

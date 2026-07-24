@@ -1,8 +1,16 @@
-import { beforeEach, describe, it, expect } from "vitest";
-import { handleMockApiRequest, type MockApiResult } from "@/lib/mockApiCore";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  __resetCouponArchivesForTest,
+  handleMockApiRequest,
+  type MockApiResult,
+} from "@/lib/mockApiCore";
 import { __resetRolesForTest } from "@/lib/rbac/roleStore";
 
-beforeEach(() => __resetRolesForTest());
+beforeEach(() => {
+  __resetRolesForTest();
+  __resetCouponArchivesForTest();
+});
+afterEach(() => vi.unstubAllEnvs());
 
 const call = (
   method: string,
@@ -32,6 +40,61 @@ describe("pagination clamping", () => {
     expect(Number.isFinite(body.pagination.totalPages)).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
   });
+});
+
+describe("coupon archive parity", () => {
+  it("archives a coupon from admin history and the customer offer response", async () => {
+    const before = await call("GET", ["offer", "get-coupon"], {
+      query: { limit: "550", page: "1" },
+    });
+    const coupons = (
+      before.body as {
+        data: Array<{ _id: string; offer_id: { _id: string } }>;
+      }
+    ).data;
+    const coupon = coupons.find((item) => item._id === "cp1");
+    expect(coupon).toBeDefined();
+
+    const deleted = await call("DELETE", ["offer", "coupons", "cp1"], {
+      role: "admin",
+    });
+    expect(deleted).toMatchObject({
+      status: 200,
+      body: { archived: true, id: "cp1" },
+    });
+
+    const history = await call("GET", ["offer", "get-coupon"], {
+      query: { limit: "550", page: "1" },
+    });
+    expect(
+      (history.body as { data: Array<{ _id: string }> }).data,
+    ).not.toContainEqual(expect.objectContaining({ _id: "cp1" }));
+
+    const customerCoupons = await call("GET", [
+      "offer",
+      "get-coupon-id",
+      coupon!.offer_id._id,
+    ]);
+    expect(customerCoupons.body).not.toContainEqual(
+      expect.objectContaining({ _id: "cp1" }),
+    );
+  });
+
+  it.each(["editor", "support", "viewer"])(
+    "rejects coupon archive for the lower %s tier",
+    async (role) => {
+      const response = await call("DELETE", ["offer", "coupons", "cp1"], {
+        role,
+      });
+
+      expect(response).toMatchObject({
+        status: 403,
+        body: {
+          message: expect.stringContaining("admin"),
+        },
+      });
+    },
+  );
 });
 
 describe("policy category create (mock parity with POST /admin/create-category)", () => {
@@ -184,9 +247,9 @@ describe("banner slot updates", () => {
         target,
       ]);
       expect(response.status).toBe(200);
-      expect(String((response.body as Record<string, unknown>).image_1)).toMatch(
-        /^\/images\/carousel\//,
-      );
+      expect(
+        String((response.body as Record<string, unknown>).image_1),
+      ).toMatch(/^\/images\/carousel\//);
       before.set(target, response.body as Record<string, unknown>);
     }
 
@@ -374,58 +437,358 @@ describe("offer admin search", () => {
   });
 });
 
+type MockQuestTaskState = {
+  _id: string;
+  config_revision?: number;
+  reward_model?: "legacy_v1" | "task_v2";
+  timezone?: "Asia/Bangkok";
+  audience?: { kind: "all" } | { kind: "membership_tiers"; tier_ids: string[] };
+  reward_caps?: {
+    max_awards_per_user: number | null;
+    max_referrals_per_user: number | null;
+  };
+  tasks: Array<Record<string, unknown>>;
+};
+
+function mockQuestTaskSaveBody(
+  quest: MockQuestTaskState,
+  tasks: Array<Record<string, unknown>>,
+  rewardModel = quest.reward_model ?? "legacy_v1",
+) {
+  return {
+    reward_model: rewardModel,
+    expected_config_revision: Number(quest.config_revision ?? 0),
+    timezone: quest.timezone ?? "Asia/Bangkok",
+    audience: quest.audience ?? { kind: "all" },
+    reward_caps: quest.reward_caps ?? {
+      max_awards_per_user: null,
+      max_referrals_per_user: null,
+    },
+    tasks,
+  };
+}
+
+function withoutTaskKeys(tasks: Array<Record<string, unknown>>) {
+  return tasks.map(({ task_key: _taskKey, ...task }) => task);
+}
+
 describe("quest task management", () => {
-  it("round-trips task saves and mirrors extra_point to mock offers", async () => {
+  it("returns the effective-task catalog and server mutation capabilities", async () => {
+    const list = await call("GET", ["point", "admin-get-quest"]);
+    const quest = (list.body as Array<{ _id: string; tasks: unknown[] }>)[0];
+
+    const response = await call("GET", [
+      "point",
+      "admin-quest",
+      quest._id,
+      "effective-tasks",
+    ]);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      contract_version: 1,
+      quest_id: quest._id,
+      catalog_source: "canonical",
+      stored_task_count: quest.tasks.length,
+      effective_task_count: quest.tasks.length,
+      capabilities: {
+        can_edit_campaign_economics: false,
+        can_edit_task_economics: false,
+        can_edit_rewards: false,
+        can_edit_presentation: true,
+        can_create_revision: false,
+        freeze_reason: "QUEST_ALREADY_STARTED",
+      },
+      revision_workflow: {
+        workflow_enabled: false,
+        task_v2_enabled: false,
+        publish_ready: false,
+        can_create_revision: false,
+        can_publish: false,
+        blockers: expect.arrayContaining([
+          "QUEST_REVISION_WORKFLOW_DISABLED",
+          "QUEST_TASK_V2_UNAVAILABLE",
+          "QUEST_REVISION_PUBLISH_NOT_READY",
+          "QUEST_REVISION_NOT_DRAFT",
+        ]),
+      },
+      tasks: expect.arrayContaining([
+        expect.objectContaining({
+          task_kind: "brand_purchase",
+          source: "quest_task",
+          target: { kind: "purchase", required_purchases: 1 },
+        }),
+      ]),
+    });
+  });
+
+  it("keeps an all-disabled stored task set canonical instead of exposing legacy fallbacks", async () => {
+    const list = await call("GET", ["point", "admin-get-quest"]);
+    const quest = (list.body as MockQuestTaskState[])[0];
+    const originalTasks = quest.tasks.map((task) => ({
+      ...task,
+      offer:
+        typeof task.offer === "string"
+          ? task.offer
+          : (task.offer as { _id: string })._id,
+    }));
+
+    try {
+      const first = originalTasks[0];
+      const save = await call(
+        "PATCH",
+        ["point", "admin-quest", quest._id, "tasks"],
+        {
+          body: mockQuestTaskSaveBody(quest, [{ ...first, enabled: false }]),
+        },
+      );
+      expect(save.status).toBe(200);
+
+      const response = await call("GET", [
+        "point",
+        "admin-quest",
+        quest._id,
+        "effective-tasks",
+      ]);
+      expect(response.body).toMatchObject({
+        catalog_source: "canonical",
+        stored_task_count: 1,
+        effective_task_count: 0,
+        tasks: [],
+      });
+    } finally {
+      const currentList = await call("GET", ["point", "admin-get-quest"]);
+      const current = (currentList.body as MockQuestTaskState[]).find(
+        (item) => item._id === quest._id,
+      )!;
+      await call("PATCH", ["point", "admin-quest", quest._id, "tasks"], {
+        body: mockQuestTaskSaveBody(
+          current,
+          withoutTaskKeys(originalTasks),
+          quest.reward_model,
+        ),
+      });
+    }
+  });
+
+  it("round-trips the current Admin DTO, rehydrates provider ids, and mirrors offer points", async () => {
     const list = await call("GET", ["point", "admin-get-quest"]);
     expect(list.status).toBe(200);
-    const quest = (list.body as Array<{ _id: string }>)[0];
+    const quest = (list.body as MockQuestTaskState[])[0];
+    const originalTasks = quest.tasks.map((task) => ({
+      ...task,
+      offer:
+        typeof task.offer === "string"
+          ? task.offer
+          : (task.offer as { _id: string })._id,
+    }));
 
-    const save = await call(
-      "PATCH",
-      ["point", "admin-quest", quest._id, "tasks"],
-      {
-        body: {
-          tasks: [
+    try {
+      const save = await call(
+        "PATCH",
+        ["point", "admin-quest", quest._id, "tasks"],
+        {
+          body: mockQuestTaskSaveBody(quest, [
             {
+              task_type: "brand_purchase",
               offer: "o1",
-              offer_id: 1001,
-              merchant_id: 5001,
-              extra_point: 80,
+              points: 80,
               enabled: true,
+              wording: "Shop at offer one",
+              wording_en: "Shop at offer one",
+              wording_th: "",
+              notes: "",
             },
-          ],
+          ]),
         },
-      },
-    );
+      );
 
-    expect(save.status).toBe(200);
-    const updated = save.body as {
-      tasks: Array<{ extra_point: number; sort_order: number }>;
-    };
-    expect(updated.tasks).toMatchObject([{ extra_point: 80, sort_order: 0 }]);
+      expect(save.status).toBe(200);
+      const updated = save.body as MockQuestTaskState;
+      expect(updated.config_revision).toBe(
+        Number(quest.config_revision ?? 0) + 1,
+      );
+      expect(updated.tasks).toMatchObject([
+        {
+          task_key: expect.stringMatching(/^task_/),
+          task_type: "brand_purchase",
+          points: 80,
+          extra_point: 80,
+          offer_id: 1001,
+          merchant_id: 2001,
+          sort_order: 0,
+        },
+      ]);
 
-    const offer = await call("GET", ["offer", "o1"]);
-    expect((offer.body as { extra_point?: number }).extra_point).toBe(80);
+      const offer = await call("GET", ["offer", "o1"]);
+      expect((offer.body as { extra_point?: number }).extra_point).toBe(80);
+    } finally {
+      const currentList = await call("GET", ["point", "admin-get-quest"]);
+      const current = (currentList.body as MockQuestTaskState[]).find(
+        (item) => item._id === quest._id,
+      )!;
+      await call("PATCH", ["point", "admin-quest", quest._id, "tasks"], {
+        body: mockQuestTaskSaveBody(
+          current,
+          withoutTaskKeys(originalTasks),
+          quest.reward_model,
+        ),
+      });
+    }
+  });
+
+  it("preserves typed referral and spend tasks in effective-task responses", async () => {
+    const list = await call("GET", ["point", "admin-get-quest"]);
+    const quest = (list.body as MockQuestTaskState[])[0];
+    const originalTasks = quest.tasks.map((task) => ({
+      ...task,
+      offer:
+        typeof task.offer === "string"
+          ? task.offer
+          : (task.offer as { _id: string })._id,
+    }));
+
+    try {
+      const save = await call(
+        "PATCH",
+        ["point", "admin-quest", quest._id, "tasks"],
+        {
+          body: mockQuestTaskSaveBody(
+            quest,
+            [
+              {
+                task_type: "friend_referral",
+                completion_rule: "first_earning_conversion",
+                points: 60,
+                enabled: true,
+                wording_en: "Invite a friend",
+                wording_th: "ชวนเพื่อน",
+                notes: "",
+              },
+              {
+                task_type: "spend_target",
+                spend_scope: "any_shop_via_ggc",
+                target_thb_minor: 150_000,
+                points: 100,
+                enabled: true,
+                wording_en: "Spend THB 1,500",
+                wording_th: "",
+                notes: "",
+              },
+            ],
+            "task_v2",
+          ),
+        },
+      );
+      expect(save.status).toBe(200);
+      const saved = save.body as MockQuestTaskState;
+      expect(saved.tasks).toEqual([
+        expect.objectContaining({
+          task_key: expect.stringMatching(/^task_/),
+          task_type: "friend_referral",
+          completion_rule: "first_earning_conversion",
+          points: 60,
+        }),
+        expect.objectContaining({
+          task_key: expect.stringMatching(/^task_/),
+          task_type: "spend_target",
+          spend_scope: "any_shop_via_ggc",
+          target_thb_minor: 150_000,
+          points: 100,
+        }),
+      ]);
+
+      const effective = await call("GET", [
+        "point",
+        "admin-quest",
+        quest._id,
+        "effective-tasks",
+      ]);
+      expect(effective.body).toMatchObject({
+        config_revision: Number(quest.config_revision ?? 0) + 1,
+        tasks: [
+          {
+            task_key: saved.tasks[0].task_key,
+            task_kind: "friend_referral",
+            target: {
+              kind: "referral",
+              completion_rule: "first_earning_conversion",
+            },
+          },
+          {
+            task_key: saved.tasks[1].task_key,
+            task_kind: "spend_target",
+            target: {
+              kind: "spend_thb_minor",
+              spend_scope: "any_shop_via_ggc",
+              target_thb_minor: 150_000,
+            },
+          },
+        ],
+      });
+    } finally {
+      const currentList = await call("GET", ["point", "admin-get-quest"]);
+      const current = (currentList.body as MockQuestTaskState[]).find(
+        (item) => item._id === quest._id,
+      )!;
+      await call("PATCH", ["point", "admin-quest", quest._id, "tasks"], {
+        body: mockQuestTaskSaveBody(
+          current,
+          withoutTaskKeys(originalTasks),
+          quest.reward_model,
+        ),
+      });
+    }
   });
 
   it("rejects duplicate task offers", async () => {
     const list = await call("GET", ["point", "admin-get-quest"]);
-    const quest = (list.body as Array<{ _id: string }>)[0];
+    const quest = (list.body as MockQuestTaskState[])[0];
 
     const save = await call(
       "PATCH",
       ["point", "admin-quest", quest._id, "tasks"],
       {
-        body: {
-          tasks: [
-            { offer: "o1", offer_id: 1001, merchant_id: 5001, extra_point: 50 },
-            { offer: "o1", offer_id: 1001, merchant_id: 5001, extra_point: 60 },
-          ],
-        },
+        body: mockQuestTaskSaveBody(quest, [
+          {
+            task_type: "brand_purchase",
+            offer: "o1",
+            points: 50,
+            enabled: true,
+            wording_en: "First",
+          },
+          {
+            task_type: "brand_purchase",
+            offer: "o1",
+            points: 60,
+            enabled: true,
+            wording_en: "Second",
+          },
+        ]),
       },
     );
 
     expect(save.status).toBe(400);
+  });
+
+  it("rejects stale task config revisions", async () => {
+    const list = await call("GET", ["point", "admin-get-quest"]);
+    const quest = (list.body as MockQuestTaskState[])[0];
+    const response = await call(
+      "PATCH",
+      ["point", "admin-quest", quest._id, "tasks"],
+      {
+        body: {
+          ...mockQuestTaskSaveBody(quest, quest.tasks),
+          expected_config_revision: Number(quest.config_revision ?? 0) + 1,
+        },
+      },
+    );
+
+    expect(response).toMatchObject({
+      status: 409,
+      body: { code: "QUEST_CONFIG_REVISION_CONFLICT" },
+    });
   });
 
   it("round-trips reward saves with automatic distribution settings", async () => {
@@ -479,6 +842,124 @@ describe("quest task management", () => {
       ]),
     });
     expect((res.body as { data: unknown[] }).data.length).toBeGreaterThan(0);
+  });
+
+  it("creates an idempotent future revision draft and keeps mock publication default-off", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MOCK_QUEST_REVISION_WORKFLOW_ENABLED", "true");
+    vi.stubEnv("NEXT_PUBLIC_MOCK_QUEST_TASK_V2_ENABLED", "true");
+    const list = await call("GET", ["point", "admin-get-quest"]);
+    const source = (
+      list.body as Array<{
+        _id: string;
+        campaign_revision?: number;
+        config_revision?: number;
+      }>
+    )[0];
+    const body = {
+      request_key: "quest-revision:mock-2031-08",
+      expected_campaign_revision: Number(source.campaign_revision ?? 0),
+      expected_config_revision: Number(source.config_revision ?? 0),
+      start_date: "2031-08-01T02:00:00.000Z",
+      end_date: "2031-08-31T16:59:00.000Z",
+      reason: "Prepare the next mock campaign.",
+    };
+
+    const created = await call(
+      "POST",
+      ["point", "admin-quest", source._id, "revisions"],
+      { body },
+    );
+    const replay = await call(
+      "POST",
+      ["point", "admin-quest", source._id, "revisions"],
+      { body },
+    );
+
+    expect(created.status).toBe(200);
+    expect(replay.status).toBe(200);
+    expect(created.body).toMatchObject({
+      quest: {
+        publication_status: "draft",
+        revision_of: source._id,
+        reward_model: "task_v2",
+      },
+      revision_workflow: {
+        workflow_enabled: true,
+        publish_ready: false,
+        can_publish: false,
+      },
+    });
+    expect((replay.body as { quest: { _id: string } }).quest._id).toBe(
+      (created.body as { quest: { _id: string } }).quest._id,
+    );
+    const replacement = await call(
+      "POST",
+      ["point", "admin-quest", source._id, "revisions"],
+      {
+        body: {
+          ...body,
+          request_key: "quest-revision:mock-2031-08-replacement",
+        },
+      },
+    );
+    expect(
+      (replacement.body as { quest: { revision_number: number } }).quest
+        .revision_number,
+    ).toBe(
+      (created.body as { quest: { revision_number: number } }).quest
+        .revision_number + 1,
+    );
+
+    const capabilities = await call("GET", [
+      "point",
+      "admin-quest-capabilities",
+    ]);
+    expect(capabilities.body).toEqual({
+      revision_workflow_enabled: true,
+      direct_create_enabled: false,
+    });
+    const directCreate = await call("POST", ["point", "create-quest"], {
+      body: {
+        start_date: "2031-09-01T02:00:00.000Z",
+        end_date: "2031-09-30T16:59:00.000Z",
+      },
+    });
+    expect(directCreate).toMatchObject({
+      status: 409,
+      body: { code: "QUEST_DIRECT_CREATE_DISABLED" },
+    });
+
+    const revision = (created.body as { quest: MockQuestTaskState }).quest;
+    const revisionId = revision._id;
+    const clearTasks = await call(
+      "PATCH",
+      ["point", "admin-quest", revisionId, "tasks"],
+      { body: mockQuestTaskSaveBody(revision, [], "task_v2") },
+    );
+    expect(clearTasks.status).toBe(200);
+    const effective = await call("GET", [
+      "point",
+      "admin-quest",
+      revisionId,
+      "effective-tasks",
+    ]);
+    expect(effective.body).toMatchObject({
+      catalog_source: "none",
+      stored_task_count: 0,
+      effective_task_count: 0,
+      tasks: [],
+    });
+
+    const publish = await call("POST", [
+      "point",
+      "admin-quest",
+      revisionId,
+      "publish",
+    ]);
+    expect(publish.status).toBe(503);
+    expect(publish.body).toMatchObject({
+      code: "QUEST_REVISION_PUBLISH_NOT_READY",
+    });
   });
 });
 

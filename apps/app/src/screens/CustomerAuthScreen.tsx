@@ -885,7 +885,6 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "register" }) {
           const payload = await requestTelegramLogin(getTelegramBotUsername());
           const session = await exchangeTelegramAuth({
             apiUrl: env.apiUrl,
-            country: selectedCountry.code,
             payload,
           });
           await completeSocialSession(session);

@@ -77,6 +77,15 @@ export class Coupon {
   @Prop({ type: Boolean, default: false })
   disabled: boolean;
 
+  @Prop({ required: false, type: Date })
+  archived_at?: Date;
+
+  @Prop({ required: false, type: String })
+  archived_by_admin_id?: string;
+
+  @Prop({ required: false, type: String })
+  archived_by_admin_email?: string;
+
   @Prop({ required: false, type: String })
   link?: string;
 

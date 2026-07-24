@@ -43,7 +43,7 @@
 - **1.3** `[USER-ONLY: secret]` `gogocash-admin`: `NEXTAUTH_SECRET` (`openssl rand -base64 32`).
 - **1.4** `[CLAUDE-CAN-DO]` non-secret admin vars: `NEXTAUTH_URL=https://gogocash-admin-production.up.railway.app`, `NEXT_PUBLIC_API_URL=https://gogocash-api-production.up.railway.app` (build-time → `railway redeploy --service gogocash-admin`).
 - **1.5** `[CLAUDE-CAN-DO]` `CORS_EXTRA_ORIGINS` on `gogocash-api` (admin + app-web preview hosts).
-- **1.6** `[USER-ONLY: secret]` feature secrets as needed: `INVOLVE_SECRET`, `INVOLVE_POSTBACK_SECRET` (fails closed empty), `INVOLVE_AI_API_KEY` (fails closed), `RESEND_API_KEY`, `FIREBASE_PROJECT_ID`, `POSTHOG_KEY`, `EXPO_PUBLIC_FIREBASE_*`. Leave `TELEGRAM_BOT_TOKEN` unset to keep Telegram off. Code reads `INVOLVE_*` (the `.env.example` `INVOVLE_*` is a typo).
+- **1.6** `[USER-ONLY: secret]` feature secrets as needed: `INVOLVE_SECRET`, `INVOLVE_POSTBACK_SECRET` (fails closed empty), `INVOLVE_AI_API_KEY` (fails closed), `RESEND_API_KEY`, `FIREBASE_PROJECT_ID`, `POSTHOG_KEY`, `EXPO_PUBLIC_FIREBASE_*`. Leave both Telegram tokens unset until their separate rollouts are approved: `TELEGRAM_LOGIN_BOT_TOKEN` enables only Login Widget signature verification, while `TELEGRAM_BOT_TOKEN` enables Mini App verification and makes that API the Telegram poller owner. Never set the poller token on more than one API instance. Code reads `INVOLVE_*` (the `.env.example` `INVOVLE_*` is a typo).
 
 Use `scripts/railway-apply-secrets.sh` (reads gitignored `.env.railway.production`; `--dry-run` first; never prints values). Template: `.env.railway.production.example`.
 

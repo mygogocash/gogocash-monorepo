@@ -19,9 +19,13 @@ import { AnalyticsService } from 'src/analytics/analytics.service';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
 import * as helper from 'src/utils/helper';
 import { QuestMediaWriteService } from './quest-media-write.service';
-import { QUEST_TASK_STATE_INSPECTOR } from './quest-task.contract';
+import {
+  QUEST_CONFIG_REVISION_CONFLICT,
+  QUEST_TASK_STATE_INSPECTOR,
+} from './quest-task.contract';
 import { legacyQuestPayoutConfigChecksum } from 'src/tasks/legacy-reward-manifest';
 import { MembershipTier } from 'src/admin/membership/schemas/membership-tier.schema';
+import { QuestEconomicMutationPolicy } from './quest-economic-mutation-policy.service';
 
 // convertToTHB hits a live FX HTTP endpoint; mock at the module seam so the
 // suite stays Fast/Repeatable and never touches the network.
@@ -164,6 +168,7 @@ describe('PointService', () => {
         },
         { provide: AnalyticsService, useValue: analytics },
         { provide: QuestMediaWriteService, useValue: questMediaWrite },
+        QuestEconomicMutationPolicy,
         {
           provide: QUEST_TASK_STATE_INSPECTOR,
           useValue: questTaskStateInspector,
@@ -665,6 +670,82 @@ describe('PointService', () => {
       expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
+    it('allows legacy task wording changes after economics freeze', async () => {
+      const taskKey = 'task_legacy_wording_1234';
+      const existingTask = {
+        task_key: taskKey,
+        task_type: 'brand_purchase' as const,
+        offer: offerObjectId,
+        offer_id: 101,
+        merchant_id: 1001,
+        points: 50,
+        extra_point: 50,
+        sort_order: 0,
+        enabled: true,
+        wording: 'Buy now',
+        wording_en: 'Buy now',
+        wording_th: 'ซื้อเลย',
+        notes: '',
+      };
+      const quest = futureQuest({
+        reward_model: 'legacy_v1',
+        start_date: new Date('2020-01-01T00:00:00.000Z'),
+        reward_caps: {
+          max_awards_per_user: null,
+          max_referrals_per_user: null,
+        },
+        legacy_payout_resolution_started_at: new Date(
+          '2026-07-01T00:00:00.000Z',
+        ),
+        tasks: [existingTask],
+      });
+      questModel.findById.mockReturnValue(makeQuery(quest));
+      questModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({
+          ...quest,
+          tasks: [
+            {
+              ...existingTask,
+              wording: 'Buy from this brand',
+              wording_en: 'Buy from this brand',
+            },
+          ],
+        }),
+      );
+
+      await expect(
+        service.updateQuestTasks(questId, {
+          reward_model: 'legacy_v1',
+          expected_config_revision: 0,
+          timezone: 'Asia/Bangkok',
+          audience: { kind: 'all' },
+          reward_caps: {
+            max_awards_per_user: null,
+            max_referrals_per_user: null,
+          },
+          tasks: [
+            {
+              ...existingTask,
+              offer: offerObjectId.toHexString(),
+              wording: 'Buy from this brand',
+              wording_en: 'Buy from this brand',
+            },
+          ],
+        }),
+      ).resolves.toMatchObject({
+        tasks: [
+          expect.objectContaining({
+            wording_en: 'Buy from this brand',
+          }),
+        ],
+      });
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.not.objectContaining({ start_date: expect.anything() }),
+        expect.any(Object),
+        expect.any(Object),
+      );
+    });
+
     it('rejects a task with no customer-visible wording', async () => {
       questModel.findById.mockReturnValue(makeQuery(futureQuest()));
 
@@ -701,10 +782,16 @@ describe('PointService', () => {
         ]),
       );
       questModel.findOneAndUpdate.mockReturnValue(
-        makeQuery({ ...quest, config_revision: 1 }),
+        makeQuery({
+          ...quest,
+          config_revision: 1,
+          revision_request_key: 'private-task-command',
+          revision_payload_hash: 'a'.repeat(64),
+          banner_assets: { banner_en: { owner_key: 'private-owner' } },
+        }),
       );
 
-      await service.updateQuestTasks(
+      const result = await service.updateQuestTasks(
         questId,
         config([
           {
@@ -716,6 +803,9 @@ describe('PointService', () => {
           },
         ]),
       );
+      expect(result).not.toHaveProperty('revision_request_key');
+      expect(result).not.toHaveProperty('revision_payload_hash');
+      expect(result).not.toHaveProperty('banner_assets');
 
       const [filter, update] = questModel.findOneAndUpdate.mock.calls[0];
       expect(filter).toEqual(
@@ -770,6 +860,31 @@ describe('PointService', () => {
 
       const [, update] = questModel.findOneAndUpdate.mock.calls[0];
       expect(update.$set.tasks[0].task_key).toBe(taskKey);
+    });
+
+    it('requires a revision to remain draft in the task-economic CAS', async () => {
+      const quest = futureQuest({
+        revision_of: new Types.ObjectId(),
+        publication_status: 'draft',
+      });
+      questModel.findById.mockReturnValue(makeQuery(quest));
+      questModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({ ...quest, config_revision: 1 }),
+      );
+
+      await service.updateQuestTasks(
+        questId,
+        config([referralTask({ wording: 'Invite a friend' })]),
+      );
+
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          publication_status: 'draft',
+          start_date: { $gt: expect.any(Date) },
+        }),
+        expect.any(Object),
+        expect.any(Object),
+      );
     });
 
     it('allows a frozen wording-only edit when the unchanged brand offer is now inactive', async () => {
@@ -900,15 +1015,20 @@ describe('PointService', () => {
         sort_order: 0,
         wording: 'Invite a friend',
       };
-      const quest = futureQuest({ tasks: [existingTask] });
+      const quest = futureQuest({
+        tasks: [existingTask],
+        revision_request_key: 'private-task-command',
+        banner_assets: { banner_en: { owner_key: 'private-owner' } },
+      });
       questModel.findById.mockReturnValue(makeQuery(quest));
 
-      await expect(
-        service.updateQuestTasks(
-          questId,
-          config([referralTask({ task_key: taskKey })]),
-        ),
-      ).resolves.toEqual(expect.objectContaining({ config_revision: 0 }));
+      const result = await service.updateQuestTasks(
+        questId,
+        config([referralTask({ task_key: taskKey })]),
+      );
+      expect(result).toEqual(expect.objectContaining({ config_revision: 0 }));
+      expect(result).not.toHaveProperty('revision_request_key');
+      expect(result).not.toHaveProperty('banner_assets');
       expect(
         questTaskStateInspector.withTaskConfigEditFence,
       ).not.toHaveBeenCalled();
@@ -1397,6 +1517,62 @@ describe('PointService', () => {
       );
     });
 
+    it('removes revision command secrets and actor identifiers from admin quest reads', async () => {
+      questModel.find.mockReturnValue(
+        makeQuery([
+          {
+            _id: questId,
+            start_date: new Date('2099-01-01T00:00:00.000Z'),
+            end_date: new Date('2099-02-01T00:00:00.000Z'),
+            revision_reason: 'Visible operator context',
+            revision_request_key: 'private-revision-command',
+            revision_payload_hash: 'a'.repeat(64),
+            publish_request_key: 'private-publish-command',
+            publish_payload_hash: 'b'.repeat(64),
+            revision_created_by: 'private-creator-id',
+            published_by: 'private-publisher-id',
+            banner_assets: {
+              banner_en: {
+                url: 'https://cdn.example/banner.png',
+                owner_key: 'private-owner',
+                object_key: 'private/object.png',
+              },
+            },
+            media_command_key: 'private-media-command',
+            media_attempt_token: 'private-media-attempt',
+            qa_marker: 'private-qa-marker',
+            legacy_payout_config_checksum: 'c'.repeat(64),
+            legacy_payout_resolution_command_key: 'private-payout-command',
+            legacy_payout_resolution_plan_checksum: 'd'.repeat(64),
+            tasks: [],
+          },
+        ]),
+      );
+
+      const [quest] = await service.getQuestAdmin();
+
+      expect(quest).toEqual(
+        expect.objectContaining({
+          revision_reason: 'Visible operator context',
+        }),
+      );
+      expect(quest).not.toHaveProperty('revision_request_key');
+      expect(quest).not.toHaveProperty('revision_payload_hash');
+      expect(quest).not.toHaveProperty('publish_request_key');
+      expect(quest).not.toHaveProperty('publish_payload_hash');
+      expect(quest).not.toHaveProperty('revision_created_by');
+      expect(quest).not.toHaveProperty('published_by');
+      expect(quest).not.toHaveProperty('banner_assets');
+      expect(quest).not.toHaveProperty('media_command_key');
+      expect(quest).not.toHaveProperty('media_attempt_token');
+      expect(quest).not.toHaveProperty('qa_marker');
+      expect(quest).not.toHaveProperty('legacy_payout_config_checksum');
+      expect(quest).not.toHaveProperty('legacy_payout_resolution_command_key');
+      expect(quest).not.toHaveProperty(
+        'legacy_payout_resolution_plan_checksum',
+      );
+    });
+
     it('does not fall back to global offer bonuses for task_v2 referral-only quests', async () => {
       questModel.findOne.mockReturnValue(
         makeQuery({
@@ -1427,6 +1603,11 @@ describe('PointService', () => {
           }
         ).getQuestExtraPointTasksForRange('2026-07-01', '2026-07-31'),
       ).resolves.toEqual([]);
+      expect(questModel.findOne).toHaveBeenCalledWith({
+        publication_status: { $ne: 'draft' },
+        start_date: { $lte: new Date('2026-07-01') },
+        end_date: { $gte: new Date('2026-07-31') },
+      });
       expect(offerModel.find).not.toHaveBeenCalled();
     });
 
@@ -1499,11 +1680,18 @@ describe('PointService', () => {
     it('updateQuestRewards > given valid rewards > then it stores them sorted by rank', async () => {
       const endDate = new Date('2026-06-30T00:00:00.000Z');
       questModel.findById.mockReturnValue(
-        makeQuery({ _id: questId, end_date: endDate }),
+        makeQuery({
+          _id: questId,
+          start_date: new Date('2099-06-01T00:00:00.000Z'),
+          end_date: endDate,
+        }),
       );
       questModel.findOneAndUpdate.mockReturnValue(
         makeQuery({
           _id: questId,
+          revision_request_key: 'private-reward-command',
+          publish_payload_hash: 'b'.repeat(64),
+          banner_assets: { banner_en: { owner_key: 'private-owner' } },
           rewards: [
             { rank: 1, reward: 1200, currency: 'THB' },
             { rank: 2, reward: 800, currency: 'THB' },
@@ -1511,17 +1699,21 @@ describe('PointService', () => {
         }),
       );
 
-      await service.updateQuestRewards(questId, {
+      const result = await service.updateQuestRewards(questId, {
         expected_config_revision: 0,
         rewards: [
           { rank: 2, reward: 800, currency: 'THB' },
           { rank: 1, reward: 1200, currency: 'THB' },
         ],
       });
+      expect(result).not.toHaveProperty('revision_request_key');
+      expect(result).not.toHaveProperty('publish_payload_hash');
+      expect(result).not.toHaveProperty('banner_assets');
 
       expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
         {
           _id: new Types.ObjectId(questId),
+          start_date: { $gt: expect.any(Date) },
           $or: [
             { config_revision: 0 },
             { config_revision: { $exists: false } },
@@ -1547,6 +1739,7 @@ describe('PointService', () => {
       questModel.findById.mockReturnValue(
         makeQuery({
           _id: questId,
+          start_date: new Date('2099-06-01T00:00:00.000Z'),
           end_date: new Date('2026-06-30T00:00:00.000Z'),
         }),
       );
@@ -1562,6 +1755,7 @@ describe('PointService', () => {
       expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
         {
           _id: new Types.ObjectId(questId),
+          start_date: { $gt: expect.any(Date) },
           $or: [
             { config_revision: 0 },
             { config_revision: { $exists: false } },
@@ -1579,6 +1773,37 @@ describe('PointService', () => {
           $inc: { config_revision: 1 },
         },
         { new: true },
+      );
+    });
+
+    it('requires a revision to remain draft in the reward-economic CAS', async () => {
+      const sourceId = new Types.ObjectId();
+      questModel.findById.mockReturnValue(
+        makeQuery({
+          _id: questId,
+          revision_of: sourceId,
+          publication_status: 'draft',
+          config_revision: 2,
+          reward_model: 'legacy_v1',
+          start_date: new Date('2099-06-01T00:00:00.000Z'),
+          end_date: new Date('2099-06-30T00:00:00.000Z'),
+          rewards: [],
+        }),
+      );
+      questModel.findOneAndUpdate.mockReturnValue(makeQuery({ _id: questId }));
+
+      await service.updateQuestRewards(questId, {
+        expected_config_revision: 2,
+        rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+      });
+
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          publication_status: 'draft',
+          start_date: { $gt: expect.any(Date) },
+        }),
+        expect.any(Object),
+        expect.any(Object),
       );
     });
 
@@ -1666,17 +1891,22 @@ describe('PointService', () => {
         reward_distribution_mode: 'campaign_end',
         reward_distribution_delay_days: 0,
         reward_distribution_scheduled_at: endDate,
+        revision_request_key: 'private-reward-command',
+        banner_assets: { banner_en: { owner_key: 'private-owner' } },
       };
       questModel.findById.mockReturnValue(makeQuery(quest));
 
-      await expect(
-        service.updateQuestRewards(questId, {
-          expected_config_revision: 4,
-          rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
-          reward_distribution_mode: 'campaign_end',
-          reward_distribution_delay_days: 0,
-        }),
-      ).resolves.toBe(quest);
+      const result = await service.updateQuestRewards(questId, {
+        expected_config_revision: 4,
+        rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+        reward_distribution_mode: 'campaign_end',
+        reward_distribution_delay_days: 0,
+      });
+      expect(result).toEqual(
+        expect.objectContaining({ _id: questId, config_revision: 4 }),
+      );
+      expect(result).not.toHaveProperty('revision_request_key');
+      expect(result).not.toHaveProperty('banner_assets');
 
       expect(
         questTaskStateInspector.withTaskConfigEditFence,
@@ -1709,6 +1939,37 @@ describe('PointService', () => {
           rewards: [{ rank: 1, reward: 9999, currency: 'THB' }],
         }),
       ).rejects.toMatchObject({ status: 409 });
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejects reward economics after a legacy quest starts', async () => {
+      const endDate = new Date('2099-06-30T00:00:00.000Z');
+      questModel.findById.mockReturnValue(
+        makeQuery({
+          _id: questId,
+          reward_model: 'legacy_v1',
+          config_revision: 4,
+          start_date: new Date('2020-06-01T00:00:00.000Z'),
+          end_date: endDate,
+          rewards: [{ rank: 1, reward: 1200, currency: 'THB' }],
+          reward_distribution_mode: 'campaign_end',
+          reward_distribution_delay_days: 0,
+          reward_distribution_scheduled_at: endDate,
+        }),
+      );
+
+      await expect(
+        service.updateQuestRewards(questId, {
+          expected_config_revision: 4,
+          rewards: [{ rank: 1, reward: 9999, currency: 'THB' }],
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+        response: expect.objectContaining({
+          code: 'QUEST_TASK_CONFIG_FROZEN',
+          freeze_reason: 'QUEST_ALREADY_STARTED',
+        }),
+      });
       expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
@@ -2107,39 +2368,125 @@ describe('PointService', () => {
     });
 
     it('getQuestSocial > given an open quest > then it returns the quest with the user social rewards', async () => {
-      const quest = { _id: 'q1', status: 'open' };
+      const quest = {
+        _id: 'q1',
+        status: 'open',
+        revision_reason: 'Private reason',
+        revision_created_by: 'admin-private',
+      };
       const rewards = [{ _id: 'sr1' }];
       questModel.findOne.mockReturnValue(makeQuery(quest));
       socialRewardModel.find.mockReturnValue(makeQuery(rewards));
 
       await expect(service.getQuestSocial(userId)).resolves.toEqual({
-        quest,
+        quest: { _id: 'q1', status: 'open' },
         socialRewards: rewards,
       });
     });
   });
 
+  describe('closeQuest', () => {
+    it('updates exactly one non-draft quest with a campaign revision CAS', async () => {
+      const questId = new Types.ObjectId();
+      questModel.findOneAndUpdate.mockReturnValue(
+        makeQuery({
+          _id: questId,
+          campaign_revision: 4,
+          config_revision: 2,
+          publication_status: 'published',
+          start_date: new Date('2026-07-01T00:00:00.000Z'),
+          end_date: new Date('2099-07-31T23:59:59.999Z'),
+          status: 'close',
+          tasks: [],
+        }),
+      );
+
+      await expect(
+        service.closeQuest({
+          quest_id: questId.toHexString(),
+          expected_campaign_revision: 3,
+          status: 'close',
+        }),
+      ).resolves.toEqual(expect.objectContaining({ status: 'close' }));
+
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        {
+          _id: questId,
+          campaign_revision: 3,
+          publication_status: { $ne: 'draft' },
+          status: { $ne: 'close' },
+        },
+        {
+          $set: { status: 'close' },
+          $inc: { campaign_revision: 1 },
+        },
+        { new: true },
+      );
+      expect(questModel.updateOne).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when the quest is stale, missing, or still a draft', async () => {
+      const questId = new Types.ObjectId();
+      questModel.findOneAndUpdate.mockReturnValue(makeQuery(null));
+
+      await expect(
+        service.closeQuest({
+          quest_id: questId.toHexString(),
+          expected_campaign_revision: 0,
+          status: 'close',
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+        response: expect.objectContaining({
+          code: QUEST_CONFIG_REVISION_CONFLICT,
+        }),
+      });
+      expect(questModel.updateOne).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getQuestOpen', () => {
-    it('getQuestOpen > then it selects the current date window without trusting stored status', async () => {
+    it('getQuestOpen > then a published scheduled revision becomes active by date', async () => {
       questModel.findOne.mockReturnValue(
         makeQuery({
           _id: 'q1',
           start_date: new Date('2026-01-01'),
           end_date: new Date('2099-01-01'),
-          status: 'close',
+          status: 'scheduled',
+          publication_status: 'published',
+          revision_reason: 'Private launch rationale',
+          revision_created_by: 'admin-private',
+          revision_payload_hash: 'b'.repeat(64),
+          banner_assets: {
+            banner_en: {
+              url: 'https://cdn.example.com/banner.png',
+              owner_key: 'private-owner',
+              owner_attempt_token: 'private-attempt',
+              bucket: 'private-bucket',
+              object_key: 'private/object.png',
+              sha256: 'c'.repeat(64),
+              original_name: 'private.png',
+            },
+          },
         }),
       );
 
-      await service.getQuestOpen();
+      const result = await service.getQuestOpen();
 
       expect(questModel.findOne).toHaveBeenCalledWith(
         expect.objectContaining({
+          publication_status: { $ne: 'draft' },
+          status: { $ne: 'close' },
           $and: expect.arrayContaining([
             expect.objectContaining({ $or: expect.any(Array) }),
             expect.objectContaining({ $or: expect.any(Array) }),
           ]),
         }),
       );
+      expect(result).not.toHaveProperty('revision_reason');
+      expect(result).not.toHaveProperty('revision_created_by');
+      expect(result).not.toHaveProperty('revision_payload_hash');
+      expect(result).not.toHaveProperty('banner_assets');
     });
   });
 
@@ -2156,6 +2503,10 @@ describe('PointService', () => {
           _id: 'q1',
           start_date: new Date('2026-01-01'),
           end_date: new Date('2099-01-01'),
+          revision_reason: 'Unreleased campaign rationale',
+          revision_created_by: 'admin-secret',
+          revision_request_key: 'private-command-key',
+          revision_payload_hash: 'a'.repeat(64),
         },
         {
           _id: 'q2',
@@ -2165,10 +2516,17 @@ describe('PointService', () => {
       ];
       questModel.find.mockReturnValue(makeQuery(quests));
 
-      await expect(service.getQuestAll()).resolves.toEqual([
+      const result = await service.getQuestAll();
+
+      expect(questModel.find).toHaveBeenCalledWith({
+        publication_status: { $ne: 'draft' },
+      });
+      expect(result).toEqual([
         expect.objectContaining({ _id: 'q1', status: 'open' }),
         expect.objectContaining({ _id: 'q2', status: 'scheduled' }),
       ]);
+      expect(JSON.stringify(result)).not.toContain('admin-secret');
+      expect(JSON.stringify(result)).not.toContain('private-command-key');
     });
   });
 
@@ -2283,6 +2641,29 @@ describe('PointService', () => {
         ...overrides,
       }) as never;
 
+    it('blocks direct creation when the revision workflow rollout is enabled', async () => {
+      const previous = process.env.QUEST_REVISION_WORKFLOW_ENABLED;
+      process.env.QUEST_REVISION_WORKFLOW_ENABLED = 'true';
+      try {
+        await expect(
+          service.createQuest(dto(), allFiles()),
+        ).rejects.toMatchObject({
+          status: 409,
+          response: expect.objectContaining({
+            code: 'QUEST_DIRECT_CREATE_DISABLED',
+          }),
+        });
+      } finally {
+        if (previous === undefined) {
+          delete process.env.QUEST_REVISION_WORKFLOW_ENABLED;
+        } else {
+          process.env.QUEST_REVISION_WORKFLOW_ENABLED = previous;
+        }
+      }
+      expect(questModel.findById).not.toHaveBeenCalled();
+      expect(questMediaWrite.execute).not.toHaveBeenCalled();
+    });
+
     it('requires all four actual multipart files for a new quest and ignores body strings', async () => {
       questModel.findById.mockResolvedValue(null);
 
@@ -2340,10 +2721,23 @@ describe('PointService', () => {
 
     it('passes four validated files, a stable command key, and a derived status to the durable writer', async () => {
       questModel.findById.mockResolvedValue(null);
-      const saved = { _id: 'quest-with-media', campaign_revision: 1 };
+      const saved = {
+        _id: 'quest-with-media',
+        campaign_revision: 1,
+        media_command_key: 'private-media-command',
+        banner_assets: { banner_en: { owner_key: 'private-owner' } },
+      };
       questMediaWrite.execute.mockResolvedValue(saved);
 
-      await expect(service.createQuest(dto(), allFiles())).resolves.toBe(saved);
+      const result = await service.createQuest(dto(), allFiles());
+      expect(result).toEqual(
+        expect.objectContaining({
+          _id: 'quest-with-media',
+          campaign_revision: 1,
+        }),
+      );
+      expect(result).not.toHaveProperty('media_command_key');
+      expect(result).not.toHaveProperty('banner_assets');
 
       expect(questMediaWrite.execute).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -2532,6 +2926,8 @@ describe('PointService', () => {
       questModel.findById.mockResolvedValue({
         _id: questId,
         campaign_revision: 7,
+        start_date: new Date('2099-06-27'),
+        end_date: new Date('2099-06-30'),
         banner_en: 'stored:old-banner-en',
       });
       questMediaWrite.execute.mockResolvedValue({
@@ -2553,11 +2949,119 @@ describe('PointService', () => {
       );
     });
 
-    it('updates campaign-only fields with revision CAS and leaves banner refs untouched', async () => {
+    it('preserves closed status and payout-owned reward state on a presentation-only save', async () => {
       const questId = new Types.ObjectId();
-      const saved = { _id: questId, campaign_revision: 4 };
+      const existing = {
+        _id: questId,
+        revision_of: new Types.ObjectId(),
+        publication_status: 'published',
+        campaign_revision: 7,
+        config_revision: 4,
+        reward_model: 'task_v2',
+        start_date: new Date('2099-06-27'),
+        end_date: new Date('2099-06-30'),
+        status: 'close',
+        reward_status: false,
+        facebook_post: '',
+        facebook_page: '',
+        line: '',
+      };
+      questModel.findById.mockResolvedValue(existing);
+      questModel.findOneAndUpdate.mockResolvedValue({
+        ...existing,
+        campaign_revision: 8,
+      });
+
+      await service.createQuest(
+        dto({
+          _id: String(questId),
+          campaign_revision: 7,
+          expected_config_revision: 4,
+          status: 'open',
+          reward_status: true,
+        }),
+        {},
+      );
+
+      expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          _id: questId,
+          campaign_revision: 7,
+        }),
+        {
+          $set: expect.not.objectContaining({
+            status: expect.anything(),
+            reward_status: expect.anything(),
+            reward_distribution_mode: expect.anything(),
+            reward_distribution_delay_days: expect.anything(),
+            reward_distribution_scheduled_at: expect.anything(),
+          }),
+          $inc: { campaign_revision: 1 },
+        },
+        { new: true },
+      );
+    });
+
+    it('does not pass closed status or payout-owned reward state to the media writer', async () => {
+      const questId = new Types.ObjectId();
       questModel.findById.mockResolvedValue({
         _id: questId,
+        revision_of: new Types.ObjectId(),
+        publication_status: 'published',
+        campaign_revision: 7,
+        config_revision: 4,
+        reward_model: 'task_v2',
+        start_date: new Date('2099-06-27'),
+        end_date: new Date('2099-06-30'),
+        status: 'close',
+        reward_status: false,
+        facebook_post: '',
+        facebook_page: '',
+        line: '',
+      });
+      questMediaWrite.execute.mockResolvedValue({
+        _id: questId,
+        campaign_revision: 8,
+      });
+
+      await service.createQuest(
+        dto({
+          _id: String(questId),
+          campaign_revision: 7,
+          expected_config_revision: 4,
+          status: 'open',
+          reward_status: true,
+        }),
+        { banner_en: [image('banner_en')] },
+      );
+
+      expect(questMediaWrite.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          questPatch: expect.not.objectContaining({
+            status: expect.anything(),
+            reward_status: expect.anything(),
+            reward_distribution_mode: expect.anything(),
+            reward_distribution_delay_days: expect.anything(),
+            reward_distribution_scheduled_at: expect.anything(),
+          }),
+          requireDraftPublication: false,
+        }),
+      );
+    });
+
+    it('updates social-reward configuration through the economic fence and leaves banner refs untouched', async () => {
+      const questId = new Types.ObjectId();
+      const savedRecord = {
+        _id: questId,
+        campaign_revision: 4,
+        revision_request_key: 'private-revision-command',
+        banner_assets: { banner_en: { owner_key: 'private-owner' } },
+      };
+      const saved = { toObject: () => savedRecord };
+      questModel.findById.mockResolvedValue({
+        _id: questId,
+        revision_of: new Types.ObjectId(),
+        publication_status: 'draft',
         campaign_revision: 3,
         config_revision: 2,
         reward_model: 'task_v2',
@@ -2581,30 +3085,46 @@ describe('PointService', () => {
       });
       questModel.findOneAndUpdate.mockResolvedValue(saved);
 
-      await expect(
-        service.createQuest(
-          dto({
-            _id: String(questId),
-            campaign_revision: 3,
-            expected_config_revision: 2,
-            facebook_post: 'copy-only-change',
-          }),
-          {},
-        ),
-      ).resolves.toBe(saved);
+      const result = await service.createQuest(
+        dto({
+          _id: String(questId),
+          campaign_revision: 3,
+          expected_config_revision: 2,
+          facebook_post: 'copy-only-change',
+        }),
+        {},
+      );
+      expect(result).toEqual(
+        expect.objectContaining({ _id: questId, campaign_revision: 4 }),
+      );
+      expect(result).not.toHaveProperty('revision_request_key');
+      expect(result).not.toHaveProperty('banner_assets');
 
       expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: questId, campaign_revision: 3 },
+        {
+          _id: questId,
+          campaign_revision: 3,
+          config_revision: 2,
+          publication_status: 'draft',
+          start_date: { $gt: expect.any(Date) },
+          $or: [
+            { task_v2_state_frozen_at: { $exists: false } },
+            { task_v2_state_frozen_at: null },
+          ],
+        },
         {
           $set: expect.not.objectContaining({ banner_en: expect.anything() }),
-          $inc: { campaign_revision: 1 },
+          $inc: { campaign_revision: 1, config_revision: 1 },
         },
         { new: true },
       );
       expect(questMediaWrite.execute).not.toHaveBeenCalled();
       expect(
         questTaskStateInspector.withTaskConfigEditFence,
-      ).not.toHaveBeenCalled();
+      ).toHaveBeenCalledWith(String(questId), expect.any(Function), {
+        start_at: new Date('2099-06-27'),
+        end_at: new Date('2099-06-30'),
+      });
     });
 
     it('matches missing legacy revisions even when Mongoose hydrated defaults to zero', async () => {
@@ -2661,6 +3181,7 @@ describe('PointService', () => {
               ],
             },
           ],
+          start_date: { $gt: expect.any(Date) },
         },
         expect.objectContaining({
           $inc: { campaign_revision: 1, config_revision: 1 },
@@ -2818,6 +3339,76 @@ describe('PointService', () => {
         },
         undefined,
       );
+    });
+
+    it('rejects schedule economics after a legacy quest starts', async () => {
+      const questId = new Types.ObjectId();
+      questModel.findById.mockResolvedValue({
+        _id: questId,
+        campaign_revision: 2,
+        config_revision: 3,
+        reward_model: 'legacy_v1',
+        start_date: new Date('2020-06-01T00:00:00.000Z'),
+        end_date: new Date('2099-06-30T00:00:00.000Z'),
+      });
+
+      await expect(
+        service.createQuest(
+          dto({
+            _id: String(questId),
+            campaign_revision: 2,
+            expected_config_revision: 3,
+            start_date: new Date('2099-07-01T00:00:00.000Z'),
+            end_date: new Date('2099-07-31T00:00:00.000Z'),
+          }),
+          {},
+        ),
+      ).rejects.toMatchObject({
+        status: 409,
+        response: expect.objectContaining({
+          code: 'QUEST_TASK_CONFIG_FROZEN',
+          freeze_reason: 'QUEST_ALREADY_STARTED',
+        }),
+      });
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(questMediaWrite.execute).not.toHaveBeenCalled();
+    });
+
+    it('rejects social-reward configuration changes after a legacy quest starts', async () => {
+      const questId = new Types.ObjectId();
+      questModel.findById.mockResolvedValue({
+        _id: questId,
+        campaign_revision: 2,
+        config_revision: 3,
+        reward_model: 'legacy_v1',
+        start_date: new Date('2020-06-01T00:00:00.000Z'),
+        end_date: new Date('2099-06-30T00:00:00.000Z'),
+        facebook_post: 'https://facebook.example/original',
+        facebook_page: '',
+        line: '',
+      });
+
+      await expect(
+        service.createQuest(
+          dto({
+            _id: String(questId),
+            campaign_revision: 2,
+            expected_config_revision: 3,
+            start_date: new Date('2020-06-01T00:00:00.000Z'),
+            end_date: new Date('2099-06-30T00:00:00.000Z'),
+            facebook_post: 'https://facebook.example/changed',
+          }),
+          {},
+        ),
+      ).rejects.toMatchObject({
+        status: 409,
+        response: expect.objectContaining({
+          code: 'QUEST_TASK_CONFIG_FROZEN',
+          freeze_reason: 'QUEST_ALREADY_STARTED',
+        }),
+      });
+      expect(questModel.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(questMediaWrite.execute).not.toHaveBeenCalled();
     });
   });
 });

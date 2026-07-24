@@ -6,6 +6,7 @@ import {
 } from "@mobile/quest/questTaskMapper";
 import {
   fetchQuestTaskPayload,
+  mergeQuestTaskCatalogProgress,
   questTaskQueryKey,
 } from "@mobile/quest/questTaskResource";
 
@@ -99,9 +100,11 @@ describe("quest task resource", () => {
         logoUri: "https://cdn.example/klook.png",
         points: "+50 Points",
         progressLabel: "1 / 1 purchase",
+        questId: "quest-1",
         state: "completed",
         stateLabel: "Completed",
         target: 1,
+        taskKey: "task-brand",
         taskType: "brand_purchase",
         title: "Buy from Klook",
         unit: "purchase",
@@ -115,9 +118,11 @@ describe("quest task resource", () => {
         key: "quest-1:task-referral",
         points: "+75 Points",
         progressLabel: "2 / 2 referrals",
+        questId: "quest-1",
         state: "in_progress",
         stateLabel: "In progress",
         target: 2,
+        taskKey: "task-referral",
         taskType: "friend_referral",
         title: "Invite three friends",
         unit: "referral",
@@ -128,9 +133,11 @@ describe("quest task resource", () => {
         key: "quest-1:task-spend",
         points: "+100 Points",
         progressLabel: "THB 1,250 / THB 1,500",
+        questId: "quest-1",
         state: "compensated",
         stateLabel: "Reversed",
         target: 150000,
+        taskKey: "task-spend",
         taskType: "spend_target",
         title: "Spend THB 1,500",
         unit: "thb_minor",
@@ -142,9 +149,11 @@ describe("quest task resource", () => {
         key: "quest-1:task-not-started",
         points: "+25 Points",
         progressLabel: "0 / 1 purchase",
+        questId: "quest-1",
         state: "not_started",
         stateLabel: "Not started",
         target: 1,
+        taskKey: "task-not-started",
         taskType: "brand_purchase",
         title: "Make another purchase",
         unit: "purchase",
@@ -200,5 +209,43 @@ describe("quest task resource", () => {
   it("returns an empty task list when no active quest exists", () => {
     expect(mapBackendQuestTasks([])).toEqual([]);
     expect(mapBackendQuestTasks({ data: [] })).toEqual([]);
+  });
+
+  it("merges progress into catalog definitions only on quest_id + task_key", () => {
+    const progress = mapBackendQuestTasks(progressPayload);
+    const catalog = [
+      {
+        ...progress[0],
+        current: 0,
+        points: "+60 Points",
+        progressLabel: "",
+        state: "not_started" as const,
+        stateLabel: "",
+        title: "Catalog-owned Klook copy",
+      },
+      {
+        ...progress[1],
+        current: 0,
+        progressLabel: "",
+        questId: "different-quest",
+        state: "not_started" as const,
+        stateLabel: "",
+      },
+    ];
+
+    expect(mergeQuestTaskCatalogProgress(catalog, progress)).toEqual([
+      expect.objectContaining({
+        current: 1,
+        points: "+60 Points",
+        progressLabel: "1 / 1 purchase",
+        state: "completed",
+        title: "Catalog-owned Klook copy",
+      }),
+      expect.objectContaining({
+        current: 0,
+        progressLabel: "",
+        state: "not_started",
+      }),
+    ]);
   });
 });

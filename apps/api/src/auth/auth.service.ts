@@ -268,10 +268,10 @@ export class AuthService {
   async signInTelegram(payload: TelegramAuthDto) {
     try {
       // Verify the Telegram-provided HMAC. Without this, anyone can POST
-      // arbitrary {id, email} and impersonate any Telegram-linked user.
+      // an arbitrary identity and impersonate a Telegram-linked user.
       // Also reject stale payloads (>60s) to prevent replay of captured
       // legitimate logins.
-      if (!process.env.TELEGRAM_BOT_TOKEN) {
+      if (!this.getTelegramLoginBotToken()) {
         throw new UnauthorizedException(
           'Telegram login is not configured on this server',
         );
@@ -286,7 +286,10 @@ export class AuthService {
         throw new UnauthorizedException('Telegram auth payload expired');
       }
 
-      return await this.finalizeTelegramLogin(payload);
+      return await this.finalizeTelegramLogin({
+        id: payload.id,
+        username: payload.username,
+      });
     } catch (error: any) {
       // Preserve UnauthorizedException so 401 reaches the client; wrap
       // anything else in a 401 too so we never leak DB/SDK details.
@@ -307,18 +310,17 @@ export class AuthService {
    */
   async signInTelegramMiniApp(initData: string) {
     try {
-      if (!process.env.TELEGRAM_BOT_TOKEN) {
+      const telegramMiniAppBotToken = this.getTelegramMiniAppBotToken();
+      if (!telegramMiniAppBotToken) {
         throw new UnauthorizedException(
           'Telegram login is not configured on this server',
         );
       }
       const maxAgeSeconds =
         Number(process.env.TELEGRAM_INITDATA_MAX_AGE_SECONDS) || 86_400;
-      const result = verifyTelegramInitData(
-        initData,
-        process.env.TELEGRAM_BOT_TOKEN,
-        { maxAgeSeconds },
-      );
+      const result = verifyTelegramInitData(initData, telegramMiniAppBotToken, {
+        maxAgeSeconds,
+      });
       if (!result.valid) {
         throw new UnauthorizedException('Invalid Telegram initData');
       }
@@ -380,6 +382,9 @@ export class AuthService {
     }
 
     if (userExist) {
+      if (userExist.disabled) {
+        throw new UnauthorizedException('Telegram login failed');
+      }
       const user = await this.userService.update(userExist._id, {
         email: userExist?.email || data.email,
         username: userExist.username || data?.username || '',
@@ -443,17 +448,22 @@ export class AuthService {
     };
   }
 
-  async verifyTelegramAuth(data: any): Promise<boolean> {
+  async verifyTelegramAuth(data: TelegramAuthDto): Promise<boolean> {
     const { hash, ...payload } = data;
+    const telegramLoginBotToken = this.getTelegramLoginBotToken();
+    if (!telegramLoginBotToken) {
+      return false;
+    }
 
     const dataCheckString = Object.keys(payload)
+      .filter((key) => payload[key as keyof typeof payload] !== undefined)
       .sort()
       .map((key) => `${key}=${payload[key]}`)
       .join('\n');
 
     const secretKey = crypto
       .createHash('sha256')
-      .update(process.env.TELEGRAM_BOT_TOKEN)
+      .update(telegramLoginBotToken)
       .digest();
 
     const computedHash = crypto
@@ -470,6 +480,30 @@ export class AuthService {
       Buffer.from(hash, 'hex'),
     );
   }
+
+  /**
+   * Login Widget verification is independently gated from the Telegram poller.
+   * Requiring the dedicated variable prevents a poller-only deployment from
+   * accidentally enabling the public Widget authentication endpoint.
+   */
+  private getTelegramLoginBotToken(): string {
+    return this.normalizeTelegramBotToken(process.env.TELEGRAM_LOGIN_BOT_TOKEN);
+  }
+
+  /**
+   * Mini App initData must be verified by the bot that launched the Mini App.
+   * This remains the poller-owned token and never falls back to the Widget
+   * verifier token.
+   */
+  private getTelegramMiniAppBotToken(): string {
+    return this.normalizeTelegramBotToken(process.env.TELEGRAM_BOT_TOKEN);
+  }
+
+  private normalizeTelegramBotToken(candidate: string | undefined): string {
+    const normalized = candidate?.trim();
+    return normalized && normalized !== 'PLACEHOLDER' ? normalized : '';
+  }
+
   async signInAi(email: string) {
     try {
       if (!email) return null;

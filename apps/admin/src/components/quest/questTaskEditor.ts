@@ -1,6 +1,6 @@
 import { type OfferLike } from "@/lib/offerDisplay";
 import { defaultQuestTaskWording } from "@/lib/questTaskWording";
-import type { QuestTaskPayload, QuestTaskType } from "@/types/quest";
+import type { QuestTask, QuestTaskPayload, QuestTaskType } from "@/types/quest";
 
 export type TaskDraft = {
   clientId: string;
@@ -82,6 +82,55 @@ export function buildQuestTaskPayloads(
       spend_scope: "any_shop_via_ggc",
       target_thb_minor: Number(task.target_thb_minor),
     };
+  });
+}
+
+/**
+ * A schedule change rotates the server-owned task keys before the task editor
+ * saves its own changes. Build the old-key -> committed-key relation from the
+ * two server snapshots, then apply it to drafts by stable key. Never apply the
+ * returned keys by draft array position: admins can insert, remove, or reorder
+ * tasks in the same save.
+ */
+export function adoptCommittedQuestTaskKeys(
+  payloads: QuestTaskPayload[],
+  previousTasks: QuestTask[] | undefined,
+  committedTasks: QuestTask[] | undefined,
+): QuestTaskPayload[] {
+  if (!previousTasks?.length || !committedTasks?.length) return payloads;
+
+  const committedKeyByPreviousKey = new Map<string, string>();
+  previousTasks.forEach((previousTask, index) => {
+    const committedTask = committedTasks[index];
+    if (previousTask.task_key && committedTask?.task_key) {
+      committedKeyByPreviousKey.set(
+        previousTask.task_key,
+        committedTask.task_key,
+      );
+    }
+  });
+
+  return payloads.map((task) => {
+    if (!task.task_key) return task;
+    const committedTaskKey = committedKeyByPreviousKey.get(task.task_key);
+    return committedTaskKey ? { ...task, task_key: committedTaskKey } : task;
+  });
+}
+
+/**
+ * The task endpoint returns tasks in the exact submitted order. Once that
+ * stage succeeds, adopt its canonical keys (including keys for newly-created
+ * or economically changed tasks) so reward-stage retries never resubmit stale
+ * identities.
+ */
+export function adoptSavedQuestTaskKeys(
+  payloads: QuestTaskPayload[],
+  savedTasks: QuestTask[] | undefined,
+): QuestTaskPayload[] {
+  if (!savedTasks || savedTasks.length !== payloads.length) return payloads;
+  return payloads.map((task, index) => {
+    const savedTaskKey = savedTasks[index]?.task_key;
+    return savedTaskKey ? { ...task, task_key: savedTaskKey } : task;
   });
 }
 
@@ -167,14 +216,14 @@ export function validateQuestTasks(
     }
     const hasExplicitWording = Boolean(
       task.wording?.trim() ||
-        task.wording_en?.trim() ||
-        task.wording_th?.trim(),
+      task.wording_en?.trim() ||
+      task.wording_th?.trim(),
     );
     // Blank is allowed ONLY when a brand default can stand in (brand_purchase with an offer);
     // referral/spend tasks have no brand, so the customer would drop them — require wording.
     const hasBrandDefault = Boolean(
       brandDefaultWording(task, offersById, "en") ||
-        brandDefaultWording(task, offersById, "th"),
+      brandDefaultWording(task, offersById, "th"),
     );
     if (!hasExplicitWording && !hasBrandDefault) {
       return "Each task needs English or Thai customer wording.";

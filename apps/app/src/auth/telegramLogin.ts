@@ -12,9 +12,6 @@ export type TelegramAuthPayload = {
   photo_url?: string;
   auth_date: number;
   hash: string;
-  email?: string;
-  referral_id?: string;
-  country?: string;
 };
 
 declare global {
@@ -128,21 +125,18 @@ export function requestTelegramLogin(botUsername: string): Promise<TelegramAuthP
 
 export async function exchangeTelegramAuth({
   apiUrl,
-  country,
   fetchImpl = fetch,
   payload,
 }: {
   apiUrl: string;
-  country?: string;
   fetchImpl?: typeof fetch;
   payload: TelegramAuthPayload;
 }): Promise<MobileSession> {
   const baseUrl = apiUrl.replace(/\/+$/, "");
   const response = await fetchImpl(`${baseUrl}/auth/log-in/telegram`, {
-    body: JSON.stringify({
-      ...payload,
-      ...(country ? { country } : {}),
-    }),
+    // Telegram signs the complete callback payload. Forward it unchanged:
+    // appending local metadata would make the API's HMAC contract ambiguous.
+    body: JSON.stringify(payload),
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
