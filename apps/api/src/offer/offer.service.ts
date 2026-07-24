@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   InternalServerErrorException,
   Injectable,
   Logger,
@@ -9,7 +10,10 @@ import {
   Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InjectModel } from '@nestjs/mongoose';
+import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { Model, Types } from 'mongoose';
 import { createHash, randomUUID } from 'node:crypto';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
@@ -86,6 +90,67 @@ const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
   status: { $nin: ['pending_review', 'rejected'] },
 };
+
+// #498 — Top Brands rail always shows at least this many; short admin curation
+// is auto-filled with the highest-conversion brands.
+const MIN_TOP_BRANDS = 10;
+const TOP_BRAND_CARD_FIELDS =
+  'offer_id offer_name offer_name_display logo logo_desktop logo_mobile logo_circle commission_store commissions';
+// Conversion-ranking window + cache for the fill (aggregation runs at most once
+// per TTL, not per homepage request).
+const TOP_BRAND_FILL_WINDOW_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+const TOP_BRAND_FILL_CANDIDATES = 50;
+const TOP_BRAND_FILL_CACHE_KEY = 'top_brand_conversion_fill_v1';
+const TOP_BRAND_FILL_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+type TopBrandCard = {
+  _id: string;
+  offer_id: number;
+  brand: string;
+  logo: string;
+  cashback: string;
+};
+
+/** Map a selected/ranked offer document to a public Top Brands card. */
+function toTopBrandCard(offer: unknown): TopBrandCard {
+  const row = offer as {
+    _id: unknown;
+    offer_id: number;
+    offer_name: string;
+    offer_name_display?: string;
+    logo?: string;
+    logo_desktop?: string;
+    logo_mobile?: string;
+    logo_circle?: string;
+    commission_store?: unknown;
+    commissions?: unknown[];
+  };
+  return {
+    _id: String(row._id),
+    offer_id: row.offer_id,
+    brand: row.offer_name_display?.trim() || row.offer_name,
+    logo: resolvePublicOfferLogo(row),
+    cashback: resolveOfferCashbackLabel(row),
+  };
+}
+
+/** Append fill cards (already ranked) to a curated list, up to `min`, de-duped by _id. */
+function appendTopBrandFill(
+  curated: TopBrandCard[],
+  fill: TopBrandCard[],
+  min: number,
+): TopBrandCard[] {
+  if (curated.length >= min) return curated;
+  const seen = new Set(curated.map((card) => card._id));
+  const out = [...curated];
+  for (const card of fill) {
+    if (out.length >= min) break;
+    if (seen.has(card._id)) continue;
+    seen.add(card._id);
+    out.push(card);
+  }
+  return out;
+}
 
 function commandOwnedOfferAssets(
   offer: Record<string, unknown>,
@@ -596,6 +661,12 @@ export class OfferService implements OnApplicationBootstrap {
     private readonly policyMediaWrite: PolicyMediaWriteService,
     private readonly policyMediaRegistry: PolicyMediaAssetRegistryService,
     private readonly policyMediaCleanup: PolicyMediaCleanupService,
+    // #498 — conversion counts drive the Top Brands min-10 auto-fill ranking.
+    // Placed at the end of the required params so positional test construction
+    // stays aligned.
+    @InjectModel(Conversion.name)
+    private conversionModel: Model<Conversion>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
     @Optional()
     @InjectModel(SPECIFIC_PAGE_BANNER_MODEL)
     private specificPageBannerModel?: Model<Banner>,
@@ -1484,19 +1555,16 @@ export class OfferService implements OnApplicationBootstrap {
         ...mobileEntries.map((entry) => entry.offerId),
       ]),
     ];
-    if (unionIds.length === 0) {
-      return { data: [], dataDesktop: [], dataMobile: [] };
-    }
 
-    const offers = await this.offerModel
-      .find({
-        _id: { $in: unionIds },
-        ...ACTIVE_OFFER_FILTER,
-      } as any)
-      .select(
-        'offer_id offer_name offer_name_display logo logo_desktop logo_mobile logo_circle commission_store commissions',
-      )
-      .exec();
+    const offers = unionIds.length
+      ? await this.offerModel
+          .find({
+            _id: { $in: unionIds },
+            ...ACTIVE_OFFER_FILTER,
+          } as any)
+          .select(TOP_BRAND_CARD_FIELDS)
+          .exec()
+      : [];
     const offerById = new Map(
       offers.map((offer) => [String(offer._id), offer]),
     );
@@ -1505,35 +1573,92 @@ export class OfferService implements OnApplicationBootstrap {
       entries
         .map((entry) => {
           const offer = offerById.get(entry.offerId);
-          if (!offer) {
-            return null;
-          }
-          const row = offer as {
-            _id: unknown;
-            offer_id: number;
-            offer_name: string;
-            offer_name_display?: string;
-            logo?: string;
-            logo_desktop?: string;
-            logo_mobile?: string;
-            logo_circle?: string;
-            commission_store?: unknown;
-            commissions?: unknown[];
-          };
-          return {
-            _id: String(row._id),
-            offer_id: row.offer_id,
-            brand: row.offer_name_display?.trim() || row.offer_name,
-            logo: resolvePublicOfferLogo(row),
-            cashback: resolveOfferCashbackLabel(row),
-          };
+          return offer ? toTopBrandCard(offer) : null;
         })
-        .filter((brand) => brand !== null);
+        .filter((brand): brand is TopBrandCard => brand !== null);
 
-    const dataDesktop = toDisplay(desktopEntries);
-    const dataMobile = toDisplay(mobileEntries);
+    let dataDesktop = toDisplay(desktopEntries);
+    let dataMobile = toDisplay(mobileEntries);
+
+    // #498 — Top Brands always display at least MIN_TOP_BRANDS. When admin
+    // curation is short, fill the remaining slots with the highest-conversion
+    // brands not already shown, preserving admin order. Only aggregate when a
+    // fill is actually needed (skips the query on a fully-curated rail).
+    if (
+      dataDesktop.length < MIN_TOP_BRANDS ||
+      dataMobile.length < MIN_TOP_BRANDS
+    ) {
+      const excluded = new Set(unionIds.map((id) => String(id)));
+      const fillCards = await this.resolveTopBrandConversionFill(excluded);
+      dataDesktop = appendTopBrandFill(dataDesktop, fillCards, MIN_TOP_BRANDS);
+      dataMobile = appendTopBrandFill(dataMobile, fillCards, MIN_TOP_BRANDS);
+    }
+
     // `data` stays desktop-shaped for legacy clients / E2E pollers.
     return { data: dataDesktop, dataDesktop, dataMobile };
+  }
+
+  /**
+   * #498 — highest-conversion brands to fill the Top Brands rail up to the
+   * minimum. Ranks active offers by approved-conversion count over a recent
+   * window (aggregated from the Conversion collection), excludes the given
+   * offer ObjectIds (already-curated). The ranked numeric offer-id list is
+   * cached so the aggregation runs at most once per TTL, not per request.
+   */
+  private async resolveTopBrandConversionFill(
+    excludedOfferObjectIds: Set<string>,
+  ): Promise<TopBrandCard[]> {
+    let rankedOfferIds = await this.cacheManager.get<number[]>(
+      TOP_BRAND_FILL_CACHE_KEY,
+    );
+    if (!Array.isArray(rankedOfferIds)) {
+      const since = new Date(Date.now() - TOP_BRAND_FILL_WINDOW_MS);
+      const ranked = await this.conversionModel.aggregate<{ _id: number }>([
+        {
+          $match: {
+            conversion_status: 'approved',
+            datetime_conversion: { $gte: since },
+          },
+        },
+        { $group: { _id: '$offer_id', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: TOP_BRAND_FILL_CANDIDATES },
+      ]);
+      rankedOfferIds = ranked
+        .map((row) => row._id)
+        .filter((id): id is number => typeof id === 'number');
+      await this.cacheManager.set(
+        TOP_BRAND_FILL_CACHE_KEY,
+        rankedOfferIds,
+        TOP_BRAND_FILL_CACHE_TTL_MS,
+      );
+    }
+    if (rankedOfferIds.length === 0) {
+      return [];
+    }
+
+    const offers = await this.offerModel
+      .find({
+        offer_id: { $in: rankedOfferIds },
+        ...ACTIVE_OFFER_FILTER,
+      } as any)
+      .select(TOP_BRAND_CARD_FIELDS)
+      .exec();
+    const offerByNumericId = new Map(
+      offers.map((offer) => [(offer as { offer_id: number }).offer_id, offer]),
+    );
+
+    const cards: TopBrandCard[] = [];
+    for (const numericId of rankedOfferIds) {
+      const offer = offerByNumericId.get(numericId);
+      if (!offer) continue;
+      if (excludedOfferObjectIds.has(String((offer as { _id: unknown })._id))) {
+        continue;
+      }
+      cards.push(toTopBrandCard(offer));
+      if (cards.length >= MIN_TOP_BRANDS) break;
+    }
+    return cards;
   }
 
   /**
