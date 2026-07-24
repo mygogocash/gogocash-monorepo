@@ -27,7 +27,7 @@ echo "[e2e] Cross-system Playwright..."
 npx playwright test --config e2e/playwright.config.ts
 
 echo "[e2e] Admin Playwright..."
-ADMIN_PLAYWRIGHT_NO_SERVER=1 npm run test:e2e -w gogocash-admin
+E2E_REUSE_ADMIN_STORAGE_STATE=1 ADMIN_PLAYWRIGHT_NO_SERVER=1 npm run test:e2e -w gogocash-admin
 
 echo "[e2e] Customer Playwright (backend specs only; design-parity excluded)..."
 MOBILE_PLAYWRIGHT_NO_SERVER=1 npm run test:e2e -w @gogocash/mobile -- --project=backend-desktop --project=backend-mobile
