@@ -49,7 +49,8 @@ describe('QuestMediaQaService', () => {
     commandModel = {
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn().mockResolvedValue({}),
-      deleteOne: jest.fn().mockResolvedValue({ deletedCount: 1 }),
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 1 }),
+      countDocuments: jest.fn().mockResolvedValue(0),
     };
     questModel = {
       findOne: jest.fn(),
@@ -84,11 +85,12 @@ describe('QuestMediaQaService', () => {
     delete process.env.QUEST_MEDIA_QA_ENABLED;
     expect(service().readiness()).toEqual(
       expect.objectContaining({
-        contract_version: 'quest-media-v2',
+        contract_version: 'quest-media-v3',
         mutation_enabled: false,
         required_routes: [
           'GET /point/admin-quest-media/readiness',
           'POST /point/create-quest',
+          'PATCH /point/admin-quest/:id/campaign',
           'GET /point/admin-quest-media/qa-status/:requestKey',
           'POST /point/admin-quest-media/qa-cleanup',
         ],
@@ -179,6 +181,7 @@ describe('QuestMediaQaService', () => {
     questModel.findOneAndDelete.mockResolvedValue(quest);
     cleanupModel.countDocuments
       .mockResolvedValueOnce(4)
+      .mockResolvedValueOnce(0)
       .mockResolvedValueOnce(0);
 
     await expect(
@@ -238,20 +241,19 @@ describe('QuestMediaQaService', () => {
       expect.any(Object),
       { new: true },
     );
-    expect(commandModel.deleteOne).toHaveBeenCalledWith(
+    expect(commandModel.deleteMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        request_key: { $eq: command.request_key },
         quest_id: { $eq: questId },
-        attempt_token: command.attempt_token,
+        status: 'committed',
         qa_marker: { $eq: marker },
-        qa_cleanup_objects_deleted_at: { $exists: true },
+        qa_cleanup_nonce_hash: command.qa_cleanup_nonce_hash,
       }),
     );
     expect(
       commandModel.findOneAndUpdate.mock.invocationCallOrder[0],
     ).toBeLessThan(cleanupModel.deleteMany.mock.invocationCallOrder[0]);
     expect(cleanupModel.deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
-      commandModel.deleteOne.mock.invocationCallOrder[0],
+      commandModel.deleteMany.mock.invocationCallOrder[0],
     );
   });
 
@@ -295,6 +297,7 @@ describe('QuestMediaQaService', () => {
     cleanupModel.find.mockReturnValue(query(cleanupRows));
     cleanupModel.countDocuments
       .mockResolvedValueOnce(4)
+      .mockResolvedValueOnce(0)
       .mockResolvedValueOnce(0);
 
     await expect(
@@ -316,7 +319,7 @@ describe('QuestMediaQaService', () => {
     expect(cleanup.runForKey).toHaveBeenCalledWith(
       `qa-cleanup:${command.request_key}:${command.attempt_token}`,
     );
-    expect(commandModel.deleteOne).toHaveBeenCalledTimes(1);
+    expect(commandModel.deleteMany).toHaveBeenCalledTimes(1);
     expect(cleanupModel.deleteMany).toHaveBeenCalledTimes(1);
   });
 

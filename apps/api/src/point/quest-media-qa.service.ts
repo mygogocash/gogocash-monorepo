@@ -113,17 +113,19 @@ export class QuestMediaQaService {
 
   readiness() {
     return {
-      contract_version: 'quest-media-v2',
+      contract_version: 'quest-media-v3',
       mutation_enabled: questMediaQaMutationEnabled(),
       required_routes: [
         'GET /point/admin-quest-media/readiness',
         'POST /point/create-quest',
+        'PATCH /point/admin-quest/:id/campaign',
         'GET /point/admin-quest-media/qa-status/:requestKey',
         'POST /point/admin-quest-media/qa-cleanup',
       ],
       constraints: {
         role: 'superadmin',
         new_quest_files: 4,
+        replacement_files: 4,
         cleanup_scope: 'exact marker + request key + nonce + attempt',
       },
     } as const;
@@ -330,34 +332,51 @@ export class QuestMediaQaService {
       }
     }
 
-    await this.cleanupModel.deleteMany({ cleanup_key: cleanupKey });
+    const pendingQuestCleanup = await this.cleanupModel.countDocuments({
+      quest_id: mongoEq(questId),
+      status: 'pending',
+    });
+    if (pendingQuestCleanup !== 0) {
+      throw new ServiceUnavailableException(
+        'QA quest still has pending historical object cleanup.',
+      );
+    }
+    const deletedTombstones = await this.cleanupModel.deleteMany({
+      quest_id: mongoEq(questId),
+    });
     const remainingTombstones = await this.cleanupModel.countDocuments({
-      cleanup_key: cleanupKey,
+      quest_id: mongoEq(questId),
     });
     if (remainingTombstones !== 0) {
       throw new ServiceUnavailableException(
         'QA tombstone cleanup could not be proven',
       );
     }
-    const deletedIntent = await this.commandModel.deleteOne({
-      request_key: mongoEq(requestKey),
+    const intentScope = {
       quest_id: mongoEq(questId),
-      attempt_token: command.attempt_token,
-      status: 'committed',
+      status: 'committed' as const,
       qa_marker: mongoEq(qaMarker),
       qa_cleanup_nonce_hash: command.qa_cleanup_nonce_hash,
-      qa_cleanup_objects_deleted_at: { $exists: true },
-    });
-    if (deletedIntent.deletedCount !== 1) {
+    };
+    const deletedIntents = await this.commandModel.deleteMany(intentScope);
+    if ((deletedIntents.deletedCount ?? 0) < 1) {
       throw new ServiceUnavailableException(
         'QA intent cleanup could not be proven',
+      );
+    }
+    const remainingIntents =
+      await this.commandModel.countDocuments(intentScope);
+    if (remainingIntents !== 0) {
+      throw new ServiceUnavailableException(
+        'QA historical intent cleanup could not be proven',
       );
     }
     return {
       quest_deleted: true,
       objects_deleted: QA_ROLES.length,
       intent_deleted: true,
-      tombstones_deleted: QA_ROLES.length,
+      intents_deleted: deletedIntents.deletedCount,
+      tombstones_deleted: deletedTombstones.deletedCount,
     };
   }
 }
