@@ -12,7 +12,6 @@ export type QuestCampaignFormInput = QuestCampaignBannerDraft & {
   questId?: string | null;
   startDate: string;
   endDate: string;
-  status: string;
   facebookPage: string;
   facebookPost: string;
   line: string;
@@ -89,7 +88,6 @@ export function questCampaignFingerprint(
     configRevision: input.configRevision,
     startDate: input.startDate,
     endDate: input.endDate,
-    status: input.status,
     facebookPage: input.facebookPage,
     facebookPost: input.facebookPost,
     line: input.line,
@@ -119,7 +117,6 @@ export function buildQuestCampaignFormData(
   form.append("expected_config_revision", String(input.configRevision));
   form.append("start_date", input.startDate);
   form.append("end_date", input.endDate);
-  form.append("status", input.status);
   form.append("facebook_page", sanitizeQuestCampaignText(input.facebookPage));
   form.append("facebook_post", sanitizeQuestCampaignText(input.facebookPost));
   form.append("line", sanitizeQuestCampaignText(input.line));

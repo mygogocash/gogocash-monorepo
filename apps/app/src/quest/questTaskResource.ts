@@ -10,10 +10,11 @@ import { useLocale } from "@mobile/i18n/LocaleProvider";
 import type { Locale } from "@mobile/i18n/locales";
 
 import {
-  HARDCODED_SHOP_300_TASK,
-  extraPointEndpoint,
-  mapPublicBrandTasks,
-} from "./questBrandTaskMapper";
+  mapQuestTaskCatalog,
+  questTaskCatalogEndpoint,
+  type MappedQuestTaskCatalog,
+  type QuestTaskCatalogSource,
+} from "./questTaskCatalogMapper";
 import {
   mapBackendQuestTasks,
   questTaskEndpoint,
@@ -21,10 +22,9 @@ import {
 } from "./questTaskMapper";
 
 export {
-  HARDCODED_SHOP_300_TASK,
-  extraPointEndpoint,
   mapBackendQuestTasks,
-  mapPublicBrandTasks,
+  mapQuestTaskCatalog,
+  questTaskCatalogEndpoint,
   questTaskEndpoint,
 };
 export type { QuestTaskRow };
@@ -38,6 +38,12 @@ export type QuestTaskResourceResult = {
   status: QuestTaskResourceStatus;
 };
 
+export type QuestTaskCatalogResourceResult = QuestTaskResourceResult & {
+  catalogSource: QuestTaskCatalogSource | null;
+  configRevision: number | null;
+  questId: string | null;
+};
+
 type QuestTaskBaseClient = {
   get(path: string): Promise<unknown>;
 };
@@ -46,17 +52,26 @@ export const fixtureQuestTaskRows: QuestTaskRow[] = webQuestTaskRows.map(
   (task) => ({
     current: 0,
     icon: task.icon,
-    key: task.title,
+    key: `fixture:${task.title}`,
     points: task.points,
     progressLabel: "0 / 1 purchase",
+    questId: "fixture",
     state: "not_started",
     stateLabel: "Not started",
     target: 1,
+    taskKey: task.title,
     taskType: "brand_purchase",
     title: task.title,
     unit: "purchase",
   }),
 );
+
+export const fixtureQuestTaskCatalogRows: QuestTaskRow[] =
+  fixtureQuestTaskRows.map((task) => ({
+    ...task,
+    progressLabel: "",
+    stateLabel: "",
+  }));
 
 export function questTaskQueryKey(
   apiUrl: string,
@@ -68,6 +83,15 @@ export function questTaskQueryKey(
     apiUrl,
     questTaskEndpoint,
     sessionScope,
+    locale,
+  ] as const;
+}
+
+export function questTaskCatalogQueryKey(apiUrl: string, locale: Locale) {
+  return [
+    "quest-task-catalog",
+    apiUrl,
+    questTaskCatalogEndpoint,
     locale,
   ] as const;
 }
@@ -124,35 +148,24 @@ export function useQuestTaskRows(): QuestTaskResourceResult {
   };
 }
 
-export async function fetchQuestTaskPayload(
-  client: QuestTaskBaseClient,
-): Promise<unknown> {
-  return client.get(questTaskEndpoint);
-}
-
-// Design/preview (accountDataSource !== "backend") earn-list fixture: the same brand rows the
-// screen showed before, plus the hardcoded prod-parity row, so non-backend builds stay intact.
-export const fixtureBrandTaskRows: QuestTaskRow[] = [
-  ...fixtureQuestTaskRows,
-  HARDCODED_SHOP_300_TASK,
-];
-
-// PUBLIC GoGoQuest earn-list. Gated ONLY on accountDataSource === "backend" (NOT auth), so it
-// renders for signed-out visitors exactly like prod app.gogocash.co. The hardcoded "Shop 300
-// Baht+" row is appended after the /offer/extra-point brands.
-export function useQuestBrandTasks(): QuestTaskResourceResult {
+export function useQuestTaskCatalog(): QuestTaskCatalogResourceResult {
   const env = useMemo(() => getMobileEnv(), []);
   const { locale } = useLocale();
   const shouldFetchBackend = env.accountDataSource === "backend";
-  const query = useQuery<unknown, Error>({
+  const query = useQuery<MappedQuestTaskCatalog, Error>({
     enabled: shouldFetchBackend,
     queryFn: async () => {
       const client = await getSharedMobileApiClient(env.apiUrl);
       if (!client)
-        throw new Error("Quest brand task session store is unavailable.");
-      return fetchPublicBrandTaskPayload(client);
+        throw new Error("Quest task catalog session store is unavailable.");
+      const payload = await fetchQuestTaskCatalogPayload(client);
+      const catalog = mapQuestTaskCatalog(payload, locale);
+      if (!catalog) {
+        throw new Error("Quest task catalog response is invalid.");
+      }
+      return catalog;
     },
-    queryKey: ["quest-brand-tasks", env.apiUrl, extraPointEndpoint, locale],
+    queryKey: questTaskCatalogQueryKey(env.apiUrl, locale),
     retry: false,
   });
 
@@ -161,25 +174,87 @@ export function useQuestBrandTasks(): QuestTaskResourceResult {
   };
 
   if (!shouldFetchBackend) {
-    return { error: null, retry, rows: fixtureBrandTaskRows, status: "ready" };
+    return {
+      catalogSource: "canonical",
+      configRevision: 0,
+      error: null,
+      questId: "fixture",
+      retry,
+      rows: fixtureQuestTaskCatalogRows,
+      status: "ready",
+    };
   }
   if (query.isPending) {
-    return { error: null, retry, rows: [], status: "loading" };
+    return {
+      catalogSource: null,
+      configRevision: null,
+      error: null,
+      questId: null,
+      retry,
+      rows: [],
+      status: "loading",
+    };
   }
   if (query.isError) {
-    return { error: query.error, retry, rows: [], status: "error" };
+    return {
+      catalogSource: null,
+      configRevision: null,
+      error: query.error,
+      questId: null,
+      retry,
+      rows: [],
+      status: "error",
+    };
   }
 
   return {
+    ...query.data,
     error: null,
     retry,
-    rows: [...mapPublicBrandTasks(query.data, locale), HARDCODED_SHOP_300_TASK],
     status: "ready",
   };
 }
 
-export async function fetchPublicBrandTaskPayload(
+export async function fetchQuestTaskPayload(
   client: QuestTaskBaseClient,
 ): Promise<unknown> {
-  return client.get(extraPointEndpoint);
+  return client.get(questTaskEndpoint);
+}
+
+export async function fetchQuestTaskCatalogPayload(
+  client: QuestTaskBaseClient,
+): Promise<unknown> {
+  return client.get(questTaskCatalogEndpoint);
+}
+
+export function mergeQuestTaskCatalogProgress(
+  catalogRows: QuestTaskRow[],
+  progressRows: QuestTaskRow[],
+): QuestTaskRow[] {
+  const progressByIdentity = new Map(
+    progressRows
+      .filter((row) => row.questId && row.taskKey)
+      .map((row) => [`${row.questId}:${row.taskKey}`, row] as const),
+  );
+
+  return catalogRows.map((definition) => {
+    if (!definition.questId || !definition.taskKey) return definition;
+    const progress = progressByIdentity.get(
+      `${definition.questId}:${definition.taskKey}`,
+    );
+    if (!progress) return definition;
+
+    return {
+      ...definition,
+      ...(progress.capLabel ? { capLabel: progress.capLabel } : {}),
+      ...(progress.capReached ? { capReached: true } : {}),
+      ...(progress.capReason ? { capReason: progress.capReason } : {}),
+      current: progress.current,
+      progressLabel: progress.progressLabel,
+      state: progress.state,
+      stateLabel: progress.stateLabel,
+      target: progress.target,
+      unit: progress.unit,
+    };
+  });
 }

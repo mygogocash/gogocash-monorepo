@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,9 +16,13 @@ import type { Offer } from "@/types/api";
 import type { ResponseQuestDate } from "@/types/quest";
 
 const questQueries = vi.hoisted(() => ({
+  createQuestRevision: vi.fn(),
   fetchAdminQuests: vi.fn(),
+  fetchQuestEffectiveTasks: vi.fn(),
   fetchQuestLeaderboard: vi.fn(),
+  fetchQuestManagementCapabilities: vi.fn(),
   fetchQuestTaskDeeplinkSummary: vi.fn(),
+  publishQuestRevision: vi.fn(),
   saveQuestCampaign: vi.fn(),
   saveQuestRewards: vi.fn(),
   saveQuestTasks: vi.fn(),
@@ -31,9 +36,13 @@ const membershipApi = vi.hoisted(() => ({
   getMembershipTiers: vi.fn(),
 }));
 
+const permissions = vi.hoisted(() => ({
+  role: "super_admin",
+}));
+
 vi.mock("@/hooks/usePermissions", () => ({
   usePermissions: () => ({
-    role: "super_admin",
+    role: permissions.role,
     can: () => true,
   }),
 }));
@@ -170,20 +179,31 @@ vi.mock("./QuestTaskWordingFields", () => ({
 }));
 
 vi.mock("@/lib/query/questQueries", () => ({
+  createQuestRevision: questQueries.createQuestRevision,
   fetchAdminQuests: questQueries.fetchAdminQuests,
+  fetchQuestEffectiveTasks: questQueries.fetchQuestEffectiveTasks,
   fetchQuestLeaderboard: questQueries.fetchQuestLeaderboard,
+  fetchQuestManagementCapabilities:
+    questQueries.fetchQuestManagementCapabilities,
   fetchQuestTaskDeeplinkSummary: questQueries.fetchQuestTaskDeeplinkSummary,
   questLeaderboardQueryKey: (questId: string) => [
     "quest",
     questId,
     "leaderboard",
   ],
+  questEffectiveTasksQueryKey: (questId: string) => [
+    "quest",
+    questId,
+    "effective-tasks",
+  ],
   questListQueryKey: ["quest", "list"],
+  questManagementCapabilitiesQueryKey: ["quest", "management-capabilities"],
   questTaskDeeplinkSummaryQueryKey: (questId: string) => [
     "quest",
     questId,
     "task-deeplinks",
   ],
+  publishQuestRevision: questQueries.publishQuestRevision,
   saveQuestCampaign: questQueries.saveQuestCampaign,
   saveQuestRewards: questQueries.saveQuestRewards,
   saveQuestTasks: questQueries.saveQuestTasks,
@@ -308,23 +328,125 @@ const newQuest = {
   updatedAt: "2026-07-01T00:00:00.000Z",
 } satisfies ResponseQuestDate;
 
-function renderQuestTable(view: "list" | "create" | "edit" = "edit") {
+const revisionDraftQuest = {
+  ...quest,
+  _id: "quest-draft-1",
+  banner_en: "banner-en.png",
+  banner_th: "banner-th.png",
+  campaign_revision: 0,
+  config_revision: 0,
+  end_date: "2030-08-31T16:59:00.000Z",
+  publication_status: "draft",
+  revision_number: 1,
+  revision_of: "quest-1",
+  revision_reason: "Prepare the August campaign.",
+  reward_model: "task_v2",
+  start_date: "2030-07-31T17:00:00.000Z",
+  status: "scheduled",
+  sub_banner_en: "sub-banner-en.png",
+  sub_banner_th: "sub-banner-th.png",
+  updatedAt: "2026-07-23T00:00:00.000Z",
+} satisfies ResponseQuestDate;
+
+function effectiveCatalogFor(
+  sourceQuest: ResponseQuestDate,
+  capabilities: {
+    can_edit_campaign_economics?: boolean;
+    can_edit_task_economics?: boolean;
+    can_edit_rewards?: boolean;
+    can_edit_presentation?: boolean;
+    can_create_revision?: boolean;
+    freeze_reason?: string | null;
+  } = {},
+) {
+  const tasks = (sourceQuest.tasks ?? []).map((task) => {
+    const taskOffer =
+      task.offer && typeof task.offer === "object" ? task.offer : undefined;
+    return {
+      task_key: task.task_key,
+      task_kind: task.task_type,
+      points: task.points,
+      sort_order: task.sort_order,
+      wording_en: task.wording_en ?? task.wording ?? "",
+      wording_th: task.wording_th ?? "",
+      offer: taskOffer
+        ? {
+            id: taskOffer._id,
+            name: taskOffer.offer_name_display || taskOffer.offer_name,
+          }
+        : undefined,
+      source: "quest_task" as const,
+      editable_fields: ["wording_en", "wording_th", "notes"],
+    };
+  });
+  return {
+    contract_version: 1 as const,
+    quest_id: sourceQuest._id,
+    config_revision: Number(sourceQuest.config_revision ?? 0),
+    catalog_source:
+      tasks.length > 0 ? ("canonical" as const) : ("none" as const),
+    stored_task_count: tasks.length,
+    effective_task_count: tasks.length,
+    capabilities: {
+      can_edit_campaign_economics: true,
+      can_edit_task_economics: true,
+      can_edit_rewards: true,
+      can_edit_presentation: true,
+      can_create_revision: false,
+      freeze_reason: null as
+        | "QUEST_ALREADY_STARTED"
+        | "QUEST_HAS_EFFECTS"
+        | "QUEST_REVISION_PUBLISHED"
+        | null,
+      ...capabilities,
+    },
+    revision_workflow: {
+      workflow_enabled: true,
+      task_v2_enabled: true,
+      publish_ready: false,
+      can_create_revision: true,
+      can_publish: false,
+      blockers: [
+        "QUEST_REVISION_PUBLISH_NOT_READY",
+        "QUEST_REVISION_NOT_DRAFT",
+      ],
+    },
+    tasks,
+  };
+}
+
+function renderQuestTable(
+  view: "list" | "create" | "edit" = "edit",
+  questId = "quest-1",
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  const result = render(
     <QueryClientProvider client={queryClient}>
-      <QuestTable
-        view={view}
-        questId={view === "edit" ? "quest-1" : undefined}
-      />
+      <QuestTable view={view} questId={view === "edit" ? questId : undefined} />
     </QueryClientProvider>,
+  );
+  return { ...result, queryClient };
+}
+
+async function waitForEffectiveCatalog() {
+  await screen.findByText(
+    /Canonical Quest tasks|Legacy compatibility catalog|No customer tasks/i,
   );
 }
 
 describe("QuestTable management tabs", () => {
   beforeEach(() => {
+    permissions.role = "super_admin";
     questQueries.fetchAdminQuests.mockResolvedValue([quest]);
+    questQueries.fetchQuestManagementCapabilities.mockResolvedValue({
+      revision_workflow_enabled: false,
+      direct_create_enabled: true,
+    });
+    questQueries.fetchQuestEffectiveTasks.mockResolvedValue(
+      effectiveCatalogFor(quest),
+    );
     questQueries.fetchQuestTaskDeeplinkSummary.mockResolvedValue({
       data: [
         {
@@ -385,6 +507,8 @@ describe("QuestTable management tabs", () => {
     questQueries.saveQuestCampaign.mockResolvedValue(quest);
     questQueries.saveQuestTasks.mockResolvedValue(quest);
     questQueries.saveQuestRewards.mockResolvedValue(quest);
+    questQueries.createQuestRevision.mockReset();
+    questQueries.publishQuestRevision.mockReset();
   });
 
   afterEach(() => {
@@ -494,6 +618,7 @@ describe("QuestTable management tabs", () => {
       },
     ]);
     renderQuestTable();
+    await waitForEffectiveCatalog();
 
     await user.selectOptions(
       await screen.findByRole("combobox", { name: "Quest audience" }),
@@ -602,6 +727,7 @@ describe("QuestTable management tabs", () => {
       },
     ]);
     renderQuestTable();
+    await waitForEffectiveCatalog();
 
     await user.type(await screen.findByLabelText("Max awards per user"), "2");
     await user.click(
@@ -624,17 +750,23 @@ describe("QuestTable management tabs", () => {
   });
 
   it("round-trips selected ids and keeps an inactive frozen tier readable", async () => {
-    questQueries.fetchAdminQuests.mockResolvedValue([
-      {
-        ...quest,
-        reward_model: "task_v2",
-        task_v2_state_frozen_at: "2026-06-02T00:00:00.000Z",
-        audience: {
-          kind: "membership_tiers",
-          tier_ids: [inactiveTierId, activeTierId],
-        },
+    const frozenTierQuest = {
+      ...quest,
+      reward_model: "task_v2" as const,
+      task_v2_state_frozen_at: "2026-06-02T00:00:00.000Z",
+      audience: {
+        kind: "membership_tiers" as const,
+        tier_ids: [inactiveTierId, activeTierId],
       },
-    ]);
+    };
+    questQueries.fetchAdminQuests.mockResolvedValue([frozenTierQuest]);
+    questQueries.fetchQuestEffectiveTasks.mockResolvedValue(
+      effectiveCatalogFor(frozenTierQuest, {
+        can_edit_task_economics: false,
+        can_edit_rewards: false,
+        freeze_reason: "QUEST_HAS_EFFECTS",
+      }),
+    );
     renderQuestTable();
 
     expect(
@@ -696,6 +828,7 @@ describe("QuestTable management tabs", () => {
       response: { data: { message: apiMessage } },
     });
     renderQuestTable();
+    await waitForEffectiveCatalog();
     await user.selectOptions(
       await screen.findByRole("combobox", { name: "Quest audience" }),
       "membership_tiers",
@@ -711,20 +844,36 @@ describe("QuestTable management tabs", () => {
   });
 
   it("freezes task economics after campaign start while leaving wording editable", async () => {
-    questQueries.fetchAdminQuests.mockResolvedValue([
-      {
-        ...quest,
-        reward_model: "task_v2",
-        task_v2_state_frozen_at: "2026-06-02T00:00:00.000Z",
-      },
-    ]);
+    const frozenQuest = {
+      ...quest,
+      reward_model: "task_v2" as const,
+      task_v2_state_frozen_at: "2026-06-02T00:00:00.000Z",
+    };
+    questQueries.fetchAdminQuests.mockResolvedValue([frozenQuest]);
+    questQueries.fetchQuestEffectiveTasks.mockResolvedValue(
+      effectiveCatalogFor(frozenQuest, {
+        can_edit_campaign_economics: false,
+        can_edit_task_economics: false,
+        can_edit_rewards: false,
+        can_edit_presentation: true,
+        can_create_revision: true,
+        freeze_reason: "QUEST_HAS_EFFECTS",
+      }),
+    );
     renderQuestTable();
 
     expect(
-      await screen.findByText(/Quest economics are frozen after/i),
+      (
+        await screen.findAllByText(
+          /Quest economics are frozen because the campaign started/i,
+        )
+      )[0],
     ).toBeVisible();
     expect(screen.getByLabelText("Quest start date and time")).toBeDisabled();
     expect(screen.getByLabelText("Quest end date and time")).toBeDisabled();
+    expect(screen.getByLabelText("Facebook page")).toBeDisabled();
+    expect(screen.getByLabelText("Facebook post")).toBeDisabled();
+    expect(screen.getByLabelText("LINE link")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Add task" })).toBeDisabled();
     expect(
       screen.getByRole("combobox", { name: "Quest audience" }),
@@ -765,6 +914,7 @@ describe("QuestTable management tabs", () => {
       },
     });
     renderQuestTable();
+    await waitForEffectiveCatalog();
 
     const wording = await screen.findByLabelText("English");
     await user.clear(wording);
@@ -778,6 +928,294 @@ describe("QuestTable management tabs", () => {
         /Only customer wording and notes can be edited; create a future quest revision/i,
       ),
     ).toBeVisible();
+  });
+
+  it("fails economic controls closed and surfaces the catalog API error", async () => {
+    const apiMessage =
+      "Quest capability inspection is temporarily unavailable. Retry shortly.";
+    questQueries.fetchQuestEffectiveTasks.mockRejectedValueOnce({
+      response: { data: { message: apiMessage } },
+    });
+    renderQuestTable();
+
+    expect(await screen.findByText(apiMessage)).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Retry task catalog" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText("Quest start date and time")).toBeDisabled();
+    expect(screen.getByLabelText("Quest end date and time")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add task" })).toBeDisabled();
+    expect(screen.getByLabelText("Facebook page")).toBeDisabled();
+  });
+
+  it("disables a dirty save when a capability refresh fails", async () => {
+    const { queryClient } = renderQuestTable();
+    await waitForEffectiveCatalog();
+
+    fireEvent.change(screen.getByLabelText("Points"), {
+      target: { value: "75" },
+    });
+    const saveButton = screen.getByRole("button", {
+      name: "Save quest changes",
+    });
+    expect(saveButton).toBeEnabled();
+
+    questQueries.fetchQuestEffectiveTasks.mockRejectedValueOnce({
+      response: {
+        data: { message: "Capability refresh failed after editing." },
+      },
+    });
+    await queryClient.refetchQueries({
+      queryKey: ["quest", "quest-1", "effective-tasks"],
+    });
+
+    expect(
+      await screen.findByText("Capability refresh failed after editing."),
+    ).toBeVisible();
+    expect(saveButton).toBeDisabled();
+  });
+
+  it("does not request the superadmin-only catalog for a read-only role", async () => {
+    permissions.role = "admin";
+    renderQuestTable();
+
+    expect(await screen.findByTestId("quest-detail-editor")).toBeVisible();
+    expect(questQueries.fetchQuestEffectiveTasks).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(/Couldn't load the effective customer task catalog/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("creates and adopts an isolated future revision while preserving warnings and blocked decisions", async () => {
+    const user = userEvent.setup();
+    const blockedDraft = {
+      ...revisionDraftQuest,
+      blocked_decisions: ["legacy_points_threshold_semantics"],
+    };
+    const sourceCatalog = effectiveCatalogFor(quest);
+    const draftCatalog = {
+      ...effectiveCatalogFor(blockedDraft),
+      revision_workflow: {
+        workflow_enabled: true,
+        task_v2_enabled: true,
+        publish_ready: true,
+        can_create_revision: false,
+        can_publish: false,
+        blockers: ["QUEST_REVISION_DECISION_REQUIRED"],
+      },
+    };
+    questQueries.fetchAdminQuests.mockResolvedValue([blockedDraft, quest]);
+    questQueries.fetchQuestEffectiveTasks.mockImplementation(
+      async (questId: string) =>
+        questId === blockedDraft._id ? draftCatalog : sourceCatalog,
+    );
+    questQueries.createQuestRevision.mockResolvedValue({
+      quest: blockedDraft,
+      revision_workflow: draftCatalog.revision_workflow,
+      warnings: [
+        {
+          code: "LEGACY_POINTS_THRESHOLD_NOT_MATERIALIZED",
+          message:
+            "The legacy 300-point bonus was not copied because its future business semantics are unconfirmed.",
+        },
+      ],
+      blocked_decisions: blockedDraft.blocked_decisions,
+    });
+    const { queryClient } = renderQuestTable();
+    await waitForEffectiveCatalog();
+
+    fireEvent.change(screen.getByLabelText("Revision start date and time"), {
+      target: { value: "2030-08-01T09:00" },
+    });
+    fireEvent.change(screen.getByLabelText("Revision end date and time"), {
+      target: { value: "2030-08-31T23:59" },
+    });
+    await user.type(
+      screen.getByLabelText("Revision reason"),
+      "Prepare the August campaign.",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Create future revision" }),
+    );
+
+    await waitFor(() =>
+      expect(questQueries.createQuestRevision).toHaveBeenCalledTimes(1),
+    );
+    expect(questQueries.createQuestRevision).toHaveBeenCalledWith("quest-1", {
+      request_key: expect.stringMatching(/^quest-revision:/),
+      expected_campaign_revision: 0,
+      expected_config_revision: 0,
+      start_date: "2030-08-01T02:00:00.000Z",
+      end_date: "2030-08-31T16:59:00.000Z",
+      reason: "Prepare the August campaign.",
+    });
+
+    expect(await screen.findByText("Draft")).toBeVisible();
+    expect(
+      screen.getByText("LEGACY_POINTS_THRESHOLD_NOT_MATERIALIZED:"),
+    ).toBeVisible();
+    expect(screen.getByText("legacy_points_threshold_semantics")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Publish revision" }),
+    ).toBeDisabled();
+    expect(
+      queryClient
+        .getQueryData<ResponseQuestDate[]>(["quest", "list"])
+        ?.map((item) => item._id),
+    ).toEqual(expect.arrayContaining([blockedDraft._id, quest._id]));
+  });
+
+  it("reuses a revision request key on an unchanged retry and surfaces the API error", async () => {
+    const user = userEvent.setup();
+    questQueries.createQuestRevision.mockRejectedValue({
+      response: {
+        data: {
+          code: "QUEST_CONFIG_REVISION_CONFLICT",
+          message: "Source quest changed. Reload and try again.",
+        },
+      },
+    });
+    renderQuestTable();
+    await waitForEffectiveCatalog();
+
+    fireEvent.change(screen.getByLabelText("Revision start date and time"), {
+      target: { value: "2030-08-01T09:00" },
+    });
+    fireEvent.change(screen.getByLabelText("Revision end date and time"), {
+      target: { value: "2030-08-31T23:59" },
+    });
+    await user.type(screen.getByLabelText("Revision reason"), "Next campaign");
+    const createButton = screen.getByRole("button", {
+      name: "Create future revision",
+    });
+
+    await user.click(createButton);
+    expect(
+      await screen.findByText("Source quest changed. Reload and try again."),
+    ).toBeVisible();
+    await user.click(createButton);
+    await waitFor(() =>
+      expect(questQueries.createQuestRevision).toHaveBeenCalledTimes(2),
+    );
+
+    const firstPayload = questQueries.createQuestRevision.mock.calls[0][1];
+    const retryPayload = questQueries.createQuestRevision.mock.calls[1][1];
+    expect(retryPayload.request_key).toBe(firstPayload.request_key);
+  });
+
+  it("keeps Publish disabled while server readiness is blocked", async () => {
+    questQueries.fetchAdminQuests.mockResolvedValue([revisionDraftQuest]);
+    questQueries.fetchQuestEffectiveTasks.mockResolvedValue({
+      ...effectiveCatalogFor(revisionDraftQuest),
+      revision_workflow: {
+        workflow_enabled: true,
+        task_v2_enabled: true,
+        publish_ready: false,
+        can_create_revision: false,
+        can_publish: false,
+        blockers: ["QUEST_REVISION_PUBLISH_NOT_READY"],
+      },
+    });
+    renderQuestTable("edit", revisionDraftQuest._id);
+    await waitForEffectiveCatalog();
+
+    expect(
+      screen.getByText(
+        "Publishing remains disabled until the server publication lock is ready.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Publish revision" }),
+    ).toBeDisabled();
+    expect(questQueries.publishQuestRevision).not.toHaveBeenCalled();
+  });
+
+  it("publishes a ready draft with revision fences and adopts the published response", async () => {
+    const user = userEvent.setup();
+    const readyCatalog = {
+      ...effectiveCatalogFor(revisionDraftQuest),
+      revision_workflow: {
+        workflow_enabled: true,
+        task_v2_enabled: true,
+        publish_ready: true,
+        can_create_revision: false,
+        can_publish: true,
+        blockers: [],
+      },
+    };
+    const publishedQuest = {
+      ...revisionDraftQuest,
+      publication_status: "published" as const,
+      published_at: "2026-07-23T12:00:00.000Z",
+    };
+    questQueries.fetchAdminQuests.mockResolvedValue([revisionDraftQuest]);
+    questQueries.fetchQuestEffectiveTasks.mockResolvedValue(readyCatalog);
+    questQueries.publishQuestRevision.mockResolvedValue({
+      quest: publishedQuest,
+      published: true,
+      revision_workflow: {
+        ...readyCatalog.revision_workflow,
+        can_create_revision: true,
+        can_publish: false,
+        blockers: ["QUEST_REVISION_NOT_DRAFT"],
+      },
+    });
+    renderQuestTable("edit", revisionDraftQuest._id);
+    await waitForEffectiveCatalog();
+    questQueries.fetchAdminQuests.mockResolvedValue([publishedQuest]);
+
+    const publishButton = screen.getByRole("button", {
+      name: "Publish revision",
+    });
+    expect(publishButton).toBeEnabled();
+    await user.click(publishButton);
+
+    await waitFor(() =>
+      expect(questQueries.publishQuestRevision).toHaveBeenCalledWith(
+        revisionDraftQuest._id,
+        {
+          request_key: expect.stringMatching(/^quest-publish:/),
+          expected_campaign_revision: 0,
+          expected_config_revision: 0,
+        },
+      ),
+    );
+    expect(await screen.findByText("Published")).toBeVisible();
+  });
+
+  it("surfaces a structured publication conflict without changing the draft", async () => {
+    const user = userEvent.setup();
+    questQueries.fetchAdminQuests.mockResolvedValue([revisionDraftQuest]);
+    questQueries.fetchQuestEffectiveTasks.mockResolvedValue({
+      ...effectiveCatalogFor(revisionDraftQuest),
+      revision_workflow: {
+        workflow_enabled: true,
+        task_v2_enabled: true,
+        publish_ready: true,
+        can_create_revision: false,
+        can_publish: true,
+        blockers: [],
+      },
+    });
+    questQueries.publishQuestRevision.mockRejectedValue({
+      response: {
+        data: {
+          code: "QUEST_CONFIG_REVISION_CONFLICT",
+          message: "Quest revision changed or started before publication.",
+        },
+      },
+    });
+    renderQuestTable("edit", revisionDraftQuest._id);
+    await waitForEffectiveCatalog();
+
+    await user.click(screen.getByRole("button", { name: "Publish revision" }));
+
+    expect(
+      await screen.findByText(
+        "Quest revision changed or started before publication.",
+      ),
+    ).toBeVisible();
+    expect(screen.getByText("Draft")).toBeVisible();
   });
 
   it("shows latest available leaderboard rows with a source-range notice", async () => {
@@ -873,6 +1311,21 @@ describe("QuestTable management tabs", () => {
       "/quest/quest-1/edit",
     );
     expect(screen.queryByTestId("quest-detail-editor")).not.toBeInTheDocument();
+  });
+
+  it("disables direct creation when the API reports revision-only workflow", async () => {
+    questQueries.fetchQuestManagementCapabilities.mockResolvedValue({
+      revision_workflow_enabled: true,
+      direct_create_enabled: false,
+    });
+
+    renderQuestTable("list");
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("link", { name: "Create quest" }),
+      ).toHaveAttribute("aria-disabled", "true"),
+    );
   });
 
   it("renders campaign date fields with the shared admin date picker", async () => {
@@ -1279,7 +1732,130 @@ describe("QuestTable management tabs", () => {
     expect(questQueries.saveQuestTasks).not.toHaveBeenCalled();
   });
 
-  it("preserves a brand-only task-v2 model when retrying a failed reward save", async () => {
+  it("reuses stable rotated keys after a schedule plus insert/reorder task-stage failure", async () => {
+    const user = userEvent.setup();
+    const futureQuest = {
+      ...quest,
+      start_date: "2099-07-01T02:30:00.000Z",
+      end_date: "2099-07-31T15:15:00.000Z",
+      reward_model: "task_v2" as const,
+      campaign_revision: 3,
+      config_revision: 5,
+      tasks: [
+        quest.tasks[0],
+        {
+          task_key: "task_spend_existing_1234",
+          task_type: "spend_target" as const,
+          spend_scope: "any_shop_via_ggc" as const,
+          target_thb_minor: 100_000,
+          points: 100,
+          sort_order: 1,
+          enabled: true,
+          wording: "Spend THB 1,000",
+          wording_en: "Spend THB 1,000",
+          wording_th: "",
+          notes: "",
+        },
+      ],
+    };
+    const rotatedQuest = {
+      ...futureQuest,
+      start_date: "2099-07-02T02:30:00.000Z",
+      campaign_revision: 4,
+      config_revision: 6,
+      tasks: [
+        {
+          ...futureQuest.tasks[0],
+          task_key: "task_schedule_brand_1234",
+        },
+        {
+          ...futureQuest.tasks[1],
+          task_key: "task_schedule_spend_1234",
+        },
+      ],
+    };
+    const taskCommitted = {
+      ...rotatedQuest,
+      config_revision: 7,
+      tasks: [
+        {
+          task_key: "task_new_referral_1234",
+          task_type: "friend_referral" as const,
+          completion_rule: "account_created" as const,
+          points: 50,
+          sort_order: 0,
+          enabled: true,
+          wording: "Invite a friend",
+          wording_en: "Invite a friend",
+          wording_th: "",
+          notes: "",
+        },
+        {
+          ...rotatedQuest.tasks[1],
+          sort_order: 1,
+        },
+        {
+          ...rotatedQuest.tasks[0],
+          sort_order: 2,
+        },
+      ],
+    };
+    questQueries.fetchAdminQuests.mockResolvedValue([futureQuest]);
+    questQueries.fetchQuestEffectiveTasks.mockResolvedValue(
+      effectiveCatalogFor(futureQuest),
+    );
+    questQueries.saveQuestCampaign.mockResolvedValue(rotatedQuest);
+    questQueries.saveQuestTasks
+      .mockRejectedValueOnce(new Error("task save failed"))
+      .mockResolvedValue(taskCommitted);
+    questQueries.saveQuestRewards.mockResolvedValue(taskCommitted);
+    renderQuestTable();
+    await waitForEffectiveCatalog();
+
+    await user.click(screen.getAllByRole("button", { name: "Down" })[0]);
+    await user.click(screen.getByRole("button", { name: "Add task" }));
+    await user.selectOptions(
+      screen.getAllByRole("combobox", { name: "Task type" })[2],
+      "friend_referral",
+    );
+    await user.type(screen.getAllByLabelText("English")[2], "Invite a friend");
+    await user.click(screen.getAllByRole("button", { name: "Up" })[2]);
+    await user.click(screen.getAllByRole("button", { name: "Up" })[1]);
+    fireEvent.change(screen.getByLabelText("Quest start date and time"), {
+      target: { value: "2099-07-02T09:30" },
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Save quest changes" }),
+    );
+    await screen.findByText("task save failed");
+    await user.click(
+      screen.getByRole("button", { name: "Save quest changes" }),
+    );
+
+    await waitFor(() =>
+      expect(questQueries.saveQuestTasks).toHaveBeenCalledTimes(2),
+    );
+    expect(questQueries.saveQuestCampaign).toHaveBeenCalledTimes(1);
+    for (const [, payload] of questQueries.saveQuestTasks.mock.calls) {
+      expect(payload.tasks[0]).not.toHaveProperty("task_key");
+      expect(payload.tasks).toEqual([
+        expect.objectContaining({
+          task_type: "friend_referral",
+        }),
+        expect.objectContaining({
+          task_type: "spend_target",
+          task_key: "task_schedule_spend_1234",
+        }),
+        expect.objectContaining({
+          task_type: "brand_purchase",
+          task_key: "task_schedule_brand_1234",
+        }),
+      ]);
+    }
+  });
+
+  it("adopts task-stage keys before retrying a failed reward save", async () => {
     const user = userEvent.setup();
     const futureQuest = {
       ...quest,
@@ -1291,10 +1867,20 @@ describe("QuestTable management tabs", () => {
     };
     const campaignCommitted = {
       ...futureQuest,
-      facebook_page: "https://facebook.example/updated",
       campaign_revision: 4,
     };
-    const tasksCommitted = { ...campaignCommitted, config_revision: 6 };
+    const tasksCommitted = {
+      ...campaignCommitted,
+      config_revision: 6,
+      tasks: [
+        {
+          ...campaignCommitted.tasks[0],
+          points: 75,
+          extra_point: 75,
+          task_key: "task_points_rotated_1234",
+        },
+      ],
+    };
     questQueries.fetchAdminQuests.mockResolvedValue([futureQuest]);
     questQueries.saveQuestCampaign.mockResolvedValue(campaignCommitted);
     questQueries.saveQuestTasks.mockResolvedValue(tasksCommitted);
@@ -1302,13 +1888,11 @@ describe("QuestTable management tabs", () => {
       .mockRejectedValueOnce(new Error("reward save failed"))
       .mockResolvedValue(tasksCommitted);
     renderQuestTable();
+    await waitForEffectiveCatalog();
 
-    const facebookPage = await screen.findByLabelText("Facebook page");
-    await user.clear(facebookPage);
-    await user.type(facebookPage, "https://facebook.example/updated");
-    const englishWording = screen.getByLabelText("English");
-    await user.clear(englishWording);
-    await user.type(englishWording, "Updated brand wording");
+    fireEvent.change(await screen.findByLabelText("Points"), {
+      target: { value: "75" },
+    });
     await user.click(
       screen.getByRole("button", { name: "Save quest changes" }),
     );
@@ -1324,7 +1908,127 @@ describe("QuestTable management tabs", () => {
     expect(questQueries.saveQuestTasks).toHaveBeenCalledTimes(1);
     expect(questQueries.saveQuestTasks).toHaveBeenCalledWith(
       "quest-1",
-      expect.objectContaining({ reward_model: "task_v2" }),
+      expect.objectContaining({
+        reward_model: "task_v2",
+        tasks: [
+          expect.objectContaining({
+            task_key: "task_brand_existing_1234",
+            points: 75,
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("rebases task keys when a new schedule save follows a task-stage reward failure", async () => {
+    const user = userEvent.setup();
+    const futureQuest = {
+      ...quest,
+      start_date: "2099-07-01T02:30:00.000Z",
+      end_date: "2099-07-31T15:15:00.000Z",
+      reward_model: "task_v2" as const,
+      campaign_revision: 3,
+      config_revision: 5,
+    };
+    const firstCampaign = {
+      ...futureQuest,
+      start_date: "2099-07-02T02:30:00.000Z",
+      campaign_revision: 4,
+      config_revision: 6,
+      tasks: [
+        {
+          ...futureQuest.tasks[0],
+          task_key: "task_schedule_first_1234",
+        },
+      ],
+    };
+    const firstTasks = {
+      ...firstCampaign,
+      config_revision: 7,
+      tasks: [
+        {
+          ...firstCampaign.tasks[0],
+          task_key: "task_points_after_schedule_1234",
+          points: 75,
+          extra_point: 75,
+        },
+      ],
+    };
+    const secondCampaign = {
+      ...firstTasks,
+      start_date: "2099-07-03T02:30:00.000Z",
+      campaign_revision: 5,
+      config_revision: 8,
+      tasks: [
+        {
+          ...firstTasks.tasks[0],
+          task_key: "task_schedule_second_1234",
+        },
+      ],
+    };
+    questQueries.fetchAdminQuests.mockResolvedValue([futureQuest]);
+    questQueries.fetchQuestEffectiveTasks.mockResolvedValue(
+      effectiveCatalogFor(futureQuest),
+    );
+    questQueries.saveQuestCampaign
+      .mockResolvedValueOnce(firstCampaign)
+      .mockResolvedValueOnce(secondCampaign);
+    questQueries.saveQuestTasks
+      .mockResolvedValueOnce(firstTasks)
+      .mockResolvedValueOnce(secondCampaign);
+    questQueries.saveQuestRewards
+      .mockRejectedValueOnce(new Error("reward stage failed"))
+      .mockResolvedValueOnce(secondCampaign);
+    renderQuestTable();
+    await waitForEffectiveCatalog();
+
+    fireEvent.change(screen.getByLabelText("Quest start date and time"), {
+      target: { value: "2099-07-02T09:30" },
+    });
+    fireEvent.change(screen.getByLabelText("Points"), {
+      target: { value: "75" },
+    });
+    await user.click(
+      screen.getByRole("button", { name: "Save quest changes" }),
+    );
+    await screen.findByText("reward stage failed");
+
+    fireEvent.change(screen.getByLabelText("Quest start date and time"), {
+      target: { value: "2099-07-03T09:30" },
+    });
+    await user.click(
+      screen.getByRole("button", { name: "Save quest changes" }),
+    );
+
+    await waitFor(() =>
+      expect(questQueries.saveQuestRewards).toHaveBeenCalledTimes(2),
+    );
+    expect(questQueries.saveQuestCampaign).toHaveBeenCalledTimes(2);
+    expect(questQueries.saveQuestTasks).toHaveBeenNthCalledWith(
+      1,
+      "quest-1",
+      expect.objectContaining({
+        expected_config_revision: 6,
+        tasks: [
+          expect.objectContaining({
+            task_key: "task_schedule_first_1234",
+            points: 75,
+          }),
+        ],
+      }),
+    );
+    expect(questQueries.saveQuestTasks).toHaveBeenNthCalledWith(
+      2,
+      "quest-1",
+      expect.objectContaining({
+        expected_config_revision: 8,
+        tasks: [
+          expect.objectContaining({
+            task_key: "task_schedule_second_1234",
+            points: 75,
+          }),
+        ],
+      }),
     );
   });
 
@@ -1347,6 +2051,7 @@ describe("QuestTable management tabs", () => {
     questQueries.saveQuestCampaign.mockResolvedValue(campaignCommitted);
     questQueries.saveQuestRewards.mockResolvedValue(campaignCommitted);
     renderQuestTable();
+    await waitForEffectiveCatalog();
 
     const facebookPage = await screen.findByLabelText("Facebook page");
     await user.clear(facebookPage);
@@ -1401,6 +2106,7 @@ describe("QuestTable management tabs", () => {
       .mockRejectedValueOnce(new Error("second reward failure"))
       .mockResolvedValue(thirdCampaign);
     renderQuestTable();
+    await waitForEffectiveCatalog();
 
     const facebookPage = await screen.findByLabelText("Facebook page");
     const englishWording = screen.getByLabelText("English");
@@ -1474,6 +2180,7 @@ describe("QuestTable management tabs", () => {
       screen.getByRole("button", { name: "Save and create quest" }),
     );
     await screen.findByText("task save failed");
+    await waitForEffectiveCatalog();
     fireEvent.change(screen.getByLabelText("Facebook page"), {
       target: { value: "https://facebook.example/changed" },
     });
@@ -1531,28 +2238,78 @@ describe("QuestTable management tabs", () => {
     expect(screen.queryByAltText("Current Banner EN")).not.toBeInTheDocument();
   });
 
-  it("explains where legacy-quest brand tasks live (GAP 5)", async () => {
-    // Default fixture quest is reward_model: "legacy_v1".
+  it("shows stored versus effective legacy tasks with provenance instead of false Offers guidance", async () => {
+    const tasklessLegacyQuest = {
+      ...quest,
+      tasks: [],
+      reward_model: "legacy_v1" as const,
+    };
+    questQueries.fetchAdminQuests.mockResolvedValue([tasklessLegacyQuest]);
+    questQueries.fetchQuestEffectiveTasks.mockResolvedValue({
+      ...effectiveCatalogFor(tasklessLegacyQuest, {
+        can_edit_campaign_economics: false,
+        can_edit_task_economics: false,
+        can_edit_rewards: false,
+        can_edit_presentation: true,
+        can_create_revision: true,
+        freeze_reason: "QUEST_HAS_EFFECTS",
+      }),
+      catalog_source: "legacy_compatibility",
+      stored_task_count: 0,
+      effective_task_count: 2,
+      tasks: [
+        {
+          editable_fields: [],
+          offer: { id: offer._id, name: "Klook Travel" },
+          points: 50,
+          sort_order: 0,
+          source: "legacy_offer_fallback",
+          task_key: "legacy:offer:offer-1",
+          task_kind: "brand_purchase",
+          target: { kind: "purchase", required_purchases: 1 },
+          wording_en: "Shop at Klook Travel",
+          wording_th: "",
+        },
+        {
+          editable_fields: [],
+          points: 50,
+          sort_order: 1,
+          source: "legacy_system_rule",
+          task_key: "legacy:points-threshold:300",
+          task_kind: "points_threshold_bonus",
+          target: {
+            kind: "quest_points_threshold",
+            threshold_points: 300,
+          },
+          wording_en: "Reach 300 quest points",
+          wording_th: "สะสมคะแนนเควสต์ให้ครบ 300 คะแนน",
+        },
+      ],
+    });
     renderQuestTable();
 
-    expect(
-      await screen.findByText(
-        /brand tasks are managed per-offer in the Offers module/i,
-      ),
-    ).toBeVisible();
-  });
-
-  it("hides the legacy-quest note for a task-v2 quest (GAP 5)", async () => {
-    questQueries.fetchAdminQuests.mockResolvedValue([
-      { ...quest, reward_model: "task_v2" },
-    ]);
-    renderQuestTable();
-
-    await screen.findByRole("tab", { name: /Quest tasks/i });
+    expect(await screen.findByText("Stored: 0")).toBeVisible();
+    expect(screen.getByText("Effective: 2")).toBeVisible();
+    expect(screen.getAllByTestId("effective-quest-task")).toHaveLength(2);
+    expect(screen.getByText("Legacy Offer fallback")).toBeVisible();
+    expect(screen.getByText("Legacy system rule")).toBeVisible();
+    expect(screen.getByText("Reach 300 quest points")).toBeVisible();
     expect(
       screen.queryByText(
         /brand tasks are managed per-offer in the Offers module/i,
       ),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/are not managed in the Offers module/i),
+    ).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Preview" }));
+    const previewHeading = screen.getByRole("heading", {
+      name: "Customer Quest task preview",
+    });
+    expect(previewHeading).toBeVisible();
+    const preview = within(previewHeading.parentElement!);
+    expect(preview.getByText("Shop at Klook Travel")).toBeVisible();
+    expect(preview.getByText("Reach 300 quest points")).toBeVisible();
   });
 });

@@ -33,7 +33,7 @@ import {
 } from './dto/create-quest.dto';
 import { SocialReward } from './schemas/social-reward.schema';
 import { Deeplink } from 'src/involve/schemas/deeplink.schema';
-import { requireObjectId, requireOneOf } from 'src/common/mongo-query';
+import { requireObjectId } from 'src/common/mongo-query';
 import { deriveQuestStatus, withDerivedQuestStatus } from './quest-status';
 import { createHash } from 'node:crypto';
 import {
@@ -73,11 +73,77 @@ import {
 } from 'src/tasks/legacy-reward-manifest';
 import { legacySocialPayoutKey } from 'src/tasks/legacy-reward-identity';
 import { MembershipTier } from 'src/admin/membership/schemas/membership-tier.schema';
+import { QuestEconomicMutationPolicy } from './quest-economic-mutation-policy.service';
+import { activeQuestFilter } from './quest-active-filter';
+import {
+  QUEST_DIRECT_CREATE_DISABLED,
+  isQuestRevisionWorkflowEnabled,
+} from './quest-revision-readiness';
+import { sanitizeAdminQuestRecord } from './quest-admin-record';
 
 const ACTIVE_OFFER_FILTER = {
   disabled: { $ne: true },
   status: { $nin: ['pending_review', 'rejected'] },
 };
+
+const PUBLIC_QUEST_FIELDS = [
+  '_id',
+  'campaign_revision',
+  'config_revision',
+  'reward_model',
+  'timezone',
+  'audience',
+  'reward_caps',
+  'start_date',
+  'end_date',
+  'status',
+  'reward_status',
+  'reward_distribution_mode',
+  'reward_distribution_delay_days',
+  'reward_distribution_scheduled_at',
+  'facebook_post',
+  'facebook_page',
+  'line',
+  'banner_en',
+  'banner_th',
+  'sub_banner_en',
+  'sub_banner_th',
+  'tasks',
+  'rewards',
+] as const;
+
+const PUBLIC_QUEST_TASK_FIELDS = [
+  'task_key',
+  'task_type',
+  'offer',
+  'offer_id',
+  'merchant_id',
+  'extra_point',
+  'points',
+  'completion_rule',
+  'spend_scope',
+  'target_thb_minor',
+  'sort_order',
+  'enabled',
+  'wording',
+  'wording_en',
+  'wording_th',
+] as const;
+
+const PUBLIC_QUEST_TASK_OFFER_FIELDS = [
+  '_id',
+  'offer_id',
+  'merchant_id',
+  'offer_name',
+  'offer_name_display',
+  'logo',
+  'logo_circle',
+  'logo_mobile',
+  'logo_desktop',
+  'disabled',
+  'status',
+  'extra_point',
+] as const;
 
 const QUEST_TASK_OFFER_SELECT =
   'offer_id merchant_id offer_name offer_name_display logo logo_circle logo_mobile logo_desktop tracking_link preview_url disabled status extra_point';
@@ -111,31 +177,11 @@ export class PointService {
     @InjectModel(MembershipTier.name)
     private membershipTierModel: Model<MembershipTier>,
     private readonly questMediaWrite: QuestMediaWriteService,
+    private readonly questEconomicMutationPolicy: QuestEconomicMutationPolicy,
     @Optional()
     @Inject(QUEST_TASK_STATE_INSPECTOR)
     private readonly questTaskStateInspector?: QuestTaskStateInspector,
   ) {}
-
-  private activeQuestFilter(now = new Date()) {
-    return {
-      $and: [
-        {
-          $or: [
-            { start_date: { $exists: false } },
-            { start_date: null },
-            { start_date: { $lte: now } },
-          ],
-        },
-        {
-          $or: [
-            { end_date: { $exists: false } },
-            { end_date: null },
-            { end_date: { $gte: now } },
-          ],
-        },
-      ],
-    };
-  }
 
   private assertLegacyPayoutConfigEditable(
     quest: Record<string, any>,
@@ -152,6 +198,61 @@ export class PointService {
         'Legacy quest reward configuration is frozen after reconciliation begins',
       );
     }
+  }
+
+  private publicQuestRecord(
+    quest: Record<string, any>,
+    options: { canonicalize?: boolean } = {},
+  ) {
+    const canonical = options.canonicalize
+      ? this.withCanonicalQuestTasks(quest)
+      : quest;
+    const publicQuest = Object.fromEntries(
+      PUBLIC_QUEST_FIELDS.filter((field) => field in canonical).map((field) => [
+        field,
+        canonical[field],
+      ]),
+    ) as Record<string, any>;
+    if (Array.isArray(canonical.tasks)) {
+      publicQuest.tasks = canonical.tasks.map((task: Record<string, any>) => {
+        const publicTask = Object.fromEntries(
+          PUBLIC_QUEST_TASK_FIELDS.filter((field) => field in task).map(
+            (field) => [field, task[field]],
+          ),
+        ) as Record<string, any>;
+        if (task.offer && typeof task.offer === 'object') {
+          publicTask.offer = Object.fromEntries(
+            PUBLIC_QUEST_TASK_OFFER_FIELDS.filter(
+              (field) => field in task.offer,
+            ).map((field) => [field, task.offer[field]]),
+          );
+        }
+        return publicTask;
+      });
+    }
+    return this.withEffectiveQuestStatus(publicQuest);
+  }
+
+  private adminQuestRecord(
+    quest: Record<string, any>,
+    options: { canonicalize?: boolean } = {},
+  ) {
+    const sanitized = sanitizeAdminQuestRecord(quest);
+    return options.canonicalize
+      ? this.withCanonicalQuestTasks(sanitized)
+      : sanitized;
+  }
+
+  private withEffectiveQuestStatus(quest: Record<string, any>) {
+    if (quest.status === 'close') {
+      return { ...quest, status: 'close' as const };
+    }
+    return withDerivedQuestStatus(
+      quest as Record<string, any> & {
+        start_date: Date | string;
+        end_date: Date | string;
+      },
+    );
   }
 
   private assertLegacyPayoutConfigChecksum(quest: Record<string, any>) {
@@ -1425,9 +1526,11 @@ export class PointService {
     const end = new Date(endDate);
     const quest = await this.questModel
       .findOne({
+        publication_status: { $ne: 'draft' },
         start_date: { $lte: start },
         end_date: { $gte: end },
       })
+      .sort({ start_date: -1, _id: -1 })
       .lean();
 
     const questTasks = ((quest as any)?.tasks ?? [])
@@ -1571,9 +1674,9 @@ export class PointService {
         audience,
         rewardCaps,
       );
-      return this.withCanonicalQuestTasks(quest as any);
+      return this.adminQuestRecord(quest as any, { canonicalize: true });
     }
-    this.assertLegacyPayoutConfigEditable(quest as any, configChange);
+    this.assertLegacyPayoutConfigEditable(quest as any, economicChange);
     this.assertRewardModelSupportsEligibilityConfig(
       rewardModel,
       audience,
@@ -1596,21 +1699,12 @@ export class PointService {
       session?: ClientSession,
     ) => {
       const now = new Date();
-      const start = new Date((quest as any).start_date);
-      const hasStarted =
-        Number.isNaN(start.getTime()) || start.getTime() <= now.getTime();
-      const hasEffect = Boolean(
-        (quest as any).task_v2_state_frozen_at ||
-        state?.has_outbox ||
-        state?.has_progress ||
-        state?.has_award,
-      );
-      if (economicChange && (hasStarted || hasEffect)) {
-        throw new ConflictException({
-          code: QUEST_TASK_CONFIG_FROZEN,
-          message:
-            'Quest economics are frozen after start or progress. Create a new revision with a future window.',
-        });
+      if (economicChange) {
+        this.questEconomicMutationPolicy.assertEconomicMutationAllowed(
+          quest as any,
+          state,
+          { now },
+        );
       }
 
       if (audience.kind === 'membership_tiers' && economicChange) {
@@ -1632,18 +1726,23 @@ export class PointService {
       } else {
         Object.assign(filter, revisionFilter);
       }
-      if (economicChange && rewardModel === 'task_v2') {
+      if (economicChange) {
         filter.start_date = { $gt: now };
-        const noStateFence = {
-          $or: [
-            { task_v2_state_frozen_at: { $exists: false } },
-            { task_v2_state_frozen_at: null },
-          ],
-        };
-        if (Array.isArray(filter.$and)) {
-          (filter.$and as unknown[]).push(noStateFence);
-        } else {
-          filter.$or = noStateFence.$or;
+        if ((quest as any).revision_of) {
+          filter.publication_status = 'draft';
+        }
+        if (rewardModel === 'task_v2') {
+          const noStateFence = {
+            $or: [
+              { task_v2_state_frozen_at: { $exists: false } },
+              { task_v2_state_frozen_at: null },
+            ],
+          };
+          if (Array.isArray(filter.$and)) {
+            (filter.$and as unknown[]).push(noStateFence);
+          } else {
+            filter.$or = noStateFence.$or;
+          }
         }
       }
 
@@ -1657,19 +1756,19 @@ export class PointService {
         .lean();
       if (!updatedQuest) {
         throw new ConflictException({
-          code:
-            economicChange && rewardModel === 'task_v2'
-              ? QUEST_TASK_CONFIG_FROZEN
-              : QUEST_CONFIG_REVISION_CONFLICT,
-          message:
-            economicChange && rewardModel === 'task_v2'
-              ? 'Quest economics became frozen while saving. Reload and create a new revision.'
-              : 'Quest task configuration changed. Reload and try again.',
+          code: economicChange
+            ? QUEST_TASK_CONFIG_FROZEN
+            : QUEST_CONFIG_REVISION_CONFLICT,
+          message: economicChange
+            ? 'Quest economics became frozen while saving. Reload and create a new revision.'
+            : 'Quest task configuration changed. Reload and try again.',
         });
       }
 
       await this.mirrorActiveQuestExtraPoints(quest, normalizedTasks, session);
-      return this.withCanonicalQuestTasks(updatedQuest as any);
+      return this.adminQuestRecord(updatedQuest as any, {
+        canonicalize: true,
+      });
     };
 
     if (rewardModel !== 'task_v2') return persist();
@@ -1730,7 +1829,9 @@ export class PointService {
     const economicChange =
       JSON.stringify({ rewards: currentRewards, ...currentDistribution }) !==
       JSON.stringify({ rewards: normalizedRewards, ...rewardDistribution });
-    if (!economicChange) return quest;
+    if (!economicChange) {
+      return this.adminQuestRecord(quest as any, { canonicalize: true });
+    }
 
     let rewardModel: 'legacy_v1' | 'task_v2';
     try {
@@ -1740,10 +1841,15 @@ export class PointService {
     }
     this.assertLegacyPayoutConfigEditable(quest as any, economicChange);
     const persist = async (
-      _state?: QuestTaskStateInspection,
+      state?: QuestTaskStateInspection,
       session?: ClientSession,
     ) => {
       const now = new Date();
+      this.questEconomicMutationPolicy.assertEconomicMutationAllowed(
+        quest as any,
+        state,
+        { now },
+      );
       const clauses = [
         this.revisionClause(
           'config_revision',
@@ -1751,16 +1857,17 @@ export class PointService {
           (quest as any).config_revision,
         ),
       ];
+      clauses.push({ start_date: { $gt: now } });
+      if ((quest as any).revision_of) {
+        clauses.push({ publication_status: 'draft' });
+      }
       if (rewardModel === 'task_v2') {
-        clauses.push(
-          { start_date: { $gt: now } },
-          {
-            $or: [
-              { task_v2_state_frozen_at: { $exists: false } },
-              { task_v2_state_frozen_at: null },
-            ],
-          },
-        );
+        clauses.push({
+          $or: [
+            { task_v2_state_frozen_at: { $exists: false } },
+            { task_v2_state_frozen_at: null },
+          ],
+        });
       }
       const updated = await this.questModel
         .findOneAndUpdate(
@@ -1775,17 +1882,15 @@ export class PointService {
         .lean();
       if (!updated) {
         throw new ConflictException({
-          code:
-            rewardModel === 'task_v2'
-              ? QUEST_TASK_CONFIG_FROZEN
-              : QUEST_CONFIG_REVISION_CONFLICT,
-          message:
-            rewardModel === 'task_v2'
-              ? 'Quest economics became frozen while saving. Reload and create a new revision.'
-              : 'Quest reward configuration changed. Reload and try again.',
+          code: economicChange
+            ? QUEST_TASK_CONFIG_FROZEN
+            : QUEST_CONFIG_REVISION_CONFLICT,
+          message: economicChange
+            ? 'Quest economics became frozen while saving. Reload and create a new revision.'
+            : 'Quest reward configuration changed. Reload and try again.',
         });
       }
-      return updated;
+      return this.adminQuestRecord(updated as any, { canonicalize: true });
     };
 
     if (rewardModel !== 'task_v2') return persist();
@@ -1994,6 +2099,13 @@ export class PointService {
       );
     }
     const isCreateRequest = !createQuestDto._id;
+    if (isCreateRequest && isQuestRevisionWorkflowEnabled()) {
+      throw new ConflictException({
+        code: QUEST_DIRECT_CREATE_DISABLED,
+        message:
+          'Direct Quest creation is disabled while revision workflow is enabled. Create a future revision from an existing Quest.',
+      });
+    }
     const questId = createQuestDto._id
       ? requireObjectId(String(createQuestDto._id), 'quest id')
       : deterministicQuestId(requestKey);
@@ -2043,8 +2155,20 @@ export class PointService {
         new Date(existingQuestRecord.end_date as Date | string).getTime() !==
           new Date(createQuestDto.end_date).getTime()),
     );
+    const socialRewardEconomicChange = Boolean(
+      !isCreateRequest &&
+      existingQuest &&
+      (String(existingQuestRecord.facebook_page ?? '') !==
+        String(createQuestDto.facebook_page ?? '') ||
+        String(existingQuestRecord.facebook_post ?? '') !==
+          String(createQuestDto.facebook_post ?? '') ||
+        String(existingQuestRecord.line ?? '') !==
+          String(createQuestDto.line ?? '')),
+    );
+    const campaignEconomicChange =
+      scheduleEconomicChange || socialRewardEconomicChange;
     if (
-      scheduleEconomicChange &&
+      campaignEconomicChange &&
       expectedConfigRevision !==
         Number(existingQuestRecord.config_revision ?? 0)
     ) {
@@ -2064,16 +2188,18 @@ export class PointService {
       }
     }
     const taskV2EconomicChange =
+      campaignEconomicChange && existingRewardModel === 'task_v2';
+    const taskV2TaskIdentityChange =
       scheduleEconomicChange && existingRewardModel === 'task_v2';
+    if (campaignEconomicChange) {
+      this.questEconomicMutationPolicy.assertEconomicMutationAllowed(
+        existingQuestRecord,
+        undefined,
+        { next_start_date: new Date(createQuestDto.start_date) },
+      );
+    }
     const legacyPayoutConfigChange = Boolean(
-      existingQuest &&
-      (scheduleEconomicChange ||
-        String(existingQuestRecord.facebook_page ?? '') !==
-          String(createQuestDto.facebook_page ?? '') ||
-        String(existingQuestRecord.facebook_post ?? '') !==
-          String(createQuestDto.facebook_post ?? '') ||
-        String(existingQuestRecord.line ?? '') !==
-          String(createQuestDto.line ?? '')),
+      existingQuest && campaignEconomicChange,
     );
     this.assertLegacyPayoutConfigEditable(
       existingQuestRecord,
@@ -2087,7 +2213,7 @@ export class PointService {
           new Date(createQuestDto.end_date),
         )
       : undefined;
-    const rewardDistribution = this.normalizeQuestRewardDistribution(
+    const commandRewardDistribution = this.normalizeQuestRewardDistribution(
       {},
       isCreateRequest
         ? { end_date: createQuestDto.end_date }
@@ -2096,23 +2222,26 @@ export class PointService {
             end_date: createQuestDto.end_date ?? existingQuest?.end_date,
           },
     );
+    const rewardDistribution =
+      isCreateRequest || scheduleEconomicChange
+        ? commandRewardDistribution
+        : {};
     const questPatch: Record<string, unknown> = {
       start_date: createQuestDto.start_date,
       end_date: createQuestDto.end_date,
-      status: deriveQuestStatus(
-        createQuestDto.start_date,
-        createQuestDto.end_date,
-      ),
       facebook_post: createQuestDto.facebook_post,
       facebook_page: createQuestDto.facebook_page,
       line: createQuestDto.line,
       ...rewardDistribution,
     };
-    if (createQuestDto.reward_status !== undefined) {
-      questPatch.reward_status = createQuestDto.reward_status;
+    if (isCreateRequest) {
+      questPatch.status = deriveQuestStatus(
+        createQuestDto.start_date,
+        createQuestDto.end_date,
+      );
     }
     if (qaMarker) questPatch.qa_marker = qaMarker;
-    if (taskV2EconomicChange) {
+    if (taskV2TaskIdentityChange) {
       questPatch.tasks = this.canonicalQuestTasksForRead(
         existingQuestRecord,
       ).map((task) => ({
@@ -2143,7 +2272,7 @@ export class PointService {
             existingQuestRecord.campaign_revision,
           ),
         ];
-        if (scheduleEconomicChange) {
+        if (campaignEconomicChange) {
           clauses.push(
             this.revisionClause(
               'config_revision',
@@ -2152,18 +2281,21 @@ export class PointService {
             ),
           );
         }
-        if (taskV2EconomicChange) {
-          clauses.push(
-            { start_date: { $gt: now } },
-            {
-              $or: [
-                { task_v2_state_frozen_at: { $exists: false } },
-                { task_v2_state_frozen_at: null },
-              ],
-            },
-          );
+        if (campaignEconomicChange) {
+          clauses.push({ start_date: { $gt: now } });
+          if (existingQuestRecord.revision_of) {
+            clauses.push({ publication_status: 'draft' });
+          }
         }
-        const increment = scheduleEconomicChange
+        if (taskV2EconomicChange) {
+          clauses.push({
+            $or: [
+              { task_v2_state_frozen_at: { $exists: false } },
+              { task_v2_state_frozen_at: null },
+            ],
+          });
+        }
+        const increment = campaignEconomicChange
           ? { campaign_revision: 1, config_revision: 1 }
           : { campaign_revision: 1 };
         const saved = await this.questModel.findOneAndUpdate(
@@ -2175,13 +2307,15 @@ export class PointService {
           throw new ConflictException({
             code: taskV2EconomicChange
               ? QUEST_TASK_CONFIG_FROZEN
-              : QUEST_CONFIG_REVISION_CONFLICT,
-            message: taskV2EconomicChange
+              : campaignEconomicChange
+                ? QUEST_TASK_CONFIG_FROZEN
+                : QUEST_CONFIG_REVISION_CONFLICT,
+            message: campaignEconomicChange
               ? 'Quest economics became frozen while saving. Reload and create a new revision.'
               : 'This quest changed while you were editing. Reload and try again.',
           });
         }
-        return saved;
+        return this.adminQuestRecord(saved as any, { canonicalize: true });
       };
       return economicCommitFence ? economicCommitFence(persist) : persist();
     }
@@ -2194,53 +2328,78 @@ export class PointService {
       questId,
       expectedRevision,
       expectedConfigRevision,
-      economicChange: scheduleEconomicChange,
+      economicChange: campaignEconomicChange,
       taskV2EconomicChange,
-      questPatch,
+      requireDraftPublication: Boolean(
+        campaignEconomicChange && existingQuestRecord.revision_of,
+      ),
+      questPatch: { ...questPatch, ...commandRewardDistribution },
       uploads,
       ...(qaMarker ? { qaMarker } : {}),
       ...(qaCleanupNonceHash ? { qaCleanupNonceHash } : {}),
     });
-    return this.questMediaWrite.execute({
+    const saved = await this.questMediaWrite.execute({
       requestKey,
       payloadHash,
       questId,
       expectedRevision,
       expectedConfigRevision,
-      economicChange: scheduleEconomicChange,
+      economicChange: campaignEconomicChange,
       taskV2EconomicChange,
+      requireDraftPublication: Boolean(
+        campaignEconomicChange && existingQuestRecord.revision_of,
+      ),
       questPatch,
       uploads,
       ...(economicCommitFence ? { commitFence: economicCommitFence } : {}),
       ...(qaMarker ? { qaMarker } : {}),
       ...(qaCleanupNonceHash ? { qaCleanupNonceHash } : {}),
     });
+    return this.adminQuestRecord(saved as any, { canonicalize: true });
   }
 
   async closeQuest(closeQuestDto: CloseQuestDto) {
-    return this.questModel.updateOne(
-      { status: 'open' },
-      {
-        $set: {
-          status: requireOneOf(
-            closeQuestDto.status,
-            ['open', 'close', 'scheduled'] as const,
-            'status',
+    const questId = requireObjectId(closeQuestDto.quest_id, 'quest id');
+    const expectedCampaignRevision = closeQuestDto.expected_campaign_revision;
+    const updated = await this.questModel
+      .findOneAndUpdate(
+        this.questMutationFilter(questId, [
+          this.revisionClause(
+            'campaign_revision',
+            expectedCampaignRevision,
+            undefined,
           ),
+          { publication_status: { $ne: 'draft' } },
+          { status: { $ne: 'close' } },
+        ]),
+        {
+          $set: { status: 'close' },
+          $inc: { campaign_revision: 1 },
         },
-      },
-      {
-        upsert: true,
-      },
+        { new: true },
+      )
+      .lean();
+    if (!updated) {
+      throw new ConflictException({
+        code: QUEST_CONFIG_REVISION_CONFLICT,
+        message:
+          'Quest status changed or this revision is still a draft. Reload and try again.',
+      });
+    }
+    return this.adminQuestRecord(
+      this.withEffectiveQuestStatus(
+        this.withCanonicalQuestTasks(updated as any),
+      ),
     );
   }
 
   async getQuestOpen() {
     const quest = await this.questModel
-      .findOne(this.activeQuestFilter())
+      .findOne(activeQuestFilter())
+      .sort({ start_date: -1, _id: -1 })
       .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
       .lean();
-    return quest ? withDerivedQuestStatus(quest) : quest;
+    return quest ? this.publicQuestRecord(quest as any) : quest;
   }
 
   async getQuestAdmin() {
@@ -2256,13 +2415,26 @@ export class PointService {
       .populate({ path: 'tasks.offer', select: QUEST_TASK_OFFER_SELECT })
       .lean();
     return quests.map((quest) =>
-      withDerivedQuestStatus(this.withCanonicalQuestTasks(quest as any)),
+      this.adminQuestRecord(
+        this.withEffectiveQuestStatus(
+          this.withCanonicalQuestTasks(quest as any),
+        ),
+      ),
     );
+  }
+
+  getQuestManagementCapabilities() {
+    const revisionWorkflowEnabled = isQuestRevisionWorkflowEnabled();
+    return {
+      revision_workflow_enabled: revisionWorkflowEnabled,
+      direct_create_enabled: !revisionWorkflowEnabled,
+    };
   }
 
   async getQuestSocial(userId: string) {
     const quest = await this.questModel
-      .findOne(this.activeQuestFilter())
+      .findOne(activeQuestFilter())
+      .sort({ start_date: -1, _id: -1 })
       .lean();
     if (!quest) {
       throw new HttpException(
@@ -2276,7 +2448,7 @@ export class PointService {
       })
       .lean();
     return {
-      quest: withDerivedQuestStatus(quest),
+      quest: this.publicQuestRecord(quest as any),
       socialRewards,
     };
   }
@@ -2287,7 +2459,7 @@ export class PointService {
     const quest = await this.questModel
       .findOne({
         $and: [
-          this.activeQuestFilter(),
+          activeQuestFilter(),
           {
             $or: [
               { reward_model: { $exists: false } },
@@ -2298,6 +2470,7 @@ export class PointService {
         legacy_payout_reconciliation_status: 'ready',
         legacy_payout_reconciliation_version: 1,
       })
+      .sort({ start_date: -1, _id: -1 })
       .lean();
     if (!quest) {
       throw new HttpException(
@@ -2429,7 +2602,9 @@ export class PointService {
   }
 
   async getQuestAll() {
-    const quest = await this.questModel.find().lean();
+    const quest = await this.questModel
+      .find({ publication_status: { $ne: 'draft' } })
+      .lean();
     if (!quest || quest.length === 0) {
       throw new HttpException(
         'There are no active quests right now. Please check back later.',
@@ -2437,7 +2612,7 @@ export class PointService {
       );
     }
     return quest.map((item) =>
-      withDerivedQuestStatus(this.withCanonicalQuestTasks(item as any)),
+      this.publicQuestRecord(item as any, { canonicalize: true }),
     );
   }
 
@@ -2463,7 +2638,9 @@ export class PointService {
   }
 
   async getMyPointSumEveryMonth(userId: string) {
-    const quest = await this.questModel.find({}).lean();
+    const quest = await this.questModel
+      .find({ publication_status: { $ne: 'draft' } })
+      .lean();
     const rangeDate = quest.map((item) => {
       const start = item.start_date.toISOString().split('T')[0];
       const end = item.end_date.toISOString().split('T')[0];

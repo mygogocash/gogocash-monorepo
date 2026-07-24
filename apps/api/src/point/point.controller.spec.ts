@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { Request } from 'express';
 import { PointController } from './point.controller';
 import { PointService } from './point.service';
@@ -7,6 +8,11 @@ import { FirebaseAuthGuard } from 'src/auth/firebase-auth.guard';
 import { AuthAdminGuard } from 'src/admin/jwt-auth-admin.guard';
 import { Types } from 'mongoose';
 import { QuestMediaQaService } from './quest-media-qa.service';
+import { QuestTaskCatalogService } from './quest-task-catalog.service';
+import { QuestRevisionService } from './quest-revision.service';
+import { ROLES_KEY } from 'src/admin/roles.decorator';
+import { RolesGuard } from 'src/admin/roles.guard';
+import { RATE_LIMIT_KEY } from 'src/auth/rate-limit.guard';
 
 /**
  * PointController is a thin HTTP delegator: it forwards each route to the right
@@ -21,6 +27,8 @@ describe('PointController', () => {
   let pointService: jest.Mocked<PointService>;
   let tasksService: jest.Mocked<TasksService>;
   let questMediaQa: jest.Mocked<QuestMediaQaService>;
+  let questTaskCatalog: jest.Mocked<QuestTaskCatalogService>;
+  let questRevision: jest.Mocked<QuestRevisionService>;
 
   // A sentinel each delegating method returns so we can assert the controller
   // returns the service result verbatim (no transformation).
@@ -37,6 +45,7 @@ describe('PointController', () => {
     createQuest: jest.fn().mockReturnValue(RESULT),
     closeQuest: jest.fn().mockReturnValue(RESULT),
     getQuestAdmin: jest.fn().mockReturnValue(RESULT),
+    getQuestManagementCapabilities: jest.fn().mockReturnValue(RESULT),
     getQuestOpen: jest.fn().mockReturnValue(RESULT),
     getQuestSocial: jest.fn().mockReturnValue(RESULT),
     getQuestAll: jest.fn().mockReturnValue(RESULT),
@@ -55,6 +64,14 @@ describe('PointController', () => {
     status: jest.fn().mockReturnValue(RESULT),
     cleanupAcceptance: jest.fn().mockReturnValue(RESULT),
   };
+  const questTaskCatalogMock = {
+    getPublicCatalog: jest.fn().mockReturnValue(RESULT),
+    getAdminCatalog: jest.fn().mockReturnValue(RESULT),
+  };
+  const questRevisionMock = {
+    createRevision: jest.fn().mockReturnValue(RESULT),
+    publishRevision: jest.fn().mockReturnValue(RESULT),
+  };
 
   // Build a fake Express request carrying the auth-resolved user, mirroring what
   // FirebaseAuthGuard/AuthAdminGuard set on request['user'].
@@ -70,6 +87,8 @@ describe('PointController', () => {
         { provide: PointService, useValue: pointServiceMock },
         { provide: TasksService, useValue: tasksServiceMock },
         { provide: QuestMediaQaService, useValue: questMediaQaMock },
+        { provide: QuestTaskCatalogService, useValue: questTaskCatalogMock },
+        { provide: QuestRevisionService, useValue: questRevisionMock },
       ],
     })
       // The guards have their own DB/JWT deps; the controller's behavior does not
@@ -84,10 +103,84 @@ describe('PointController', () => {
     pointService = module.get(PointService);
     tasksService = module.get(TasksService);
     questMediaQa = module.get(QuestMediaQaService);
+    questTaskCatalog = module.get(QuestTaskCatalogService);
+    questRevision = module.get(QuestRevisionService);
   });
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('getQuestTaskCatalog delegates the public read to QuestTaskCatalogService', () => {
+    expect(controller.getQuestTaskCatalog()).toBe(RESULT);
+    expect(questTaskCatalog.getPublicCatalog).toHaveBeenCalledTimes(1);
+  });
+
+  it('getQuestManagementCapabilities delegates the protected admin capability read', () => {
+    expect(controller.getQuestManagementCapabilities()).toBe(RESULT);
+    expect(pointService.getQuestManagementCapabilities).toHaveBeenCalledTimes(
+      1,
+    );
+  });
+
+  it('rate-limits the public task catalog to sixty reads per minute per edge IP', () => {
+    expect(
+      Reflect.getMetadata(
+        RATE_LIMIT_KEY,
+        PointController.prototype.getQuestTaskCatalog,
+      ),
+    ).toEqual({ windowMs: 60_000, max: 60 });
+  });
+
+  it('getQuestAdminEffectiveTasks delegates the protected quest read by id', () => {
+    expect(controller.getQuestAdminEffectiveTasks('quest-1')).toBe(RESULT);
+    expect(questTaskCatalog.getAdminCatalog).toHaveBeenCalledWith('quest-1');
+  });
+
+  it('keeps effective task previews read-only for every authenticated admin', () => {
+    const method = PointController.prototype.getQuestAdminEffectiveTasks;
+
+    expect(Reflect.getMetadata(GUARDS_METADATA, method)).toEqual([
+      AuthAdminGuard,
+    ]);
+    expect(Reflect.getMetadata(ROLES_KEY, method)).toBeUndefined();
+  });
+
+  it.each(['createQuestRevision', 'publishQuestRevision'] as const)(
+    'keeps %s superadmin-only',
+    (methodName) => {
+      const method = PointController.prototype[methodName];
+
+      expect(Reflect.getMetadata(GUARDS_METADATA, method)).toEqual([
+        AuthAdminGuard,
+        RolesGuard,
+      ]);
+      expect(Reflect.getMetadata(ROLES_KEY, method)).toEqual(['superadmin']);
+    },
+  );
+
+  it('createQuestRevision delegates with the authenticated admin actor', () => {
+    const input = { request_key: 'quest-revision:test' } as never;
+    expect(
+      controller.createQuestRevision(reqWithUser('admin-1'), 'quest-1', input),
+    ).toBe(RESULT);
+    expect(questRevision.createRevision).toHaveBeenCalledWith(
+      'quest-1',
+      input,
+      'admin-1',
+    );
+  });
+
+  it('publishQuestRevision delegates with the authenticated admin actor', () => {
+    const input = { request_key: 'quest-publish:test' } as never;
+    expect(
+      controller.publishQuestRevision(reqWithUser('admin-1'), 'quest-1', input),
+    ).toBe(RESULT);
+    expect(questRevision.publishRevision).toHaveBeenCalledWith(
+      'quest-1',
+      input,
+      'admin-1',
+    );
   });
 
   describe('create', () => {
@@ -239,7 +332,11 @@ describe('PointController', () => {
 
   describe('closeQuest', () => {
     it('closeQuest > given a CloseQuestDto > then it forwards it to PointService.closeQuest', () => {
-      const dto = { status: 'close' } as never;
+      const dto = {
+        quest_id: new Types.ObjectId().toHexString(),
+        expected_campaign_revision: 2,
+        status: 'close',
+      } as never;
 
       controller.closeQuest(dto);
 

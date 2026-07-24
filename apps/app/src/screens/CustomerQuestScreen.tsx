@@ -43,7 +43,8 @@ import type {
   QuestTaskRow,
 } from "@mobile/quest/questTaskResource";
 import {
-  useQuestBrandTasks,
+  mergeQuestTaskCatalogProgress,
+  useQuestTaskCatalog,
   useQuestTaskRows,
 } from "@mobile/quest/questTaskResource";
 import {
@@ -196,53 +197,50 @@ function CustomerQuestMainScreen() {
   );
 }
 
-// "Both" (founder decision 2026-07-22): show the PUBLIC brand earn-list to EVERYONE (signed in
-// or not) via useQuestBrandTasks (/offer/extra-point, prod parity with app.gogocash.co), AND
-// overlay the signed-in user's PERSONAL quest progress via useQuestTaskRows (/point/quest-progress).
-// Signed-out shoppers get an empty personal list, so only the public earn-list renders.
+// The public catalog owns task identity and presentation. Authenticated progress is merged onto
+// those definitions by quest_id + task_key, so a signed-in shopper sees the same rows with live
+// progress instead of a second, potentially duplicated task list.
 function QuestTaskPanel() {
   const styles = useThemedStyles(createQuestScreenStyles);
   const tc = useCopy();
-  const brandTasks = useQuestBrandTasks();
-  const personalTasks = useQuestTaskRows();
-  const hasPersonal =
-    personalTasks.status === "ready" && personalTasks.rows.length > 0;
+  const catalog = useQuestTaskCatalog();
+  const progress = useQuestTaskRows();
+  const rows = mergeQuestTaskCatalogProgress(catalog.rows, progress.rows);
+  const catalogReady = catalog.status === "ready";
   return (
     <View style={styles.taskPanel}>
       <Text style={styles.taskTitle}>{tc("Let’s Got the Tasks Done!")}</Text>
 
-      {/* Public brand earn-list — shown to everyone. */}
       <QuestTaskResourceState
-        onRetry={brandTasks.retry}
-        status={brandTasks.status}
+        kind="catalog"
+        onRetry={catalog.retry}
+        status={catalog.status}
       />
-      {brandTasks.rows.map((task) => (
+      {rows.map((task) => (
         <QuestTaskListRow key={task.key} task={task} />
       ))}
-
-      {/* Personal progress overlay — signed-in shoppers only (empty list when signed out). */}
-      <QuestTaskResourceState
-        onRetry={personalTasks.retry}
-        status={personalTasks.status}
-      />
-      {hasPersonal ? (
-        <>
-          <Text style={styles.taskSectionLabel}>{tc("Quest progress")}</Text>
-          {personalTasks.rows.map((task) => (
-            <QuestTaskListRow key={task.key} task={task} />
-          ))}
-        </>
+      {catalogReady && rows.length === 0 ? (
+        <Text style={styles.taskResourceMessage}>
+          {tc("No active quest tasks right now.")}
+        </Text>
+      ) : null}
+      {catalogReady && rows.length > 0 ? (
+        <QuestTaskResourceState
+          kind="progress"
+          onRetry={progress.retry}
+          status={progress.status}
+        />
       ) : null}
     </View>
   );
 }
 
-// Shared loading/error chrome for a quest task resource — reused by the public earn-list and
-// the personal progress overlay so both surfaces behave identically.
 function QuestTaskResourceState({
+  kind,
   status,
   onRetry,
 }: {
+  kind: "catalog" | "progress";
   status: QuestTaskResourceStatus;
   onRetry: () => void;
 }) {
@@ -251,7 +249,11 @@ function QuestTaskResourceState({
   if (status === "loading") {
     return (
       <Text style={styles.taskResourceMessage}>
-        {tc("Loading quest progress…")}
+        {tc(
+          kind === "catalog"
+            ? "Loading quest tasks…"
+            : "Loading quest progress…",
+        )}
       </Text>
     );
   }
@@ -259,7 +261,11 @@ function QuestTaskResourceState({
     return (
       <View style={styles.taskResourceState}>
         <Text style={styles.taskResourceMessage}>
-          {tc("We couldn’t load your quest progress.")}
+          {tc(
+            kind === "catalog"
+              ? "We couldn’t load quest tasks."
+              : "We couldn’t load your quest progress.",
+          )}
         </Text>
         <MotionPressable
           accessibilityRole="button"

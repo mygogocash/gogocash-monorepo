@@ -44,6 +44,7 @@ describe('QuestRevisionFenceService', () => {
     expect(questModel.find).toHaveBeenCalledWith(
       {
         reward_model: 'task_v2',
+        publication_status: { $ne: 'draft' },
         start_date: { $lte: qualifyingAt },
         end_date: { $gte: qualifyingAt },
       },
@@ -176,6 +177,7 @@ describe('QuestRevisionFenceService', () => {
     expect(questModel.updateOne).toHaveBeenCalledWith(
       expect.objectContaining({
         _id: 'quest-1',
+        publication_status: { $ne: 'draft' },
         config_revision: 4,
         start_date: { $lte: qualifyingAt },
         end_date: { $gte: qualifyingAt },

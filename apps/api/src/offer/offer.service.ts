@@ -46,6 +46,7 @@ import { parseProductTypeRowsField } from './product-type.util';
 import { resolvePublicOfferLogo } from './offer-logo.util';
 import { Quest, QuestTask } from 'src/point/schemas/quest.schema';
 import { effectiveQuestRewardModel } from 'src/point/quest-task.contract';
+import { activeQuestFilter } from 'src/point/quest-active-filter';
 import { FeaturedSearchTerm } from 'src/admin/search/schemas/featured-term.schema';
 import { SearchBoostRule } from 'src/admin/search/schemas/boost-rule.schema';
 import { SearchBlacklist } from 'src/admin/search/schemas/blacklist.schema';
@@ -115,28 +116,6 @@ function commandOwnedOfferAssets(
     assets.set(asset.object_key, asset);
   }
   return [...assets.values()];
-}
-
-function activeQuestFilter(now = new Date()) {
-  return {
-    status: 'open',
-    $and: [
-      {
-        $or: [
-          { start_date: { $exists: false } },
-          { start_date: null },
-          { start_date: { $lte: now } },
-        ],
-      },
-      {
-        $or: [
-          { end_date: { $exists: false } },
-          { end_date: null },
-          { end_date: { $gte: now } },
-        ],
-      },
-    ],
-  };
 }
 
 const PUBLIC_OFFER_DETAIL_FIELDS = [
@@ -1734,25 +1713,25 @@ export class OfferService implements OnApplicationBootstrap {
   }
 
   async getCoupon(page: number, limit: number, search: string) {
-    const filter =
-      search.trim().length > 0
-        ? {
-            $or: [
-              {
-                name: {
-                  $regex: escapeRegexLiteral(search),
-                  $options: 'i',
-                },
-              },
-              {
-                code: {
-                  $regex: escapeRegexLiteral(search),
-                  $options: 'i',
-                },
-              },
-            ],
-          }
-        : {};
+    const filter: Record<string, unknown> = {
+      archived_at: { $exists: false },
+    };
+    if (search.trim().length > 0) {
+      filter.$or = [
+        {
+          name: {
+            $regex: escapeRegexLiteral(search),
+            $options: 'i',
+          },
+        },
+        {
+          code: {
+            $regex: escapeRegexLiteral(search),
+            $options: 'i',
+          },
+        },
+      ];
+    }
     const data = await this.couponModel
       .find(filter)
       .populate('offer_id', ['offer_name'])
@@ -1766,10 +1745,57 @@ export class OfferService implements OnApplicationBootstrap {
     return { page, limit, total, totalPages, data };
   }
 
+  async archiveCoupon(
+    id: string,
+    actor: { adminEmail?: string; adminId: string },
+  ) {
+    const couponId = requireObjectId(id, 'coupon id');
+    const archivedAt = new Date();
+    const archived = await this.couponModel.findOneAndUpdate(
+      {
+        _id: couponId,
+        archived_at: { $exists: false },
+      },
+      mongoSetUpdate({
+        archived_at: archivedAt,
+        archived_by_admin_id: actor.adminId,
+        ...(actor.adminEmail
+          ? { archived_by_admin_email: actor.adminEmail }
+          : {}),
+        disabled: true,
+      }),
+      { new: true },
+    );
+
+    if (archived) {
+      return {
+        alreadyArchived: false,
+        archived: true,
+        id: couponId.toHexString(),
+        message: 'Coupon deleted successfully.',
+      };
+    }
+
+    const existingCoupon = await this.couponModel.exists({ _id: couponId });
+    if (!existingCoupon) {
+      throw new NotFoundException('Coupon not found.');
+    }
+
+    return {
+      alreadyArchived: true,
+      archived: true,
+      id: couponId.toHexString(),
+      message: 'Coupon was already deleted.',
+    };
+  }
+
   async getCouponId(id: string, now = new Date()) {
     const offerId = requireObjectId(id, 'offer id');
     const coupons = (await this.couponModel
-      .find({ offer_id: offerId })
+      .find({
+        archived_at: { $exists: false },
+        offer_id: offerId,
+      })
       .populate('offer_id', [
         'offer_name',
         'offer_name_display',
@@ -1794,7 +1820,10 @@ export class OfferService implements OnApplicationBootstrap {
   }
 
   async getOfferExtraPoint() {
-    const quest = await this.questModel.findOne(activeQuestFilter()).lean();
+    const quest = await this.questModel
+      .findOne(activeQuestFilter())
+      .sort({ start_date: -1, _id: -1 })
+      .lean();
     const tasks = ((quest as any)?.tasks ?? [])
       .filter(
         (task: Partial<QuestTask>) =>

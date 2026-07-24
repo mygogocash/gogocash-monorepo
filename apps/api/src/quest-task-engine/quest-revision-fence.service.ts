@@ -74,6 +74,7 @@ export class QuestRevisionFenceService {
     const candidates = await this.questModel.find(
       {
         reward_model: 'task_v2',
+        publication_status: { $ne: 'draft' },
         start_date: { $lte: qualifyingAt },
         end_date: { $gte: qualifyingAt },
       },
@@ -88,6 +89,7 @@ export class QuestRevisionFenceService {
         {
           _id: quest._id,
           reward_model: 'task_v2',
+          publication_status: { $ne: 'draft' },
           config_revision: revision,
           start_date: { $lte: qualifyingAt },
           end_date: { $gte: qualifyingAt },

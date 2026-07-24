@@ -42,6 +42,11 @@ import {
   MembershipTier,
   MembershipTierSchema,
 } from 'src/admin/membership/schemas/membership-tier.schema';
+import { QuestTaskCatalogService } from './quest-task-catalog.service';
+import { QuestEconomicMutationPolicy } from './quest-economic-mutation-policy.service';
+import { QuestRevisionService } from './quest-revision.service';
+import { QuestRevisionPreflightService } from './quest-revision-preflight.service';
+import { RateLimitGuard } from 'src/auth/rate-limit.guard';
 
 @Module({
   imports: [
@@ -79,6 +84,11 @@ import {
     QuestMediaWriteService,
     QuestMediaCleanupService,
     QuestMediaQaService,
+    QuestTaskCatalogService,
+    QuestEconomicMutationPolicy,
+    QuestRevisionPreflightService,
+    QuestRevisionService,
+    RateLimitGuard,
   ],
   exports: [PointService],
 })
