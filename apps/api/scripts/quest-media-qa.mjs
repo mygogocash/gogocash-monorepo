@@ -7,6 +7,7 @@ import sharp from 'sharp';
 export const REQUIRED_ROUTE_BUNDLE = [
   'GET /point/admin-quest-media/readiness',
   'POST /point/create-quest',
+  'PATCH /point/admin-quest/:id/campaign',
   'GET /point/admin-quest-media/qa-status/:requestKey',
   'POST /point/admin-quest-media/qa-cleanup',
 ];
@@ -75,8 +76,8 @@ async function requireOk(response, action) {
 }
 
 export function assertReadinessContract(readiness, apply) {
-  if (!readiness || readiness.contract_version !== 'quest-media-v2') {
-    throw new Error('Quest media v2 readiness contract is not deployed');
+  if (!readiness || readiness.contract_version !== 'quest-media-v3') {
+    throw new Error('Quest media v3 readiness contract is not deployed');
   }
   if (
     !Array.isArray(readiness.required_routes) ||
@@ -108,13 +109,20 @@ async function preflight({ baseUrl, token, fetchImpl, apply }) {
   return readiness;
 }
 
-async function distinctPngs() {
-  const colors = [
-    { r: 220, g: 38, b: 38, alpha: 1 },
-    { r: 37, g: 99, b: 235, alpha: 1 },
-    { r: 22, g: 163, b: 74, alpha: 1 },
-    { r: 147, g: 51, b: 234, alpha: 1 },
-  ];
+async function distinctPngs(replacement = false) {
+  const colors = replacement
+    ? [
+        { r: 245, g: 158, b: 11, alpha: 1 },
+        { r: 6, g: 182, b: 212, alpha: 1 },
+        { r: 236, g: 72, b: 153, alpha: 1 },
+        { r: 132, g: 204, b: 22, alpha: 1 },
+      ]
+    : [
+        { r: 220, g: 38, b: 38, alpha: 1 },
+        { r: 37, g: 99, b: 235, alpha: 1 },
+        { r: 22, g: 163, b: 74, alpha: 1 },
+        { r: 147, g: 51, b: 234, alpha: 1 },
+      ];
   return Promise.all(
     colors.map((background) =>
       sharp({
@@ -128,23 +136,25 @@ async function distinctPngs() {
 
 function createAcceptanceIdentity() {
   const id = randomUUID();
+  const now = Date.now();
   return {
     requestKey: `quest-media:qa:${id}`,
     marker: `quest-media-qa:${id}`,
     nonce: randomBytes(32).toString('hex'),
+    startDate: new Date(now + 86_400_000).toISOString(),
+    endDate: new Date(now + 7 * 86_400_000).toISOString(),
   };
 }
 
 async function createQaQuest({ baseUrl, token, fetchImpl, identity }) {
-  const now = Date.now();
   const form = new FormData();
   form.set('request_key', identity.requestKey);
   form.set('campaign_revision', '0');
   form.set('expected_config_revision', '0');
   form.set('qa_marker', identity.marker);
   form.set('qa_cleanup_nonce', identity.nonce);
-  form.set('start_date', new Date(now + 86_400_000).toISOString());
-  form.set('end_date', new Date(now + 7 * 86_400_000).toISOString());
+  form.set('start_date', identity.startDate);
+  form.set('end_date', identity.endDate);
   form.set('status', 'scheduled');
   form.set('facebook_page', '');
   form.set('facebook_post', identity.marker);
@@ -163,6 +173,47 @@ async function createQaQuest({ baseUrl, token, fetchImpl, identity }) {
     body: form,
   });
   return requireOk(response, 'Four-file quest acceptance create');
+}
+
+async function replaceQaQuest({ baseUrl, token, fetchImpl, identity, quest }) {
+  const campaignRevision = Number(quest?.campaign_revision);
+  const configRevision = Number(quest?.config_revision ?? 0);
+  if (
+    !Number.isSafeInteger(campaignRevision) ||
+    campaignRevision < 1 ||
+    !Number.isSafeInteger(configRevision) ||
+    configRevision < 0
+  ) {
+    throw new Error('Created QA quest did not return valid revision counters');
+  }
+  const form = new FormData();
+  form.set('request_key', identity.requestKey);
+  form.set('campaign_revision', String(campaignRevision));
+  form.set('expected_config_revision', String(configRevision));
+  form.set('qa_marker', identity.marker);
+  form.set('qa_cleanup_nonce', identity.nonce);
+  form.set('start_date', identity.startDate);
+  form.set('end_date', identity.endDate);
+  form.set('facebook_page', '');
+  form.set('facebook_post', identity.marker);
+  form.set('line', '');
+  const images = await distinctPngs(true);
+  BANNER_ROLES.forEach((role, index) => {
+    form.set(
+      role,
+      new Blob([images[index]], { type: 'image/png' }),
+      `${role}-replacement-${index + 1}.png`,
+    );
+  });
+  const response = await fetchImpl(
+    `${baseUrl}/point/admin-quest/${encodeURIComponent(quest._id)}/campaign`,
+    {
+      method: 'PATCH',
+      headers: bearerHeaders(token),
+      body: form,
+    },
+  );
+  return requireOk(response, 'Four-file quest acceptance replacement');
 }
 
 function questRefs(quest) {
@@ -275,7 +326,12 @@ export async function runQuestMediaQa({
   }
 
   const identity = createAcceptanceIdentity();
+  const replacementIdentity = {
+    ...identity,
+    requestKey: `${identity.requestKey}:replacement`,
+  };
   let quest;
+  let cleanupIdentity = identity;
   try {
     quest = await createQaQuest({
       baseUrl: normalizedBaseUrl,
@@ -283,63 +339,103 @@ export async function runQuestMediaQa({
       fetchImpl,
       identity,
     });
-    const refs = questRefs(quest);
-    await proveRefsUsable(refs, fetchImpl);
-    const status = await readStatus({
+    const createdRefs = questRefs(quest);
+    await proveRefsUsable(createdRefs, fetchImpl);
+    const createdStatus = await readStatus({
       baseUrl: normalizedBaseUrl,
       token,
       fetchImpl,
       requestKey: identity.requestKey,
     });
     if (
-      status?.command?.status !== 'committed' ||
-      status?.command?.planned_object_count !== 4 ||
-      status?.quest?.refs?.length !== 4
+      createdStatus?.command?.status !== 'committed' ||
+      createdStatus?.command?.planned_object_count !== 4 ||
+      createdStatus?.quest?.refs?.length !== 4
     ) {
       throw new Error('Committed four-object quest status could not be proven');
     }
+    cleanupIdentity = replacementIdentity;
+    const replacedQuest = await replaceQaQuest({
+      baseUrl: normalizedBaseUrl,
+      token,
+      fetchImpl,
+      identity: replacementIdentity,
+      quest,
+    });
+    const replacementRefs = questRefs(replacedQuest);
+    await proveRefsUsable(replacementRefs, fetchImpl);
+    if (replacementRefs.some((ref) => createdRefs.includes(ref))) {
+      throw new Error('Quest replacement reused an original banner reference');
+    }
+    const replacementStatus = await readStatus({
+      baseUrl: normalizedBaseUrl,
+      token,
+      fetchImpl,
+      requestKey: replacementIdentity.requestKey,
+    });
+    if (
+      replacementStatus?.command?.status !== 'committed' ||
+      replacementStatus?.command?.planned_object_count !== 4 ||
+      replacementStatus?.quest?.refs?.length !== 4 ||
+      !replacementRefs.every(
+        (ref, index) => replacementStatus.quest.refs[index] === ref,
+      )
+    ) {
+      throw new Error(
+        'Persisted four-object quest replacement could not be proven',
+      );
+    }
+    await proveRefsAbsent(createdRefs, fetchImpl);
     const cleanup = await cleanupQaQuest({
       baseUrl: normalizedBaseUrl,
       token,
       fetchImpl,
-      identity,
+      identity: replacementIdentity,
       questId: quest._id,
     });
-    const after = await readStatus({
-      baseUrl: normalizedBaseUrl,
-      token,
-      fetchImpl,
-      requestKey: identity.requestKey,
-    });
-    if (
-      after?.command !== null ||
-      after?.quest !== null ||
-      Number(after?.cleanup ?? after?.pending_cleanup ?? 0) !== 0
-    ) {
-      throw new Error(
-        'Post-cleanup intent/quest/tombstone absence was not proven',
-      );
+    for (const requestKey of [
+      identity.requestKey,
+      replacementIdentity.requestKey,
+    ]) {
+      const after = await readStatus({
+        baseUrl: normalizedBaseUrl,
+        token,
+        fetchImpl,
+        requestKey,
+      });
+      if (
+        after?.command !== null ||
+        after?.quest !== null ||
+        Number(after?.cleanup ?? after?.pending_cleanup ?? 0) !== 0
+      ) {
+        throw new Error(
+          'Post-cleanup intent/quest/tombstone absence was not proven',
+        );
+      }
     }
-    await proveRefsAbsent(refs, fetchImpl);
+    await proveRefsAbsent(replacementRefs, fetchImpl);
     return {
-      mode: 'applied-and-cleaned',
+      mode: 'replaced-and-cleaned',
       quest_id: quest._id,
-      refs,
+      created_refs: createdRefs,
+      replacement_refs: replacementRefs,
       cleanup,
     };
   } catch (error) {
     if (quest?._id) {
-      try {
-        await cleanupQaQuest({
-          baseUrl: normalizedBaseUrl,
-          token,
-          fetchImpl,
-          identity,
-          questId: quest._id,
-        });
-      } catch {
-        // Preserve the primary failure. The marker/request/nonce are printed by
-        // neither this script nor logs, so operators must rerun with DB access.
+      for (const candidate of [cleanupIdentity, identity]) {
+        try {
+          await cleanupQaQuest({
+            baseUrl: normalizedBaseUrl,
+            token,
+            fetchImpl,
+            identity: candidate,
+            questId: quest._id,
+          });
+          break;
+        } catch {
+          // Try the create command when a replacement failed before commit.
+        }
       }
     }
     throw error;
