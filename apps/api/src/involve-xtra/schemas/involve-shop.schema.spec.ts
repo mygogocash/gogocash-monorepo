@@ -51,13 +51,7 @@ describe('InvolveShopSchema', () => {
       { marketplace: 1, country: 1, active: 1 },
       expect.anything(),
     ]);
-    expect(indexes).toContainEqual([
-      { cashbackRate: -1 },
-      expect.anything(),
-    ]);
-    expect(indexes).toContainEqual([
-      { shopName: 'text' },
-      expect.anything(),
-    ]);
+    expect(indexes).toContainEqual([{ cashbackRate: -1 }, expect.anything()]);
+    expect(indexes).toContainEqual([{ shopName: 'text' }, expect.anything()]);
   });
 });
