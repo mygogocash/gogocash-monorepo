@@ -28,6 +28,7 @@ import {
 import {
   CloseQuestDto,
   CreateQuestDto,
+  UpdateQuestCampaignDto,
   UpdateQuestRewardsDto,
   UpdateQuestTasksDto,
 } from './dto/create-quest.dto';
@@ -2356,6 +2357,14 @@ export class PointService {
       ...(qaCleanupNonceHash ? { qaCleanupNonceHash } : {}),
     });
     return this.adminQuestRecord(saved as any, { canonicalize: true });
+  }
+
+  async updateQuestCampaign(
+    questId: string,
+    updateQuestCampaignDto: UpdateQuestCampaignDto,
+    files: QuestBannerFiles = {},
+  ) {
+    return this.createQuest({ ...updateQuestCampaignDto, _id: questId }, files);
   }
 
   async closeQuest(closeQuestDto: CloseQuestDto) {

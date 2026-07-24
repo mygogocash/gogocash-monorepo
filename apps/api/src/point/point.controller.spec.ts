@@ -43,6 +43,7 @@ describe('PointController', () => {
     getMyQuestRankListOfPoint: jest.fn().mockReturnValue(RESULT),
     getQuestRankListOfPoint: jest.fn().mockReturnValue(RESULT),
     createQuest: jest.fn().mockReturnValue(RESULT),
+    updateQuestCampaign: jest.fn().mockReturnValue(RESULT),
     closeQuest: jest.fn().mockReturnValue(RESULT),
     getQuestAdmin: jest.fn().mockReturnValue(RESULT),
     getQuestManagementCapabilities: jest.fn().mockReturnValue(RESULT),
@@ -146,18 +147,19 @@ describe('PointController', () => {
     expect(Reflect.getMetadata(ROLES_KEY, method)).toBeUndefined();
   });
 
-  it.each(['createQuestRevision', 'publishQuestRevision'] as const)(
-    'keeps %s superadmin-only',
-    (methodName) => {
-      const method = PointController.prototype[methodName];
+  it.each([
+    'createQuestRevision',
+    'publishQuestRevision',
+    'updateQuestCampaign',
+  ] as const)('keeps %s superadmin-only', (methodName) => {
+    const method = PointController.prototype[methodName];
 
-      expect(Reflect.getMetadata(GUARDS_METADATA, method)).toEqual([
-        AuthAdminGuard,
-        RolesGuard,
-      ]);
-      expect(Reflect.getMetadata(ROLES_KEY, method)).toEqual(['superadmin']);
-    },
-  );
+    expect(Reflect.getMetadata(GUARDS_METADATA, method)).toEqual([
+      AuthAdminGuard,
+      RolesGuard,
+    ]);
+    expect(Reflect.getMetadata(ROLES_KEY, method)).toEqual(['superadmin']);
+  });
 
   it('createQuestRevision delegates with the authenticated admin actor', () => {
     const input = { request_key: 'quest-revision:test' } as never;
@@ -301,6 +303,33 @@ describe('PointController', () => {
       const result = controller.createQuest(dto, files);
 
       expect(pointService.createQuest).toHaveBeenCalledWith(dto, files);
+      expect(result).toBe(RESULT);
+    });
+  });
+
+  describe('updateQuestCampaign', () => {
+    it('forwards the route id, campaign dto, and partial banner uploads to PointService (#636)', () => {
+      const dto = {
+        request_key: 'quest-media:update-request',
+        campaign_revision: 3,
+        expected_config_revision: 7,
+        start_date: new Date('2024-01-01'),
+        end_date: new Date('2024-01-31'),
+        facebook_post: '',
+        facebook_page: '',
+        line: '',
+      };
+      const files = {
+        banner_en: [{ originalname: 'replacement-en.png' }],
+      } as never;
+
+      const result = controller.updateQuestCampaign('quest-636', dto, files);
+
+      expect(pointService.updateQuestCampaign).toHaveBeenCalledWith(
+        'quest-636',
+        dto,
+        files,
+      );
       expect(result).toBe(RESULT);
     });
   });

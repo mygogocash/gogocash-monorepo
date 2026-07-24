@@ -930,6 +930,28 @@ describe("QuestTable management tabs", () => {
     ).toBeVisible();
   });
 
+  it("surfaces the API task failure after an existing quest campaign save (#636)", async () => {
+    const user = userEvent.setup();
+    const apiMessage =
+      "Task 2 needs a valid brand before this quest can be saved.";
+    questQueries.saveQuestTasks.mockRejectedValueOnce({
+      response: { data: { message: apiMessage } },
+    });
+    renderQuestTable();
+    await waitForEffectiveCatalog();
+
+    const wording = await screen.findByLabelText("English");
+    await user.clear(wording);
+    await user.type(wording, "Updated wording for the existing quest");
+    await user.click(
+      screen.getByRole("button", { name: "Save quest changes" }),
+    );
+
+    expect(await screen.findByText(apiMessage)).toBeVisible();
+    expect(questQueries.saveQuestCampaign).toHaveBeenCalledTimes(1);
+    expect(questQueries.saveQuestTasks).toHaveBeenCalledTimes(1);
+  });
+
   it("fails economic controls closed and surfaces the catalog API error", async () => {
     const apiMessage =
       "Quest capability inspection is temporarily unavailable. Retry shortly.";
