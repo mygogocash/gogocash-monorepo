@@ -5,6 +5,7 @@ export type CustomerAccountResourceId =
   | "brandCatalog"
   | "catalog"
   | "categoryList"
+  | "exploreXtraShops"
   | "homeBanner"
   | "landingRails"
   | "merchant"
@@ -22,6 +23,7 @@ export type CustomerAccountResourceId =
 export const PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS = [
   "allBrandBanner",
   "allShopBanner",
+  "exploreXtraShops",
   "homeBanner",
   "landingRails",
   "merchant",
@@ -36,5 +38,7 @@ export type PublicAdminConfiguredResourceId =
 export function isPublicAdminConfiguredResource(
   resourceId: CustomerAccountResourceId,
 ): resourceId is PublicAdminConfiguredResourceId {
-  return (PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS as readonly string[]).includes(resourceId);
+  return (PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS as readonly string[]).includes(
+    resourceId,
+  );
 }

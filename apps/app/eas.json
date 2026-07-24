@@ -62,7 +62,8 @@
         "EXPO_PUBLIC_ENABLE_GOTOTRACK": "0",
         "EXPO_PUBLIC_ENABLE_GOGOPASS": "0",
         "EXPO_PUBLIC_ENABLE_GOLINK": "0",
-        "EXPO_PUBLIC_ENABLE_CREDIT_SCORE": "0"
+        "EXPO_PUBLIC_ENABLE_CREDIT_SCORE": "0",
+        "EXPO_PUBLIC_ENABLE_INVOLVE_XTRA_SHOPS": "0"
       }
     },
     "production": {

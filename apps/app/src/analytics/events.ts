@@ -22,9 +22,14 @@ export const ANALYTICS_EVENTS = {
   completeRegistration: "complete_registration",
   searchOpen: "search_open",
   searchSubmit: "search_submit",
+  // #586 — Involve Commission Xtra shops surface (Explore Shops directory).
+  // Coarse, PDPA-safe props only (numeric shop id / rate, no PII).
+  xtraShopView: "shop_view",
+  xtraShopClick: "shop_click",
 } as const;
 
-export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
+export type AnalyticsEventName =
+  (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
 
 const SITE_NAME = "GoGoCash";
 
@@ -42,7 +47,9 @@ type AnalyticsProps = Record<string, unknown>;
 /** Drop undefined/null/"" keys so payloads match the web compactObject() output. */
 function compact(props: AnalyticsProps): AnalyticsProps {
   return Object.fromEntries(
-    Object.entries(props).filter(([, v]) => v !== undefined && v !== null && v !== ""),
+    Object.entries(props).filter(
+      ([, v]) => v !== undefined && v !== null && v !== "",
+    ),
   );
 }
 
@@ -85,9 +92,42 @@ export function trackCategorySelect(
   });
 }
 
+export function trackXtraShopView(
+  client: MobileAnalyticsClient | null | undefined,
+  args: { count: number; source: string; country?: string },
+): void {
+  capture(client, ANALYTICS_EVENTS.xtraShopView, {
+    shop_count: args.count,
+    source_section: args.source,
+    country: args.country,
+  });
+}
+
+export function trackXtraShopClick(
+  client: MobileAnalyticsClient | null | undefined,
+  args: {
+    shopId: string;
+    cashback?: string;
+    position?: number;
+    source: string;
+  },
+): void {
+  capture(client, ANALYTICS_EVENTS.xtraShopClick, {
+    shop_id: args.shopId,
+    cashback: args.cashback,
+    shop_position: args.position,
+    source_section: args.source,
+  });
+}
+
 export function trackPromotionSelect(
   client: MobileAnalyticsClient | null | undefined,
-  args: { promotionId: string; promotionName: string; creativeSlot: string; destination?: string },
+  args: {
+    promotionId: string;
+    promotionName: string;
+    creativeSlot: string;
+    destination?: string;
+  },
 ): void {
   capture(client, ANALYTICS_EVENTS.selectPromotion, {
     promotion_id: args.promotionId,
@@ -180,7 +220,9 @@ export function identifyUser(
 }
 
 /** Clear PostHog identity on logout (mirrors web reset()). */
-export function resetIdentity(client: MobileAnalyticsClient | null | undefined): void {
+export function resetIdentity(
+  client: MobileAnalyticsClient | null | undefined,
+): void {
   if (!client?.reset) {
     return;
   }

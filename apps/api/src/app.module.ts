@@ -20,6 +20,7 @@ import { GototrackModule } from './gototrack/gototrack.module';
 import { CustomerBillingModule } from './customer-billing/customer-billing.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { InvolveModule } from './involve/involve.module';
+import { InvolveXtraModule } from './involve-xtra/involve-xtra.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PdpaModule } from './pdpa/pdpa.module';
 import { GolinkModule } from './golink/golink.module';
@@ -59,6 +60,7 @@ import { QuestTaskEngineModule } from './quest-task-engine/quest-task-engine.mod
       ? [TelegramBotModule]
       : []),
     InvolveModule,
+    InvolveXtraModule,
     TasksModule,
   ],
   controllers: [AppController],

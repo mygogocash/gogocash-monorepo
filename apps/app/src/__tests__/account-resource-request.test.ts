@@ -80,6 +80,7 @@ describe("PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS", () => {
     expect(PUBLIC_ADMIN_CONFIGURED_RESOURCE_IDS).toEqual([
       "allBrandBanner",
       "allShopBanner",
+      "exploreXtraShops",
       "homeBanner",
       "landingRails",
       "merchant",
