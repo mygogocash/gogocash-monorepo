@@ -46,6 +46,11 @@ ARG EXPO_PUBLIC_ENABLE_GOLINK
 # EXPO_PUBLIC_GOLINK_COMING_SOON=0 on the Railway service to fully launch GoLink.
 ARG EXPO_PUBLIC_GOLINK_COMING_SOON
 ARG EXPO_PUBLIC_ENABLE_CREDIT_SCORE
+# #586 — Involve Commission Xtra shops. Defaults to "0" (dark) so the web build
+# stays off until the Involve Publisher API key (Shopee TH) is approved; set the
+# Railway build ARG to "1" to enable. (Other flags default enabled; this one is
+# opt-in because its collections are empty until the sync has real credentials.)
+ARG EXPO_PUBLIC_ENABLE_INVOLVE_XTRA_SHOPS=0
 ARG EXPO_PUBLIC_TELEGRAM_BOT_USERNAME
 ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL \
     EXPO_PUBLIC_APP_ENV=$EXPO_PUBLIC_APP_ENV \
@@ -65,6 +70,7 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL \
     EXPO_PUBLIC_ENABLE_GOLINK=$EXPO_PUBLIC_ENABLE_GOLINK \
     EXPO_PUBLIC_GOLINK_COMING_SOON=$EXPO_PUBLIC_GOLINK_COMING_SOON \
     EXPO_PUBLIC_ENABLE_CREDIT_SCORE=$EXPO_PUBLIC_ENABLE_CREDIT_SCORE \
+    EXPO_PUBLIC_ENABLE_INVOLVE_XTRA_SHOPS=$EXPO_PUBLIC_ENABLE_INVOLVE_XTRA_SHOPS \
     EXPO_PUBLIC_TELEGRAM_BOT_USERNAME=$EXPO_PUBLIC_TELEGRAM_BOT_USERNAME
 
 # Install from the single root lockfile that pins the whole workspace.

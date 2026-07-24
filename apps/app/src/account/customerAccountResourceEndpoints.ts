@@ -94,7 +94,8 @@ export function resolveCustomerAccountResourceEndpoint({
     return "/offer/banner-home";
   }
 
-  const specificPageBannerTarget = resolveSpecificPageBannerTargetForResource(resourceId);
+  const specificPageBannerTarget =
+    resolveSpecificPageBannerTargetForResource(resourceId);
   if (specificPageBannerTarget) {
     return `/offer/banner-specific-page/${specificPageBannerTarget}`;
   }
@@ -103,12 +104,23 @@ export function resolveCustomerAccountResourceEndpoint({
     return "/offer/top-brands";
   }
 
+  if (resourceId === "exploreXtraShops") {
+    // #586 — Involve Commission Xtra shops (TH v1). Region → ?country=.
+    return appendCountryQueryParam(
+      "/explore/shops?limit=40&page=1",
+      regionCode,
+    );
+  }
+
   if (resourceId === "landingRails") {
     return "/offer/landing-rails";
   }
 
   if (resourceId === "merchant") {
-    return merchantEndpointTemplate.replace("${merchantId}", encodeURIComponent(merchantId));
+    return merchantEndpointTemplate.replace(
+      "${merchantId}",
+      encodeURIComponent(merchantId),
+    );
   }
 
   if (resourceId === "merchantCoupons") {
@@ -138,7 +150,11 @@ export function resolveCustomerAccountResourceRequest({
   resourceId: CustomerAccountResourceId;
 }): CustomerAccountResourceRequest {
   if (resourceId === "offers") {
-    return { body: { limit: 10, page: 1 }, method: "POST", path: "/offer/my-offers" };
+    return {
+      body: { limit: 10, page: 1 },
+      method: "POST",
+      path: "/offer/my-offers",
+    };
   }
 
   if (resourceId === "wallet") {
@@ -151,6 +167,10 @@ export function resolveCustomerAccountResourceRequest({
 
   return {
     method: "GET",
-    path: resolveCustomerAccountResourceEndpoint({ merchantId, regionCode, resourceId }),
+    path: resolveCustomerAccountResourceEndpoint({
+      merchantId,
+      regionCode,
+      resourceId,
+    }),
   };
 }

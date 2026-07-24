@@ -10,6 +10,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search as SearchIcon } from "@mobile/theme/icons";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
+import {
+  type ExploreShopsPayload,
+  mapExploreShopsToDirectoryStores,
+} from "@mobile/account/exploreShopsResource";
 import { useSpecificPageBanner } from "@mobile/account/specificPageBannerResource";
 import { useDirectoryOfferSearch } from "@mobile/account/useDirectoryOfferSearch";
 import {
@@ -25,6 +29,7 @@ import { CustomerDesktopFooter } from "@mobile/components/CustomerDesktopFooter"
 import { CustomerDesktopFooterSlot } from "@mobile/components/CustomerDesktopFooterSlot";
 import { CustomerMobileBottomNav } from "@mobile/components/CustomerMobileBottomNav";
 import { MotionPressable } from "@mobile/components/MotionPressable";
+import { isInvolveXtraShopsEnabled } from "@mobile/config/featureFlags";
 import { useCopy } from "@mobile/i18n/useCopy";
 import { useLocale } from "@mobile/i18n/LocaleProvider";
 import { haptics } from "@mobile/lib/haptics";
@@ -67,7 +72,8 @@ export function CustomerShopDirectoryScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedShopType, setSelectedShopType] = useState<WebShopType>("all");
-  const [sortBy, setSortBy] = useState<WebShopDirectorySort>("highest_cashback");
+  const [sortBy, setSortBy] =
+    useState<WebShopDirectorySort>("highest_cashback");
   const [currentPage, setCurrentPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
   const pageSize = webShopDirectory.pagination.pageSize;
@@ -80,7 +86,10 @@ export function CustomerShopDirectoryScreen() {
     contentWidth: gridContentWidth,
     viewportWidth: width,
   });
-  const catalogResource = useCustomerAccountResource<OfferListResponse, OfferListResponse>({
+  const catalogResource = useCustomerAccountResource<
+    OfferListResponse,
+    OfferListResponse
+  >({
     fixtureData: { data: [], limit: 80, page: 1, total: 0, totalPages: 0 },
     resourceId: "brandCatalog",
   });
@@ -88,11 +97,33 @@ export function CustomerShopDirectoryScreen() {
     fixtureData: webShopDirectory.categories,
     resourceId: "categoryList",
   });
-  const specificPageBanner = useSpecificPageBanner("shops", webShopDirectory.promo);
+  // #586 — Involve Commission Xtra shops, merged + badged into this directory
+  // (OPEN-1 default). Flag-gated: when off (beta default), `enabled:false` skips
+  // the fetch entirely and no Xtra stores are produced.
+  const xtraShopsEnabled = isInvolveXtraShopsEnabled();
+  const xtraResource = useCustomerAccountResource<
+    ExploreShopsPayload,
+    ExploreShopsPayload
+  >({
+    enabled: xtraShopsEnabled,
+    fixtureData: { data: [] },
+    resourceId: "exploreXtraShops",
+  });
+  const xtraStores = useMemo(
+    () =>
+      xtraShopsEnabled
+        ? mapExploreShopsToDirectoryStores(xtraResource.data)
+        : [],
+    [xtraShopsEnabled, xtraResource.data],
+  );
+  const specificPageBanner = useSpecificPageBanner(
+    "shops",
+    webShopDirectory.promo,
+  );
   const directoryCategories = resolveCategoryList(
     categoryResource.source,
     categoryResource.data,
-    webShopDirectory.categories
+    webShopDirectory.categories,
   );
   const directoryCategoryIconKeys = resolveCategoryIconKeys(
     categoryResource.source,
@@ -123,7 +154,7 @@ export function CustomerShopDirectoryScreen() {
         query: "",
         shopType: selectedShopType,
         sortBy,
-        stores: directorySearch.stores,
+        stores: [...xtraStores, ...directorySearch.stores],
       });
     }
 
@@ -133,7 +164,7 @@ export function CustomerShopDirectoryScreen() {
         query: searchQuery,
         shopType: selectedShopType,
         sortBy,
-        stores: liveStores,
+        stores: [...xtraStores, ...liveStores],
       });
     }
 
@@ -154,10 +185,14 @@ export function CustomerShopDirectoryScreen() {
     selectedCategory,
     selectedShopType,
     sortBy,
+    xtraStores,
   ]);
   const totalPages = Math.max(1, Math.ceil(shopResults.length / pageSize));
   const activePage = Math.min(currentPage, totalPages);
-  const visibleStores = shopResults.slice((activePage - 1) * pageSize, activePage * pageSize);
+  const visibleStores = shopResults.slice(
+    (activePage - 1) * pageSize,
+    activePage * pageSize,
+  );
   const resultsLabel = `${shopResults.length} ${tc(webShopDirectory.resultsUnit)}`;
 
   const updateSearchQuery = (value: string) => {
@@ -189,24 +224,42 @@ export function CustomerShopDirectoryScreen() {
     // brand directory, home rails and Top Brands. The bespoke
     // ShopDirectoryStoreCard it replaces had drifted into a third design
     // (extra "category · shop type" meta line, different padding and logo tile).
-    (store: ShopDirectoryStore) => (
-      <BrandCard
-        accessibilityLabel={`${store.brand} ${store.cashback} cashback`}
-        brand={store.brand}
-        cardHeight={shopDirectoryRowHeight}
-        cardWidth={gridMetrics.cardWidth}
-        cashback={store.cashback}
-        href={store.href}
-        id={store.id}
-        label={store.label}
-        logoUri={store.logoUri}
-        showGrabCoupon={store.showGrabCoupon}
-        size="L"
-        testID={`shop-directory-card-${store.id}`}
-        tint={store.tint}
-      />
-    ),
-    [gridMetrics.cardWidth, shopDirectoryRowHeight]
+    (store: ShopDirectoryStore) => {
+      const card = (
+        <BrandCard
+          accessibilityLabel={`${store.brand} ${store.cashback} cashback`}
+          brand={store.brand}
+          cardHeight={shopDirectoryRowHeight}
+          cardWidth={gridMetrics.cardWidth}
+          cashback={store.cashback}
+          href={store.href}
+          id={store.id}
+          label={store.label}
+          logoUri={store.logoUri}
+          showGrabCoupon={store.showGrabCoupon}
+          size="L"
+          testID={`shop-directory-card-${store.id}`}
+          tint={store.tint}
+        />
+      );
+      // #586 REQ-APP-3 — "Xtra" boosted-cashback badge on Involve Xtra shops.
+      // Screen-local overlay (does not touch the shared BrandCard); pointer
+      // events pass through so the whole card stays tappable.
+      if (!store.isXtra) return card;
+      return (
+        <View style={styles.shopCardBadgeWrap}>
+          {card}
+          <View
+            pointerEvents="none"
+            style={styles.shopXtraBadge}
+            testID={`shop-directory-xtra-badge-${store.id}`}
+          >
+            <Text style={styles.shopXtraBadgeText}>Xtra</Text>
+          </View>
+        </View>
+      );
+    },
+    [gridMetrics.cardWidth, shopDirectoryRowHeight, styles],
   );
 
   // Desktop search lives in the header (CustomerDesktopHeader); only mobile needs the sticky search.
@@ -221,7 +274,11 @@ export function CustomerShopDirectoryScreen() {
       ]}
     >
       <View style={styles.searchPill}>
-        <SearchIcon color={colors.primaryDark} size={20} strokeWidth={typography.iconStrokeWidth} />
+        <SearchIcon
+          color={colors.primaryDark}
+          size={20}
+          strokeWidth={typography.iconStrokeWidth}
+        />
         <Text numberOfLines={1} style={styles.searchText}>
           {tc(webHomeSearchPlaceholder)}
         </Text>
@@ -258,7 +315,9 @@ export function CustomerShopDirectoryScreen() {
             {webShopDirectory.titleIcon}
           </Text>
         </View>
-        <Text style={styles.shopDirectorySubtitle}>{tc(webShopDirectory.subtitle)}</Text>
+        <Text style={styles.shopDirectorySubtitle}>
+          {tc(webShopDirectory.subtitle)}
+        </Text>
       </View>
 
       <View
@@ -281,7 +340,11 @@ export function CustomerShopDirectoryScreen() {
         <View style={[styles.shopDirectoryMain, { width: gridContentWidth }]}>
           <View style={styles.shopDirectoryFilterPanel}>
             <View style={styles.shopDirectorySearchBox}>
-              <SearchIcon color={colors.muted} size={18} strokeWidth={typography.iconStrokeWidth} />
+              <SearchIcon
+                color={colors.muted}
+                size={18}
+                strokeWidth={typography.iconStrokeWidth}
+              />
               <TextInput
                 accessibilityLabel={tc(webShopDirectory.searchLabel)}
                 autoCapitalize="none"
@@ -291,7 +354,10 @@ export function CustomerShopDirectoryScreen() {
                 placeholder={tc(webShopDirectory.searchPlaceholder)}
                 placeholderTextColor={colors.muted}
                 returnKeyType="search"
-                style={[styles.shopDirectorySearchInput, webSearchInputFocusReset]}
+                style={[
+                  styles.shopDirectorySearchInput,
+                  webSearchInputFocusReset,
+                ]}
                 value={searchQuery}
               />
             </View>
@@ -309,14 +375,18 @@ export function CustomerShopDirectoryScreen() {
                   pressScale={motion.scale.subtlePress}
                   style={[
                     styles.shopDirectoryPill,
-                    selectedShopType === pill.value ? styles.shopDirectoryPillActive : null,
+                    selectedShopType === pill.value
+                      ? styles.shopDirectoryPillActive
+                      : null,
                   ]}
                 >
                   <Text
                     numberOfLines={1}
                     style={[
                       styles.shopDirectoryPillText,
-                      selectedShopType === pill.value ? styles.shopDirectoryPillTextActive : null,
+                      selectedShopType === pill.value
+                        ? styles.shopDirectoryPillTextActive
+                        : null,
                     ]}
                   >
                     {tc(pill.label)}
@@ -326,10 +396,7 @@ export function CustomerShopDirectoryScreen() {
             </ScrollView>
 
             <View style={styles.shopDirectorySortBlock}>
-              <Text
-                numberOfLines={1}
-                style={styles.shopDirectorySortLabel}
-              >
+              <Text numberOfLines={1} style={styles.shopDirectorySortLabel}>
                 {tc(webShopDirectory.sortLabel)}
               </Text>
               <View style={styles.shopDirectorySortRow}>
@@ -337,25 +404,33 @@ export function CustomerShopDirectoryScreen() {
                   <MotionPressable
                     accessibilityRole="button"
                     key={pill.value}
-                    onPress={() => setSortBy(pill.value as WebShopDirectorySort)}
+                    onPress={() =>
+                      setSortBy(pill.value as WebShopDirectorySort)
+                    }
                     pressScale={motion.scale.subtlePress}
                     style={[
                       styles.shopDirectoryPill,
-                      sortBy === pill.value ? styles.shopDirectoryPillActive : null,
+                      sortBy === pill.value
+                        ? styles.shopDirectoryPillActive
+                        : null,
                     ]}
                   >
                     <Text
                       numberOfLines={1}
                       style={[
                         styles.directorySortPillText,
-                        sortBy === pill.value ? styles.directorySortPillTextActive : null,
+                        sortBy === pill.value
+                          ? styles.directorySortPillTextActive
+                          : null,
                       ]}
                     >
                       {tc(pill.label)}
                     </Text>
                   </MotionPressable>
                 ))}
-                <Text style={styles.shopDirectoryResultsCount}>{resultsLabel}</Text>
+                <Text style={styles.shopDirectoryResultsCount}>
+                  {resultsLabel}
+                </Text>
               </View>
             </View>
           </View>
@@ -372,8 +447,12 @@ export function CustomerShopDirectoryScreen() {
             />
           ) : (
             <View style={styles.shopDirectoryEmptyState}>
-              <Text style={styles.shopDirectoryEmptyTitle}>{tc(webShopDirectory.emptyTitle)}</Text>
-              <Text style={styles.shopDirectoryEmptyBody}>{tc(webShopDirectory.emptyBody)}</Text>
+              <Text style={styles.shopDirectoryEmptyTitle}>
+                {tc(webShopDirectory.emptyTitle)}
+              </Text>
+              <Text style={styles.shopDirectoryEmptyBody}>
+                {tc(webShopDirectory.emptyBody)}
+              </Text>
             </View>
           )}
 
@@ -431,7 +510,9 @@ export function CustomerShopDirectoryScreen() {
 
   return (
     <View style={styles.viewport}>
-      <View style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}>
+      <View
+        style={[styles.phoneFrame, { maxWidth: homeLayout.contentMaxWidth }]}
+      >
         {stickySearchHeader}
 
         <ScrollView
@@ -443,7 +524,11 @@ export function CustomerShopDirectoryScreen() {
             },
           ]}
           refreshControl={
-            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} tintColor={colors.primaryDark} />
+            <RefreshControl
+              onRefresh={onRefresh}
+              refreshing={refreshing}
+              tintColor={colors.primaryDark}
+            />
           }
           showsVerticalScrollIndicator={false}
         >
@@ -453,7 +538,9 @@ export function CustomerShopDirectoryScreen() {
             style={styles.desktopFooter}
           />
         </ScrollView>
-        {homeLayout.isDesktop ? null : <CustomerMobileBottomNav bottomInset={insets.bottom} />}
+        {homeLayout.isDesktop ? null : (
+          <CustomerMobileBottomNav bottomInset={insets.bottom} />
+        )}
       </View>
     </View>
   );
