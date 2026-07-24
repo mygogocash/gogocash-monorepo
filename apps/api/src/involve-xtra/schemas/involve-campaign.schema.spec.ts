@@ -14,16 +14,20 @@ describe('InvolveCampaignSchema', () => {
   });
 
   it('requires dedupe + attribution fields and defaults active=true', () => {
-    expect(InvolveCampaignSchema.path('campaignBannerId').options.required).toBe(
-      true,
-    );
+    expect(
+      InvolveCampaignSchema.path('campaignBannerId').options.required,
+    ).toBe(true);
     expect(InvolveCampaignSchema.path('trackingLink').options.required).toBe(
       true,
     );
     expect(InvolveCampaignSchema.path('active').options.default).toBe(true);
-    expect(InvolveCampaignSchema.path('withBanner').options.default).toBe(false);
+    expect(InvolveCampaignSchema.path('withBanner').options.default).toBe(
+      false,
+    );
     expect(InvolveCampaignSchema.path('offerId').options.default).toBeNull();
-    expect(InvolveCampaignSchema.path('categoryKey').options.default).toBeNull();
+    expect(
+      InvolveCampaignSchema.path('categoryKey').options.default,
+    ).toBeNull();
   });
 
   it('declares the dedupe-unique and serving indexes', () => {

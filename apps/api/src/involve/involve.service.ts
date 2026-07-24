@@ -458,6 +458,15 @@ export class InvolveService {
     return res.data;
   }
 
+  /**
+   * Public accessor for the cached-or-fresh Involve Bearer token. Used by the
+   * Commission Xtra sync (#586) so it shares this service's token cache
+   * (REQ-CFG-1) instead of re-authenticating on its own store.
+   */
+  async getAccessToken(): Promise<string> {
+    return this.prepareInvolveAccessToken();
+  }
+
   private async prepareInvolveAccessToken(): Promise<string> {
     const cached = await this.cacheManager.get('access_token_involve');
     if (typeof cached === 'string' && cached.trim().length > 0) {
