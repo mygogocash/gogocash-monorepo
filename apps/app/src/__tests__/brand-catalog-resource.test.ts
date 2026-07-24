@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   mapOfferCatalogToCompactBrandCards,
   resolveApiLandingRails,
+  resolveHomeLandingRails,
   resolveHomePromoSections,
   resolveLiveBrandCards,
 } from "@mobile/account/brandCatalogResource";
@@ -150,6 +151,79 @@ describe("brand catalog resource", () => {
     ],
   };
 
+  const categoryRailCatalogPayload: OfferListResponse = {
+    page: 1,
+    limit: 80,
+    total: 8,
+    totalPages: 1,
+    data: [
+      {
+        _id: "travel-klook",
+        offer_name_display: "Klook Travel",
+        categories: "Travel",
+        countries: "Thailand",
+        disabled: false,
+        status: "approved",
+      },
+      {
+        _id: "travel-traveloka",
+        offer_name_display: "Traveloka",
+        categories: "Travel",
+        countries: "Thailand",
+        disabled: false,
+        status: "approved",
+      },
+      {
+        _id: "beauty-glow",
+        offer_name_display: "Glow Shop",
+        categories: "Health & Beauty",
+        countries: "Thailand",
+        disabled: false,
+        status: "approved",
+      },
+      {
+        _id: "beauty-sephora",
+        offer_name_display: "Sephora",
+        categories: "Health & Beauty",
+        countries: "Thailand",
+        disabled: false,
+        status: "approved",
+      },
+      {
+        _id: "shopping-only",
+        offer_name_display: "Shopping Only",
+        categories: "Shopping",
+        countries: "Thailand",
+        disabled: false,
+        status: "approved",
+      },
+      {
+        _id: "travel-hidden",
+        offer_name_display: "Hidden Travel",
+        categories: "Travel",
+        countries: "Thailand",
+        disabled: true,
+        status: "approved",
+      },
+      {
+        _id: "beauty-rejected",
+        offer_name_display: "Rejected Beauty",
+        categories: "Health & Beauty",
+        countries: "Thailand",
+        disabled: false,
+        status: "rejected",
+      },
+      {
+        _id: "travel-japan",
+        offer_name_display: "Japan Travel",
+        categories: "Travel",
+        countries: "Japan",
+        disabled: false,
+        status: "approved",
+      },
+    ],
+  };
+
   it("resolveApiLandingRails > given non-backend source > returns fixture rails", () => {
     const sections = resolveApiLandingRails("fixtures", landingRailsPayload, fallbackSections);
     expect(sections.map((s) => s.id)).toEqual(["trending", "travel", "makeup"]);
@@ -188,5 +262,48 @@ describe("brand catalog resource", () => {
     };
     const sections = resolveApiLandingRails("backend", emptyRail, fallbackSections);
     expect(sections.find((s) => s.id === "makeup")?.cards).toEqual([]);
+  });
+
+  it("resolveHomeLandingRails > sources Travel and Makeup from matching live categories", () => {
+    const sections = resolveHomeLandingRails(
+      "backend",
+      landingRailsPayload,
+      categoryRailCatalogPayload,
+      fallbackSections,
+      "TH",
+    );
+
+    expect(sections.find((section) => section.id === "travel")?.cards).toEqual([
+      expect.objectContaining({ brand: "Klook Travel" }),
+      expect.objectContaining({ brand: "Traveloka" }),
+    ]);
+    expect(sections.find((section) => section.id === "makeup")?.cards).toEqual([
+      expect.objectContaining({ brand: "Glow Shop" }),
+      expect.objectContaining({ brand: "Sephora" }),
+    ]);
+    expect(sections.find((section) => section.id === "travel")?.link).toBe(
+      "/category/Travel",
+    );
+    expect(sections.find((section) => section.id === "makeup")?.link).toBe(
+      "/category/Health%20%26%20Beauty",
+    );
+  });
+
+  it("resolveHomeLandingRails > excludes unrelated, hidden, rejected, and out-of-region brands", () => {
+    const sections = resolveHomeLandingRails(
+      "backend",
+      landingRailsPayload,
+      categoryRailCatalogPayload,
+      fallbackSections,
+      "TH",
+    );
+    const categoryRailBrands = sections
+      .filter((section) => section.id === "travel" || section.id === "makeup")
+      .flatMap((section) => section.cards.map((card) => card.brand));
+
+    expect(categoryRailBrands).not.toContain("Shopping Only");
+    expect(categoryRailBrands).not.toContain("Hidden Travel");
+    expect(categoryRailBrands).not.toContain("Rejected Beauty");
+    expect(categoryRailBrands).not.toContain("Japan Travel");
   });
 });

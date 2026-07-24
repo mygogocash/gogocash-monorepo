@@ -184,12 +184,11 @@ function mapLandingRailCard(card: LandingRailApiCard): FallbackCompactBrandCard 
 }
 
 /**
- * Prefer admin-curated landing rails from GET /offer/landing-rails, falling
- * back to the {@link webHomePromoSections} fixture when the API is unavailable,
- * the account is not in backend mode, or a given rail resolves to zero live
- * cards. The fixture rail order is authoritative so the homepage stays stable
- * even before an admin curates anything; each rail's cards, title, "see all"
- * link, and emoji are overlaid from the API when present.
+ * Resolve admin-curated landing rails from GET /offer/landing-rails. Fixture
+ * cards are available only outside backend mode; an unavailable or empty
+ * backend rail remains empty so the storefront never advertises demo brands.
+ * The fixture rail order is authoritative, while each configured rail can
+ * overlay its cards, title, "see all" link, and emoji.
  */
 export function resolveApiLandingRails<TSection extends HomePromoSection>(
   source: AccountDataSource,
@@ -244,6 +243,58 @@ export function resolveApiLandingRails<TSection extends HomePromoSection>(
       link,
       icon,
       cards,
+      dotCount: undefined,
+    };
+  });
+}
+
+const CATEGORY_SOURCED_HOME_RAIL_IDS = new Set(["travel", "makeup"]);
+
+/**
+ * Compose homepage rails from their authoritative sources. General rails stay
+ * admin-curated, while Travel and Makeup cards come from the live brand catalog
+ * so category, visibility, approval, and region rules are applied consistently.
+ */
+export function resolveHomeLandingRails<TSection extends HomePromoSection>(
+  source: AccountDataSource,
+  landingRailsData: unknown,
+  catalogData: unknown,
+  fallbackSections: readonly TSection[],
+  regionCode: RegionCode = DEFAULT_REGION,
+): readonly TSection[] {
+  const curatedSections = resolveApiLandingRails(
+    source,
+    landingRailsData,
+    fallbackSections,
+    regionCode,
+  );
+
+  if (source !== "backend") {
+    return curatedSections;
+  }
+
+  const categorySections = resolveHomePromoSections(
+    source,
+    catalogData,
+    fallbackSections,
+    regionCode,
+  );
+  const categoryById = new Map(
+    categorySections.map((section) => [section.id, section]),
+  );
+  const fallbackById = new Map(
+    fallbackSections.map((section) => [section.id, section]),
+  );
+
+  return curatedSections.map((section) => {
+    if (!CATEGORY_SOURCED_HOME_RAIL_IDS.has(section.id)) {
+      return section;
+    }
+
+    return {
+      ...section,
+      cards: categoryById.get(section.id)?.cards ?? [],
+      link: fallbackById.get(section.id)?.link ?? section.link,
       dotCount: undefined,
     };
   });

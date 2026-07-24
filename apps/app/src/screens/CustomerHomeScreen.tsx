@@ -29,7 +29,7 @@ import {
   useGoLinkResolution,
 } from "@mobile/features/useGoLinkResolution";
 import {
-  resolveApiLandingRails,
+  resolveHomeLandingRails,
   resolveLiveBrandCards,
 } from "@mobile/account/brandCatalogResource";
 import { useCustomerAccountResource } from "@mobile/account/customerAccountResource";
@@ -123,9 +123,10 @@ export function CustomerHomeScreen() {
       tintColor={colors.primaryDark}
     />
   );
-  const promoSections = resolveApiLandingRails(
-    landingRailsResource.source,
+  const promoSections = resolveHomeLandingRails(
+    brandCatalogResource.source,
     landingRailsResource.data,
+    brandCatalogResource.data,
     webHomePromoSections,
     region,
   );
