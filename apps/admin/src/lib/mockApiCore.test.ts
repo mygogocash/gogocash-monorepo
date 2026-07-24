@@ -472,6 +472,91 @@ function withoutTaskKeys(tasks: Array<Record<string, unknown>>) {
   return tasks.map(({ task_key: _taskKey, ...task }) => task);
 }
 
+describe("quest campaign management", () => {
+  it("replaces edit banners through the dedicated campaign route and persists them on reload (#636)", async () => {
+    const list = await call("GET", ["point", "admin-get-quest"]);
+    const quest = (
+      list.body as Array<{
+        _id: string;
+        campaign_revision?: number;
+        start_date: string;
+        end_date: string;
+        facebook_page: string;
+        facebook_post: string;
+        line: string;
+        banner_en: string;
+        banner_th: string;
+        sub_banner_en: string;
+        sub_banner_th: string;
+      }>
+    )[0];
+    const original = { ...quest };
+    let savedRevision = Number(quest.campaign_revision ?? 0);
+
+    try {
+      const save = await call(
+        "PATCH",
+        ["point", "admin-quest", quest._id, "campaign"],
+        {
+          body: {
+            request_key: "quest-media:mock-edit-636",
+            campaign_revision: savedRevision,
+            expected_config_revision: 0,
+            start_date: quest.start_date,
+            end_date: quest.end_date,
+            facebook_page: quest.facebook_page,
+            facebook_post: quest.facebook_post,
+            line: quest.line,
+            banner_en: "uploads/quest-636/banner-en.png",
+            banner_th: "uploads/quest-636/banner-th.png",
+            sub_banner_en: "uploads/quest-636/sub-banner-en.png",
+            sub_banner_th: "uploads/quest-636/sub-banner-th.png",
+          },
+        },
+      );
+
+      expect(save.status).toBe(200);
+      savedRevision = Number(
+        (save.body as { campaign_revision: number }).campaign_revision,
+      );
+      const reloaded = await call("GET", ["point", "admin-get-quest"]);
+      expect(
+        (
+          reloaded.body as Array<{
+            _id: string;
+            banner_en: string;
+            banner_th: string;
+            sub_banner_en: string;
+            sub_banner_th: string;
+          }>
+        ).find((item) => item._id === quest._id),
+      ).toMatchObject({
+        banner_en: "uploads/quest-636/banner-en.png",
+        banner_th: "uploads/quest-636/banner-th.png",
+        sub_banner_en: "uploads/quest-636/sub-banner-en.png",
+        sub_banner_th: "uploads/quest-636/sub-banner-th.png",
+      });
+    } finally {
+      await call("PATCH", ["point", "admin-quest", quest._id, "campaign"], {
+        body: {
+          request_key: "quest-media:mock-edit-636-restore",
+          campaign_revision: savedRevision,
+          expected_config_revision: 0,
+          start_date: original.start_date,
+          end_date: original.end_date,
+          facebook_page: original.facebook_page,
+          facebook_post: original.facebook_post,
+          line: original.line,
+          banner_en: original.banner_en,
+          banner_th: original.banner_th,
+          sub_banner_en: original.sub_banner_en,
+          sub_banner_th: original.sub_banner_th,
+        },
+      });
+    }
+  });
+});
+
 describe("quest task management", () => {
   it("returns the effective-task catalog and server mutation capabilities", async () => {
     const list = await call("GET", ["point", "admin-get-quest"]);

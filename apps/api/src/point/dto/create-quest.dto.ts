@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PickType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
@@ -80,6 +80,22 @@ export class CreateQuestDto {
   @IsString()
   line: string;
 }
+
+/**
+ * Existing quest campaign edits take their identity from the URL and expose
+ * only operator-editable campaign fields. QA-only create fields and `_id` are
+ * deliberately excluded from this multipart body contract.
+ */
+export class UpdateQuestCampaignDto extends PickType(CreateQuestDto, [
+  'request_key',
+  'campaign_revision',
+  'expected_config_revision',
+  'start_date',
+  'end_date',
+  'facebook_post',
+  'facebook_page',
+  'line',
+] as const) {}
 
 export class QuestMediaQaCleanupDto {
   @ApiProperty({ example: '66a8a48f2c8de0e641e17424' })

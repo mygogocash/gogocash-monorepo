@@ -13,7 +13,11 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { GLOBAL_VALIDATION_PIPE_OPTIONS } from '../../common/validation-pipe.options';
-import { CreateQuestDto, UpdateQuestTasksDto } from './create-quest.dto';
+import {
+  CreateQuestDto,
+  UpdateQuestCampaignDto,
+  UpdateQuestTasksDto,
+} from './create-quest.dto';
 
 const QUEST_BANNER_FIELDS = [
   { name: 'banner_en', maxCount: 1 },
@@ -40,6 +44,19 @@ class QuestValidationController {
   @Patch('tasks')
   updateQuestTasks(@Body() body: UpdateQuestTasksDto) {
     return body;
+  }
+
+  @Patch('campaign')
+  @UseInterceptors(FileFieldsInterceptor(QUEST_BANNER_FIELDS))
+  updateQuestCampaign(
+    @Body() body: UpdateQuestCampaignDto,
+    @UploadedFiles()
+    files: Record<string, Express.Multer.File[]>,
+  ) {
+    return {
+      body,
+      uploadedFields: Object.keys(files).sort(),
+    };
   }
 }
 
@@ -112,6 +129,48 @@ describe('CreateQuestDto multipart validation (integration)', () => {
       'property banner_en should not exist',
     );
     expect(response.body.message).not.toContain('banner_en must be a string');
+  });
+
+  it('accepts an edit body with a partial banner replacement', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/quest-validation-test/campaign')
+      .field('request_key', 'quest-media:update-validation')
+      .field('campaign_revision', '3')
+      .field('expected_config_revision', '7')
+      .field('start_date', '2026-07-20T02:00:00.000Z')
+      .field('end_date', '2026-07-31T15:00:00.000Z')
+      .field('facebook_post', '')
+      .field('facebook_page', '')
+      .field('line', '')
+      .attach('banner_th', Buffer.from('replacement-banner-th'), {
+        filename: 'banner-th.png',
+        contentType: 'image/png',
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.uploadedFields).toEqual(['banner_th']);
+    expect(response.body.body).toMatchObject({
+      request_key: 'quest-media:update-validation',
+      campaign_revision: 3,
+      expected_config_revision: 7,
+    });
+  });
+
+  it('rejects a body-owned quest id on the edit contract', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/quest-validation-test/campaign')
+      .field('_id', '6942b79d7b9f8214ada6eed5')
+      .field('request_key', 'quest-media:update-validation')
+      .field('campaign_revision', '3')
+      .field('expected_config_revision', '7')
+      .field('start_date', '2026-07-20T02:00:00.000Z')
+      .field('end_date', '2026-07-31T15:00:00.000Z')
+      .field('facebook_post', '')
+      .field('facebook_page', '')
+      .field('line', '');
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('property _id should not exist');
   });
 });
 
