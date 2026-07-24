@@ -17,8 +17,16 @@ export type WithdrawUserEditDraft = {
   fullName: string;
   gender: string;
   birthdate: string;
-  wallet: string;
-  gogopassActive: boolean;
+};
+
+export type WithdrawUserContactSavePlan = {
+  /**
+   * Omitted when this channel contains an unverified change. An empty array is
+   * intentionally different: it means the admin verified clearing the channel.
+   */
+  emails?: string[];
+  mobiles?: string[];
+  deferredChannels: Array<"email" | "mobile">;
 };
 
 export function createContactRow(value: string): UserContactRow {
@@ -122,6 +130,43 @@ export function allContactsVerifiedForSave(
   });
 }
 
+export function buildWithdrawUserContactSavePlan(
+  draft: WithdrawUserEditDraft,
+  initialEmails: ReadonlySet<string>,
+  initialMobiles: ReadonlySet<string>,
+): WithdrawUserContactSavePlan {
+  const emailRows = ensureUserContactRows(draft.emailRows);
+  const mobileRows = ensureUserContactRows(draft.mobileRows);
+  const emailsReady = allContactsVerifiedForSave(
+    emailRows,
+    initialEmails,
+    "email",
+  );
+  const mobilesReady = allContactsVerifiedForSave(
+    mobileRows,
+    initialMobiles,
+    "mobile",
+  );
+  const deferredChannels: Array<"email" | "mobile"> = [];
+
+  if (!emailsReady) deferredChannels.push("email");
+  if (!mobilesReady) deferredChannels.push("mobile");
+
+  return {
+    ...(emailsReady
+      ? {
+          emails: emailRows.map((row) => row.value.trim()).filter(Boolean),
+        }
+      : {}),
+    ...(mobilesReady
+      ? {
+          mobiles: mobileRows.map((row) => row.value.trim()).filter(Boolean),
+        }
+      : {}),
+    deferredChannels,
+  };
+}
+
 export function emptyWithdrawUserEditDraft(): WithdrawUserEditDraft {
   return {
     emailRows: [createContactRow("")],
@@ -129,7 +174,5 @@ export function emptyWithdrawUserEditDraft(): WithdrawUserEditDraft {
     fullName: "",
     gender: "",
     birthdate: "",
-    wallet: "",
-    gogopassActive: false,
   };
 }
