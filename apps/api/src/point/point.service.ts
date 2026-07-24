@@ -2100,7 +2100,22 @@ export class PointService {
       );
     }
     const isCreateRequest = !createQuestDto._id;
-    if (isCreateRequest && isQuestRevisionWorkflowEnabled()) {
+    const qaMarker = createQuestDto.qa_marker?.trim();
+    const qaCleanupNonce = createQuestDto.qa_cleanup_nonce?.trim();
+    if (Boolean(qaMarker) !== Boolean(qaCleanupNonce)) {
+      throw new BadRequestException(
+        'qa_marker and qa_cleanup_nonce must be supplied together',
+      );
+    }
+    if (qaMarker) {
+      if (!requestKey.startsWith('quest-media:qa:')) {
+        throw new BadRequestException(
+          'QA markers require a quest-media:qa command',
+        );
+      }
+      assertQuestMediaQaMutationEnabled();
+    }
+    if (isCreateRequest && isQuestRevisionWorkflowEnabled() && !qaMarker) {
       throw new ConflictException({
         code: QUEST_DIRECT_CREATE_DISABLED,
         message:
@@ -2110,21 +2125,6 @@ export class PointService {
     const questId = createQuestDto._id
       ? requireObjectId(String(createQuestDto._id), 'quest id')
       : deterministicQuestId(requestKey);
-    const qaMarker = createQuestDto.qa_marker?.trim();
-    const qaCleanupNonce = createQuestDto.qa_cleanup_nonce?.trim();
-    if (Boolean(qaMarker) !== Boolean(qaCleanupNonce)) {
-      throw new BadRequestException(
-        'qa_marker and qa_cleanup_nonce must be supplied together',
-      );
-    }
-    if (qaMarker) {
-      if (!isCreateRequest || !requestKey.startsWith('quest-media:qa:')) {
-        throw new BadRequestException(
-          'QA markers are allowed only for a new quest-media:qa command',
-        );
-      }
-      assertQuestMediaQaMutationEnabled();
-    }
 
     // Validate and decode the complete selected set before media preparation,
     // durable intent creation, object storage, or quest persistence. Banner
@@ -2140,6 +2140,15 @@ export class PointService {
     const existingQuestRecord = (existingQuest?.toObject?.() ??
       existingQuest ??
       {}) as Record<string, unknown>;
+    if (
+      qaMarker &&
+      !isCreateRequest &&
+      String(existingQuestRecord.qa_marker ?? '') !== qaMarker
+    ) {
+      throw new BadRequestException(
+        'QA marker does not own the existing quest',
+      );
+    }
     for (const revisionField of [
       'campaign_revision',
       'config_revision',
