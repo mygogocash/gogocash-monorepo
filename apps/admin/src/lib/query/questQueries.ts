@@ -1,4 +1,5 @@
 import client from "@/lib/axios/client";
+import { multipartPostConfig } from "@/lib/multipartFormHeaders";
 import type {
   CreateQuestRevisionPayload,
   PublishQuestRevisionPayload,
@@ -42,9 +43,22 @@ export async function fetchQuestManagementCapabilities(): Promise<QuestManagemen
 export async function saveQuestCampaign(
   formData: FormData,
 ): Promise<ResponseQuestDate> {
+  const questId = formData.get("_id");
+  if (typeof questId === "string" && questId.trim()) {
+    // The quest id belongs in the route contract for edits. Keeping it out of
+    // the body also lets the API reject all unknown multipart fields.
+    formData.delete("_id");
+    const { data } = await client.patch<ResponseQuestDate>(
+      `/point/admin-quest/${encodeURIComponent(questId.trim())}/campaign`,
+      formData,
+      multipartPostConfig(),
+    );
+    return data;
+  }
   const { data } = await client.post<ResponseQuestDate>(
     "/point/create-quest",
     formData,
+    multipartPostConfig(),
   );
   return data;
 }
