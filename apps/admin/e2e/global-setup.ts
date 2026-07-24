@@ -13,6 +13,15 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 
   fs.mkdirSync(AUTH_DIR, { recursive: true });
 
+  if (process.env.E2E_REUSE_ADMIN_STORAGE_STATE === "1") {
+    if (!fs.existsSync(AUTH_FILE)) {
+      throw new Error(
+        `E2E_REUSE_ADMIN_STORAGE_STATE=1 requires an existing storage state at ${AUTH_FILE}`,
+      );
+    }
+    return;
+  }
+
   const browser = await chromium.launch();
   const page = await browser.newPage();
 

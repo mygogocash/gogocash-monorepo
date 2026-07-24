@@ -34,6 +34,14 @@ const questTaskE2eSource = readFileSync(
   resolve(repoRoot, "apps/api/test/quest-task-progress.e2e-spec.ts"),
   "utf8",
 );
+const rootE2eTestRunnerSource = readFileSync(
+  resolve(repoRoot, "scripts/e2e-run-tests.sh"),
+  "utf8",
+);
+const adminE2eGlobalSetupSource = readFileSync(
+  resolve(repoRoot, "apps/admin/e2e/global-setup.ts"),
+  "utf8",
+);
 const ciStagingSource = readFileSync(
   resolve(repoRoot, ".github/workflows/ci-staging.yml"),
   "utf8",
@@ -596,6 +604,25 @@ test("clean runner validates and executes the full root E2E harness", () => {
     ),
     composeProjectName,
     "cleanup must remove the same compose project used by root E2E",
+  );
+});
+
+test("root E2E reuses the cross-system admin session for the admin suite", () => {
+  assert.match(
+    rootE2eTestRunnerSource,
+    /E2E_REUSE_ADMIN_STORAGE_STATE=1 ADMIN_PLAYWRIGHT_NO_SERVER=1 npm run test:e2e -w gogocash-admin/,
+  );
+  assert.match(
+    adminE2eGlobalSetupSource,
+    /process\.env\.E2E_REUSE_ADMIN_STORAGE_STATE === "1"/,
+  );
+  assert.match(
+    adminE2eGlobalSetupSource,
+    /fs\.existsSync\(AUTH_FILE\)/,
+  );
+  assert.match(
+    adminE2eGlobalSetupSource,
+    /requires an existing storage state/,
   );
 });
 
