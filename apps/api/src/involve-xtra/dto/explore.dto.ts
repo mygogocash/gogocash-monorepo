@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   IsEnum,
   IsInt,
+  IsMongoId,
   IsNumber,
   IsOptional,
   IsString,
@@ -36,6 +37,11 @@ export class ExploreShopsQueryDto {
   @IsString()
   @MaxLength(120)
   search?: string;
+
+  // #503 — scope the rail to one platform brand's shops (brand-detail page).
+  @IsOptional()
+  @IsMongoId()
+  platformOfferId?: string;
 
   @IsOptional()
   @Type(() => Number)

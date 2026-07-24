@@ -118,6 +118,7 @@ type AdminOfferUpdateData = {
   commission_store?: number;
   max_cap?: number;
   extra_store?: boolean;
+  is_platform?: boolean;
   tracking_link?: string;
   /** Affiliate network for this brand line; absent key leaves it unchanged. */
   affiliate_network_id?: string;
@@ -1238,6 +1239,7 @@ export class AdminService {
             updateData.commission_store ?? offer.commission_store ?? 0,
           max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
           extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
+          is_platform: Boolean(updateData.is_platform ?? offer.is_platform),
           tracking_link: trackingLink,
           // Absent key = leave unchanged, so a partial save (T&C, media, …) can
           // never blank the network or advertiser line (#516/#518).
@@ -1350,6 +1352,7 @@ export class AdminService {
           updateData.commission_store ?? offer.commission_store ?? 0,
         max_cap: updateData.max_cap ?? offer.max_cap ?? 0,
         extra_store: Boolean(updateData.extra_store ?? offer.extra_store),
+        is_platform: Boolean(updateData.is_platform ?? offer.is_platform),
         tracking_link: trackingLink,
         // Mirrors updateOfferLegacy — this file keeps two patch builders and a
         // field added to only one silently works on the legacy path and not the

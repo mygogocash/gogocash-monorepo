@@ -296,6 +296,15 @@ export class Offer {
   is_global: boolean;
 
   /**
+   * #503 — whether this brand is a PLATFORM (e.g. Shopee/Lazada/TikTok Shop) that
+   * owns shops/products, vs a single brand. Drives the customer brand-detail
+   * suggestion rail (platform → "Explore more Shops"; single → "Explore more
+   * brands"). Admin-set; absent on legacy rows → false.
+   */
+  @Prop({ default: false })
+  is_platform: boolean;
+
+  /**
    * Fallback country variant for global brands. Same denormalization rationale as
    * `is_global` — kept in sync by `BrandService.update`.
    */

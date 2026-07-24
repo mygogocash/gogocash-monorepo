@@ -958,6 +958,7 @@ describe('OfferService', () => {
         _id: offerId,
         offer_name: 'Nike',
         tracking_link: 'https://track.example/nike',
+        is_platform: true,
         offer_display_tags: {
           brand_category_enabled: true,
           brand_category_label: 'Digital Services',
@@ -988,11 +989,16 @@ describe('OfferService', () => {
       expect(query.select).toHaveBeenCalledWith(
         expect.stringContaining('note_to_user'),
       );
+      // #503 — platform flag surfaced to the customer detail payload.
+      expect(query.select).toHaveBeenCalledWith(
+        expect.stringContaining('is_platform'),
+      );
       expect(result).toEqual(
         expect.objectContaining({
           _id: offerId,
           offer_name: 'Nike',
           tracking_link: 'https://track.example/nike',
+          is_platform: true,
           offer_display_tags: {
             brand_category_enabled: true,
             brand_category_label: 'Digital Services',
@@ -1377,6 +1383,7 @@ describe('OfferService', () => {
         commission_store: '7.5',
         max_cap: '500',
         is_global: 'true',
+        is_platform: 'true',
         default_country: 'Thailand',
         note_to_user: '  Book through GoGoCash for eligible cashback.  ',
         policy_category_id: '507f1f77bcf86cd799439011',
@@ -1404,6 +1411,7 @@ describe('OfferService', () => {
           status: 'approved',
           source: 'manual',
           is_global: true,
+          is_platform: true,
           default_country: 'Thailand',
           note_to_user: 'Book through GoGoCash for eligible cashback.',
           policy_category_id: '507f1f77bcf86cd799439011',

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 // mongoose 9 does not root-export FilterQuery; the codebase types query filters
 // as plain objects. Keep that idiom + cast at the model call sites.
@@ -84,6 +84,10 @@ export class ExploreService {
     }
     if (query.search?.trim()) {
       filter.shopName = new RegExp(escapeRegex(query.search.trim()), 'i');
+    }
+    // #503 — scope to one platform brand's shops (brand-detail "Explore more Shops").
+    if (query.platformOfferId) {
+      filter.offerId = new Types.ObjectId(query.platformOfferId);
     }
 
     const sort =

@@ -317,6 +317,12 @@ export class UpdateOfferAdminDto {
   @IsOptional()
   extra_store: boolean | string;
 
+  // #503 — platform-brand flag. MUST be whitelisted here or the global
+  // forbidNonWhitelisted pipe 400s every update-offer save that sends it.
+  @ApiProperty()
+  @IsOptional()
+  is_platform: boolean | string;
+
   @ApiProperty()
   @IsString()
   @IsOptional()

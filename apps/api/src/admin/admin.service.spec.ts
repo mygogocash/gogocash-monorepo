@@ -2116,6 +2116,17 @@ describe('AdminService', () => {
       expect(persisted.deeplink_store_id).toBe('shopee_cps_new');
     });
 
+    // #503 — platform flag persists on update (both patch builders).
+    it('updateOffer > given is_platform > then it persists', async () => {
+      offerModel.findById.mockReturnValue(makeQuery({ _id: offerId }));
+      offerModel.findByIdAndUpdate.mockReturnValue(makeQuery({ _id: offerId }));
+
+      await service.updateOffer(offerId, { is_platform: true });
+
+      const persisted = offerModel.findByIdAndUpdate.mock.calls[0][1].$set;
+      expect(persisted.is_platform).toBe(true);
+    });
+
     // Absent key must leave the stored value alone — a partial save (T&C, media,
     // tracking period) must never blank the network or advertiser line.
     it('updateOffer > given neither key > then neither is written', async () => {

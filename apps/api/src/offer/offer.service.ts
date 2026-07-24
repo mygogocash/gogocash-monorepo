@@ -222,6 +222,7 @@ const PUBLIC_OFFER_DETAIL_FIELDS = [
   'source',
   'brand_id',
   'is_global',
+  'is_platform',
   'default_country',
   'policy_category_id',
   'custom_terms',
@@ -1163,6 +1164,7 @@ export class OfferService implements OnApplicationBootstrap {
           source: 'manual',
           status: 'approved',
           is_global: parseBoolean(body.is_global, false),
+          is_platform: parseBoolean(body.is_platform, false),
           default_country:
             String(body.default_country ?? '').trim() || undefined,
           app_deeplink: String(body.app_deeplink ?? '').trim() || undefined,
@@ -1259,6 +1261,7 @@ export class OfferService implements OnApplicationBootstrap {
           source: 'manual' as const,
           status: 'approved' as const,
           is_global: parseBoolean(body.is_global, false),
+          is_platform: parseBoolean(body.is_platform, false),
           default_country:
             String(body.default_country ?? '').trim() || undefined,
           app_deeplink: String(body.app_deeplink ?? '').trim() || undefined,
@@ -1371,6 +1374,7 @@ export class OfferService implements OnApplicationBootstrap {
             extra_point: document.extra_point,
             product_type: document.product_type,
             is_global: document.is_global,
+            is_platform: document.is_platform,
             default_country: document.default_country ?? null,
             app_deeplink: document.app_deeplink ?? null,
             offer_display_tags: document.offer_display_tags ?? null,

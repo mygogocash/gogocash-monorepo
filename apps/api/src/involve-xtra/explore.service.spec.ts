@@ -88,6 +88,33 @@ describe('ExploreService.listShops', () => {
     // The '.*' must be escaped, not treated as a wildcard.
     expect((filter.shopName as RegExp).source).toContain('a\\.\\*b');
   });
+
+  // #503 — scope the rail to a single platform brand's shops.
+  it('filters by platformOfferId (offerId) when given', async () => {
+    const shopModel = chainModel([], 0);
+    const service = new ExploreService(
+      shopModel as never,
+      chainModel([], 0) as never,
+    );
+    const platformId = '6a49f3e6ce2e0da81d6dc375';
+
+    await service.listShops({ platformOfferId: platformId }, NOW);
+
+    const filter = shopModel.find.mock.calls[0][0];
+    expect(String(filter.offerId)).toBe(platformId);
+  });
+
+  it('omits the offerId filter when no platformOfferId is given', async () => {
+    const shopModel = chainModel([], 0);
+    const service = new ExploreService(
+      shopModel as never,
+      chainModel([], 0) as never,
+    );
+
+    await service.listShops({}, NOW);
+
+    expect(shopModel.find.mock.calls[0][0].offerId).toBeUndefined();
+  });
 });
 
 describe('ExploreService.listDeals', () => {
