@@ -2,6 +2,7 @@ import { useCallback, useState, type DragEvent } from "react";
 import {
   desktopColumnsPerRow,
   desktopPreviewPages,
+  desktopPreviewRows,
   isMobileStaticGrid,
   mobilePreviewColumns,
 } from "@/lib/topBrandPreviewLayout";
@@ -222,29 +223,35 @@ export default function TopBrandLandingPreview({
                     {pageIndex === 0 ? "start" : "→"})
                   </p>
                 ) : null}
-                <div
-                  className="grid gap-1.5"
-                  style={{
-                    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                  }}
-                >
-                  {pageItems.map((offerId, slotIndex) => {
-                    const index = pageIndex * pageSize + slotIndex;
-                    return (
-                      <SlotChip
-                        key={offerId}
-                        position={index + 1}
-                        label={labelFor(offerId)}
-                        testId={`top-brand-preview-desktop-page-${pageIndex}-slot-${slotIndex}`}
-                        {...chipProps("desktop", index)}
-                        onRemove={
-                          canEdit && onRemove
-                            ? () => onRemove(offerId)
-                            : undefined
-                        }
-                      />
-                    );
-                  })}
+                <div className="space-y-1.5">
+                  {desktopPreviewRows(pageItems).map((row, rowIndex) => (
+                    <div
+                      key={`preview-desktop-page-${pageIndex}-row-${rowIndex}`}
+                      data-testid={`top-brand-preview-desktop-page-${pageIndex}-row-${rowIndex}`}
+                      className="grid gap-1.5"
+                      style={{
+                        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                      }}
+                    >
+                      {row.map(({ item: offerId, sourceIndex }) => {
+                        const index = pageIndex * pageSize + sourceIndex;
+                        return (
+                          <SlotChip
+                            key={offerId}
+                            position={index + 1}
+                            label={labelFor(offerId)}
+                            testId={`top-brand-preview-desktop-page-${pageIndex}-slot-${sourceIndex}`}
+                            {...chipProps("desktop", index)}
+                            onRemove={
+                              canEdit && onRemove
+                                ? () => onRemove(offerId)
+                                : undefined
+                            }
+                          />
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}

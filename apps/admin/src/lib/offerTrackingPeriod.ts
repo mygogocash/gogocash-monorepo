@@ -50,6 +50,39 @@ export function isValidTrackingDayCount(value: unknown): value is number {
   );
 }
 
+/**
+ * Normalize the manual editor into the API's existing two-number contract.
+ *
+ * The customer two-step flow consumes `confirm_days` as its one combined
+ * window. A valid hidden `tracking_days` value is retained for a later switch
+ * back to three-step; a newly created two-step offer mirrors the combined
+ * value into that hidden field so both API day-count invariants remain valid.
+ */
+export function resolveManualTrackingPeriodDays(fields: {
+  flow_type: TrackingPeriodFlowType;
+  tracking_days: number | null | undefined;
+  confirm_days: number | null | undefined;
+}): { tracking_days: number; confirm_days: number } | null {
+  if (!isValidTrackingDayCount(fields.confirm_days)) {
+    return null;
+  }
+  if (fields.flow_type === "two_step") {
+    return {
+      tracking_days: isValidTrackingDayCount(fields.tracking_days)
+        ? fields.tracking_days
+        : fields.confirm_days,
+      confirm_days: fields.confirm_days,
+    };
+  }
+  if (!isValidTrackingDayCount(fields.tracking_days)) {
+    return null;
+  }
+  return {
+    tracking_days: fields.tracking_days,
+    confirm_days: fields.confirm_days,
+  };
+}
+
 function resolveFlowType(value: unknown): TrackingPeriodFlowType {
   return value === "two_step" ? "two_step" : DEFAULT_FLOW_TYPE;
 }

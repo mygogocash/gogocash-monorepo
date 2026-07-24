@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatTrackingDays,
+  resolveManualTrackingPeriodDays,
   resolveTrackingPeriodPreview,
 } from "./offerTrackingPeriod";
 
@@ -13,6 +14,50 @@ const DEFAULT_FLOW_FIELDS = {
 } as const;
 
 describe("offer tracking period (admin preview)", () => {
+  it("resolveManualTrackingPeriodDays > given two_step > then uses the combined confirm value and preserves a valid hidden tracking value", () => {
+    expect(
+      resolveManualTrackingPeriodDays({
+        flow_type: "two_step",
+        tracking_days: 7,
+        confirm_days: 45,
+      }),
+    ).toEqual({ tracking_days: 7, confirm_days: 45 });
+  });
+
+  it("resolveManualTrackingPeriodDays > given a new two_step row without hidden tracking data > then mirrors the combined value for API compatibility", () => {
+    expect(
+      resolveManualTrackingPeriodDays({
+        flow_type: "two_step",
+        tracking_days: null,
+        confirm_days: 30,
+      }),
+    ).toEqual({ tracking_days: 30, confirm_days: 30 });
+  });
+
+  it("resolveManualTrackingPeriodDays > given three_step or an invalid combined value > then validates every visible window", () => {
+    expect(
+      resolveManualTrackingPeriodDays({
+        flow_type: "three_step",
+        tracking_days: 7,
+        confirm_days: 45,
+      }),
+    ).toEqual({ tracking_days: 7, confirm_days: 45 });
+    expect(
+      resolveManualTrackingPeriodDays({
+        flow_type: "three_step",
+        tracking_days: null,
+        confirm_days: 45,
+      }),
+    ).toBeNull();
+    expect(
+      resolveManualTrackingPeriodDays({
+        flow_type: "two_step",
+        tracking_days: 7,
+        confirm_days: 0,
+      }),
+    ).toBeNull();
+  });
+
   it("resolveTrackingPeriodPreview > given auto mode with validation_terms > then preview mirrors the API resolver (partner value + tracking 30)", () => {
     expect(
       resolveTrackingPeriodPreview({

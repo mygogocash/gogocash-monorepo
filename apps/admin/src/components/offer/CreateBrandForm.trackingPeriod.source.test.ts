@@ -15,18 +15,16 @@ describe("CreateBrandForm — Cashback tracking period section", () => {
   });
 
   it("the section nav has a Cashback tracking period jump link after Policy", () => {
-    expect(formSource).toContain(
-      '{ id: "create-brand-section-tracking-period", label: "Cashback tracking period" }',
+    expect(formSource).toMatch(
+      /id:\s*"create-brand-section-tracking-period",\s*label:\s*"Cashback tracking period"/,
     );
     const policyIdx = formSource.indexOf(
-      '{ id: "create-brand-section-policy", label: "Policy" }',
+      'id: "create-brand-section-policy"',
     );
     const trackingIdx = formSource.indexOf(
-      '{ id: "create-brand-section-tracking-period", label: "Cashback tracking period" }',
+      'id: "create-brand-section-tracking-period"',
     );
-    const mediaIdx = formSource.indexOf(
-      '{ id: "create-brand-section-media", label: "Media" }',
-    );
+    const mediaIdx = formSource.indexOf('id: "create-brand-section-media"');
     expect(policyIdx).toBeGreaterThanOrEqual(0);
     expect(trackingIdx).toBeGreaterThan(policyIdx);
     expect(mediaIdx).toBeGreaterThan(trackingIdx);
@@ -64,9 +62,11 @@ describe("CreateBrandForm — Cashback tracking period section", () => {
     expect(formSource).toContain('flowType === "two_step"');
   });
 
-  it("has subtitle inputs whose placeholders are the default captions", () => {
-    expect(formSource).toContain('placeholder="from the following month"');
-    expect(formSource).toContain('placeholder="after validation"');
+  it("uses the shared editor so combined mode renders one day input and one subtitle", () => {
+    expect(formSource).toContain("<TrackingPeriodManualEditor");
+    expect(formSource).toContain("mode={trackingPeriodMode}");
+    expect(formSource).toContain("flowType={flowType}");
+    expect(formSource).toContain("confirmDays={confirmDays}");
   });
 
   it("previews the resolved steps via the shared preview resolver", () => {
