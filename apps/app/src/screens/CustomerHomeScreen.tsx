@@ -4,7 +4,7 @@ import {
   ChevronUp as ChevronUpIcon,
   Search as SearchIcon,
 } from "@mobile/theme/icons";
-import { Animated, RefreshControl, ScrollView, TextInput, useWindowDimensions, View } from "react-native";
+import { Animated, Platform, RefreshControl, ScrollView, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useReducedMotion } from "@mobile/hooks/useReducedMotion";
@@ -57,6 +57,7 @@ import { DesktopGoLinkBanner } from "./home/DesktopGoLinkBanner";
 import { homeGoLinkShopNowRoute, homeIconStrokeWidth, webSearchInputFocusReset } from "./home/homeAssets";
 import { HomeHeroBanners } from "./home/HomeHeroBanners";
 import { HomeSearchPopularPopover } from "./home/HomeSearchPopularPopover";
+import { filterHomePromoSectionsForSurface } from "./home/homePromoVisibility";
 import type { SearchAnchorFrame } from "./home/searchPopoverFrame";
 import { HomeScreenThemeProvider } from "./home/homeScreenHooks";
 import { BrowseShortcuts } from "./home/BrowseShortcuts";
@@ -123,12 +124,21 @@ export function CustomerHomeScreen() {
       tintColor={colors.primaryDark}
     />
   );
-  const promoSections = resolveHomeLandingRails(
-    brandCatalogResource.source,
-    landingRailsResource.data,
-    brandCatalogResource.data,
-    webHomePromoSections,
-    region,
+  const promoSections = filterHomePromoSectionsForSurface(
+    resolveHomeLandingRails(
+      brandCatalogResource.source,
+      landingRailsResource.data,
+      brandCatalogResource.data,
+      webHomePromoSections,
+      region,
+    ),
+    {
+      currentHostname:
+        Platform.OS === "web" && typeof window !== "undefined"
+          ? window.location.hostname
+          : undefined,
+      frontendUrl: getMobileEnv().frontendUrl,
+    },
   );
   const liveCards = useMemo(
     () => resolveLiveBrandCards(brandCatalogResource.source, brandCatalogResource.data, [], region),
