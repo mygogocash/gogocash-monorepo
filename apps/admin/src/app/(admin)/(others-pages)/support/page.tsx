@@ -111,7 +111,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
                 On the user detail tab you can <strong>Edit user</strong> to change profile fields and multiple email addresses or phone numbers.
               </li>
               <li>
-                <strong>OTP for new contacts:</strong> Any email or phone that was not already on the user when you opened the editor must be verified. Click <strong>Send OTP</strong>, enter the code you receive (in demo/mock environments the UI may show a fixed test code), then <strong>Verify</strong>. <strong>Save changes</strong> stays disabled until every new address or number is verified. Existing contacts on file do not need OTP again unless you change them to a different value.
+                <strong>OTP for new contacts:</strong> Any email or phone that was not already on the user when you opened the editor must be verified. Click <strong>Send OTP</strong>, enter the code you receive (in demo/mock environments the UI may show a fixed test code), then <strong>Verify</strong>. Unverified contact changes are left unchanged, but they do not block saving profile fields or other verified contact changes. Existing contacts on file do not need OTP again unless you change them to a different value.
               </li>
               <li>
                 From some user-related screens you can jump straight into edit mode on the withdraw user view using the URL flag <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">?editUser=1</code> on the withdraw detail page.
@@ -207,7 +207,7 @@ export default async function SupportPage(props: DefaultAppPageProps) {
               <li>When exporting quest user points, the file includes all participants (e.g. 1,500+). Use the “Show” dropdown to limit rows on screen; export always gets the full list.</li>
               <li>Quest tasks can have a condition (e.g. “Sale ≥ 100 THB”). Set the operator, metric (sale/conversion), amount, and currency when creating a task.</li>
               <li>If you need a specific user, go to Users and use the search box, or use “View user info” from a conversion or similar view to jump to that user with search pre-filled.</li>
-              <li>Editing a withdraw user’s emails or phones requires OTP verification for each new or changed value before Save is enabled—plan a moment to complete Send OTP → Verify when updating contacts.</li>
+              <li>Editing a withdraw user’s emails or phones requires OTP verification for each new or changed value. Unverified contact changes remain unsaved, while other profile fields and verified contacts can still be saved.</li>
               <li>Commission and policy for brands live under Brands Management (tabs), not on the Category page.</li>
             </ul>
           </section>

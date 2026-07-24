@@ -1,7 +1,10 @@
 // @vitest-environment happy-dom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { Dispatch, SetStateAction } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { WithdrawUserEditDraft } from "@/lib/withdrawUserContactState";
 
 /**
  * Pre-launch feature-flag gating for WithdrawDetail's embedded surfaces.
@@ -15,6 +18,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
+  updateWithdrawUserProfile: vi.fn(async (_body: unknown) => undefined),
+  toastSuccess: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -28,6 +33,11 @@ const USER = {
   firstName: "Ada",
   lastName: "Lovelace",
   username: "ada",
+  email: "ada@example.com",
+  emails: ["ada@example.com"],
+  mobile: "+66810000000",
+  mobiles: ["+66810000000"],
+  fullName: "Ada Lovelace",
   birthdate: "1990-01-01",
   gender: "female",
   streetAddress: "1 Analytical Way",
@@ -63,7 +73,14 @@ vi.mock("@/lib/api/adminModulesApi", () => ({
 }));
 
 vi.mock("react-hot-toast", () => ({
-  default: { error: vi.fn(), success: vi.fn() },
+  default: { error: vi.fn(), success: mocks.toastSuccess },
+}));
+
+vi.mock("@/lib/api/withdrawUserContactApi", () => ({
+  deleteWithdrawUserData: vi.fn(async () => undefined),
+  sendWithdrawUserContactOtp: vi.fn(async () => ({})),
+  updateWithdrawUserProfile: mocks.updateWithdrawUserProfile,
+  verifyWithdrawUserContactOtp: vi.fn(async () => undefined),
 }));
 
 // Sibling surfaces that aren't under test: neutralise them so this test
@@ -76,8 +93,32 @@ vi.mock("./MyCashbackProfileSection", () => ({ default: () => null }));
 vi.mock("./ModalWithdraw", () => ({ default: () => null }));
 vi.mock("./WithdrawDetailLazyGrids", () => ({ default: () => null }));
 vi.mock("./WithdrawUserContactEditor", () => ({
-  default: () => null,
-  withdrawUserContactsReady: () => true,
+  default: ({
+    setUserDraft,
+  }: {
+    setUserDraft: Dispatch<SetStateAction<WithdrawUserEditDraft>>;
+  }) => (
+    <button
+      type="button"
+      onClick={() =>
+        setUserDraft((draft) => ({
+          ...draft,
+          emailRows: [
+            {
+              clientId: "pending-email",
+              value: "new@example.com",
+              otpVerified: false,
+              otpInput: "",
+              otpBusy: "idle",
+              contactMsg: null,
+            },
+          ],
+        }))
+      }
+    >
+      Add pending email
+    </button>
+  ),
 }));
 vi.mock("@/components/wallet/UserWalletPanel", () => ({ default: () => null }));
 vi.mock("@/components/wallet/CashbackApprovalNotice", () => ({
@@ -107,6 +148,19 @@ const setFlags = (creditScore?: string, gogopass?: string) => {
 
 beforeEach(() => {
   mocks.searchParams = new URLSearchParams();
+  USER.fullName = "Ada Lovelace";
+  mocks.updateWithdrawUserProfile.mockClear();
+  mocks.updateWithdrawUserProfile.mockImplementation(async (body: unknown) => {
+    if (
+      typeof body === "object" &&
+      body !== null &&
+      "fullName" in body &&
+      typeof body.fullName === "string"
+    ) {
+      USER.fullName = body.fullName;
+    }
+  });
+  mocks.toastSuccess.mockClear();
 });
 
 afterEach(() => {
@@ -199,20 +253,41 @@ describe("WithdrawDetail > inline standing rows gating", () => {
   });
 });
 
-describe("WithdrawDetail > GoGoPass edit select gating", () => {
-  it("given GoGoPass on + ?editUser=1 > then the GoGoPass status select is shown", async () => {
-    setFlags("0", undefined);
+describe("WithdrawDetail > profile save with pending contact OTP", () => {
+  it("saves profile fields while omitting the unverified contact channel", async () => {
+    const user = userEvent.setup();
     mocks.searchParams = new URLSearchParams("editUser=1");
     renderDetail();
-    expect(await screen.findByLabelText("GoGoPass status")).toBeInTheDocument();
-  });
 
-  it('given GoGoPass "0" + ?editUser=1 > then the GoGoPass status select is hidden', async () => {
-    setFlags(undefined, "0");
-    mocks.searchParams = new URLSearchParams("editUser=1");
-    renderDetail();
-    // Wait for the edit form (Birth date field is ungated) before asserting.
-    await screen.findByLabelText("Birth date");
-    expect(screen.queryByLabelText("GoGoPass status")).toBeNull();
+    const fullName = await screen.findByLabelText("Full name");
+    await user.click(screen.getByRole("button", { name: "Add pending email" }));
+    expect(
+      screen.getByText(/Unverified email changes will not be saved/),
+    ).toBeInTheDocument();
+
+    await user.clear(fullName);
+    await user.type(fullName, "Ada Byron");
+    const saveButton = screen.getByRole("button", { name: "Save changes" });
+    expect(saveButton).toBeEnabled();
+    await user.click(saveButton);
+
+    await waitFor(() =>
+      expect(mocks.updateWithdrawUserProfile).toHaveBeenCalledTimes(1),
+    );
+    const payload = mocks.updateWithdrawUserProfile.mock.calls[0][0];
+    expect(payload).toMatchObject({
+      userId: "u-1",
+      fullName: "Ada Byron",
+      gender: "female",
+      birthdate: "1990-01-01",
+      mobiles: ["+66810000000"],
+    });
+    expect(payload).not.toHaveProperty("emails");
+    expect(payload).not.toHaveProperty("wallet");
+    expect(payload).not.toHaveProperty("gogopassActive");
+    expect(mocks.toastSuccess).toHaveBeenCalledWith(
+      "Changes saved. Unverified email changes were not saved.",
+    );
+    expect(await screen.findByText("Ada Byron")).toBeInTheDocument();
   });
 });
