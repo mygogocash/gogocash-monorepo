@@ -449,6 +449,8 @@ suite('CategoryIntegrityService — real Mongo rs0 races', () => {
       mediaWrite,
       registryService,
       mediaCleanup,
+      {} as never,
+      {} as never,
     );
     const requestKey = `offer-create-real-replay:${new Types.ObjectId()}`;
     const logo = {
@@ -519,6 +521,8 @@ suite('CategoryIntegrityService — real Mongo rs0 races', () => {
       mediaWrite,
       registryService,
       mediaCleanup,
+      {} as never,
+      {} as never,
     );
     const requestKey = `offer-create-zero-file:${new Types.ObjectId()}`;
     const body = {

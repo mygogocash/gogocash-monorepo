@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   BadRequestException,
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { Conversion } from 'src/withdraw/schemas/conversion.schema';
 import { Types } from 'mongoose';
 import { OfferService } from './offer.service';
 import { Offer } from './schemas/offer.schema';
@@ -68,6 +70,8 @@ describe('OfferService', () => {
   let specificPageBannerModel: any;
   let topBrandConfigModel: any;
   let landingRailConfigModel: any;
+  let conversionModel: any;
+  let cacheManager: any;
   let missionOrderModel: any;
   let questModel: any;
   let featuredSearchModel: any;
@@ -128,6 +132,13 @@ describe('OfferService', () => {
     bannerModel = { findOne: jest.fn() };
     allBrandBannerModel = { findOne: jest.fn() };
     specificPageBannerModel = { findOne: jest.fn() };
+    // #498 — default: no conversions → the Top Brands fill produces nothing, so
+    // fully/short-curated tests keep asserting only the admin brands.
+    conversionModel = { aggregate: jest.fn().mockResolvedValue([]) };
+    cacheManager = {
+      get: jest.fn().mockResolvedValue(undefined),
+      set: jest.fn().mockResolvedValue(undefined),
+    };
     topBrandConfigModel = {
       // syncOfferTopBrandMembership calls .findOne().lean().exec(); default to
       // "no curated config yet". makeQuery() is not reusable here because its
@@ -293,6 +304,8 @@ describe('OfferService', () => {
           useValue: policyMediaRegistry,
         },
         { provide: PolicyMediaCleanupService, useValue: policyMediaCleanup },
+        { provide: getModelToken(Conversion.name), useValue: conversionModel },
+        { provide: CACHE_MANAGER, useValue: cacheManager },
       ],
     }).compile();
 
@@ -2579,6 +2592,89 @@ describe('OfferService', () => {
           cashback: '12.5%',
         },
       ]);
+    });
+
+    // #498 — auto-fill up to 10 with highest-conversion brands.
+    it('getDisplayTopBrands > given <10 curated + conversions > then fills to 10 by conversion rank, admin order first, deduped', async () => {
+      topBrandConfigModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          brands: [
+            { offerId: 'id2', cashback: '10%' },
+            { offerId: 'id1', cashback: '12.5%' },
+          ],
+        }),
+      });
+      // Ranked by conversions: offer_id 1 belongs to curated id1 (must be
+      // de-duped/skipped); 101..108 are the fresh fill candidates.
+      conversionModel.aggregate.mockResolvedValue(
+        [1, 101, 102, 103, 104, 105, 106, 107, 108].map((id) => ({ _id: id })),
+      );
+      const curatedOffers = [
+        { _id: 'id2', offer_id: 2, offer_name: 'Bravo', logo: 'b.png' },
+        { _id: 'id1', offer_id: 1, offer_name: 'Alpha', logo: 'a.png' },
+      ];
+      const fillOffers = [
+        { _id: 'id1', offer_id: 1, offer_name: 'Alpha', logo: 'a.png' },
+        ...[101, 102, 103, 104, 105, 106, 107, 108].map((offerId, i) => ({
+          _id: `fill${i + 1}`,
+          offer_id: offerId,
+          offer_name: `Fill ${i + 1}`,
+          logo: `f${i + 1}.png`,
+        })),
+      ];
+      offerModel.find
+        .mockReturnValueOnce(makeQuery(curatedOffers))
+        .mockReturnValueOnce(makeQuery(fillOffers));
+
+      const result = await service.getDisplayTopBrands();
+
+      expect(conversionModel.aggregate).toHaveBeenCalledTimes(1);
+      // Reaches the minimum of 10.
+      expect(result.dataDesktop).toHaveLength(10);
+      // Admin-curated brands come first, in saved order.
+      expect(result.dataDesktop[0]._id).toBe('id2');
+      expect(result.dataDesktop[1]._id).toBe('id1');
+      // Curated id1 (offer_id 1) appears once — the conversion-ranked duplicate
+      // is skipped.
+      expect(result.dataDesktop.filter((c) => c._id === 'id1')).toHaveLength(1);
+      // Remaining 8 slots are the fill candidates in conversion-rank order.
+      expect(result.dataDesktop.slice(2).map((c) => c._id)).toEqual([
+        'fill1',
+        'fill2',
+        'fill3',
+        'fill4',
+        'fill5',
+        'fill6',
+        'fill7',
+        'fill8',
+      ]);
+      // Ranking cached for reuse.
+      expect(cacheManager.set).toHaveBeenCalled();
+    });
+
+    it('getDisplayTopBrands > given a cached fill ranking > then skips the conversion aggregation', async () => {
+      topBrandConfigModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          brands: [{ offerId: 'id1', cashback: '12.5%' }],
+        }),
+      });
+      cacheManager.get.mockResolvedValue([201]);
+      offerModel.find
+        .mockReturnValueOnce(
+          makeQuery([
+            { _id: 'id1', offer_id: 1, offer_name: 'Alpha', logo: 'a.png' },
+          ]),
+        )
+        .mockReturnValueOnce(
+          makeQuery([
+            { _id: 'fillA', offer_id: 201, offer_name: 'FillA', logo: 'x.png' },
+          ]),
+        );
+
+      const result = await service.getDisplayTopBrands();
+
+      expect(conversionModel.aggregate).not.toHaveBeenCalled();
+      expect(result.dataDesktop.map((c) => c._id)).toEqual(['id1', 'fillA']);
     });
   });
 
