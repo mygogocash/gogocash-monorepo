@@ -12,7 +12,6 @@ import {
 } from "@/lib/api/withdrawUserContactApi";
 import {
   MAX_WITHDRAW_CONTACT_ROWS,
-  allContactsVerifiedForSave,
   contactRowVerified,
   createContactRow,
   ensureUserContactRows,
@@ -39,25 +38,6 @@ type Props = {
   /** Whether the user's phone channel was already verified on file. */
   initialMobileVerified: boolean;
 };
-
-export function withdrawUserContactsReady(
-  draft: WithdrawUserEditDraft,
-  initialEmails: ReadonlySet<string>,
-  initialMobiles: ReadonlySet<string>,
-): boolean {
-  return (
-    allContactsVerifiedForSave(
-      ensureUserContactRows(draft.emailRows),
-      initialEmails,
-      "email",
-    ) &&
-    allContactsVerifiedForSave(
-      ensureUserContactRows(draft.mobileRows),
-      initialMobiles,
-      "mobile",
-    )
-  );
-}
 
 export default function WithdrawUserContactEditor({
   userId,
