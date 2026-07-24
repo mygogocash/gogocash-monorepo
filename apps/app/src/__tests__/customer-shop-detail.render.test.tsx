@@ -801,6 +801,70 @@ describe("CustomerShopDetailScreen (render)", () => {
     // The tracking window collapses into the combined step.
     expect(screen.queryByText("within 7 day")).toBeNull();
   });
+
+  // #564 — the product-type cashback list collapses to the first 5 rows with a
+  // "View more" toggle; brands with <=5 rows show all rows and no control.
+  it("collapses a >5 product-rate list to 5 rows and expands on View more", () => {
+    merchantResourceState.data = {
+      _id: "merchant-many-rates",
+      offer_name: "Marketplace Mega",
+      offer_name_display: "Marketplace Mega",
+      commissions: [{ Commission: "2%" }],
+      tracking_link: "https://tracking.example/mega",
+      all_product_types: false,
+      product_type: [
+        { name: "Rate Cat A", pay_in: "cashback", commission_info: "1" },
+        { name: "Rate Cat B", pay_in: "cashback", commission_info: "2" },
+        { name: "Rate Cat C", pay_in: "cashback", commission_info: "3" },
+        { name: "Rate Cat D", pay_in: "cashback", commission_info: "4" },
+        { name: "Rate Cat E", pay_in: "cashback", commission_info: "5" },
+        { name: "Rate Cat F", pay_in: "cashback", commission_info: "6" },
+      ],
+    };
+    merchantResourceState.source = "backend";
+
+    renderScreen();
+
+    // Only the first 5 rows render; the 6th is hidden behind the toggle.
+    expect(screen.getByText("Rate Cat A")).toBeTruthy();
+    expect(screen.getByText("Rate Cat E")).toBeTruthy();
+    expect(screen.queryByText("Rate Cat F")).toBeNull();
+
+    const toggle = screen.getByTestId("shop-detail-product-rate-toggle");
+    // Label advertises how many rows are hidden.
+    expect(screen.getByText("View more (1)")).toBeTruthy();
+
+    fireEvent.click(toggle);
+
+    // All rows now visible; control flips to collapse.
+    expect(screen.getByText("Rate Cat F")).toBeTruthy();
+    expect(screen.getByText("View less")).toBeTruthy();
+    expect(screen.queryByText("View more (1)")).toBeNull();
+  });
+
+  it("renders every product rate and no toggle when there are <=5 rows", () => {
+    merchantResourceState.data = {
+      _id: "merchant-few-rates",
+      offer_name: "Boutique Five",
+      offer_name_display: "Boutique Five",
+      commissions: [{ Commission: "2%" }],
+      tracking_link: "https://tracking.example/boutique",
+      all_product_types: false,
+      product_type: [
+        { name: "Small Cat A", pay_in: "cashback", commission_info: "1" },
+        { name: "Small Cat B", pay_in: "cashback", commission_info: "2" },
+        { name: "Small Cat C", pay_in: "cashback", commission_info: "3" },
+        { name: "Small Cat D", pay_in: "cashback", commission_info: "4" },
+      ],
+    };
+    merchantResourceState.source = "backend";
+
+    renderScreen();
+
+    expect(screen.getByText("Small Cat A")).toBeTruthy();
+    expect(screen.getByText("Small Cat D")).toBeTruthy();
+    expect(screen.queryByTestId("shop-detail-product-rate-toggle")).toBeNull();
+  });
 });
 
 describe("CustomerShopDetailScreen — Wave B foundations adopted (source signals)", () => {

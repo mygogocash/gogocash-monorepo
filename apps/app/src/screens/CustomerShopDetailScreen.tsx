@@ -671,10 +671,23 @@ function ShopHeroSummaryCard({
   );
 }
 
+// #564 — the product-type cashback list collapses to the first 5 rows with a
+// "View more" toggle so a long platform-brand list does not dominate the rail.
+// Brands with <=5 rates show every row and no control.
+const PRODUCT_RATE_COLLAPSED_LIMIT = 5;
+
 function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
   const styles = useThemedStyles(createShopDetailScreenStyles);
   const { colors } = useTheme();
   const tc = useCopy();
+  const [showAllRates, setShowAllRates] = useState(false);
+  const productRates = shop.productRates;
+  const canCollapseRates = productRates.length > PRODUCT_RATE_COLLAPSED_LIMIT;
+  const visibleRates =
+    canCollapseRates && !showAllRates
+      ? productRates.slice(0, PRODUCT_RATE_COLLAPSED_LIMIT)
+      : productRates;
+  const hiddenRateCount = productRates.length - PRODUCT_RATE_COLLAPSED_LIMIT;
   return (
     <View style={styles.cashbackRail}>
       <View style={styles.cashbackHeader}>
@@ -717,12 +730,27 @@ function ShopCashbackRail({ shop }: { shop: ShopDetail }) {
           </Text>
         </View>
         <View style={styles.productRateList}>
-          {shop.productRates.map((rate) => (
+          {visibleRates.map((rate) => (
             <View key={rate.name} style={styles.productRateRow}>
               <Text style={styles.productRateName}>{rate.name}</Text>
               <Text style={styles.productRateValue}>{rate.rate}</Text>
             </View>
           ))}
+          {canCollapseRates ? (
+            <MotionPressable
+              accessibilityRole="button"
+              onPress={() => setShowAllRates((prev) => !prev)}
+              pressScale={0.98}
+              style={styles.productRateToggle}
+              testID="shop-detail-product-rate-toggle"
+            >
+              <Text style={styles.productRateToggleText}>
+                {showAllRates
+                  ? tc("View less")
+                  : `${tc("View more")} (${hiddenRateCount})`}
+              </Text>
+            </MotionPressable>
+          ) : null}
         </View>
         <View style={styles.noteBox}>
           <Text style={styles.noteTitle}>{tc("NOTE")}</Text>
@@ -1332,6 +1360,16 @@ export function createShopDetailScreenStyles(colors: ThemeColors) {
       color: colors.ink,
       fontFamily: typography.family,
       fontSize: 16,
+      fontWeight: "600",
+    },
+    productRateToggle: {
+      alignItems: "center",
+      paddingVertical: 12,
+    },
+    productRateToggleText: {
+      color: colors.primaryDark,
+      fontFamily: typography.family,
+      fontSize: 14,
       fontWeight: "600",
     },
     noteBox: {
