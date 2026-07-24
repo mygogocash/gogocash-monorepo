@@ -22,13 +22,17 @@ import {
 import { parseAmount, validateOptionalAmount } from "@/lib/formValidation";
 import { buildCouponSubmitPayload } from "@/lib/couponSubmitPayload";
 import { isDirty } from "@/lib/isDirty";
-import { toDateInputValue } from "@/lib/dateFormat";
 import { RemoteOrBlobImage } from "@/components/common/RemoteOrBlobImage";
 import { OFFER_THUMB_SIZES } from "@/components/offer/offerMedia";
 import { TrashBinIcon } from "@/icons";
 import { pathImage } from "@/utils/helper";
 import { SUPPORT_BUTTON_CLASS } from "@/components/ui/button/SupportButton";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import DatePicker from "@/components/form/date-picker";
+import {
+  ADMIN_DATE_ALT_FORMAT,
+  ADMIN_DATE_VALUE_FORMAT,
+} from "@/lib/adminDateTimeFormat";
 
 const COUPON_FIELD_INPUT_WIDTH = "w-[316px] shrink-0";
 const DISCOUNT_MODE_TOGGLE_ACTIVE =
@@ -94,12 +98,6 @@ const FormCoupon = ({
   );
   const [selectedBrands, setSelectedBrands] = useState<CouponSelectedBrand[]>(
     [],
-  );
-  const [startDateType, setStartDateType] = useState<"date" | "text">(() =>
-    form.start_date ? "date" : "text",
-  );
-  const [endDateType, setEndDateType] = useState<"date" | "text">(() =>
-    form.end_date ? "date" : "text",
   );
 
   const couponModalOpen = Boolean(openModal);
@@ -203,15 +201,10 @@ const FormCoupon = ({
   const [modalOpenSync, setModalOpenSync] = useState(couponModalOpen);
   if (modalOpenSync !== couponModalOpen) {
     setModalOpenSync(couponModalOpen);
-    if (couponModalOpen) {
-      setStartDateType(form.start_date ? "date" : "text");
-      setEndDateType(form.end_date ? "date" : "text");
-    } else {
+    if (!couponModalOpen) {
       setBrandSearch("");
       setSelectedBrand(null);
       setSelectedBrands([]);
-      setStartDateType("text");
-      setEndDateType("text");
     }
   }
 
@@ -565,34 +558,22 @@ const FormCoupon = ({
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-1 items-center gap-2">
           <div className="min-w-0 flex-1">
-            <Input
-              id="coupon-valid-start"
-              type={startDateType}
-              placeholder="Start Date"
-              ariaLabel="Start Date"
-              value={toDateInputValue(form.start_date)}
-              onFocus={(e) => {
-                const el = e.currentTarget;
-                setStartDateType("date");
-                requestAnimationFrame(() => {
-                  try {
-                    el.showPicker?.();
-                  } catch {
-                    /* showPicker needs a user gesture; ignore if blocked */
-                  }
-                });
-              }}
-              onBlur={(e) => {
-                if (!e.currentTarget.value) setStartDateType("text");
-              }}
-              name="start_date"
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  start_date: e.target.value || "",
-                })
-              }
+            <DatePicker
+              altFormat={ADMIN_DATE_ALT_FORMAT}
+              altInput
+              dateFormat={ADMIN_DATE_VALUE_FORMAT}
               disabled={isLoading}
+              id="coupon-valid-start"
+              ariaLabel="Start Date"
+              name="start_date"
+              onValueChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  start_date: value,
+                }))
+              }
+              placeholder="DD/MM/YYYY"
+              value={form.start_date}
             />
           </div>
           <TimeFieldHM
@@ -610,34 +591,22 @@ const FormCoupon = ({
         <span className="text-sm text-gray-500 dark:text-gray-400">to</span>
         <div className="flex flex-1 items-center gap-2">
           <div className="min-w-0 flex-1">
-            <Input
-              id="coupon-valid-end"
-              type={endDateType}
-              placeholder="End Date"
-              ariaLabel="End Date"
-              value={toDateInputValue(form.end_date)}
-              onFocus={(e) => {
-                const el = e.currentTarget;
-                setEndDateType("date");
-                requestAnimationFrame(() => {
-                  try {
-                    el.showPicker?.();
-                  } catch {
-                    /* showPicker needs a user gesture; ignore if blocked */
-                  }
-                });
-              }}
-              onBlur={(e) => {
-                if (!e.currentTarget.value) setEndDateType("text");
-              }}
-              name="end_date"
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  end_date: e.target.value || "",
-                })
-              }
+            <DatePicker
+              altFormat={ADMIN_DATE_ALT_FORMAT}
+              altInput
+              dateFormat={ADMIN_DATE_VALUE_FORMAT}
               disabled={isLoading}
+              id="coupon-valid-end"
+              ariaLabel="End Date"
+              name="end_date"
+              onValueChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  end_date: value,
+                }))
+              }
+              placeholder="DD/MM/YYYY"
+              value={form.end_date}
             />
           </div>
           <TimeFieldHM
