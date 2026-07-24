@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   RefreshControl,
   ScrollView,
@@ -16,6 +16,11 @@ import {
 } from "@mobile/account/exploreShopsResource";
 import { useSpecificPageBanner } from "@mobile/account/specificPageBannerResource";
 import { useDirectoryOfferSearch } from "@mobile/account/useDirectoryOfferSearch";
+import {
+  trackXtraShopClick,
+  trackXtraShopView,
+} from "@mobile/analytics/events";
+import { useAnalytics } from "@mobile/analytics/useAnalytics";
 import {
   filterShopDirectoryStores,
   getFixtureShopDirectoryResults,
@@ -116,10 +121,20 @@ export function CustomerShopDirectoryScreen() {
         : [],
     [xtraShopsEnabled, xtraResource.data],
   );
-  const specificPageBanner = useSpecificPageBanner(
-    "shops",
-    webShopDirectory.promo,
-  );
+  const analytics = useAnalytics();
+  // #586 REQ-OBS-1 — one shop_view impression when the Xtra set renders (again
+  // only when its size changes). Coarse props (count + region), no PII.
+  useEffect(() => {
+    if (xtraStores.length > 0) {
+      trackXtraShopView(analytics, {
+        count: xtraStores.length,
+        source: "shop_directory",
+        country: region,
+      });
+    }
+  }, [analytics, region, xtraStores.length]);
+  // prettier-ignore -- single-line call pinned by specific-page-banner-screen.source.test
+  const specificPageBanner = useSpecificPageBanner("shops", webShopDirectory.promo);
   const directoryCategories = resolveCategoryList(
     categoryResource.source,
     categoryResource.data,
@@ -236,6 +251,17 @@ export function CustomerShopDirectoryScreen() {
           id={store.id}
           label={store.label}
           logoUri={store.logoUri}
+          onPress={
+            store.isXtra
+              ? () =>
+                  trackXtraShopClick(analytics, {
+                    shopId: store.id,
+                    cashback: store.cashback,
+                    position: store.position,
+                    source: "shop_directory",
+                  })
+              : undefined
+          }
           showGrabCoupon={store.showGrabCoupon}
           size="L"
           testID={`shop-directory-card-${store.id}`}
@@ -243,14 +269,14 @@ export function CustomerShopDirectoryScreen() {
         />
       );
       // #586 REQ-APP-3 — "Xtra" boosted-cashback badge on Involve Xtra shops.
-      // Screen-local overlay (does not touch the shared BrandCard); pointer
-      // events pass through so the whole card stays tappable.
+      // Screen-local overlay (does not touch the shared BrandCard). pointerEvents
+      // lives in the style (RN-web deprecates the prop form) so the whole card
+      // stays tappable.
       if (!store.isXtra) return card;
       return (
         <View style={styles.shopCardBadgeWrap}>
           {card}
           <View
-            pointerEvents="none"
             style={styles.shopXtraBadge}
             testID={`shop-directory-xtra-badge-${store.id}`}
           >
@@ -259,7 +285,7 @@ export function CustomerShopDirectoryScreen() {
         </View>
       );
     },
-    [gridMetrics.cardWidth, shopDirectoryRowHeight, styles],
+    [analytics, gridMetrics.cardWidth, shopDirectoryRowHeight, styles],
   );
 
   // Desktop search lives in the header (CustomerDesktopHeader); only mobile needs the sticky search.
@@ -396,7 +422,10 @@ export function CustomerShopDirectoryScreen() {
             </ScrollView>
 
             <View style={styles.shopDirectorySortBlock}>
-              <Text numberOfLines={1} style={styles.shopDirectorySortLabel}>
+              <Text
+                numberOfLines={1}
+                style={styles.shopDirectorySortLabel}
+              >
                 {tc(webShopDirectory.sortLabel)}
               </Text>
               <View style={styles.shopDirectorySortRow}>
