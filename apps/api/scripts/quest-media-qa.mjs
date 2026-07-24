@@ -155,7 +155,6 @@ async function createQaQuest({ baseUrl, token, fetchImpl, identity }) {
   form.set('qa_cleanup_nonce', identity.nonce);
   form.set('start_date', identity.startDate);
   form.set('end_date', identity.endDate);
-  form.set('status', 'scheduled');
   form.set('facebook_page', '');
   form.set('facebook_post', identity.marker);
   form.set('line', '');
@@ -220,7 +219,27 @@ function questRefs(quest) {
   return BANNER_ROLES.map((role) => quest?.[role]);
 }
 
-async function proveRefsUsable(refs, fetchImpl) {
+async function probeStoredRef(ref, fetchImpl) {
+  let response;
+  try {
+    response = await fetchImpl(ref, {
+      method: 'GET',
+      headers: { Range: 'bytes=0-0' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    return response.status;
+  } catch (error) {
+    throw new Error(
+      `Stored quest banner probe failed: ${
+        error instanceof Error ? error.message : error
+      }`,
+    );
+  } finally {
+    await response?.body?.cancel();
+  }
+}
+
+async function proveRefsUsable(refs, fetchImpl, { timeoutMs, retryMs }) {
   if (
     refs.some(
       (ref) => typeof ref !== 'string' || !ref.startsWith('https://'),
@@ -229,35 +248,95 @@ async function proveRefsUsable(refs, fetchImpl) {
   ) {
     throw new Error('Created quest does not contain four distinct HTTPS refs');
   }
-  for (const ref of refs) {
-    const response = await fetchImpl(ref, {
-      method: 'GET',
-      headers: { Range: 'bytes=0-0' },
-    });
-    if (!response.ok) {
-      throw new Error(
-        `Stored quest banner is not readable (${response.status})`,
-      );
+  const deadline = Date.now() + timeoutMs;
+  let results = [];
+  do {
+    results = await Promise.all(
+      refs.map(async (ref) => {
+        try {
+          return { ref, status: await probeStoredRef(ref, fetchImpl) };
+        } catch (error) {
+          return {
+            ref,
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      }),
+    );
+    if (
+      results.every(
+        (result) =>
+          typeof result.status === 'number' &&
+          result.status >= 200 &&
+          result.status < 300,
+      )
+    ) {
+      return;
     }
-  }
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(retryMs, remainingMs)),
+    );
+  } while (Date.now() < deadline);
+
+  const failures = results
+    .filter(
+      (result) =>
+        typeof result.status !== 'number' ||
+        result.status < 200 ||
+        result.status >= 300,
+    )
+    .map(
+      (result) =>
+        `${result.ref} (${
+          result.error ?? `status ${String(result.status)}`
+        })`,
+    );
+  throw new Error(
+    `Stored quest banner availability was not proven: ${failures.join(', ')}`,
+  );
 }
 
-async function proveRefsAbsent(refs, fetchImpl) {
-  const failures = [];
-  for (const ref of refs) {
-    const response = await fetchImpl(ref, {
-      method: 'GET',
-      headers: { Range: 'bytes=0-0' },
-    });
-    if (response.status !== 404) {
-      failures.push(`${ref} (${response.status})`);
-    }
-  }
-  if (failures.length > 0) {
-    throw new Error(
-      `Stored quest banner deletion was not proven; exact refs are still readable or did not return 404: ${failures.join(', ')}`,
+async function proveRefsAbsent(
+  refs,
+  fetchImpl,
+  { timeoutMs, retryMs },
+) {
+  const deadline = Date.now() + timeoutMs;
+  let results = [];
+  do {
+    results = await Promise.all(
+      refs.map(async (ref) => {
+        try {
+          return { ref, status: await probeStoredRef(ref, fetchImpl) };
+        } catch (error) {
+          return {
+            ref,
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      }),
     );
-  }
+    if (results.every((result) => result.status === 404)) return;
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(retryMs, remainingMs)),
+    );
+  } while (Date.now() < deadline);
+
+  const failures = results
+    .filter((result) => result.status !== 404)
+    .map(
+      (result) =>
+        `${result.ref} (${
+          result.error ?? `status ${String(result.status)}`
+        })`,
+    );
+  throw new Error(
+    `Stored quest banner deletion was not proven; exact refs are still readable or did not return 404: ${failures.join(', ')}`,
+  );
 }
 
 async function readStatus({ baseUrl, token, fetchImpl, requestKey }) {
@@ -301,6 +380,10 @@ export async function runQuestMediaQa({
   confirmStaging = false,
   fetchImpl = fetch,
   allowNonStaging = false,
+  availabilityTimeoutMs = 90_000,
+  availabilityRetryMs = 2_000,
+  absenceTimeoutMs = 90_000,
+  absenceRetryMs = 2_000,
 } = {}) {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
   if (!token) throw new Error('QUEST_MEDIA_QA_TOKEN is required');
@@ -340,7 +423,10 @@ export async function runQuestMediaQa({
       identity,
     });
     const createdRefs = questRefs(quest);
-    await proveRefsUsable(createdRefs, fetchImpl);
+    await proveRefsUsable(createdRefs, fetchImpl, {
+      timeoutMs: availabilityTimeoutMs,
+      retryMs: availabilityRetryMs,
+    });
     const createdStatus = await readStatus({
       baseUrl: normalizedBaseUrl,
       token,
@@ -363,7 +449,10 @@ export async function runQuestMediaQa({
       quest,
     });
     const replacementRefs = questRefs(replacedQuest);
-    await proveRefsUsable(replacementRefs, fetchImpl);
+    await proveRefsUsable(replacementRefs, fetchImpl, {
+      timeoutMs: availabilityTimeoutMs,
+      retryMs: availabilityRetryMs,
+    });
     if (replacementRefs.some((ref) => createdRefs.includes(ref))) {
       throw new Error('Quest replacement reused an original banner reference');
     }
@@ -385,7 +474,10 @@ export async function runQuestMediaQa({
         'Persisted four-object quest replacement could not be proven',
       );
     }
-    await proveRefsAbsent(createdRefs, fetchImpl);
+    await proveRefsAbsent(createdRefs, fetchImpl, {
+      timeoutMs: absenceTimeoutMs,
+      retryMs: absenceRetryMs,
+    });
     const cleanup = await cleanupQaQuest({
       baseUrl: normalizedBaseUrl,
       token,
@@ -413,7 +505,10 @@ export async function runQuestMediaQa({
         );
       }
     }
-    await proveRefsAbsent(replacementRefs, fetchImpl);
+    await proveRefsAbsent(replacementRefs, fetchImpl, {
+      timeoutMs: absenceTimeoutMs,
+      retryMs: absenceRetryMs,
+    });
     return {
       mode: 'replaced-and-cleaned',
       quest_id: quest._id,
