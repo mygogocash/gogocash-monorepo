@@ -93,7 +93,10 @@ test('preflight rejects a partial route bundle', () => {
   );
 });
 
-function acceptanceFixture({ replacementRemains = false } = {}) {
+function acceptanceFixture({
+  initialAvailabilityFailures = 0,
+  replacementRemains = false,
+} = {}) {
   const createdRefs = [
     'https://media.example/quests/a/banner-en.png',
     'https://media.example/quests/a/banner-th.png',
@@ -121,6 +124,11 @@ function acceptanceFixture({ replacementRemains = false } = {}) {
       });
     }
     if (url.endsWith('/point/create-quest')) {
+      assert.equal(
+        options.body.get('status'),
+        null,
+        'status is derived by the API and must not be sent in multipart',
+      );
       return jsonResponse({
         _id: '507f1f77bcf86cd799439011',
         campaign_revision: 1,
@@ -167,9 +175,14 @@ function acceptanceFixture({ replacementRemains = false } = {}) {
     if (createdRefs.includes(url)) {
       const reads = (refReads.get(url) ?? 0) + 1;
       refReads.set(url, reads);
-      return new Response(replaced ? null : Buffer.from('created'), {
-        status: replaced ? 404 : 200,
-      });
+      const unavailable =
+        !replaced && reads <= initialAvailabilityFailures;
+      return new Response(
+        replaced || unavailable ? null : Buffer.from('created'),
+        {
+          status: replaced || unavailable ? 404 : 200,
+        },
+      );
     }
     if (replacementRefs.includes(url)) {
       const reads = (refReads.get(url) ?? 0) + 1;
@@ -185,13 +198,15 @@ function acceptanceFixture({ replacementRemains = false } = {}) {
 }
 
 test('applied acceptance replaces four existing banners and cleans both generations', async () => {
-  const fixture = acceptanceFixture();
+  const fixture = acceptanceFixture({ initialAvailabilityFailures: 1 });
 
   const result = await runQuestMediaQa({
     token: 'secret',
     apply: true,
     confirmStaging: true,
     fetchImpl: fixture.fetchImpl,
+    availabilityTimeoutMs: 50,
+    availabilityRetryMs: 1,
   });
 
   assert.equal(result.mode, 'replaced-and-cleaned');
@@ -221,6 +236,8 @@ test('applied acceptance fails when any replacement object remains readable afte
       apply: true,
       confirmStaging: true,
       fetchImpl: fixture.fetchImpl,
+      absenceTimeoutMs: 5,
+      absenceRetryMs: 1,
     }),
     /still readable|deletion.*not.*proven/i,
   );
