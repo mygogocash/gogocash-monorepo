@@ -11,6 +11,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import toast from "react-hot-toast";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Offer, OfferRequestForm } from "@/types/api";
@@ -43,7 +44,9 @@ vi.mock("@/hooks/useObjectUrl", () => ({
 }));
 
 vi.mock("@/components/common/RemoteOrBlobImage", () => ({
-  RemoteOrBlobImage: (props: { alt: string }) => <span>{props.alt}</span>,
+  RemoteOrBlobImage: (props: { alt: string; src: string }) => (
+    <span data-image-src={props.src}>{props.alt}</span>
+  ),
 }));
 
 vi.mock("react-hot-toast", () => ({
@@ -376,6 +379,79 @@ describe("FormOffer behavior", () => {
       "Admin-authored policy",
     );
     expect(mocks.fetchOffers).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces the media API error inline and preserves the saved banner after a failed replacement", async () => {
+    mocks.fetcher.mockResolvedValue([]);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const loadedOffer = {
+      ...offer(),
+      banner: "https://media.example/brand-banners/existing.webp",
+      banner_mobile: "https://media.example/brand-banners/existing.webp",
+    };
+    const user = userEvent.setup();
+    mocks.patch.mockRejectedValueOnce({
+      response: {
+        data: {
+          message: "Media storage is unavailable for brand-banners.",
+        },
+      },
+    });
+
+    render(root(queryClient, form(), loadedOffer));
+    const mediaSection = section("offer-section-media");
+    await user.click(
+      within(mediaSection).getByRole("button", { name: "Edit" }),
+    );
+
+    expect(mediaSection).toHaveTextContent(
+      "Requested size: 1,200 × 410 px (W × H).",
+    );
+    const bannerInput = mediaSection.querySelector('input[name="banner"]');
+    if (!(bannerInput instanceof HTMLInputElement)) {
+      throw new Error("Expected the banner upload input to render");
+    }
+    const replacement = new File(["new-banner"], "replacement.webp", {
+      type: "image/webp",
+    });
+    fireEvent.change(bannerInput, { target: { files: [replacement] } });
+    await user.click(
+      within(mediaSection).getByRole("button", { name: "Save" }),
+    );
+
+    const expectedError = "Media storage is unavailable for brand-banners.";
+    await waitFor(() => {
+      expect(within(mediaSection).getByRole("alert")).toHaveTextContent(
+        expectedError,
+      );
+    });
+    expect(toast.error).toHaveBeenCalledWith(expectedError);
+    expect(mocks.fetchOffers).not.toHaveBeenCalled();
+    expect(loadedOffer.banner).toBe(
+      "https://media.example/brand-banners/existing.webp",
+    );
+    const submitted = mocks.patch.mock.calls[0]?.[1] as FormData;
+    expect(submitted.get("banner")).toBe(replacement);
+    expect(mocks.patch).toHaveBeenCalledWith(
+      "/admin/update-offer/offer-1",
+      submitted,
+      {
+        timeout: 120_000,
+        headers: {},
+      },
+    );
+
+    await user.click(
+      within(mediaSection).getByRole("button", { name: "Cancel" }),
+    );
+    expect(within(mediaSection).queryByRole("alert")).not.toBeInTheDocument();
+    expect(
+      mediaSection.querySelector(
+        '[data-image-src="https://media.example/brand-banners/existing.webp"]',
+      ),
+    ).not.toBeNull();
   });
 
   it("reconciles fallback/configured fees and clears authored-raw ownership when the offer id changes", async () => {

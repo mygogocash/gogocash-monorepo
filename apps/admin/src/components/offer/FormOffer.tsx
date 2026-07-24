@@ -88,6 +88,7 @@ import {
   isBrandSectionDirty,
 } from "@/lib/brandSectionEdit";
 import { isDirty } from "@/lib/isDirty";
+import { multipartPostConfig } from "@/lib/multipartFormHeaders";
 import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
 import { OfferFullscreenCardShell } from "./OfferFullscreenCardShell";
 import { TrackingPeriodManualEditor } from "./TrackingPeriodManualEditor";
@@ -990,6 +991,7 @@ const FormOffer = ({
   // independent partial PATCH, separate from the form-wide "Save changes".
   const [editingMedia, setEditingMedia] = useState(false);
   const [savingMedia, setSavingMedia] = useState(false);
+  const [mediaSaveError, setMediaSaveError] = useState<string | null>(null);
   const [mediaSnapshot, setMediaSnapshot] = useState<Pick<
     OfferRequestForm,
     "logo_desktop" | "logo_mobile" | "logo_circle" | "banner" | "banner_mobile"
@@ -1003,6 +1005,7 @@ const FormOffer = ({
       banner: form.banner,
       banner_mobile: form.banner_mobile,
     });
+    setMediaSaveError(null);
     setEditingMedia(true);
   };
 
@@ -1010,21 +1013,23 @@ const FormOffer = ({
     if (mediaSnapshot) {
       setForm((prev) => ({ ...prev, ...mediaSnapshot }));
     }
+    setMediaSaveError(null);
     setEditingMedia(false);
   };
 
   const saveMediaEdit = async () => {
     if (!form.id) return;
     setSavingMedia(true);
+    setMediaSaveError(null);
     try {
       const fd = new FormData();
       if (form.logo_desktop) fd.append("logo_desktop", form.logo_desktop);
       if (form.banner) fd.append("banner", form.banner);
-      await client.patch(`/admin/update-offer/${form.id}`, fd, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      await client.patch(
+        `/admin/update-offer/${form.id}`,
+        fd,
+        multipartPostConfig(),
+      );
       // Re-baseline the image fields so the form-wide "Save changes" doesn't
       // re-flag these now-persisted uploads as dirty.
       setFormBaseline((prev) => ({
@@ -1043,7 +1048,12 @@ const FormOffer = ({
       toast.success("Media updated successfully");
     } catch (err) {
       devError("Failed to update media:", err);
-      toast.error("Could not update media. Please try again.");
+      const message = getApiErrorMessage(
+        err,
+        "Could not update media. Please try again, or contact an administrator if it continues.",
+      );
+      setMediaSaveError(message);
+      toast.error(message);
     } finally {
       setSavingMedia(false);
     }
@@ -3864,6 +3874,14 @@ const FormOffer = ({
               ? "Upload a square logo for product/brand cards and a wide banner for the brand page hero."
               : "Current images. Click Edit to replace them."}
           </p>
+          {mediaSaveError ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300"
+            >
+              {mediaSaveError}
+            </p>
+          ) : null}
 
           <div>
             <FieldLabel
@@ -3878,6 +3896,7 @@ const FormOffer = ({
                     name="logo_desktop"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
+                      setMediaSaveError(null);
                       setForm((prev) => ({
                         ...prev,
                         logo_desktop: file,
@@ -3915,6 +3934,7 @@ const FormOffer = ({
                     name="banner"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
+                      setMediaSaveError(null);
                       setForm((prev) => ({
                         ...prev,
                         banner: file,
@@ -3924,7 +3944,7 @@ const FormOffer = ({
                     }}
                   />
                   <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    Requested size: 800 × 450 px (W × H).
+                    Requested size: 1,200 × 410 px (W × H).
                   </p>
                 </div>
               )}
@@ -3932,9 +3952,9 @@ const FormOffer = ({
                 <RemoteOrBlobImage
                   src={bannerUrl ?? pathImage(persistedBannerPath)}
                   alt="Preview"
-                  width={256}
-                  height={256}
-                  className="aspect-[800/450] h-auto w-[250px] shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
+                  width={1200}
+                  height={410}
+                  className="aspect-[1200/410] h-auto w-[250px] shrink-0 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
                 />
               )}
             </div>
