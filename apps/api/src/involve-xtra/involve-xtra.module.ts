@@ -9,6 +9,8 @@ import { Offer, OfferSchema } from '../offer/schemas/offer.schema';
 import { CommissionsXtraScheduler } from './commissions-xtra.scheduler';
 import { CommissionsXtraSyncController } from './commissions-xtra-sync.controller';
 import { CommissionsXtraSyncService } from './commissions-xtra-sync.service';
+import { ExploreController } from './explore.controller';
+import { ExploreService } from './explore.service';
 import {
   InvolveCampaign,
   InvolveCampaignSchema,
@@ -33,13 +35,14 @@ import { InvolveShop, InvolveShopSchema } from './schemas/involve-shop.schema';
       { name: Offer.name, schema: OfferSchema },
     ]),
   ],
-  controllers: [CommissionsXtraSyncController],
+  controllers: [CommissionsXtraSyncController, ExploreController],
   providers: [
     CommissionsXtraSyncService,
     CommissionsXtraScheduler,
+    ExploreService,
     AuthAdminGuard,
     RateLimitGuard,
   ],
-  exports: [MongooseModule, CommissionsXtraSyncService],
+  exports: [MongooseModule, CommissionsXtraSyncService, ExploreService],
 })
 export class InvolveXtraModule {}
