@@ -737,12 +737,12 @@ describe('QuestRevisionService', () => {
     expect(published.quest).not.toHaveProperty('banner_assets');
     expect(questModel.findOneAndUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        _id: id,
+        _id: { $eq: id },
         publication_status: 'draft',
-        campaign_revision: 0,
-        config_revision: 0,
-        revision_source_campaign_revision: 2,
-        revision_source_config_revision: 3,
+        campaign_revision: { $eq: 0 },
+        config_revision: { $eq: 0 },
+        revision_source_campaign_revision: { $eq: 2 },
+        revision_source_config_revision: { $eq: 3 },
         start_date: { $gt: expect.any(Date) },
       }),
       expect.objectContaining({
