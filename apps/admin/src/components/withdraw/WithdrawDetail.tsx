@@ -42,10 +42,9 @@ import {
   deleteWithdrawUserData,
   updateWithdrawUserProfile,
 } from "@/lib/api/withdrawUserContactApi";
-import WithdrawUserContactEditor, {
-  withdrawUserContactsReady,
-} from "@/components/withdraw/WithdrawUserContactEditor";
+import WithdrawUserContactEditor from "@/components/withdraw/WithdrawUserContactEditor";
 import {
+  buildWithdrawUserContactSavePlan,
   createContactRow,
   ensureUserContactRows,
   emptyWithdrawUserEditDraft,
@@ -137,8 +136,6 @@ type UserEditSnapshot = {
   fullName: string;
   gender: string;
   birthdate: string;
-  wallet: string;
-  gogopassActive: boolean;
 };
 
 const buildUserEditSnapshot = (
@@ -153,8 +150,6 @@ const buildUserEditSnapshot = (
   fullName: draft.fullName,
   gender: draft.gender,
   birthdate: draft.birthdate,
-  wallet: draft.wallet,
-  gogopassActive: draft.gogopassActive,
 });
 
 /** One-time migration for drafts persisted before contact rows gained clientId. */
@@ -647,8 +642,6 @@ const WithdrawDetail = () => {
       fullName: u.fullName ?? "",
       gender: u.gender ?? "",
       birthdate: birthIso,
-      wallet: u.wallet ?? "",
-      gogopassActive: u.gogopassActive ?? false,
     };
     setUserDraft(loadedDraft);
     setUserEditSnapshot(buildUserEditSnapshot(loadedDraft));
@@ -673,63 +666,56 @@ const WithdrawDetail = () => {
     setUserSaveError(null);
   };
 
+  const userContactSavePlan = buildWithdrawUserContactSavePlan(
+    userDraft,
+    editInitialEmails,
+    editInitialMobiles,
+  );
+  const currentUserEditSnapshot = buildUserEditSnapshot(userDraft);
+  const saveableUserEditSnapshot = userEditSnapshot
+    ? {
+        ...currentUserEditSnapshot,
+        emails: userContactSavePlan.emails ?? userEditSnapshot.emails,
+        mobiles: userContactSavePlan.mobiles ?? userEditSnapshot.mobiles,
+      }
+    : currentUserEditSnapshot;
+  const userEditDirty = userEditSnapshot
+    ? isDirty(saveableUserEditSnapshot, userEditSnapshot)
+    : false;
+  const deferredContactLabel = userContactSavePlan.deferredChannels
+    .map((channel) => (channel === "mobile" ? "phone" : channel))
+    .join(" and ");
+
   const saveUserEdit = async () => {
     if (!withdrawUserId) return;
     setUserSaveError(null);
-    const emailRows = ensureUserContactRows(userDraft.emailRows);
-    const mobileRows = ensureUserContactRows(userDraft.mobileRows);
-    if (
-      !withdrawUserContactsReady(
-        userDraft,
-        editInitialEmails,
-        editInitialMobiles,
-      )
-    ) {
-      setUserSaveError(
-        "Send OTP and verify every new email and phone number before saving.",
-      );
-      return;
-    }
     setSavingUser(true);
     try {
-      const emailsPayload = emailRows
-        .map((r) => r.value.trim())
-        .filter(Boolean);
-      const mobilesPayload = mobileRows
-        .map((r) => r.value.trim())
-        .filter(Boolean);
       await updateWithdrawUserProfile({
         userId: withdrawUserId,
-        emails: emailsPayload,
-        mobiles: mobilesPayload,
+        ...(userContactSavePlan.emails !== undefined
+          ? { emails: userContactSavePlan.emails }
+          : {}),
+        ...(userContactSavePlan.mobiles !== undefined
+          ? { mobiles: userContactSavePlan.mobiles }
+          : {}),
         fullName: userDraft.fullName,
         gender: userDraft.gender,
         birthdate: userDraft.birthdate,
-        wallet: userDraft.wallet,
-        gogopassActive: userDraft.gogopassActive,
       });
       await fetchWithdrawDetail();
       setEditingUser(false);
-      toast.success("Changes saved.");
+      toast.success(
+        deferredContactLabel
+          ? `Changes saved. Unverified ${deferredContactLabel} changes were not saved.`
+          : "Changes saved.",
+      );
     } catch (e: unknown) {
       setUserSaveError(getApiErrorMessage(e, "Failed to save changes"));
     } finally {
       setSavingUser(false);
     }
   };
-
-  const userContactsReadyForSave = withdrawUserContactsReady(
-    userDraft,
-    editInitialEmails,
-    editInitialMobiles,
-  );
-
-  // Unsaved-changes guard: enabled only once a saveable field differs from the
-  // snapshot captured when the edit session opened. Falls back to not-dirty
-  // when no snapshot exists yet (edit form not opened).
-  const userEditDirty = userEditSnapshot
-    ? isDirty(buildUserEditSnapshot(userDraft), userEditSnapshot)
-    : false;
 
   const isUserDataDeleted =
     withdrawDetail?.user?.fullName === "User data deleted";
@@ -821,10 +807,7 @@ const WithdrawDetail = () => {
                         type="button"
                         onClick={() => void saveUserEdit()}
                         disabled={
-                          savingUser ||
-                          !withdrawUserId ||
-                          !userContactsReadyForSave ||
-                          !userEditDirty
+                          savingUser || !withdrawUserId || !userEditDirty
                         }
                         className="border-brand-600 bg-brand-600 hover:bg-brand-700 dark:border-brand-500 dark:bg-brand-600 dark:hover:bg-brand-500 rounded-lg border px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -837,6 +820,13 @@ const WithdrawDetail = () => {
                 {userSaveError && (
                   <p className="mb-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
                     {userSaveError}
+                  </p>
+                )}
+                {editingUser && deferredContactLabel && (
+                  <p className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+                    Unverified {deferredContactLabel} changes will not be saved.
+                    You can still save other profile fields and verified contact
+                    changes.
                   </p>
                 )}
 
@@ -1021,43 +1011,6 @@ const WithdrawDetail = () => {
                         className="h-11"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="wd-user-wallet">Wallet</Label>
-                      <Input
-                        id="wd-user-wallet"
-                        value={userDraft.wallet}
-                        onChange={(e) =>
-                          setUserDraft((d) => ({
-                            ...d,
-                            wallet: e.target.value,
-                          }))
-                        }
-                        className="h-11 font-mono text-sm"
-                      />
-                    </div>
-                    {isGoGoPassEnabled() && (
-                      <div>
-                        <Label htmlFor="wd-user-gogopass">
-                          GoGoPass status
-                        </Label>
-                        <select
-                          id="wd-user-gogopass"
-                          value={
-                            userDraft.gogopassActive ? "active" : "inactive"
-                          }
-                          onChange={(e) =>
-                            setUserDraft((d) => ({
-                              ...d,
-                              gogopassActive: e.target.value === "active",
-                            }))
-                          }
-                          className="focus:border-brand-500 focus:ring-brand-500/20 dark:focus:border-brand-400 dark:focus:ring-brand-400/25 h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                        >
-                          <option value="active">Active</option>
-                          <option value="inactive">Not Active</option>
-                        </select>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -1069,9 +1022,9 @@ const WithdrawDetail = () => {
                     if (!wu) return null;
                     const fmtIso = (s?: string) =>
                       s ? formatDateTime(s, { fallback: s }) : "—";
-                    const fullName = [wu.firstName, wu.lastName]
-                      .filter(Boolean)
-                      .join(" ");
+                    const fullName =
+                      wu.fullName?.trim() ||
+                      [wu.firstName, wu.lastName].filter(Boolean).join(" ");
                     return (
                       <div>
                         <h3 className="mb-3 text-sm font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
@@ -1100,7 +1053,7 @@ const WithdrawDetail = () => {
                               {fullName ? (
                                 <CopyButton
                                   value={fullName}
-                                  title="Copy first and last name"
+                                  title="Copy full name"
                                 />
                               ) : null}
                             </p>

@@ -28,18 +28,18 @@ export async function verifyWithdrawUserContactOtp(params: {
 
 export async function updateWithdrawUserProfile(body: {
   userId: string;
-  emails: string[];
-  mobiles: string[];
+  emails?: string[];
+  mobiles?: string[];
   fullName: string;
   gender: string;
   birthdate: string;
-  wallet: string;
-  gogopassActive: boolean;
 }): Promise<void> {
   await client.post("/withdraw/update-withdraw-user", body);
 }
 
 /** Irreversible GDPR-style removal of user-associated data (mock clears in-memory demo state). */
-export async function deleteWithdrawUserData(params: { userId: string }): Promise<void> {
+export async function deleteWithdrawUserData(params: {
+  userId: string;
+}): Promise<void> {
   await client.post("/withdraw/delete-user-data", params);
 }
