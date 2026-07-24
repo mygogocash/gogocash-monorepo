@@ -86,6 +86,10 @@ async function openDeleteConfirmation() {
 
 describe("CouponTable coupon archive", () => {
   beforeEach(() => {
+    vi.useFakeTimers({
+      now: new Date("2026-07-22T05:00:00.000Z"),
+      toFake: ["Date"],
+    });
     api.delete.mockReset().mockResolvedValue({
       data: { archived: true, id: coupon._id },
     });
@@ -98,7 +102,26 @@ describe("CouponTable coupon archive", () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.clearAllMocks();
+  });
+
+  it("shows DD/MM/YYYY dates and derives an expired status from the valid period", async () => {
+    api.get.mockResolvedValue({
+      data: couponResponse([
+        {
+          ...coupon,
+          start_date: "2026-04-01",
+          end_date: "2026-04-30",
+        },
+      ]),
+    });
+
+    renderTable();
+
+    expect(await screen.findByText("01/04/2026")).toBeInTheDocument();
+    expect(screen.getByText("30/04/2026")).toBeInTheDocument();
+    expect(screen.getByText("Expired")).toBeInTheDocument();
   });
 
   it("confirms and removes an archived coupon from Coupon History", async () => {

@@ -23,6 +23,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import client from "@/lib/axios/client";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import { usePermissions } from "@/hooks/usePermissions";
+import { formatDate } from "@/lib/dateFormat";
 
 const API_COUPON_DELETE_ROLES = new Set([
   "admin",
@@ -221,7 +222,7 @@ export default function CouponTable() {
           <>
             {coupons.length > 0 && (
               <div className="-mx-4 w-full overflow-x-auto sm:mx-0">
-                <table className="w-full min-w-[920px] divide-y divide-gray-200 dark:divide-gray-700">
+                <table className="w-full min-w-[1080px] divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
@@ -235,6 +236,9 @@ export default function CouponTable() {
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
                         Discount
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
+                        Valid period
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase sm:px-6 dark:text-gray-400">
                         Status
@@ -290,6 +294,11 @@ export default function CouponTable() {
                                 {formatCouponMaxCapLabel(list)}
                               </div>
                             </div>
+                          </td>
+
+                          <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-600 sm:px-6 sm:py-4 dark:text-gray-400">
+                            <div>{formatDate(list.start_date)}</div>
+                            <div>{formatDate(list.end_date)}</div>
                           </td>
 
                           <td className="min-w-0 px-4 py-3 sm:px-6 sm:py-4">

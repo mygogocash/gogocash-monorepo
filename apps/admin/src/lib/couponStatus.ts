@@ -1,13 +1,8 @@
 import type { CouponData } from "@/types/coupon";
 
-export type CouponTableStatus = "Inactive" | "Scheduled" | "Ran out" | "Active";
+export type CouponTableStatus = "Pause" | "Run out" | "Expired" | "Active";
 
-function ymdToday(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+const BANGKOK_UTC_OFFSET_HOURS = 7;
 
 function normYmd(raw: string | null | undefined): string | null {
   const t = String(raw ?? "").trim();
@@ -16,44 +11,66 @@ function normYmd(raw: string | null | undefined): string | null {
   return m ? m[1] : null;
 }
 
-export function isCouponScheduled(
-  coupon: Pick<CouponData, "start_date">,
-  now: Date = new Date(),
-): boolean {
-  const start = normYmd(coupon.start_date);
-  return Boolean(start && ymdToday(now).localeCompare(start) < 0);
+function normTime(
+  raw: string | null | undefined,
+): { hours: number; minutes: number } | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(raw ?? "").trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+  return { hours, minutes };
+}
+
+function couponBangkokBoundary(
+  dateRaw: string | null | undefined,
+  timeRaw: string | null | undefined,
+  endOfDay: boolean,
+): number | null {
+  const ymd = normYmd(dateRaw);
+  if (!ymd) return null;
+  const [year, month, day] = ymd.split("-").map(Number);
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    calendarDate.getUTCFullYear() !== year ||
+    calendarDate.getUTCMonth() !== month - 1 ||
+    calendarDate.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  const time = normTime(timeRaw);
+  const hours = time?.hours ?? (endOfDay ? 23 : 0);
+  const minutes = time?.minutes ?? (endOfDay ? 59 : 0);
+  return Date.UTC(
+    year,
+    month - 1,
+    day,
+    hours - BANGKOK_UTC_OFFSET_HOURS,
+    minutes,
+    endOfDay && !time ? 59 : 0,
+    endOfDay && !time ? 999 : 0,
+  );
 }
 
 function isCouponStarted(
-  coupon: Pick<CouponData, "start_date">,
+  coupon: Pick<CouponData, "start_date" | "start_time">,
   now: Date = new Date(),
 ): boolean {
-  const start = normYmd(coupon.start_date);
-  if (!start) return true;
-  return ymdToday(now).localeCompare(start) >= 0;
+  const start = couponBangkokBoundary(
+    coupon.start_date,
+    coupon.start_time,
+    false,
+  );
+  return start === null || now.getTime() >= start;
 }
 
-function isCouponBeforeEnd(
+export function isCouponExpired(
   coupon: Pick<CouponData, "end_date" | "end_time">,
   now: Date = new Date(),
 ): boolean {
-  const endYmd = normYmd(coupon.end_date);
-  if (!endYmd) return true;
-
-  const today = ymdToday(now);
-  const dayCmp = today.localeCompare(endYmd);
-  if (dayCmp < 0) return true;
-  if (dayCmp > 0) return false;
-
-  const endTime = String(coupon.end_time ?? "").trim();
-  if (!endTime) return true;
-
-  const [eh, em] = endTime.split(":").map(Number);
-  if (!Number.isFinite(eh) || !Number.isFinite(em)) return true;
-
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const endMinutes = eh * 60 + em;
-  return nowMinutes <= endMinutes;
+  const end = couponBangkokBoundary(coupon.end_date, coupon.end_time, true);
+  return end !== null && now.getTime() > end;
 }
 
 function isCouponLimited(
@@ -66,17 +83,9 @@ function isCouponLimited(
 export function isCouponRanOut(
   coupon: Pick<
     CouponData,
-    | "quantity"
-    | "quantity_used"
-    | "unlimited_amount_enabled"
-    | "start_date"
-    | "end_date"
-    | "end_time"
+    "quantity" | "quantity_used" | "unlimited_amount_enabled"
   >,
-  now: Date = new Date(),
 ): boolean {
-  if (!isCouponStarted(coupon, now)) return false;
-  if (!isCouponBeforeEnd(coupon, now)) return false;
   if (!isCouponLimited(coupon)) return false;
 
   const total = coupon.quantity ?? 0;
@@ -84,12 +93,13 @@ export function isCouponRanOut(
   return total > 0 && used >= total;
 }
 
-/** One status badge — highest priority: Inactive → Scheduled → Ran out → Active. */
+/** One admin status badge — highest priority: Pause → Run out → Expired → Active. */
 export function getCouponTableStatus(
   coupon: Pick<
     CouponData,
     | "disabled"
     | "start_date"
+    | "start_time"
     | "end_date"
     | "end_time"
     | "quantity"
@@ -98,27 +108,27 @@ export function getCouponTableStatus(
   >,
   now: Date = new Date(),
 ): { label: CouponTableStatus; badgeClass: string } {
-  if (coupon.disabled) {
+  if (coupon.disabled || !isCouponStarted(coupon, now)) {
     return {
-      label: "Inactive",
-      badgeClass:
-        "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
-    };
-  }
-
-  if (isCouponScheduled(coupon, now)) {
-    return {
-      label: "Scheduled",
+      label: "Pause",
       badgeClass:
         "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
     };
   }
 
-  if (isCouponRanOut(coupon, now)) {
+  if (isCouponRanOut(coupon)) {
     return {
-      label: "Ran out",
+      label: "Run out",
       badgeClass:
         "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200",
+    };
+  }
+
+  if (isCouponExpired(coupon, now)) {
+    return {
+      label: "Expired",
+      badgeClass:
+        "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
     };
   }
 
