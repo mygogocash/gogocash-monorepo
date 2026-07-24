@@ -3,7 +3,10 @@ import { type ViewStyle } from "react-native";
 import { webCategoryDirectory } from "@mobile/design/webDesignParity";
 import { type MobileRouteId } from "@mobile/navigation/routes";
 
-export type DiscoveryVariant = Extract<MobileRouteId, "brand" | "category" | "discover" | "shops">;
+export type DiscoveryVariant = Extract<
+  MobileRouteId,
+  "brand" | "category" | "discover" | "shops"
+>;
 
 type FixtureCategoryDirectoryItem = (typeof webCategoryDirectory.cards)[number];
 /** Widened so live category cards from the API share the same shape as fixtures. */
@@ -31,6 +34,9 @@ export type BrandDirectoryStore = {
   showGrabCoupon: boolean;
   shopType: string;
   tint: string;
+  // #586 — true for an Involve Commission Xtra shop; drives the "Xtra" boosted-
+  // cashback badge. Absent/false on ordinary offer-backed stores.
+  isXtra?: boolean;
 };
 
 export type ShopDirectoryStore = BrandDirectoryStore;

@@ -33,6 +33,24 @@ export function isGoGoTrackEnabled(): boolean {
   return resolveFeatureEnabled(process.env.EXPO_PUBLIC_ENABLE_GOTOTRACK);
 }
 
+// #586 — Involve Commission Xtra shops on the Explore Shops directory. Same
+// "only the literal '0' hides it" contract; eas.json pins "0" on the beta
+// profile until the Involve Publisher API key (Shopee TH) is approved, so the
+// surface stays dark by default. When on but the feed is empty/errors, the
+// mapper yields no stores and the directory shows the existing offer path
+// (REQ-APP-7 fallback) — never a blank rail.
+export function resolveInvolveXtraShopsEnabled(
+  value: string | undefined,
+): boolean {
+  return resolveFeatureEnabled(value);
+}
+
+export function isInvolveXtraShopsEnabled(): boolean {
+  return resolveFeatureEnabled(
+    process.env.EXPO_PUBLIC_ENABLE_INVOLVE_XTRA_SHOPS,
+  );
+}
+
 // ── GoLink 3-state rollout (2026-07) ────────────────────────────────────────
 // Founder decision: GoLink ships VISIBLE but NON-CLICKABLE ("coming soon") on
 // mobile until launch. Two env vars compose the mode:
@@ -99,9 +117,9 @@ export const filterGoGoPassMenuItems = filterHiddenProfileMenuItems;
  * In "comingSoon" mode the tab STAYS (rendered disabled/badged by the nav
  * components) so the surface is visible but non-clickable.
  */
-export function filterHiddenBottomNavItems<
-  T extends { readonly href: string },
->(items: readonly T[]): readonly T[] {
+export function filterHiddenBottomNavItems<T extends { readonly href: string }>(
+  items: readonly T[],
+): readonly T[] {
   return resolveGoLinkMode() === "hidden"
     ? items.filter((item) => item.href !== "/golink")
     : items;
