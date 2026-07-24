@@ -96,7 +96,12 @@ describe("finalizeProductTypeRows (PR #283 review HIGH-1)", () => {
       20,
     );
     expect(rows).toEqual([
-      { name: "Electronics", commission_info: "8%", deeplink: "" },
+      {
+        name: "Electronics",
+        commission_info: "8%",
+        deeplink: "",
+        description: "",
+      },
     ]);
   });
 
@@ -107,6 +112,7 @@ describe("finalizeProductTypeRows (PR #283 review HIGH-1)", () => {
           name: "Fashion",
           commission_info: " up to 5% ",
           deeplink: " https://x ",
+          description: "  Womenswear and accessories  ",
           entry_mode: "manual",
           commission_raw: "999",
         },
@@ -114,14 +120,27 @@ describe("finalizeProductTypeRows (PR #283 review HIGH-1)", () => {
       20,
     );
     expect(rows).toEqual([
-      { name: "Fashion", commission_info: "up to 5%", deeplink: "https://x" },
+      {
+        name: "Fashion",
+        commission_info: "up to 5%",
+        deeplink: "https://x",
+        description: "Womenswear and accessories",
+      },
     ]);
   });
 
   it("filters rows that are entirely empty (incl. the seeded blank frame)", () => {
     expect(
       finalizeProductTypeRows(
-        [{ name: "", commission_info: "", deeplink: "", entry_mode: "auto", commission_raw: "" }],
+        [
+          {
+            name: "",
+            commission_info: "",
+            deeplink: "",
+            entry_mode: "auto",
+            commission_raw: "",
+          },
+        ],
         20,
       ),
     ).toEqual([]);

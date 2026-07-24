@@ -10,9 +10,9 @@
  * - apps/app/src/screens/home/homeHelpers.ts — chunkTopBrandCards +
  *   getPromoSectionLayoutMode (<= 4 cards on mobile renders a static
  *   2-column grid; more cards free-scroll as vertical pairs).
- * - apps/app/src/screens/home/TopBrandSection.tsx — desktop pages fill
- *   row-major inside a flex-wrap grid; the mobile rail renders consecutive
- *   pairs as vertical 2-card columns.
+ * - apps/app/src/screens/home/TopBrandSection.tsx — desktop and mobile rails
+ *   render consecutive pairs as vertical 2-card columns. On desktop, those
+ *   columns are paged according to the available content frame.
  *
  * The app pins its side of this contract in web-design-parity tests; the
  * numbers here are pinned by topBrandPreviewLayout.test.ts. If either side
@@ -48,12 +48,38 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
   return chunks;
 }
 
-/** Desktop pager: pages of columns x 2 slots, filled row-major. */
+/** Desktop pager: logical pages of columns x 2 slots. */
 export function desktopPreviewPages<T>(
   items: readonly T[],
   frameWidth: number = DESKTOP_CONTENT_FRAME,
 ): T[][] {
-  return chunk(items, desktopColumnsPerRow(frameWidth) * TOP_BRAND_ROWS_PER_PAGE);
+  return chunk(
+    items,
+    desktopColumnsPerRow(frameWidth) * TOP_BRAND_ROWS_PER_PAGE,
+  );
+}
+
+export type DesktopPreviewSlot<T> = {
+  item: T;
+  /** Index inside the logical page, used for drag/drop and saved ordering. */
+  sourceIndex: number;
+};
+
+/**
+ * Project one logical desktop page into the two visible rows used by the
+ * customer rail: positions 1,3,5… above positions 2,4,6….
+ *
+ * `sourceIndex` deliberately survives the visual projection so an admin drag
+ * still mutates the original ordered list rather than the rendered row order.
+ */
+export function desktopPreviewRows<T>(
+  pageItems: readonly T[],
+): [DesktopPreviewSlot<T>[], DesktopPreviewSlot<T>[]] {
+  const rows: [DesktopPreviewSlot<T>[], DesktopPreviewSlot<T>[]] = [[], []];
+  pageItems.forEach((item, sourceIndex) => {
+    rows[sourceIndex % TOP_BRAND_ROWS_PER_PAGE].push({ item, sourceIndex });
+  });
+  return rows;
 }
 
 /**
