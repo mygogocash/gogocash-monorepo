@@ -9,6 +9,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { createHash } from 'node:crypto';
 import { Model, Types } from 'mongoose';
 
+import { mongoEq } from 'src/common/mongo-query';
 import { Offer } from 'src/offer/schemas/offer.schema';
 
 import {
@@ -336,14 +337,16 @@ export class QuestRevisionService {
       published = (await this.questModel
         .findOneAndUpdate(
           {
-            _id: questId,
+            _id: mongoEq(questId),
             publication_status: 'draft',
-            campaign_revision: input.expected_campaign_revision,
-            config_revision: input.expected_config_revision,
-            revision_source_campaign_revision:
+            campaign_revision: mongoEq(input.expected_campaign_revision),
+            config_revision: mongoEq(input.expected_config_revision),
+            revision_source_campaign_revision: mongoEq(
               draft.revision_source_campaign_revision,
-            revision_source_config_revision:
+            ),
+            revision_source_config_revision: mongoEq(
               draft.revision_source_config_revision,
+            ),
             start_date: { $gt: now },
           },
           {
