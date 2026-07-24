@@ -1450,6 +1450,9 @@ export function createDiscoveryScreenStyles(colors: ThemeColors) {
       left: 8,
       paddingHorizontal: 6,
       paddingVertical: 2,
+      // pointerEvents in style (RN-web deprecates the prop form) so the overlay
+      // never intercepts a tap meant for the card underneath.
+      pointerEvents: "none",
       position: "absolute",
       top: 8,
       zIndex: 2,
