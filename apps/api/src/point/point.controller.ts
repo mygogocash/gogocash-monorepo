@@ -23,6 +23,7 @@ import {
   CreateQuestDto,
   PublishQuestRevisionDto,
   QuestMediaQaCleanupDto,
+  UpdateQuestCampaignDto,
   UpdateQuestRewardsDto,
   UpdateQuestTasksDto,
 } from './dto/create-quest.dto';
@@ -34,6 +35,15 @@ import { QuestTaskCatalogService } from './quest-task-catalog.service';
 import { QuestRevisionService } from './quest-revision.service';
 import { RateLimit } from 'src/auth/rate-limit.decorator';
 import { RateLimitGuard } from 'src/auth/rate-limit.guard';
+import { QuestBannerFiles } from './quest-media.validation';
+
+const QUEST_BANNER_UPLOAD_FIELDS = [
+  { name: 'banner_en', maxCount: 1 },
+  { name: 'banner_th', maxCount: 1 },
+  { name: 'sub_banner_en', maxCount: 1 },
+  { name: 'sub_banner_th', maxCount: 1 },
+];
+
 @Controller('point')
 export class PointController {
   constructor(
@@ -124,14 +134,7 @@ export class PointController {
     return this.tasksService.handleCron();
   }
 
-  @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'banner_en', maxCount: 1 },
-      { name: 'banner_th', maxCount: 1 },
-      { name: 'sub_banner_en', maxCount: 1 },
-      { name: 'sub_banner_th', maxCount: 1 },
-    ]),
-  )
+  @UseInterceptors(FileFieldsInterceptor(QUEST_BANNER_UPLOAD_FIELDS))
   @UseGuards(AuthAdminGuard, RolesGuard)
   @ApiSecurity('access-token') // Apply the security scheme defined globally
   @ApiBearerAuth() // This directly applies Bearer authentication
@@ -141,12 +144,7 @@ export class PointController {
   createQuest(
     @Body() createQuestDto: CreateQuestDto,
     @UploadedFiles()
-    files: {
-      banner_en?: Express.Multer.File[];
-      banner_th?: Express.Multer.File[];
-      sub_banner_en?: Express.Multer.File[];
-      sub_banner_th?: Express.Multer.File[];
-    },
+    files: QuestBannerFiles,
   ) {
     return this.pointService.createQuest(createQuestDto, files);
   }
@@ -203,6 +201,25 @@ export class PointController {
   @Get('admin-quest-capabilities')
   getQuestManagementCapabilities() {
     return this.pointService.getQuestManagementCapabilities();
+  }
+
+  @UseInterceptors(FileFieldsInterceptor(QUEST_BANNER_UPLOAD_FIELDS))
+  @UseGuards(AuthAdminGuard, RolesGuard)
+  @ApiSecurity('access-token')
+  @ApiBearerAuth()
+  @Roles('superadmin')
+  @Patch('admin-quest/:id/campaign')
+  @ApiBody({ type: UpdateQuestCampaignDto })
+  updateQuestCampaign(
+    @Param('id') id: string,
+    @Body() updateQuestCampaignDto: UpdateQuestCampaignDto,
+    @UploadedFiles() files: QuestBannerFiles,
+  ) {
+    return this.pointService.updateQuestCampaign(
+      id,
+      updateQuestCampaignDto,
+      files,
+    );
   }
 
   @UseGuards(AuthAdminGuard, RolesGuard)

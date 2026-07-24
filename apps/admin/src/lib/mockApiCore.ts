@@ -837,6 +837,17 @@ function mockBodyField(body: unknown, key: string): string {
   return typeof value === "string" ? value : value == null ? "" : String(value);
 }
 
+function mockBodyHasField(body: unknown, key: string): boolean {
+  if (!body || typeof body !== "object") return false;
+  if (
+    "has" in body &&
+    typeof (body as { has: (name: string) => unknown }).has === "function"
+  ) {
+    return Boolean((body as { has: (name: string) => unknown }).has(key));
+  }
+  return Object.prototype.hasOwnProperty.call(body, key);
+}
+
 function handleMockGET(
   path: string[],
   joined: string,
@@ -2990,6 +3001,51 @@ async function handleMockPATCH(
       message: "Conversion updated successfully",
       conversion_id: conversionId,
     });
+  }
+
+  if (
+    path[0] === "point" &&
+    path[1] === "admin-quest" &&
+    path[2] &&
+    path[3] === "campaign"
+  ) {
+    const quest = mockQuestStore.find((q) => q._id === path[2]);
+    if (!quest) return jsonErr(404, { message: "Quest not found" });
+
+    const expectedCampaignRevision = Number(
+      mockBodyField(body, "campaign_revision"),
+    );
+    const currentCampaignRevision = Number(quest.campaign_revision ?? 0);
+    if (
+      !Number.isSafeInteger(expectedCampaignRevision) ||
+      expectedCampaignRevision < 0 ||
+      expectedCampaignRevision !== currentCampaignRevision
+    ) {
+      return jsonErr(409, {
+        code: "QUEST_CONFIG_REVISION_CONFLICT",
+        message: "This quest changed while you were editing. Reload and retry.",
+      });
+    }
+
+    quest.start_date =
+      mockBodyField(body, "start_date") || quest.start_date;
+    quest.end_date = mockBodyField(body, "end_date") || quest.end_date;
+    quest.facebook_page = mockBodyField(body, "facebook_page");
+    quest.facebook_post = mockBodyField(body, "facebook_post");
+    quest.line = mockBodyField(body, "line");
+    for (const field of [
+      "banner_en",
+      "banner_th",
+      "sub_banner_en",
+      "sub_banner_th",
+    ] as const) {
+      if (mockBodyHasField(body, field)) {
+        quest[field] = mockBodyField(body, field);
+      }
+    }
+    quest.campaign_revision = currentCampaignRevision + 1;
+    quest.updatedAt = new Date().toISOString();
+    return ok(quest);
   }
 
   if (
