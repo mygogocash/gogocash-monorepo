@@ -77,9 +77,9 @@ import { appendCashbackPatchFields } from "@/lib/offerCashbackSave";
 import { appendUpsizePatchFields } from "@/lib/offerUpsizeSave";
 import {
   formatTrackingDays,
-  isValidTrackingDayCount,
   MAX_TRACKING_PERIOD_DAYS,
   MIN_TRACKING_PERIOD_DAYS,
+  resolveManualTrackingPeriodDays,
   resolveTrackingPeriodPreview,
 } from "@/lib/offerTrackingPeriod";
 import { STATUS_BADGE_BASE } from "@/lib/statusBadge";
@@ -90,6 +90,7 @@ import {
 import { isDirty } from "@/lib/isDirty";
 import { COMMISSION_MANAGEMENT_BRANDS_ROOT_QUERY_KEY } from "@/lib/query/offersQueries";
 import { OfferFullscreenCardShell } from "./OfferFullscreenCardShell";
+import { TrackingPeriodManualEditor } from "./TrackingPeriodManualEditor";
 import { FormSectionJumpNav } from "@/components/form/FormSectionJumpNav";
 
 function formatPartnerMaxCap(offer: Offer | null): string {
@@ -913,13 +914,20 @@ const FormOffer = ({
 
   const saveTrackingPeriodEdit = async () => {
     if (!form.id) return;
+    const manualDays =
+      form.tracking_period_mode === "manual"
+        ? resolveManualTrackingPeriodDays({
+            flow_type: form.flow_type,
+            tracking_days: form.tracking_days,
+            confirm_days: form.confirm_days,
+          })
+        : null;
     if (form.tracking_period_mode === "manual") {
-      if (
-        !isValidTrackingDayCount(form.tracking_days ?? undefined) ||
-        !isValidTrackingDayCount(form.confirm_days ?? undefined)
-      ) {
+      if (!manualDays) {
         setTrackingPeriodSaveError(
-          `Enter whole day counts between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS} for both windows.`,
+          form.flow_type === "two_step"
+            ? `Enter a whole combined day count between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS}.`
+            : `Enter whole day counts between ${MIN_TRACKING_PERIOD_DAYS} and ${MAX_TRACKING_PERIOD_DAYS} for both windows.`,
         );
         return;
       }
@@ -932,8 +940,8 @@ const FormOffer = ({
       if (form.tracking_period_mode === "manual") {
         // Day counts only travel in manual mode — auto saves leave the stored
         // manual values untouched server-side (absent key = no change).
-        fd.append("tracking_days", String(form.tracking_days));
-        fd.append("confirm_days", String(form.confirm_days));
+        fd.append("tracking_days", String(manualDays!.tracking_days));
+        fd.append("confirm_days", String(manualDays!.confirm_days));
       }
       // Flow + subtitles always travel: an empty subtitle is an explicit
       // clear back to the default caption (coerceOptionalText semantics).
@@ -950,13 +958,20 @@ const FormOffer = ({
         snapshot: {
           ...prev.snapshot,
           tracking_period_mode: form.tracking_period_mode,
-          tracking_days: form.tracking_days,
-          confirm_days: form.confirm_days,
+          tracking_days: manualDays?.tracking_days ?? form.tracking_days,
+          confirm_days: manualDays?.confirm_days ?? form.confirm_days,
           flow_type: form.flow_type,
           tracking_subtitle: form.tracking_subtitle,
           confirm_subtitle: form.confirm_subtitle,
         },
       }));
+      if (manualDays) {
+        setForm((prev) => ({
+          ...prev,
+          tracking_days: manualDays.tracking_days,
+          confirm_days: manualDays.confirm_days,
+        }));
+      }
       setEditingTrackingPeriod(false);
       fetchOffers();
       toast.success("Tracking period updated successfully");
@@ -4568,89 +4583,26 @@ const FormOffer = ({
                   }))
                 }
               />
-              {form.tracking_period_mode === "manual" && (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                      Tracking window (days)
-                    </label>
-                    <input
-                      type="number"
-                      min={MIN_TRACKING_PERIOD_DAYS}
-                      max={MAX_TRACKING_PERIOD_DAYS}
-                      value={form.tracking_days ?? ""}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          tracking_days: e.target.value
-                            ? Number(e.target.value)
-                            : null,
-                        }))
-                      }
-                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                      Confirm window (days)
-                    </label>
-                    <input
-                      type="number"
-                      min={MIN_TRACKING_PERIOD_DAYS}
-                      max={MAX_TRACKING_PERIOD_DAYS}
-                      value={form.confirm_days ?? ""}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          confirm_days: e.target.value
-                            ? Number(e.target.value)
-                            : null,
-                        }))
-                      }
-                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                    />
-                  </div>
-                </div>
-              )}
-              {/* Step subtitles: empty = the placeholder default copy. */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                    Tracking subtitle
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={200}
-                    placeholder="from the following month"
-                    value={form.tracking_subtitle ?? ""}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        tracking_subtitle: e.target.value || null,
-                      }))
-                    }
-                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                    Confirm subtitle
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={200}
-                    placeholder="after validation"
-                    value={form.confirm_subtitle ?? ""}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        confirm_subtitle: e.target.value || null,
-                      }))
-                    }
-                    className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                  />
-                </div>
-              </div>
+              <TrackingPeriodManualEditor
+                mode={form.tracking_period_mode}
+                flowType={form.flow_type}
+                trackingDays={form.tracking_days}
+                confirmDays={form.confirm_days}
+                trackingSubtitle={form.tracking_subtitle}
+                confirmSubtitle={form.confirm_subtitle}
+                onTrackingDaysChange={(tracking_days) =>
+                  setForm((prev) => ({ ...prev, tracking_days }))
+                }
+                onConfirmDaysChange={(confirm_days) =>
+                  setForm((prev) => ({ ...prev, confirm_days }))
+                }
+                onTrackingSubtitleChange={(tracking_subtitle) =>
+                  setForm((prev) => ({ ...prev, tracking_subtitle }))
+                }
+                onConfirmSubtitleChange={(confirm_subtitle) =>
+                  setForm((prev) => ({ ...prev, confirm_subtitle }))
+                }
+              />
             </div>
           )}
         </div>

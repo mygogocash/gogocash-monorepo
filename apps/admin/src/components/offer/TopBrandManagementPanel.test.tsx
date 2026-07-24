@@ -1,7 +1,13 @@
 // @vitest-environment happy-dom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -41,11 +47,7 @@ vi.mock("@mui/material/Autocomplete", () => ({
     disabled?: boolean;
     options: Offer[];
     onChange: (_event: unknown, offer: Offer | null) => void;
-    onInputChange: (
-      _event: unknown,
-      value: string,
-      reason: string,
-    ) => void;
+    onInputChange: (_event: unknown, value: string, reason: string) => void;
   }) => (
     <div>
       <input
@@ -233,7 +235,9 @@ describe("TopBrandManagementPanel", () => {
       screen.getByRole("textbox", { name: "Search offers to add" }),
     ).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Save top brands" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Save top brands" }),
+    ).toBeDisabled();
     expect(screen.getByText(/read-only access/i)).toBeInTheDocument();
   });
 
@@ -273,9 +277,7 @@ describe("TopBrandManagementPanel", () => {
 
     renderPanel();
 
-    expect(
-      await screen.findAllByText("Shopee"),
-    ).toHaveLength(2);
+    expect(await screen.findAllByText("Shopee")).toHaveLength(2);
   });
 
   it("#479 excludes disabled offers from preview and save payload", async () => {
@@ -313,9 +315,9 @@ describe("TopBrandManagementPanel", () => {
     expect(
       await screen.findByTestId("top-brand-landing-preview"),
     ).toHaveTextContent("Banana IT");
-    expect(screen.getByTestId("top-brand-landing-preview")).not.toHaveTextContent(
-      "Shopee",
-    );
+    expect(
+      screen.getByTestId("top-brand-landing-preview"),
+    ).not.toHaveTextContent("Shopee");
     expect(
       screen.getByText(/Disabled offers are excluded from Top brands/i),
     ).toBeInTheDocument();
@@ -423,7 +425,7 @@ describe("TopBrandManagementPanel", () => {
     expect(screen.getByRole("option", { name: /o2/i })).toBeInTheDocument();
   });
 
-  it("#378 landing preview > given 5 brands > then mirrors desktop row-major slots and mobile vertical pairs", async () => {
+  it("#561 landing preview > given 5 brands > then mirrors vertical pairs on desktop and mobile", async () => {
     const five = Array.from({ length: 5 }, (_, index) => ({
       ...offer,
       _id: `o${index + 1}`,
@@ -448,13 +450,17 @@ describe("TopBrandManagementPanel", () => {
     const preview = await screen.findByTestId("top-brand-landing-preview");
     expect(preview).toHaveTextContent("Landing preview");
 
-    // Desktop fits 6 per row, so all five land on page 1, row 1, in order.
-    expect(
-      screen.getByTestId("top-brand-preview-desktop-page-0-slot-0"),
-    ).toHaveTextContent("Brand 1");
-    expect(
-      screen.getByTestId("top-brand-preview-desktop-page-0-slot-4"),
-    ).toHaveTextContent("Brand 5");
+    const desktopTop = within(
+      screen.getByTestId("top-brand-preview-desktop-page-0-row-0"),
+    );
+    const desktopBottom = within(
+      screen.getByTestId("top-brand-preview-desktop-page-0-row-1"),
+    );
+    expect(desktopTop.getByText("Brand 1")).toBeInTheDocument();
+    expect(desktopTop.getByText("Brand 3")).toBeInTheDocument();
+    expect(desktopTop.getByText("Brand 5")).toBeInTheDocument();
+    expect(desktopBottom.getByText("Brand 2")).toBeInTheDocument();
+    expect(desktopBottom.getByText("Brand 4")).toBeInTheDocument();
 
     // The mobile rail stacks consecutive pairs vertically: Brand 2 sits
     // BELOW Brand 1 (column 0, row 1), and Brand 5 opens column 2 —
@@ -466,6 +472,50 @@ describe("TopBrandManagementPanel", () => {
       screen.getByTestId("top-brand-preview-mobile-col-2-row-0"),
     ).toHaveTextContent("Brand 5");
   });
+
+  it.each([10, 12])(
+    "#561 landing preview > given %i brands > then desktop top row is odd positions and bottom row is even positions",
+    async (count) => {
+      const offers = Array.from({ length: count }, (_, index) => ({
+        ...offer,
+        _id: `o${index + 1}`,
+        offer_id: 1001 + index,
+        offer_name: `Brand ${index + 1} TH - CPS`,
+        offer_name_display: `Brand ${index + 1}`,
+      }));
+      const brands = offers.map((row) => ({
+        offerId: row._id,
+        cashback: "1%",
+      }));
+      const order = offers.map((row) => row._id);
+      apiClientMock.getTopBrands.mockResolvedValue({
+        brands,
+        brandsDesktop: brands,
+        brandsMobile: brands,
+        items: offers,
+        order,
+        orderDesktop: order,
+        orderMobile: order,
+        maxBrands: 16,
+      });
+
+      renderPanel();
+      await screen.findByTestId("top-brand-landing-preview");
+
+      const topRow = within(
+        screen.getByTestId("top-brand-preview-desktop-page-0-row-0"),
+      );
+      const bottomRow = within(
+        screen.getByTestId("top-brand-preview-desktop-page-0-row-1"),
+      );
+      for (let position = 1; position <= count; position += 1) {
+        const expectedRow = position % 2 === 1 ? topRow : bottomRow;
+        const otherRow = position % 2 === 1 ? bottomRow : topRow;
+        expect(expectedRow.getByText(`Brand ${position}`)).toBeInTheDocument();
+        expect(otherRow.queryByText(`Brand ${position}`)).toBeNull();
+      }
+    },
+  );
 
   it("#378 landing preview > given 4 or fewer brands > then shows the mobile static-grid mode", async () => {
     renderPanel();

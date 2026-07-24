@@ -6,6 +6,7 @@ import {
   TABLET_CONTENT_FRAME,
   desktopColumnsPerRow,
   desktopPreviewPages,
+  desktopPreviewRows,
   isMobileStaticGrid,
   mobilePreviewColumns,
 } from "./topBrandPreviewLayout";
@@ -28,16 +29,46 @@ describe("topBrandPreviewLayout", () => {
     expect(desktopColumnsPerRow(TABLET_CONTENT_FRAME)).toBe(4);
   });
 
-  it("desktopPreviewPages > given 13 brands on desktop > then fills 12-slot pages row-major", () => {
+  it("desktopPreviewPages > given 13 brands on desktop > then keeps the logical 12-item page order", () => {
     const pages = desktopPreviewPages(ids(13));
 
     expect(pages).toHaveLength(2);
     expect(pages[0]).toHaveLength(12);
     expect(pages[1]).toEqual(["offer-13"]);
-    // Row-major inside the page: slot 6 starts row two.
-    expect(pages[0][0]).toBe("offer-1");
-    expect(pages[0][5]).toBe("offer-6");
-    expect(pages[0][6]).toBe("offer-7");
+    expect(pages[0]).toEqual(ids(12));
+  });
+
+  it.each([10, 12])(
+    "desktopPreviewRows > given %i brands > then projects odd positions above even positions without changing source indices",
+    (count) => {
+      const [topRow, bottomRow] = desktopPreviewRows(ids(count));
+
+      expect(topRow.map(({ item }) => item)).toEqual(
+        ids(count).filter((_, index) => index % 2 === 0),
+      );
+      expect(bottomRow.map(({ item }) => item)).toEqual(
+        ids(count).filter((_, index) => index % 2 === 1),
+      );
+      expect(topRow.map(({ sourceIndex }) => sourceIndex)).toEqual(
+        Array.from({ length: Math.ceil(count / 2) }, (_, index) => index * 2),
+      );
+      expect(bottomRow.map(({ sourceIndex }) => sourceIndex)).toEqual(
+        Array.from(
+          { length: Math.floor(count / 2) },
+          (_, index) => index * 2 + 1,
+        ),
+      );
+    },
+  );
+
+  it("desktopPreviewRows > given a partial second page > then source indices stay page-local", () => {
+    expect(desktopPreviewRows(["offer-13", "offer-14", "offer-15"])).toEqual([
+      [
+        { item: "offer-13", sourceIndex: 0 },
+        { item: "offer-15", sourceIndex: 2 },
+      ],
+      [{ item: "offer-14", sourceIndex: 1 }],
+    ]);
   });
 
   it("mobilePreviewColumns > given 5 brands > then stacks consecutive pairs as vertical columns", () => {

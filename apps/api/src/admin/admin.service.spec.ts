@@ -2056,6 +2056,47 @@ describe('AdminService', () => {
       expect(persisted.commission_store).toBe(5.6);
     });
 
+    it('#565 > given a described product type > then the description survives the update result and a primary reload', async () => {
+      let persistedOffer: Record<string, unknown> = {
+        _id: offerId,
+        offer_name: 'Book World - CPS',
+        product_type: [],
+      };
+      offerModel.findById.mockImplementation(() =>
+        makeQuery({ ...persistedOffer }),
+      );
+      offerModel.findByIdAndUpdate.mockImplementation(
+        (_id: Types.ObjectId, update: { $set: Record<string, unknown> }) => {
+          persistedOffer = { ...persistedOffer, ...update.$set };
+          return makeQuery({ ...persistedOffer });
+        },
+      );
+
+      const rows = [
+        {
+          name: 'Books',
+          pay_in: 'cashback',
+          commission_info: '5.6',
+          description: 'Children / Comics / Manga',
+        },
+      ];
+      const saved = await service.updateOffer(offerId, {
+        product_type: rows as never,
+        all_product_types: false,
+      });
+      const reloaded = await offerModel
+        .findById(new Types.ObjectId(offerId))
+        .read('primary')
+        .exec();
+      const reloadedRows = (reloaded as { product_type: typeof rows })
+        .product_type;
+      const savedRows = (saved as { product_type: typeof rows }).product_type;
+
+      expect(savedRows).toEqual(rows);
+      expect(reloadedRows).toEqual(rows);
+      expect(reloadedRows[0].description).toBe('Children / Comics / Manga');
+    });
+
     // #516 / #518 — the admin has always submitted these two on partner-info
     // save, but nothing persisted them, so forbidNonWhitelisted rejected the
     // whole request ("property affiliate_network_id should not exist") before
