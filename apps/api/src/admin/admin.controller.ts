@@ -659,6 +659,7 @@ export class AdminController {
       commission_store: coerceOptionalNumber(updateAdminDto.commission_store),
       max_cap: coerceOptionalNumber(updateAdminDto.max_cap),
       extra_store: coerceOptionalBoolean(updateAdminDto.extra_store),
+      is_platform: coerceOptionalBoolean(updateAdminDto.is_platform),
       tracking_link:
         updateAdminDto.tracking_link &&
         updateAdminDto.tracking_link.toString() !== 'undefined'

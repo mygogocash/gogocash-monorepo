@@ -100,3 +100,5 @@ InvolveShopSchema.index({ source: 1, shopId: 1 }, { unique: true });
 InvolveShopSchema.index({ marketplace: 1, country: 1, active: 1 });
 InvolveShopSchema.index({ cashbackRate: -1 });
 InvolveShopSchema.index({ shopName: 'text' });
+// #503 — platform-scoped rail (GET /explore/shops?platformOfferId=…).
+InvolveShopSchema.index({ offerId: 1, active: 1 });
